@@ -53,8 +53,12 @@ export function maxHpForLevel(level: number, base: number): number {
   return base + (level - 1) * 8;
 }
 
+export interface DropDef { item: string; min: number; max: number; chance: number }
 export interface EnemyDef {
   kind: number;
+  /** passive fauna flees instead of fighting */
+  passive?: boolean;
+  drops?: DropDef[];
   name: string;
   hp: number;
   speed: number;
@@ -66,11 +70,13 @@ export interface EnemyDef {
   xp: number;
 }
 
-export const ENEMY_DEFS: Record<'slime' | 'hopper', EnemyDef> = {
-  slime: { kind: 0, name: 'Wisp Slime', hp: 30, speed: 2.1, radius: 0.4, damage: 7, sight: 7, windup: 0.55, strikeRange: 1.1, xp: 10 },
-  hopper: { kind: 1, name: 'Glint Hopper', hp: 22, speed: 3.0, radius: 0.35, damage: 9, sight: 9, windup: 0.7, strikeRange: 3.0, xp: 14 },
+export const ENEMY_DEFS: Record<'slime' | 'hopper' | 'rabbit' | 'deer', EnemyDef> = {
+  slime: { kind: 0, name: 'Wisp Slime', hp: 30, speed: 2.1, radius: 0.4, damage: 7, sight: 7, windup: 0.55, strikeRange: 1.1, xp: 10, drops: [{ item: 'slime_gel', min: 1, max: 2, chance: 0.7 }] },
+  hopper: { kind: 1, name: 'Glint Hopper', hp: 22, speed: 3.0, radius: 0.35, damage: 9, sight: 9, windup: 0.7, strikeRange: 3.0, xp: 14, drops: [{ item: 'hopper_tooth', min: 1, max: 1, chance: 0.45 }, { item: 'hide', min: 1, max: 1, chance: 0.25 }] },
+  rabbit: { kind: 2, name: 'Meadow Rabbit', passive: true, hp: 8, speed: 4.6, radius: 0.3, damage: 0, sight: 6, windup: 0, strikeRange: 0, xp: 3, drops: [{ item: 'raw_meat', min: 1, max: 1, chance: 0.9 }, { item: 'hide', min: 1, max: 1, chance: 0.5 }] },
+  deer: { kind: 3, name: 'Eigendeer', passive: true, hp: 36, speed: 5.4, radius: 0.5, damage: 0, sight: 9, windup: 0, strikeRange: 0, xp: 12, drops: [{ item: 'raw_meat', min: 2, max: 3, chance: 1 }, { item: 'hide', min: 1, max: 2, chance: 0.8 }] },
 };
-export const ENEMY_BY_KIND: EnemyDef[] = [ENEMY_DEFS.slime, ENEMY_DEFS.hopper];
+export const ENEMY_BY_KIND: EnemyDef[] = [ENEMY_DEFS.slime, ENEMY_DEFS.hopper, ENEMY_DEFS.rabbit, ENEMY_DEFS.deer];
 
 export const NIGHT_HP_MULT = 1.6;
 export const NIGHT_DMG_MULT = 1.4;

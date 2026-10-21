@@ -5,7 +5,8 @@ import { createPool } from '../src/db/pool';
 import { migrate } from '../src/db/migrate';
 import { signToken } from '../src/auth/token';
 
-export const TEST_DB = 'postgres://eigen:eigen@localhost:5432/eigenlands_test';
+/** Parallel workers set TEST_DB_URL so they never truncate each other's tables. */
+export const TEST_DB = process.env.TEST_DB_URL ?? 'postgres://eigen:eigen@localhost:5432/eigenlands_test';
 
 export async function resetDb(): Promise<void> {
   const pool = createPool(TEST_DB);

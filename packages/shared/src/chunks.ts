@@ -1,6 +1,8 @@
 import { CHUNK_SIZE } from './constants';
 import { generateChunk } from './worldgen';
 import { isSolid } from './tiles';
+import { objSolid, type WorldObj } from './objects';
+import { townFor } from './town';
 
 export type ChunkDiff = Map<number, number>;
 
@@ -43,6 +45,11 @@ export function decodeDiff(buf: Uint8Array): ChunkDiff {
 /** Generated terrain + player edits. Shared by server (authority) and client (render/predict). */
 export class ChunkStore {
   private chunks = new Map<string, Chunk>();
+  /** solid world objects (stations, chests, furniture...) keyed by "x,y" */
+  private solidObjs = new Set<string>();
+  /** all dynamic + static objects by "x,y" (server/client keep this in sync with OBJ messages) */
+  readonly objects = new Map<string, WorldObj>();
+  private townByChunk: Map<string, WorldObj[]> | null = null;
 
   constructor(readonly seed: number, private maxChunks = 256) {}
 
@@ -61,6 +68,7 @@ export class ChunkStore {
     }
     c = { cx, cy, tiles: generateChunk(this.seed, cx, cy), diff: new Map() };
     this.chunks.set(k, c);
+    for (const o of this.townObjectsIn(cx, cy)) this.putObject(o);
     if (this.chunks.size > this.maxChunks) {
       for (const [key, ch] of this.chunks) {
         if (ch.diff.size === 0 && ch !== this.lastChunk) { this.chunks.delete(key); break; } // never evict edited chunks
@@ -96,5 +104,27 @@ export class ChunkStore {
     return { cx: c.cx, cy: c.cy, idx };
   }
 
-  solidAt = (x: number, y: number): boolean => isSolid(this.getTile(x, y));
+  /** Static furnishing of the generated town that lives in chunk (cx,cy). */
+  townObjectsIn(cx: number, cy: number): WorldObj[] {
+    if (!this.townByChunk) {
+      this.townByChunk = new Map();
+      for (const o of townFor(this.seed).objects) {
+        const k = chunkKey(chunkOf(o.x), chunkOf(o.y));
+        const list = this.townByChunk.get(k) ?? [];
+        list.push({ x: o.x, y: o.y, kind: o.kind, sub: o.sub, static: true });
+        this.townByChunk.set(k, list);
+      }
+    }
+    return this.townByChunk.get(chunkKey(cx, cy)) ?? [];
+  }
+
+  putObject(o: WorldObj): void {
+    const k = `${o.x},${o.y}`;
+    this.objects.set(k, o);
+    if (objSolid(o.kind, o.sub)) this.solidObjs.add(k); else this.solidObjs.delete(k);
+  }
+  removeObject(x: number, y: number): void { const k = `${x},${y}`; this.objects.delete(k); this.solidObjs.delete(k); }
+  objectAt(x: number, y: number): WorldObj | undefined { return this.objects.get(`${x},${y}`); }
+
+  solidAt = (x: number, y: number): boolean => isSolid(this.getTile(x, y)) || this.solidObjs.has(`${x},${y}`);
 }

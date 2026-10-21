@@ -2,6 +2,7 @@ import { CHUNK_SIZE } from './constants';
 import { hash2 } from './rng';
 import { Simplex2D } from './simplex';
 import { T } from './tiles';
+import { townTileAt } from './town';
 
 export type Biome = 'phase_meadows';
 
@@ -71,6 +72,8 @@ function campCenter(seed: number, cellX: number, cellY: number): { x: number; y:
 }
 
 export function tileAt(seed: number, x: number, y: number): number {
+  const tt = townTileAt(seed, x, y);
+  if (tt !== null) return tt;
   // Spawn shrine: path disc, four torches.
   const r0 = Math.hypot(x, y);
   if (Math.abs(x) === 3 && Math.abs(y) === 3) return T.TORCH;
@@ -102,9 +105,22 @@ export function tileAt(seed: number, x: number, y: number): number {
   const treeP = (0.004 + 0.5 * grove * (0.55 + 0.45 * Math.max(0, c.moisture + 0.3))) * Math.min(1, shoreDist * 6);
   if (hash2(seed, x, y, 2) < treeP && r0 > 7) return T.TREE;
 
-  // boulder fields on rocky ground
+  // boulder fields on rocky ground; ore outcrops get richer the further you roam from the shrine
   const rocky = l.rocky.fbm(x / 45 - 90, y / 45 + 90, 3);
-  if (hash2(seed, x, y, 3) < 0.003 + 0.2 * smooth(rocky, 0.35, 0.65) && r0 > 7) return T.ROCK;
+  const rockP = 0.003 + 0.2 * smooth(rocky, 0.35, 0.65);
+  const rr = hash2(seed, x, y, 3);
+  if (rr < rockP && r0 > 7) {
+    const o = hash2(seed, x, y, 6);
+    if (c.flux > 0.42 && o < 0.1) return T.CRYSTAL;
+    if (r0 > 150 && o < 0.1) return T.ORE_GOLD;
+    if (r0 > 90 && o < 0.2) return T.ORE_SILVER;
+    if (r0 > 40 && o < 0.3) return T.ORE_IRON;
+    if (o < 0.4 + 0.1 * smooth(rocky, 0.5, 0.7)) return T.ORE_COPPER;
+    return T.ROCK;
+  }
+
+  // forageables cluster near groves
+  if (hash2(seed, x, y, 9) < 0.004 + 0.05 * grove && r0 > 6) return T.FORAGE;
 
   // flower meadows and tall-grass patches
   const meadow = l.meadow.fbm(x / 20 + 300, y / 20 - 300, 2);

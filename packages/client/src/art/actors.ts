@@ -148,6 +148,11 @@ function drawOrb(ctx: Ctx, frame: number): void {
 
 export interface Sheets {
   person(outfit: number, dir: number, frame: number): Texture;
+  /** unique sprite per village NPC (distinct hair/hat/apron); 8 walk frames x 4 dirs like `person` */
+  npc(npcId: string, dir: number, frame: number): Texture;
+  /** passive fauna: 4 walk frames; dir only matters for left/right flip (DIR_* constants) */
+  rabbit(frame: number, dir: number): Texture;
+  deer(frame: number, dir: number): Texture;
   slime(night: boolean, frame: number): Texture;
   hopper(night: boolean, frame: number): Texture;
   orb(frame: number): Texture;
@@ -186,6 +191,10 @@ export function buildActorSheets(): Sheets {
   };
   return {
     person: (o, d, f) => sub(`p${o}.${d}.${f}`, f * 16, (o * 4 + d) * PERSON_H, PERSON_H),
+    // ART WORKER: replace these stubs with real NPC / fauna art
+    npc: (_id, d, f) => sub(`p0.${d}.${f}`, f * 16, (0 * 4 + d) * PERSON_H, PERSON_H),
+    rabbit: (f) => sub(`h0.${f}`, (f % 4) * 16, baseY + 32, 16),
+    deer: (f) => sub(`h1.${f}`, (f % 4) * 16, baseY + 48, 16),
     slime: (n, f) => sub(`s${n}.${f}`, (f % 4) * 16, baseY + (n ? 16 : 0), 16),
     hopper: (n, f) => sub(`h${n}.${f}`, (f % 4) * 16, baseY + (n ? 48 : 32), 16),
     orb: (f) => sub(`o${f}`, (f % 2) * 16, baseY + 64, 16),

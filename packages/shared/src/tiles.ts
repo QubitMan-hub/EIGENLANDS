@@ -6,11 +6,14 @@ export const G = {
 } as const;
 
 export type ObjKind =
-  | 'tree' | 'rock' | 'flowers' | 'tallgrass' | 'bloom' | 'torch' | 'stump';
+  | 'tree' | 'rock' | 'flowers' | 'tallgrass' | 'bloom' | 'torch' | 'stump'
+  | 'ore_copper' | 'ore_iron' | 'ore_silver' | 'ore_gold' | 'crystal' | 'forage' | 'fence';
 
 export const T = {
   DEEP_WATER: 0, WATER: 1, SAND: 2, GRASS: 3, GRASS_TALL: 4, FLOWERS: 5,
   TREE: 6, ROCK: 7, SHIMMER: 8, PATH: 9, STUMP: 10, TORCH: 11,
+  TILLED: 12, TILLED_WET: 13, ORE_COPPER: 14, ORE_IRON: 15, ORE_SILVER: 16, ORE_GOLD: 17, CRYSTAL: 18,
+  FORAGE: 19, FLOOR: 20, WALL: 21, FACE: 22, DOOR: 23, FENCE: 24,
 } as const;
 
 export interface TileDef {
@@ -49,6 +52,19 @@ export const TILE_DEFS: TileDef[] = [
   d(T.PATH, 'Path', G.PATH),
   d(T.STUMP, 'Stump', G.GRASS, 'stump'),
   d(T.TORCH, 'Torch', G.GRASS, 'torch', { solid: true, light: 6, lightColor: C.e5 }),
+  d(T.TILLED, 'Tilled soil', G.SOIL),
+  d(T.TILLED_WET, 'Watered soil', G.SOIL_WET),
+  d(T.ORE_COPPER, 'Copper outcrop', G.GRASS, 'ore_copper', { solid: true, breaksTo: T.GRASS }),
+  d(T.ORE_IRON, 'Iron outcrop', G.GRASS, 'ore_iron', { solid: true, breaksTo: T.GRASS }),
+  d(T.ORE_SILVER, 'Silver outcrop', G.GRASS, 'ore_silver', { solid: true, breaksTo: T.GRASS, light: 1.2, lightColor: C.w6 }),
+  d(T.ORE_GOLD, 'Gold outcrop', G.GRASS, 'ore_gold', { solid: true, breaksTo: T.GRASS, light: 1.2, lightColor: C.e6 }),
+  d(T.CRYSTAL, 'Qubit crystal', G.GRASS, 'crystal', { solid: true, breaksTo: T.GRASS, light: 3, lightColor: C.q5 }),
+  d(T.FORAGE, 'Forageable', G.GRASS, 'forage'),
+  d(T.FLOOR, 'Floor', G.FLOOR),
+  d(T.WALL, 'Wall', G.WALL, null, { solid: true }),
+  d(T.FACE, 'Wall', G.WALL, null, { solid: true }),
+  d(T.DOOR, 'Doorway', G.FLOOR),
+  d(T.FENCE, 'Fence', G.GRASS, 'fence', { solid: true, breaksTo: T.GRASS }),
 ];
 
 export function isSolid(tile: number): boolean {
