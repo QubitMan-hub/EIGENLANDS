@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ChunkStore, CHUNK_SIZE, COMBO, PALETTE, T, TICK_DT, ambientColor, decodeDiff, dayPhase, encodeDiff,
+  ChunkStore, CHUNK_SIZE, decodeAck, encodeAck, COMBO, PALETTE, T, TICK_DT, ambientColor, decodeDiff, dayPhase, encodeDiff,
   gameHour, generateChunk, inArc, isSolid, moveBody, newPlayerSim, rewindPosition, sanitizeCmd,
-  segmentHitsCircle, stepPlayer, tileAt, DASH_COOLDOWN, DASH_SPEED, DAY_MS, type InputCmd,
+  segmentHitsCircle, stepPlayer, dayNumber, season, WORLD_EPOCH_MS, tileAt, DASH_COOLDOWN, DASH_SPEED, DAY_MS, type InputCmd,
 } from '../src';
 
 const cmd = (o: Partial<InputCmd> = {}): InputCmd => sanitizeCmd({ seq: 1, ...o });
@@ -125,6 +125,32 @@ describe('combat maths and lag compensation', () => {
     expect(rewindPosition(h, 11)).toEqual({ x: 1, y: 0 });
     expect(rewindPosition(h, 99)).toEqual({ x: 2, y: 0 });
     expect(rewindPosition([], 1)).toBeNull();
+  });
+});
+
+describe('ack codec', () => {
+  it('round-trips a player sim in 56 bytes', () => {
+    const sim = newPlayerSim(12.25, -7.5);
+    sim.atkCd = 0.15; sim.combo = 2; sim.dashT = 0.1;
+    const bytes = encodeAck({ seq: 4000000000, tick: 99, sim });
+    expect(bytes.byteLength).toBe(56);
+    const back = decodeAck(bytes);
+    expect(back.seq).toBe(4000000000);
+    expect(back.tick).toBe(99);
+    expect(back.sim.x).toBeCloseTo(12.25, 5);
+    expect(back.sim.combo).toBe(2);
+    expect(back.sim.atkCd).toBeCloseTo(0.15, 5);
+    expect(() => decodeAck(new Uint8Array(3))).toThrow();
+  });
+});
+
+describe('calendar', () => {
+  it('counts world days from the epoch and rolls seasons every 7 days', () => {
+    expect(dayNumber(WORLD_EPOCH_MS)).toBe(0);
+    expect(dayNumber(WORLD_EPOCH_MS + 8.5 * DAY_MS)).toBe(8);
+    expect(season(WORLD_EPOCH_MS + 6 * DAY_MS)).toBe('Spring');
+    expect(season(WORLD_EPOCH_MS + 7 * DAY_MS)).toBe('Summer');
+    expect(season(WORLD_EPOCH_MS + 28 * DAY_MS)).toBe('Spring');
   });
 });
 

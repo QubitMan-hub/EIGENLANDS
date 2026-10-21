@@ -8,8 +8,11 @@ export function gameHour(nowMs: number): number {
   return (t * 24 + 6) % 24;
 }
 
+/** World day 0 begins at this instant (so players see 'day 1', not a Unix-epoch count). */
+export const WORLD_EPOCH_MS = Date.UTC(2026, 0, 1);
+
 export function dayNumber(nowMs: number): number {
-  return Math.floor(nowMs / DAY_MS);
+  return Math.max(0, Math.floor((nowMs - WORLD_EPOCH_MS) / DAY_MS));
 }
 
 export function season(nowMs: number): (typeof SEASONS)[number] {
@@ -34,15 +37,15 @@ export function formatClock(hour: number): string {
 type RGB = [number, number, number];
 /** Ambient multiply colour keyframes by hour, built from palette-adjacent hues. */
 const KEYS: Array<[number, RGB]> = [
-  [0, [0.18, 0.2, 0.42]],
-  [4.5, [0.2, 0.22, 0.45]],
+  [0, [0.3, 0.34, 0.6]],
+  [4.5, [0.32, 0.36, 0.62]],
   [6, [0.95, 0.65, 0.6]],
   [8, [1, 0.98, 0.92]],
   [12, [1, 1, 1]],
   [17, [1, 0.95, 0.85]],
   [19, [0.95, 0.55, 0.5]],
-  [20.5, [0.25, 0.25, 0.5]],
-  [24, [0.18, 0.2, 0.42]],
+  [20.5, [0.34, 0.36, 0.62]],
+  [24, [0.3, 0.34, 0.6]],
 ];
 
 /** Smooth ambient colour (0..1 per channel) for an in-game hour. */

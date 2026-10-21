@@ -63,7 +63,7 @@ export class ChunkStore {
     this.chunks.set(k, c);
     if (this.chunks.size > this.maxChunks) {
       for (const [key, ch] of this.chunks) {
-        if (ch.diff.size === 0) { this.chunks.delete(key); break; } // never evict edited chunks
+        if (ch.diff.size === 0 && ch !== this.lastChunk) { this.chunks.delete(key); break; } // never evict edited chunks
       }
     }
     return c;
@@ -78,8 +78,13 @@ export class ChunkStore {
     return c;
   }
 
+  private lastChunk: Chunk | null = null;
+
   getTile(x: number, y: number): number {
-    const c = this.get(chunkOf(x), chunkOf(y));
+    const cx = chunkOf(x), cy = chunkOf(y);
+    let c = this.lastChunk;
+    // fast path: consecutive lookups (collision, light scans) mostly hit the same chunk
+    if (!c || c.cx !== cx || c.cy !== cy) { c = this.get(cx, cy); this.lastChunk = c; }
     return c.tiles[(y - c.cy * CHUNK_SIZE) * CHUNK_SIZE + (x - c.cx * CHUNK_SIZE)]!;
   }
 

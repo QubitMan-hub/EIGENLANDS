@@ -86,7 +86,7 @@ export function tileAt(seed: number, x: number, y: number): number {
   if (c.height < -0.2) return T.SAND;
 
   const r = hash2(seed, x, y, 1);
-  if (c.flux > 0.5 && r < 0.1) return T.SHIMMER;
+  if (c.flux > 0.55 && r < 0.035) return T.SHIMMER;
   const treeP = 0.025 + 0.13 * Math.max(0, c.moisture);
   if (r2(seed, x, y, 2) < treeP && r0 > 6) return T.TREE;
   if (r2(seed, x, y, 3) < 0.012 && r0 > 6) return T.ROCK;

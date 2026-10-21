@@ -10,6 +10,7 @@ export class PlayerState extends Schema {
   @type('int16') hp = 0;
   @type('int16') maxHp = 0;
   @type('uint16') level = 1;
+  @type('uint32') xp = 0;
   /** bit0 dashing, bit1 swinging, bit2 dead */
   @type('uint8') flags = 0;
   /** last processed input sequence, for reconciliation */

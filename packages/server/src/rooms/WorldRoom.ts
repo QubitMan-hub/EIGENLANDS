@@ -3,7 +3,7 @@ import { StateView } from '@colyseus/schema';
 import {
   BASE_PLAYER_HP, ChunkStore, COMBO, EDIT_REACH, INTEREST_RADIUS, MAX_REWIND_TICKS, MSG,
   NAME_MAX, PROJECTILE_DAMAGE, PROJECTILE_RADIUS, PROJECTILE_RANGE, PROJECTILE_SPEED, CHUNK_SIZE, TICK_DT,
-  TICK_MS, TILE_DEFS, PlayerState, ProjectileState, WorldState, chunkOf, encodeDiff, inArc, isNight,
+  TICK_MS, TILE_DEFS, PlayerState, ProjectileState, WorldState, chunkOf, encodeAck, encodeDiff, inArc, isNight,
   maxHpForLevel, newPlayerSim, rewindPosition, sanitizeCmd, segmentHitsCircle, stepPlayer, xpForLevel, T,
   type ChunkDiff, type EditMsg, type FxMsg, type InputBatch, type InputCmd, type PlayerSim, type PosSample,
   type WelcomeMsg, type ChunkReq,
@@ -202,8 +202,9 @@ export class WorldRoom extends Room<WorldState> {
     return out;
   }
 
-  private fx(msg: FxMsg, radius = (INTEREST_RADIUS + 0.5) * CHUNK_SIZE): void {
-    for (const p of this.nearby(msg.x, msg.y, radius)) p.client.send(MSG.FX, msg);
+  /** Broadcast an effect to nearby players. `exceptId` skips the originator, who already predicted it locally. */
+  private fx(msg: FxMsg, exceptId?: string, radius = (INTEREST_RADIUS + 0.5) * CHUNK_SIZE): void {
+    for (const p of this.nearby(msg.x, msg.y, radius)) if (p.client.sessionId !== exceptId) p.client.send(MSG.FX, msg);
   }
 
   // ───────────────────────── messages ─────────────────────────
@@ -308,7 +309,7 @@ export class WorldRoom extends Room<WorldState> {
       p.lastSeq = cmd.seq;
       if (p.deadT > 0) continue;
       const ev = stepPlayer(p.sim, cmd, solid);
-      if (ev.dashed) this.fx({ kind: 'dash', x: p.sim.x, y: p.sim.y, dx: p.sim.faceX, dy: p.sim.faceY });
+      if (ev.dashed) this.fx({ kind: 'dash', x: p.sim.x, y: p.sim.y, dx: p.sim.faceX, dy: p.sim.faceY }, p.client.sessionId);
       if (ev.attacked) this.resolveMelee(p, cmd, ev.combo, tick);
       if (ev.skill) this.spawnProjectile(p);
     }
@@ -317,14 +318,15 @@ export class WorldRoom extends Room<WorldState> {
 
     const s = p.state;
     s.x = p.sim.x; s.y = p.sim.y; s.faceX = p.sim.faceX; s.faceY = p.sim.faceY;
-    s.hp = p.hp; s.maxHp = p.maxHp; s.level = p.level; s.ack = p.lastSeq;
+    s.hp = p.hp; s.maxHp = p.maxHp; s.level = p.level; s.xp = p.xp; s.ack = p.lastSeq;
+    p.client.send(MSG.ACK, encodeAck({ seq: p.lastSeq, tick, sim: p.sim }));
     s.flags = (p.sim.dashT > 0 ? 1 : 0) | (p.sim.atkCd > 0.12 ? 2 : 0) | (p.deadT > 0 ? 4 : 0);
   }
 
   private resolveMelee(p: ServerPlayer, cmd: InputCmd, combo: number, tick: number): void {
     const hit = COMBO[combo]!;
     const rewindTick = Math.min(tick, Math.max(cmd.viewTick, tick - MAX_REWIND_TICKS));
-    this.fx({ kind: 'swing', x: p.sim.x, y: p.sim.y, dx: p.sim.faceX, dy: p.sim.faceY, v: combo });
+    this.fx({ kind: 'swing', x: p.sim.x, y: p.sim.y, dx: p.sim.faceX, dy: p.sim.faceY, v: combo }, p.client.sessionId);
     for (const e of [...this.enemies.values()]) {
       const pos = rewindPosition(e.history, rewindTick) ?? { x: e.x, y: e.y };
       if (!inArc(p.sim.x, p.sim.y, p.sim.faceX, p.sim.faceY, hit, { x: pos.x, y: pos.y, r: e.def.radius })) continue;
@@ -339,7 +341,7 @@ export class WorldRoom extends Room<WorldState> {
     const pr: Projectile = { state: st, x: p.sim.x, y: p.sim.y, dx: p.sim.faceX, dy: p.sim.faceY, travelled: 0, owner: p.client.sessionId };
     this.projectiles.set(id, pr);
     this.state.projectiles.set(id, st);
-    this.fx({ kind: 'shot', x: p.sim.x, y: p.sim.y, dx: pr.dx, dy: pr.dy });
+    this.fx({ kind: 'shot', x: p.sim.x, y: p.sim.y, dx: pr.dx, dy: pr.dy }, p.client.sessionId);
   }
 
   private stepProjectiles(): void {
