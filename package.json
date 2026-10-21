@@ -1,0 +1,13 @@
+{
+  "name": "eigenlands",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "dev:server": "npm run dev -w @eigenlands/server",
+    "dev:client": "npm run dev -w @eigenlands/client",
+    "build": "npm run build -w @eigenlands/client"
+  }
+}
