@@ -8,8 +8,8 @@ export function gameHour(nowMs: number): number {
   return (t * 24 + 6) % 24;
 }
 
-/** World day 0 begins at this instant (so players see 'day 1', not a Unix-epoch count). */
-export const WORLD_EPOCH_MS = Date.UTC(2026, 0, 1);
+/** The world was founded at this instant; day 1 starts here (a game day is 24 real minutes). */
+export const WORLD_EPOCH_MS = Date.UTC(2026, 9, 21);
 
 export function dayNumber(nowMs: number): number {
   return Math.max(0, Math.floor((nowMs - WORLD_EPOCH_MS) / DAY_MS));

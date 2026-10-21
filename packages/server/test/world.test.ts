@@ -284,3 +284,21 @@ describe('world edits and persistence', () => {
     await expect(join(app, 'forged.token')).rejects.toBeTruthy();
   });
 });
+
+describe('crowds', () => {
+  it('50 players in one view all sync cleanly (regression: schema encoder buffer overflow)', async () => {
+    const errors: string[] = [];
+    const origErr = console.error;
+    console.error = (...a: unknown[]) => { errors.push(a.map(String).join(' ')); };
+    const rooms: Awaited<ReturnType<typeof join>>[] = [];
+    try {
+      for (let i = 0; i < 50; i++) rooms.push(await join(app, (await guest(app)).token, `crowd${i}`));
+      await until(() => rooms.every((r) => ((r.state as any)?.players?.size ?? 0) >= 50), 8000, 50);
+      expect(rooms[0]!.state.players.size).toBe(50);
+      expect(errors.filter((e) => /refId|overflow/.test(e))).toEqual([]);
+    } finally {
+      console.error = origErr;
+      await Promise.all(rooms.map((r) => r.leave().catch(() => {})));
+    }
+  });
+});

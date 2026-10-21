@@ -113,7 +113,10 @@ export class Game {
 
   private layout(): void {
     const w = window.innerWidth, h = window.innerHeight;
-    this.scale = Math.max(1, Math.floor(Math.min(w / (TILE_SIZE * 18), h / (TILE_SIZE * 10))));
+    // integer scaling only; phones zoom in more so characters stay readable (~13 tiles across)
+    this.scale = w < 700
+      ? Math.max(1, Math.round(w / (TILE_SIZE * 16)))
+      : Math.max(1, Math.floor(Math.min(w / (TILE_SIZE * 18), h / (TILE_SIZE * 10))));
     this.world.scale.set(this.scale);
     this.lighting.sprite.scale.set(this.scale);
     this.lighting.resize(Math.ceil(w / this.scale) + 2, Math.ceil(h / this.scale) + 2);

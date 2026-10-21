@@ -2,6 +2,7 @@ import { createServer, type Server as HttpServer } from 'node:http';
 import cors from 'cors';
 import express from 'express';
 import { Server } from 'colyseus';
+import { Encoder } from '@colyseus/schema';
 import { WebSocketTransport } from '@colyseus/ws-transport';
 import { JOIN_ROOM } from '@eigenlands/shared';
 import { googleVerifier, type GoogleVerifier } from './auth/google';
@@ -12,7 +13,7 @@ import { createPool } from './db/pool';
 import { Repo } from './db/repo';
 import { Presence } from './presence';
 import { setRuntime } from './rooms/runtime';
-import { WorldRoom } from './rooms/WorldRoom';
+import { WorldRoom, metrics } from './rooms/WorldRoom';
 
 export interface App {
   config: Config;
@@ -30,6 +31,9 @@ export interface AppOptions {
   ambientSpawns?: boolean;
 }
 
+// Default is 8 KB: a crowded view (dozens of players + mobs) overflows it and corrupts the stream.
+Encoder.BUFFER_SIZE = 512 * 1024;
+
 export async function createApp(opts: AppOptions = {}): Promise<App> {
   const config = { ...loadConfig(), ...opts.config };
   const pool = createPool(config.databaseUrl);
@@ -46,6 +50,7 @@ export async function createApp(opts: AppOptions = {}): Promise<App> {
   app.disable('x-powered-by');
   app.use(cors({ origin: config.allowedOrigin }));
   app.get('/healthz', (_req, res) => res.json({ ok: true, redis: presence.usingRedis }));
+  app.get('/metrics', (_req, res) => res.json({ ...metrics, tickBudgetMs: 50, uptimeS: Math.round(process.uptime()), rssMb: Math.round(process.memoryUsage().rss / 1e6) }));
   app.use('/api/auth', authRouter({ repo, secret: config.sessionSecret, googleVerify, googleClientId: config.googleClientId, ratePerSec: config.authRatePerSec, burst: config.authBurst }));
 
   const http = createServer(app);

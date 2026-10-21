@@ -40,6 +40,9 @@ interface Projectile {
   x: number; y: number; dx: number; dy: number; travelled: number; owner: string;
 }
 
+/** Live server metrics for /metrics (telemetry hook; one world room per process in Phase 1). */
+export const metrics = { players: 0, enemies: 0, tickMsAvg: 0, tickMsMax: 0, ticks: 0, overBudget: 0 };
+
 const SPAWN = { x: 0.5, y: 4.5 };
 const MAX_QUEUE = 24;
 const MAX_ENEMIES = 48;
@@ -259,6 +262,18 @@ export class WorldRoom extends Room<WorldState> {
   }
 
   tick(): void {
+    const t0 = performance.now();
+    this.tickInner();
+    const ms = performance.now() - t0;
+    metrics.ticks++;
+    metrics.players = this.players.size;
+    metrics.enemies = this.enemies.size;
+    metrics.tickMsAvg = metrics.tickMsAvg * 0.98 + ms * 0.02;
+    metrics.tickMsMax = Math.max(ms, metrics.tickMsMax * 0.999);
+    if (ms > TICK_MS) metrics.overBudget++;
+  }
+
+  private tickInner(): void {
     this.state.tick++;
     const tick = this.state.tick;
     const now = Date.now();
