@@ -9,6 +9,7 @@ import {
   type WelcomeMsg, type ChunkReq, type WorldObj, type TalkMsg, type GiftMsg, type ShopMsg, type DialogueChatMsg,
   type DevMsg, type UseMsg, type OpenMsg, type InvMoveMsg, type InvTrashMsg, type EquipMsg, type CraftMsg, type ExperimentMsg,
   type ForgePreviewMsg, type ForgeStartMsg, type RhythmDoneMsg, type FishHookMsg, type ChestMsg, type ShelterMsg, type NpcState,
+  type SpellState,
 } from '@eigenlands/shared';
 import { verifyToken } from '../auth/token';
 import { createEnemy, enemyDamage, stepEnemy, type Enemy, type EnemyKind } from '../game/enemies';
@@ -68,7 +69,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   private loaded = new Set<string>();
   private loading = new Map<string, Promise<void>>();
   private dirtyChunks = new Set<string>();
-  private byAccount = new Map<string, ServerPlayer>();
+  protected byAccount = new Map<string, ServerPlayer>();
   private spawnTimer = 0;
   private autosaveTimer = 0;
   private projSeq = 0;
@@ -92,7 +93,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       players: () => this.players.values() as Iterable<PlayerRef>,
       loadBlob: (k) => rt.repo.getBlob(k), saveBlob: (k, v) => rt.repo.putBlob(k, v),
     };
-    this.village = createVillage(host);
+    this.village = this.makeVillage(host);
     await this.village.init();
 
     this.onMessage(MSG.INPUT, (client, msg: InputBatch) => this.onInput(client, msg));
@@ -105,7 +106,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     const on = <M>(type: string, bucket: Bucket, fn: (p: ServerPlayer, msg: M) => void | Promise<void>) => {
       this.onMessage(type, (client, msg: M) => {
         const p = this.players.get(client.sessionId);
-        if (!p || !p[bucket].take()) return; // unknown player or over the rate limit: drop silently
+        if (!p || !p[bucket].take() || !this.hookAccepts(p, msg)) return; // unknown player, over the rate limit or not this shard's tile: drop silently
         try {
           const r = fn(p, msg);
           if (r instanceof Promise) r.catch((e) => console.error(`${type} failed`, e));
@@ -222,7 +223,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
 
   // ───────────────────────── helpers ─────────────────────────
 
-  private async removePlayer(p: ServerPlayer, save: boolean): Promise<void> {
+  protected async removePlayer(p: ServerPlayer, save: boolean): Promise<void> {
     if (this.players.get(p.client.sessionId) !== p) return;
     this.players.delete(p.client.sessionId);
     if (this.byAccount.get(p.accountId) === p) this.byAccount.delete(p.accountId);
@@ -232,7 +233,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     if (save) await this.savePlayer(p).catch((e) => console.error('save failed', e));
   }
 
-  private async savePlayer(p: ServerPlayer): Promise<void> {
+  protected async savePlayer(p: ServerPlayer): Promise<void> {
     await runtime().repo.saveCharacter({
       accountId: p.accountId, x: p.sim.x, y: p.sim.y, hp: Math.max(1, p.hp), level: p.level, xp: p.xp,
       data: serializePlayerData(p.data),
@@ -323,6 +324,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     const { cx, cy } = this.store.setTile(x, y, tile);
     this.dirtyChunks.add(key(cx, cy));
     for (const q of this.nearby(x, y, (INTEREST_RADIUS + 1) * CHUNK_SIZE)) q.client.send(MSG.TILE, { tx: x, ty: y, tile });
+    this.hookTileChanged(x, y, tile);
   }
 
   scheduleRespawn(x: number, y: number, restore: number, atMs: number): void {
@@ -367,7 +369,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     }
   }
 
-  private async onChunkReq(client: Client, msg: ChunkReq): Promise<void> {
+  protected async onChunkReq(client: Client, msg: ChunkReq): Promise<void> {
     const p = this.players.get(client.sessionId);
     if (!p || !Number.isInteger(msg?.cx) || !Number.isInteger(msg?.cy)) return;
     if (!p.chunkBucket.take()) return;
@@ -434,6 +436,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       p.flushProfile();
     }
 
+    this.hookTick(now);
     this.updateViews();
 
     this.autosaveTimer += TICK_DT * 1000;
@@ -546,7 +549,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     }
   }
 
-  private damageEnemy(e: Enemy, dmg: number, by: ServerPlayer | null, dx: number, dy: number, kb: number): void {
+  protected damageEnemy(e: Enemy, dmg: number, by: ServerPlayer | null, dx: number, dy: number, kb: number): void {
     e.hp -= dmg;
     e.state.hp = Math.max(0, e.hp);
     e.kx += dx * kb * e.resist; e.ky += dy * kb * e.resist;
@@ -571,9 +574,10 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       }
       if (e.def.passive) addSkillXp(killer, 'foraging', e.def.xp);
     }
+    this.hookKilled(e, killer);
   }
 
-  private giveXp(p: ServerPlayer, xp: number): void {
+  protected giveXp(p: ServerPlayer, xp: number): void {
     p.xp += xp;
     while (p.xp >= xpForLevel(p.level)) {
       p.xp -= xpForLevel(p.level);
@@ -590,7 +594,8 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       const d = Math.hypot(p.sim.x - x, p.sim.y - y);
       if (d > radius + 0.3) continue;
       const ward = p.data.buffs.ward;
-      const dmg = Math.max(1, Math.round(enemyDamage(e) * (1 - (ward && ward.until > this.wclock.now() ? ward.power : 0))));
+      const dmg = this.hookIncomingDamage(p, Math.max(1, Math.round(enemyDamage(e) * (1 - (ward && ward.until > this.wclock.now() ? ward.power : 0)))), e);
+      if (dmg <= 0) continue; // dodged or absorbed by a Phase 3 ability
       p.hp = Math.max(0, p.hp - dmg);
       p.invuln = 0.5;
       const nx = (p.sim.x - x) / (d || 1), ny = (p.sim.y - y) / (d || 1);
@@ -665,13 +670,23 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     }
   }
 
+  // ───────────────────────── extension hooks (overridden by GameRoom, Phase 3/4) ─────────────────────────
+  protected makeVillage(host: VillageHost): VillageSystem { return createVillage(host); }
+  protected hookAccepts(_p: ServerPlayer, _msg: unknown): boolean { return true; }
+  protected hookTileChanged(_x: number, _y: number, _tile: number): void {}
+  protected hookTick(_now: number): void {}
+  protected hookViewEntities(_push: (id: string, x: number, y: number, st: SpellState) => void): void {}
+  protected hookKilled(_e: Enemy, _killer: ServerPlayer | undefined): void {}
+  protected hookIncomingDamage(_p: ServerPlayer, dmg: number, _e: Enemy): number { return dmg; }
+
   /** Interest management: each client only receives entities within INTEREST_RADIUS chunks. */
   private updateViews(): void {
-    const ents: Array<{ id: string; cx: number; cy: number; st: PlayerState | Enemy['state'] | ProjectileState | NpcState }> = [];
+    const ents: Array<{ id: string; cx: number; cy: number; st: PlayerState | Enemy['state'] | ProjectileState | NpcState | SpellState }> = [];
     for (const p of this.players.values()) ents.push({ id: p.client.sessionId, cx: chunkOf(Math.floor(p.sim.x)), cy: chunkOf(Math.floor(p.sim.y)), st: p.state });
     for (const e of this.enemies.values()) ents.push({ id: e.id, cx: chunkOf(Math.floor(e.x)), cy: chunkOf(Math.floor(e.y)), st: e.state });
     for (const pr of this.projectiles.values()) ents.push({ id: pr.state.id, cx: chunkOf(Math.floor(pr.x)), cy: chunkOf(Math.floor(pr.y)), st: pr.state });
     this.state.npcs.forEach((n, id) => ents.push({ id: `npc:${id}`, cx: chunkOf(Math.floor(n.x)), cy: chunkOf(Math.floor(n.y)), st: n }));
+    this.hookViewEntities((id, x, y, st) => ents.push({ id, cx: chunkOf(Math.floor(x)), cy: chunkOf(Math.floor(y)), st }));
     const alive = new Set(ents.map((e) => e.id));
     for (const p of this.players.values()) {
       const pcx = chunkOf(Math.floor(p.sim.x)), pcy = chunkOf(Math.floor(p.sim.y));

@@ -155,7 +155,8 @@ export interface TradeStateMsg {
   theirConfirm?: boolean;
 }
 
-export interface HandoffMsg { shard: string; ticket: string }
+/** `roomId` is set when the target shard already runs somewhere (join it directly). */
+export interface HandoffMsg { shard: string; ticket: string; roomId?: string }
 export interface ShardInfoMsg { id: string; x0: number; y0: number; x1: number; y1: number }
 export interface Ghost {
   id: string;

@@ -9,7 +9,9 @@ import { buildActorSheets, dirOf, OUTFITS, WALK_FRAMES, DIR_DOWN, DIR_LEFT, type
 import { buildObjectArt, destroyObjectArt, type ObjectArt, type SeasonIdx } from '../art/objects';
 import { Audio, SFX_CAPTIONS, type Sfx } from '../audio';
 import type { Input } from '../input/input';
-import { INTERP_DELAY_MS, Interpolator, ServerClock, type Pose } from '../net/interp';
+import { Interpolator, ServerClock, type Pose } from '../net/interp';
+import { P34Client } from '../p34';
+import type { KeyMap } from '../input/keymap';
 import type { Net, NetHandlers } from '../net/session';
 import { Predictor } from '../net/prediction';
 import type { Settings } from '../ui/ui';
@@ -99,8 +101,10 @@ export class Game {
   private hourOverride: number | null = (() => { const h = new URLSearchParams(location.search).get('hour'); return h !== null && !Number.isNaN(Number(h)) ? Number(h) : null; })();
   private frameMs = 0;
   private vis = { x0: -20, y0: -20, x1: 20, y1: 20 };
+  /** Phase 3/4: Circuit Board, abilities, tutorial, party, chat, trading, shards */
+  ext!: P34Client;
 
-  constructor(private input: Input, private settings: () => Settings, private onClosed: (code: number) => void) {}
+  constructor(private input: Input, private settings: () => Settings, private onClosed: (code: number) => void, private keys: () => KeyMap = () => input.keys) {}
 
   // ───────────── boot ─────────────
   async init(canvas: HTMLCanvasElement): Promise<void> {
@@ -122,6 +126,20 @@ export class Game {
       sfx: (s) => this.sound(s), features: () => this.features,
     });
     this.fx = new Fx(this.fxLayer, () => this.settings().reducedMotion);
+    this.ext = new P34Client({
+      net: () => this.net, clock: this.clock, audio: this.audio, sfx: (s) => this.sound(s), input: this.input, keys: this.keys,
+      settings: this.settings, store: () => this.store, sheets: () => this.sheets, entityLayer: () => this.entityLayer,
+      fxLayer: () => this.fxLayer, labelLayer: () => this.labelLayer, fx: () => this.fx,
+      me: () => (this.predictor ? { x: this.predictor.visual(0).x, y: this.predictor.visual(0).y, fx: this.predictor.sim.faceX, fy: this.predictor.sim.faceY } : null),
+      myId: () => this.myId,
+      entityPos: (id) => { const v = this.views.get(id); return v ? { x: v.lx, y: v.ly } : null; },
+      interp: () => this.interp as unknown as Interpolator<Pose & Record<string, unknown>>,
+      renderTime: () => this.clock.serverNow(performance.now()) - this.clock.interpDelay,
+      toScreen: (x, y) => ({ x: this.world.x + isoX(x, y) * this.scale, y: this.world.y + isoY(x, y) * this.scale }),
+      aim: () => this.input.aimNow(this.predictor ? { x: this.predictor.sim.faceX, y: this.predictor.sim.faceY } : { x: 0, y: 1 }),
+      wins: this.gameplay.wins, tip: this.gameplay.tip, toasts: this.gameplay.toasts, profile: this.gameplay.profile,
+      level: () => this.self?.level ?? 1, dead: () => this.dead,
+    });
     this.store = new ChunkStore(0); // replaced once the seed is known
     window.addEventListener('resize', () => this.layout());
     this.layout();
@@ -184,7 +202,12 @@ export class Game {
   }
 
   // ───────────── network handlers ─────────────
-  private welcome(w: WelcomeMsg): void { this.myId = w.playerId; this.features = w.features ?? { aiDialogue: false }; this.startWorld(w.seed); }
+  private welcome(w: WelcomeMsg): void {
+    this.myId = w.playerId; this.features = w.features ?? { aiDialogue: false };
+    // a shard handoff re-sends WELCOME: keep the drawn world, only restart it for a new seed
+    if (!this.terrain || w.seed !== this.seed) this.startWorld(w.seed);
+    this.ext.onWelcome();
+  }
 
   private ack(a: Ack): void {
     if (!this.predictor) return;
@@ -225,6 +248,7 @@ export class Game {
         this.selfReady?.();
       }
     }
+    this.ext.onState(s);
   }
 
   private chunk(m: ChunkMsg): void {
@@ -256,6 +280,7 @@ export class Game {
       fishBite: (m: FishBiteMsg) => this.gameplay.onFishBite(m), fishCast: (m) => this.gameplay.onFishCast(m),
       dialogue: (m: DialogueMsg) => this.gameplay.onDialogue(m), shopView: (m: ShopViewMsg) => this.gameplay.onShopView(m),
       forgePreview: (_m: ForgePreviewReply) => {}, toast: (m: ToastMsg) => this.gameplay.onToast(m),
+      extra: this.ext.handlers(),
     };
   }
 
@@ -438,10 +463,11 @@ export class Game {
     }
     this.input.playerScreen = { x: W / 2 + (isoX(me.x, me.y) - camX) * S, y: H / 2 + (isoY(me.x, me.y) - 10 - camY) * S };
 
-    const renderT = this.clock.serverNow(now) - INTERP_DELAY_MS;
+    const renderT = this.clock.serverNow(now) - this.clock.interpDelay;
     this.updateViews(me, alpha, renderT, now, dtMs);
     for (const v of this.views.values()) this.castShadow(v, sun);
     this.fx.update(dt);
+    this.ext.frame(now, dtMs);
 
     // lighting
     const topLeftIso = { x: camX - W / 2 / S, y: camY - H / 2 / S };
@@ -459,9 +485,9 @@ export class Game {
 
   private fixedStep(now: number): void {
     const r = this.input.read(now);
-    const frozen = this.dead || !this.connected || this.settingsOpen() || this.gameplay.blocking;
+    const frozen = this.dead || !this.connected || this.settingsOpen() || this.gameplay.blocking || this.ext.blocking || this.net.switching;
     if (frozen) { this.input.read(now); return; }
-    const viewTick = Math.max(0, Math.floor(this.clock.tickAt(this.clock.serverNow(now) - INTERP_DELAY_MS)));
+    const viewTick = Math.max(0, Math.floor(this.clock.tickAt(this.clock.serverNow(now) - this.clock.interpDelay)));
     const { cmd, ev } = this.predictor.step(r, viewTick);
     this.net.sendInput(cmd);
     const acts = this.gameplay.acts;
@@ -684,7 +710,7 @@ export class Game {
     $('vignette').classList.toggle('hurt', this.hurtTimer > 0);
 
     const hintEl = $('hint');
-    const tip = this.gameplay.tutorialHint();
+    const tip = this.gameplay.tutorialHint() ?? this.ext.hint();
     hintEl.hidden = !tip || this.gameplay.blocking;
     if (tip) hintEl.textContent = tip;
     $('coins').textContent = `${this.gameplay.profile.coins} coins`;
@@ -719,6 +745,7 @@ export class Game {
       coins: this.gameplay?.profile.coins, inv: this.gameplay?.profile.inv,
       objects: this.store?.objects.size,
       tile: (x: number, y: number) => this.store.getTile(x, y),
+      p34: this.ext?.debug(), interpDelay: this.clock.interpDelay, shard: this.net?.shard,
     };
   }
 

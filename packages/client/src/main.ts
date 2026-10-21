@@ -3,7 +3,7 @@ import { Game } from './game/Game';
 import { Input } from './input/input';
 import { loadKeys } from './input/keymap';
 import {
-  Net, authConfig, deleteAccount, googleLogin, guestLogin, resumeSession, signOut, type AuthState,
+  Net, authConfig, deleteAccount, fetchShard, googleLogin, guestLogin, resumeSession, signOut, type AuthState,
 } from './net/session';
 import { HTML, SettingsUI, applySettings, loadSettings } from './ui/ui';
 
@@ -57,7 +57,7 @@ async function boot(): Promise<void> {
     const net = new Net(game.handlers);
     game.net = net;
     try {
-      await net.connect(a.token, name);
+      await net.connect(a.token, name, await fetchShard(a.token));
       await game.ready();
     } catch (e) {
       msg(`Could not join: ${(e as Error).message || 'server unreachable'}`);

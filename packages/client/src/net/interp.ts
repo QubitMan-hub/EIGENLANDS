@@ -54,8 +54,22 @@ export class ServerClock {
   private refServer = 0;
   private _offset = 0;
   ready = false;
+  private lastArrival = 0;
+  private gapAvg = 50;
+  private jitter = 0;
+  /** Adaptive interpolation delay (ms): two snapshot gaps plus a jitter allowance, 80..200. */
+  interpDelay = INTERP_DELAY_MS;
 
   observe(serverTime: number, tick: number, localNow: number): void {
+    if (this.lastArrival) {
+      const gap = Math.min(1000, localNow - this.lastArrival);
+      this.gapAvg += (gap - this.gapAvg) * 0.05;
+      this.jitter += (Math.abs(gap - this.gapAvg) - this.jitter) * 0.05;
+      const target = Math.min(200, Math.max(80, 2 * this.gapAvg + 2 * this.jitter));
+      // move slowly so remote entities never visibly jump in time
+      this.interpDelay += Math.max(-0.5, Math.min(0.5, target - this.interpDelay));
+    }
+    this.lastArrival = localNow;
     this.samples.push({ at: localNow, diff: serverTime - localNow });
     while (this.samples.length && localNow - this.samples[0]!.at > 4000) this.samples.shift();
     // the largest diff corresponds to the lowest-latency packet in the window
