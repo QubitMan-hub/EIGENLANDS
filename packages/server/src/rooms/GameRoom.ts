@@ -1,4 +1,4 @@
-import type { Client } from 'colyseus';
+import { matchMaker, type Client } from 'colyseus';
 import type { Schema } from '@colyseus/schema';
 import {
   CLASS_INDEX, MSG, MSG34, chunkOf, encodeDiff, inRegion, parseShard, regionBounds, shardAt, shardId, townFor,
@@ -18,6 +18,9 @@ import { createVillage } from '../systems/village';
 import type { ServerPlayer } from './player';
 import { runtime } from './runtime';
 import { WorldRoom } from './WorldRoom';
+
+/** Shards whose previous room is still saving: a new room for the same shard waits for it. */
+const disposing = new Map<string, Promise<void>>();
 
 const BUCKETS: Record<BucketName, [number, number]> = {
   cast: [8, 12], board: [2, 4], party: [2, 5], chat: [2, 4], trade: [4, 8], emote: [1, 3],
@@ -49,7 +52,11 @@ export class GameRoom extends WorldRoom {
     this.region = asked ?? { rx: 0, ry: 0 };
     this.shard = this.unsharded ? '*' : shardId(this.region);
     const locks = runtime34().locks;
-    const owner = await locks.claim(this.shard, this.roomId);
+    await disposing.get(this.shard);
+    const owner = await locks.claim(this.shard, this.roomId, (id) => {
+      const r = matchMaker.getLocalRoomById(id) as GameRoom | undefined;
+      return !!r && !r.disposed;
+    });
     if (owner !== this.roomId) this.redirectTo = owner;
     else this.lockTimer = setInterval(() => { void locks.refresh(this.shard, this.roomId).catch(() => {}); }, 5000);
     await this.setMetadata({ shard: this.shard });
@@ -125,12 +132,21 @@ export class GameRoom extends WorldRoom {
     for (const m of this.modules) await m.save?.(p);
   }
 
+  disposed = false;
+
   async onDispose(): Promise<void> {
     if (this.lockTimer) clearInterval(this.lockTimer);
-    if (this.redirectTo) return;
-    await super.onDispose();
-    for (const m of this.modules) await m.dispose?.().catch((e) => console.error('dispose failed', e));
-    await runtime34().locks.release(this.shard, this.roomId).catch(() => {});
+    if (this.redirectTo) { this.disposed = true; return; }
+    const done = (async () => {
+      await super.onDispose();
+      for (const m of this.modules) await m.dispose?.().catch((e) => console.error('dispose failed', e));
+      await runtime34().locks.release(this.shard, this.roomId).catch(() => {});
+    })();
+    disposing.set(this.shard, done);
+    try { await done; } finally {
+      this.disposed = true;
+      if (disposing.get(this.shard) === done) disposing.delete(this.shard);
+    }
   }
 
   // ───────────────────────── shard ownership ─────────────────────────

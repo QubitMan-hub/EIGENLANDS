@@ -8,11 +8,14 @@ export class ShardLocks {
   private mem = new Map<string, string>();
   constructor(private redis: Redis | null, private ttlMs = 15000) {}
 
-  /** Try to own `shard` for `roomId`; returns the owning room id (ours on success). */
-  async claim(shard: string, roomId: string): Promise<string> {
+  /**
+   * Try to own `shard` for `roomId`; returns the owning room id (ours on success).
+   * `alive` tells whether a current owner still exists (in-process rooms can be checked; Redis owners expire by TTL).
+   */
+  async claim(shard: string, roomId: string, alive: (id: string) => boolean = () => true): Promise<string> {
     if (!this.redis) {
       const cur = this.mem.get(shard);
-      if (cur && cur !== roomId) return cur;
+      if (cur && cur !== roomId && alive(cur)) return cur;
       this.mem.set(shard, roomId);
       return roomId;
     }
