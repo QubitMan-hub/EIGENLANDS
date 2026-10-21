@@ -11,7 +11,7 @@ export interface Building {
   /** wall/roof style 0..3 (client art) */
   style: number;
 }
-export interface TownObject { x: number; y: number; kind: 'station' | 'deco' | 'sign' | 'furniture'; sub: string }
+export interface TownObject { x: number; y: number; kind: 'station' | 'deco' | 'sign' | 'furniture'; sub: string; data?: Record<string, unknown> }
 export interface Spot { x: number; y: number }
 export interface Town {
   name: string;
@@ -67,7 +67,7 @@ export function townFor(seed: number): Town {
   const set = (x: number, y: number, tile: number) => { if (inRect(x, y)) t.tiles.set(key(x, y), tile); };
   const get = (x: number, y: number) => t.tiles.get(key(x, y));
   const rect = (x: number, y: number, w: number, h: number, tile: number) => { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) set(x + i, y + j, tile); };
-  const obj = (x: number, y: number, kind: TownObject['kind'], sub: string) => t.objects.push({ x, y, kind, sub });
+  const obj = (x: number, y: number, kind: TownObject['kind'], sub: string, data?: Record<string, unknown>) => t.objects.push({ x, y, kind, sub, ...(data ? { data } : {}) });
   const spot = (name: string, x: number, y: number) => { t.spots[name] = { x, y }; };
 
   // 1. meadow base with a feathered edge so the town merges into the wilds
@@ -83,8 +83,15 @@ export function townFor(seed: number): Town {
   rect(cx - 27, cy + 16, 55, 2, T.PATH);
   // plaza disc
   for (let y = -3; y <= 11; y++) for (let x = -7; x <= 7; x++) if (Math.hypot(x, (y - 4) * 1.1) <= 6.2) set(cx + x, cy + y, T.PATH);
-  obj(cx, cy + 4, 'deco', 'well');
-  obj(cx - 3, cy + 1, 'sign', 'board');
+  // the statue of QubitMan holds the middle of the square
+  obj(cx, cy + 4, 'deco', 'statue');
+  obj(cx, cy + 5, 'sign', 'plaque', { text: 'ALL HAIL QUBITMAN\n\nHe measured the world, and the world chose to be.\nErected by the grateful people of Hadamere.' });
+  obj(cx - 6, cy + 7, 'deco', 'well');
+  obj(cx - 3, cy + 1, 'sign', 'board', { text: 'HADAMERE\nA friendly village on the edge of the Eigenlands.\nTraders: General Store (west) · Smithy · The Crooked Spoon inn · Town Hall.\nFarm plots are free to use by the farmhouse.' });
+  for (const [dx, dy] of [[-6, 3], [6, 3], [-6, 10], [6, 10]] as const) obj(cx + dx, cy + dy, 'deco', 'bench');
+  obj(cx + 7, cy + 6, 'deco', 'planter'); obj(cx - 7, cy + 5, 'deco', 'planter');
+  obj(cx - 10, cy + 1, 'deco', 'stall'); obj(cx + 10, cy + 1, 'deco', 'stall'); obj(cx + 12, cy + 5, 'deco', 'stall');
+  obj(cx + 2, cy - 7, 'sign', 'signpost', { text: 'North: Town Hall · Smithy · Inn\nSouth: Plaza · Pond · Farm' });
   spot('plaza_a', cx - 4, cy + 5); spot('plaza_b', cx + 4, cy + 6); spot('plaza_c', cx, cy + 8); spot('plaza_d', cx + 3, cy + 2);
 
   // 3. fishing pond with a sandy rim

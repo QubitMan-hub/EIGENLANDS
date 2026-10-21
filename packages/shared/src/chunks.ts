@@ -111,7 +111,7 @@ export class ChunkStore {
       for (const o of townFor(this.seed).objects) {
         const k = chunkKey(chunkOf(o.x), chunkOf(o.y));
         const list = this.townByChunk.get(k) ?? [];
-        list.push({ x: o.x, y: o.y, kind: o.kind, sub: o.sub, static: true });
+        list.push({ x: o.x, y: o.y, kind: o.kind, sub: o.sub, static: true, ...(o.data ? { data: o.data } : {}) });
         this.townByChunk.set(k, list);
       }
     }

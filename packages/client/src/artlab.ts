@@ -6,7 +6,7 @@
 //   actors   NPC / fauna / person sheets
 import { Application, Container, Graphics, Sprite, Text } from 'pixi.js';
 import {
-  CROPS, ChunkStore, ITEMS, NPCS, T, TILE_SIZE, ambientColor, darkness, chunkOf, townFor, type WorldObj, type Weather,
+  CROPS, ChunkStore, ITEMS, NPCS, T, TILE_DEFS, TILE_SIZE, ambientColor, darkness, chunkOf, townFor, type WorldObj, type Weather,
 } from '@eigenlands/shared';
 import { buildObjectArt, FRAMES_PER_VARIANT, type SeasonIdx } from './art/objects';
 import { buildActorSheets, OUTFITS, WALK_FRAMES, DIR_LEFT, DIR_RIGHT } from './art/actors';
@@ -16,8 +16,7 @@ import { ObjectViews, sunFor } from './game/objectviews';
 import { WorldObjViews } from './game/worldobjviews';
 import { BuildingViews } from './game/buildingviews';
 import { WeatherFx } from './game/weatherfx';
-import { Terrain } from './game/terrain';
-import { Lighting } from './game/lighting';
+import { depth, isoX, isoY, tileDiamond } from './game/iso';
 
 const q = new URLSearchParams(location.search);
 const num = (k: string, d: number) => (q.has(k) ? Number(q.get(k)) : d);
@@ -26,6 +25,7 @@ const cx = num('x', 0), cy = num('y', 0), S = num('scale', 4), hour = num('hour'
 const seed = num('seed', 20260101);
 const weather = (q.get('weather') ?? 'clear') as Weather;
 const noMotion = q.get('motion') === '0';
+const playerTx = q.has('px') ? num('px', 0) : -9999, playerTy = num('py', 0);
 
 const app = new Application();
 await app.init({ canvas: document.getElementById('c') as HTMLCanvasElement, resizeTo: window, background: 0x0b0c1a, antialias: false, roundPixels: true, resolution: 1, preference: 'webgl' });
@@ -119,83 +119,79 @@ if (mode === 'icons') {
   }
   (window as unknown as { __lab: unknown }).__lab = { ready: true };
 } else {
+  // ───────── isometric scene (flat-colour diamond ground until the iso Terrain lands) ─────────
   const store = new ChunkStore(seed);
-  const terrain = new Terrain(app.renderer, store);
-  const world = new Container(), shadows = new Container(), ents = new Container(), roofs = new Container();
+  const world = new Container(), ground = new Graphics(), shadows = new Container(), ents = new Container(), roofs = new Container();
   ents.sortableChildren = true;
-  world.addChild(shadows, ents, roofs);
+  world.addChild(ground, shadows, ents, roofs);
   const objects = new ObjectViews(store, shadows, ents);
   objects.setArt(buildObjectArt(season));
   const wobjs = new WorldObjViews(store, shadows, ents);
   wobjs.setSeason(season);
   const buildings = new BuildingViews(seed, shadows, ents, roofs);
-  const lighting = new Lighting(app.renderer);
   const wfx = new WeatherFx(app.stage);
-  app.stage.addChildAt(terrain.sprite, 0);
-  app.stage.addChildAt(world, 1);
-  app.stage.addChildAt(lighting.sprite, 2);
+  const night = new Graphics();
+  app.stage.addChildAt(world, 0);
   const W = window.innerWidth, H = window.innerHeight;
-  terrain.resize(Math.ceil(W / S) + 2, Math.ceil(H / S) + 2);
-  lighting.resize(Math.ceil(W / S) + 2, Math.ceil(H / S) + 2);
-  terrain.sprite.scale.set(S); world.scale.set(S); lighting.sprite.scale.set(S);
+  world.scale.set(S);
 
   const town = townFor(seed);
   const camTx = mode === 'town' ? town.cx + num('dx', 0) : cx, camTy = mode === 'town' ? town.cy + num('dy', 0) : cy;
+  const R2 = num('r', 22);
   const c0x = chunkOf(Math.floor(camTx)), c0y = chunkOf(Math.floor(camTy));
-  for (let yy = c0y - 2; yy <= c0y + 2; yy++) for (let xx = c0x - 2; xx <= c0x + 2; xx++) { terrain.build(xx, yy); objects.buildChunk(xx, yy); wobjs.buildChunk(xx, yy); }
+  for (let yy = c0y - 2; yy <= c0y + 2; yy++) for (let xx = c0x - 2; xx <= c0x + 2; xx++) { store.get(xx, yy); objects.buildChunk(xx, yy); wobjs.buildChunk(xx, yy); }
 
-  // a few demo player-made objects near the camera
+  // ground diamonds
+  const GROUND_COL = [0x0f2f66, 0x2a7ad0, 0xecd08e, 0x4da64a, 0xb57f4a, 0x6b3f26, 0x45281a, 0xb57f4a, 0x6d7194];
+  const hex = (n: number) => n;
+  for (let ty = Math.floor(camTy - R2); ty <= camTy + R2; ty++) for (let tx = Math.floor(camTx - R2); tx <= camTx + R2; tx++) {
+    const g = TILE_DEFS[store.getTile(tx, ty)]?.ground ?? 3;
+    let col = GROUND_COL[g] ?? 0x4da64a;
+    if (g === 3 && ((tx * 7 + ty * 13) & 3) === 0) col = 0x2f8040;
+    if (g === 3 && ((tx + ty) & 1) === 0 && (tx * 3 + ty) % 5 === 0) col = 0x7bc95a;
+    const pts = tileDiamond(tx, ty);
+    ground.poly(pts).fill(hex(col));
+  }
   if (mode === 'town') {
     const f = town.spots.field!;
-    const mk = (x: number, y: number, crop: string, growth: number, extra: Partial<WorldObj['data']> = {}) => {
+    const defs = Object.values(CROPS);
+    const mk = (x: number, y: number, crop: string, growth: number, extra: Record<string, unknown> = {}) => {
       const o: WorldObj = { x, y, kind: 'crop', sub: crop, data: { crop, planted: 0, growth, watered: 0, lastDay: 0, owner: 'p', ...extra } };
       store.putObject(o); wobjs.upsert(o);
     };
-    const defs = Object.values(CROPS);
     for (let j = 0; j < 8; j++) for (let i = 0; i < 6; i++) { const c = defs[(i + j) % defs.length]!; mk(f.x - 2 + i, f.y - 3 + j, c.id, j % 4 === 0 ? 0 : j % 4 === 1 ? Math.ceil(c.days * 0.4) : j % 4 === 2 ? Math.ceil(c.days * 0.75) : 20); }
   }
 
   const sheets = buildActorSheets();
   const line: Sprite[] = [];
+  const at = (s: Sprite, tx: number, ty: number) => { s.anchor.set(0.5, 1); s.x = isoX(tx, ty); s.y = isoY(tx, ty); s.zIndex = depth(tx, ty); ents.addChild(s); };
   if (mode === 'town') {
-    NPCS.forEach((n, i) => {
-      const sp = town.spots.plaza_a!;
-      const s = new Sprite(sheets.npc(n.id, i % 4, 0)); s.anchor.set(0.5, 1); s.x = (sp.x + (i - 5) * 1.3) * TILE_SIZE; s.y = (sp.y + 1.5) * TILE_SIZE; s.zIndex = s.y; ents.addChild(s); line.push(s);
-    });
+    NPCS.forEach((n, i) => { const sp = town.spots.plaza_a!; const s = new Sprite(sheets.npc(n.id, i % 4, 0)); at(s, sp.x + (i % 5) * 1.2 - 2, sp.y + 1.5 + Math.floor(i / 5) * 1.5); line.push(s); });
   } else {
-    OUTFITS.forEach((_, i) => {
-      const s = new Sprite(sheets.person(i, i % 4, 0)); s.anchor.set(0.5, 1); s.x = (cx - 4 + i) * TILE_SIZE; s.y = (cy + 2) * TILE_SIZE; s.zIndex = s.y; ents.addChild(s); line.push(s);
-    });
-    for (let i = 0; i < 4; i++) {
-      const k = new Sprite(i < 2 ? sheets.slime(i === 1, 0) : sheets.hopper(i === 3, 0)); k.anchor.set(0.5, 1);
-      k.x = (cx - 3 + i * 2) * TILE_SIZE; k.y = (cy + 4) * TILE_SIZE; k.zIndex = k.y; ents.addChild(k);
-    }
+    OUTFITS.forEach((_, i) => { const s = new Sprite(sheets.person(i, i % 4, 0)); at(s, cx - 3 + i * 0.9, cy + 2 + (i % 2)); line.push(s); });
+    for (let i = 0; i < 4; i++) { const k = new Sprite(i < 2 ? sheets.slime(i === 1, 0) : sheets.hopper(i === 3, 0)); at(k, cx - 2 + i * 1.4, cy + 4); }
   }
 
   const sun = sunFor(hour);
-  const t0 = performance.now();
-  const playerTx = q.has('px') ? num('px', 0) : -9999, playerTy = num('py', 0);
   let last = performance.now();
+  const dark = darkness(hour);
   app.ticker.add(() => {
     const now = performance.now();
     const dt = (now - last) / 1000; last = now;
-    const camX = Math.round(camTx * TILE_SIZE * S) / S, camY = Math.round(camTy * TILE_SIZE * S) / S;
-    world.x = Math.round(W / 2 - camX * S); world.y = Math.round(H / 2 - camY * S);
-    const ow = Math.floor(camX - W / 2 / S), oh = Math.floor(camY - H / 2 / S);
-    terrain.render(ow, oh, (now - t0) / 1000, season, !noMotion);
-    terrain.sprite.x = world.x + ow * S; terrain.sprite.y = world.y + oh * S;
-    const b = [camTx - 40, camTy - 24, camTx + 40, camTy + 24] as const;
+    world.x = Math.round(W / 2 - isoX(camTx, camTy) * S); world.y = Math.round(H / 2 - isoY(camTx, camTy) * S);
+    const b = [camTx - 30, camTy - 30, camTx + 30, camTy + 30] as const;
     objects.update(now, sun, noMotion, ...b);
     wobjs.update(now, sun, noMotion, ...b);
+    buildings.setDarkness(dark);
     buildings.update(now, playerTx, playerTy, noMotion, sun, ...b);
-    line.forEach((s, i) => { s.texture = mode === 'town' ? sheets.npc(NPCS[i]!.id, Math.floor(now / 1500 + i) % 4, 1 + (Math.floor(now / 100) % (WALK_FRAMES - 1))) : sheets.person(i, Math.floor(now / 1500 + i) % 4, 1 + (Math.floor(now / 100) % (WALK_FRAMES - 1))); });
+    line.forEach((s, i) => { const f = 1 + (Math.floor(now / 100) % (WALK_FRAMES - 1)); s.texture = mode === 'town' ? sheets.npc(NPCS[i]!.id, Math.floor(now / 1500 + i) % 4, f) : sheets.person(i, Math.floor(now / 1500 + i) % 4, f); });
     wfx.update(dt, weather, W, H, noMotion, hour);
+    // crude ambient multiply for time of day / weather (the real lightmap lives in the game)
     const amb = ambientColor(hour), wa = wfx.ambient(weather);
-    buildings.setDarkness(darkness(hour));
-    const ls = [...wobjs.lights(b[0], b[1], b[2], b[3]), ...buildings.lights(b[0], b[1], b[2], b[3])];
-    const lights = ls.map((l) => ({ x: (l.x - (camX - W / 2 / S) / TILE_SIZE) * TILE_SIZE, y: (l.y - (camY - H / 2 / S) / TILE_SIZE) * TILE_SIZE, radius: l.radius, color: l.color, intensity: l.intensity }));
-    lighting.render([amb[0] * wa[0], amb[1] * wa[1], amb[2] * wa[2]], lights);
-    (window as unknown as { __lab: unknown }).__lab = { ready: true, chunks: terrain.count, objects: objects.count, wobjs: wobjs.count };
+    night.clear().rect(0, 0, W, H).fill((Math.round(amb[0] * wa[0] * 255) << 16) | (Math.round(amb[1] * wa[1] * 255) << 8) | Math.round(amb[2] * wa[2] * 255));
+    night.blendMode = 'multiply';
+    if (!night.parent) app.stage.addChildAt(night, 1);
+    (window as unknown as { __lab: unknown }).__lab = { ready: true, objects: objects.count, wobjs: wobjs.count };
   });
-  void T;
+  void T; void TILE_SIZE;
 }

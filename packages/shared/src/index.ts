@@ -24,3 +24,4 @@ export * from './forge';
 export * from './npcs';
 export * from './objects';
 export * from './path';
+export * from './quests';

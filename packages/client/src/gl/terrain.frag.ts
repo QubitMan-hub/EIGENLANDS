@@ -30,8 +30,11 @@ precision highp int;
 in vec2 vUV;
 out vec4 fragColor;
 
-uniform sampler2D uTiles;   // 34x34 RGBA8 incl. 1-tile border: r=ground class, g=flux, b=tile hash
-uniform vec2 uChunk;        // chunk origin in world pixels
+uniform sampler2D uTiles;   // WINxWIN RGBA8 window of tiles: r=ground class, g=flux, b=tile hash
+uniform vec2 uWin;          // tile coordinates of the window's top-left texel
+uniform float uWinSize;     // window size in tiles
+uniform vec2 uIso;          // iso art-pixel position of the render target's (0,0)
+uniform vec2 uRes;          // render target size in art pixels
 uniform float uTime;
 uniform float uSeason;      // 0 spring, 1 summer, 2 autumn, 3 winter
 uniform float uMotion;      // 1 = animate, 0 = reduced motion
@@ -193,34 +196,36 @@ vec3 waterColor(vec2 wp, ivec2 ip, bool deep, float margin, float t, float d) {
 }
 
 void main() {
-  vec2 local = vUV * 512.0;
-  vec2 wpf = uChunk + local;
-  ivec2 ip = ivec2(floor(wpf));
+  // screen art pixel -> iso position -> world tile coordinates (2:1 isometric, see game/iso.ts)
+  vec2 sp = floor(vUV * uRes);
+  vec2 iso = uIso + sp + 0.5;
+  vec2 tf = vec2(iso.y / 16.0 + iso.x / 32.0, iso.y / 16.0 - iso.x / 32.0);
+  vec2 wpf = tf * 16.0;                       // "world pixels": noise/pattern scale
+  ivec2 ip = ivec2(floor(uIso + sp));         // crisp per-screen-pixel hash (speckles are always 1 art pixel)
   float d = bayer(ip);
   float t = uTime;
 
   // dual-grid: bilinear weights of the four nearest tile centres
-  vec2 u = local / 16.0 - 0.5;
+  vec2 u = tf - 0.5;
   vec2 fl = floor(u);
   vec2 f = u - fl;
-  ivec2 t00 = ivec2(fl) + 1;
+  ivec2 t00 = ivec2(fl - uWin);
+  int hi = int(uWinSize) - 1;
+  ivec2 q0 = clamp(t00, ivec2(0), ivec2(hi)), q1 = clamp(t00 + ivec2(1, 0), ivec2(0), ivec2(hi));
+  ivec2 q2 = clamp(t00 + ivec2(0, 1), ivec2(0), ivec2(hi)), q3 = clamp(t00 + ivec2(1, 1), ivec2(0), ivec2(hi));
   int c[4];
-  c[0] = cls(t00);
-  c[1] = cls(t00 + ivec2(1, 0));
-  c[2] = cls(t00 + ivec2(0, 1));
-  c[3] = cls(t00 + ivec2(1, 1));
+  c[0] = cls(q0); c[1] = cls(q1); c[2] = cls(q2); c[3] = cls(q3);
   float w[4];
   w[0] = (1.0 - f.x) * (1.0 - f.y);
   w[1] = f.x * (1.0 - f.y);
   w[2] = (1.0 - f.x) * f.y;
   w[3] = f.x * f.y;
-  vec4 fx = texelFetch(uTiles, t00 + ivec2(f.x > 0.5 ? 1 : 0, f.y > 0.5 ? 1 : 0), 0);
+  vec4 fx = texelFetch(uTiles, clamp(t00 + ivec2(f.x > 0.5 ? 1 : 0, f.y > 0.5 ? 1 : 0), ivec2(0), ivec2(hi)), 0);
 
   float sc[4];
   for (int j = 0; j < 4; j++) {
     float s = 0.0;
     for (int k = 0; k < 4; k++) if (c[k] == c[j]) s += w[k];
-    // organic borders: each class gets its own warp noise
     s += 0.30 * (vnoise(wpf * 0.105 + float(c[j]) * 13.7) - 0.5) * 2.0 * (1.0 - s);
     sc[j] = s;
   }
@@ -231,30 +236,30 @@ void main() {
   int other = best;
   for (int j = 0; j < 4; j++) if (c[j] != best && sc[j] > second) { second = sc[j]; other = c[j]; }
   float margin = second < 0.0 ? 1.0 : sc[bj] - second;
+  // distance to the nearest ground boundary in SCREEN pixels (keeps edges crisp in isometric view)
+  float edgePx = second < 0.0 ? 99.0 : margin / max(fwidth(margin), 0.0005);
 
   float flux = fx.g;
   vec3 col;
   if (best == GRASS) {
     col = grassColor(wpf, ip, flux, t, d);
     if (other != GRASS) {
-      // worn, shaded lip where turf meets another ground; ragged tufts overhang it
-      float edge = 1.0 - smoothstep(0.0, 0.16, margin);
       float h = hashi(ip);
-      if (edge > 0.55) col = uSeason > 2.5 ? P(6) : P(h > 0.5 ? 9 : 10);
-      else if (edge > 0.25 && h > 0.6) col = P(uSeason > 2.5 ? 7 : 14);
+      if (edgePx < 1.7) col = uSeason > 2.5 ? P(6) : P(h > 0.5 ? 9 : 10);
+      else if (edgePx < 3.4 && h > 0.6) col = P(uSeason > 2.5 ? 7 : 14);
     }
   } else if (best == SAND) {
-    float wet = isWater(other) ? 1.0 - smoothstep(0.0, 0.34, margin) : 0.0;
+    float wet = isWater(other) ? 1.0 - smoothstep(0.0, 9.0, edgePx) : 0.0;
     col = sandColor(wpf, ip, wet, d);
   } else if (best == PATH) {
     col = pathColor(wpf, ip, d);
-    if (other != PATH && margin < 0.1) col = P(18);
+    if (other != PATH && edgePx < 1.6) col = P(18);
   } else if (best == SOIL) {
     col = soilColor(wpf, ip, false, d);
-    if (other != SOIL && margin < 0.1) col = P(17);
+    if (other != SOIL && edgePx < 1.6) col = P(17);
   } else if (best == SOILWET) {
     col = soilColor(wpf, ip, true, d);
-    if (other != SOILWET && margin < 0.1) col = P(16);
+    if (other != SOILWET && edgePx < 1.6) col = P(16);
   } else if (best == FLOOR) {
     col = floorColor(wpf, ip, d);
   } else if (best == WALLC) {
@@ -262,16 +267,14 @@ void main() {
   } else {
     bool deep = best == DEEP;
     col = waterColor(wpf, ip, deep, margin, t, d);
-    // shoreline foam: animated dotted breakers
-    if (!isWater(other) && margin < 0.11) {
+    if (!isWater(other) && edgePx < 2.4) {
       float br = 0.5 + 0.5 * sin(wpf.x * 0.45 + wpf.y * 0.3 + t * 2.2 * uMotion + vnoise(wpf * 0.1) * 6.0);
       col = br > 0.35 ? P(31) : P(30);
-    } else if (!isWater(other) && margin < 0.2) {
+    } else if (!isWater(other) && edgePx < 5.0) {
       col = P(29);
     }
   }
 
-  // drifting cloud shadows (painted as one dither step darker)
   float cloud = vnoise(wpf * 0.0075 + vec2(t * 0.018, t * 0.008) * uMotion);
   if (cloud > 0.62 && uSeason < 3.5) col *= (cloud > 0.7 ? 0.82 : (d > 0.5 ? 0.82 : 1.0));
 

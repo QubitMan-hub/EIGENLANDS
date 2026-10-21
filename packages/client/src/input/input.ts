@@ -116,6 +116,9 @@ export class Input {
     }
 
     if (this.stick.x || this.stick.y) { dx = this.stick.x; dy = this.stick.y; }
+    // keys/sticks are screen-relative (W = up the screen): rotate into iso world axes
+    const ln = Math.hypot(dx, dy);
+    if (ln > 0) { const wx = (dx + dy) * Math.SQRT1_2, wy = (dy - dx) * Math.SQRT1_2; const wl = Math.hypot(wx, wy) || 1; const m = Math.min(1, ln); dx = (wx / wl) * m; dy = (wy / wl) * m; }
     r.dx = dx; r.dy = dy;
 
     const attackHeld = this.isDown('attack') || this.mouse.left || this.touchHeld.has('attack') || padAttack;
@@ -127,9 +130,10 @@ export class Input {
     this.buffered.delete('attack'); this.buffered.delete('skill');
 
     // aiming: recent mouse > right stick > auto-aim (touch/pad) > facing (server falls back to face)
-    if (padAim) { r.aimX = padAim.x; r.aimY = padAim.y; }
+    const toWorld = (sx: number, sy: number) => ({ x: sy / 16 + sx / 32, y: sy / 16 - sx / 32 }); // screen delta -> world delta (iso)
+    if (padAim) { const a = toWorld(padAim.x, padAim.y); r.aimX = a.x; r.aimY = a.y; }
     else if (now - this.mouse.lastMove < 4000 && !this.touchHeld.size) {
-      r.aimX = this.mouse.x - this.playerScreen.x; r.aimY = this.mouse.y - this.playerScreen.y;
+      const a = toWorld(this.mouse.x - this.playerScreen.x, this.mouse.y - this.playerScreen.y); r.aimX = a.x; r.aimY = a.y;
     } else if ((r.attack || r.skill) && this.autoAim) {
       const t = this.autoAim();
       if (t) { r.aimX = t.x; r.aimY = t.y; }

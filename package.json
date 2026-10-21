@@ -12,6 +12,7 @@
     "dev:client": "npm run dev -w @eigenlands/client",
     "build": "npm run build -w @eigenlands/client",
     "e2e": "node packages/client/e2e/smoke.mjs",
-    "loadtest": "npm run loadtest -w @eigenlands/server --"
+    "loadtest": "npm run loadtest -w @eigenlands/server --",
+    "build:pages": "npm run build -w @eigenlands/client"
   }
 }

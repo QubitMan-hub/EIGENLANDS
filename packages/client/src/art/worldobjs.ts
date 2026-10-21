@@ -5,7 +5,7 @@
 import { Texture } from 'pixi.js';
 import { CROPS, cropStage, type CropData, type CropDef, type WorldObj, mulberry32 } from '@eigenlands/shared';
 import type { ObjSprite } from './objects';
-import { blob, C, line, makeCanvas, poly, put, R, ramp4, slab, dk, lt, type Ctx, type Ramp } from './shade';
+import { blob, C, line, makeCanvas, pixelText, poly, polish, put, R, ramp4, slab, dk, lt, type Ctx, type Ramp } from './shade';
 
 export interface ObjSpriteDef {
   frames: ObjSprite[];
@@ -24,9 +24,12 @@ const IRON: Ramp = [C.night, C.slate, C.steel, C.mist, C.fog];
 const STONE = R.stone;
 const BRASS: Ramp = [C.e2, C.e3, C.e4, C.e5, C.e6];
 
-function sprite(w: number, h: number, ax: number, ay: number, draw: (ctx: Ctx) => void): ObjSprite {
+interface SpriteOpts { flat?: boolean; fringe?: boolean; plain?: boolean }
+/** Draw a sprite, then add rim light + contact shadow (unless flat/plain) and optional quantum fringe. */
+function sprite(w: number, h: number, ax: number, ay: number, draw: (ctx: Ctx) => void, o: SpriteOpts = {}): ObjSprite {
   const { canvas, ctx } = makeCanvas(w, h);
   draw(ctx);
+  if (!o.plain) polish(ctx, w, h, { rim: !o.flat, fringe: o.fringe, ao: o.flat ? null : { ax, ay, rx: Math.min(13, w * 0.3) } });
   const tex = Texture.from(canvas);
   tex.source.scaleMode = 'nearest';
   return { tex, ax, ay };
@@ -126,6 +129,12 @@ function drawPlant(ctx: Ctx, def: CropDef, stage: number, cx: number, base: numb
 }
 
 const cropCache = new Map<string, ObjSpriteDef>();
+/** Three plants per tile (back-left, back-right, front) so crops fill an iso diamond. */
+const PLANT_SPOTS: Array<[number, number]> = [[10, 17], [22, 16], [16, 23]];
+function drawCluster(ctx: Ctx, def: CropDef, stage: number, seed: number, dead: boolean, dx = 0): void {
+  const spots = stage === 0 ? PLANT_SPOTS : PLANT_SPOTS;
+  spots.forEach(([x, y], i) => drawPlant(ctx, def, stage, x + dx, y, seed + i * 11, dead));
+}
 function cropDef(d: CropData | undefined, sub: string): ObjSpriteDef {
   const a = (d?.crop ?? sub.replace('*', '').split('+')[0]!) as string;
   const b = d?.alt ?? (sub.startsWith('*') ? sub.slice(1).split('+')[1] : undefined);
@@ -137,24 +146,24 @@ function cropDef(d: CropData | undefined, sub: string): ObjSpriteDef {
   if (hit) return hit;
   let out: ObjSpriteDef;
   if (!b || dead) {
-    out = still(sprite(16, 20, 8, 17, (ctx) => drawPlant(ctx, def, stage, 8, 17, a.length * 31 + stage, dead)), { noShadow: def.shape !== 'stalk', sway: def.shape === 'stalk' ? 0.05 : 0.04 });
+    out = still(sprite(32, 30, 16, 23, (ctx) => drawCluster(ctx, def, stage, a.length * 31 + stage, dead), { flat: true }), { noShadow: def.shape !== 'stalk', sway: def.shape === 'stalk' ? 0.05 : 0.04 });
   } else {
     // superposition: both crops overlaid on a flickering checkerboard that swaps every frame, with q-sparkles
     const defB = CROPS[b] ?? def;
-    const mk = (par: number) => sprite(20, 24, 10, 20, (ctx) => {
-      const A = makeCanvas(20, 24), B = makeCanvas(20, 24);
-      drawPlant(A.ctx, def, stage, 8, 20, a.length * 31 + stage, false);
-      drawPlant(B.ctx, defB, Math.min(3, stage), 12, 20, b.length * 17 + stage, false);
-      const ia = A.ctx.getImageData(0, 0, 20, 24).data, ib = B.ctx.getImageData(0, 0, 20, 24).data;
-      const o = ctx.createImageData(20, 24);
-      for (let y = 0; y < 24; y++) for (let x = 0; x < 20; x++) {
-        const i = (y * 20 + x) * 4, pickA = ((x + y + par) & 1) === 0;
+    const mk = (par: number) => sprite(32, 30, 16, 23, (ctx) => {
+      const A = makeCanvas(32, 30), B = makeCanvas(32, 30);
+      drawCluster(A.ctx, def, stage, a.length * 31 + stage, false, -1);
+      drawCluster(B.ctx, defB, Math.min(3, stage), b.length * 17 + stage, false, 2);
+      const ia = A.ctx.getImageData(0, 0, 32, 30).data, ib = B.ctx.getImageData(0, 0, 32, 30).data;
+      const o = ctx.createImageData(32, 30);
+      for (let y = 0; y < 30; y++) for (let x = 0; x < 32; x++) {
+        const i = (y * 32 + x) * 4, pickA = ((x + y + par) & 1) === 0;
         const src = pickA ? (ia[i + 3]! ? ia : ib) : (ib[i + 3]! ? ib : ia);
         for (let k = 0; k < 4; k++) o.data[i + k] = src[i + k]!;
       }
       ctx.putImageData(o, 0, 0);
-      for (let i = 0; i < 3; i++) put(ctx, 3 + ((i * 7 + par * 5) % 14), 6 + ((i * 5 + par * 3) % 12), i % 2 ? C.q7 : C.q5);
-    });
+      for (let i = 0; i < 5; i++) put(ctx, 4 + ((i * 7 + par * 5) % 24), 4 + ((i * 5 + par * 3) % 20), i % 2 ? C.q7 : C.q5);
+    }, { flat: true, fringe: true });
     out = anim([mk(0), mk(1)], 3, { noShadow: true });
   }
   cropCache.set(key, out);

@@ -123,3 +123,67 @@ export function outline(ctx: Ctx, w: number, h: number, c: number = C.night): vo
 }
 
 export { hash2, mulberry32 } from '@eigenlands/shared';
+
+// ───────── sprite polish (rim light, contact shadow, quantum fringe) ─────────
+const HEX_TO_IDX = new Map<string, number>(PALETTE.map((h, i) => [h.toLowerCase(), i]));
+const rgbKey = (r: number, g: number, b: number) => `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
+
+export interface PolishOpts {
+  /** lighten silhouette pixels facing up-left, darken those facing down-right */
+  rim?: boolean;
+  /** dithered contact shadow ellipse under the feet at (ax, ay) */
+  ao?: { ax: number; ay: number; rx: number } | null;
+  /** quantum fringe: cyan on the lit rim, magenta on the shaded rim (subtle) */
+  fringe?: boolean;
+}
+
+/** Post-process a freshly drawn sprite: keeps colours inside the fixed palette (steps along palette rows). */
+export function polish(ctx: Ctx, w: number, h: number, o: PolishOpts = {}): void {
+  const img = ctx.getImageData(0, 0, w, h);
+  const d = img.data;
+  const solid = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && d[(y * w + x) * 4 + 3]! > 0;
+  const idxAt = (x: number, y: number) => { const i = (y * w + x) * 4; return HEX_TO_IDX.get(rgbKey(d[i]!, d[i + 1]!, d[i + 2]!)) ?? -1; };
+  const sets: Array<[number, number, number]> = [];
+  if (o.rim || o.fringe) {
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (!solid(x, y)) continue;
+      const c = idxAt(x, y);
+      if (c < 0) continue;
+      const lit = !solid(x - 1, y - 1) || !solid(x, y - 1) && !solid(x - 1, y);
+      const shaded = !solid(x + 1, y + 1) || (!solid(x + 1, y) && !solid(x, y + 1));
+      if (lit) sets.push([x, y, o.fringe && (x + y) % 2 === 0 ? C.q7 : lt(c)]);
+      else if (shaded && c !== C.night && c !== C.ink) sets.push([x, y, o.fringe && (x + y) % 3 === 0 ? C.q5 : dk(c)]);
+    }
+  }
+  for (const [x, y, c] of sets) put(ctx, x, y, c);
+  if (o.ao) {
+    const { ax, ay, rx } = o.ao;
+    for (let y = ay - 1; y <= ay + 3; y++) for (let x = Math.floor(ax - rx); x <= Math.ceil(ax + rx); x++) {
+      if (x < 0 || y < 0 || x >= w || y >= h || solid(x, y)) continue;
+      const dd = ((x - ax) / rx) ** 2 + ((y - ay) / 2.6) ** 2;
+      if (dd < 1 && ((x + y) & 1) === 0 ? dd < 0.9 : dd < 0.45) put(ctx, x, y, C.q0);
+    }
+  }
+}
+
+// ───────── 3x5 pixel font ─────────
+const FONT: Record<string, string> = {
+  A: '010101111101101', B: '110101110101110', C: '011100100100011', D: '110101101101110', E: '111100110100111', F: '111100110100100',
+  G: '011100101101011', H: '101101111101101', I: '111010010010111', J: '001001001101010', K: '101101110101101', L: '100100100100111',
+  M: '101111111101101', N: '110101101101101', O: '010101101101010', P: '110101110100100', Q: '010101101111011', R: '110101110101101',
+  S: '011100010001110', T: '111010010010010', U: '101101101101111', V: '101101101101010', W: '101101111111101', X: '101101010101101',
+  Y: '101101010010010', Z: '111001010100111', '0': '111101101101111', '1': '010110010010111', '2': '110001010100111', '3': '110001010001110',
+  '4': '101101111001001', '5': '111100110001110', '6': '011100111101111', '7': '111001010010010', '8': '111101111101111', '9': '111101111001110',
+  ' ': '000000000000000', '-': '000000111000000', '.': '000000000000010', '!': '010010010000010',
+};
+export const fontWidth = (text: string): number => text.length * 4 - 1;
+/** Draw `text` in the 3x5 pixel font at (x,y) (top-left); returns the width used. */
+export function pixelText(ctx: Ctx, text: string, x: number, y: number, c: number): number {
+  let cx = x;
+  for (const ch of text.toUpperCase()) {
+    const g = FONT[ch] ?? FONT[' ']!;
+    for (let i = 0; i < 15; i++) if (g[i] === '1') put(ctx, cx + (i % 3), y + Math.floor(i / 3), c);
+    cx += 4;
+  }
+  return cx - x - 1;
+}

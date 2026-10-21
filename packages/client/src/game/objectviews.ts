@@ -1,12 +1,18 @@
 import { Container, Sprite } from 'pixi.js';
-import { CHUNK_SIZE, T, TILE_DEFS, TILE_SIZE, chunkKey, hash2, type ChunkStore } from '@eigenlands/shared';
+import { CHUNK_SIZE, T, TILE_DEFS, chunkKey, hash2, sampleClimate, type ChunkStore } from '@eigenlands/shared';
+import { depth, isoX, isoY } from './iso';
 import { FRAMES_PER_VARIANT, type ObjectArt, type ObjSprite } from '../art/objects';
+
+/** kinds that get the quantum echo ghost when standing in flux-rich ground */
+const ECHO_KINDS = new Set(['tree', 'rock', 'flowers', 'forage', 'ore_copper', 'ore_iron', 'ore_silver', 'ore_gold', 'crystal', 'bloom', 'stump']);
 
 export interface Sun { dx: number; len: number; alpha: number }
 
 interface Obj {
   root: Sprite;
   shadow: Sprite;
+  /** quantum echo: faint offset ghost double (flux-rich ground, qubit things) */
+  echo: Sprite | null;
   kind: string;
   phase: number;
   variant: number;
@@ -68,16 +74,29 @@ export class ObjectViews {
     if (!p) return null;
     const root = new Sprite(p.s.tex);
     root.anchor.set(p.s.ax / p.s.tex.width, p.s.ay / p.s.tex.height);
-    root.x = Math.round((tx + 0.5) * TILE_SIZE);
-    root.y = (ty + 1) * TILE_SIZE - 2;
-    root.zIndex = root.y;
+    // billboard standing on the tile's ground centre (iso): feet at the anchor point
+    root.x = Math.round(isoX(tx + 0.5, ty + 0.5));
+    root.y = Math.round(isoY(tx + 0.5, ty + 0.5));
+    const flat = kind === 'flowers' || kind === 'forage' || kind === 'stump';
+    root.zIndex = depth(tx + 0.5, ty + 0.5) - (flat ? 200 : 0);
     const shadow = new Sprite(p.s.tex);
     shadow.anchor.copyFrom(root.anchor);
     shadow.tint = 0x2a1060;
     shadow.position.copyFrom(root);
     this.layer.addChild(root);
     this.shadowLayer.addChild(shadow);
-    return { root, shadow, kind, phase: hash2(this.store.seed, tx, ty, 98) * 6.28, variant: p.variant, frames: p.frames, base: p.s };
+    let echo: Sprite | null = null;
+    const flux = ECHO_KINDS.has(kind) ? sampleClimate(this.store.seed, tx, ty).flux : -1;
+    if (kind === 'crystal' || kind === 'bloom' || (flux > 0.42 && kind !== 'tallgrass')) {
+      echo = new Sprite(p.s.tex);
+      echo.anchor.copyFrom(root.anchor);
+      echo.tint = kind === 'crystal' || kind === 'bloom' ? 0xff9ae8 : 0x5af0d0;
+      echo.alpha = 0.22;
+      echo.position.set(root.x + 2, root.y - 1);
+      echo.zIndex = root.zIndex - 0.5;
+      this.layer.addChild(echo);
+    }
+    return { root, shadow, echo, kind, phase: hash2(this.store.seed, tx, ty, 98) * 6.28, variant: p.variant, frames: p.frames, base: p.s };
   }
 
   buildChunk(cx: number, cy: number): void {
@@ -101,7 +120,7 @@ export class ObjectViews {
     if (!m) return;
     const idx = (ty - cy * CHUNK_SIZE) * CHUNK_SIZE + (tx - cx * CHUNK_SIZE);
     const old = m.get(idx);
-    if (old) { old.root.destroy(); old.shadow.destroy(); m.delete(idx); }
+    if (old) { old.root.destroy(); old.shadow.destroy(); old.echo?.destroy(); m.delete(idx); }
     const kind = TILE_DEFS[this.store.getTile(tx, ty)]?.obj;
     if (kind) { const o = this.makeObj(tx, ty, kind); if (o) m.set(idx, o); }
     // a changed fence tile changes how its neighbours connect
@@ -115,7 +134,7 @@ export class ObjectViews {
   private dropChunk(k: string): void {
     const m = this.chunks.get(k);
     if (!m) return;
-    for (const o of m.values()) { o.root.destroy(); o.shadow.destroy(); }
+    for (const o of m.values()) { o.root.destroy(); o.shadow.destroy(); o.echo?.destroy(); }
     this.chunks.delete(k);
   }
 
@@ -137,6 +156,10 @@ export class ObjectViews {
         for (const o of m.values()) {
           const sway = reduced ? 0 : Math.sin(t * 1.6 + o.phase + o.root.x * 0.01) * (o.kind === 'tallgrass' || o.kind === 'flowers' ? 0.09 : o.kind === 'tree' ? 0.012 : 0);
           o.root.skew.x = sway;
+          if (o.echo) {
+            o.echo.texture = o.root.texture; o.echo.skew.x = sway;
+            o.echo.alpha = reduced ? 0.2 : 0.16 + 0.1 * Math.sin(t * 1.7 + o.phase);
+          }
           if (o.frames > 1) {
             const list = (this.art as unknown as Record<string, ObjSprite[]>)[o.kind]!;
             const rate = o.kind === 'crystal' ? 2.2 : o.kind === 'torch' ? 6 : o.kind === 'bloom' ? 3 : 1.4;
@@ -149,7 +172,7 @@ export class ObjectViews {
           o.shadow.visible = !flat && sun.alpha > 0.02;
           if (o.shadow.visible) {
             o.shadow.alpha = sun.alpha;
-            o.shadow.scale.y = -(0.28 + 0.2 * sun.len);
+            o.shadow.scale.y = -(0.22 + 0.14 * sun.len);
             o.shadow.skew.x = sun.dx * sun.len * 0.55 + sway;
           }
         }

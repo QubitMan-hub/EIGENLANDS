@@ -34,7 +34,7 @@ export function startCast(room: RoomApi, p: ServerPlayer, tx: number, ty: number
   const now = Date.now();
   p.rhythm = null;
   p.cast = { id: `f${++seq}`, tx, ty, deep, state: 'wait', biteAt: now + delay, deadline: 0 };
-  p.client.send(MSG.FISH_CAST, { tx, ty });
+  p.client.send(MSG.FISH_CAST, { tx, ty, id: p.cast.id });
   room.fx({ kind: 'cast', x: tx + 0.5, y: ty + 0.5 });
   p.toast('You cast your line…');
 }

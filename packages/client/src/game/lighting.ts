@@ -58,7 +58,7 @@ export class Lighting {
       s.visible = !!l;
       if (!l) continue;
       s.x = l.x; s.y = l.y;
-      s.width = s.height = l.radius * TILE_SIZE * 2;
+      s.width = l.radius * 22.6 * 2; s.height = l.radius * 11.3 * 2; // a round pool of light on the ground is an ellipse in iso
       s.tint = l.color;
       s.alpha = l.intensity;
     }

@@ -13,6 +13,7 @@ import { INTERP_DELAY_MS, Interpolator, ServerClock, type Pose } from '../net/in
 import type { Net, NetHandlers } from '../net/session';
 import { Predictor } from '../net/prediction';
 import type { Settings } from '../ui/ui';
+import { depth, isoX, isoY, screenDir, unproject, ISO_HH, ISO_HW } from './iso';
 import { Gameplay } from './gameplay';
 import { BuildingViews } from './buildingviews';
 import { WeatherFx } from './weatherfx';
@@ -97,6 +98,7 @@ export class Game {
   /** test/screenshot aid: ?hour=12 pins the in-game clock */
   private hourOverride: number | null = (() => { const h = new URLSearchParams(location.search).get('hour'); return h !== null && !Number.isNaN(Number(h)) ? Number(h) : null; })();
   private frameMs = 0;
+  private vis = { x0: -20, y0: -20, x1: 20, y1: 20 };
 
   constructor(private input: Input, private settings: () => Settings, private onClosed: (code: number) => void) {}
 
@@ -160,18 +162,16 @@ export class Game {
 
   private layout(): void {
     const w = window.innerWidth, h = window.innerHeight;
-    // integer scaling only; phones zoom in more so characters stay readable (~13 tiles across)
-    this.scale = w < 700
-      ? Math.max(1, Math.round(w / (TILE_SIZE * 16)))
-      : Math.max(1, Math.floor(Math.min(w / (TILE_SIZE * 18), h / (TILE_SIZE * 10))));
+    const dpr = this.app.renderer.resolution || 1;
+    // integer scaling in DEVICE pixels (crisp pixel art): ~18 tiles across on desktop, ~9 on phones
+    const target = w < 700 ? 9 : 18;
+    this.scale = Math.max(1, Math.floor((w * dpr) / (32 * target))) / dpr;
     this.world.scale.set(this.scale);
     this.lighting.sprite.scale.set(this.scale);
-    this.lighting.resize(Math.ceil(w / this.scale) + 2, Math.ceil(h / this.scale) + 2);
-    if (this.terrain) {
-      this.terrain.resize(Math.ceil(w / this.scale) + 2, Math.ceil(h / this.scale) + 2);
-      this.terrain.sprite.scale.set(this.scale);
-    }
-    this.fx.textRes = this.scale * (this.app.renderer.resolution || 1);
+    const vw = Math.ceil(w / this.scale) + 2, vh = Math.ceil(h / this.scale) + 2;
+    this.lighting.resize(vw, vh);
+    if (this.terrain) { this.terrain.resize(vw, vh); this.terrain.sprite.scale.set(this.scale); }
+    this.fx.textRes = this.scale * dpr;
   }
 
   /** Resolves when the first state containing the local player has been received and the area is drawn. */
@@ -415,23 +415,28 @@ export class Game {
     const W = window.innerWidth, H = window.innerHeight, S = this.scale;
     let ox = 0, oy = 0;
     if (this.fx.shake > 0 && !reduced) { ox = Math.round((Math.random() - 0.5) * 6 * this.fx.shake); oy = Math.round((Math.random() - 0.5) * 6 * this.fx.shake); }
-    const camX = Math.round(me.x * TILE_SIZE * S) / S, camY = Math.round(me.y * TILE_SIZE * S) / S;
+    // iso camera: centred on the player's body (feet minus 6px), snapped to device pixels
+    const camX = Math.round(isoX(me.x, me.y) * S) / S, camY = Math.round((isoY(me.x, me.y) - 6) * S) / S;
     this.world.x = Math.round(W / 2 - camX * S) + ox;
     this.world.y = Math.round(H / 2 - camY * S) + oy;
     {
-      // terrain: low-res render target aligned to integer world pixels, scaled up with nearest filtering
       const ow = Math.floor(camX - W / 2 / S), oh = Math.floor(camY - H / 2 / S);
-      this.terrain.render(ow, oh, now / 1000, this.seasonIdx, !reduced);
+      this.terrain.render(ow, oh, chunkOf(Math.floor(me.x)), chunkOf(Math.floor(me.y)), now / 1000, this.seasonIdx, !reduced);
       this.terrain.sprite.x = this.world.x + ow * S;
       this.terrain.sprite.y = this.world.y + oh * S;
-      const vx0 = Math.floor((camX - W / 2 / S) / TILE_SIZE) - 3, vx1 = Math.ceil((camX + W / 2 / S) / TILE_SIZE) + 3;
-      const vy0 = Math.floor((camY - H / 2 / S) / TILE_SIZE) - 3, vy1 = Math.ceil((camY + H / 2 / S) / TILE_SIZE) + 3;
+      // visible tile bounds = bounding box of the four unprojected screen corners
+      const c = [unproject(ow, oh), unproject(ow + W / S, oh), unproject(ow, oh + H / S), unproject(ow + W / S, oh + H / S)];
+      const vx0 = Math.floor(Math.min(...c.map((p) => p.x))) - 4, vx1 = Math.ceil(Math.max(...c.map((p) => p.x))) + 4;
+      const vy0 = Math.floor(Math.min(...c.map((p) => p.y))) - 4, vy1 = Math.ceil(Math.max(...c.map((p) => p.y))) + 4;
+      this.vis = { x0: vx0, y0: vy0, x1: vx1, y1: vy1 };
       this.objects.update(now, sun, reduced, vx0, vy0, vx1, vy1);
       this.worldObjs.update(now, sun, reduced, vx0, vy0, vx1, vy1);
       this.buildings.update(now, Math.floor(me.x), Math.floor(me.y), reduced, sun, vx0, vy0, vx1, vy1);
-      this.input.mouseTile = { tx: Math.floor((this.input.mouseXY.x - this.world.x) / S / TILE_SIZE), ty: Math.floor((this.input.mouseXY.y - this.world.y) / S / TILE_SIZE) };
+      const m = this.input.mouseXY;
+      const u = unproject((m.x - this.world.x) / S, (m.y - this.world.y) / S);
+      this.input.mouseTile = { tx: Math.floor(u.x), ty: Math.floor(u.y) };
     }
-    this.input.playerScreen = { x: W / 2 + (me.x * TILE_SIZE - camX) * S, y: H / 2 + (me.y * TILE_SIZE - 6 - camY) * S };
+    this.input.playerScreen = { x: W / 2 + (isoX(me.x, me.y) - camX) * S, y: H / 2 + (isoY(me.x, me.y) - 10 - camY) * S };
 
     const renderT = this.clock.serverNow(now) - INTERP_DELAY_MS;
     this.updateViews(me, alpha, renderT, now, dtMs);
@@ -439,11 +444,11 @@ export class Game {
     this.fx.update(dt);
 
     // lighting
-    const topLeftX = camX - W / 2 / S, topLeftY = camY - H / 2 / S;
+    const topLeftIso = { x: camX - W / 2 / S, y: camY - H / 2 / S };
     const weather = weatherForDay(this.seed, dayNumber(wall));
     this.weatherFx.update(dt, weather, W, H, reduced, hour);
     const wa = this.weatherFx.ambient(weather), amb = ambientColor(hour);
-    this.lighting.render([amb[0] * wa[0], amb[1] * wa[1], amb[2] * wa[2]], this.collectLights(topLeftX, topLeftY, W / S, H / S, hour, now, reduced));
+    this.lighting.render([amb[0] * wa[0], amb[1] * wa[1], amb[2] * wa[2]], this.collectLights(topLeftIso.x, topLeftIso.y, hour, now, reduced));
     this.updateTarget(now);
     if (!this.gameplay.blocking) this.gameplay.holdUse(now);
     this.hurtTimer = Math.max(0, this.hurtTimer - dt);
@@ -491,9 +496,9 @@ export class Game {
       const moved = Math.hypot(x - v.lx, y - v.ly);
       v.travel += moved;
       v.lx = x; v.ly = y;
-      v.root.x = Math.round(x * TILE_SIZE);
-      v.root.y = Math.round(y * TILE_SIZE + 6);
-      v.root.zIndex = v.root.y;
+      v.root.x = Math.round(isoX(x, y));
+      v.root.y = Math.round(isoY(x, y));
+      v.root.zIndex = depth(x, y);
       v.gfx.clear();
 
       if (v.type === 'player') {
@@ -502,15 +507,16 @@ export class Game {
         const walking = moved > 0.003 * (dtMs / 16);
         const frame = walking ? 1 + (Math.floor(v.travel / 0.17) % (WALK_FRAMES - 1)) : 0;
         const look = isMe ? this.gameplay.profile.equip.outfit : (s?.look ?? v.outfit);
-        v.sprite.texture = this.sheets.person(((look % OUTFITS.length) + OUTFITS.length) % OUTFITS.length, dirOf(fx, fy), frame);
+        const sd = screenDir(fx, fy);
+        v.sprite.texture = this.sheets.person(((look % OUTFITS.length) + OUTFITS.length) % OUTFITS.length, dirOf(sd.x, sd.y), frame);
         v.sprite.alpha = deadP ? 0.35 : dash ? 0.6 : 1;
         v.sprite.rotation = deadP ? Math.PI / 2 : 0;
-        v.gfx.ellipse(0, 0, 5, 2).fill({ color: 0x2a1060, alpha: 0.25 });
+        v.gfx.ellipse(0, 0, 7, 3).fill({ color: 0x2a1060, alpha: 0.28 });
         if (dash && !reduced) { v.trail = 0.2; }
         if (v.label) {
           if (s?.name && v.label.text !== s.name) v.label.text = s.name;
           v.label.x = Math.round(this.world.x + v.root.x * this.scale);
-          v.label.y = Math.round(this.world.y + (v.root.y - 27) * this.scale);
+          v.label.y = Math.round(this.world.y + (v.root.y - 30) * this.scale);
         }
       } else if (v.type === 'npc') {
         const inside = ((s?.flags ?? 0) & 2) !== 0;
@@ -520,30 +526,33 @@ export class Game {
         v.root.visible = !hidden;
         const walking = ((s?.flags ?? 0) & 1) !== 0 || moved > 0.003 * (dtMs / 16);
         const frame = walking ? 1 + (Math.floor(v.travel / 0.17) % (WALK_FRAMES - 1)) : 0;
-        v.sprite.texture = this.sheets.npc(v.id, dirOf(fx, fy), frame);
-        v.gfx.ellipse(0, 0, 5, 2).fill({ color: 0x2a1060, alpha: 0.25 });
+        const nd = screenDir(fx, fy);
+        v.sprite.texture = this.sheets.npc(v.id, dirOf(nd.x, nd.y), frame);
+        v.gfx.ellipse(0, 0, 7, 3).fill({ color: 0x2a1060, alpha: 0.28 });
         if (v.label) {
           const near = Math.hypot(x - me.x, y - me.y) < 4;
           v.label.visible = !hidden && near;
           v.label.x = Math.round(this.world.x + v.root.x * this.scale);
-          v.label.y = Math.round(this.world.y + (v.root.y - 27) * this.scale);
+          v.label.y = Math.round(this.world.y + (v.root.y - 30) * this.scale);
         }
       } else if (v.type === 'enemy') {
         const kind = s?.kind ?? 0, night = !!s?.night;
         const t = now / 1000;
         const mobile = moved > 0.003 * (dtMs / 16);
         const frame = kind === 0 ? Math.floor(t * 4 + v.outfit) % 4 : kind >= 2 ? (mobile ? 1 + (Math.floor(v.travel / 0.25) % 3) : 0) : (s && s.tele > 0 ? 1 : Math.floor(t * 3) % 2 === 0 ? 0 : 3);
-        const dirx = fx < 0 ? DIR_LEFT : 3;
+        const fsx = screenDir(fx, fy).x;
+        const dirx = fsx < 0 ? DIR_LEFT : 3;
         v.sprite.texture = kind === 0 ? this.sheets.slime(night, frame) : kind === 1 ? this.sheets.hopper(night, frame % 4) : kind === 2 ? this.sheets.rabbit(frame, dirx) : this.sheets.deer(frame, dirx);
-        if (kind >= 2) v.sprite.scale.x = fx < 0 ? -1 : 1;
-        v.gfx.ellipse(0, 0, 5, 2).fill({ color: 0x2a1060, alpha: 0.25 });
+        if (kind >= 2) v.sprite.scale.x = fsx < 0 ? -1 : 1;
+        v.gfx.ellipse(0, 0, 7, 3).fill({ color: 0x2a1060, alpha: 0.28 });
         if (s && s.tele > 0 && kind < 2) {
           const def = ENEMY_BY_KIND[kind]!;
           const k = s.tele / 100;
-          const r = (kind === 1 ? def.strikeRange : def.strikeRange) * TILE_SIZE;
-          v.gfx.circle(0, -6, r).fill({ color: pc(35), alpha: 0.12 + 0.35 * k });
-          v.gfx.circle(0, -6, r * k).fill({ color: pc(36), alpha: 0.3 });
-          v.gfx.circle(0, -6, r).stroke({ color: pc(35), width: 1, alpha: 0.9 });
+          const r = def.strikeRange;
+          const rx = r * ISO_HW * Math.SQRT2, ry = r * ISO_HH * Math.SQRT2;
+          v.gfx.ellipse(0, 0, rx, ry).fill({ color: pc(35), alpha: 0.12 + 0.35 * k });
+          v.gfx.ellipse(0, 0, rx * k, ry * k).fill({ color: pc(36), alpha: 0.3 });
+          v.gfx.ellipse(0, 0, rx, ry).stroke({ color: pc(35), width: 1, alpha: 0.9 });
         }
         if (s && s.hp < s.maxHp && s.maxHp > 0) {
           v.gfx.rect(-7, -18, 14, 3).fill(pc(1));
@@ -564,10 +573,10 @@ export class Game {
     this.bobber.clear();
     const f = this.gameplay.fishing;
     if (f) {
-      const bx = (f.tx + 0.5) * TILE_SIZE, by = (f.ty + 0.5) * TILE_SIZE + Math.sin(now / 250) * (f.bite ? 2.5 : 0.8);
-      this.bobber.circle(bx, by, 2.2).fill(pc(f.bite ? 38 : 35)).stroke({ color: pc(7), width: 1 });
-      this.bobber.ellipse(bx, by + 3, 4, 1.5).stroke({ color: pc(30), width: 1, alpha: 0.7 });
-      if (this.predictor) { const p = this.predictor.sim; this.bobber.moveTo(p.x * TILE_SIZE, p.y * TILE_SIZE - 6).lineTo(bx, by).stroke({ color: pc(6), width: 0.5, alpha: 0.7 }); }
+      const bx = isoX(f.tx + 0.5, f.ty + 0.5), by = isoY(f.tx + 0.5, f.ty + 0.5) + Math.sin(now / 250) * (f.bite ? 2.5 : 0.8);
+      this.bobber.circle(bx, by - 2, 2.2).fill(pc(f.bite ? 38 : 35)).stroke({ color: pc(7), width: 1 });
+      this.bobber.ellipse(bx, by + 1, 5, 2.2).stroke({ color: pc(30), width: 1, alpha: 0.7 });
+      if (this.predictor) { const p = this.predictor.sim; this.bobber.moveTo(isoX(p.x, p.y), isoY(p.x, p.y) - 10).lineTo(bx, by - 2).stroke({ color: pc(6), width: 0.5, alpha: 0.7 }); }
     }
     if (this.gameplay.blocking || this.dead) { this.gameplay.setHint(null); return; }
     const pr = this.gameplay.prompt();
@@ -575,7 +584,7 @@ export class Game {
     if (info && info.kind !== 'talk') {
       const col = info.ok ? pc(info.kind === 'none' ? 6 : 47) : pc(37);
       const pulse = 0.55 + 0.25 * Math.sin(now / 200);
-      g.rect(pr.tx * TILE_SIZE + 0.5, pr.ty * TILE_SIZE + 0.5, TILE_SIZE - 1, TILE_SIZE - 1).stroke({ color: col, width: 1, alpha: pulse });
+      g.poly([isoX(pr.tx, pr.ty), isoY(pr.tx, pr.ty), isoX(pr.tx + 1, pr.ty), isoY(pr.tx + 1, pr.ty), isoX(pr.tx + 1, pr.ty + 1), isoY(pr.tx + 1, pr.ty + 1), isoX(pr.tx, pr.ty + 1), isoY(pr.tx, pr.ty + 1)]).stroke({ color: col, width: 1, alpha: pulse });
     }
     this.gameplay.setHint(pr.label, info?.ok ?? true);
   }
@@ -629,32 +638,31 @@ export class Game {
     sh.rotation = v.sprite.rotation;
   }
 
-  private collectLights(x0: number, y0: number, wTiles: number, hTiles: number, hour: number, now: number, reduced: boolean): Light[] {
+  private collectLights(isoX0: number, isoY0: number, hour: number, now: number, reduced: boolean): Light[] {
     const out: Light[] = [];
     const dark = darkness(hour);
-    const toL = (tx: number, ty: number) => ({ x: (tx - x0) * TILE_SIZE, y: (ty - y0) * TILE_SIZE });
-    const sx = Math.floor(x0) - 6, sy = Math.floor(y0) - 6, ex = Math.ceil(x0 + wTiles) + 6, ey = Math.ceil(y0 + hTiles) + 6;
+    const toL = (tx: number, ty: number) => ({ x: isoX(tx, ty) - isoX0, y: isoY(tx, ty) - isoY0 });
+    const v = this.vis;
     const small: Light[] = [];
-    for (let ty = sy; ty < ey; ty++) {
-      for (let tx = sx; tx < ex; tx++) {
+    for (let ty = v.y0; ty < v.y1; ty++) {
+      for (let tx = v.x0; tx < v.x1; tx++) {
         const def = TILE_DEFS[this.store.getTile(tx, ty)];
         if (!def || def.light <= 0) continue;
         const flick = reduced ? 1 : 0.88 + 0.12 * Math.sin(now / 130 + tx * 3.1 + ty * 1.7);
-        const p = toL(tx + 0.5, ty + 0.5);
-        const l = { ...p, radius: def.light * (reduced ? 1 : flick), color: pc(def.lightColor), intensity: 0.95 * flick };
-        // big lights (torches) always render; ambient glows (bloom tiles) are capped
+        const l = { ...toL(tx + 0.5, ty + 0.5), radius: def.light * (reduced ? 1 : flick), color: pc(def.lightColor), intensity: 0.95 * flick };
         if (def.light >= 4) out.push(l); else if (small.length < 24) small.push(l);
       }
     }
     out.push(...small);
-    for (const l of this.worldObjs.lights(Math.floor(x0) - 6, Math.floor(y0) - 6, Math.ceil(x0 + wTiles) + 6, Math.ceil(y0 + hTiles) + 6)) out.push({ ...toL(l.x, l.y), radius: l.radius, color: l.color, intensity: l.intensity });
+    for (const l of this.worldObjs.lights(v.x0, v.y0, v.x1, v.y1)) out.push({ ...toL(l.x, l.y), radius: l.radius, color: l.color, intensity: l.intensity });
     const me = this.predictor.visual(0);
     const lantern = this.gameplay.profile.buffs.lantern && this.gameplay.profile.buffs.lantern.until > this.clock.serverNow(now);
-    out.push({ ...toL(me.x, me.y - 0.3), radius: lantern ? 8 : 4.5, color: pc(22), intensity: Math.min(1, dark * (lantern ? 1.4 : 1.1)) });
-    for (const v of this.views.values()) {
-      if (v.type === 'proj') out.push({ ...toL(v.lx, v.ly), radius: 2.2, color: pc(46), intensity: 0.9 });
-      else if (v.type === 'enemy' && dark > 0.3) out.push({ ...toL(v.lx, v.ly), radius: 1.6, color: pc(this.interp.sample(v.id, 0)?.pose.kind === 1 ? 37 : 45), intensity: 0.5 });
-      else if (v.type === 'player' && v.id !== this.myId) out.push({ ...toL(v.lx, v.ly - 0.3), radius: 3, color: pc(22), intensity: dark });
+    out.push({ ...toL(me.x, me.y), y: toL(me.x, me.y).y - 10, radius: lantern ? 8 : 4.5, color: pc(22), intensity: Math.min(1, dark * (lantern ? 1.4 : 1.1)) });
+    for (const view of this.views.values()) {
+      const p = toL(view.lx, view.ly);
+      if (view.type === 'proj') out.push({ ...p, y: p.y - 8, radius: 2.2, color: pc(46), intensity: 0.9 });
+      else if (view.type === 'enemy' && dark > 0.3) out.push({ ...p, y: p.y - 6, radius: 1.6, color: pc(this.interp.sample(view.id, 0)?.pose.kind === 1 ? 37 : 45), intensity: 0.5 });
+      else if ((view.type === 'player' && view.id !== this.myId) || view.type === 'npc') out.push({ ...p, y: p.y - 10, radius: 3, color: pc(22), intensity: dark });
     }
     return out;
   }

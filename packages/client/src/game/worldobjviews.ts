@@ -1,5 +1,6 @@
 import { Sprite, type Container } from 'pixi.js';
-import { CHUNK_SIZE, TILE_SIZE, chunkKey, hash2, objLight, type ChunkStore, type WorldObj } from '@eigenlands/shared';
+import { CHUNK_SIZE, chunkKey, hash2, objLight, sampleClimate, type ChunkStore, type WorldObj } from '@eigenlands/shared';
+import { depth, isoX, isoY } from './iso';
 import type { SeasonIdx } from '../art/objects';
 import { worldObjDef, type ObjSpriteDef } from '../art/worldobjs';
 import type { Sun } from './objectviews';
@@ -11,6 +12,7 @@ interface View {
   def: ObjSpriteDef;
   root: Sprite;
   shadow: Sprite;
+  echo: Sprite | null;
   phase: number;
   ck: string;
   /** signature of what is drawn (so upsert only rebuilds when it changed) */
@@ -43,18 +45,33 @@ export class WorldObjViews {
     const f = def.frames[0]!;
     const root = new Sprite(f.tex);
     root.anchor.set(f.ax / f.tex.width, f.ay / f.tex.height);
-    root.x = Math.round((o.x + 0.5) * TILE_SIZE);
-    root.y = (o.y + 1) * TILE_SIZE - 2;
-    // rugs and crops sit on the ground: draw them behind anything standing on the tile
-    root.zIndex = o.kind === 'furniture' && o.sub === 'rug' ? root.y - 1000 : o.kind === 'crop' ? root.y - 2 : root.y;
+    // iso billboard: feet on the tile's ground centre
+    root.x = Math.round(isoX(o.x + 0.5, o.y + 0.5));
+    root.y = Math.round(isoY(o.x + 0.5, o.y + 0.5));
+    // rugs sit on the ground: behind anything standing on the tile; crops just under entities of the same tile
+    const dz = depth(o.x + 0.5, o.y + 0.5);
+    root.zIndex = o.kind === 'furniture' && o.sub === 'rug' ? dz - 1e6 : o.kind === 'crop' ? dz - 6 : dz;
     const shadow = new Sprite(f.tex);
     shadow.anchor.copyFrom(root.anchor);
     shadow.tint = 0x2a1060;
     shadow.position.copyFrom(root);
     this.layer.addChild(root);
     this.shadowLayer.addChild(shadow);
+    // quantum echo: superposed crops and anything qubit-flavoured carry a faint offset ghost
+    let echo: Sprite | null = null;
+    const sup = o.kind === 'crop' && !!(o.data as { alt?: string } | undefined)?.alt;
+    const flux = o.kind === 'crop' ? sampleClimate(this.store.seed, o.x, o.y).flux : -1;
+    if (sup || o.sub === 'phase_lantern' || o.sub === 'statue' || flux > 0.45) {
+      echo = new Sprite(f.tex);
+      echo.anchor.copyFrom(root.anchor);
+      echo.tint = o.sub === 'statue' || o.sub === 'phase_lantern' || sup ? 0xff9ae8 : 0x5af0d0;
+      echo.alpha = 0.22;
+      echo.position.set(root.x + 2, root.y - 1);
+      echo.zIndex = root.zIndex - 0.5;
+      this.layer.addChild(echo);
+    }
     const ck = chunkKey(Math.floor(o.x / CHUNK_SIZE), Math.floor(o.y / CHUNK_SIZE));
-    return { obj: o, def, root, shadow, phase: hash2(this.store.seed, o.x, o.y, 77) * 6.28, ck, sig: sigOf(o) };
+    return { obj: o, def, root, shadow, echo, phase: hash2(this.store.seed, o.x, o.y, 77) * 6.28, ck, sig: sigOf(o) };
   }
 
   upsert(o: WorldObj): void {
@@ -70,7 +87,7 @@ export class WorldObjViews {
   }
 
   private drop(key: string, v: View): void {
-    v.root.destroy(); v.shadow.destroy();
+    v.root.destroy(); v.shadow.destroy(); v.echo?.destroy();
     this.views.delete(key);
     this.byChunk.get(v.ck)?.delete(key);
   }
@@ -122,15 +139,16 @@ export class WorldObjViews {
       if (d.frames.length > 1) {
         const f = reduced ? 0 : Math.floor(t * d.fps + v.phase) % d.frames.length;
         const tex = d.frames[f]!.tex;
-        if (v.root.texture !== tex) { v.root.texture = tex; v.shadow.texture = tex; }
+        if (v.root.texture !== tex) { v.root.texture = tex; v.shadow.texture = tex; if (v.echo) v.echo.texture = tex; }
       }
       const sway = reduced || !d.sway ? 0 : Math.sin(t * 1.5 + v.phase + v.root.x * 0.02) * d.sway;
       v.root.skew.x = sway;
+      if (v.echo) { v.echo.skew.x = sway; v.echo.alpha = reduced ? 0.2 : 0.15 + 0.1 * Math.sin(t * 1.9 + v.phase); }
       const show = !d.noShadow && sun.alpha > 0.02;
       v.shadow.visible = show;
       if (show) {
         v.shadow.alpha = sun.alpha * 0.9;
-        v.shadow.scale.y = -(0.26 + 0.18 * sun.len);
+        v.shadow.scale.y = -(0.22 + 0.14 * sun.len);
         v.shadow.skew.x = sun.dx * sun.len * 0.55 + sway;
       }
     });

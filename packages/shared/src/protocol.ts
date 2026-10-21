@@ -6,6 +6,7 @@ import type { StationId } from './recipes';
 import type { Template, ForgePreview } from './forge';
 import type { WorldObj } from './objects';
 import type { Weather } from './weather';
+import type { QuestLog } from './quests';
 
 export const MSG = {
   INPUT: 'input',
@@ -35,7 +36,8 @@ export const MSG = {
   GIFT: 'gift',               // GiftMsg -> DIALOGUE
   SHOP: 'shop',               // ShopMsg -> SHOP_VIEW + PROFILE
   CHEST: 'chest',             // ChestMsg -> PANEL
-  SHELTER: 'shelter',         // ShelterMsg -> PANEL
+  SHELTER: 'shelter',
+  QUEST: 'quest',             // QuestMsg: accept / turn in         // ShelterMsg -> PANEL
   DIALOGUE_CHAT: 'dialogue_chat', // DialogueChatMsg (optional AI layer) -> DIALOGUE
   DEV: 'dev',                 // DevMsg: test/e2e helpers; ignored unless the server runs with DEV_COMMANDS=1
   // ── Phase 2 (server -> client)
@@ -86,6 +88,8 @@ export interface ProfileMsg {
   buffs?: Record<string, { until: number; power: number }>;
   /** friendship per NPC: points, last day talked, last day gifted */
   friends?: Record<string, { pts: number; talked: number; gifted: number }>;
+  /** quest log: state + per-objective progress */
+  quests?: QuestLog;
   /** derived stats from equipment/buffs */
   stats?: { hpBonus: number; atkBonus: number; luck: number; haste: number };
   /** selected quick-bar slot is client-side; this is the server's last accepted USE slot (diagnostics) */
@@ -123,6 +127,7 @@ export interface FishBiteMsg { id: string; windowMs: number }
 export interface FishHookMsg { id: string }
 
 export interface TalkMsg { npcId: string }
+export interface QuestMsg { npcId: string; quest: string; action: 'accept' | 'turnin' }
 export interface GiftMsg { npcId: string; slot: number }
 export interface DialogueChatMsg { npcId: string; text: string }
 export interface DialogueMsg {
@@ -143,6 +148,8 @@ export interface DialogueMsg {
   gift?: { taste: 'love' | 'like' | 'neutral' | 'hate'; delta: number };
   /** a rumor the NPC volunteers (already woven into `text` when present) */
   rumor?: string;
+  /** quests this NPC can offer / is waiting on */
+  quests?: Array<{ id: string; title: string; state: 'offer' | 'active' | 'ready' }>;
 }
 
 export interface ShopMsg {

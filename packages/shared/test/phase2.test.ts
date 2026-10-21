@@ -4,7 +4,7 @@ import {
   collapseCrop, cropSeasonOk, cropStage, decaySupply, emptyInventory, findPath, forge, gameHour, hearts, interference, isRipe, matchExperiment,
   moveSlot, preview, removeItem, countItem, rollFish, sanitizeHits, scheduleAt, scoreHits, sellPrice, skillLevel, townFor, weatherForDay,
   tileAt, isSolid, FISH_TABLE, NODES, TILE_DEFS, FORAGE_BY_SEASON, validInventory, mulberry32, tierOf, giftTaste, SHOP_NPCS, buildingAt,
-  type CropData, DAY_MS,
+  type CropData, DAY_MS, QUESTS, QUEST_BY_ID, offerable, startQuest, applyQuestEvent, questComplete, type QuestLog,
 } from '../src';
 
 const SEED = 20260101;
@@ -198,7 +198,9 @@ describe('world: nodes, ores and the town', () => {
       store.get(Math.floor(b.x / 32), Math.floor(b.y / 32));
     }
     const subs = new Set(town.objects.map((o) => o.sub));
-    for (const s of ['forge', 'furnace', 'workbench', 'cooking_pot', 'alchemy', 'loom', 'carpenter', 'well', 'bed']) expect(subs.has(s), s).toBe(true);
+    for (const s of ['forge', 'furnace', 'workbench', 'cooking_pot', 'alchemy', 'loom', 'carpenter', 'well', 'bed', 'statue', 'plaque', 'stall', 'bench']) expect(subs.has(s), s).toBe(true);
+    const plaque = town.objects.find((o) => o.sub === 'plaque')!;
+    expect(String(plaque.data?.text)).toContain('ALL HAIL QUBITMAN');
     // static furnishing is solid in the shared collision query
     const forge = town.objects.find((o) => o.sub === 'forge')!;
     expect(store.solidAt(forge.x, forge.y)).toBe(true);
@@ -250,4 +252,33 @@ describe('NPCs', () => {
 
 describe('time helpers used by day rollover', () => {
   it('a game day lasts 24 minutes', () => { expect(DAY_MS).toBe(1440000); expect(gameHour(0)).toBeCloseTo(6); });
+});
+
+describe('quests', () => {
+  it('every quest references real givers, items and prerequisites', () => {
+    for (const q of QUESTS) {
+      expect(NPCS.find((n) => n.id === q.giver), q.id).toBeTruthy();
+      for (const r of q.requires ?? []) expect(QUEST_BY_ID[r], `${q.id} requires ${r}`).toBeTruthy();
+      for (const i of q.rewards.items ?? []) expect(ITEMS[i.id], `${q.id}:${i.id}`).toBeTruthy();
+      for (const o of q.objectives) if (o.type === 'gain' || o.type === 'craft') expect(ITEMS[o.target], `${q.id}:${o.target}`).toBeTruthy();
+      expect(q.lines.offer.length).toBeGreaterThan(10);
+    }
+  });
+  it('unlocks in order and tracks progress from events', () => {
+    const log: QuestLog = {};
+    expect(offerable('orla', log).map((q) => q.id)).toEqual(['welcome']);
+    expect(offerable('odo', log)).toEqual([]);
+    startQuest(log, 'welcome');
+    for (const t of ['odo', 'brannoch', 'tobin']) applyQuestEvent(log, { type: 'talk', target: t, n: 1 });
+    expect(questComplete(QUEST_BY_ID.welcome!, log.welcome!)).toBe(true);
+    log.welcome!.state = 'done';
+    expect(offerable('odo', log).map((q) => q.id)).toContain('timber');
+    startQuest(log, 'timber');
+    applyQuestEvent(log, { type: 'gain', target: 'wood', n: 5 });
+    applyQuestEvent(log, { type: 'gain', target: 'stone', n: 5 });
+    expect(log.timber!.progress[0]).toBe(5);
+    applyQuestEvent(log, { type: 'gain', target: 'wood', n: 50 });
+    expect(log.timber!.progress[0]).toBe(12);
+    expect(startQuest(log, 'timber')).toBe(false);
+  });
 });
