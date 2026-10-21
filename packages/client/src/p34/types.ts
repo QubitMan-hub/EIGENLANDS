@@ -5,7 +5,7 @@ import type { Audio, Sfx } from '../audio';
 import type { Fx } from '../game/fx';
 import type { Profile } from '../game/profile';
 import type { Input } from '../input/input';
-import type { KeyMap } from '../input/keymap';
+import type { EXT_ACTIONS, KeyMap } from '../input/keymap';
 import type { Interpolator, Pose, ServerClock } from '../net/interp';
 import type { Net } from '../net/session';
 import type { Tooltip } from '../ui/dom';
@@ -68,4 +68,8 @@ export interface ClientModule {
   /** a hint for the bottom hint box (null = none), checked after Phase 2's tutorial hints */
   hint?(): string | null;
   debug?(): Record<string, unknown>;
+  /** a Phase 3/4 input action (ability1..4, ultimate, board, chat, party); return true when handled */
+  action?(a: ExtAction): boolean;
 }
+
+export type ExtAction = typeof EXT_ACTIONS[number];

@@ -15,6 +15,7 @@ export class P34Client {
     this.social = new SocialClient(d);
     this.shard = new ShardClient(d);
     this.mods = [this.shard, this.circuit, this.social];
+    d.input.onAction = (a) => { for (const m of this.mods) if (m.action?.(a)) return; };
   }
 
   handlers(): Record<string, (m: any) => void> {
