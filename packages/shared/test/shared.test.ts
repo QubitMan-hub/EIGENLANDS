@@ -36,7 +36,7 @@ describe('worldgen', () => {
   it('produces a varied meadow with water, trees and flowers somewhere nearby', () => {
     const seen = new Set<number>();
     for (let cy = -3; cy <= 3; cy++) for (let cx = -3; cx <= 3; cx++) generateChunk(7, cx, cy).forEach((t) => seen.add(t));
-    for (const t of [T.GRASS, T.TREE, T.FLOWERS, T.WATER, T.SAND, T.ROCK]) expect(seen.has(t)).toBe(true);
+    for (const t of [T.GRASS, T.TREE, T.FLOWERS, T.WATER, T.SAND, T.ROCK, T.GRASS_TALL]) expect(seen.has(t)).toBe(true);
   });
 });
 

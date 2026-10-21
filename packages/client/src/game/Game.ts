@@ -1,18 +1,19 @@
 import { Application, Container, Graphics, Sprite, Text } from 'pixi.js';
 import {
-  ChunkStore, ENEMY_BY_KIND, INTEREST_RADIUS, TILE_DEFS, TILE_SIZE, ambientColor, chunkOf,
+  ChunkStore, ENEMY_BY_KIND, INTEREST_RADIUS, TILE_DEFS, TILE_SIZE, ambientColor, SEASONS, chunkOf,
   darkness, decodeDiff, dayNumber, formatClock, gameHour, dayPhase, season, PALETTE, type Ack, type ChunkMsg,
   type FxMsg, type TileMsg, type WelcomeMsg,
 } from '@eigenlands/shared';
 import { buildActorSheets, dirOf, OUTFITS, WALK_FRAMES, type Sheets } from '../art/actors';
-import { buildTileAtlas } from '../art/tiles';
+import { buildObjectArt, destroyObjectArt, type ObjectArt, type SeasonIdx } from '../art/objects';
 import { Audio, SFX_CAPTIONS, type Sfx } from '../audio';
 import type { Input } from '../input/input';
 import { INTERP_DELAY_MS, Interpolator, ServerClock, type Pose } from '../net/interp';
 import type { Net, NetHandlers } from '../net/session';
 import { Predictor } from '../net/prediction';
 import { TUTORIAL, type Acts, type Settings } from '../ui/ui';
-import { ChunkViews } from './chunkview';
+import { ObjectViews, sunFor } from './objectviews';
+import { Terrain } from './terrain';
 import { Fx } from './fx';
 import { Lighting, type Light } from './lighting';
 
@@ -27,6 +28,7 @@ interface ActorView {
   root: Container;
   sprite: Sprite;
   gfx: Graphics;
+  shadow: Sprite;
   label?: Text;
   lx: number; ly: number;
   travel: number;
@@ -42,7 +44,12 @@ export class Game {
   private app!: Application;
   private sheets!: Sheets;
   private store!: ChunkStore;
-  private chunks!: ChunkViews;
+  private terrain!: Terrain;
+  private objects!: ObjectViews;
+  private art: ObjectArt | null = null;
+  private seasonIdx: SeasonIdx = 1;
+  private seasonOverride: SeasonIdx | null = (() => { const q = new URLSearchParams(location.search).get('season'); return q !== null && ['0', '1', '2', '3'].includes(q) ? (Number(q) as SeasonIdx) : null; })();
+  private shadowLayer = new Container();
   private lighting!: Lighting;
   private fx!: Fx;
   private world = new Container();
@@ -89,17 +96,12 @@ export class Game {
       resolution: Math.min(window.devicePixelRatio || 1, 3), autoDensity: true, preference: 'webgl',
     });
     this.sheets = buildActorSheets();
-    const atlas = buildTileAtlas();
     this.entityLayer.sortableChildren = true;
-    const chunkLayer = new Container();
-    this.world.addChild(chunkLayer, this.entityLayer, this.fxLayer);
-    this.app.stage.addChild(this.world);
+    this.world.addChild(this.shadowLayer, this.entityLayer, this.fxLayer);
     this.lighting = new Lighting(this.app.renderer);
     this.app.stage.addChild(this.lighting.sprite, this.labelLayer);
     this.fx = new Fx(this.fxLayer, () => this.settings().reducedMotion);
     this.store = new ChunkStore(0); // replaced once the seed is known
-    (this as any)._atlas = atlas;
-    (this as any)._chunkLayer = chunkLayer;
     window.addEventListener('resize', () => this.layout());
     this.layout();
   }
@@ -108,7 +110,28 @@ export class Game {
   private startWorld(seed: number): void {
     this.seed = seed;
     this.store = new ChunkStore(seed, 400);
-    this.chunks = new ChunkViews(this.app.renderer, (this as any)._atlas, this.store, (this as any)._chunkLayer);
+    this.terrain = new Terrain(this.app.renderer, this.store);
+    this.objects = new ObjectViews(this.store, this.shadowLayer, this.entityLayer);
+    this.app.stage.addChildAt(this.terrain.sprite, 0);
+    this.app.stage.addChildAt(this.world, 1);
+    this.setSeason(this.seasonOverride ?? 1);
+    this.layout();
+  }
+
+  private setSeason(s: SeasonIdx): void {
+    if (this.art && s === this.seasonIdx) return;
+    this.seasonIdx = s;
+    const old = this.art;
+    this.art = buildObjectArt(s);
+    this.objects.setArt(this.art);
+    if (old) destroyObjectArt(old);
+  }
+
+  /** Make chunk (cx,cy) visible: terrain tile-class texture + object sprites. */
+  private showChunk(cx: number, cy: number): void {
+    this.terrain.build(cx, cy);
+    this.objects.buildChunk(cx, cy);
+    this.requestDiff(cx, cy);
   }
 
   private layout(): void {
@@ -120,6 +143,10 @@ export class Game {
     this.world.scale.set(this.scale);
     this.lighting.sprite.scale.set(this.scale);
     this.lighting.resize(Math.ceil(w / this.scale) + 2, Math.ceil(h / this.scale) + 2);
+    if (this.terrain) {
+      this.terrain.resize(Math.ceil(w / this.scale) + 2, Math.ceil(h / this.scale) + 2);
+      this.terrain.sprite.scale.set(this.scale);
+    }
     this.fx.textRes = this.scale * (this.app.renderer.resolution || 1);
   }
 
@@ -128,7 +155,7 @@ export class Game {
     await new Promise<void>((res) => { if (this.self) res(); else this.selfReady = res; });
     // synchronously draw the 3x3 around the player so the first frame is never empty
     const cx = chunkOf(Math.floor(this.predictor.sim.x)), cy = chunkOf(Math.floor(this.predictor.sim.y));
-    for (let y = cy - 1; y <= cy + 1; y++) for (let x = cx - 1; x <= cx + 1; x++) { this.chunks.build(x, y); this.requestDiff(x, y); }
+    for (let y = cy - 1; y <= cy + 1; y++) for (let x = cx - 1; x <= cx + 1; x++) this.showChunk(x, y);
     this.app.ticker.add((t) => this.frame(t.deltaMS));
   }
 
@@ -141,7 +168,7 @@ export class Game {
   }
 
   private state(s: any): void {
-    if (!s?.players || !this.myId || !this.chunks) return;
+    if (!s?.players || !this.myId || !this.terrain) return;
     const now = performance.now();
     const t: number = s.serverTime;
     this.clock.observe(t, s.tick, now);
@@ -178,11 +205,12 @@ export class Game {
   private chunk(m: ChunkMsg): void {
     const diff = decodeDiff(m.diff);
     this.store.applyDiff(m.cx, m.cy, diff);
-    if (this.chunks.has(m.cx, m.cy)) this.chunks.build(m.cx, m.cy);
+    if (this.terrain.has(m.cx, m.cy)) { this.terrain.invalidate(m.cx, m.cy); this.objects.buildChunk(m.cx, m.cy); }
   }
   private tile(m: TileMsg): void {
     const { cx, cy } = this.store.setTile(m.tx, m.ty, m.tile);
-    if (this.chunks.has(cx, cy)) this.chunks.build(cx, cy);
+    this.terrain.invalidate(cx, cy, ((m.tx % 32) + 32) % 32, ((m.ty % 32) + 32) % 32);
+    this.objects.refreshTile(m.tx, m.ty);
   }
   private notice(text: string): void { this.toast(text); }
   private close(code: number): void { this.connected = false; this.onClosed(code); }
@@ -242,11 +270,16 @@ export class Game {
     const gfx = new Graphics();
     const sprite = new Sprite();
     sprite.anchor.set(0.5, 1);
+    sprite.y = 1;
     root.addChild(gfx, sprite);
+    const shadow = new Sprite();
+    shadow.anchor.set(0.5, 1);
+    shadow.tint = 0x2a1060;
+    this.shadowLayer.addChild(shadow);
     let outfit = 0;
     let label: Text | undefined;
     if (type === 'player') {
-      outfit = [...id].reduce((a, c) => a + c.charCodeAt(0), 0) % OUTFITS.length;
+      outfit = id === this.myId ? 0 : [...id].reduce((a, c) => a + c.charCodeAt(0), 0) % OUTFITS.length;
       // names live in screen space (crisp, not darkened by the night lightmap)
       label = new Text({ text: e.name || '', style: { fontFamily: 'ui-monospace, Menlo, Consolas, monospace', fontSize: 12, fontWeight: 'bold', fill: pc(id === this.myId ? 47 : 7), stroke: { color: pc(0), width: 3 } } });
       label.resolution = this.app.renderer.resolution || 1;
@@ -254,13 +287,14 @@ export class Game {
       this.labelLayer.addChild(label);
     }
     this.entityLayer.addChild(root);
-    this.views.set(id, { id, type, root, sprite, gfx, label, lx: e.x, ly: e.y, travel: 0, outfit, trail: 0 });
+    this.views.set(id, { id, type, root, sprite, gfx, shadow, label, lx: e.x, ly: e.y, travel: 0, outfit, trail: 0 });
   }
 
   private dropView(id: string): void {
     const v = this.views.get(id);
     if (!v) return;
     v.label?.destroy();
+    v.shadow.destroy();
     v.root.destroy({ children: true });
     this.views.delete(id);
     this.interp.remove(id);
@@ -282,14 +316,15 @@ export class Game {
     const want: Array<[number, number]> = [];
     for (let y = cy - R; y <= cy + R; y++) for (let x = cx - R; x <= cx + R; x++) {
       keep.add(`${x},${y}`);
-      if (!this.chunks.has(x, y)) want.push([x, y]);
+      if (!this.terrain.has(x, y)) want.push([x, y]);
     }
     want.sort((a, b) => Math.hypot(a[0] - cx, a[1] - cy) - Math.hypot(b[0] - cx, b[1] - cy));
     this.pendingBuild = want;
     // free far chunks and forget their request flags so returning re-fetches fresh edits
     const far = new Set<string>();
     for (let y = cy - R - 1; y <= cy + R + 1; y++) for (let x = cx - R - 1; x <= cx + R + 1; x++) far.add(`${x},${y}`);
-    this.chunks.retain(far);
+    this.terrain.retain(far);
+    this.objects.retain(far);
     for (const k of [...this.requested]) if (!far.has(k)) this.requested.delete(k);
   }
 
@@ -313,12 +348,14 @@ export class Game {
     if (now - this.lastStream > 200) { this.lastStream = now; this.stream(); }
     for (let i = 0; i < 1 && this.pendingBuild.length; i++) {
       const [x, y] = this.pendingBuild.shift()!;
-      if (!this.chunks.has(x, y)) { this.chunks.build(x, y); this.requestDiff(x, y); }
+      if (!this.terrain.has(x, y)) this.showChunk(x, y);
     }
 
     const reduced = this.settings().reducedMotion;
     const hour = this.hourOverride ?? gameHour(this.clock.serverNow(now));
-    this.chunks.setFrame(reduced ? 0 : Math.floor(now / 500) % 2);
+    const sun = sunFor(hour);
+    const wall = this.clock.serverNow(now);
+    this.setSeason(this.seasonOverride ?? ((SEASONS.indexOf(season(wall)) as SeasonIdx)));
 
     const me = this.predictor.visual(alpha);
     const W = window.innerWidth, H = window.innerHeight, S = this.scale;
@@ -327,10 +364,21 @@ export class Game {
     const camX = Math.round(me.x * TILE_SIZE * S) / S, camY = Math.round(me.y * TILE_SIZE * S) / S;
     this.world.x = Math.round(W / 2 - camX * S) + ox;
     this.world.y = Math.round(H / 2 - camY * S) + oy;
+    {
+      // terrain: low-res render target aligned to integer world pixels, scaled up with nearest filtering
+      const ow = Math.floor(camX - W / 2 / S), oh = Math.floor(camY - H / 2 / S);
+      this.terrain.render(ow, oh, now / 1000, this.seasonIdx, !reduced);
+      this.terrain.sprite.x = this.world.x + ow * S;
+      this.terrain.sprite.y = this.world.y + oh * S;
+      const vx0 = Math.floor((camX - W / 2 / S) / TILE_SIZE) - 3, vx1 = Math.ceil((camX + W / 2 / S) / TILE_SIZE) + 3;
+      const vy0 = Math.floor((camY - H / 2 / S) / TILE_SIZE) - 3, vy1 = Math.ceil((camY + H / 2 / S) / TILE_SIZE) + 3;
+      this.objects.update(now, sun, reduced, vx0, vy0, vx1, vy1);
+    }
     this.input.playerScreen = { x: W / 2 + (me.x * TILE_SIZE - camX) * S, y: H / 2 + (me.y * TILE_SIZE - 6 - camY) * S };
 
     const renderT = this.clock.serverNow(now) - INTERP_DELAY_MS;
     this.updateViews(me, alpha, renderT, now, dtMs);
+    for (const v of this.views.values()) this.castShadow(v, sun);
     this.fx.update(dt);
 
     // lighting
@@ -401,19 +449,19 @@ export class Game {
         v.sprite.texture = this.sheets.person(v.outfit, dirOf(fx, fy), frame);
         v.sprite.alpha = deadP ? 0.35 : dash ? 0.6 : 1;
         v.sprite.rotation = deadP ? Math.PI / 2 : 0;
-        v.gfx.ellipse(0, -1, 6, 2.5).fill({ color: 0x000000, alpha: 0.3 });
+        v.gfx.ellipse(0, 0, 5, 2).fill({ color: 0x2a1060, alpha: 0.25 });
         if (dash && !reduced) { v.trail = 0.2; }
         if (v.label) {
           if (s?.name && v.label.text !== s.name) v.label.text = s.name;
           v.label.x = Math.round(this.world.x + v.root.x * this.scale);
-          v.label.y = Math.round(this.world.y + (v.root.y - 19) * this.scale);
+          v.label.y = Math.round(this.world.y + (v.root.y - 27) * this.scale);
         }
       } else if (v.type === 'enemy') {
         const kind = s?.kind ?? 0, night = !!s?.night;
         const t = now / 1000;
         const frame = kind === 0 ? Math.floor(t * 4 + v.outfit) % 4 : (s && s.tele > 0 ? 1 : Math.floor(t * 3) % 2 === 0 ? 0 : 3);
         v.sprite.texture = kind === 0 ? this.sheets.slime(night, frame) : this.sheets.hopper(night, frame % 4);
-        v.gfx.ellipse(0, -1, 6, 2.5).fill({ color: 0x000000, alpha: 0.3 });
+        v.gfx.ellipse(0, 0, 5, 2).fill({ color: 0x2a1060, alpha: 0.25 });
         if (s && s.tele > 0) {
           const def = ENEMY_BY_KIND[kind]!;
           const k = s.tele / 100;
@@ -432,6 +480,19 @@ export class Game {
       }
     }
     void alpha;
+  }
+
+  /** Cast the sprite's silhouette along the sun direction (same flat shadow model as world objects). */
+  private castShadow(v: ActorView, sun: { dx: number; len: number; alpha: number }): void {
+    const sh = v.shadow;
+    sh.visible = v.root.visible && v.type !== 'proj' && sun.alpha > 0.02;
+    if (!sh.visible) return;
+    sh.texture = v.sprite.texture;
+    sh.position.set(v.root.x, v.root.y + 1);
+    sh.alpha = sun.alpha * v.sprite.alpha;
+    sh.scale.y = -(0.26 + 0.18 * sun.len);
+    sh.skew.x = sun.dx * sun.len * 0.55;
+    sh.rotation = v.sprite.rotation;
   }
 
   private collectLights(x0: number, y0: number, wTiles: number, hTiles: number, hour: number, now: number, reduced: boolean): Light[] {
@@ -492,7 +553,7 @@ export class Game {
     if (!dbg.hidden) {
       const p = this.predictor.sim;
       dbg.textContent = `fps ${this.fps.toFixed(0)} (js ${this.frameMs.toFixed(1)}ms)  ping ${this.rtt.toFixed(0)}ms  correction ${this.predictor.lastCorrection.toFixed(3)}\n` +
-        `pos ${p.x.toFixed(2)},${p.y.toFixed(2)}  chunk ${chunkOf(Math.floor(p.x))},${chunkOf(Math.floor(p.y))}  views ${this.chunks.count}\n` +
+        `pos ${p.x.toFixed(2)},${p.y.toFixed(2)}  chunk ${chunkOf(Math.floor(p.x))},${chunkOf(Math.floor(p.y))}  views ${this.terrain.count}\n` +
         `entities ${this.views.size}  pending ${this.predictor.pending.length}  net-in ${(this.net.bytesIn / 1024).toFixed(0)}KB  seed ${this.seed}`;
     }
   }
@@ -501,7 +562,7 @@ export class Game {
   debugState() {
     const p = this.predictor?.sim;
     return {
-      ready: !!p, x: p?.x, y: p?.y, fps: this.fps, rtt: this.rtt, chunks: this.chunks?.count, entities: this.views.size,
+      ready: !!p, x: p?.x, y: p?.y, fps: this.fps, rtt: this.rtt, chunks: this.terrain?.count, entities: this.views.size,
       hp: this.self?.hp, level: this.self?.level, scale: this.scale, dead: this.dead,
       pending: this.predictor?.pending.length, correction: this.predictor?.lastCorrection, hour: this.hourOverride ?? gameHour(this.clock.serverNow(performance.now())),
       snapAge: performance.now() - this.lastSnapTime,

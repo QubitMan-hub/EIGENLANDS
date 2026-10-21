@@ -10,6 +10,9 @@ interface Layers {
   moisture: Simplex2D;
   temperature: Simplex2D;
   flux: Simplex2D;
+  forest: Simplex2D;
+  meadow: Simplex2D;
+  rocky: Simplex2D;
 }
 
 const layerCache = new Map<number, Layers>();
@@ -21,6 +24,9 @@ function layers(seed: number): Layers {
       moisture: new Simplex2D(seed ^ 0x2222),
       temperature: new Simplex2D(seed ^ 0x3333),
       flux: new Simplex2D(seed ^ 0x4444),
+      forest: new Simplex2D(seed ^ 0x5555),
+      meadow: new Simplex2D(seed ^ 0x6666),
+      rocky: new Simplex2D(seed ^ 0x7777),
     };
     if (layerCache.size > 8) layerCache.clear();
     layerCache.set(seed, l);
@@ -87,15 +93,30 @@ export function tileAt(seed: number, x: number, y: number): number {
 
   const r = hash2(seed, x, y, 1);
   if (c.flux > 0.55 && r < 0.035) return T.SHIMMER;
-  const treeP = 0.025 + 0.13 * Math.max(0, c.moisture);
-  if (r2(seed, x, y, 2) < treeP && r0 > 6) return T.TREE;
-  if (r2(seed, x, y, 3) < 0.012 && r0 > 6) return T.ROCK;
-  if (r2(seed, x, y, 4) < 0.06 + 0.06 * Math.max(0, c.moisture)) return T.FLOWERS;
-  if (r2(seed, x, y, 5) < 0.18) return T.GRASS_TALL;
+
+  const l = layers(seed);
+  const shoreDist = Math.max(0, c.height + 0.2); // 0 at the sand line, grows inland
+  // groves and clearings: trees follow a low-frequency density field instead of uniform noise
+  const forest = l.forest.fbm(x / 70 + 40, y / 70 - 40, 3);
+  const grove = smooth(forest, 0.02, 0.35);
+  const treeP = (0.004 + 0.5 * grove * (0.55 + 0.45 * Math.max(0, c.moisture + 0.3))) * Math.min(1, shoreDist * 6);
+  if (hash2(seed, x, y, 2) < treeP && r0 > 7) return T.TREE;
+
+  // boulder fields on rocky ground
+  const rocky = l.rocky.fbm(x / 45 - 90, y / 45 + 90, 3);
+  if (hash2(seed, x, y, 3) < 0.003 + 0.2 * smooth(rocky, 0.35, 0.65) && r0 > 7) return T.ROCK;
+
+  // flower meadows and tall-grass patches
+  const meadow = l.meadow.fbm(x / 20 + 300, y / 20 - 300, 2);
+  if (hash2(seed, x, y, 4) < 0.5 * smooth(meadow, 0.2, 0.55) * (0.5 + 0.5 * Math.max(0, c.moisture + 0.4))) return T.FLOWERS;
+  const tall = l.meadow.fbm(x / 14 - 500, y / 14 + 500, 2);
+  if (hash2(seed, x, y, 5) < 0.04 + 0.55 * smooth(tall, 0.05, 0.5)) return T.GRASS_TALL;
   return T.GRASS;
 }
-function r2(seed: number, x: number, y: number, salt: number): number {
-  return hash2(seed, x, y, salt);
+
+function smooth(v: number, a: number, b: number): number {
+  const t = Math.min(1, Math.max(0, (v - a) / (b - a)));
+  return t * t * (3 - 2 * t);
 }
 
 export function generateChunk(seed: number, cx: number, cy: number): Uint8Array {
