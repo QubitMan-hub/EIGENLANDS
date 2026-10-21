@@ -9,6 +9,8 @@ export interface Config {
   autosaveMs: number;
   authRatePerSec: number;
   authBurst: number;
+  /** enable DEV messages (teleport, give items, shift time...). Never in production. */
+  devCommands: boolean;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -25,5 +27,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     autosaveMs: Number(env.AUTOSAVE_MS ?? 30000),
     authRatePerSec: Number(env.AUTH_RATE ?? 2),
     authBurst: Number(env.AUTH_BURST ?? 20),
+    devCommands: env.DEV_COMMANDS === '1' && env.NODE_ENV !== 'production',
   };
 }

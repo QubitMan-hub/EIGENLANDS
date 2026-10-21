@@ -84,3 +84,42 @@ export function line(ctx: Ctx, x0: number, y0: number, x1: number, y1: number, c
 }
 
 export function sheetCanvas(w: number, h: number) { return makeCanvas(w, h); }
+
+// ───────── Phase 2 helpers ─────────
+/** Palette rows are dark->light ramps: step within the row. */
+export const dk = (c: number): number => (c % 8 === 0 ? c : c - 1);
+export const lt = (c: number): number => (c % 8 === 7 ? c : c + 1);
+export const ramp4 = (c: number): Ramp => [dk(dk(c)), dk(c), c, lt(c)];
+export const ramp3 = (c: number): Ramp => [dk(c), c, lt(c)];
+
+/** Pixel-exact polygon fill (no anti-aliasing so only palette colours appear). `colorAt` picks the colour per pixel. */
+export function poly(ctx: Ctx, pts: Array<[number, number]>, colorAt: number | ((x: number, y: number) => number)): void {
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (const [x, y] of pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+  for (let y = Math.floor(y0); y <= Math.ceil(y1); y++) {
+    for (let x = Math.floor(x0); x <= Math.ceil(x1); x++) {
+      const px = x + 0.5, py = y + 0.5;
+      let inside = false;
+      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+        const [xi, yi] = pts[i]!, [xj, yj] = pts[j]!;
+        if ((yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside;
+      }
+      if (inside) put(ctx, x, y, typeof colorAt === 'number' ? colorAt : colorAt(x, y));
+    }
+  }
+}
+
+/** Adds a 1px dark outline around opaque pixels (readable, consistent icons). Operates in place. */
+export function outline(ctx: Ctx, w: number, h: number, c: number = C.night): void {
+  const img = ctx.getImageData(0, 0, w, h);
+  const d = img.data;
+  const solid = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && d[(y * w + x) * 4 + 3]! > 0;
+  const mark: Array<[number, number]> = [];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (solid(x, y)) continue;
+    if (solid(x - 1, y) || solid(x + 1, y) || solid(x, y - 1) || solid(x, y + 1)) mark.push([x, y]);
+  }
+  for (const [x, y] of mark) put(ctx, x, y, c);
+}
+
+export { hash2, mulberry32 } from '@eigenlands/shared';

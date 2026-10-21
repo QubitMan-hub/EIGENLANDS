@@ -1,0 +1,112 @@
+import {
+  FARM_ANIMALS, ITEMS, MSG, STATION_SUBS, addStack, chunkOf, cloneStack, countItem, isRipe, removeItem, validInventory,
+  type ChestMsg, type Inventory, type OpenMsg, type PanelMsg, type ShelterMsg, type WorldObj,
+} from '@eigenlands/shared';
+import type { ServerPlayer } from '../rooms/player';
+import type { RoomApi } from './api';
+import { cropOf, harvestCrop } from './farming';
+import { addSkillXp, distToTile, giveStacks, isInt, validSlot } from './helpers';
+import { forageAt } from './tools';
+
+const OPEN_REACH = 3.5;
+
+const chestSlots = (o: WorldObj): Inventory => {
+  const inv = validInventory((o.data as { slots?: unknown } | undefined)?.slots);
+  while (inv.length < 30) inv.push(null);
+  return inv;
+};
+
+function panelFor(o: WorldObj, p: ServerPlayer): PanelMsg | null {
+  const base = { tx: o.x, ty: o.y, sub: o.sub };
+  if (o.kind === 'station') return { kind: 'station', ...base, station: STATION_SUBS[o.sub] };
+  if (o.kind === 'chest') return { kind: 'chest', ...base, chest: chestSlots(o) };
+  if (o.kind === 'shelter') {
+    const d = o.data as { animals: number; fed: boolean; ready: number };
+    const f = FARM_ANIMALS[o.sub as 'coop' | 'barn'];
+    return { kind: 'shelter', ...base, shelter: { type: o.sub as 'coop' | 'barn', animals: d.animals, max: f.max, fed: d.fed, ready: d.ready } };
+  }
+  if (o.kind === 'sign') return { kind: 'sign', ...base, sign: String((o.data as { text?: string } | undefined)?.text ?? '') };
+  void p;
+  return null;
+}
+
+function sendPanel(p: ServerPlayer, o: WorldObj): void {
+  const m = panelFor(o, p);
+  if (m) p.client.send(MSG.PANEL, m);
+}
+
+export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): Promise<void> {
+  if (!msg || !isInt(msg.tx, -1e6, 1e6) || !isInt(msg.ty, -1e6, 1e6) || p.deadT > 0) return;
+  if (distToTile(p, msg.tx, msg.ty) > OPEN_REACH) { p.toast('Too far away.'); return; }
+  await room.ensureChunk(chunkOf(msg.tx), chunkOf(msg.ty));
+  const o = room.store.objectAt(msg.tx, msg.ty);
+  if (!o) { forageAt(room, p, msg.tx, msg.ty); return; }
+  if (o.kind === 'crop') {
+    const d = cropOf(o);
+    if (!d.dead && isRipe(d)) harvestCrop(room, p, o);
+    else p.toast(d.dead ? 'It has withered.' : 'It is still growing.');
+    return;
+  }
+  if ((o.kind === 'chest' || o.kind === 'shelter') && o.owner !== p.accountId) { p.toast("That isn't yours."); return; }
+  sendPanel(p, o);
+}
+
+function ownedAt(room: RoomApi, p: ServerPlayer, tx: unknown, ty: unknown, kind: 'chest' | 'shelter'): WorldObj | null {
+  if (!isInt(tx, -1e6, 1e6) || !isInt(ty, -1e6, 1e6)) return null;
+  const o = room.store.objectAt(tx, ty);
+  if (!o || o.kind !== kind || o.static) return null;
+  if (o.owner !== p.accountId) { p.toast("That isn't yours."); return null; }
+  if (distToTile(p, tx, ty) > OPEN_REACH) { p.toast('Too far away.'); return null; }
+  return o;
+}
+
+export function handleChest(room: RoomApi, p: ServerPlayer, msg: ChestMsg): void {
+  if (!msg || (msg.action !== 'put' && msg.action !== 'take') || !validSlot(msg.slot) || !isInt(msg.n, 1, 99)) return;
+  const o = ownedAt(room, p, msg.tx, msg.ty, 'chest');
+  if (!o) return;
+  const slots = chestSlots(o);
+  const from = msg.action === 'put' ? p.data.inv : slots;
+  const to = msg.action === 'put' ? slots : p.data.inv;
+  const s = from[msg.slot];
+  if (!s) return;
+  const n = Math.min(msg.n, s.n);
+  const moving = { ...cloneStack(s), n };
+  const left = addStack(to, moving);
+  const moved = n - left;
+  if (moved <= 0) { p.toast(msg.action === 'put' ? 'The chest is full.' : 'Your pack is full.', 'bad'); return; }
+  s.n -= moved;
+  if (s.n <= 0) from[msg.slot] = null;
+  o.data = { ...(o.data ?? {}), slots: slots.slice(0, 30) };
+  room.objects.update(o);
+  p.dirty('inv');
+  sendPanel(p, o);
+}
+
+export function handleShelter(room: RoomApi, p: ServerPlayer, msg: ShelterMsg): void {
+  if (!msg || (msg.action !== 'add' && msg.action !== 'feed' && msg.action !== 'collect')) return;
+  const o = ownedAt(room, p, msg.tx, msg.ty, 'shelter');
+  if (!o) return;
+  const d = o.data as { animals: number; fed: boolean; ready: number };
+  const f = FARM_ANIMALS[o.sub as 'coop' | 'barn'];
+  if (msg.action === 'add') {
+    if (d.animals >= f.max) { p.toast('It is full.'); return; }
+    if (!removeItem(p.data.inv, f.animal, 1)) { p.toast(`You need a ${ITEMS[f.animal]?.name.toLowerCase()}.`); return; }
+    d.animals += 1;
+    p.dirty('inv');
+  } else if (msg.action === 'feed') {
+    if (d.animals <= 0) { p.toast('There is nobody to feed.'); return; }
+    if (d.fed) { p.toast('They are already fed today.'); return; }
+    if (countItem(p.data.inv, 'hay') < d.animals) { p.toast(`You need ${d.animals} hay.`, 'bad'); return; }
+    removeItem(p.data.inv, 'hay', d.animals);
+    d.fed = true;
+    p.dirty('inv');
+  } else {
+    if (d.ready <= 0) { p.toast(`No ${f.product} yet.`); return; }
+    if (!giveStacks(p, [{ id: f.product, n: d.ready }])) { p.toast('Your pack is full.', 'bad'); return; }
+    d.ready = 0;
+    addSkillXp(p, 'farming', 3);
+  }
+  room.objects.update(o);
+  sendPanel(p, o);
+}
+

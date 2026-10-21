@@ -31,9 +31,11 @@ export interface Enemy {
 
 let seq = 0;
 
-export function createEnemy(kind: 'slime' | 'hopper', x: number, y: number, night: boolean): Enemy {
+export type EnemyKind = keyof typeof ENEMY_DEFS;
+
+export function createEnemy(kind: EnemyKind, x: number, y: number, night: boolean): Enemy {
   const def = ENEMY_DEFS[kind];
-  const maxHp = Math.round(def.hp * (night ? NIGHT_HP_MULT : 1));
+  const maxHp = Math.round(def.hp * (night && !def.passive ? NIGHT_HP_MULT : 1));
   const state = new EnemyState();
   const id = `e${++seq}`;
   state.id = id; state.kind = def.kind; state.x = x; state.y = y; state.hp = maxHp; state.maxHp = maxHp; state.night = night;
@@ -59,6 +61,7 @@ const LEAP_TIME = 0.25;
 export function stepEnemy(
   e: Enemy, dt: number, tick: number, targets: Target[], solid: SolidQuery, rand: () => number, hooks: EnemyHooks,
 ): void {
+  if (e.def.passive) { stepPassive(e, dt, tick, targets, solid, rand); return; }
   // knockback decay
   if (Math.abs(e.kx) + Math.abs(e.ky) > 0.05) {
     moveBody(e, e.kx * dt, e.ky * dt, e.def.radius, solid);
@@ -138,6 +141,45 @@ export function stepEnemy(
       break;
   }
 
+  e.state.x = e.x; e.state.y = e.y;
+  e.history.push({ tick, x: e.x, y: e.y });
+  if (e.history.length > 12) e.history.shift();
+}
+
+/** Passive fauna: wander, bolt away from players that get close, never attack. */
+function stepPassive(e: Enemy, dt: number, tick: number, targets: Target[], solid: SolidQuery, rand: () => number): void {
+  if (Math.abs(e.kx) + Math.abs(e.ky) > 0.05) {
+    moveBody(e, e.kx * dt, e.ky * dt, e.def.radius, solid);
+    const k = Math.pow(0.02, dt);
+    e.kx *= k; e.ky *= k;
+  } else { e.kx = 0; e.ky = 0; }
+  let threat: Target | null = null;
+  let best = e.def.sight;
+  for (const p of targets) {
+    if (!p.alive) continue;
+    const d = Math.hypot(p.x - e.x, p.y - e.y);
+    if (d < best) { best = d; threat = p; }
+  }
+  e.t -= dt;
+  if (threat) {
+    // flee directly away, with a little zig-zag so they are huntable but not trivial
+    const dx = e.x - threat.x, dy = e.y - threat.y, d = Math.hypot(dx, dy) || 1;
+    const jitter = Math.sin(tick * 0.6 + e.maxHp) * 0.5;
+    const ux = dx / d, uy = dy / d;
+    const vx = ux - uy * jitter, vy = uy + ux * jitter, vl = Math.hypot(vx, vy) || 1;
+    moveBody(e, (vx / vl) * e.def.speed * dt, (vy / vl) * e.def.speed * dt, e.def.radius, solid);
+    e.mode = 'chase';
+    e.state.faceX = vx / vl; e.state.faceY = vy / vl;
+  } else {
+    if (e.t <= 0) {
+      if (e.mode !== 'wander') { const a = rand() * Math.PI * 2; e.wx = Math.cos(a); e.wy = Math.sin(a); e.mode = 'wander'; e.t = 0.8 + rand() * 1.6; }
+      else { e.mode = 'idle'; e.t = 1.5 + rand() * 3; }
+    }
+    if (e.mode === 'wander') {
+      moveBody(e, e.wx * e.def.speed * 0.25 * dt, e.wy * e.def.speed * 0.25 * dt, e.def.radius, solid);
+      e.state.faceX = e.wx; e.state.faceY = e.wy;
+    }
+  }
   e.state.x = e.x; e.state.y = e.y;
   e.history.push({ tick, x: e.x, y: e.y });
   if (e.history.length > 12) e.history.shift();

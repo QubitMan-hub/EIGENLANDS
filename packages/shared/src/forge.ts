@@ -59,7 +59,8 @@ export function preview(ids: string[], quality = 0.5): ForgePreview | null {
     stats[s] = Math.round(pos * kc * kd * kq + neg * kf);
   }
   let sx = 0, sy = 0, grade = 0;
-  for (const m of mats) { sx += Math.cos((m.phase * Math.PI) / 4); sy += Math.sin((m.phase * Math.PI) / 4); grade += m.grade; }
+  // weighting by grade breaks ties between exactly opposed phases in favour of the stronger metal
+  for (const m of mats) { sx += m.grade * Math.cos((m.phase * Math.PI) / 4); sy += m.grade * Math.sin((m.phase * Math.PI) / 4); grade += m.grade; }
   const phase = ((Math.atan2(sy, sx) * 4) / Math.PI + 8) % 8;
   const avgGrade = grade / mats.length;
   const tier = Math.max(1, Math.min(5, Math.round(avgGrade * (0.9 + 0.12 * quality) + 0.3 * Math.max(0, C) - 0.15 * Math.max(0, -C))));

@@ -11,7 +11,7 @@ export const TEST_DB = process.env.TEST_DB_URL ?? 'postgres://eigen:eigen@localh
 export async function resetDb(): Promise<void> {
   const pool = createPool(TEST_DB);
   await migrate(pool);
-  await pool.query('TRUNCATE accounts, characters, chunk_diffs CASCADE');
+  await pool.query('TRUNCATE accounts, characters, chunk_diffs, world_objects, respawns, world_state CASCADE');
   await pool.end();
 }
 

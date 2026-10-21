@@ -1,6 +1,9 @@
 import { Client, type Room } from 'colyseus.js';
 import {
-  JOIN_ROOM, MSG, decodeAck, type Ack, type ChunkMsg, type FxMsg, type InputCmd, type TileMsg, type WelcomeMsg,
+  JOIN_ROOM, MSG, decodeAck, type Ack, type ChestMsg, type ChunkMsg, type CraftMsg, type DialogueChatMsg, type DialogueMsg, type EquipMsg,
+  type ExperimentMsg, type FishBiteMsg, type ForgePreviewReply, type ForgeStartMsg, type FxMsg, type InputCmd, type InvMoveMsg,
+  type InvTrashMsg, type ObjMsg, type PanelMsg, type ProfileMsg, type RhythmResultMsg, type RhythmStartMsg, type ShelterMsg,
+  type ShopMsg, type ShopViewMsg, type TileMsg, type ToastMsg, type UseMsg, type WelcomeMsg,
 } from '@eigenlands/shared';
 
 export const SERVER_URL: string =
@@ -71,6 +74,17 @@ export interface NetHandlers {
   state(state: any): void;
   close(code: number): void;
   rtt(ms: number): void;
+  profile(m: ProfileMsg): void;
+  obj(m: ObjMsg): void;
+  panel(m: PanelMsg): void;
+  rhythmStart(m: RhythmStartMsg): void;
+  rhythmResult(m: RhythmResultMsg): void;
+  fishBite(m: FishBiteMsg): void;
+  fishCast(m: { tx: number; ty: number; id: string }): void;
+  dialogue(m: DialogueMsg): void;
+  shopView(m: ShopViewMsg): void;
+  forgePreview(m: ForgePreviewReply): void;
+  toast(m: ToastMsg): void;
 }
 
 export class Net {
@@ -93,6 +107,17 @@ export class Net {
     r.onMessage(MSG.TILE, (m: TileMsg) => this.h.tile(m));
     r.onMessage(MSG.NOTICE, (m: { text: string }) => this.h.notice(m.text));
     r.onMessage(MSG.PONG, (m: { t: number }) => this.h.rtt(performance.now() - m.t));
+    r.onMessage(MSG.PROFILE, (m: ProfileMsg) => this.h.profile(m));
+    r.onMessage(MSG.OBJ, (m: ObjMsg) => this.h.obj(m));
+    r.onMessage(MSG.PANEL, (m: PanelMsg) => this.h.panel(m));
+    r.onMessage(MSG.RHYTHM_START, (m: RhythmStartMsg) => this.h.rhythmStart(m));
+    r.onMessage(MSG.RHYTHM_RESULT, (m: RhythmResultMsg) => this.h.rhythmResult(m));
+    r.onMessage(MSG.FISH_BITE, (m: FishBiteMsg) => this.h.fishBite(m));
+    r.onMessage(MSG.FISH_CAST, (m: { tx: number; ty: number; id: string }) => this.h.fishCast(m));
+    r.onMessage(MSG.DIALOGUE, (m: DialogueMsg) => this.h.dialogue(m));
+    r.onMessage(MSG.SHOP_VIEW, (m: ShopViewMsg) => this.h.shopView(m));
+    r.onMessage(MSG.FORGE_PREVIEW_R, (m: ForgePreviewReply) => this.h.forgePreview(m));
+    r.onMessage(MSG.TOAST, (m: ToastMsg) => this.h.toast(m));
     r.onStateChange((s) => this.h.state(s));
     r.onLeave((code) => { clearInterval(this.pingTimer); this.h.close(code); });
     this.pingTimer = window.setInterval(() => r.send(MSG.PING, { t: performance.now() }), 2000);
@@ -102,5 +127,24 @@ export class Net {
   sendInput(cmd: InputCmd): void { this.room.send(MSG.INPUT, { cmds: [cmd] }); }
   sendEdit(tx: number, ty: number): void { this.room.send(MSG.EDIT, { tx, ty }); }
   requestChunk(cx: number, cy: number): void { this.room.send(MSG.CHUNK_REQ, { cx, cy }); }
+  use(m: UseMsg): void { this.room.send(MSG.USE, m); }
+  open(tx: number, ty: number): void { this.room.send(MSG.OPEN, { tx, ty }); }
+  invMove(m: InvMoveMsg): void { this.room.send(MSG.INV_MOVE, m); }
+  invTrash(m: InvTrashMsg): void { this.room.send(MSG.INV_TRASH, m); }
+  equip(m: EquipMsg): void { this.room.send(MSG.EQUIP, m); }
+  craft(m: CraftMsg): void { this.room.send(MSG.CRAFT, m); }
+  experiment(m: ExperimentMsg): void { this.room.send(MSG.EXPERIMENT, m); }
+  forgePreview(materials: string[]): void { this.room.send(MSG.FORGE_PREVIEW, { materials }); }
+  forgeStart(m: ForgeStartMsg): void { this.room.send(MSG.FORGE_START, m); }
+  rhythmDone(id: string, hits: number[]): void { this.room.send(MSG.RHYTHM_DONE, { id, hits }); }
+  fishHook(id: string): void { this.room.send(MSG.FISH_HOOK, { id }); }
+  talk(npcId: string): void { this.room.send(MSG.TALK, { npcId }); }
+  gift(npcId: string, slot: number): void { this.room.send(MSG.GIFT, { npcId, slot }); }
+  shop(m: ShopMsg): void { this.room.send(MSG.SHOP, m); }
+  chest(m: ChestMsg): void { this.room.send(MSG.CHEST, m); }
+  shelter(m: ShelterMsg): void { this.room.send(MSG.SHELTER, m); }
+  chat(m: DialogueChatMsg): void { this.room.send(MSG.DIALOGUE_CHAT, m); }
+  /** development/testing commands (only honoured by a server started with DEV_COMMANDS=1) */
+  dev(m: Record<string, unknown>): void { this.room.send('dev', m); }
   leave(): void { clearInterval(this.pingTimer); void this.room?.leave(); }
 }

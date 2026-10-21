@@ -5,13 +5,14 @@ import {
 } from '@eigenlands/shared';
 import type { App } from '../src/app';
 import type { WorldRoom } from '../src/rooms/WorldRoom';
+import { tuning } from '../src/rooms/runtime';
 import { drive, guest, join, lastRoomId, me, resetDb, sleep, startApp, until } from './helpers';
 
 let app: App;
 const room = (): WorldRoom => matchMaker.getLocalRoomById(lastRoomId()) as unknown as WorldRoom;
 const SEED = 20260101;
 
-beforeAll(async () => { await resetDb(); app = await startApp(); });
+beforeAll(async () => { await resetDb(); tuning.toolCooldownMs = 0; app = await startApp(); });
 afterAll(async () => { await app.close(); });
 
 describe('movement netcode', () => {
@@ -197,7 +198,7 @@ describe('combat', () => {
 });
 
 describe('world edits and persistence', () => {
-  it('breaks a rock, persists the diff, and a restarted server serves it', async () => {
+  it('mines a rock with a pickaxe, persists the diff, and a restarted server serves it', async () => {
     const r = await join(app, (await guest(app)).token, 'Miner');
     await until(() => !!me(r));
     const w = room();
@@ -207,13 +208,16 @@ describe('world edits and persistence', () => {
     w.store.setTile(tx, ty, T.ROCK); // test fixture
     const tiles: any[] = [];
     r.onMessage(MSG.TILE, (m) => tiles.push(m));
-    r.send(MSG.EDIT, { tx, ty });
+    const slot = sp.data.inv.findIndex((x) => x?.id === 'pickaxe');
+    r.send(MSG.USE, { slot, tx, ty });
+    await sleep(80);
+    r.send(MSG.USE, { slot, tx, ty });
     await until(() => tiles.length > 0, 2000);
     expect(tiles[0]).toMatchObject({ tx, ty, tile: T.GRASS });
-    // out-of-reach and non-breakable edits are refused
+    // out-of-reach and nothing-to-mine uses change nothing
     tiles.length = 0;
-    r.send(MSG.EDIT, { tx: tx + 50, ty });
-    r.send(MSG.EDIT, { tx: Math.floor(sp.sim.x), ty: Math.floor(sp.sim.y) });
+    r.send(MSG.USE, { slot, tx: tx + 50, ty });
+    r.send(MSG.USE, { slot, tx: Math.floor(sp.sim.x), ty: Math.floor(sp.sim.y) });
     await sleep(200);
     expect(tiles.length).toBe(0);
     const cx = Math.floor(tx / CHUNK_SIZE), cy = Math.floor(ty / CHUNK_SIZE);

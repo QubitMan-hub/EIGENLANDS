@@ -37,6 +37,7 @@ export const MSG = {
   CHEST: 'chest',             // ChestMsg -> PANEL
   SHELTER: 'shelter',         // ShelterMsg -> PANEL
   DIALOGUE_CHAT: 'dialogue_chat', // DialogueChatMsg (optional AI layer) -> DIALOGUE
+  DEV: 'dev',                 // DevMsg: test/e2e helpers; ignored unless the server runs with DEV_COMMANDS=1
   // ── Phase 2 (server -> client)
   PROFILE: 'profile',         // ProfileMsg (partial updates of private player data)
   OBJ: 'obj',                 // ObjMsg: a world object appeared / changed / vanished
@@ -209,3 +210,13 @@ export function decodeAck(buf: Uint8Array): Ack {
     },
   };
 }
+
+/** Dev/e2e commands. Silently ignored unless `config.devCommands` (env DEV_COMMANDS=1, never in production). */
+export type DevMsg =
+  | { cmd: 'tp'; x: number; y: number }
+  | { cmd: 'give'; id: string; n: number; p?: import('./items').Props }
+  | { cmd: 'coins'; n: number }            // ADDS n coins (negative removes, floor 0)
+  | { cmd: 'time'; offsetMs: number }      // ADDS offsetMs to the world clock offset (one day = 1_440_000)
+  | { cmd: 'learn'; recipe: string }       // recipe id, or '*' for every recipe
+  | { cmd: 'friend'; npc: string; pts: number }  // sets friendship points
+  | { cmd: 'level'; level: number };

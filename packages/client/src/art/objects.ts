@@ -1,6 +1,6 @@
 import { Rectangle, Texture } from 'pixi.js';
 import { hash2, mulberry32 } from '@eigenlands/shared';
-import { bayer, blob, C, line, makeCanvas, put, R, slab, type Ctx } from './shade';
+import { bayer, blob, C, line, makeCanvas, poly, put, R, slab, type Ctx } from './shade';
 
 export interface ObjSprite { tex: Texture; ax: number; ay: number }
 export type SeasonIdx = 0 | 1 | 2 | 3;
@@ -79,7 +79,7 @@ export function buildTrees(season: SeasonIdx): ObjSprite[] {
 }
 
 /** Faceted boulder: a low-poly fan around the centre, each facet lit by its own normal. */
-function facetRock(ctx: Ctx, cx: number, cy: number, rx: number, ry: number, seed: number, snow: boolean): void {
+export function facetRock(ctx: Ctx, cx: number, cy: number, rx: number, ry: number, seed: number, snow: boolean): void {
   const rng = mulberry32(seed);
   const n = 6 + Math.floor(rng() * 3);
   const pts: Array<[number, number]> = [];
@@ -205,16 +205,146 @@ export function buildStump(season: SeasonIdx): ObjSprite[] {
   return [toSprite(canvas, 8, 14)];
 }
 
+// ───────── Phase 2 tile objects ─────────
+const ORE_STYLE: Record<string, { vein: number[]; seed: number; glint?: boolean }> = {
+  ore_copper: { vein: [C.e4, C.e5, C.e6], seed: 210 },
+  ore_iron: { vein: [C.steel, C.w4, C.w5], seed: 230 },
+  ore_silver: { vein: [C.fog, C.pale, C.w7], seed: 250, glint: true },
+  ore_gold: { vein: [C.e5, C.e6, C.e7], seed: 270, glint: true },
+};
+
+/** Rock with coloured metal veins and nuggets; silver and gold glint on a second frame. */
+export function buildOre(kind: keyof typeof ORE_STYLE, season: SeasonIdx): ObjSprite[] {
+  const st = ORE_STYLE[kind]!;
+  const out: ObjSprite[] = [];
+  for (let v = 0; v < 3; v++) {
+    for (let f = 0; f < (st.glint ? 2 : 1); f++) {
+      const { canvas, ctx } = makeCanvas(24, 18);
+      const rng = mulberry32(st.seed + v * 17);
+      facetRock(ctx, v === 1 ? 11 : 12, 10, v === 1 ? 8 : 9.5, 6.5, st.seed + v, season === 3);
+      for (let i = 0; i < 4; i++) {
+        let x = 6 + Math.floor(rng() * 11), y = 6 + Math.floor(rng() * 6);
+        const len = 3 + Math.floor(rng() * 4), dx = rng() > 0.5 ? 1 : -1;
+        for (let j = 0; j < len; j++) {
+          put(ctx, x, y, st.vein[j % 3]!);
+          if (j % 2 === 0) put(ctx, x, y + 1, st.vein[0]!);
+          x += dx; y += rng() > 0.6 ? 1 : 0;
+        }
+      }
+      for (let i = 0; i < 3; i++) {
+        const x = 6 + Math.floor(rng() * 12), y = 7 + Math.floor(rng() * 6);
+        put(ctx, x, y, st.vein[1]!, 2, 2); put(ctx, x, y, st.vein[2]!); put(ctx, x + 1, y + 1, st.vein[0]!);
+      }
+      if (st.glint) { const gx = 7 + ((v * 5 + f * 6) % 11), gy = 6 + ((v * 3 + f * 2) % 5); put(ctx, gx, gy, C.white); put(ctx, gx - 1, gy, st.vein[2]!); put(ctx, gx + 1, gy, st.vein[2]!); put(ctx, gx, gy - 1, st.vein[2]!); put(ctx, gx, gy + 1, st.vein[2]!); }
+      out.push(toSprite(canvas, 12, 16));
+    }
+  }
+  // order: [v0f0, v0f1, v1f0...] for glinting ores; objectviews cycles frames per variant via frameCount
+  return out;
+}
+
+const CRYSTAL = [C.q0, C.q1, C.q2, C.q3, C.q4, C.pale, C.white] as const;
+
+/** Faceted violet crystal cluster with an inner glow; three shimmer frames. */
+export function buildCrystal(): ObjSprite[] {
+  const out: ObjSprite[] = [];
+  for (let v = 0; v < 2; v++) {
+    for (let f = 0; f < 3; f++) {
+      const { canvas, ctx } = makeCanvas(24, 30);
+      const rng = mulberry32(300 + v * 9);
+      const prism = (cx: number, base: number, w: number, h: number, lean: number) => {
+        const top = base - h;
+        const pts: Array<[number, number]> = [[cx - w / 2, base], [cx - w / 2 + lean, top + w * 0.7], [cx + lean, top], [cx + w / 2 + lean, top + w * 0.7], [cx + w / 2, base]];
+        poly(ctx, pts, (x, y) => {
+          const t = (x - (cx - w / 2)) / w;
+          const glow = Math.max(0, 1 - Math.hypot(x - cx, y - (base - h * 0.45)) / (h * 0.55));
+          let i = t < 0.34 ? 4 : t < 0.7 ? 5 : 2;      // left facet lit, middle bright, right facet dark
+          i += glow > 0.55 ? 1 : 0;
+          if (y < top + w * 0.7 && t > 0.45) i = 6;       // top bevel catch-light
+          return CRYSTAL[Math.max(0, Math.min(6, i))]!;
+        });
+        line(ctx, Math.round(cx + lean), top, Math.round(cx + lean), base - 1, C.q1);
+      };
+      put(ctx, 3, 27, C.g1, 18, 1);
+      prism(6, 27, 7, 12, -1); prism(18, 27, 7, 14, 1); prism(12, 28, 10, 21, 0);
+      if (v) prism(22, 27, 5, 8, 1);
+      for (let i = 0; i < 4; i++) {
+        const sx = 6 + ((i * 7 + f * 5 + v * 3) % 14), sy = 6 + ((i * 5 + f * 9) % 18);
+        if ((i + f) % 3 === 0) { put(ctx, sx, sy, C.white); put(ctx, sx - 1, sy, C.q7); put(ctx, sx + 1, sy, C.q7); put(ctx, sx, sy - 1, C.q7); put(ctx, sx, sy + 1, C.q7); }
+      }
+      void rng;
+      out.push(toSprite(canvas, 12, 28));
+    }
+  }
+  return out;
+}
+
+/** Seasonal forage plants: spring leeks+daffodils, summer berry bush, autumn mushrooms+nuts, winter snow yam+crocus. */
+export function buildForage(season: SeasonIdx): ObjSprite[] {
+  const out: ObjSprite[] = [];
+  for (let v = 0; v < 3; v++) {
+    const { canvas, ctx } = makeCanvas(16, 16);
+    const rng = mulberry32(900 + v * 23 + season * 5);
+    if (season === 0) {
+      for (let i = 0; i < 4; i++) { const x = 3 + i * 3 + Math.floor(rng() * 2); for (let j = 0; j < 7; j++) put(ctx, x + (j > 4 ? (i % 2 ? 1 : -1) : 0), 14 - j, j < 3 ? C.pale : j < 5 ? C.g5 : C.g4); put(ctx, x, 14, C.fog); }
+      const fx = 4 + v * 3; line(ctx, fx, 14, fx, 8, C.g3); put(ctx, fx - 1, 7, C.e6); put(ctx, fx + 1, 7, C.e6); put(ctx, fx, 6, C.e6); put(ctx, fx, 8, C.e6); put(ctx, fx, 7, C.e4);
+    } else if (season === 1) {
+      blob(ctx, 8, 10, 6.5, 5, R.leaf, { seed: 40 + v, noise: 0.5 });
+      blob(ctx, 7, 8, 4, 3, R.leafSpring, { seed: 44 + v, noise: 0.4, bright: 0.1 });
+      for (let i = 0; i < 7; i++) { const bx = 4 + Math.floor(rng() * 9), by = 7 + Math.floor(rng() * 6); put(ctx, bx, by, C.q2, 2, 2); put(ctx, bx, by, C.q4); }
+    } else if (season === 2) {
+      for (let i = 0; i < 3; i++) {
+        const x = 4 + i * 4 + (v % 2), h = 4 + ((i + v) % 3);
+        put(ctx, x, 14 - h, C.pale, 2, h); put(ctx, x, 14 - h, C.mist);
+        blob(ctx, x + 1, 14 - h, 3.2 - (i % 2) * 0.6, 2.2, [C.e2, C.e3, C.e4, C.e5, C.e6], { seed: 55 + i + v, noise: 0.25, edgeDark: 0.2 });
+        put(ctx, x, 13 - h, C.e7); put(ctx, x + 2, 14 - h, C.e7);
+      }
+      for (let i = 0; i < 2; i++) { const nx = 2 + Math.floor(rng() * 11); put(ctx, nx, 14, C.e3, 2, 2); put(ctx, nx, 14, C.e5); }
+    } else {
+      blob(ctx, 8, 13, 6.5, 2.6, R.snow, { seed: 70 + v, noise: 0.2, edgeDark: 0.05 });
+      for (let i = 0; i < 3; i++) { const x = 4 + i * 4 + (v % 2); line(ctx, x, 13, x, 9, C.g2); put(ctx, x - 1, 8, C.q5); put(ctx, x + 1, 8, C.q5); put(ctx, x, 8, C.q6); put(ctx, x, 7, C.q4); }
+      put(ctx, 12, 12, C.e3, 2, 1);
+    }
+    out.push(toSprite(canvas, 8, 15));
+  }
+  return out;
+}
+
+/** 16 connection variants (mask: N=1, E=2, S=4, W=8). */
+export function buildFence(): ObjSprite[] {
+  const out: ObjSprite[] = [];
+  for (let m = 0; m < 16; m++) {
+    const { canvas, ctx } = makeCanvas(16, 20);
+    const rail = (x: number, w: number) => { slab(ctx, x, 6, w, 2, R.bark, m + 1, 0.2); slab(ctx, x, 11, w, 2, R.bark, m + 5, 0.2); put(ctx, x, 6, C.e5, w, 1); put(ctx, x, 11, C.e5, w, 1); };
+    if (m & 8) rail(0, 7);
+    if (m & 2) rail(9, 7);
+    if (m & 1) { slab(ctx, 6, 0, 4, 6, R.bark, m + 9, 0.2); put(ctx, 7, 1, C.e5, 2, 1); }       // runs "up" behind the post
+    if (m & 4) { slab(ctx, 6, 14, 4, 5, R.bark, m + 13, 0.2); put(ctx, 6, 14, C.e5, 4, 1); }    // runs "down" in front
+    slab(ctx, 6, 3, 4, 12, R.bark, 3, 0.35);
+    put(ctx, 6, 3, C.e5, 4, 1); put(ctx, 7, 2, C.e4, 2, 1);
+    put(ctx, 6, 15, C.e0, 4, 1);
+    out.push(toSprite(canvas, 8, 16));
+  }
+  return out;
+}
+
 /** Everything that depends on the season, rebuilt when the season changes. */
 export interface ObjectArt {
   tree: ObjSprite[]; rock: ObjSprite[]; flowers: ObjSprite[]; tallgrass: ObjSprite[];
   bloom: ObjSprite[]; torch: ObjSprite[]; stump: ObjSprite[];
+  ore_copper: ObjSprite[]; ore_iron: ObjSprite[]; ore_silver: ObjSprite[]; ore_gold: ObjSprite[];
+  crystal: ObjSprite[]; forage: ObjSprite[]; fence: ObjSprite[];
 }
+/** Kinds whose sprite list is [variant][frame] flattened with this many frames per variant (animated). */
+export const FRAMES_PER_VARIANT: Record<string, number> = { crystal: 3, ore_silver: 2, ore_gold: 2, torch: 2, bloom: 2 };
 
 export function buildObjectArt(season: SeasonIdx): ObjectArt {
   return {
     tree: buildTrees(season), rock: buildRocks(season), flowers: buildFlowers(season), tallgrass: buildTallGrass(season),
     bloom: buildBloom(), torch: buildTorch(), stump: buildStump(season),
+    ore_copper: buildOre('ore_copper', season), ore_iron: buildOre('ore_iron', season),
+    ore_silver: buildOre('ore_silver', season), ore_gold: buildOre('ore_gold', season),
+    crystal: buildCrystal(), forage: buildForage(season), fence: buildFence(),
   };
 }
 

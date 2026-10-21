@@ -18,6 +18,11 @@ export class Input {
   private padPrev: boolean[] = [];
   keys: KeyMap;
   enabled = true;
+  /** UI hooks (quick-bar digits, wheel, panel hotkeys) */
+  onHotbar: ((i: number) => void) | null = null;
+  onCycle: ((dir: number) => void) | null = null;
+  onPanel: ((a: 'inventory' | 'journal' | 'craft') => void) | null = null;
+  private interactDown = false;
   /** where the player is on screen, for mouse aiming (CSS px) */
   playerScreen = { x: 0, y: 0 };
   /** optional aim assist used by touch and gamepad */
@@ -40,6 +45,7 @@ export class Input {
     });
     window.addEventListener('pointerup', (e) => { if (e.button === 0) this.mouse.left = false; if (e.button === 2) this.mouse.right = false; });
     el.addEventListener('contextmenu', (e) => e.preventDefault());
+    el.addEventListener('wheel', (e) => { this.onCycle?.(e.deltaY > 0 ? 1 : -1); e.preventDefault(); }, { passive: false });
   }
 
   private onKeyDown = (e: KeyboardEvent): void => {
@@ -50,6 +56,10 @@ export class Input {
     if (e.repeat) { if (this.isBound(e.code)) e.preventDefault(); return; }
     this.down.add(e.code);
     for (const a of ['attack', 'skill', 'dash', 'interact'] as Action[]) if (this.keys[a].includes(e.code)) { this.buffer(a); e.preventDefault(); }
+    if (/^Digit[0-9]$/.test(e.code)) { this.onHotbar?.((Number(e.code.slice(5)) + 9) % 10); e.preventDefault(); }
+    if (this.keys.prev.includes(e.code)) this.onCycle?.(-1);
+    if (this.keys.next.includes(e.code)) this.onCycle?.(1);
+    for (const a of ['inventory', 'journal', 'craft'] as const) if (this.keys[a].includes(e.code)) { this.onPanel?.(a); e.preventDefault(); }
     if (this.isBound(e.code)) e.preventDefault();
   };
   private onKeyUp = (e: KeyboardEvent): void => { this.down.delete(e.code); };
@@ -73,6 +83,12 @@ export class Input {
     return false;
   }
 
+  /** mouse tile under the cursor (set by the game each frame), for cursor-targeted tool use */
+  mouseTile: { tx: number; ty: number } | null = null;
+  get mouseXY(): { x: number; y: number } { return { x: this.mouse.x, y: this.mouse.y }; }
+  get mouseActive(): boolean { return performance.now() - this.mouse.lastMove < 4000; }
+  get interactHeld(): boolean { return this.isDown('interact') || this.touchHeld.has('interact'); }
+
   read(now = performance.now()): InputReading {
     const r: InputReading = { dx: 0, dy: 0, dash: false, attack: false, skill: false, aimX: 0, aimY: 0, interact: false, usedKeyboardOrPad: false };
     if (!this.enabled) { this.buffered.clear(); return r; }
@@ -92,7 +108,10 @@ export class Input {
       if (Math.hypot(rx, ry) > 0.35) padAim = { x: rx, y: ry };
       const b = (i: number) => !!pad.buttons[i]?.pressed;
       const edge = (i: number) => b(i) && !this.padPrev[i];
-      padAttack = b(0) || b(7); padSkill = b(2) || b(6); padDash = edge(1) || edge(5); padInteract = edge(3);
+      padAttack = b(0) || b(7); padSkill = b(2) || b(6); padDash = edge(1); padInteract = edge(3);
+      if (edge(4)) this.onCycle?.(-1);
+      if (edge(5)) this.onCycle?.(1);
+      if (edge(9)) this.onPanel?.('inventory');
       this.padPrev = pad.buttons.map((x) => x.pressed);
     }
 

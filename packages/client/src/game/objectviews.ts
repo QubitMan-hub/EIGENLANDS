@@ -1,6 +1,6 @@
 import { Container, Sprite } from 'pixi.js';
-import { CHUNK_SIZE, TILE_DEFS, TILE_SIZE, chunkKey, hash2, type ChunkStore } from '@eigenlands/shared';
-import type { ObjectArt, ObjSprite } from '../art/objects';
+import { CHUNK_SIZE, T, TILE_DEFS, TILE_SIZE, chunkKey, hash2, type ChunkStore } from '@eigenlands/shared';
+import { FRAMES_PER_VARIANT, type ObjectArt, type ObjSprite } from '../art/objects';
 
 export interface Sun { dx: number; len: number; alpha: number }
 
@@ -10,6 +10,7 @@ interface Obj {
   kind: string;
   phase: number;
   variant: number;
+  frames: number;
   base: ObjSprite;
 }
 
@@ -47,11 +48,19 @@ export class ObjectViews {
 
   get count(): number { let n = 0; for (const m of this.chunks.values()) n += m.size; return n; }
 
-  private pickSprite(kind: string, tx: number, ty: number): { s: ObjSprite; variant: number } | null {
+  private pickSprite(kind: string, tx: number, ty: number): { s: ObjSprite; variant: number; frames: number } | null {
     const list = (this.art as unknown as Record<string, ObjSprite[]>)[kind];
     if (!list || !list.length) return null;
-    const variant = Math.floor(hash2(this.store.seed, tx, ty, 99) * list.length);
-    return { s: list[variant]!, variant };
+    if (kind === 'fence') {
+      // connect to neighbouring fences: N=1 E=2 S=4 W=8
+      const f = (x: number, y: number) => (this.store.getTile(x, y) === T.FENCE ? 1 : 0);
+      const mask = f(tx, ty - 1) | (f(tx + 1, ty) << 1) | (f(tx, ty + 1) << 2) | (f(tx - 1, ty) << 3);
+      return { s: list[mask]!, variant: mask, frames: 1 };
+    }
+    const frames = FRAMES_PER_VARIANT[kind] ?? 1;
+    const nvar = Math.max(1, Math.floor(list.length / frames));
+    const variant = Math.floor(hash2(this.store.seed, tx, ty, 99) * nvar);
+    return { s: list[variant * frames]!, variant, frames };
   }
 
   private makeObj(tx: number, ty: number, kind: string): Obj | null {
@@ -68,7 +77,7 @@ export class ObjectViews {
     shadow.position.copyFrom(root);
     this.layer.addChild(root);
     this.shadowLayer.addChild(shadow);
-    return { root, shadow, kind, phase: hash2(this.store.seed, tx, ty, 98) * 6.28, variant: p.variant, base: p.s };
+    return { root, shadow, kind, phase: hash2(this.store.seed, tx, ty, 98) * 6.28, variant: p.variant, frames: p.frames, base: p.s };
   }
 
   buildChunk(cx: number, cy: number): void {
@@ -86,7 +95,7 @@ export class ObjectViews {
   }
 
   /** A single tile changed (smashed rock, felled tree...). */
-  refreshTile(tx: number, ty: number): void {
+  refreshTile(tx: number, ty: number, noPropagate = false): void {
     const cx = Math.floor(tx / CHUNK_SIZE), cy = Math.floor(ty / CHUNK_SIZE);
     const m = this.chunks.get(chunkKey(cx, cy));
     if (!m) return;
@@ -95,6 +104,12 @@ export class ObjectViews {
     if (old) { old.root.destroy(); old.shadow.destroy(); m.delete(idx); }
     const kind = TILE_DEFS[this.store.getTile(tx, ty)]?.obj;
     if (kind) { const o = this.makeObj(tx, ty, kind); if (o) m.set(idx, o); }
+    // a changed fence tile changes how its neighbours connect
+    if (!noPropagate && (kind === 'fence' || old?.kind === 'fence')) {
+      for (const [nx, ny] of [[tx, ty - 1], [tx + 1, ty], [tx, ty + 1], [tx - 1, ty]] as const) {
+        if (this.store.getTile(nx, ny) === T.FENCE) this.refreshTile(nx, ny, true);
+      }
+    }
   }
 
   private dropChunk(k: string): void {
@@ -122,14 +137,15 @@ export class ObjectViews {
         for (const o of m.values()) {
           const sway = reduced ? 0 : Math.sin(t * 1.6 + o.phase + o.root.x * 0.01) * (o.kind === 'tallgrass' || o.kind === 'flowers' ? 0.09 : o.kind === 'tree' ? 0.012 : 0);
           o.root.skew.x = sway;
-          if (o.kind === 'torch' || o.kind === 'bloom') {
+          if (o.frames > 1) {
             const list = (this.art as unknown as Record<string, ObjSprite[]>)[o.kind]!;
-            const f = reduced ? 0 : Math.floor(t * 6 + o.phase) % list.length;
-            o.root.texture = list[f]!.tex;
+            const rate = o.kind === 'crystal' ? 2.2 : o.kind === 'torch' ? 6 : o.kind === 'bloom' ? 3 : 1.4;
+            const f = reduced ? 0 : Math.floor(t * rate + o.phase) % o.frames;
+            o.root.texture = list[o.variant * o.frames + f]!.tex;
             o.shadow.texture = o.root.texture;
             if (o.kind === 'bloom') o.root.alpha = reduced ? 1 : 0.8 + 0.2 * Math.sin(t * 2 + o.phase);
           }
-          const flat = o.kind === 'tallgrass' || o.kind === 'flowers' || o.kind === 'bloom';
+          const flat = o.kind === 'tallgrass' || o.kind === 'flowers' || o.kind === 'bloom' || o.kind === 'forage';
           o.shadow.visible = !flat && sun.alpha > 0.02;
           if (o.shadow.visible) {
             o.shadow.alpha = sun.alpha;

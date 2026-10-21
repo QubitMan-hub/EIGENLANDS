@@ -60,15 +60,23 @@ export const HTML = `
     <div class="row"><b id="hud-name">-</b><span id="hud-level">Lv 1</span></div>
     <div class="bar hp"><i id="hp-fill"></i><span id="hp-text"></span></div>
     <div class="bar xp"><i id="xp-fill"></i></div>
+    <div id="coins" class="coinsm"></div>
   </div>
+  <div id="buffs"></div>
   <div id="hud-right" class="panel" aria-live="off">
     <div id="clock">--:--</div>
     <div id="dayinfo"></div>
+    <div id="townhint" class="small dim"></div>
   </div>
   <div id="hint" class="panel" hidden role="status"></div>
   <div id="captions" aria-live="polite"></div>
   <div id="debug" class="panel" hidden></div>
   <button id="btn-settings" class="icon-btn" aria-label="Settings">&#9881;</button>
+  <div id="hud-btns">
+    <button id="btn-pack" class="icon-btn small" aria-label="Pack (I)" title="Pack (I)">&#127890;</button>
+    <button id="btn-craft" class="icon-btn small" aria-label="Field crafting (C)" title="Field crafting (C)">&#128296;</button>
+    <button id="btn-journal" class="icon-btn small" aria-label="Journal (L)" title="Journal (L)">&#128214;</button>
+  </div>
   <div id="vignette"></div>
 </div>
 <div id="touch" hidden>
@@ -193,11 +201,24 @@ export function applySettings(s: Settings, audio: { muted: boolean; volume: numb
   audio.volume = s.volume;
 }
 
-export const TUTORIAL = [
-  { id: 'move', text: 'Move with WASD or the arrow keys (touch: left stick).', done: (a: Acts) => a.moved },
-  { id: 'attack', text: 'Attack with J, or click. Chain three hits for a heavy finisher.', done: (a: Acts) => a.attacked },
-  { id: 'dash', text: 'Dash with Space. You cannot be hurt while dashing — use it to dodge red warnings.', done: (a: Acts) => a.dashed },
-  { id: 'skill', text: 'Fire a skill shot with K, or right-click. It aims at your cursor.', done: (a: Acts) => a.shot },
-  { id: 'smash', text: 'Face a rock or tree and press E to smash it. The world remembers your changes.', done: (a: Acts) => a.smashed },
-] as const;
-export interface Acts { moved: boolean; attacked: boolean; dashed: boolean; shot: boolean; smashed: boolean }
+export interface Acts {
+  moved: boolean; attacked: boolean; dashed: boolean; selected: boolean; chopped: boolean; mined: boolean; tilled: boolean;
+  planted: boolean; watered: boolean; crafted: boolean; talked: boolean; fished: boolean; forged: boolean; harvested: boolean; openedPack: boolean;
+}
+export const freshActs = (): Acts => ({ moved: false, attacked: false, dashed: false, selected: false, chopped: false, mined: false, tilled: false, planted: false, watered: false, crafted: false, talked: false, fished: false, forged: false, harvested: false, openedPack: false });
+
+/** One hint at a time, in order. Steps already done (and persisted) are skipped. */
+export const TUTORIAL: ReadonlyArray<{ id: keyof Acts; text: string }> = [
+  { id: 'moved', text: 'Move with WASD or the arrow keys (touch: left stick).' },
+  { id: 'attacked', text: 'Attack with J, or click. Chain three hits for a heavy finisher.' },
+  { id: 'dashed', text: 'Dash with Space. You cannot be hurt while dashing — dodge red warnings.' },
+  { id: 'selected', text: 'Pick a tool: press 1–0, scroll the wheel, or tap the quick-bar. Slot 1 is your axe.' },
+  { id: 'chopped', text: 'Face a tree and hold E with the axe selected to chop it. Wood is the start of everything.' },
+  { id: 'mined', text: 'Select the pickaxe (slot 2) and hold E on a grey boulder to mine stone. Ore outcrops need better pickaxes.' },
+  { id: 'crafted', text: 'Press C for field crafting. A Workbench needs 10 wood and 4 stone — then place it with E.' },
+  { id: 'tilled', text: 'Select the hoe (slot 3) and press E on grass to till soil.' },
+  { id: 'planted', text: 'Select seeds and press E on tilled soil to plant. Mind the season!' },
+  { id: 'watered', text: 'Select the watering can and water your crop every day (rain does it for you).' },
+  { id: 'talked', text: 'Hadamere is a village to the east — follow the road. Press E next to a villager to talk, shop and give gifts.' },
+  { id: 'openedPack', text: 'Press I to open your pack, L for your journal with skills, friends and recipes.' },
+];

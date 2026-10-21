@@ -47,6 +47,9 @@ async function boot(): Promise<void> {
   $('btn-reload').addEventListener('click', () => location.reload());
 
   setupTouch(input);
+  $('btn-pack').addEventListener('click', () => game.gameplay.toggleInventory());
+  $('btn-craft').addEventListener('click', () => game.gameplay.toggleFieldCraft());
+  $('btn-journal').addEventListener('click', () => game.gameplay.toggleJournal());
 
   const enter = async (a: AuthState, name?: string): Promise<void> => {
     auth = a;

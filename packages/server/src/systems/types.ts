@@ -6,7 +6,7 @@ import type {
   ChunkStore, DialogueChatMsg, DialogueMsg, Inventory, NpcState, ShopMsg, ShopViewMsg, SkillXp, Stack, Weather, WorldState,
 } from '@eigenlands/shared';
 
-export interface FriendRec { pts: number; talked: number; gifted: number }
+export interface FriendRec { pts: number; talked: number; gifted: number; /** last item id gifted to this NPC (NPC memory) */ lastGift?: string }
 export interface Buff { until: number; power: number }
 
 /** Persisted, private per-character data (characters.data JSONB). */

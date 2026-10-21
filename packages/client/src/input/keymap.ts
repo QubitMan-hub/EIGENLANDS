@@ -1,15 +1,17 @@
-export type Action = 'up' | 'down' | 'left' | 'right' | 'attack' | 'skill' | 'dash' | 'interact';
+export type Action = 'up' | 'down' | 'left' | 'right' | 'attack' | 'skill' | 'dash' | 'interact' | 'inventory' | 'journal' | 'craft' | 'prev' | 'next';
 export type KeyMap = Record<Action, string[]>;
 
-export const ACTIONS: Action[] = ['up', 'down', 'left', 'right', 'attack', 'skill', 'dash', 'interact'];
+export const ACTIONS: Action[] = ['up', 'down', 'left', 'right', 'attack', 'skill', 'dash', 'interact', 'inventory', 'journal', 'craft', 'prev', 'next'];
 export const ACTION_LABELS: Record<Action, string> = {
   up: 'Move up', down: 'Move down', left: 'Move left', right: 'Move right',
-  attack: 'Attack', skill: 'Skill shot', dash: 'Dash (dodge)', interact: 'Smash / interact',
+  attack: 'Attack', skill: 'Skill shot', dash: 'Dash (dodge)', interact: 'Use item / talk / open',
+  inventory: 'Pack', journal: 'Journal', craft: 'Field crafting', prev: 'Previous quick-bar slot', next: 'Next quick-bar slot',
 };
 
 export const DEFAULT_KEYS: KeyMap = {
   up: ['KeyW', 'ArrowUp'], down: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
   attack: ['KeyJ', 'KeyZ'], skill: ['KeyK', 'KeyX'], dash: ['Space', 'ShiftLeft'], interact: ['KeyE'],
+  inventory: ['KeyI', 'Tab'], journal: ['KeyL'], craft: ['KeyC'], prev: ['BracketLeft'], next: ['BracketRight'],
 };
 
 const STORE_KEY = 'eigen.keys';
