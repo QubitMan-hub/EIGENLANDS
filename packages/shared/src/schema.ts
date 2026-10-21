@@ -1,4 +1,5 @@
 import { MapSchema, Schema, type, view } from '@colyseus/schema';
+import { SpellState } from './schema34';
 
 export class PlayerState extends Schema {
   @type('string') id = '';
@@ -17,6 +18,10 @@ export class PlayerState extends Schema {
   @type('uint8') flags = 0;
   /** last processed input sequence, for reconciliation */
   @type('uint32') ack = 0;
+  /** Phase 3: class index (CLASS_INDEX) for nameplates */
+  @type('uint8') cls = 0;
+  /** Phase 4: party id ('' when not in a party) */
+  @type('string') party = '';
 }
 
 export class EnemyState extends Schema {
@@ -58,6 +63,8 @@ export class WorldState extends Schema {
   @view() @type({ map: EnemyState }) enemies = new MapSchema<EnemyState>();
   @view() @type({ map: ProjectileState }) projectiles = new MapSchema<ProjectileState>();
   @view() @type({ map: NpcState }) npcs = new MapSchema<NpcState>();
+  /** Phase 3: visible ability effects */
+  @view() @type({ map: SpellState }) spells = new MapSchema<SpellState>();
   @type('float64') serverTime = 0;
   @type('uint32') tick = 0;
 }

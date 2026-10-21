@@ -25,3 +25,13 @@ export * from './npcs';
 export * from './objects';
 export * from './path';
 export * from './quests';
+// Phase 3 + 4
+export * from './quantum';
+export * from './classes';
+export * from './circuit';
+export * from './qubitpedia';
+export * from './tutorial';
+export * from './protocol34';
+export * from './shards';
+export * from './chatfilter';
+export * from './schema34';
