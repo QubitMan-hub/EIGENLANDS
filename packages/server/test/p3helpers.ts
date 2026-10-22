@@ -39,8 +39,17 @@ export async function spawn3(
 ): Promise<P3> {
   const g = creds ?? await guest(app);
   const client = new Client(wsUrl(app));
-  const r = await client.joinOrCreate('world', { token: g.token, name, ...(opts.ticket ? { ticket: opts.ticket } : {}) });
-  const room = matchMaker.getLocalRoomById(r.roomId) as unknown as GameRoom;
+  let r!: Room<any>;
+  let room!: GameRoom;
+  // when the last player leaves, the old room may still hold the shard lock while it disposes: the new room then only
+  // redirects (it has no modules). Wait for the lock to free up and join again.
+  for (let attempt = 0; ; attempt++) {
+    r = await client.joinOrCreate('world', { token: g.token, name, ...(opts.ticket ? { ticket: opts.ticket } : {}) });
+    room = matchMaker.getLocalRoomById(r.roomId) as unknown as GameRoom;
+    if (room?.circuit || attempt >= 30) break;
+    await r.leave().catch(() => {});
+    await sleep(150);
+  }
   const p: P3 = {
     r, sid: r.sessionId, token: g.token, accountId: g.accountId, room, sp: undefined as unknown as ServerPlayer,
     circuit: room.circuit, prog: {}, progs: [], casts: [], res: [], toasts: [],

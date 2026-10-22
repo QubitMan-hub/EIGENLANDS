@@ -259,8 +259,9 @@ export class AbilityEngine {
         }
         if (best) {
           const target = best;
+          // a Tether links first, so its own damage already echoes along the caster's other threads
+          if (b.effect === 'link_enemy') this.link(caster, 'enemy', target.id, b.hue, b.form.secs ?? LINK_SECS);
           if (b.dmg > 0) this.hit(caster, target, b.dmg, { dx: b.dx, dy: b.dy, kb: BOLT_KB, hue: b.hue, slow: b.form.slow, slowSecs: b.form.secs });
-          if (b.effect === 'link_enemy' && this.room.enemies.has(target.id)) this.link(caster, 'enemy', target.id, b.hue, b.form.secs ?? LINK_SECS);
           landed = true;
         }
       }

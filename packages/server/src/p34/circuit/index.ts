@@ -491,9 +491,16 @@ export class CircuitModule implements Module, CircuitApi {
     }
     const n = qubitsForLevel(p.level, pr.qubitBonus);
     if (n !== s.n) {
-      if (n > s.n) p.toast(n - s.n === 1 ? 'A new orb awakens on your Board.' : `${n - s.n} new orbs awaken on your Board.`, 'good');
+      const woke = n > s.n;
+      if (woke) p.toast(n - s.n === 1 ? 'A new orb awakens on your Board.' : `${n - s.n} new orbs awaken on your Board.`, 'good');
       this.recompute(s);
       keys.push('qubits');
+      if (woke) {
+        // a freshly woken orb takes a class ability that is not slotted yet (the board stays valid: empty lines only)
+        placeAbilities(pr, s.n);
+        this.recompute(s);
+        keys.push('board');
+      }
     }
     if (keys.length) this.sendProgress(s, keys);
   }
