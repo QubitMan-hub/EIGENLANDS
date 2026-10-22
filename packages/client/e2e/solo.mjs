@@ -108,6 +108,22 @@ if (Math.hypot(s2.x - s0.x, s2.y - s0.y) < 1) fail('test did not move away from 
 if (s3.coins !== s2.coins) fail(`coins not restored after reload (${s3.coins} != ${s2.coins})`);
 await page.screenshot({ path: `${out}/5-reload.png` });
 
+// ── a second tab takes the world over (like signing in elsewhere); the first tab is told so ──
+const page2 = await ctx.newPage();
+page2.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(`tab2 ${m.type()}: ${m.text()}`); });
+page2.on('pageerror', (e) => errors.push(`tab2 pageerror: ${e.message}`));
+await page2.goto(url);
+await page2.waitForFunction(() => window.__eigen?.state().ready, null, { timeout: 30000 });
+await page.waitForSelector('#lost', { state: 'visible', timeout: 10000 }).catch(() => fail('first tab was not told about the takeover'));
+const lostTitle = await page.textContent('#lost-title');
+const t2 = await page2.evaluate(() => window.__eigen.state());
+console.log('takeover', { firstTab: lostTitle, x: t2.x?.toFixed(2), y: t2.y?.toFixed(2), coins: t2.coins });
+if (lostTitle !== 'Signed in elsewhere') fail('first tab shows the wrong message');
+if (Math.hypot(t2.x - s3.x, t2.y - s3.y) > 1 || t2.coins !== s3.coins) fail('second tab did not get the saved character');
+await page2.close();
+await page.reload();
+await ready();
+
 // ── "Delete my data": wipes the save; the next visit starts over ──
 page.once('dialog', (d) => void d.accept());
 await page.click('#btn-settings');

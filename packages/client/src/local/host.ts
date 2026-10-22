@@ -14,6 +14,7 @@ import { setRuntime34 } from '../../../server/src/p34/runtime34';
 import { ShardLocks } from '../../../server/src/p34/shard/locks';
 import { GameRoom } from '../../../server/src/rooms/GameRoom';
 import { setRuntime } from '../../../server/src/rooms/runtime';
+import { metrics } from '../../../server/src/rooms/WorldRoom';
 import type { Repo } from '../../../server/src/db/repo';
 import type { Repo34 } from '../../../server/src/db/repo34';
 import { ErrorCode, Protocol, generateId, matchMaker, roomEvents, type Room } from './colyseus-shim';
@@ -70,6 +71,8 @@ export class LocalHost {
     host.define(JOIN_ROOM, GameRoom as unknown as RoomCtor, ['shard']);
     roomEvents.disposed = (r) => { matchMaker.rooms.delete(r.roomId); host.creationOpts.delete(r); };
     host.installLifecycle();
+    // debugging / e2e: server tick metrics (same numbers as the server's /metrics) and save-store state
+    (globalThis as { __eigenSolo?: unknown }).__eigenSolo = { metrics, db: () => db.stats(), rooms: () => host.rooms.map((r) => ({ id: r.roomId, ...(r.metadata as object), clients: r.clients.length })) };
     return host;
   }
 
