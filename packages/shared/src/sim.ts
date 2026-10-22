@@ -1,14 +1,20 @@
 import {
-  ATTACK_COOLDOWN, COMBO_WINDOW, DASH_COOLDOWN, DASH_SPEED, DASH_TIME, PLAYER_RADIUS,
-  PLAYER_SPEED, SKILL_COOLDOWN, TICK_DT,
+  ATTACK_BUFFER, CHARGE_FULL, CHARGE_MIN, CHARGE_MOVE_MULT, COMBO_WINDOW, DASH_CHARGES, DASH_COOLDOWN, DASH_SPEED, DASH_TIME,
+  IFRAME_TIME, PLAYER_RADIUS, PLAYER_SPEED, SKILL_COOLDOWN, SWING_MOVE_MULT, TICK_DT,
 } from './constants';
+import { COMBO, heavyHit } from './combat';
 
+/**
+ * Everything the client predicts about its own player. Every field is in the ACK (see protocol.ts),
+ * so the client can rewind to the server's state and replay unacknowledged inputs exactly.
+ */
 export interface PlayerSim {
   x: number;
   y: number;
   faceX: number;
   faceY: number;
   dashT: number;
+  /** recharge timer of the next dash charge */
   dashCd: number;
   dashDx: number;
   dashDy: number;
@@ -16,6 +22,18 @@ export interface PlayerSim {
   combo: number; // index of the NEXT hit in the 3-hit combo
   comboT: number;
   skillCd: number;
+  /** dash charges available (0..DASH_CHARGES) */
+  dashN: number;
+  /** invulnerability left from the current dash */
+  ifrT: number;
+  /** 1 when the attack button was held last step (edge detection for charge release) */
+  hold: number;
+  /** seconds of charge accumulated while holding attack */
+  charge: number;
+  /** buffered attack press */
+  atkBuf: number;
+  /** phase slip: set by the server on a perfect dodge; the next attack is a critical counter */
+  slipT: number;
 }
 
 export interface InputCmd {
@@ -24,7 +42,10 @@ export interface InputCmd {
   dx: number;
   dy: number;
   dash: boolean;
+  /** attack pressed this step (or a repeat request: held-to-repeat clients send it every step) */
   attack: boolean;
+  /** attack button is held: charges a heavy strike that fires on release */
+  hold: boolean;
   skill: boolean;
   /** aim direction (unit-ish vector from the player) */
   aimX: number;
@@ -36,9 +57,18 @@ export interface InputCmd {
 export interface StepEvents {
   dashed: boolean;
   attacked: boolean;
-  /** 0,1,2 hit index when attacked */
+  /** 0,1,2 hit index when a light attack came out */
   combo: number;
   skill: boolean;
+  /** the attack was a charged heavy strike */
+  heavy: boolean;
+  /** heavy charge level 0..1 */
+  level: number;
+  /** the attack consumed a phase slip: guaranteed critical counter */
+  counter: boolean;
+  /** charge crossed CHARGE_MIN / CHARGE_FULL this step (for sounds) */
+  chargeReady: boolean;
+  chargeFull: boolean;
 }
 
 export type SolidQuery = (tx: number, ty: number) => boolean;
@@ -47,6 +77,7 @@ export function newPlayerSim(x: number, y: number): PlayerSim {
   return {
     x, y, faceX: 0, faceY: 1, dashT: 0, dashCd: 0, dashDx: 0, dashDy: 0,
     atkCd: 0, combo: 0, comboT: 0, skillCd: 0,
+    dashN: DASH_CHARGES, ifrT: 0, hold: 0, charge: 0, atkBuf: 0, slipT: 0,
   };
 }
 
@@ -56,6 +87,13 @@ export function clonePlayerSim(p: PlayerSim): PlayerSim {
 
 const num = (v: unknown, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
+/**
+ * Timers are rounded to 1e-6 after every update. The ACK carries float32s; rounding makes the client's replay
+ * (which starts from float32 values) land on exactly the same timer values as the server's float64 sim,
+ * so thresholds like `atkCd <= 0` flip on the same tick on both sides.
+ */
+const q = (v: number) => Math.round(v * 1e6) / 1e6;
+const down = (v: number) => (v > 0 ? Math.max(0, q(v - TICK_DT)) : 0);
 
 /** Never trust client commands: clamp ranges, limit vector length, coerce types. */
 export function sanitizeCmd(raw: Partial<InputCmd>): InputCmd {
@@ -72,6 +110,7 @@ export function sanitizeCmd(raw: Partial<InputCmd>): InputCmd {
     dx, dy,
     dash: raw.dash === true,
     attack: raw.attack === true,
+    hold: raw.hold === true,
     skill: raw.skill === true,
     aimX: ax, aimY: ay,
     viewTick: Math.max(0, Math.floor(num(raw.viewTick))),
@@ -109,15 +148,40 @@ export function moveBody(
   }
 }
 
-/** One fixed 50 ms step. Identical on client (prediction) and server (authority). */
-export function stepPlayer(p: PlayerSim, cmd: InputCmd, solid: SolidQuery): StepEvents {
-  const ev: StepEvents = { dashed: false, attacked: false, combo: 0, skill: false };
+/** Charge level 0..1 of a held heavy (0 below CHARGE_MIN). */
+export function chargeLevel(charge: number): number {
+  return clamp((charge - CHARGE_MIN) / (CHARGE_FULL - CHARGE_MIN), 0, 1);
+}
 
-  p.dashCd = Math.max(0, p.dashCd - TICK_DT);
-  p.atkCd = Math.max(0, p.atkCd - TICK_DT);
-  p.skillCd = Math.max(0, p.skillCd - TICK_DT);
+/**
+ * One fixed 50 ms step. Identical on client (prediction) and server (authority).
+ *
+ * Combat rules:
+ * - tap attack: 3-hit combo (slash, slash, lunging finisher); presses during recovery or a dash are buffered.
+ * - hold attack: after the opening swing recovers, charge builds; release past CHARGE_MIN for a heavy strike.
+ * - dash: DASH_CHARGES charges that recharge one at a time; cancels swing recovery and charge, keeps the combo.
+ * - phase slip (set by the server on a perfect dodge): the next attack is a critical counter.
+ */
+export function stepPlayer(p: PlayerSim, cmd: InputCmd, solid: SolidQuery): StepEvents {
+  const ev: StepEvents = {
+    dashed: false, attacked: false, combo: 0, skill: false, heavy: false, level: 0, counter: false, chargeReady: false, chargeFull: false,
+  };
+
+  // timers
+  if (p.dashN < DASH_CHARGES) {
+    p.dashCd = down(p.dashCd);
+    if (p.dashCd <= 0) {
+      p.dashN = Math.min(DASH_CHARGES, p.dashN + 1);
+      p.dashCd = p.dashN < DASH_CHARGES ? DASH_COOLDOWN : 0;
+    }
+  } else p.dashCd = 0;
+  p.atkCd = down(p.atkCd);
+  p.skillCd = down(p.skillCd);
+  p.ifrT = down(p.ifrT);
+  p.slipT = down(p.slipT);
+  p.atkBuf = down(p.atkBuf);
   if (p.comboT > 0) {
-    p.comboT -= TICK_DT;
+    p.comboT = down(p.comboT);
     if (p.comboT <= 0) { p.comboT = 0; p.combo = 0; }
   }
 
@@ -128,26 +192,64 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, solid: SolidQuery): Step
     p.faceY = cmd.dy / l;
   }
   const hasAim = cmd.aimX !== 0 || cmd.aimY !== 0;
+  const aim = () => { if (hasAim) { p.faceX = cmd.aimX; p.faceY = cmd.aimY; } };
 
-  if (cmd.dash && p.dashT <= 0 && p.dashCd <= 0) {
+  // dash (always available while a charge remains: cancels swing recovery and a held charge)
+  if (cmd.dash && p.dashT <= 0 && p.dashN >= 1) {
+    p.dashN -= 1;
+    if (p.dashCd <= 0) p.dashCd = DASH_COOLDOWN;
     p.dashT = DASH_TIME;
-    p.dashCd = DASH_COOLDOWN;
-    p.dashDx = moving ? p.faceX : p.faceX;
-    p.dashDy = moving ? p.faceY : p.faceY;
+    p.ifrT = IFRAME_TIME;
+    p.dashDx = p.faceX;
+    p.dashDy = p.faceY;
+    p.atkCd = 0;
+    p.charge = 0;
+    if (p.comboT > 0) p.comboT = Math.max(p.comboT, q(DASH_TIME + 0.35));
     ev.dashed = true;
   }
 
-  if (cmd.attack && p.atkCd <= 0 && p.dashT <= 0) {
-    if (hasAim) { p.faceX = cmd.aimX; p.faceY = cmd.aimY; }
-    ev.attacked = true;
-    ev.combo = p.combo;
-    p.atkCd = ATTACK_COOLDOWN + (p.combo === 2 ? 0.2 : 0);
-    p.combo = (p.combo + 1) % 3;
-    p.comboT = COMBO_WINDOW;
+  const counter = () => { if (p.slipT > 0) { ev.counter = true; p.slipT = 0; } };
+
+  // heavy strike: released after charging
+  const held = cmd.hold;
+  if (!held && p.hold && p.charge >= CHARGE_MIN && p.dashT <= 0 && p.atkCd <= 0) {
+    aim();
+    const level = chargeLevel(p.charge);
+    const h = heavyHit(level);
+    ev.attacked = true; ev.heavy = true; ev.level = level; ev.combo = 0;
+    p.atkCd = h.recovery;
+    p.combo = 0; p.comboT = 0; p.charge = 0; p.atkBuf = 0;
+    counter();
+    moveBody(p, p.faceX * h.lunge, p.faceY * h.lunge, PLAYER_RADIUS, solid);
   }
 
+  // light combo (buffered)
+  if (cmd.attack) p.atkBuf = ATTACK_BUFFER;
+  if (!ev.attacked && p.atkBuf > 0 && p.atkCd <= 0 && p.dashT <= 0) {
+    aim();
+    const hit = COMBO[p.combo]!;
+    ev.attacked = true;
+    ev.combo = p.combo;
+    p.atkCd = hit.recovery;
+    p.combo = (p.combo + 1) % 3;
+    p.comboT = p.combo === 0 ? 0 : COMBO_WINDOW;
+    p.atkBuf = 0;
+    counter();
+    moveBody(p, p.faceX * hit.lunge, p.faceY * hit.lunge, PLAYER_RADIUS, solid);
+  }
+
+  // charging
+  if (held && p.dashT <= 0 && p.atkCd <= 0 && !ev.attacked) {
+    const before = p.charge;
+    p.charge = Math.min(CHARGE_FULL + 0.5, q(p.charge + TICK_DT));
+    ev.chargeReady = before < CHARGE_MIN && p.charge >= CHARGE_MIN;
+    ev.chargeFull = before < CHARGE_FULL && p.charge >= CHARGE_FULL;
+    aim();
+  } else if (!held) p.charge = 0;
+  p.hold = held ? 1 : 0;
+
   if (cmd.skill && p.skillCd <= 0 && p.dashT <= 0) {
-    if (hasAim) { p.faceX = cmd.aimX; p.faceY = cmd.aimY; }
+    aim();
     ev.skill = true;
     p.skillCd = SKILL_COOLDOWN;
   }
@@ -156,10 +258,10 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, solid: SolidQuery): Step
   if (p.dashT > 0) {
     vx = p.dashDx * DASH_SPEED;
     vy = p.dashDy * DASH_SPEED;
-    p.dashT = Math.max(0, p.dashT - TICK_DT);
+    p.dashT = down(p.dashT);
   } else {
-    // slight lunge slow while swinging
-    const k = p.atkCd > ATTACK_COOLDOWN * 0.5 ? 0.4 : 1;
+    // committed swing slows you; so does holding a charge
+    const k = p.atkCd > 0.15 ? SWING_MOVE_MULT : p.charge > 0 ? CHARGE_MOVE_MULT : 1;
     vx = cmd.dx * PLAYER_SPEED * k;
     vy = cmd.dy * PLAYER_SPEED * k;
   }

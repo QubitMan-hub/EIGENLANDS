@@ -1,8 +1,11 @@
 import { Client, Room, ServerError } from 'colyseus';
 import { StateView } from '@colyseus/schema';
 import {
-  BASE_PLAYER_HP, ChunkStore, COMBO, INTEREST_RADIUS, MAX_REWIND_TICKS, MSG,
-  NAME_MAX, PROJECTILE_DAMAGE, PROJECTILE_RADIUS, PROJECTILE_RANGE, PROJECTILE_SPEED, CHUNK_SIZE, TICK_DT,
+  ATK, BASE_PLAYER_HP, ChunkStore, COMBO, CHARGE_MIN, DASH_CHARGES, ELITE, ELITE_XP_MULT, ENEMY_DEFS, INTEREST_RADIUS, MAX_REWIND_TICKS, MSG,
+  NAME_MAX, ORB_RADIUS, ORB_RANGE, ORB_SPEED, ORB_SPREAD, PLAYER_RADIUS, PROJECTILE_DAMAGE, PROJECTILE_RADIUS, PROJECTILE_RANGE,
+  PROJECTILE_SPEED, CHUNK_SIZE, REFLECT_DAMAGE, REFLECT_SPEED_MULT, SKILL_POISE, SLAM_POISE, SLIP_SLOW_RADIUS, SLIP_SLOW_TIME, SLIP_TIME,
+  BOMB_FUSE, BOMB_RADIUS, CRIT_MULT, moveBody, TICK_DT, enemyScale, eliteChance, hasIframes, heavyHit, isPerfectDodge, pickSpawn, resolveHit, rollCrit,
+  shapeHits, slamDamage, spawnBudget, type StepEvents, type StrikeShape,
   TICK_MS, TILE_DEFS, PlayerState, ProjectileState, WorldState, chunkOf, encodeAck, encodeDiff, inArc, isNight,
   maxHpForLevel, newPlayerSim, rewindPosition, sanitizeCmd, segmentHitsCircle, stepPlayer, xpForLevel, T, buildingAt,
   type ChunkDiff, type FxMsg, type InputBatch, type InputCmd, type PlayerSim, type PosSample, type Stack,
@@ -12,7 +15,7 @@ import {
   type SpellState,
 } from '@eigenlands/shared';
 import { verifyToken } from '../auth/token';
-import { createEnemy, enemyDamage, stepEnemy, type Enemy, type EnemyKind } from '../game/enemies';
+import { createEnemy, enemyDamage, stepEnemies, type Enemy, type EnemyKind, type SpawnOpts } from '../game/enemies';
 import { TokenBucket } from '../rate';
 import type { RoomApi } from '../systems/api';
 import type { ServerClock } from '../systems/clock';
@@ -36,7 +39,30 @@ import { runtime, worldClock } from './runtime';
 interface Projectile {
   state: ProjectileState;
   x: number; y: number; dx: number; dy: number; travelled: number; owner: string;
+  team: 'player' | 'enemy';
+  speed: number; range: number; radius: number;
+  /** fixed damage (enemy orbs, reflected orbs); player bolts compute theirs on impact */
+  dmg: number;
+  history: PosSample[];
+  /** tick an enemy orb ended: kept a few ticks so lagged players can still be hit by what they saw */
+  endTick: number;
+  /** players that dodged it */
+  passed: Set<string>;
+  src: Enemy | null;
 }
+
+/** An enemy strike waiting to be resolved against players whose view lags behind (defender-favouring lag compensation). */
+interface PendingStrike {
+  e: Enemy; shape: StrikeShape; dmg: number; weight: number; tick: number;
+  waiting: Set<string>;
+  /** players already hit/dodged by this attack (charges sweep many ticks) */
+  dedupe: Set<string> | null;
+}
+
+/** Combat options for a hit on an enemy. Abilities (hitEnemy) pass none: weight 0, poise from damage. */
+export interface HitOpts { weight?: number; poise?: number; crit?: boolean; counter?: boolean }
+
+const RESPAWN_TIME = 3;
 
 interface Respawn { x: number; y: number; restore: number; at: number }
 
@@ -74,6 +100,8 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   private spawnTimer = 0;
   private autosaveTimer = 0;
   private projSeq = 0;
+  private strikes: PendingStrike[] = [];
+  private bombs: Array<{ e: Enemy; x: number; y: number; t: number }> = [];
   private processedDay = 0;
   private secondT = 0;
   /** injectable for deterministic tests */
@@ -114,7 +142,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
         } catch (e) { console.error(`${type} failed`, e); }
       });
     };
-    on<DevMsg>(MSG.DEV, 'invBucket', (p, m) => handleDev(this, p, m));
+    on<DevMsg>(MSG.DEV, 'invBucket', (p, m) => (m?.cmd === 'spawn' ? this.devSpawn(p, m) : handleDev(this, p, m)));
     on<UseMsg>(MSG.USE, 'useBucket', (p, m) => handleUse(this, p, m));
     on<OpenMsg>(MSG.OPEN, 'openBucket', (p, m) => handleOpen(this, p, m));
     on<InvMoveMsg>(MSG.INV_MOVE, 'invBucket', (p, m) => handleInvMove(p, m));
@@ -385,8 +413,8 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   // ───────────────────────── simulation ─────────────────────────
 
   /** Spawn an enemy (also used by the ambient spawner and by tests). */
-  spawnEnemy(kind: EnemyKind, x: number, y: number, night = isNight(this.wclock.now())): Enemy {
-    const e = createEnemy(kind, x, y, night);
+  spawnEnemy(kind: EnemyKind, x: number, y: number, night = isNight(this.wclock.now()), opts: SpawnOpts = {}): Enemy {
+    const e = createEnemy(kind, x, y, night, opts);
     this.enemies.set(e.id, e);
     this.state.enemies.set(e.id, e.state);
     return e;
@@ -412,15 +440,19 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     const solid = this.store.solidAt;
 
     for (const p of this.players.values()) this.stepPlayerTick(p, tick, solid);
+    this.resolveStrikes(tick);
 
     const targets = [...this.players.values()].map((p) => ({ id: p.client.sessionId, x: p.sim.x, y: p.sim.y, alive: p.deadT <= 0 }));
-    for (const e of this.enemies.values()) {
-      stepEnemy(e, TICK_DT, tick, targets, solid, this.rand, {
-        telegraph: (en) => this.fx({ kind: 'telegraph', x: en.x, y: en.y, v: en.def.windup, id: en.id }),
-        strike: (en, x, y, r) => this.enemyStrike(en, x, y, r),
-      });
-    }
-    this.stepProjectiles();
+    stepEnemies(this.enemies.values(), TICK_DT, tick, targets, solid, this.rand, {
+      telegraph: (en) => this.fx({ kind: 'telegraph', x: en.x, y: en.y, v: en.t, w: en.atk, id: en.id }),
+      strike: (en, x, y, r, mult) => this.enemyStrike(en, x, y, r, mult),
+      lane: (en, ax, ay, bx, by, w) => this.queueStrike(en, { kind: 'lane', ax, ay, bx, by, w }, enemyDamage(en), 2, en.chargeHits),
+      fire: (en, dx, dy) => this.fireOrbs(en, dx, dy),
+      slam: (en, sp) => this.wallSlam(en, sp),
+      crash: (en) => { this.fx({ kind: 'crash', x: en.x, y: en.y, id: en.id, dx: en.aimX, dy: en.aimY }); this.fx({ kind: 'stagger', x: en.x, y: en.y, id: en.id }); },
+    });
+    this.stepBombs();
+    this.stepProjectiles(tick);
 
     this.spawnTimer -= TICK_DT;
     if (this.spawnTimer <= 0) { this.spawnTimer = 1; if (runtime().ambientSpawns) { this.ambientSpawn(now); this.ambientFauna(now); } this.despawnFar(); }
@@ -484,9 +516,17 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       if (!cmd) break;
       p.lastSeq = cmd.seq;
       if (p.deadT > 0) continue;
+      // how far behind the server this client's view was (bounded; bogus values mean "no compensation")
+      const lag = tick - cmd.viewTick;
+      // jittery clients drift a tick or two past the window: clamp; absurd values get no compensation at all
+      p.viewLag = cmd.viewTick > 0 && lag > 0 && lag <= MAX_REWIND_TICKS * 3 ? Math.min(lag, MAX_REWIND_TICKS) : 0;
+      p.lastViewTick = p.viewLag > 0 ? cmd.viewTick : tick;
       const ev = stepPlayer(p.sim, cmd, solid);
-      if (ev.dashed) this.fx({ kind: 'dash', x: p.sim.x, y: p.sim.y, dx: p.sim.faceX, dy: p.sim.faceY }, p.client.sessionId);
-      if (ev.attacked) this.resolveMelee(p, cmd, ev.combo, tick);
+      if (ev.dashed) {
+        p.dashTick = tick;
+        this.fx({ kind: 'dash', x: p.sim.x, y: p.sim.y, dx: p.sim.faceX, dy: p.sim.faceY, id: p.id }, p.client.sessionId);
+      }
+      if (ev.attacked) this.resolveMelee(p, cmd, ev, tick);
       if (ev.skill) this.spawnProjectile(p);
     }
     p.history.push({ tick, x: p.sim.x, y: p.sim.y });
@@ -496,17 +536,28 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     s.x = p.sim.x; s.y = p.sim.y; s.faceX = p.sim.faceX; s.faceY = p.sim.faceY;
     s.hp = p.hp; s.maxHp = p.maxHp; s.level = p.level; s.xp = p.xp; s.ack = p.lastSeq; s.look = p.data.equip.outfit;
     p.client.send(MSG.ACK, encodeAck({ seq: p.lastSeq, tick, sim: p.sim }));
-    s.flags = (p.sim.dashT > 0 ? 1 : 0) | (p.sim.atkCd > 0.12 ? 2 : 0) | (p.deadT > 0 ? 4 : 0);
+    const sim = p.sim;
+    s.flags = (sim.dashT > 0 ? 1 : 0) | (sim.atkCd > 0.12 ? 2 : 0) | (p.deadT > 0 ? 4 : 0)
+      | (sim.hold && sim.charge > 0 ? 8 : 0) | (sim.hold && sim.charge >= CHARGE_MIN ? 16 : 0) | (sim.slipT > 0 ? 32 : 0) | (sim.ifrT > 0 ? 64 : 0);
   }
 
-  private resolveMelee(p: ServerPlayer, cmd: InputCmd, combo: number, tick: number): void {
-    const hit = COMBO[combo]!;
+  /** Light combo hits and charged heavies; lag-compensated against what the attacker saw. Also bats enemy orbs back. */
+  private resolveMelee(p: ServerPlayer, cmd: InputCmd, ev: StepEvents, tick: number): void {
+    const hit = ev.heavy ? heavyHit(ev.level) : COMBO[ev.combo]!;
     const rewindTick = Math.min(tick, Math.max(cmd.viewTick, tick - MAX_REWIND_TICKS));
-    this.fx({ kind: 'swing', x: p.sim.x, y: p.sim.y, dx: p.sim.faceX, dy: p.sim.faceY, v: combo }, p.client.sessionId);
+    const fx = p.sim.faceX, fy = p.sim.faceY;
+    if (ev.heavy) this.fx({ kind: 'heavy', x: p.sim.x, y: p.sim.y, dx: fx, dy: fy, v: ev.level, id: p.id }, p.client.sessionId);
+    else this.fx({ kind: 'swing', x: p.sim.x, y: p.sim.y, dx: fx, dy: fy, v: ev.combo, id: p.id }, p.client.sessionId);
     for (const e of [...this.enemies.values()]) {
       const pos = rewindPosition(e.history, rewindTick) ?? { x: e.x, y: e.y };
-      if (!inArc(p.sim.x, p.sim.y, p.sim.faceX, p.sim.faceY, hit, { x: pos.x, y: pos.y, r: e.def.radius })) continue;
-      this.damageEnemy(e, this.outgoing(p, hit.damage), p, p.sim.faceX, p.sim.faceY, hit.knockback);
+      if (!inArc(p.sim.x, p.sim.y, fx, fy, hit, { x: pos.x, y: pos.y, r: e.def.radius })) continue;
+      const crit = rollCrit(this.rand(), p.stats.luck, ev.counter, true);
+      this.damageEnemy(e, this.outgoing(p, hit.damage), p, fx, fy, hit.knockback, { weight: hit.weight, poise: hit.poise, crit, counter: ev.counter });
+    }
+    for (const pr of [...this.projectiles.values()]) {
+      if (pr.team !== 'enemy' || pr.endTick) continue;
+      const pos = rewindPosition(pr.history, rewindTick) ?? { x: pr.x, y: pr.y };
+      if (inArc(p.sim.x, p.sim.y, fx, fy, hit, { x: pos.x, y: pos.y, r: pr.radius + 0.15 })) this.reflect(pr, p);
     }
   }
 
@@ -516,68 +567,186 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     return Math.max(1, Math.round((base + p.stats.atkBonus) * (1 + (might && might.until > this.wclock.now() ? might.power : 0))));
   }
 
-  private spawnProjectile(p: ServerPlayer): void {
+  private addProjectile(o: Omit<Projectile, 'state' | 'travelled' | 'history' | 'endTick' | 'passed'>, kind: number): Projectile {
     const id = `p${++this.projSeq}`;
     const st = new ProjectileState();
-    st.id = id; st.x = p.sim.x; st.y = p.sim.y; st.owner = p.client.sessionId;
-    const pr: Projectile = { state: st, x: p.sim.x, y: p.sim.y, dx: p.sim.faceX, dy: p.sim.faceY, travelled: 0, owner: p.client.sessionId };
+    st.id = id; st.x = o.x; st.y = o.y; st.owner = o.owner; st.kind = kind;
+    const pr: Projectile = { ...o, state: st, travelled: 0, history: [{ tick: this.state.tick, x: o.x, y: o.y }], endTick: 0, passed: new Set() };
     this.projectiles.set(id, pr);
     this.state.projectiles.set(id, st);
+    return pr;
+  }
+
+  private spawnProjectile(p: ServerPlayer): void {
+    const pr = this.addProjectile({
+      x: p.sim.x, y: p.sim.y, dx: p.sim.faceX, dy: p.sim.faceY, owner: p.client.sessionId, team: 'player',
+      speed: PROJECTILE_SPEED, range: PROJECTILE_RANGE, radius: PROJECTILE_RADIUS, dmg: 0, src: null,
+    }, 0);
     this.fx({ kind: 'shot', x: p.sim.x, y: p.sim.y, dx: pr.dx, dy: pr.dy }, p.client.sessionId);
   }
 
-  private stepProjectiles(): void {
+  /** Phase Wisp attack: one slow orb (a fan of three at night). */
+  private fireOrbs(e: Enemy, dx: number, dy: number): void {
+    const angles = e.night ? [-ORB_SPREAD, 0, ORB_SPREAD] : [0];
+    for (const a of angles) {
+      const c = Math.cos(a), s = Math.sin(a);
+      const ux = dx * c - dy * s, uy = dx * s + dy * c;
+      this.addProjectile({
+        x: e.x + ux * 0.4, y: e.y + uy * 0.4, dx: ux, dy: uy, owner: e.id, team: 'enemy',
+        speed: ORB_SPEED, range: ORB_RANGE, radius: ORB_RADIUS, dmg: enemyDamage(e), src: e,
+      }, 1);
+    }
+    this.fx({ kind: 'orb', x: e.x, y: e.y, dx, dy, id: e.id });
+  }
+
+  /** A melee swing batted an orb back: it now flies where the player faces, faster and harder. */
+  private reflect(pr: Projectile, p: ServerPlayer): void {
+    pr.team = 'player'; pr.owner = p.id; pr.state.owner = p.id; pr.state.kind = 2;
+    pr.dx = p.sim.faceX; pr.dy = p.sim.faceY;
+    pr.speed = ORB_SPEED * REFLECT_SPEED_MULT; pr.range = ORB_RANGE; pr.travelled = 0;
+    pr.dmg = this.outgoing(p, REFLECT_DAMAGE);
+    pr.history = [{ tick: this.state.tick, x: pr.x, y: pr.y }];
+    this.fx({ kind: 'reflect', x: pr.x, y: pr.y, dx: pr.dx, dy: pr.dy, id: p.id });
+  }
+
+  private removeProjectile(pr: Projectile): void {
+    this.projectiles.delete(pr.state.id);
+    this.state.projectiles.delete(pr.state.id);
+  }
+
+  private stepProjectiles(tick = this.state.tick): void {
     for (const pr of [...this.projectiles.values()]) {
-      const step = PROJECTILE_SPEED * TICK_DT;
+      if (pr.endTick) {
+        if (tick - pr.endTick > MAX_REWIND_TICKS) this.projectiles.delete(pr.state.id);
+        continue;
+      }
+      const step = pr.speed * TICK_DT;
       const nx = pr.x + pr.dx * step, ny = pr.y + pr.dy * step;
-      let done = this.store.solidAt(Math.floor(nx), Math.floor(ny)) || pr.travelled + step > PROJECTILE_RANGE;
-      if (!done) {
+      let done = this.store.solidAt(Math.floor(nx), Math.floor(ny)) || pr.travelled + step > pr.range;
+      if (!done && pr.team === 'player') {
         for (const e of this.enemies.values()) {
-          if (segmentHitsCircle(pr.x, pr.y, nx, ny, PROJECTILE_RADIUS, { x: e.x, y: e.y, r: e.def.radius })) {
+          if (segmentHitsCircle(pr.x, pr.y, nx, ny, pr.radius, { x: e.x, y: e.y, r: e.def.radius })) {
             const owner = this.players.get(pr.owner) ?? null;
-            this.damageEnemy(e, owner ? this.outgoing(owner, PROJECTILE_DAMAGE) : PROJECTILE_DAMAGE, owner, pr.dx, pr.dy, 3);
+            const reflected = pr.state.kind === 2;
+            const dmg = reflected ? pr.dmg : owner ? this.outgoing(owner, PROJECTILE_DAMAGE) : PROJECTILE_DAMAGE;
+            this.damageEnemy(e, dmg, owner, pr.dx, pr.dy, reflected ? 5 : 3, { weight: reflected ? 1 : 0, poise: reflected ? 20 : SKILL_POISE });
             done = true;
             break;
           }
         }
       }
       if (done) {
-        this.projectiles.delete(pr.state.id);
-        this.state.projectiles.delete(pr.state.id);
+        if (pr.team === 'enemy') { pr.endTick = tick; this.state.projectiles.delete(pr.state.id); } else this.removeProjectile(pr);
         continue;
       }
       pr.x = nx; pr.y = ny; pr.travelled += step;
       pr.state.x = nx; pr.state.y = ny;
+      pr.history.push({ tick, x: nx, y: ny });
+      if (pr.history.length > 16) pr.history.shift();
+    }
+    // enemy orbs vs players: each player is tested against the orb where THEY saw it (defender lag compensation)
+    for (const pr of [...this.projectiles.values()]) {
+      if (pr.team !== 'enemy') continue;
+      for (const p of this.players.values()) {
+        if (p.deadT > 0 || pr.passed.has(p.id)) continue;
+        const rt = tick - p.viewLag;
+        if (pr.endTick && rt > pr.endTick) continue;
+        const b = pr.history.find((h) => h.tick === rt);
+        if (!b) continue;
+        const a = pr.history.find((h) => h.tick === rt - 1) ?? b;
+        if (!segmentHitsCircle(a.x, a.y, b.x, b.y, pr.radius, { x: p.sim.x, y: p.sim.y, r: PLAYER_RADIUS })) continue;
+        if (hasIframes(p.sim)) { if (isPerfectDodge(p.sim)) this.perfectDodge(p); pr.passed.add(p.id); continue; }
+        if (p.invuln > 0) continue;
+        if (pr.src) this.hurtPlayer(p, pr.dmg, pr.src, 1, pr.dx, pr.dy);
+        this.removeProjectile(pr);
+        break;
+      }
     }
   }
 
-  protected damageEnemy(e: Enemy, dmg: number, by: ServerPlayer | null, dx: number, dy: number, kb: number): void {
-    e.hp -= dmg;
+  protected damageEnemy(e: Enemy, dmg: number, by: ServerPlayer | null, dx: number, dy: number, kb: number, o: HitOpts = {}): void {
+    if (!this.enemies.has(e.id) || e.hp <= 0) return;
+    const weight = o.weight ?? 0;
+    const crit = !!o.crit;
+    const staggered = e.mode === 'stagger';
+    const r = e.def.passive
+      ? { damage: Math.max(1, Math.round(dmg * (crit ? CRIT_MULT : 1))), poise: 0, knockback: kb, flinch: false }
+      : resolveHit(e.def, { damage: dmg, poise: o.poise ?? Math.round(dmg * 0.4), knockback: kb, weight }, { crit, staggered, counter: o.counter });
+    e.hp -= r.damage;
     e.state.hp = Math.max(0, e.hp);
-    e.kx += dx * kb * e.resist; e.ky += dy * kb * e.resist;
+    const res = staggered ? Math.min(1, e.resist * 2.5) : e.resist;
+    e.kx += dx * r.knockback * res; e.ky += dy * r.knockback * res;
     if (by) e.lastHitBy = by.client.sessionId;
-    // being hit interrupts a windup (reward for aggression), except mid-leap
-    if (e.mode === 'windup') { e.mode = 'recover'; e.t = 0.4; e.state.tele = 0; }
-    this.fx({ kind: 'hit', x: e.x, y: e.y, v: dmg, id: e.id });
-    if (e.hp <= 0) this.killEnemy(e);
+    let broke = false;
+    if (!e.def.passive && r.poise > 0) {
+      e.poise -= r.poise; e.poiseT = 0;
+      if (e.poise <= 0 && !staggered) { broke = true; this.staggerEnemy(e); }
+    }
+    if (!broke && r.flinch && !e.def.passive && !staggered) e.flinchT = Math.max(e.flinchT, 0.12);
+    this.fx({ kind: 'hit', x: e.x, y: e.y, v: r.damage, id: e.id, w: weight, c: crit ? 1 : 0, s: broke ? 1 : 0, by: by?.id, dx, dy });
+    if (e.hp <= 0) this.killEnemy(e, weight);
   }
 
-  private killEnemy(e: Enemy): void {
+  /** Poise broken: interrupts any windup/charge; the enemy takes extra damage for a moment. */
+  private staggerEnemy(e: Enemy): void {
+    e.mode = 'stagger';
+    e.t = e.def.staggerTime ?? 0.7;
+    e.atk = ATK.NONE;
+    e.state.tele = 0;
+    e.poise = 0;
+    this.fx({ kind: 'stagger', x: e.x, y: e.y, id: e.id });
+  }
+
+  /** Knocked into a wall hard enough: bonus damage and poise damage, credited to the last attacker. */
+  private wallSlam(e: Enemy, speed: number): void {
+    const bonus = slamDamage(speed);
+    this.fx({ kind: 'slam', x: e.x, y: e.y, v: bonus, id: e.id });
+    this.damageEnemy(e, bonus, e.lastHitBy ? this.players.get(e.lastHitBy) ?? null : null, 0, 0, 0, { weight: 1, poise: SLAM_POISE });
+  }
+
+  private killEnemy(e: Enemy, weight = 0): void {
     this.enemies.delete(e.id);
     this.state.enemies.delete(e.id);
-    this.fx({ kind: 'die', x: e.x, y: e.y, id: e.id });
+    this.fx({ kind: 'die', x: e.x, y: e.y, id: e.id, v: e.def.kind, w: weight });
     const killer = e.lastHitBy ? this.players.get(e.lastHitBy) : undefined;
     if (killer) {
-      this.giveXp(killer, Math.round(e.def.xp * (e.night ? 1.5 : 1)));
-      for (const d of e.def.drops ?? []) {
-        if (d.max <= 0 || this.rand() >= d.chance * (1 + 0.15 * killer.stats.luck)) continue;
-        const stack: Stack = { id: d.item, n: d.min + Math.floor(this.rand() * (d.max - d.min + 1)) };
-        if (!giveStacks(killer, [stack])) killer.toast('Your pack is full.', 'bad');
+      const xp = e.def.xp * (e.night ? 1.5 : 1) * (e.elite ? ELITE_XP_MULT : 1) * enemyScale(e.level).xp;
+      this.giveXp(killer, Math.round(xp));
+      const rolls = e.elite ? 2 : 1;
+      for (let i = 0; i < rolls; i++) {
+        for (const d of e.def.drops ?? []) {
+          if (d.max <= 0 || this.rand() >= d.chance * (1 + 0.15 * killer.stats.luck)) continue;
+          const stack: Stack = { id: d.item, n: d.min + Math.floor(this.rand() * (d.max - d.min + 1)) };
+          if (!giveStacks(killer, [stack])) killer.toast('Your pack is full.', 'bad');
+        }
       }
       if (e.def.passive) addSkillXp(killer, 'foraging', e.def.xp);
       onKill(killer, e.def, this.wclock.day()); // Phase 2 quests: kill objectives
     }
+    // night slimes decohere into a pair of Static Mites
+    if (e.night && e.def.kind === ENEMY_DEFS.slime.kind) {
+      for (const s of [-1, 1]) {
+        const x = e.x + s * 0.45, y = e.y + 0.2;
+        if (!this.store.solidAt(Math.floor(x), Math.floor(y))) { const m = this.spawnEnemy('mite', x, y, true, { level: e.level }); m.cd = 0.8; }
+      }
+    }
+    if (e.elite & ELITE.VOLATILE) {
+      this.bombs.push({ e, x: e.x, y: e.y, t: BOMB_FUSE });
+      this.fx({ kind: 'bomb', x: e.x, y: e.y, v: BOMB_FUSE, w: BOMB_RADIUS, id: e.id });
+    }
     this.hookKilled(e, killer);
+  }
+
+  private stepBombs(): void {
+    if (!this.bombs.length) return;
+    for (const b of this.bombs) {
+      b.t -= TICK_DT;
+      if (b.t <= 0) {
+        this.queueStrike(b.e, { kind: 'circle', x: b.x, y: b.y, r: BOMB_RADIUS }, enemyDamage(b.e, 1.2), 2, null);
+        this.fx({ kind: 'blast', x: b.x, y: b.y, v: BOMB_RADIUS });
+      }
+    }
+    this.bombs = this.bombs.filter((b) => b.t > 0);
   }
 
   protected giveXp(p: ServerPlayer, xp: number): void {
@@ -585,56 +754,143 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     while (p.xp >= xpForLevel(p.level)) {
       p.xp -= xpForLevel(p.level);
       p.level++;
-      p.maxHp = maxHpForLevel(p.level, BASE_PLAYER_HP);
+      p.maxHp = maxHpForLevel(p.level, BASE_PLAYER_HP) + p.stats.hpBonus;
       p.hp = p.maxHp;
       this.fx({ kind: 'levelup', x: p.sim.x, y: p.sim.y, v: p.level, id: p.client.sessionId });
     }
   }
 
-  private enemyStrike(e: Enemy, x: number, y: number, radius: number): void {
+  /** A circular enemy strike (bite, slam, shockwave). */
+  private enemyStrike(e: Enemy, x: number, y: number, radius: number, mult = 1): void {
+    const heavy = e.def.kind === ENEMY_DEFS.brute.kind;
+    if (radius >= 1.5) this.fx({ kind: 'blast', x, y, v: radius, id: e.id });
+    this.queueStrike(e, { kind: 'circle', x, y, r: radius }, enemyDamage(e, mult), heavy ? 2 : 1, null);
+  }
+
+  /**
+   * Lag compensation for defenders: a strike lands on a player when THEY see it land (their input's viewTick reaches the
+   * strike tick), bounded by MAX_REWIND_TICKS. Players without valid view info are resolved immediately.
+   */
+  private queueStrike(e: Enemy, shape: StrikeShape, dmg: number, weight: number, dedupe: Set<string> | null): void {
+    const st: PendingStrike = { e, shape, dmg, weight, tick: this.state.tick, waiting: new Set(), dedupe };
+    const cx = shape.kind === 'circle' ? shape.x : (shape.ax + shape.bx) / 2, cy = shape.kind === 'circle' ? shape.y : (shape.ay + shape.by) / 2;
+    const reach = shape.kind === 'circle' ? shape.r : Math.hypot(shape.bx - shape.ax, shape.by - shape.ay) / 2 + shape.w;
     for (const p of this.players.values()) {
-      if (p.deadT > 0 || p.invuln > 0 || p.sim.dashT > 0) continue; // dash grants i-frames
-      const d = Math.hypot(p.sim.x - x, p.sim.y - y);
-      if (d > radius + 0.3) continue;
-      const ward = p.data.buffs.ward;
-      const dmg = this.hookIncomingDamage(p, Math.max(1, Math.round(enemyDamage(e) * (1 - (ward && ward.until > this.wclock.now() ? ward.power : 0)))), e);
-      if (dmg <= 0) continue; // dodged or absorbed by a Phase 3 ability
-      p.hp = Math.max(0, p.hp - dmg);
-      p.invuln = 0.5;
-      const nx = (p.sim.x - x) / (d || 1), ny = (p.sim.y - y) / (d || 1);
-      p.sim.x += nx * 0.3; p.sim.y += ny * 0.3; // small shove (server authoritative; client reconciles)
-      this.fx({ kind: 'hurt', x: p.sim.x, y: p.sim.y, v: dmg, id: p.client.sessionId });
-      if (p.hp <= 0) {
-        p.deadT = 3;
-        p.queue.length = 0;
-        this.fx({ kind: 'die', x: p.sim.x, y: p.sim.y, id: p.client.sessionId });
+      if (p.deadT > 0 || Math.hypot(p.sim.x - cx, p.sim.y - cy) > reach + 4) continue;
+      if (p.viewLag <= 0) this.applyStrike(st, p); else st.waiting.add(p.id);
+    }
+    if (st.waiting.size) this.strikes.push(st);
+  }
+
+  private resolveStrikes(tick: number): void {
+    if (!this.strikes.length) return;
+    for (const st of this.strikes) {
+      for (const id of [...st.waiting]) {
+        const p = this.players.get(id);
+        if (!p) { st.waiting.delete(id); continue; }
+        if (p.lastViewTick >= st.tick || tick - st.tick >= MAX_REWIND_TICKS || p.viewLag <= 0) { st.waiting.delete(id); this.applyStrike(st, p); }
       }
     }
+    this.strikes = this.strikes.filter((s) => s.waiting.size > 0);
+  }
+
+  private applyStrike(st: PendingStrike, p: ServerPlayer): void {
+    if (p.deadT > 0 || st.dedupe?.has(p.id)) return;
+    if (!shapeHits(st.shape, { x: p.sim.x, y: p.sim.y, r: PLAYER_RADIUS })) return;
+    if (hasIframes(p.sim)) { // dodged
+      if (isPerfectDodge(p.sim)) this.perfectDodge(p);
+      st.dedupe?.add(p.id);
+      return;
+    }
+    if (p.invuln > 0) return;
+    let nx: number, ny: number;
+    if (st.shape.kind === 'circle') { nx = p.sim.x - st.shape.x; ny = p.sim.y - st.shape.y; } else {
+      const s = st.shape; const vx = s.bx - s.ax, vy = s.by - s.ay;
+      nx = -vy; ny = vx;
+      if (nx * (p.sim.x - s.ax) + ny * (p.sim.y - s.ay) < 0) { nx = -nx; ny = -ny; }
+    }
+    if (this.hurtPlayer(p, st.dmg, st.e, st.weight, nx, ny)) st.dedupe?.add(p.id);
+  }
+
+  /** Apply an enemy hit to a player (ward buff, Phase 3 hook, shove, death). Returns whether damage was dealt. */
+  private hurtPlayer(p: ServerPlayer, raw: number, e: Enemy, weight: number, dirX: number, dirY: number): boolean {
+    const ward = p.data.buffs.ward;
+    const dmg = this.hookIncomingDamage(p, Math.max(1, Math.round(raw * (1 - (ward && ward.until > this.wclock.now() ? ward.power : 0)))), e);
+    if (dmg <= 0) return false; // dodged or absorbed by a Phase 3 ability
+    p.hp = Math.max(0, p.hp - dmg);
+    p.invuln = 0.5;
+    const l = Math.hypot(dirX, dirY) || 1;
+    const shove = weight >= 2 ? 0.6 : 0.3;
+    moveBody(p.sim, (dirX / l) * shove, (dirY / l) * shove, PLAYER_RADIUS, this.store.solidAt); // server authoritative; the client reconciles
+    p.sim.charge = 0;
+    this.fx({ kind: 'hurt', x: p.sim.x, y: p.sim.y, v: dmg, id: p.client.sessionId, w: weight });
+    if (p.hp <= 0) {
+      p.deadT = RESPAWN_TIME;
+      p.queue.length = 0;
+      this.fx({ kind: 'die', x: p.sim.x, y: p.sim.y, id: p.client.sessionId, by: String(e.def.kind) });
+    }
+    return true;
+  }
+
+  /** Dashed through a strike in the first frames of the dash: phase slip. */
+  private perfectDodge(p: ServerPlayer): void {
+    if (p.slipTick === p.dashTick) return; // one per dash
+    p.slipTick = p.dashTick;
+    p.sim.slipT = SLIP_TIME;
+    p.sim.dashN = Math.min(DASH_CHARGES, p.sim.dashN + 1);
+    if (p.sim.dashN >= DASH_CHARGES) p.sim.dashCd = 0;
+    p.invuln = Math.max(p.invuln, 0.35);
+    for (const e of this.enemies.values()) if (!e.def.passive && Math.hypot(e.x - p.sim.x, e.y - p.sim.y) <= SLIP_SLOW_RADIUS) e.slowT = SLIP_SLOW_TIME;
+    this.fx({ kind: 'perfect', x: p.sim.x, y: p.sim.y, id: p.id });
   }
 
   private respawn(p: ServerPlayer): void {
     p.sim = newPlayerSim(SPAWN.x, SPAWN.y);
     p.hp = p.maxHp;
     p.invuln = 2;
+    p.dashTick = -1; p.slipTick = -2;
   }
 
+  /** DEV_COMMANDS only: spawn enemies around the player (browser tests, tuning). */
+  private devSpawn(p: ServerPlayer, m: DevMsg): void {
+    if (!runtime().config.devCommands || m.cmd !== 'spawn' || typeof m.kind !== 'string' || !(m.kind in ENEMY_DEFS)) return;
+    const n = Math.max(1, Math.min(8, Math.floor(Number(m.n) || 1)));
+    const d = typeof m.d === 'number' && Number.isFinite(m.d) ? Math.min(12, Math.max(1, m.d)) : 4;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + 0.3;
+      const x = p.sim.x + Math.cos(a) * d, y = p.sim.y + Math.sin(a) * d;
+      if (this.store.solidAt(Math.floor(x), Math.floor(y))) continue;
+      this.spawnEnemy(m.kind as EnemyKind, x, y, m.night === true || (m.night === undefined && isNight(this.wclock.now())), { level: p.level, elite: Number(m.elite) & 7 });
+    }
+  }
+
+  /** Meadow spawner: a per-player budget of enemy "points", a spawn table by level and time of day, mite packs and elites. */
   private ambientSpawn(now: number): void {
     if ([...this.enemies.values()].filter((e) => !e.def.passive).length >= MAX_ENEMIES) return;
     const night = isNight(now);
     for (const p of this.players.values()) {
       if (p.deadT > 0) continue;
-      let near = 0;
-      for (const e of this.enemies.values()) if (!e.def.passive && Math.hypot(e.x - p.sim.x, e.y - p.sim.y) < 32) near++;
-      if (near >= (night ? 8 : 4)) continue;
+      let used = 0;
+      for (const e of this.enemies.values()) if (!e.def.passive && Math.hypot(e.x - p.sim.x, e.y - p.sim.y) < 32) used += e.def.budget ?? 1;
+      const budget = spawnBudget(p.level, night);
+      if (used >= budget) continue;
       for (let tries = 0; tries < 6; tries++) {
         const a = this.rand() * Math.PI * 2;
         const d = 14 + this.rand() * 8;
         const x = Math.floor(p.sim.x + Math.cos(a) * d), y = Math.floor(p.sim.y + Math.sin(a) * d);
-        if (Math.hypot(x, y) < 12) continue; // safe zone around the spawn shrine
+        if (Math.hypot(x, y) < 12 || buildingAt(this.seed, x, y)) continue; // safe zone around the spawn shrine; never indoors
         const t = this.store.getTile(x, y);
         if (TILE_DEFS[t]?.solid || t === T.TORCH) continue;
-        const kind = this.rand() < (night ? 0.5 : 0.3) ? 'hopper' : 'slime';
-        this.spawnEnemy(kind, x + 0.5, y + 0.5, night);
+        let kind = pickSpawn(p.level, night, this.rand());
+        if (kind === 'brute' && used + 3 > budget + 0.5) kind = 'slime';
+        const elite = this.rand() < eliteChance(p.level, night) ? [ELITE.HARDENED, ELITE.SWIFT, ELITE.VOLATILE][Math.floor(this.rand() * 3)]! : 0;
+        if (kind === 'mite') {
+          const n = 4 + Math.floor(this.rand() * 3);
+          for (let i = 0; i < n; i++) {
+            const mx = x + 0.5 + Math.cos(i * 2.4) * 0.8, my = y + 0.5 + Math.sin(i * 2.4) * 0.8;
+            if (!this.store.solidAt(Math.floor(mx), Math.floor(my))) this.spawnEnemy('mite', mx, my, night, { level: p.level });
+          }
+        } else this.spawnEnemy(kind, x + 0.5, y + 0.5, night, { level: p.level, elite });
         break;
       }
     }

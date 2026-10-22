@@ -93,14 +93,14 @@ export class Input {
   get interactHeld(): boolean { return this.isDown('interact') || this.touchHeld.has('interact'); }
 
   read(now = performance.now()): InputReading {
-    const r: InputReading = { dx: 0, dy: 0, dash: false, attack: false, skill: false, aimX: 0, aimY: 0, interact: false, usedKeyboardOrPad: false };
+    const r: InputReading = { dx: 0, dy: 0, dash: false, attack: false, hold: false, skill: false, aimX: 0, aimY: 0, interact: false, usedKeyboardOrPad: false };
     if (!this.enabled) { this.buffered.clear(); return r; }
     let dx = (this.isDown('right') ? 1 : 0) - (this.isDown('left') ? 1 : 0);
     let dy = (this.isDown('down') ? 1 : 0) - (this.isDown('up') ? 1 : 0);
     if (dx || dy) r.usedKeyboardOrPad = true;
 
     // gamepad
-    let padAttack = false, padSkill = false, padDash = false, padInteract = false;
+    let padAttack = false, padAttackEdge = false, padSkill = false, padDash = false, padInteract = false;
     let padAim: { x: number; y: number } | null = null;
     const pad = navigator.getGamepads?.().find((p) => !!p);
     if (pad) {
@@ -111,7 +111,7 @@ export class Input {
       if (Math.hypot(rx, ry) > 0.35) padAim = { x: rx, y: ry };
       const b = (i: number) => !!pad.buttons[i]?.pressed;
       const edge = (i: number) => b(i) && !this.padPrev[i];
-      padAttack = b(0) || b(7); padSkill = b(2) || b(6); padDash = edge(1); padInteract = edge(3);
+      padAttack = b(0) || b(7); padAttackEdge = edge(0) || edge(7); padSkill = b(2) || b(6); padDash = edge(1); padInteract = edge(3);
       if (edge(4)) this.onCycle?.(-1);
       if (edge(5)) this.onCycle?.(1);
       if (edge(9)) this.onPanel?.('inventory');
@@ -129,7 +129,9 @@ export class Input {
 
     const attackHeld = this.isDown('attack') || this.mouse.left || this.touchHeld.has('attack') || padAttack;
     const skillHeld = this.isDown('skill') || this.mouse.right || this.touchHeld.has('skill') || padSkill;
-    r.attack = attackHeld || this.consume('attack', now);
+    // attack = a press (tap: 3-hit combo, buffered by the sim); hold = still held (charges a heavy, released to strike)
+    r.attack = this.consume('attack', now) || padAttackEdge;
+    r.hold = attackHeld;
     r.skill = skillHeld || this.consume('skill', now);
     r.dash = this.consume('dash', now) || padDash;
     r.interact = this.consume('interact', now) || padInteract;
@@ -140,7 +142,7 @@ export class Input {
     if (padAim) { const a = toWorld(padAim.x, padAim.y); r.aimX = a.x; r.aimY = a.y; }
     else if (now - this.mouse.lastMove < 4000 && !this.touchHeld.size) {
       const a = toWorld(this.mouse.x - this.playerScreen.x, this.mouse.y - this.playerScreen.y); r.aimX = a.x; r.aimY = a.y;
-    } else if ((r.attack || r.skill) && this.autoAim) {
+    } else if ((r.attack || r.hold || r.skill) && this.autoAim) {
       const t = this.autoAim();
       if (t) { r.aimX = t.x; r.aimY = t.y; }
     }

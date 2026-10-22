@@ -24,11 +24,17 @@ import { ObjectViews, sunFor } from './objectviews';
 import { Terrain } from './terrain';
 import { Fx } from './fx';
 import { Lighting, type Light } from './lighting';
+import { buildFoeSheets, type FoeSheets } from '../art/foes';
+import { CombatView } from './combatview';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const pc = (i: number) => parseInt(PALETTE[i]!.slice(1), 16);
 
-interface Snap extends Pose { hp: number; maxHp: number; flags: number; tele: number; kind: number; night: boolean; name: string; level: number; look: number }
+interface Snap extends Pose {
+  hp: number; maxHp: number; flags: number; tele: number; kind: number; night: boolean; name: string; level: number; look: number;
+  /** combat 2.0 (enemies) */
+  st: number; atk: number; tx: number; ty: number; poise: number; elite: number;
+}
 
 interface ActorView {
   id: string;
@@ -43,6 +49,12 @@ interface ActorView {
   travel: number;
   outfit: number;
   trail: number;
+  /** combat presentation (see combatview.ts) */
+  fl: Sprite;
+  kind: number;
+  flash: number;
+  punch: number;
+  ghostT: number;
 }
 
 export class Game {
@@ -52,6 +64,10 @@ export class Game {
 
   private app!: Application;
   private sheets!: Sheets;
+  private foes!: FoeSheets;
+  private combat!: CombatView;
+  private decalLayer = new Graphics();
+  private deadAt = 0;
   private store!: ChunkStore;
   private terrain!: Terrain;
   private objects!: ObjectViews;
@@ -114,8 +130,9 @@ export class Game {
       resolution: Math.min(window.devicePixelRatio || 1, 3), autoDensity: true, preference: 'webgl',
     });
     this.sheets = buildActorSheets();
+    this.foes = buildFoeSheets();
     this.entityLayer.sortableChildren = true;
-    this.world.addChild(this.shadowLayer, this.entityLayer, this.roofLayer, this.cursor, this.bobber, this.fxLayer);
+    this.world.addChild(this.shadowLayer, this.decalLayer, this.entityLayer, this.roofLayer, this.cursor, this.bobber, this.fxLayer);
     this.lighting = new Lighting(this.app.renderer);
     this.app.stage.addChild(this.lighting.sprite, this.weatherLayer, this.labelLayer);
     this.gameplay = new Gameplay({
@@ -128,6 +145,11 @@ export class Game {
       npcScreens: () => [...this.views.values()].filter((v) => v.type === 'npc').map((v) => ({ id: v.id, x: v.lx, y: v.ly, sx: this.world.x + v.root.x * this.scale, sy: this.world.y + (v.root.y - 32) * this.scale, visible: v.root.visible })),
     });
     this.fx = new Fx(this.fxLayer, () => this.settings().reducedMotion);
+    this.combat = new CombatView({
+      fx: () => this.fx, sound: (s, x, y) => this.sound(s, x, y), rawSound: (s) => this.audio.play(s),
+      reduced: () => this.settings().reducedMotion, sheets: () => this.sheets, foes: () => this.foes, myId: () => this.myId,
+      me: () => (this.predictor ? { x: this.predictor.sim.x, y: this.predictor.sim.y } : null), views: () => this.views.values(),
+    }, this.decalLayer);
     this.ext = new P34Client({
       net: () => this.net, clock: this.clock, audio: this.audio, sfx: (s) => this.sound(s), input: this.input, keys: this.keys,
       settings: this.settings, store: () => this.store, sheets: () => this.sheets, entityLayer: () => this.entityLayer,
@@ -229,6 +251,7 @@ export class Game {
         x: e.x, y: e.y, faceX: e.faceX ?? 0, faceY: e.faceY ?? 1,
         hp: e.hp ?? 0, maxHp: e.maxHp ?? 0, flags: e.flags ?? 0, tele: e.tele ?? 0, kind: e.kind ?? 0,
         night: !!e.night, name: e.name ?? '', level: e.level ?? 1, look: e.look ?? 0,
+        st: e.st ?? 0, atk: e.atk ?? 0, tx: e.tx ?? 0, ty: e.ty ?? 0, poise: e.poise ?? 100, elite: e.elite ?? 0,
       });
       if (!this.views.has(id)) this.makeView(id, type, e);
     };
@@ -242,7 +265,7 @@ export class Game {
     if (me) {
       const wasDead = this.dead;
       this.dead = (me.flags & 4) !== 0;
-      if (this.dead !== wasDead) $('dead').hidden = !this.dead;
+      if (this.dead !== wasDead) { $('dead').hidden = !this.dead; if (this.dead) this.deadAt = performance.now(); }
       this.selfXp = me.xp;
       this.self = this.interp.sample(this.myId, t)?.pose ?? null;
       if (!this.predictor) {
@@ -309,16 +332,10 @@ export class Game {
   private toast(text: string): void { this.caption(text); }
 
   private fxFromServer(f: FxMsg): void {
+    if (this.combat.onFx(f, (id) => this.views.get(id))) { if (f.kind === 'hurt' && f.id === this.myId) this.hurtTimer = 0.25; return; }
     switch (f.kind) {
-      case 'swing': this.fx.swing(f.x, f.y, f.dx ?? 0, f.dy ?? 1, f.v ?? 0); this.sound('swing', f.x, f.y); break;
       case 'shot': this.fx.burst(f.x, f.y, [45, 46], 4); this.sound('shot', f.x, f.y); break;
       case 'dash': this.fx.dash(f.x, f.y, f.dx ?? 0, f.dy ?? 1); this.sound('dash', f.x, f.y); break;
-      case 'hit': this.fx.hit(f.x, f.y, f.v); this.sound('hit', f.x, f.y); break;
-      case 'hurt':
-        this.fx.hit(f.x, f.y, f.v, 35); this.sound('hurt', f.x, f.y);
-        if (f.id === this.myId) { this.hurtTimer = 0.25; this.fx.shake = this.settings().reducedMotion ? 0 : 0.6; }
-        break;
-      case 'die': this.fx.burst(f.x, f.y, [28, 29, 45, 6], 14); this.sound('die', f.x, f.y); break;
       case 'levelup': this.fx.ring(f.x, f.y, 38); this.fx.burst(f.x, f.y, [38, 39, 22], 12); this.fx.number(f.x, f.y - 1, `LEVEL ${f.v}!`, 38); this.sound('levelup'); break;
       case 'break': this.fx.burst(f.x, f.y, [4, 5, 20], 10); this.sound('break', f.x, f.y); break;
       case 'chop': this.fx.burst(f.x, f.y, [4, 5, 20], 5); this.sound('chop', f.x, f.y); break;
@@ -335,7 +352,6 @@ export class Game {
       case 'place': this.fx.burst(f.x, f.y, [18, 19, 20], 5); this.sound('till', f.x, f.y); break;
       case 'dust': this.fx.burst(f.x, f.y, [5, 6, 7], 4); break;
       case 'poof': this.fx.burst(f.x, f.y, [5, 6, 7], 8); break;
-      case 'telegraph': break; // drawn from enemy state
     }
   }
 
@@ -368,7 +384,16 @@ export class Game {
       this.labelLayer.addChild(label);
     }
     this.entityLayer.addChild(root);
-    this.views.set(id, { id, type, npcId: type === 'npc' ? id : undefined, root, sprite, gfx, shadow, label, lx: e.x, ly: e.y, travel: 0, outfit, trail: 0 });
+    const fl = new Sprite();
+    fl.anchor.set(0.5, 1);
+    fl.y = 1;
+    fl.blendMode = 'add';
+    fl.alpha = 0;
+    root.addChild(fl);
+    this.views.set(id, {
+      id, type, npcId: type === 'npc' ? id : undefined, root, sprite, gfx, shadow, label, lx: e.x, ly: e.y, travel: 0, outfit, trail: 0,
+      fl, kind: e.kind ?? 0, flash: 0, punch: 0, ghostT: 0,
+    });
   }
 
   private dropView(id: string): void {
@@ -465,10 +490,13 @@ export class Game {
     }
     this.input.playerScreen = { x: W / 2 + (isoX(me.x, me.y) - camX) * S, y: H / 2 + (isoY(me.x, me.y) - 10 - camY) * S };
 
-    const renderT = this.clock.serverNow(now) - this.clock.interpDelay;
+    // hit-stop / phase slip: remote entities and effects run on a slightly delayed, dilated clock (visual only)
+    const fxScale = this.combat.frame(dt);
+    const renderT = this.clock.serverNow(now) - this.clock.interpDelay - this.combat.warp;
     this.updateViews(me, alpha, renderT, now, dtMs);
     for (const v of this.views.values()) this.castShadow(v, sun);
-    this.fx.update(dt);
+    this.fx.update(dt * fxScale);
+    if (this.self) this.combat.vignette($('vignette'), this.self.hp, this.self.maxHp, this.dead, dt);
     this.ext.frame(now, dtMs);
 
     // lighting
@@ -490,18 +518,15 @@ export class Game {
     const r = this.input.read(now);
     const frozen = this.dead || !this.connected || this.settingsOpen() || this.gameplay.blocking || this.ext.blocking || this.net.switching;
     if (frozen) { this.input.read(now); return; }
-    const viewTick = Math.max(0, Math.floor(this.clock.tickAt(this.clock.serverNow(now) - this.clock.interpDelay)));
+    const viewTick = Math.max(0, Math.floor(this.clock.tickAt(this.clock.serverNow(now) - this.clock.interpDelay - this.combat.warp)));
     const { cmd, ev } = this.predictor.step(r, viewTick);
     this.net.sendInput(cmd);
     const acts = this.gameplay.acts;
     if (r.dx || r.dy) acts.moved = true;
-    if (ev.attacked) {
-      acts.attacked = true;
-      this.fx.swing(this.predictor.sim.x, this.predictor.sim.y, this.predictor.sim.faceX, this.predictor.sim.faceY, ev.combo);
-      this.sound('swing');
-    }
+    if (ev.attacked) acts.attacked = true;
+    if (ev.dashed) acts.dashed = true;
+    this.combat.onLocalStep(ev, this.predictor.sim, this.views.get(this.myId));
     if (ev.skill) { this.fx.burst(this.predictor.sim.x, this.predictor.sim.y, [45, 46], 4); this.sound('shot'); }
-    if (ev.dashed) { acts.dashed = true; this.fx.dash(this.predictor.sim.x, this.predictor.sim.y, this.predictor.sim.faceX, this.predictor.sim.faceY); this.sound('dash'); }
     if (r.interact) this.gameplay.interact();
   }
 
@@ -509,6 +534,7 @@ export class Game {
 
   private updateViews(me: { x: number; y: number }, alpha: number, renderT: number, now: number, dtMs: number): void {
     const reduced = this.settings().reducedMotion;
+    this.combat.beginFrame();
     for (const v of this.views.values()) {
       const isMe = v.id === this.myId;
       let x: number, y: number, s: Snap | null = null, fx = 0, fy = 1;
@@ -540,7 +566,11 @@ export class Game {
         v.sprite.texture = this.sheets.person(((look % OUTFITS.length) + OUTFITS.length) % OUTFITS.length, dirOf(sd.x, sd.y), frame);
         v.sprite.alpha = deadP ? 0.35 : dash ? 0.6 : 1;
         v.sprite.rotation = deadP ? Math.PI / 2 : 0;
+        v.sprite.scale.set(1);
         v.gfx.ellipse(0, 0, 7, 3).fill({ color: 0x2a1060, alpha: 0.28 });
+        if (!deadP) this.combat.decoratePlayer(v, s?.flags ?? 0, isMe ? this.predictor.sim : null, x, y, now, dtMs / 1000);
+        v.flash *= Math.exp(-dtMs / 45);
+        v.fl.texture = v.sprite.texture; v.fl.scale.copyFrom(v.sprite.scale); v.fl.rotation = v.sprite.rotation; v.fl.alpha = v.flash;
         if (dash && !reduced) { v.trail = 0.2; }
         if (v.label) {
           if (s?.name && v.label.text !== s.name) v.label.text = s.name;
@@ -565,33 +595,12 @@ export class Game {
           v.label.y = Math.round(this.world.y + (v.root.y - 30) * this.scale);
         }
       } else if (v.type === 'enemy') {
-        const kind = s?.kind ?? 0, night = !!s?.night;
-        const t = now / 1000;
-        const mobile = moved > 0.003 * (dtMs / 16);
-        const frame = kind === 0 ? Math.floor(t * 4 + v.outfit) % 4 : kind >= 2 ? (mobile ? 1 + (Math.floor(v.travel / 0.25) % 3) : 0) : (s && s.tele > 0 ? 1 : Math.floor(t * 3) % 2 === 0 ? 0 : 3);
-        const fsx = screenDir(fx, fy).x;
-        const dirx = fsx < 0 ? DIR_LEFT : 3;
-        v.sprite.texture = kind === 0 ? this.sheets.slime(night, frame) : kind === 1 ? this.sheets.hopper(night, frame % 4) : kind === 2 ? this.sheets.rabbit(frame, dirx) : this.sheets.deer(frame, dirx);
-        if (kind >= 2) v.sprite.scale.x = fsx < 0 ? -1 : 1;
-        v.gfx.ellipse(0, 0, 7, 3).fill({ color: 0x2a1060, alpha: 0.28 });
-        if (s && s.tele > 0 && kind < 2) {
-          const def = ENEMY_BY_KIND[kind]!;
-          const k = s.tele / 100;
-          const r = def.strikeRange;
-          const rx = r * ISO_HW * Math.SQRT2, ry = r * ISO_HH * Math.SQRT2;
-          v.gfx.ellipse(0, 0, rx, ry).fill({ color: pc(35), alpha: 0.12 + 0.35 * k });
-          v.gfx.ellipse(0, 0, rx * k, ry * k).fill({ color: pc(36), alpha: 0.3 });
-          v.gfx.ellipse(0, 0, rx, ry).stroke({ color: pc(35), width: 1, alpha: 0.9 });
-        }
-        if (s && s.hp < s.maxHp && s.maxHp > 0) {
-          v.gfx.rect(-7, -18, 14, 3).fill(pc(1));
-          v.gfx.rect(-6, -17, Math.max(0, 12 * (s.hp / s.maxHp)), 1).fill(pc(35));
-        }
+        this.combat.drawEnemy(v, s, x, y, fx, now, dtMs / 1000, moved > 0.003 * (dtMs / 16));
       } else {
-        v.sprite.texture = this.sheets.orb(Math.floor(now / 90) % 2);
-        v.sprite.anchor.set(0.5, 0.75);
+        this.combat.drawProjectile(v, s, now);
       }
     }
+    this.combat.drawBombs(now);
     void alpha;
   }
 
@@ -689,7 +698,7 @@ export class Game {
     out.push({ ...toL(me.x, me.y), y: toL(me.x, me.y).y - 10, radius: lantern ? 8 : 4.5, color: pc(22), intensity: Math.min(1, dark * (lantern ? 1.4 : 1.1)) });
     for (const view of this.views.values()) {
       const p = toL(view.lx, view.ly);
-      if (view.type === 'proj') out.push({ ...p, y: p.y - 8, radius: 2.2, color: pc(46), intensity: 0.9 });
+      if (view.type === 'proj') out.push({ ...p, y: p.y - 8, radius: 2.2, color: pc(this.interp.sample(view.id, 0)?.pose.kind === 1 ? 45 : 46), intensity: 0.9 });
       else if (view.type === 'enemy' && dark > 0.3) out.push({ ...p, y: p.y - 6, radius: 1.6, color: pc(this.interp.sample(view.id, 0)?.pose.kind === 1 ? 37 : 45), intensity: 0.5 });
       else if ((view.type === 'player' && view.id !== this.myId) || view.type === 'npc') out.push({ ...p, y: p.y - 10, radius: 3, color: pc(22), intensity: dark });
     }
@@ -710,10 +719,18 @@ export class Game {
     const sn = this.clock.serverNow(now);
     $('clock').textContent = `${hour >= 6 && hour < 18 ? '☀' : '☾'} ${formatClock(hour)}`;
     $('dayinfo').textContent = `${dayPhase(hour)} · day ${dayNumber(sn) + 1} · ${season(sn)}`;
-    $('vignette').classList.toggle('hurt', this.hurtTimer > 0);
+    if (this.dead) {
+      const left = Math.max(0, Math.ceil(3 - (now - this.deadAt) / 1000));
+      const p = $('dead').querySelector('p');
+      const txt = `${this.combat.killedBy ? `Felled by a ${this.combat.killedBy}. ` : ''}Respawning at the shrine in ${left}… Tip: dash through a red warning just before it fills for a Phase Slip.`;
+      if (p && p.textContent !== txt) p.textContent = txt;
+    }
+    let nearest = Infinity;
+    for (const v of this.views.values()) if (v.type === 'enemy' && !ENEMY_BY_KIND[v.kind]?.passive) nearest = Math.min(nearest, Math.hypot(v.lx - this.predictor.sim.x, v.ly - this.predictor.sim.y));
+    this.combat.noticeEnemies(nearest);
 
     const hintEl = $('hint');
-    const tip = this.gameplay.tutorialHint() ?? this.ext.hint();
+    const tip = this.combat.currentTip(now) ?? this.gameplay.tutorialHint() ?? this.ext.hint();
     hintEl.hidden = !tip || this.gameplay.blocking;
     if (tip) hintEl.textContent = tip;
     $('coins').textContent = `${this.gameplay.profile.coins} coins`;
@@ -749,6 +766,10 @@ export class Game {
       objects: this.store?.objects.size,
       tile: (x: number, y: number) => this.store.getTile(x, y),
       p34: this.ext?.debug(), interpDelay: this.clock.interpDelay, shard: this.net?.shard,
+      combat: p ? {
+        dashN: p.dashN, charge: p.charge, slipT: p.slipT, combo: p.combo, warp: this.combat?.warp,
+        foes: [...this.views.values()].filter((v) => v.type === 'enemy').map((v) => { const s = this.interp.sample(v.id, 0)?.pose; return { id: v.id, kind: v.kind, x: v.lx, y: v.ly, st: s?.st, atk: s?.atk, hp: s?.hp, elite: s?.elite }; }),
+      } : null,
     };
   }
 

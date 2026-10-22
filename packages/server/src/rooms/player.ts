@@ -39,6 +39,13 @@ export class ServerPlayer implements PlayerRef {
   history: PosSample[] = [];
   inView = new Set<string>();
   hurtFlash = 0;
+  /** combat lag compensation: how many ticks behind the server this client's view was (0 = unknown / none) */
+  viewLag = 0;
+  /** server tick the client was displaying when it sent its last processed input */
+  lastViewTick = 0;
+  /** tick the current dash started, and the dash that already earned a phase slip (one per dash) */
+  dashTick = -1;
+  slipTick = -2;
   stats: DerivedStats;
   dirtyParts = new Set<DirtyPart>();
   toolReadyAt = 0;
