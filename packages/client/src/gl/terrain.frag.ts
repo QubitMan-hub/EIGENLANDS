@@ -221,10 +221,12 @@ Tones biomeTones(int b, int s, bool lush) {
 // snowfield: soft drifts (bone white with cool blue-grey hollows), wind-sculpted ridges, dead grass poking through
 int snowTop(ivec2 ip, vec2 tf, float t) {
   vec2 wp = vec2(ip);
-  float n = vnoise(wp * 0.035) * 0.65 + vnoise(wp * 0.11 + 7.0) * 0.35;
-  int c = n > 0.56 ? WHITE : n > 0.3 ? PALE : FOG;
+  float n = vnoise(wp * 0.03) * 0.7 + vnoise(wp * 0.09 + 7.0) * 0.3;
+  // bright powder, faintly icy mid-tones, cool blue-grey hollows only in the deepest drift shadows
+  int c = n > 0.5 ? WHITE : n > 0.24 ? W7 : PALE;
   float ridge = sin(wp.x * 0.16 + wp.y * 0.34 + vnoise(wp * 0.05) * 5.0);
-  if (ridge > 0.93 && n > 0.35) c = WHITE; else if (ridge < -0.96 && n < 0.6) c = c == WHITE ? PALE : FOG;
+  if (ridge > 0.9 && n > 0.3) c = WHITE;
+  else if (ridge < -0.94) c = n > 0.5 ? W7 : PALE;                // wind-carved drift edges
   ivec2 cc = cellOf(ip, ivec2(9, 6));
   if (hashk(cc, 61) < 0.18) {
     ivec2 q = ip - (cc * ivec2(9, 6) + ivec2(int(hashk(cc, 62) * 7.0), int(hashk(cc, 63) * 4.0)));
@@ -306,9 +308,12 @@ int grassTop(ivec2 ip, vec2 tf, int s, float flux, float t, int b) {
 int sandTop(ivec2 ip, float sdf, int s) {
   vec2 wp = vec2(ip);
   int c = E6;
-  float n = vnoise(wp * 0.06);
-  if (n > 0.66) c = E7;
-  else if (n < 0.3) c = E5;
+  float n = vnoise(wp * 0.035) * 0.7 + vnoise(wp * 0.12) * 0.3;
+  if (n > 0.64) c = E7;
+  else if (n < 0.22) c = E5;
+  // long wind ripples across the dunes, lit on one flank
+  float dr = sin(wp.x * 0.3 + wp.y * 0.62 + vnoise(wp * 0.04) * 7.0);
+  if (dr > 0.92 && sdf < -1.5) c = c == E5 ? E6 : E7; else if (dr < -0.9 && sdf < -1.5) c = c == E7 ? E6 : E5;
   float rip = sin(wp.x * 0.42 + wp.y * 0.95 + vnoise(wp * 0.07) * 6.0);
   if (rip > 0.975 && n > 0.4) c = E7; else if (rip < -0.985) c = E5;
   if (sdf > -0.75) c = sdf > -0.35 ? E4 : E5;            // wet sand along the waterline

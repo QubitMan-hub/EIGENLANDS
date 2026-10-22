@@ -24,3 +24,12 @@ export function weatherForDay(seed: number, day: number): Weather {
 
 /** Rain or storm waters outdoor crops automatically. */
 export const waters = (w: Weather): boolean => w === 'rain' || w === 'storm';
+
+/** The day's weather as it falls in a biome: snow in the tundra, dry skies over the dunes, mist on the fen. */
+export function biomeWeather(w: Weather, biome: import('./worldgen').Biome): Weather {
+  if (biome === 'taiga') return w === 'rain' || w === 'storm' || w === 'cloudy' ? 'snow' : w === 'fog' ? 'fog' : w;
+  if (biome === 'desert') return w === 'rain' || w === 'snow' || w === 'fog' ? 'clear' : w === 'storm' ? 'cloudy' : w;
+  if (biome === 'swamp') return w === 'clear' || w === 'cloudy' ? 'fog' : w === 'snow' ? 'rain' : w;
+  if (biome === 'corrupted') return w === 'snow' || w === 'clear' ? 'fog' : w;
+  return w;
+}

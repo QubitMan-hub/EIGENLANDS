@@ -1,7 +1,7 @@
 import { Application, Container, Graphics, Sprite, Text } from 'pixi.js';
 import {
   ChunkStore, ELITE_NAMES, ENEMY_BY_KIND, INTEREST_RADIUS, NPC_BY_ID, TILE_DEFS, TILE_SIZE, ambientColor, SEASONS, chunkOf,
-  darkness, decodeDiff, dayNumber, formatClock, gameHour, dayPhase, season, PALETTE, townFor, weatherForDay, type Ack, type ChunkMsg,
+  darkness, decodeDiff, dayNumber, formatClock, gameHour, dayPhase, season, PALETTE, townFor, weatherForDay, biomeWeather, biomeAt, type Ack, type ChunkMsg,
   type DialogueMsg, type FishBiteMsg, type FxMsg, type ObjMsg, type PanelMsg, type ProfileMsg, type RhythmResultMsg, type RhythmStartMsg,
   type ShopViewMsg, type TileMsg, type ToastMsg, type WelcomeMsg, type ForgePreviewReply,
 } from '@eigenlands/shared';
@@ -96,6 +96,8 @@ export class Game {
   private views = new Map<string, ActorView>();
   private requested = new Set<string>();
   private pendingBuild: Array<[number, number]> = [];
+  /** chunks whose objects (trees, rocks, furniture) are built; the terrain builds its own texture independently */
+  private shown = new Set<string>();
   private myId = '';
   private seed = 0;
   private selfReady: ((v: void) => void) | null = null;
@@ -221,6 +223,7 @@ export class Game {
 
   /** Make chunk (cx,cy) visible: terrain tile-class texture + object sprites. */
   private showChunk(cx: number, cy: number): void {
+    this.shown.add(`${cx},${cy}`);
     this.terrain.build(cx, cy);
     this.objects.buildChunk(cx, cy);
     this.worldObjs.buildChunk(cx, cy);
@@ -306,7 +309,8 @@ export class Game {
     const diff = decodeDiff(m.diff);
     this.store.applyDiff(m.cx, m.cy, diff);
     for (const o of m.objs ?? []) this.store.putObject(o);
-    if (this.terrain.has(m.cx, m.cy)) { this.terrain.invalidate(m.cx, m.cy); this.objects.buildChunk(m.cx, m.cy); this.worldObjs.buildChunk(m.cx, m.cy); }
+    if (this.terrain.has(m.cx, m.cy)) this.terrain.invalidate(m.cx, m.cy);
+    if (this.shown.has(`${m.cx},${m.cy}`)) { this.objects.buildChunk(m.cx, m.cy); this.worldObjs.buildChunk(m.cx, m.cy); }
   }
   private obj(m: ObjMsg): void {
     if (m.obj) { this.store.putObject(m.obj); this.worldObjs.upsert(m.obj); } else { this.store.removeObject(m.x, m.y); this.worldObjs.remove(m.x, m.y); }
@@ -464,7 +468,7 @@ export class Game {
     const want: Array<[number, number]> = [];
     for (let y = cy - R; y <= cy + R; y++) for (let x = cx - R; x <= cx + R; x++) {
       keep.add(`${x},${y}`);
-      if (!this.terrain.has(x, y)) want.push([x, y]);
+      if (!this.shown.has(`${x},${y}`)) want.push([x, y]);
     }
     want.sort((a, b) => Math.hypot(a[0] - cx, a[1] - cy) - Math.hypot(b[0] - cx, b[1] - cy));
     this.pendingBuild = want;
@@ -473,6 +477,7 @@ export class Game {
     for (let y = cy - R - 1; y <= cy + R + 1; y++) for (let x = cx - R - 1; x <= cx + R + 1; x++) far.add(`${x},${y}`);
     this.terrain.retain(far);
     this.objects.retain(far);
+    for (const k of [...this.shown]) if (!far.has(k)) this.shown.delete(k);
     for (const k of [...this.requested]) if (!far.has(k)) this.requested.delete(k);
   }
 
@@ -496,14 +501,14 @@ export class Game {
     if (now - this.lastStream > 200) { this.lastStream = now; this.stream(); }
     for (let i = 0; i < 1 && this.pendingBuild.length; i++) {
       const [x, y] = this.pendingBuild.shift()!;
-      if (!this.terrain.has(x, y)) this.showChunk(x, y);
+      if (!this.shown.has(`${x},${y}`)) this.showChunk(x, y);
     }
 
     const reduced = this.settings().reducedMotion;
     const hour = this.hourOverride ?? gameHour(this.clock.serverNow(now));
     const sun = sunFor(hour);
     const wall = this.clock.serverNow(now);
-    const weather = weatherForDay(this.seed, dayNumber(wall));
+    const weather = biomeWeather(weatherForDay(this.seed, dayNumber(wall)), biomeAt(this.seed, Math.floor(this.predictor.sim.x), Math.floor(this.predictor.sim.y)));
     this.wind.update(this.seed, wall / 1000, now / 1000, weather);
     this.setSeason(this.seasonOverride ?? ((SEASONS.indexOf(season(wall)) as SeasonIdx)));
 
