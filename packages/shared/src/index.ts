@@ -25,6 +25,7 @@ export * from './npcs';
 export * from './objects';
 export * from './path';
 export * from './quests';
+export * from './dialogue';
 // Phase 3 + 4
 export * from './quantum';
 export * from './classes';
