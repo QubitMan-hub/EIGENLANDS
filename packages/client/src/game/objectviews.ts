@@ -1,8 +1,12 @@
 import { Container, Sprite } from 'pixi.js';
-import { CHUNK_SIZE, T, TILE_DEFS, chunkKey, darkness, hash2, sampleClimate, type ChunkStore } from '@eigenlands/shared';
+import { C, CHUNK_SIZE, PALETTE, T, TILE_DEFS, chunkKey, darkness, hash2, sampleClimate, type ChunkStore } from '@eigenlands/shared';
 import { depth, isoX, isoY } from './iso';
 import { WindField, CALM } from './windfield';
 import { FRAMES_PER_VARIANT, type ObjectArt, type ObjSprite } from '../art/objects';
+
+const hexOf = (i: number) => parseInt(PALETTE[i]!.slice(1), 16);
+/** cast shadows are deep navy, quantum echoes pink (qubit things) or cyan (flux ground) */
+const SHADOW = hexOf(C.night), ECHO_Q = hexOf(C.q6), ECHO_FLUX = hexOf(C.q7);
 
 /** kinds that get the quantum echo ghost when standing in flux-rich ground */
 const ECHO_KINDS = new Set(['tree', 'rock', 'flowers', 'forage', 'ore_copper', 'ore_iron', 'ore_silver', 'ore_gold', 'crystal', 'bloom', 'stump']);
@@ -91,7 +95,7 @@ export class ObjectViews {
     root.zIndex = depth(tx + 0.5, ty + 0.5) - (flat ? 200 : 0);
     const shadow = new Sprite(p.s.tex);
     shadow.anchor.copyFrom(root.anchor);
-    shadow.tint = 0x2a1060;
+    shadow.tint = SHADOW;
     shadow.position.copyFrom(root);
     this.layer.addChild(root);
     this.shadowLayer.addChild(shadow);
@@ -100,7 +104,7 @@ export class ObjectViews {
     if (kind === 'crystal' || kind === 'bloom' || p.key === 'qtree' || (flux > 0.6 && (kind === 'rock' || kind === 'stump'))) {
       echo = new Sprite(p.s.tex);
       echo.anchor.copyFrom(root.anchor);
-      echo.tint = kind === 'crystal' || kind === 'bloom' || p.key === 'qtree' ? 0xff9ae8 : 0x5af0d0;
+      echo.tint = kind === 'crystal' || kind === 'bloom' || p.key === 'qtree' ? ECHO_Q : ECHO_FLUX;
       echo.alpha = 0.22;
       echo.position.set(root.x + 2, root.y - 1);
       echo.zIndex = root.zIndex - 0.5;

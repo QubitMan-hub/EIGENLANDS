@@ -6,12 +6,12 @@ import { Texture } from 'pixi.js';
 import { mulberry32 } from '@eigenlands/shared';
 import type { ObjSprite } from './objects';
 import type { ObjSpriteDef } from './worldobjs';
-import { blob, C, cyl, isoBox, limb, line, makeCanvas, outline, bigTextC, poly, polish, put, rampAt, type Ctx, type Ramp } from './shade';
+import { blob, C, cyl, isoBox, limb, line, makeCanvas, outline, bigTextC, poly, polish, put, rampAt, undithered, type Ctx, type Ramp } from './shade';
 
 const MARBLE: Ramp = [C.steel, C.mist, C.fog, C.pale, C.white];
 const MARBLE_D: Ramp = [C.slate, C.steel, C.mist, C.fog, C.pale];
 const GRANITE: Ramp = [C.night, C.slate, C.steel, C.mist, C.fog];
-const BRONZE: Ramp = [C.e1, C.e2, C.e3, C.e4, C.e5, C.e6];
+const BRONZE: Ramp = [C.e1, C.r0, C.r1, C.r4, C.r5, C.r6];
 const WOOD: Ramp = [C.e1, C.e2, C.e3, C.e4, C.e5];
 const IRON: Ramp = [C.ink, C.night, C.slate, C.steel];
 const ORB: Ramp = [C.q2, C.q3, C.q7, C.w7, C.white];
@@ -23,10 +23,12 @@ function finish(canvas: HTMLCanvasElement, ax: number, ay: number): ObjSprite {
 }
 function make(w: number, h: number, ax: number, ay: number, draw: (ctx: Ctx) => void, post?: (ctx: Ctx) => void, o: { outline?: number; ao?: boolean } = {}): ObjSprite {
   const { canvas, ctx } = makeCanvas(w, h);
-  draw(ctx);
-  if (o.outline !== undefined) outline(ctx, w, h, o.outline);
-  polish(ctx, w, h, { rim: true, ao: o.ao === false ? null : { ax, ay, rx: Math.min(16, w * 0.32) } });
-  post?.(ctx);
+  undithered(() => {
+    draw(ctx);
+    if (o.outline !== undefined) outline(ctx, w, h, o.outline);
+    polish(ctx, w, h, { rim: true, ao: o.ao === false ? null : { ax, ay, rx: Math.min(16, w * 0.32) } });
+    post?.(ctx);
+  });
   return finish(canvas, ax, ay);
 }
 
@@ -46,10 +48,10 @@ function statueFrame(f: number): ObjSprite {
       const edge = x === 26 || x === 78 || y === 119 || y === 140;
       put(ctx, x, y, edge ? C.e1 : rampAt(BRONZE, 1.0 - (x - 26) / 75 - (y - 119) / 90, x, y));
     }
-    put(ctx, 27, 120, C.e7, 51, 1); put(ctx, 27, 139, C.e2, 51, 1);
+    put(ctx, 27, 120, C.r7, 51, 1); put(ctx, 27, 139, C.r0, 51, 1);
     for (const [x, y] of [[28, 121], [76, 121], [28, 138], [76, 138]] as const) put(ctx, x, y, C.e2);
-    bigTextC(ctx, 'ALL HAIL', 52.5, 122, C.e0, C.e6);
-    bigTextC(ctx, 'QUBITMAN', 52.5, 131, C.e0, C.e6);
+    bigTextC(ctx, 'ALL HAIL', 52.5, 122, C.e0, C.r6);
+    bigTextC(ctx, 'QUBITMAN', 52.5, 131, C.e0, C.r6);
 
     // ── QubitMan (marble), feet on the cap at y≈110; the cape billows to the left in a quantum wind
     poly(ctx, [[42, 41], [63, 41], [67, 62], [66, 102], [52, 108], [33, 112], [17, 104], [21, 84], [30, 60]], (x, y) => {
@@ -113,7 +115,7 @@ function statueFrame(f: number): ObjSprite {
       const c = [C.q7, C.q6, C.white, C.q4][(i + f) % 4]!;
       if (x >= 1 && y >= 1) { put(ctx, x, y, c); if (i % 2 === 0) { put(ctx, x - 1, y, C.q3); put(ctx, x + 1, y, C.q3); put(ctx, x, y - 1, C.q3); put(ctx, x, y + 1, C.q3); } }
     }
-  }, { outline: C.night });
+  });
 }
 
 // ───────────────────────── small town pieces ─────────────────────────
@@ -123,7 +125,7 @@ function plaque(): ObjSprite {
     // a slanted bronze reading plate on top
     poly(ctx, [[6, 11], [24, 11], [22, 4], [8, 4]], (x, y) => rampAt(BRONZE, 0.95 - (x - 6) / 30 - (11 - y) / 30, x, y));
     for (let i = 0; i < 3; i++) put(ctx, 10 - (i === 0 ? 0 : 1), 6 + i * 2, C.e1, 11 + (i === 0 ? 0 : 2), 1);
-  }, undefined, { outline: C.night });
+  });
 }
 
 function bench(): ObjSprite {
@@ -135,7 +137,7 @@ function bench(): ObjSprite {
     // back rest: two slats higher up at the back edge
     for (let k = 0; k < 2; k++) isoBox(ctx, 29, 12 - k * 4, 18, 1, 2, (u, v, x, y) => rampAt(WOOD, 0.8 - u * 0.4, x, y), C.e2, (s, t, x, y) => rampAt(WOOD, 0.9 - s * 0.3, x, y));
     put(ctx, 12, 5, C.night, 1, 10); put(ctx, 29, 13, C.night, 1, 9);               // back posts
-  }, undefined, { outline: C.night });
+  });
 }
 
 function planter(): ObjSprite {
@@ -151,7 +153,7 @@ function planter(): ObjSprite {
       const x = 8 + Math.floor(rng() * 19), y = 12 + Math.floor(rng() * 9), c = cols[i % 4]!;
       put(ctx, x, y, c[0]!); put(ctx, x + 1, y, c[1]!); put(ctx, x, y - 1, c[1]!);
     }
-  }, undefined, { outline: C.night });
+  });
 }
 
 function stall(f: number, kind: number): ObjSprite {
@@ -171,10 +173,10 @@ function stall(f: number, kind: number): ObjSprite {
     poly(ctx, [[2, 18 + lift], [22, 28], [42, 18 - lift], [22, 6]], (x, y) => {
       const stripe = Math.floor((x - 2 + (y - 6) * 0.5 * 0) / 4) % 2 === 0;
       const shade = x < 22 ? 0.8 : 0.45;
-      return stripe ? (shade > 0.6 ? C.r4 : C.r3) : (shade > 0.6 ? C.white : C.pale);
+      return stripe ? (shade > 0.6 ? C.r3 : C.r2) : (shade > 0.6 ? C.e7 : C.e6);
     });
-    for (let x = 2; x <= 42; x += 2) { const y = x <= 22 ? 18 + lift + (x - 2) / 2 : 28 - (x - 22) / 2 - lift * ((x - 22) / 20); put(ctx, x, Math.round(y), Math.floor(x / 4) % 2 ? C.r2 : C.fog, 1, 2); }
-  }, undefined, { outline: C.night });
+    for (let x = 2; x <= 42; x += 2) { const y = x <= 22 ? 18 + lift + (x - 2) / 2 : 28 - (x - 22) / 2 - lift * ((x - 22) / 20); put(ctx, x, Math.round(y), Math.floor(x / 4) % 2 ? C.r0 : C.e5, 1, 2); }
+  });
 }
 
 function signpost(): ObjSprite {
@@ -187,7 +189,7 @@ function signpost(): ObjSprite {
     };
     board(8, 1, WOOD); board(17, -1, [C.e2, C.e3, C.e4, C.e5, C.e6]);
     blob(ctx, 15, 37, 5, 1.6, [C.g2, C.g3, C.g4], { seed: 2, noise: 0.5 });
-  }, undefined, { outline: C.night });
+  });
 }
 
 /** Victorian street lamp: iron post, glowing lantern (2 flicker frames). */
@@ -205,7 +207,7 @@ function lamp(f: number): ObjSprite {
       put(ctx, x, y, frame ? C.night : g > 0.92 ? C.r7 : g > 0.75 ? C.r6 : C.r5);
     }
     put(ctx, 5, 14, C.slate, 8, 1);
-  }, undefined, { outline: C.night });
+  });
 }
 
 const frames = (n: number, mk: (f: number) => ObjSprite): ObjSprite[] => Array.from({ length: n }, (_, f) => mk(f));

@@ -1,17 +1,17 @@
 /** The fixed 48-colour master palette. All art is drawn from these values only. */
 export const PALETTE = [
-  // neutrals (cool violet shadows -> warm paper white)
-  '#0d0b17', '#1c1a2e', '#2e2c45', '#4a4964', '#6f6e8a', '#9d9db4', '#cfcfdc', '#f7f4ec',
-  // greens (teal shade -> sunlit yellow-green)
-  '#10282a', '#163d34', '#1f5a3a', '#2f7a3e', '#4f9a3f', '#7cb649', '#b0d266', '#e2ec9e',
-  // earth (plum-brown -> cream)
-  '#2a1a20', '#472a28', '#6c4231', '#93603b', '#b9834b', '#d7a861', '#edcb88', '#f8e9c0',
-  // water (ink blue -> foam)
-  '#0e1838', '#152f5c', '#1c4c88', '#2a70b0', '#3d96cf', '#66bfe2', '#a2dded', '#e0f7f5',
-  // warm (wine -> butter)
-  '#3a1320', '#691d2d', '#9e2d39', '#cf4b45', '#ea7a4b', '#f5a654', '#fad26a', '#fdf1a4',
-  // quantum (signature)
-  '#2a1060', '#4a1a9a', '#7a3ad0', '#a46aff', '#d49aff', '#ff6ad0', '#ff9ae8', '#5af0d0',
+  // neutrals (navy ink -> cool stone -> bone white); blue-grey like weathered rock, never pure black
+  '#090a14', '#151d28', '#202e37', '#394a50', '#577277', '#819796', '#a8b5b2', '#ebede9',
+  // greens (deep moss -> olive -> lime highlight -> pale straw-green)
+  '#19332d', '#25562e', '#34692f', '#468232', '#5d953c', '#75a743', '#a8ca58', '#d0da91',
+  // earth (plum-black soil -> cocoa -> clay -> warm tan -> parchment)
+  '#241527', '#341c27', '#4d2b32', '#7a4841', '#ad7757', '#c09473', '#d7b594', '#e7d5b3',
+  // water (night navy -> slate blue -> sea blue -> cyan foam)
+  '#172038', '#253a5e', '#3c5e8b', '#4f8fba', '#5fa5c6', '#73bed3', '#a4dddb', '#d6f0ea',
+  // warm (rust soil -> brick red -> ember -> amber -> butter)
+  '#602c2c', '#884b2b', '#a53030', '#cf573c', '#da863e', '#de9e41', '#e8c170', '#f4e4ac',
+  // quantum (signature; kept as small glowing accents: indigo -> violet -> lilac, magenta/pink, cyan glow)
+  '#1e1d39', '#402751', '#61358a', '#8a52b8', '#b98ad6', '#c65197', '#df84a5', '#7fe3d3',
 ] as const;
 
 export const C = {

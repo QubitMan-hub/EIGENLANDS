@@ -36,7 +36,11 @@ export function put(ctx: Ctx, x: number, y: number, c: number, w = 1, h = 1): vo
   ctx.fillStyle = PALETTE[c]!;
   ctx.fillRect(Math.round(x), Math.round(y), w, h);
 }
+let noDither = false;
+/** Run `fn` with the shading helpers (blob, slab, cyl, limb, rampAt) in clean, undithered bands (painterly style). */
+export function undithered<T>(fn: () => T): T { const prev = noDither; noDither = true; try { return fn(); } finally { noDither = prev; } }
 function pick(ramp: Ramp, t: number, d: number): number {
+  if (noDither) d = 0.5;
   const x = Math.min(1, Math.max(0, t)) * (ramp.length - 1);
   const lo = Math.floor(x);
   const fr = x - lo;
@@ -342,3 +346,69 @@ export class PixBuf {
 
 /** Pick a ramp entry for t in [0,1] with ordered dithering at (x,y). */
 export function rampAt(ramp: Ramp, t: number, x: number, y: number): number { return pick(ramp, t, bayer(x, y)); }
+
+// ───────── painterly (dither-free) helpers: the reference style ─────────
+export interface LumpOpts {
+  seed?: number;
+  /** surface noise (tone jitter in 2px clusters) */
+  rough?: number;
+  /** ragged leafy silhouette + leaf-cluster breakup (0 = smooth stone) */
+  leafy?: number;
+  bright?: number;
+  /** darkening toward the silhouette */
+  edge?: number;
+  /** flatten the top (stones sitting on the ground): 0..1 */
+  flat?: number;
+}
+const sizeOf = (ctx: Ctx): [number, number] => {
+  const c = ctx as unknown as { canvas?: { width: number; height: number }; width?: number; height?: number };
+  return c.canvas ? [c.canvas.width, c.canvas.height] : [c.width ?? 0, c.height ?? 0];
+};
+
+/**
+ * A sphere-shaded lump quantised into clean ramp bands (no dithering), lit from the top-left. Leafy lumps get a
+ * ragged rim and 2px leaf clusters; stone lumps stay smooth with broad planes. Returns the pixels it painted.
+ */
+export function lump(ctx: Ctx, cx: number, cy: number, rx: number, ry: number, ramp: Ramp, o: LumpOpts = {}, ids?: { map: Int16Array; id: number; w: number }): void {
+  const seed = o.seed ?? 1, rough = o.rough ?? 0.12, leafy = o.leafy ?? 0, bright = o.bright ?? 0, edge = o.edge ?? 0.18, flat = o.flat ?? 0;
+  const [W, H] = sizeOf(ctx);
+  for (let y = Math.floor(cy - ry - 1); y <= Math.ceil(cy + ry + 1); y++) {
+    for (let x = Math.floor(cx - rx - 1); x <= Math.ceil(cx + rx + 1); x++) {
+      if (x < 0 || y < 0 || x >= W || y >= H) continue;
+      const nx = (x + 0.5 - cx) / rx, ny = (y + 0.5 - cy) / ry;
+      const dd = nx * nx + ny * ny;
+      const rim = leafy ? (hash2(seed, x, y, 3) - 0.5) * leafy * 0.9 + (hash2(seed, x >> 1, y >> 1, 4) - 0.5) * leafy * 0.6 : 0;
+      if (dd > 1 + rim) continue;
+      const nz = Math.sqrt(Math.max(0, 1 - Math.min(1, dd)));
+      let lam = nx * L[0] + ny * L[1] + nz * L[2];
+      if (flat && ny < -0.2) lam = lam * (1 - flat) + flat * 0.75;
+      const cl = (hash2(seed, (x + (y & 1)) >> 1, y >> 1, 5) - 0.5) * (leafy ? 0.38 : rough);
+      const t = 0.42 + 0.62 * lam + bright - edge * dd * dd + cl;
+      const i = Math.max(0, Math.min(ramp.length - 1, Math.floor(t * ramp.length)));
+      put(ctx, x, y, ramp[i]!);
+      if (ids) ids.map[y * ids.w + x] = ids.id;
+    }
+  }
+}
+
+/**
+ * A pile of stone lumps drawn back to front; where a nearer stone overlaps a farther one, a 1px crevice in the
+ * ramp's darkest tone separates them (value only: no outline around the silhouette).
+ */
+export function stonePile(ctx: Ctx, stones: Array<[number, number, number, number]>, ramp: Ramp, o: LumpOpts = {}): void {
+  const [W, H] = sizeOf(ctx);
+  const map = new Int16Array(W * H).fill(-1);
+  const order = stones.map((s, i) => [s, i] as const).sort((a, b) => (a[0][1] + a[0][3]) - (b[0][1] + b[0][3]));
+  for (const [[x, y, rx, ry], i] of order) lump(ctx, x, y, rx, ry, ramp, { ...o, seed: (o.seed ?? 1) + i * 17 }, { map, id: i, w: W });
+  const rank = new Map(order.map(([, i], k) => [i, k]));
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const id = map[y * W + x]!;
+    if (id < 0) continue;
+    // a farther stone's pixel touching a nearer stone just below/right of it sits in the crevice
+    const below = y + 1 < H ? map[(y + 1) * W + x]! : -1, right = x + 1 < W ? map[y * W + x + 1]! : -1;
+    const near = (j: number) => j >= 0 && j !== id && rank.get(j)! > rank.get(id)!;
+    const far = (j: number) => j >= 0 && j !== id && rank.get(j)! < rank.get(id)!;
+    if (near(below) || near(right)) put(ctx, x, y, ramp[0]!);
+    else if (far(below) || far(right)) put(ctx, x, y, ramp[1]!);
+  }
+}
