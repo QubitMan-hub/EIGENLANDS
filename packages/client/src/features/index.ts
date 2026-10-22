@@ -1,4 +1,5 @@
 import { CircuitClient } from './circuit';
+import { ShadowClient } from './shadows';
 import { ShardClient } from './shard';
 import { SocialClient } from './social';
 import type { ClientModule, P34Deps } from './types';
@@ -8,13 +9,15 @@ export class P34Client {
   readonly circuit: CircuitClient;
   readonly social: SocialClient;
   readonly shard: ShardClient;
+  readonly shadows: ShadowClient;
   private mods: ClientModule[];
 
   constructor(readonly d: P34Deps) {
     this.circuit = new CircuitClient(d);
     this.social = new SocialClient(d);
     this.shard = new ShardClient(d);
-    this.mods = [this.shard, this.circuit, this.social];
+    this.shadows = new ShadowClient(d);
+    this.mods = [this.shard, this.circuit, this.social, this.shadows];
     d.input.onAction = (a) => { for (const m of this.mods) if (m.action?.(a)) return; };
     d.input.onFire = (a) => { for (const m of this.mods) m.fire?.(a); };
   }

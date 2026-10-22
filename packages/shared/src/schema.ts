@@ -1,5 +1,5 @@
 import { MapSchema, Schema, type, view } from '@colyseus/schema';
-import { SpellState } from './schema34';
+import { ShadowState, SpellState } from './schema34';
 
 export class PlayerState extends Schema {
   @type('string') id = '';
@@ -79,6 +79,8 @@ export class WorldState extends Schema {
   @view() @type({ map: NpcState }) npcs = new MapSchema<NpcState>();
   /** Phase 3: visible ability effects */
   @view() @type({ map: SpellState }) spells = new MapSchema<SpellState>();
+  /** Shadow Army: summoned shadows */
+  @view() @type({ map: ShadowState }) shadows = new MapSchema<ShadowState>();
   @type('float64') serverTime = 0;
   @type('uint32') tick = 0;
 }

@@ -24,6 +24,12 @@ export const MSG34 = {
   REPORT: 'p4_report',           // ReportMsg
   EMOTE: 'p4_emote',             // EmoteMsg
   TRADE: 'p4_trade',             // TradeMsg
+  // ── Shadow Army: client -> server
+  EXTRACT: 'sh_extract',         // {} extract the nearest residue of yours
+  SHADOW_CMD: 'sh_cmd',          // ShadowCmd
+  // ── Shadow Army: server -> client
+  SHADOW_ROSTER: 'sh_roster',    // ShadowRosterMsg
+  SHADOW_EV: 'sh_ev',            // ShadowEvent
   // ── Phase 4: server -> client
   PARTY_STATE: 'p4_party_state', // PartyStateMsg | { id: null }
   PARTY_INVITE: 'p4_party_invite', // PartyInviteMsg
@@ -180,3 +186,15 @@ export const PARTY_MAX = 5;
 export const TRADE_MAX_ITEMS = 8;
 export const TRADE_RANGE = 6;
 export const LOCAL_CHAT_RANGE = 24;
+
+// ───────────────────────── Shadow Army ─────────────────────────
+
+import type { Stance } from './shadows';
+export type ShadowCmd =
+  | { act: 'summon'; id: string }
+  | { act: 'dismiss'; id: string }
+  | { act: 'dismiss_all' }
+  | { act: 'stance'; stance: Stance }
+  | { act: 'focus'; target: string | null }
+  | { act: 'rename'; id: string; name: string }
+  | { act: 'release'; id: string };

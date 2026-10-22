@@ -27,6 +27,7 @@ import { Lighting, type Light } from './lighting';
 import { buildFoeSheets, type FoeSheets } from '../art/foes';
 import { CombatView } from './combatview';
 import { WindField } from './windfield';
+import { MSG34, SHADOW_RANKS } from '@eigenlands/shared';
 import { Critters } from '../art/critters';
 import { TargetFrame } from '../ui/targetframe';
 
@@ -37,11 +38,13 @@ interface Snap extends Pose {
   hp: number; maxHp: number; flags: number; tele: number; kind: number; night: boolean; name: string; level: number; look: number;
   /** combat 2.0 (enemies) */
   st: number; atk: number; tx: number; ty: number; poise: number; elite: number;
+  /** Shadow Army rank (shadows only) */
+  rank: number;
 }
 
 interface ActorView {
   id: string;
-  type: 'player' | 'enemy' | 'proj' | 'npc';
+  type: 'player' | 'enemy' | 'proj' | 'npc' | 'shadow';
   npcId?: string;
   root: Container;
   sprite: Sprite;
@@ -265,13 +268,14 @@ export class Game {
         x: e.x, y: e.y, faceX: e.faceX ?? 0, faceY: e.faceY ?? 1,
         hp: e.hp ?? 0, maxHp: e.maxHp ?? 0, flags: e.flags ?? 0, tele: e.tele ?? 0, kind: e.kind ?? 0,
         night: !!e.night, name: e.name ?? '', level: e.level ?? 1, look: e.look ?? 0,
-        st: e.st ?? 0, atk: e.atk ?? 0, tx: e.tx ?? 0, ty: e.ty ?? 0, poise: e.poise ?? 100, elite: e.elite ?? 0,
+        st: e.st ?? 0, atk: e.atk ?? 0, tx: e.tx ?? 0, ty: e.ty ?? 0, poise: e.poise ?? 100, elite: e.elite ?? 0, rank: e.rank ?? 0,
       });
       if (!this.views.has(id)) this.makeView(id, type, e);
     };
     s.players.forEach((p: any, id: string) => push(id, p, 'player'));
     s.enemies.forEach((e: any, id: string) => push(id, e, 'enemy'));
     s.projectiles.forEach((p: any, id: string) => push(id, p, 'proj'));
+    s.shadows?.forEach((p: any, id: string) => push(id, p, 'shadow'));
     s.npcs?.forEach((n: any, id: string) => push(id, n, 'npc'));
     for (const id of [...this.views.keys()]) if (!present.has(id)) this.dropView(id);
 
@@ -366,6 +370,14 @@ export class Game {
       case 'place': this.fx.burst(f.x, f.y, [18, 19, 20], 5); this.sound('till', f.x, f.y); break;
       case 'dust': this.fx.burst(f.x, f.y, [5, 6, 7], 4); break;
       case 'poof': this.fx.burst(f.x, f.y, [5, 6, 7], 8); break;
+      case 'shadow': {
+        const v = f.v ?? 0;
+        if (v === 4) { this.fx.burst(f.x, f.y, [5, 6, 7], 8); break; }
+        this.fx.burst(f.x, f.y, v === 2 ? [43, 45, 7, 47] : [43, 44, 45], v === 2 ? 22 : 12);
+        this.fx.ring(f.x, f.y, 44, v === 2 ? 2.4 : 1.4);
+        this.sound(v === 2 ? 'levelup' : 'craft', f.x, f.y);
+        break;
+      }
     }
   }
 
@@ -385,6 +397,12 @@ export class Game {
     let label: Text | undefined;
     if (type === 'npc') {
       label = new Text({ text: NPC_BY_ID[id]?.name.split(' ')[0] ?? '', style: { fontFamily: 'ui-monospace, Menlo, Consolas, monospace', fontSize: 11, fontWeight: 'bold', fill: pc(46), stroke: { color: pc(0), width: 3 } } });
+      label.resolution = this.app.renderer.resolution || 1;
+      label.anchor.set(0.5, 1);
+      this.labelLayer.addChild(label);
+    }
+    if (type === 'shadow') {
+      label = new Text({ text: e.name || '', style: { fontFamily: 'ui-monospace, Menlo, Consolas, monospace', fontSize: 10, fontWeight: 'bold', fill: 0xd49aff, stroke: { color: pc(0), width: 3 } } });
       label.resolution = this.app.renderer.resolution || 1;
       label.anchor.set(0.5, 1);
       this.labelLayer.addChild(label);
@@ -526,6 +544,7 @@ export class Game {
     const renderT = this.clock.serverNow(now) - this.clock.interpDelay - this.combat.warp;
     this.updateViews(me, alpha, renderT, now, dtMs);
     this.updateTarget34(renderT, me);
+    this.syncFocus(now);
     this.drawAim(me, now);
     for (const v of this.views.values()) this.castShadow(v, sun);
     this.fx.update(dt * fxScale);
@@ -549,6 +568,17 @@ export class Game {
   currentTarget(): { id: string; kind: 'enemy' | 'player' } | null {
     const v = this.targetId ? this.views.get(this.targetId) : undefined;
     return v && (v.type === 'enemy' || v.type === 'player') ? { id: v.id, kind: v.type } : null;
+  }
+
+  /** the shadows' focus: the selected enemy (or nothing); synced at most 4 times a second */
+  private focusSent: string | null = null;
+  private focusAt = 0;
+  private syncFocus(now: number): void {
+    const t = this.currentTarget();
+    const want = t && t.kind === 'enemy' ? t.id : null;
+    if (want === this.focusSent || now - this.focusAt < 250) return;
+    this.focusSent = want; this.focusAt = now;
+    try { this.net.send(MSG34.SHADOW_CMD, { act: 'focus', target: want }); } catch { /* offline */ }
   }
 
   setTarget(id: string | null): void {
@@ -710,8 +740,15 @@ export class Game {
           v.label.x = Math.round(this.world.x + v.root.x * this.scale);
           v.label.y = Math.round(this.world.y + (v.root.y - 30) * this.scale);
         }
-      } else if (v.type === 'enemy') {
+      } else if (v.type === 'enemy' || v.type === 'shadow') {
         this.combat.drawEnemy(v, s, x, y, fx, now, dtMs / 1000, moved > 0.003 * (dtMs / 16));
+        if (v.type === 'shadow' && v.label) {
+          v.label.visible = v.root.visible;
+          const txt = `${s?.name ?? ''} · ${SHADOW_RANKS[s?.rank ?? 0]}`;
+          if (v.label.text !== txt) v.label.text = txt;
+          v.label.x = Math.round(this.world.x + v.root.x * this.scale);
+          v.label.y = Math.round(this.world.y + (v.root.y - 34) * this.scale);
+        }
       } else {
         this.combat.drawProjectile(v, s, now);
       }

@@ -17,6 +17,19 @@ export class Repo34 {
     );
   }
 
+  async loadShadows(accountId: string): Promise<unknown | null> {
+    const r = await this.pool.query('SELECT data FROM character_shadows WHERE account_id = $1', [accountId]);
+    return r.rows[0]?.data ?? null;
+  }
+
+  async saveShadows(accountId: string, data: unknown): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO character_shadows (account_id, data, updated_at) VALUES ($1, $2, now())
+       ON CONFLICT (account_id) DO UPDATE SET data = EXCLUDED.data, updated_at = now()`,
+      [accountId, JSON.stringify(data)],
+    );
+  }
+
   /**
    * Commit a completed trade: both characters' private data (inventory, coins) and an audit row, in one transaction.
    * Throws (and changes nothing) if any part fails.

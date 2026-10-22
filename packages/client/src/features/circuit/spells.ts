@@ -87,6 +87,7 @@ export class SpellRenderer {
         case SPELL.TETHER: this.tether(v, x, y, col, age, reduced); break;
         case SPELL.SHIELD: case SPELL.WARD: case SPELL.MIRROR: this.bubble(v, x, y, col, age, reduced); break;
         case SPELL.BLINK: this.flash(v, x, y, col, age); break;
+        case SPELL.RESIDUE: this.residue(v, x, y, age, reduced); break;
       }
     }
   }
@@ -192,6 +193,25 @@ export class SpellRenderer {
       g.ellipse(0, 0, r, r * 1.1).fill({ color: 0xffffff, alpha: 0.06 }).stroke({ color: col, width: 2, alpha: 0.9 });
       const a = reduced ? -0.8 : age * 3;
       g.moveTo(Math.cos(a) * r, Math.sin(a) * r * 1.1).lineTo(Math.cos(a + 0.6) * r, Math.sin(a + 0.6) * r * 1.1).stroke({ color: 0xffffff, width: 2, alpha: 0.9 });
+    }
+  }
+
+  /** The lingering echo of a defeated creature: a violet rune on the ground and motes rising from it. */
+  private residue(v: View, x: number, y: number, age: number, reduced: boolean): void {
+    v.root.x = isoX(x, y); v.root.y = isoY(x, y);
+    v.root.zIndex = depth(x, y) - 1;
+    const mine = v.s.owner === this.d.myId();
+    const a = mine ? 1 : 0.35;
+    const g = v.g;
+    const pulse = reduced ? 0.8 : 0.7 + 0.3 * Math.sin(age * 4);
+    g.ellipse(0, 0, 12, 6).fill({ color: 0x2a1060, alpha: 0.35 * a });
+    g.ellipse(0, 0, 12, 6).stroke({ color: 0xa46aff, width: 1.5, alpha: 0.9 * pulse * a });
+    g.ellipse(0, 0, 7, 3.5).stroke({ color: 0xd49aff, width: 1, alpha: 0.7 * a });
+    const rot = reduced ? 0 : age * 1.4;
+    for (let i = 0; i < 4; i++) { const t = rot + (i * Math.PI) / 2; g.rect(Math.round(Math.cos(t) * 9.5) - 1, Math.round(Math.sin(t) * 4.7) - 1, 2, 2).fill({ color: 0xffffff, alpha: 0.8 * a }); }
+    if (!reduced) for (let i = 0; i < 6; i++) {
+      const k = ((age * 0.7 + i / 6) % 1), yy = -k * 26;
+      g.rect(Math.round(Math.sin(i * 2.4 + age) * 5) - 1, yy, 2, 2).fill({ color: i % 2 ? 0xd49aff : 0x7a3ad0, alpha: (1 - k) * 0.9 * a });
     }
   }
 

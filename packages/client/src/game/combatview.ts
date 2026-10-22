@@ -17,7 +17,7 @@ const SQ2 = Math.SQRT2;
 /** The parts of a Game actor view that combat presentation touches. */
 export interface CombatActor {
   id: string;
-  type: 'player' | 'enemy' | 'proj' | 'npc';
+  type: 'player' | 'enemy' | 'proj' | 'npc' | 'shadow';
   root: Container;
   sprite: Sprite;
   /** additive white copy of the sprite: hit flash */
@@ -37,6 +37,7 @@ export interface CombatSnap {
   hp: number; maxHp: number; flags: number; tele: number; kind: number; night: boolean;
   st: number; atk: number; tx: number; ty: number; poise: number; elite: number;
   faceX: number; faceY: number;
+  rank?: number;
 }
 
 export interface CombatDeps {
@@ -310,7 +311,8 @@ export class CombatView {
 
   /** Enemy sprite, animation, flash, squash/stretch, stagger, elite aura, bars and its telegraph. */
   drawEnemy(v: CombatActor, s: CombatSnap | null, x: number, y: number, fx: number, now: number, dt: number, moved: boolean): void {
-    const kind = s?.kind ?? v.kind, night = !!s?.night;
+    const isShadow = v.type === 'shadow';
+    const kind = s?.kind ?? v.kind, night = !!s?.night || isShadow;
     v.kind = kind;
     const st = s?.st ?? 0;
     const t = now / 1000;
@@ -344,7 +346,17 @@ export class CombatView {
     v.fl.scale.copyFrom(v.sprite.scale);
     v.fl.rotation = v.sprite.rotation;
     v.fl.x = v.sprite.x;
-    v.fl.alpha = Math.min(1, v.flash * 1.4);
+    if (isShadow) {
+      // a bound shadow: dark silhouette with a pulsing violet aura (down = a faint ghost until it re-forms)
+      const down = st === 6;
+      v.sprite.tint = 0x3a2c66;
+      v.fl.tint = 0xa46aff;
+      v.sprite.alpha = down ? 0.25 : 0.95;
+      v.fl.alpha = down ? 0 : Math.min(1, Math.max(v.flash * 1.4, reduced ? 0.25 : 0.28 + 0.14 * Math.sin(t * 3 + v.outfit)));
+    } else {
+      v.sprite.tint = 0xffffff; v.sprite.alpha = 1; v.fl.tint = 0xffffff;
+      v.fl.alpha = Math.min(1, v.flash * 1.4);
+    }
     if (kind === 4) v.sprite.y = 1 - 3 - Math.round(Math.sin(t * 3 + v.outfit) * 1.5); // floats
     else v.sprite.y = 1;
     v.fl.y = v.sprite.y;
@@ -372,7 +384,13 @@ export class CombatView {
       g.rect(-8, top + 3, 16, 2).fill(pc(1));
       g.rect(-7, top + 3, Math.max(0, 14 * (s.poise / 100)), 1).fill(pc(st === 5 ? 38 : 6));
     }
-    if (s && s.atk && (st === 2 || st === 3)) this.telegraph(x, y, s, now);
+    if (isShadow && s && st !== 6) {
+      const rc = [0x9a9ec0, 0x7aa8ff, 0xb07aff, 0xff7ad0, 0xffd36a][Math.min(4, s.rank ?? 0)]!;
+      g.ellipse(0, 0, 9 * big, 4.5 * big).stroke({ color: rc, width: 1.5, alpha: 0.55 + (reduced ? 0 : 0.2 * Math.sin(t * 4)) });
+      g.rect(-8, top, 16, 3).fill(pc(1));
+      g.rect(-7, top + 1, Math.max(0, 14 * (s.hp / Math.max(1, s.maxHp))), 1).fill(0xa46aff);
+    }
+    if (s && s.atk && !isShadow && (st === 2 || st === 3)) this.telegraph(x, y, s, now);
   }
 
   drawProjectile(v: CombatActor, s: CombatSnap | null, now: number): void {

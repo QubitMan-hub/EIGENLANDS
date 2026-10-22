@@ -142,7 +142,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
         } catch (e) { console.error(`${type} failed`, e); }
       });
     };
-    on<DevMsg>(MSG.DEV, 'invBucket', (p, m) => (m?.cmd === 'spawn' ? this.devSpawn(p, m) : handleDev(this, p, m)));
+    on<DevMsg>(MSG.DEV, 'invBucket', (p, m) => (m?.cmd === 'spawn' ? this.devSpawn(p, m) : m?.cmd === 'kill' ? this.devKill(p, m) : handleDev(this, p, m)));
     on<UseMsg>(MSG.USE, 'useBucket', (p, m) => handleUse(this, p, m));
     on<OpenMsg>(MSG.OPEN, 'openBucket', (p, m) => handleOpen(this, p, m));
     on<InvMoveMsg>(MSG.INV_MOVE, 'invBucket', (p, m) => handleInvMove(p, m));
@@ -442,7 +442,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     for (const p of this.players.values()) this.stepPlayerTick(p, tick, solid);
     this.resolveStrikes(tick);
 
-    const targets = [...this.players.values()].map((p) => ({ id: p.client.sessionId, x: p.sim.x, y: p.sim.y, alive: p.deadT <= 0 }));
+    const targets = [...this.players.values()].map((p) => ({ id: p.client.sessionId, x: p.sim.x, y: p.sim.y, alive: p.deadT <= 0 }), ...this.hookTargets());
     stepEnemies(this.enemies.values(), TICK_DT, tick, targets, solid, this.rand, {
       telegraph: (en) => this.fx({ kind: 'telegraph', x: en.x, y: en.y, v: en.t, w: en.atk, id: en.id }),
       strike: (en, x, y, r, mult) => this.enemyStrike(en, x, y, r, mult),
@@ -773,6 +773,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
    * strike tick), bounded by MAX_REWIND_TICKS. Players without valid view info are resolved immediately.
    */
   private queueStrike(e: Enemy, shape: StrikeShape, dmg: number, weight: number, dedupe: Set<string> | null): void {
+    this.hookStrike(e, shape, dmg);
     const st: PendingStrike = { e, shape, dmg, weight, tick: this.state.tick, waiting: new Set(), dedupe };
     const cx = shape.kind === 'circle' ? shape.x : (shape.ax + shape.bx) / 2, cy = shape.kind === 'circle' ? shape.y : (shape.ay + shape.by) / 2;
     const reach = shape.kind === 'circle' ? shape.r : Math.hypot(shape.bx - shape.ax, shape.by - shape.ay) / 2 + shape.w;
@@ -850,6 +851,13 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     p.hp = p.maxHp;
     p.invuln = 2;
     p.dashTick = -1; p.slipTick = -2;
+  }
+
+  /** DEV_COMMANDS only: defeat every enemy within `d` tiles as the player (drops, XP and Shadow residues work as in play). */
+  private devKill(p: ServerPlayer, m: DevMsg): void {
+    if (!runtime().config.devCommands || m.cmd !== 'kill') return;
+    const d = typeof m.d === 'number' && Number.isFinite(m.d) ? Math.min(30, Math.max(1, m.d)) : 6;
+    for (const e of [...this.enemies.values()]) if (Math.hypot(e.x - p.sim.x, e.y - p.sim.y) <= d) this.damageEnemy(e, 99999, p, 1, 0, 0);
   }
 
   /** DEV_COMMANDS only: spawn enemies around the player (browser tests, tuning). */
@@ -956,6 +964,10 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   protected hookTileChanged(_x: number, _y: number, _tile: number): void {}
   protected hookTick(_now: number): void {}
   protected hookViewEntities(_push: (id: string, x: number, y: number, st: SpellState) => void): void {}
+  /** extra things enemies may aggro on (summoned shadows) */
+  protected hookTargets(): Array<{ id: string; x: number; y: number; alive: boolean }> { return []; }
+  /** an enemy strike was queued (summoned shadows in its shape take the hit) */
+  protected hookStrike(_e: Enemy, _shape: StrikeShape, _dmg: number): void {}
   protected hookKilled(_e: Enemy, _killer: ServerPlayer | undefined): void {}
   protected hookIncomingDamage(_p: ServerPlayer, dmg: number, _e: Enemy): number { return dmg; }
 

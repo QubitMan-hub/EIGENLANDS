@@ -53,7 +53,7 @@ export class LocalRepo implements RepoApi {
     if (!a) return false;
     this.db.delete(`acct:${id}`);
     if (a.guestHash) this.db.delete(`guest:${a.guestHash}`);
-    for (const k of [`char:${id}`, `prog:${id}`, `flag:${id}`]) this.db.delete(k); // ON DELETE CASCADE
+    for (const k of [`char:${id}`, `prog:${id}`, `shadows:${id}`, `flag:${id}`]) this.db.delete(k); // ON DELETE CASCADE
     return true;
   }
 
@@ -148,6 +148,15 @@ export class LocalRepo34 implements Repo34Api {
   async saveProgress(accountId: string, data: unknown): Promise<void> {
     if (!this.db.has(`acct:${accountId}`)) throw new Error('character_progress.account_id violates foreign key');
     this.db.put(`prog:${accountId}`, data ?? null);
+  }
+
+  async loadShadows(accountId: string): Promise<unknown | null> {
+    return this.db.get(`shadows:${accountId}`) ?? null;
+  }
+
+  async saveShadows(accountId: string, data: unknown): Promise<void> {
+    if (!this.db.has(`acct:${accountId}`)) throw new Error('character_shadows.account_id violates foreign key');
+    this.db.put(`shadows:${accountId}`, data ?? null);
   }
 
   async commitTrade(t: { a: string; b: string; aData: unknown; bData: unknown; aItems: unknown; bItems: unknown; aCoins: number; bCoins: number }): Promise<void> {

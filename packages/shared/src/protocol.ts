@@ -71,7 +71,8 @@ export type FxKind = 'hit' | 'swing' | 'shot' | 'dash' | 'die' | 'levelup' | 'te
   | 'reflect'   // a player batted an orb back (id = player)
   | 'blast'     // an area attack went off (v = radius)
   | 'bomb'      // a volatile elite is about to burst (v = fuse s, w = radius)
-  | 'crash';    // a charging brute hit a wall (id = enemy)
+  | 'crash'     // a charging brute hit a wall (id = enemy)
+  | 'shadow';   // Shadow Army flourish (v: 0 extracted, 1 summoned, 2 evolved, 3 dismissed, 4 failed)
 export interface FxMsg {
   kind: FxKind; x: number; y: number; v?: number; dx?: number; dy?: number; id?: string;
   /** hit weight: 0 light, 1 finisher, 2 heavy, 3 full heavy (hit-stop, shake, sound) */
@@ -285,4 +286,6 @@ export type DevMsg =
   | { cmd: 'level'; level: number }
   | { cmd: 'quest'; id: string; action: 'start' | 'done' | 'reset' }  // force quest state (e2e)
   /** combat testing: spawn n enemies of `kind` around the player (d tiles away), optionally elite / night variants */
-  | { cmd: 'spawn'; kind: string; n?: number; elite?: number; night?: boolean; d?: number };
+  | { cmd: 'spawn'; kind: string; n?: number; elite?: number; night?: boolean; d?: number }
+  /** defeat every enemy within d tiles as the player (drops, XP, Shadow residues) */
+  | { cmd: 'kill'; d?: number };

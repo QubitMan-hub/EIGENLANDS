@@ -2,7 +2,7 @@ import { matchMaker, type Client } from 'colyseus';
 import type { Schema } from '@colyseus/schema';
 import {
   CLASS_INDEX, MSG, MSG34, chunkOf, encodeDiff, inRegion, parseShard, regionBounds, shardAt, shardId, townFor,
-  type ChunkReq, type HandoffMsg, type Region, type ShardInfoMsg, type SpellState, type WorldObj,
+  type ChunkReq, type HandoffMsg, type Region, type ShardInfoMsg, type SpellState, type StrikeShape, type WorldObj,
 } from '@eigenlands/shared';
 import type { Enemy } from '../game/enemies';
 import { TokenBucket } from '../rate';
@@ -11,6 +11,7 @@ import { runtime34 } from '../features/runtime34';
 import { ShardModule } from '../features/shard';
 import { signTicket, verifyTicket } from '../features/shard/ticket';
 import { nullVillage } from '../features/shard/nullVillage';
+import { ShadowModule } from '../features/shadows';
 import { SocialModule } from '../features/social';
 import type { BucketName, Carry, JoinOpts, Module, Registrar } from '../features/types';
 import type { VillageHost, VillageSystem } from '../systems/types';
@@ -39,6 +40,7 @@ export class GameRoom extends WorldRoom {
   private redirectTo: string | null = null;
   circuit!: CircuitModule;
   social!: SocialModule;
+  shadows!: ShadowModule;
   shardMod!: ShardModule;
   private modules: Module[] = [];
   private buckets = new Map<string, Map<BucketName, TokenBucket>>();
@@ -67,7 +69,8 @@ export class GameRoom extends WorldRoom {
     this.shardMod = new ShardModule(this);
     this.circuit = new CircuitModule(this);
     this.social = new SocialModule(this);
-    this.modules = [this.shardMod, this.circuit, this.social];
+    this.shadows = new ShadowModule(this);
+    this.modules = [this.shardMod, this.circuit, this.social, this.shadows];
     const reg: Registrar = {
       on: <M>(type: string, bucket: BucketName, fn: (p: ServerPlayer, msg: M) => void | Promise<void>) => {
         this.onMessage(type, (client: Client, msg: M) => {
@@ -222,6 +225,9 @@ export class GameRoom extends WorldRoom {
   protected hookViewEntities(push: (id: string, x: number, y: number, st: SpellState) => void): void {
     for (const m of this.modules) m.viewEntities?.(push as (id: string, x: number, y: number, st: Schema) => void);
   }
+
+  protected hookTargets(): Array<{ id: string; x: number; y: number; alive: boolean }> { return this.shadows?.targets() ?? []; }
+  protected hookStrike(e: Enemy, shape: StrikeShape, dmg: number): void { this.shadows?.strikeShadows(e, shape, dmg); }
 
   protected hookKilled(e: Enemy, killer: ServerPlayer | undefined): void {
     for (const m of this.modules) m.killed?.(e, killer);
