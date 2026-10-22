@@ -356,7 +356,7 @@ svg.cb-links { position: absolute; left: 0; top: 0; pointer-events: none; overfl
 @media (prefers-reduced-motion: reduce) { .p3-slot, .p3-ult { animation: none !important; } }
 
 /* ═════════ Lumen's story panel ═════════ */
-#p3-lumen { position: fixed; left: 50%; bottom: 130px; transform: translateX(-50%); z-index: 9; width: min(620px, 94vw); display: flex; gap: 12px; align-items: stretch; padding: 10px 12px; cursor: pointer;
+#p3-lumen { position: fixed; left: 50%; bottom: 130px; transform: translateX(-50%); z-index: 12; width: min(620px, 94vw); display: flex; gap: 12px; align-items: stretch; padding: 10px 12px; cursor: pointer;
   background: linear-gradient(160deg, rgba(20,40,52,.96), rgba(15,16,32,.96) 60%); border: 2px solid #5af0d0; border-radius: 6px; box-shadow: 0 0 0 2px #0b0c1a, 0 0 24px rgba(90,240,208,.35); animation: p3-in .25s ease-out; }
 @keyframes p3-in { from { opacity: 0; transform: translate(-50%, 8px); } }
 .p3-lumen-port { flex: none; width: 72px; height: 72px; display: grid; place-items: center; background: radial-gradient(circle, rgba(180,234,255,.35), rgba(90,240,208,.08) 60%, transparent 70%), #0b0c1a; border: 2px solid #2f6f66; }

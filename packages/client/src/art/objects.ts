@@ -1,5 +1,8 @@
+import { drawOutcrop, MINERALS } from './geology';
 import { Rectangle, Texture } from 'pixi.js';
 import { PALETTE, hash2, mulberry32 } from '@eigenlands/shared';
+import { buildSceneryArt } from './scenery';
+import type { SceneryKind } from '../game/scenery';
 import { buildBiomeArt, destroyBiomeArt, type BiomeArt } from './biomeart';
 import { C, line, lump, makeCanvas, poly, polish, put, stonePile, type Ctx, type Ramp } from './shade';
 
@@ -59,16 +62,17 @@ export function branches(ctx: Ctx, rng: () => number, x: number, y: number, ang:
 /** A rounded crown of leaf clusters, back to front; lower clusters sit in the crown's own shade. */
 export function crown(ctx: Ctx, rng: () => number, cx: number, cy: number, rx: number, ry: number, n: number, rampOf: (i: number) => Ramp, seed: number): void {
   const cl: Array<[number, number, number]> = [];
-  for (let i = 0; i < n; i++) {
-    const a = rng() * Math.PI * 2, r = Math.sqrt(rng());
-    cl.push([cx + Math.cos(a) * r * (rx - 5), cy + Math.sin(a) * r * (ry - 4), 5 + rng() * 3.5]);
+  const count = Math.max(7, Math.round(n * 0.7));
+  for (let i = 0; i < count; i++) {
+    const a = i * 2.39996 + rng() * 0.35, r = Math.sqrt((i + 0.5) / count);
+    cl.push([cx + Math.cos(a) * r * (rx - 7), cy + Math.sin(a) * r * (ry - 6), 6.5 + rng() * 3]);
   }
   cl.sort((a, b) => a[1] - b[1]);
   // dark core so gaps between clusters read as depth
-  lump(ctx, cx, cy + 2, rx - 2, ry - 2, [C.g0, C.g0, C.g1, C.g1], { seed, leafy: 0.4, edge: 0 });
+  lump(ctx, cx, cy + 2, rx - 2, ry - 2, [rampOf(0)[0]!, rampOf(0)[0]!, rampOf(0)[1]!, rampOf(0)[1]!], { seed, leafy: 0.4, edge: 0 });
   cl.forEach(([x, y, r], i) => {
     const low = (y - (cy - ry)) / (2 * ry);           // 0 top .. 1 bottom
-    lump(ctx, x, y, r, r * 0.82, rampOf(i), { seed: seed + i * 13, leafy: 0.55, bright: 0.12 - low * 0.32, edge: 0.25 });
+    lump(ctx, x, y, r, r * 0.82, rampOf(i), { seed: seed + i * 13, leafy: 0.35, bright: 0.08 - low * 0.28, edge: 0.25 });
   });
   // sun-caught leaf clumps on the upper-left shoulder
   for (let i = 0; i < 4; i++) {
@@ -187,28 +191,11 @@ export function facetRock(ctx: Ctx, cx: number, cy: number, rx: number, ry: numb
 }
 
 export function buildRocks(season: SeasonIdx): ObjSprite[] {
-  const out: ObjSprite[] = [];
-  const snow = season === 3;
-  for (let v = 0; v < 6; v++) {
-    const { canvas, ctx } = makeCanvas(40, 34);
-    const rng = mulberry32(400 + v * 37);
-    const piles: Array<Array<[number, number, number, number]>> = [
-      [[18, 17, 10, 11], [27, 22, 7, 7], [11, 24, 6, 5]],                       // tall boulder with companions
-      [[15, 22, 8, 7], [25, 22, 8, 7.5], [20, 26, 6, 4.5]],                      // low pair
-      [[20, 15, 8, 12], [12, 24, 6, 5.5], [28, 25, 5, 4]],                       // standing stone
-      [[20, 20, 12, 9.5]],                                                         // big round boulder
-      [[13, 23, 6, 5], [22, 21, 7, 6.5], [29, 25, 4.5, 3.6], [17, 27, 5, 3.4]], // scattered pile
-      [[20, 21, 13, 7], [14, 18, 6, 5]],                                         // flat slab
-    ];
-    stonePile(ctx, piles[v]!, STONE, { seed: 60 + v * 11, rough: 0.14, edge: 0.2, flat: v === 5 ? 0.7 : 0.25 });
-    const top = piles[v]![0]!;
-    if (snow) lump(ctx, top[0] - 1, top[1] - top[3] * 0.55, top[2] * 0.75, top[3] * 0.35, SNOW, { seed: v, edge: 0, flat: 0.7 });
-    else if (v % 2 === 0) lump(ctx, top[0] - top[2] * 0.3, top[1] - top[3] * 0.6, top[2] * 0.45, top[3] * 0.28, MOSS, { seed: v + 3, leafy: 0.6, bright: 0.12, edge: 0 });
-    // grass tufts at the base (summer) so the rock sits in the turf
-    if (!snow) for (let i = 0; i < 3; i++) { const x = 8 + Math.floor(rng() * 24); put(ctx, x, 29, C.g3); put(ctx, x - 1, 28, C.g4); put(ctx, x + 1, 28, C.g2); }
-    out.push(toSprite(canvas, 20, 29));
-  }
-  return out;
+  return Array.from({ length: 6 }, (_, v) => {
+    const { canvas, ctx } = makeCanvas(40, 40);
+    drawOutcrop(ctx, v, undefined, season === 3);
+    return toSprite(canvas, 20, 29, { rim: false });
+  });
 }
 
 const PETALS: Array<[number, number]> = [[C.r3, C.r6], [C.r5, C.r7], [C.q5, C.q6], [C.white, C.r6], [C.r2, C.r4], [C.q3, C.q4]];
@@ -334,50 +321,15 @@ export function buildStump(season: SeasonIdx): ObjSprite[] {
   return out;
 }
 
-// ───────── ore outcrops: stone piles with glowing mineral nodules ─────────
-const ORE_STYLE: Record<string, { ramp: number[]; seed: number; glint?: boolean }> = {
-  ore_copper: { ramp: [C.r0, C.r1, C.r4, C.r5, C.r6], seed: 210 },
-  ore_iron: { ramp: [C.e0, C.r0, C.r1, C.e4, C.e5], seed: 230 },
-  ore_silver: { ramp: [C.mist, C.fog, C.pale, C.w7, C.white], seed: 250, glint: true },
-  ore_gold: { ramp: [C.r1, C.r4, C.r5, C.r6, C.r7], seed: 270, glint: true },
-};
-
-/** Boulder shot through with a readable vein and chunky nuggets; silver and gold glint. */
-export function buildOre(kind: keyof typeof ORE_STYLE, season: SeasonIdx): ObjSprite[] {
-  const st = ORE_STYLE[kind]!;
+// ───────── mineral seams embedded in projected rock faces ─────────
+export function buildOre(kind: string, season: SeasonIdx): ObjSprite[] {
+  if (!MINERALS[kind]) return [];
   const out: ObjSprite[] = [];
-  const M = st.ramp as unknown as Ramp;
-  for (let v = 0; v < 3; v++) {
-    for (let f = 0; f < (st.glint ? 2 : 1); f++) {
-      const { canvas, ctx } = makeCanvas(40, 34);
-      const rng = mulberry32(st.seed + v * 17);
-      const piles: Array<Array<[number, number, number, number]>> = [
-        [[19, 18, 11, 10], [28, 24, 6.5, 6], [11, 25, 5.5, 4.5]],
-        [[16, 21, 9, 8], [26, 20, 8, 9]],
-        [[20, 20, 12, 10], [9, 26, 4.5, 3.6]],
-      ];
-      stonePile(ctx, piles[v]!, STONE, { seed: st.seed + v, rough: 0.14, edge: 0.2, flat: 0.25 });
-      if (season === 3) { const t = piles[v]![0]!; lump(ctx, t[0] - 1, t[1] - t[3] * 0.55, t[2] * 0.7, t[3] * 0.3, SNOW, { seed: v, edge: 0, flat: 0.7 }); }
-      const img = ctx.getImageData(0, 0, 40, 34).data;
-      const onRock = (x: number, y: number) => x >= 0 && y >= 0 && x < 40 && y < 34 && img[(y * 40 + x) * 4 + 3]! > 0;
-      // a vein crack, then nuggets: lumps of mineral lit top-left with a bright glint
-      let x = 10 + Math.floor(rng() * 4), y = 15 + Math.floor(rng() * 3);
-      for (let j = 0; j < 20; j++) {
-        if (onRock(x, y) && onRock(x, y + 1)) { put(ctx, x, y, M[1]!); put(ctx, x, y + 1, C.steel); }
-        x += 1; y += rng() > 0.6 ? 1 : rng() > 0.8 ? -1 : 0;
-      }
-      for (let i = 0; i < 5; i++) {
-        const nx = 10 + Math.floor(rng() * 20), ny = 12 + Math.floor(rng() * 12);
-        if (!onRock(nx - 2, ny) || !onRock(nx + 2, ny + 2)) continue;
-        lump(ctx, nx, ny, 1.9 + (i % 2) * 0.6, 1.6, M, { seed: i + v, edge: 0.15, bright: 0.05 });
-        put(ctx, nx - 1, ny - 1, M[4]!);
-      }
-      if (st.glint) {
-        const gx = 13 + ((v * 7 + f * 9) % 14), gy = 13 + ((v * 3 + f * 5) % 8);
-        if (onRock(gx, gy)) { put(ctx, gx, gy, C.white); for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]] as const) put(ctx, gx + dx, gy + dy, M[3]!); }
-      }
-      out.push(toSprite(canvas, 20, 29));
-    }
+  const frames = kind === 'ore_silver' || kind === 'ore_gold' ? 2 : 1;
+  for (let v = 0; v < 3; v++) for (let f = 0; f < frames; f++) {
+    const { canvas, ctx } = makeCanvas(40, 40);
+    drawOutcrop(ctx, v, kind, season === 3, f);
+    out.push(toSprite(canvas, 20, 29, { rim: false }));
   }
   return out;
 }
@@ -390,8 +342,8 @@ export function buildCrystal(): ObjSprite[] {
     const face = v ? [C.q1, C.q2, C.q5, C.q6] : [C.w1, C.w2, C.w3, C.w5];
     const core = v ? [C.q6, C.white] : [C.q7, C.w7];
     for (let f = 0; f < 3; f++) {
-      const { canvas, ctx } = makeCanvas(34, 40);
-      stonePile(ctx, [[17, 34, 11, 4.5], [8, 35, 5, 3], [27, 35, 5, 3]], STONE, { seed: 30 + v, edge: 0.2, flat: 0.5 });
+      const { canvas, ctx } = makeCanvas(34, 48);
+      ctx.save(); ctx.translate(-3, 7); drawOutcrop(ctx, v); ctx.restore();
       const shard = (cx: number, base: number, w: number, h: number, lean: number) => {
         const top = base - h;
         const pts: Array<[number, number]> = [[cx - w / 2, base], [cx - w / 2 + lean, top + w * 0.6], [cx + lean, top], [cx + w / 2 + lean, top + w * 0.6], [cx + w / 2, base]];
@@ -485,6 +437,9 @@ export interface ObjectArt {
   qtree: ObjSprite[];
   /** per-biome replacements for tree / rock / tallgrass / flowers / stump */
   biome: BiomeArt;
+  scenery: Record<SceneryKind, ObjSprite[]>;
+  /** Underground stone never inherits surface snow or meadow plants. */
+  cave: Record<string, ObjSprite[]>;
 }
 /** Kinds whose sprite list is [variant][frame] flattened with this many frames per variant (animated). */
 export const FRAMES_PER_VARIANT: Record<string, number> = { qtree: 4, crystal: 3, ore_silver: 2, ore_gold: 2, torch: 2, bloom: 2 };
@@ -496,12 +451,15 @@ export function buildObjectArt(season: SeasonIdx): ObjectArt {
     ore_copper: buildOre('ore_copper', season), ore_iron: buildOre('ore_iron', season),
     ore_silver: buildOre('ore_silver', season), ore_gold: buildOre('ore_gold', season),
     crystal: buildCrystal(), forage: buildForage(season), fence: buildFence(), qtree: buildQTree(season),
-    biome: buildBiomeArt(season),
+    biome: buildBiomeArt(season), scenery: buildSceneryArt(),
+    cave: { rock: buildRocks(1), ...Object.fromEntries(Object.keys(MINERALS).map(k => [k, buildOre(k, 1)])) },
   };
 }
 
 export function destroyObjectArt(a: ObjectArt): void {
-  const { biome, ...lists } = a;
+  const { biome, scenery, cave, ...lists } = a;
+  for (const list of Object.values(cave)) for (const s of list) s.tex.destroy(true);
+  for (const list of Object.values(scenery)) for (const s of list) s.tex.destroy(true);
   for (const list of Object.values(lists)) for (const s of list) s.tex.destroy(true);
   destroyBiomeArt(biome);
 }

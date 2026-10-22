@@ -3,7 +3,7 @@ import type { Stack } from './items';
 import type { WorldObj } from './objects';
 import { isSolid } from './tiles';
 import { townFor } from './town';
-import { HOME_VALE, biomeAt, sampleClimate, tileAt, type Biome } from './worldgen';
+import { HOME_VALE, biomeAt, sampleClimate, landmarkTileAt, type Biome } from './worldgen';
 
 /**
  * Ruins: the wild remembers older settlers. Each 96x96-tile cell beyond the home vale may hold a ruined site styled
@@ -18,7 +18,7 @@ const cache = new Map<string, RuinSite | null>();
 
 function clearAround(seed: number, x: number, y: number): boolean {
   // the heart of the site must be dry, open ground; walls that would land on trees or rocks simply fell long ago
-  for (let j = -1; j <= 2; j++) for (let i = -1; i <= 1; i++) if (isSolid(tileAt(seed, x + i, y + j))) return false;
+  for (let j = -1; j <= 2; j++) for (let i = -1; i <= 1; i++) if (isSolid(landmarkTileAt(seed, x + i, y + j))) return false;
   return sampleClimate(seed, x, y).height > -0.15;
 }
 
@@ -67,7 +67,7 @@ export function ruinObjects(seed: number, s: RuinSite): WorldObj[] {
   for (let i = 0; i < 4; i++) add(s.x + Math.round((rng() - 0.5) * 9), s.y + Math.round((rng() - 0.5) * 9), 'ruin_rubble');
   add(s.x + 1, s.y + 1, 'ruin_cache', { ruin: s.id });
   // drop anything that landed on a solid tile (trees, rocks, water)
-  return out.filter((o) => !isSolid(tileAt(seed, o.x, o.y)));
+  return out.filter((o) => !isSolid(landmarkTileAt(seed, o.x, o.y)));
 }
 
 /** Ruin objects that live in chunk (cx, cy). */

@@ -6,8 +6,9 @@ import {
   type DialogueMsg, type FishBiteMsg, type FxMsg, type ObjMsg, type PanelMsg, type ProfileMsg, type RhythmResultMsg, type RhythmStartMsg,
   type ShopViewMsg, type TileMsg, type ToastMsg, type WelcomeMsg, type ForgePreviewReply,
 } from '@eigenlands/shared';
-import { buildActorSheets, dirOf, COSMETIC_OUTFITS, OUTFITS, WALK_FRAMES, DIR_DOWN, DIR_LEFT, type Sheets } from '../art/actors';
+import { buildActorSheets, dirOf, COSMETIC_OUTFITS, OUTFITS, WALK_FRAMES, ATTACK_FRAME, SHOT_FRAME, CAST_FRAME, RUN_FRAME, RUN_FRAMES, DIR_DOWN, DIR_LEFT, type Sheets } from '../art/actors';
 import { buildObjectArt, destroyObjectArt, type ObjectArt, type SeasonIdx } from '../art/objects';
+import { HeldWeapons } from '../art/weapons';
 import { Audio, SFX_CAPTIONS, type Sfx } from '../audio';
 import type { Input } from '../input/input';
 import { Interpolator, ServerClock, type Pose } from '../net/interp';
@@ -32,7 +33,7 @@ import { buildFoeSheets, type FoeSheets } from '../art/foes';
 import { CombatView } from './combatview';
 import { WindField } from './windfield';
 import { Ambient } from './ambient';
-import { HUE_PALETTE, ITEMS, MSG34, SHADOW_RANKS, WEAPONS, isRangedWeapon } from '@eigenlands/shared';
+import { HUE_PALETTE, ITEMS, MSG34, SHADOW_RANKS, WEAPONS, isRangedWeapon, isWeaponId } from '@eigenlands/shared';
 import { Critters } from '../art/critters';
 import { Ships } from '../art/ships';
 import { TargetFrame } from '../ui/targetframe';
@@ -41,7 +42,7 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const pc = (i: number) => parseInt(PALETTE[i]!.slice(1), 16);
 
 interface Snap extends Pose {
-  hp: number; maxHp: number; flags: number; tele: number; kind: number; night: boolean; name: string; level: number; look: number;
+  hp: number; maxHp: number; flags: number; tele: number; kind: number; night: boolean; name: string; level: number; look: number; weapon: string;
   /** combat 2.0 (enemies) */
   st: number; atk: number; tx: number; ty: number; poise: number; elite: number;
   /** Shadow Army rank (shadows only) */
@@ -59,8 +60,10 @@ interface ActorView {
   label?: Text;
   lx: number; ly: number;
   travel: number;
+  movingUntil: number;
   outfit: number;
   trail: number;
+  held?: Sprite;
   /** combat presentation (see combatview.ts) */
   fl: Sprite;
   kind: number;
@@ -76,6 +79,7 @@ export class Game {
 
   private app!: Application;
   private sheets!: Sheets;
+  private heldWeapons = new HeldWeapons();
   private foes!: FoeSheets;
   private critters!: Critters;
   private ships = new Ships();
@@ -139,6 +143,7 @@ export class Game {
   /** test/screenshot aid: ?hour=12 pins the in-game clock */
   private hourOverride: number | null = (() => { const h = new URLSearchParams(location.search).get('hour'); return h !== null && !Number.isNaN(Number(h)) ? Number(h) : null; })();
   private frameMs = 0;
+  private lastFrameAt = 0;
   private vis = { x0: -20, y0: -20, x1: 20, y1: 20 };
   /** Phase 3/4: Circuit Board, abilities, tutorial, party, chat, trading, shards */
   ext!: P34Client;
@@ -237,8 +242,10 @@ export class Game {
   private layout(): void {
     const w = window.innerWidth, h = window.innerHeight;
     const dpr = this.app.renderer.resolution || 1;
-    // integer scaling in DEVICE pixels (crisp pixel art): ~18 tiles across on desktop, ~9 on phones
-    const target = w < 700 ? 9 : 18;
+    // Landscape phones need phone-sized artwork too. Width alone classified
+    // them as desktops and quadrupled the terrain fill cost at a tiny zoom.
+    const phone = matchMedia('(pointer: coarse)').matches && Math.min(w, h) < 600;
+    const target = phone ? (w > h ? 12 : 9) : w < 700 ? 9 : 18;
     this.scale = Math.max(1, Math.floor((w * dpr) / (32 * target))) / dpr;
     this.world.scale.set(this.scale);
     this.lighting.sprite.scale.set(this.scale);
@@ -282,7 +289,7 @@ export class Game {
       this.interp.push(id, t, {
         x: e.x, y: e.y, faceX: e.faceX ?? 0, faceY: e.faceY ?? 1,
         hp: e.hp ?? 0, maxHp: e.maxHp ?? 0, flags: e.flags ?? 0, tele: e.tele ?? 0, kind: e.kind ?? 0,
-        night: !!e.night, name: e.name ?? '', level: e.level ?? 1, look: e.look ?? 0,
+        night: !!e.night, name: e.name ?? '', level: e.level ?? 1, look: e.look ?? 0, weapon: e.weapon ?? '',
         st: e.st ?? 0, atk: e.atk ?? 0, tx: e.tx ?? 0, ty: e.ty ?? 0, poise: e.poise ?? 100, elite: e.elite ?? 0, rank: e.rank ?? 0,
       });
       if (!this.views.has(id)) this.makeView(id, type, e);
@@ -318,6 +325,7 @@ export class Game {
   }
   private obj(m: ObjMsg): void {
     if (m.obj) { this.store.putObject(m.obj); this.worldObjs.upsert(m.obj); } else { this.store.removeObject(m.x, m.y); this.worldObjs.remove(m.x, m.y); }
+    this.objects.refreshTile(m.x, m.y);
   }
   private tile(m: TileMsg): void {
     const { cx, cy } = this.store.setTile(m.tx, m.ty, m.tile);
@@ -441,7 +449,7 @@ export class Game {
     fl.alpha = 0;
     root.addChild(fl);
     this.views.set(id, {
-      id, type, npcId: type === 'npc' ? id : undefined, root, sprite, gfx, shadow, label, lx: e.x, ly: e.y, travel: 0, outfit, trail: 0,
+      id, type, npcId: type === 'npc' ? id : undefined, root, sprite, gfx, shadow, label, lx: e.x, ly: e.y, travel: 0, movingUntil: 0, outfit, trail: 0,
       fl, kind: e.kind ?? 0, flash: 0, punch: 0, ghostT: 0,
     });
   }
@@ -489,7 +497,10 @@ export class Game {
   private frame(dtMs: number): void {
     const now = performance.now();
     const t0 = now;
-    this.fps = this.fps * 0.95 + (1000 / Math.max(1, dtMs)) * 0.05;
+    // Pixi caps deltaMS on slow frames; use wall time for an honest FPS readout.
+    const frameInterval = this.lastFrameAt ? now - this.lastFrameAt : dtMs;
+    this.lastFrameAt = now;
+    this.fps = this.fps * 0.95 + (1000 / Math.max(1, frameInterval)) * 0.05;
     const dt = Math.min(dtMs, 250) / 1000;
     if (!this.predictor || !this.connected) return;
 
@@ -518,7 +529,7 @@ export class Game {
     this.setSeason(this.seasonOverride ?? ((SEASONS.indexOf(season(wall)) as SeasonIdx)));
 
     const me = this.predictor.visual(alpha);
-    const W = window.innerWidth, H = window.innerHeight, S = this.scale;
+    const W = window.innerWidth, H = window.innerHeight, S = this.scale, dpr = this.app.renderer.resolution;
     let ox = 0, oy = 0;
     if (this.fx.shake > 0 && !reduced) { ox = Math.round((Math.random() - 0.5) * 6 * this.fx.shake); oy = Math.round((Math.random() - 0.5) * 6 * this.fx.shake); }
     // iso camera: centred on the player's body (feet minus 6px), snapped to device pixels
@@ -537,9 +548,9 @@ export class Game {
       this.look.x += (tx - this.look.x) * k; this.look.y += (ty - this.look.y) * k;
       if (!held && Math.hypot(this.look.x, this.look.y) < 0.05) this.look.x = this.look.y = 0;
     }
-    const camX = Math.round((isoX(me.x, me.y) + this.look.x) * S) / S, camY = Math.round((isoY(me.x, me.y) - 6 + this.look.y) * S) / S;
-    this.world.x = Math.round(W / 2 - camX * S) + ox;
-    this.world.y = Math.round(H / 2 - camY * S) + oy;
+    const camX = Math.round((isoX(me.x, me.y) + this.look.x) * S * dpr) / (S * dpr), camY = Math.round((isoY(me.x, me.y) - 6 + this.look.y) * S * dpr) / (S * dpr);
+    this.world.x = Math.round((W / 2 - camX * S) * dpr) / dpr + ox;
+    this.world.y = Math.round((H / 2 - camY * S) * dpr) / dpr + oy;
     {
       const ow = Math.floor(camX - W / 2 / S), oh = Math.floor(camY - H / 2 / S);
       this.terrain.render(ow, oh, chunkOf(Math.floor(me.x)), chunkOf(Math.floor(me.y)), now / 1000, this.seasonIdx, !reduced, this.wind.w);
@@ -552,7 +563,7 @@ export class Game {
       this.vis = { x0: vx0, y0: vy0, x1: vx1, y1: vy1 };
       this.objects.update(now, sun, reduced, vx0, vy0, vx1, vy1, this.wind);
       this.worldObjs.update(now, sun, reduced, vx0, vy0, vx1, vy1, this.wind);
-      this.buildings.update(now, Math.floor(me.x), Math.floor(me.y), reduced, sun, vx0, vy0, vx1, vy1);
+      this.buildings.update(now, Math.floor(me.x), Math.floor(me.y), reduced, sun, vx0, vy0, vx1, vy1, this.wind);
       const m = this.input.mouseXY;
       const u = unproject((m.x - this.world.x) / S, (m.y - this.world.y) / S);
       this.input.mouseTile = { tx: Math.floor(u.x), ty: Math.floor(u.y) };
@@ -725,17 +736,26 @@ export class Game {
       if (v.label) v.label.visible = true;
       const moved = Math.hypot(x - v.lx, y - v.ly);
       v.travel += moved;
+      if (moved > 0.003 * (dtMs / 16)) v.movingUntil = now + 90;
+      const walking = now < v.movingUntil;
+      const pixels = this.scale * this.app.renderer.resolution;
       v.lx = x; v.ly = y;
-      v.root.x = Math.round(isoX(x, y));
-      v.root.y = Math.round(isoY(x, y));
+      v.root.x = Math.round(isoX(x, y) * pixels) / pixels;
+      v.root.y = Math.round(isoY(x, y) * pixels) / pixels;
       v.root.zIndex = depth(x, y);
       v.gfx.clear();
 
       if (v.type === 'player') {
         const dash = isMe ? this.predictor.sim.dashT > 0 : ((s?.flags ?? 0) & 1) !== 0;
         const deadP = isMe ? this.dead : ((s?.flags ?? 0) & 4) !== 0;
-        const walking = moved > 0.003 * (dtMs / 16);
-        const frame = walking ? 1 + (Math.floor(v.travel / 0.17) % (WALK_FRAMES - 1)) : 0;
+        const strike = !deadP && !dash ? this.combat.attackFrame(v, now, reduced) : -1;
+        const running = dash || moved / Math.max(0.001, dtMs / 1000) > 5.6;
+        const weaponId = isMe ? (this.gameplay.profile.equip.weapon ? ITEMS[this.gameplay.profile.equip.weapon.id]?.weapon : undefined) : s?.weapon;
+        const weapon = isWeaponId(weaponId) ? weaponId : null;
+        const family = weapon && WEAPONS[weapon].cls === 'crossbow' ? SHOT_FRAME : weapon && WEAPONS[weapon].cls === 'staff' ? CAST_FRAME : ATTACK_FRAME;
+        const frame = deadP ? -1 : strike >= 0 ? family + strike : walking
+          ? running ? RUN_FRAME + (Math.floor(v.travel / 0.21) % RUN_FRAMES) : 1 + (Math.floor(v.travel / 0.17) % (WALK_FRAMES - 1))
+          : reduced ? -1 : 0;
         const look = s?.look ?? (isMe ? this.gameplay.profile.equip.outfit : v.outfit);
         const sd = screenDir(fx, fy);
         v.sprite.texture = this.sheets.person(((look % OUTFITS.length) + OUTFITS.length) % OUTFITS.length, dirOf(sd.x, sd.y), frame);
@@ -744,6 +764,16 @@ export class Game {
         v.sprite.scale.set(1);
         const boat = isMe ? this.predictor.sim.boat > 0 : ((s?.flags ?? 0) & 128) !== 0;
         this.combat.rig(v, boat, fx, fy, now / 1000);
+        if (weapon && !boat && !deadP) {
+          if (!v.held) { v.held = new Sprite(); v.held.anchor.set(0.5, 0.75); v.held.y = 1; v.root.addChild(v.held); }
+          const direction = dirOf(sd.x, sd.y);
+          // Stable idle uses the body's resolved breath column, so the hand never drifts off the grip.
+          const pose = v.sprite.texture.frame.x / 24;
+          v.held.texture = this.heldWeapons.texture(weapon, direction, pose);
+          v.held.visible = true; v.held.alpha = v.sprite.alpha;
+          v.root.setChildIndex(v.held, direction === 1 || direction >= 6 ? 1 : v.root.children.length - 1);
+        } else if (v.held) v.held.visible = false;
+
         if (!boat) v.gfx.ellipse(0, 0, 7, 3).fill({ color: 0x2a1060, alpha: 0.28 });
         if (!deadP) this.combat.decoratePlayer(v, s?.flags ?? 0, isMe ? this.predictor.sim : null, x, y, now, dtMs / 1000);
         v.flash *= Math.exp(-dtMs / 45);
@@ -760,8 +790,7 @@ export class Game {
         const hisB = this.buildings.insideBuilding(Math.floor(x), Math.floor(y));
         const hidden = inside && (!hisB || hisB !== myB);
         v.root.visible = !hidden;
-        const walking = ((s?.flags ?? 0) & 1) !== 0 || moved > 0.003 * (dtMs / 16);
-        const frame = walking ? 1 + (Math.floor(v.travel / 0.17) % (WALK_FRAMES - 1)) : 0;
+        const frame = walking || ((s?.flags ?? 0) & 1) !== 0 ? 1 + (Math.floor(v.travel / 0.17) % (WALK_FRAMES - 1)) : reduced ? -1 : 0;
         const nd = screenDir(fx, fy);
         v.sprite.texture = this.sheets.npc(v.id, dirOf(nd.x, nd.y), frame);
         v.gfx.ellipse(0, 0, 7, 3).fill({ color: 0x2a1060, alpha: 0.28 });
@@ -772,7 +801,7 @@ export class Game {
           v.label.y = Math.round(this.world.y + (v.root.y - 30) * this.scale);
         }
       } else if (v.type === 'enemy' || v.type === 'shadow') {
-        this.combat.drawEnemy(v, s, x, y, fx, now, dtMs / 1000, moved > 0.003 * (dtMs / 16));
+        this.combat.drawEnemy(v, s, x, y, fx, now, dtMs / 1000, walking);
         if (v.type === 'shadow' && v.label) {
           v.label.visible = v.root.visible;
           const txt = `${s?.name ?? ''} · ${SHADOW_RANKS[s?.rank ?? 0]}`;

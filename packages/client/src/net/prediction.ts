@@ -46,7 +46,12 @@ export class Predictor {
     const dist = Math.hypot(ex, ey);
     this.lastCorrection = dist;
     if (dist > 3) { this.err.x = 0; this.err.y = 0; this.prev = { x: this.sim.x, y: this.sim.y }; }
-    else if (dist > 0.002) { this.err.x += ex; this.err.y += ey; }
+    else if (dist > 0.002) {
+      // Move both ends of the render interval, then compensate with the offset.
+      // Moving only the current sim made an ACK visibly kick the previous pose.
+      this.prev.x -= ex; this.prev.y -= ey;
+      this.err.x += ex; this.err.y += ey;
+    }
     return dist;
   }
 

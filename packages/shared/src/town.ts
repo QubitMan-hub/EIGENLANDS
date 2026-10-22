@@ -176,11 +176,20 @@ function dress(t: Town, seed: number, get: (x: number, y: number) => number | un
   const free = (x: number, y: number) => { const g = get(x, y); return (g === T.GRASS || g === T.FLOWERS) && !used.has(x * 4096 + y); };
   const put = (x: number, y: number, kind: TownObject['kind'], sub: string): boolean => { if (!free(x, y)) return false; used.add(x * 4096 + y); rawObj(x, y, kind, sub); return true; };
   const byId = (id: string) => t.buildings.find((b) => b.id === id);
-  const yardProps = ['woodpile', 'barrel', 'cart', 'hay', 'laundry', 'hedge', 'planter', 'crate', 'trough'] as const;
+  // A trade's materials belong beside its workshop; homes get domestic details.
+  const yards: Record<string, readonly string[]> = {
+    smithy: ['woodpile', 'barrel', 'crate'], store: ['cart', 'crate', 'barrel'],
+    inn: ['barrel', 'bench', 'planter'], farmhouse: ['hay', 'trough', 'cart'],
+    herbalist: ['planter', 'beehive', 'hedge'], tailor: ['laundry', 'planter', 'crate'],
+    carpenter: ['woodpile', 'cart', 'crate'], bakery: ['woodpile', 'barrel', 'cart'],
+    hall: ['bench', 'planter', 'hedge'], library: ['bench', 'planter', 'hedge'],
+  };
+  const domestic = ['laundry', 'planter', 'woodpile', 'hedge'];
 
   for (const b of t.buildings) {
     put(b.doorX + 2, b.doorY + 1, 'deco', 'mailbox');
     const h = hash2(seed, b.x, b.y, 310);
+    const yardProps = yards[b.id] ?? yards[b.kind] ?? domestic;
     // yard props on the sides of the house, never in front of the door
     const spots: Array<[number, number]> = [[b.x - 1, b.y + b.h - 1], [b.x + b.w, b.y + b.h - 1], [b.x - 1, b.y + b.h - 2], [b.x + b.w, b.y + b.h - 2], [b.x + b.w - 1, b.y + b.h + 1]];
     const n = b.kind === 'house' ? 2 : 3;
@@ -261,17 +270,17 @@ function furnish(b: Building, rawObj: ObjAdd, spot: SpotAdd): void {
     case 'inn':
       obj(ix + 1, iy, 'station', 'cooking_pot'); deco(ix + 3, iy, 'counter'); deco(ix + 4, iy, 'counter'); deco(ix + 5, iy, 'counter');
       deco(ix + 7, iy, 'hearth'); deco(right, iy, 'barrel'); deco(right - 1, iy, 'barrel'); deco(ix, iy, 'shelf');
-      table(ix + 3, iy + 3); table(ix + 8, iy + 3); rug(ix + 6, iy + 2); rug(ix + 5, iy + 2);
+      table(ix + 1, iy + 3); table(right - 1, iy + 3); rug(ix + 6, iy + 2); rug(ix + 5, iy + 2);
       deco(ix, bottom, 'candles'); deco(right, bottom, 'plant'); deco(right, iy + 2, 'stool');
       spot('inn.work', ix + 2, iy + 1); spot('inn.table', ix + 5, iy + 2); break;
     case 'hall':
-      deco(midX, iy, 'desk'); table(ix + 2, iy + 3); table(right - 2, iy + 3);
+      deco(midX, iy, 'desk'); table(ix + 1, iy + 3); table(right - 1, iy + 3);
       backWall(['bookcase', 'banner', 'shelf'], ix, midX - 1, 2); backWall(['shelf', 'banner', 'bookcase'], midX + 1, right, 2);
       rug(midX, iy + 1); rug(midX, iy + 2); rug(midX, iy + 3);
       deco(ix, bottom, 'candles'); deco(right, bottom, 'candles'); deco(ix, iy + 1, 'plant'); deco(right, iy + 1, 'plant');
       spot('hall.work', midX, iy + 1); break;
     case 'farmhouse':
-      bed(); deco(ix + 2, iy, 'hearth'); table(right - 2, iy + 2); deco(right, iy, 'shelf'); deco(right - 1, iy, 'wardrobe');
+      bed(); deco(ix + 2, iy, 'hearth'); table(ix + 1, iy + 2, false); deco(ix, iy + 2, 'chair'); deco(right, iy, 'shelf'); deco(right - 1, iy, 'wardrobe');
       deco(ix, bottom, 'basket'); deco(right, bottom, 'crate'); deco(ix + 4, iy, 'barrel'); rug(ix + 3, iy + 2);
       spot('farmhouse.work', ix + 4, iy + 2); break;
     default: {

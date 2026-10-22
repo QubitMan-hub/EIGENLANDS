@@ -10,10 +10,13 @@ import {
   CROPS, ChunkStore, ITEMS, NPCS, PALETTE, T, TILE_DEFS, TILE_SIZE, ambientColor, darkness, chunkOf, townFor, type WorldObj, type Weather,
 } from '@eigenlands/shared';
 import { buildObjectArt, FRAMES_PER_VARIANT, type SeasonIdx } from '../art/objects';
-import { buildActorSheets, OUTFITS, WALK_FRAMES, DIR_LEFT, DIR_RIGHT } from '../art/actors';
+import { buildActorSheets, OUTFITS, WALK_FRAMES, DIR_LEFT, DIR_RIGHT, ATTACK_FRAME, ATTACK_FRAMES, RUN_FRAME, RUN_FRAMES } from '../art/actors';
 import { itemIconUrl } from '../art/icons';
 import { Ships, HEADINGS, SHIP_AX, SHIP_AY } from '../art/ships';
 import { GALLERY_OBJECTS, worldObjDef } from '../art/worldobjs';
+import { HeldWeapons } from '../art/weapons';
+import { buildSceneryArt } from '../art/scenery';
+import { WEAPONS } from '@eigenlands/shared';
 import { PROPS } from '../art/props';
 import { ObjectViews, sunFor } from '../game/objectviews';
 import { WorldObjViews } from '../game/worldobjviews';
@@ -76,7 +79,7 @@ if (mode === 'icons') {
   }
   for (let i = 0; i < 2; i++) place(ships.serpent('head', i), 0.5, 0.95, 60 + i * 50, 370);
   (window as unknown as { __lab: unknown }).__lab = { ready: true };
-} else if (mode === 'objects' || mode === 'actors' || mode === 'person') {
+} else if (mode === 'objects' || mode === 'actors' || mode === 'person' || mode === 'actions' || mode === 'equipment' || mode === 'wilderness' || mode === 'resources') {
   const bg = new Graphics().rect(0, 0, 4000, 4000).fill(0x3b6a3a);
   const root = new Container();
   app.stage.addChild(bg, root);
@@ -85,7 +88,58 @@ if (mode === 'icons') {
   root.scale.set(SC);
   root.y = -num('shift', 0) * SC;
   const place = (tex: Sprite['texture'], ax: number, ay: number, x: number, y: number) => { const s = new Sprite(tex); s.anchor.set(ax / tex.width, ay / tex.height); s.x = x; s.y = y; root.addChild(s); return s; };
-  if (q.has('props')) {
+  if (mode === 'resources') {
+    const art = buildObjectArt(season);
+    label('surface | underground: same mineral, no snow below ground', 4, 8);
+    for (const [r, kind] of ['ore_copper', 'ore_iron', 'ore_silver', 'ore_gold', 'rock'].entries()) {
+      label(kind, 4, 45 + r * 47);
+      for (let side = 0; side < 2; side++) for (let v = 0; v < 3; v++) {
+        const list = side ? art.cave[kind]! : art[kind as 'rock'];
+        const sp = list[v * (FRAMES_PER_VARIANT[kind] ?? 1)]!, x = 95 + v * 42 + side * 150, y = 49 + r * 47;
+        root.addChild(new Graphics().poly([x, y - 8, x + 16, y, x, y + 8, x - 16, y]).fill(side ? 0x343740 : 0x45644c));
+        place(sp.tex, sp.ax, sp.ay, x, y);
+      }
+    }
+  } else if (mode === 'wilderness') {
+    Object.entries(buildSceneryArt()).forEach(([kind, list], row) => {
+      label(kind.replace('wild_', ''), 4, 24 + row * 40);
+      list.forEach((sp, v) => {
+        const x = 115 + v * 55, y = 26 + row * 40;
+        root.addChild(new Graphics().poly([x, y - 8, x + 16, y, x, y + 8, x - 16, y]).fill(0x45644c));
+        place(sp.tex, sp.ax, sp.ay, x, y);
+      });
+    });
+    for (const [i, face] of (['sw', 'se'] as const).entries()) {
+      for (const sub of ['shrine_altar', 'shrine_pillar']) {
+        const sp = PROPS[sub]!(face).frames[0]!;
+        place(sp.tex, sp.ax, sp.ay, 335 + i * 70, sub === 'shrine_altar' ? 85 : 165);
+      }
+    }
+    const crop = worldObjDef({ x: 0, y: 0, kind: 'crop', sub: '*turnip+potato', data: { crop: 'turnip', alt: 'potato', growth: 3 } });
+    crop.frames.forEach((sp, i) => place(sp.tex, sp.ax, sp.ay, 315 + i * 40, 250));
+  } else if (mode === 'equipment') {
+    const sheets = buildActorSheets(), weapons = new HeldWeapons();
+    Object.values(WEAPONS).forEach((w, row) => {
+      label(w.name, 4, 18 + row * 56);
+      for (let d = 0; d < 8; d++) {
+        const f = w.cls === 'crossbow' ? 23 : w.cls === 'staff' ? 27 : 11;
+        const x = 140 + d * 40, y = 45 + row * 56;
+        if (d === 1 || d >= 6) place(weapons.texture(w.id, d, f), 28, 48, x, y);
+        place(sheets.person(num('outfit', 0), d, f), 12, 32, x, y);
+        if (d !== 1 && d < 6) place(weapons.texture(w.id, d, f), 28, 48, x, y);
+      }
+    });
+  } else if (mode === 'actions') {
+    const sheets = buildActorSheets(), outfit = Math.max(0, Math.min(OUTFITS.length - 1, num('outfit', 0)));
+    label('four strike/recovery poses | eight running poses; eight directions', 4, 4);
+    for (let d = 0; d < 8; d++) {
+      label(String(d), 4, 32 + d * 36);
+      for (let f = 0; f < ATTACK_FRAMES + RUN_FRAMES; f++) {
+        const frame = f < ATTACK_FRAMES ? ATTACK_FRAME + f : RUN_FRAME + f - ATTACK_FRAMES;
+        place(sheets.person(outfit, d, frame), 12, 32, 26 + f * 29, 46 + d * 36);
+      }
+    }
+  } else if (q.has('props')) {
     // every isometric prop on a floor diamond with a wall behind it, both orientations
     const keys = Object.keys(PROPS).filter((k) => !q.get('props') || q.get('props')!.split(',').includes(k));
     keys.forEach((k, i) => {
@@ -257,7 +311,7 @@ if (mode === 'icons') {
     for (const l of wobjs.lights(...b)) lights.push({ ...toL(l.x, l.y), radius: l.radius, color: l.color, intensity: l.intensity });
     if (me) lights.push({ ...toL(playerTx + 0.5, playerTy + 0.5), y: toL(playerTx + 0.5, playerTy + 0.5).y - 10, radius: 4.5, color: parseInt(PALETTE[22]!.slice(1), 16), intensity: Math.min(1, dark * 1.1) });
     lighting.render([amb[0] * wa[0], amb[1] * wa[1], amb[2] * wa[2]], lights);
-    (window as unknown as { __lab: unknown }).__lab = { ready: true, objects: objects.count, wobjs: wobjs.count };
+    (window as unknown as { __lab: unknown }).__lab = { ready: true, objects: objects.count, wobjs: wobjs.count, buildings };
   });
   void T; void TILE_SIZE; void Graphics; void tileDiamond;
 }

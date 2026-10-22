@@ -1,3 +1,4 @@
+import { spacedTree } from './distribution';
 import { CHUNK_SIZE } from './constants';
 import { hash2 } from './rng';
 import { Simplex2D } from './simplex';
@@ -126,8 +127,13 @@ function campCenter(seed: number, cellX: number, cellY: number): { x: number; y:
   return { x, y };
 }
 
-export function tileAt(seed: number, x: number, y: number): number {
-  if (isCaveY(y)) return caveTileAt(seed, x, y);
+/** Original surface layout remains the placement reference for persistent landmark IDs. */
+export function landmarkTileAt(seed: number, x: number, y: number): number { return surfaceTileAt(seed, x, y, true); }
+
+export function tileAt(seed: number, x: number, y: number): number { return surfaceTileAt(seed, x, y, false); }
+
+function surfaceTileAt(seed: number, x: number, y: number, legacy: boolean): number {
+  if (isCaveY(y)) return caveTileAt(seed, x, y, legacy);
   const tt = townTileAt(seed, x, y);
   if (tt !== null) return tt;
   // Spawn shrine: path disc, four torches.
@@ -153,9 +159,9 @@ export function tileAt(seed: number, x: number, y: number): number {
     // dunes: open sand with rare scrub, cacti and wind-cut boulders
     if (biome !== 'desert') return T.SAND;
     const r = hash2(seed, x, y, 31);
-    if (r < 0.012) return T.TREE;                               // cactus
+    if (r < 0.012) return legacy || spacedTree(seed, x, y) ? T.TREE : T.SAND; // cactus
     if (r < 0.02) return T.ROCK;
-    if (r < 0.026) return hash2(seed, x, y, 32) < 0.3 ? T.ORE_GOLD : T.ORE_COPPER;
+    if (r < 0.026) return hash2(seed, legacy ? x : Math.floor(x / 10), legacy ? y : Math.floor(y / 10), 32) < 0.3 ? T.ORE_GOLD : T.ORE_COPPER;
     if (r < 0.05) return T.GRASS_TALL;                          // dry scrub
     return T.SAND;
   }
@@ -180,7 +186,7 @@ export function tileAt(seed: number, x: number, y: number): number {
   const woody = biome === 'forest' ? 0.12 + 0.6 * grove : biome === 'autumn' ? 0.1 + 0.5 * grove : biome === 'taiga' ? 0.05 + 0.4 * grove
     : biome === 'swamp' ? 0.05 : biome === 'enchanted' ? 0.04 + 0.35 * grove : biome === 'corrupted' ? 0.03 : 0.5 * grove * (0.55 + 0.45 * Math.max(0, c.moisture + 0.3));
   const treeP = (0.004 + woody) * Math.min(1, shoreDist * 6);
-  if (hash2(seed, x, y, 2) < treeP && r0 > 7) return T.TREE;
+  if (hash2(seed, x, y, 2) < treeP && r0 > 7 && (legacy || spacedTree(seed, x, y))) return T.TREE;
 
   // boulder fields on rocky ground; ore outcrops get richer the further you roam from the shrine
   const rocky = l.rocky.fbm(x / 45 - 90, y / 45 + 90, 3);
@@ -188,7 +194,8 @@ export function tileAt(seed: number, x: number, y: number): number {
   const rockP = 0.003 + rockBias + 0.2 * smooth(rocky, 0.35, 0.65);
   const rr = hash2(seed, x, y, 3);
   if (rr < rockP && r0 > 7) {
-    const o = hash2(seed, x, y, 6);
+    // One mineral family per geological pocket; rock positions and overall tier rates remain compatible.
+    const o = legacy ? hash2(seed, x, y, 6) : hash2(seed, Math.floor(x / 10), Math.floor(y / 10), 6);
     if ((c.flux > 0.42 || biome === 'corrupted' || biome === 'enchanted') && o < (biome === 'corrupted' ? 0.3 : 0.1)) return T.CRYSTAL;
     if (r0 > 150 && o < 0.1) return T.ORE_GOLD;
     if ((r0 > 90 || biome === 'taiga') && o < 0.2) return T.ORE_SILVER;
@@ -202,10 +209,10 @@ export function tileAt(seed: number, x: number, y: number): number {
 
   // flower meadows and tall-grass patches
   const meadow = l.meadow.fbm(x / 20 + 300, y / 20 - 300, 2);
-  const flowerK = biome === 'taiga' || biome === 'corrupted' ? 0.12 : biome === 'enchanted' ? 0.8 : 0.5;
+  const flowerK = biome === 'taiga' || biome === 'corrupted' ? 0.12 : biome === 'enchanted' ? 0.8 : legacy ? 0.5 : 0.28;
   if (hash2(seed, x, y, 4) < flowerK * smooth(meadow, 0.2, 0.55) * (0.5 + 0.5 * Math.max(0, c.moisture + 0.4))) return T.FLOWERS;
   const tall = l.meadow.fbm(x / 14 - 500, y / 14 + 500, 2);
-  if (hash2(seed, x, y, 5) < 0.04 + 0.55 * smooth(tall, 0.05, 0.5)) return T.GRASS_TALL;
+  if (hash2(seed, x, y, 5) < (legacy ? 0.04 + 0.55 * smooth(tall, 0.05, 0.5) : 0.015 + 0.28 * smooth(tall, 0.05, 0.5))) return T.GRASS_TALL;
   return T.GRASS;
 }
 

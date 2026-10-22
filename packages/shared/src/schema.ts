@@ -22,6 +22,8 @@ export class PlayerState extends Schema {
   @type('uint8') cls = 0;
   /** Phase 4: party id ('' when not in a party) */
   @type('string') party = '';
+  /** Held equipment appearance; appended for schema field compatibility. Empty means unarmed. */
+  @type('string') weapon = '';
 }
 
 export class EnemyState extends Schema {

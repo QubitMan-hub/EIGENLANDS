@@ -1,5 +1,6 @@
+import { sceneryAt, type SceneryKind } from './scenery';
 import { Container, Sprite } from 'pixi.js';
-import { C, CHUNK_SIZE, PALETTE, T, TILE_DEFS, biomeAt, chunkKey, darkness, hash2, sampleClimate, type ChunkStore } from '@eigenlands/shared';
+import { C, CHUNK_SIZE, PALETTE, T, TILE_DEFS, biomeAt, chunkKey, darkness, hash2, isCaveY, sampleClimate, type ChunkStore } from '@eigenlands/shared';
 import { depth, isoX, isoY } from './iso';
 import { WindField, CALM } from './windfield';
 import { FRAMES_PER_VARIANT, type ObjectArt, type ObjSprite } from '../art/objects';
@@ -72,8 +73,9 @@ export class ObjectViews {
     const qok = biome === 'meadow' || biome === 'forest';
     const kind = qok && kind0 === 'tree' && sampleClimate(this.store.seed, tx, ty).flux > 0.5 && hash2(this.store.seed, tx, ty, 97) < 0.6 ? 'qtree' : kind0;
     // each biome dresses the shared tile kinds in its own flora (pines and snow, cacti, willows, glowcaps...)
+    const underground = isCaveY(ty) ? this.art.cave[kind] : undefined;
     const own = (this.art.biome[biome] as Record<string, ObjSprite[]> | undefined)?.[kind];
-    const list = own ?? (this.art as unknown as Record<string, ObjSprite[]>)[kind];
+    const list = underground ?? (kind.startsWith('wild_') ? this.art.scenery[kind as SceneryKind] : undefined) ?? own ?? (this.art as unknown as Record<string, ObjSprite[]>)[kind];
     if (!list || !list.length) return null;
     if (kind === 'fence') {
       // connect to neighbouring fences: N=1 E=2 S=4 W=8
@@ -84,7 +86,7 @@ export class ObjectViews {
     const frames = FRAMES_PER_VARIANT[kind] ?? 1;
     const nvar = Math.max(1, Math.floor(list.length / frames));
     const variant = Math.floor(hash2(this.store.seed, tx, ty, 99) * nvar);
-    return { s: list[variant * frames]!, variant, frames, key: own ? `${biome}:${kind}` : kind };
+    return { s: list[variant * frames]!, variant, frames, key: underground ? `cave:${kind}` : own ? `${biome}:${kind}` : kind };
   }
 
   private makeObj(tx: number, ty: number, kind: string): Obj | null {
@@ -93,9 +95,12 @@ export class ObjectViews {
     const root = new Sprite(p.s.tex);
     root.anchor.set(p.s.ax / p.s.tex.width, p.s.ay / p.s.tex.height);
     // billboard standing on the tile's ground centre (iso): feet at the anchor point
-    root.x = Math.round(isoX(tx + 0.5, ty + 0.5));
-    root.y = Math.round(isoY(tx + 0.5, ty + 0.5));
-    const flat = kind === 'flowers' || kind === 'forage' || kind === 'stump';
+    const organic = !['torch', 'fence', 'stump'].includes(kind);
+    const jx = organic ? (hash2(this.store.seed, tx, ty, 1600) - 0.5) * 0.26 : 0;
+    const jy = organic ? (hash2(this.store.seed, tx, ty, 1601) - 0.5) * 0.26 : 0;
+    root.x = Math.round(isoX(tx + 0.5 + jx, ty + 0.5 + jy));
+    root.y = Math.round(isoY(tx + 0.5 + jx, ty + 0.5 + jy));
+    const flat = kind.startsWith('wild_') || kind === 'flowers' || kind === 'forage' || kind === 'stump';
     root.zIndex = depth(tx + 0.5, ty + 0.5) - (flat ? 200 : 0);
     const shadow = new Sprite(p.s.tex);
     shadow.anchor.copyFrom(root.anchor);
@@ -123,7 +128,8 @@ export class ObjectViews {
     const chunk = this.store.get(cx, cy);
     const m = new Map<number, Obj>();
     for (let i = 0; i < chunk.tiles.length; i++) {
-      const kind = TILE_DEFS[chunk.tiles[i]!]?.obj;
+      const tx = cx * CHUNK_SIZE + i % CHUNK_SIZE, ty = cy * CHUNK_SIZE + Math.floor(i / CHUNK_SIZE);
+      const kind = TILE_DEFS[chunk.tiles[i]!]?.obj ?? sceneryAt(this.store, tx, ty);
       if (!kind) continue;
       const o = this.makeObj(cx * CHUNK_SIZE + (i % CHUNK_SIZE), cy * CHUNK_SIZE + Math.floor(i / CHUNK_SIZE), kind);
       if (o) m.set(i, o);
@@ -139,7 +145,7 @@ export class ObjectViews {
     const idx = (ty - cy * CHUNK_SIZE) * CHUNK_SIZE + (tx - cx * CHUNK_SIZE);
     const old = m.get(idx);
     if (old) { old.root.destroy(); old.shadow.destroy(); old.echo?.destroy(); m.delete(idx); }
-    const kind = TILE_DEFS[this.store.getTile(tx, ty)]?.obj;
+    const kind = TILE_DEFS[this.store.getTile(tx, ty)]?.obj ?? sceneryAt(this.store, tx, ty);
     if (kind) { const o = this.makeObj(tx, ty, kind); if (o) m.set(idx, o); }
     // a changed fence tile changes how its neighbours connect
     if (!noPropagate && (kind === 'fence' || old?.kind === 'fence')) {
@@ -180,14 +186,15 @@ export class ObjectViews {
             o.echo.alpha = reduced ? 0.2 : 0.16 + 0.1 * Math.sin(t * 1.7 + o.phase);
           }
           if (o.frames > 1) {
-            const list = (this.art as unknown as Record<string, ObjSprite[]>)[o.artKey]!;
+            const [context, kind] = o.artKey.split(':');
+            const list = kind ? context === 'cave' ? this.art.cave[kind]! : (this.art.biome[context as keyof typeof this.art.biome] as Record<string, ObjSprite[]>)[kind]! : (this.art as unknown as Record<string, ObjSprite[]>)[o.artKey]!;
             const rate = o.artKey === 'qtree' ? 0.9 : o.kind === 'crystal' ? 2.2 : o.kind === 'torch' ? 6 : o.kind === 'bloom' ? 3 : 1.4;
             const f = reduced ? 0 : Math.floor(t * rate + o.phase) % o.frames;
             o.root.texture = list[o.variant * o.frames + f]!.tex;
             o.shadow.texture = o.root.texture;
             if (o.kind === 'bloom') o.root.alpha = reduced ? 1 : 0.8 + 0.2 * Math.sin(t * 2 + o.phase);
           }
-          const flat = o.kind === 'tallgrass' || o.kind === 'flowers' || o.kind === 'bloom' || o.kind === 'forage';
+          const flat = o.kind.startsWith('wild_') || o.kind === 'tallgrass' || o.kind === 'flowers' || o.kind === 'bloom' || o.kind === 'forage';
           o.shadow.visible = !flat && sun.alpha > 0.02;
           if (o.shadow.visible) {
             o.shadow.alpha = sun.alpha;

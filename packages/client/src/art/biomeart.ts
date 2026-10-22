@@ -1,9 +1,10 @@
+import { drawOutcrop } from './geology';
 import { hash2, mulberry32, type Biome } from '@eigenlands/shared';
 import {
   branches, buildFlowers, buildRocks, buildStump, buildTallGrass, crown, drawBroadleaf, drawPine, toSprite, trunk,
   type ObjSprite, type SeasonIdx,
 } from './objects';
-import { C, line, lump, makeCanvas, poly, put, stonePile, type Ctx, type Ramp } from './shade';
+import { C, line, lump, makeCanvas, poly, put, type Ctx, type Ramp } from './shade';
 
 /**
  * Biome flora in the same painterly block-tile style as objects.ts: each biome swaps the sprites of the shared
@@ -103,15 +104,11 @@ function list(n: number, draw: (ctx: Ctx, v: number) => void, w = 48, h = 64, ax
 }
 
 /** Rocks of one colour ramp (sandstone, obsidian), in the same pile shapes as the meadow boulders. */
-function rocksOf(ramp: Ramp, seed: number, crystal: boolean): ObjSprite[] {
+function rocksOf(ramp: Ramp, crystal: boolean): ObjSprite[] {
   return list(4, (ctx, v) => {
-    const piles: Array<Array<[number, number, number, number]>> = [
-      [[18, 17, 10, 11], [27, 22, 7, 7]], [[20, 20, 12, 9]], [[20, 15, 8, 12], [12, 24, 6, 5]], [[14, 22, 7, 6], [24, 21, 8, 7], [20, 26, 6, 4]],
-    ];
-    stonePile(ctx, piles[v]!, ramp, { seed: seed + v * 7, rough: 0.14, edge: 0.22, flat: ramp === SANDSTONE ? 0.55 : 0.2 });
-    if (ramp === SANDSTONE) for (let y = 12; y < 30; y += 3) for (let x = 6; x < 34; x++) if (hash2(seed, x, y, v) > 0.8) put(ctx, x, y, C.e3);  // wind-cut strata
-    if (crystal) { const [x, y] = piles[v]![0]!; poly(ctx, [[x - 2, y - 2], [x, y - 12], [x + 2, y - 2]], (px) => (px < x ? CRY[5]! : CRY[3]!)); }
-  }, 40, 34, 20, 29);
+    drawOutcrop(ctx, v, undefined, false, 0, ramp);
+    if (crystal) poly(ctx, [[18, 23], [20, 12], [23, 23]], px => px < 20 ? CRY[5]! : CRY[2]!);
+  }, 40, 40, 20, 29);
 }
 
 /** Reeds, dry scrub, glow ferns and ash thorns: per-biome replacements for tall grass. */
@@ -158,7 +155,7 @@ export function buildBiomeArt(season: SeasonIdx): BiomeArt {
     },
     desert: {
       tree: list(3, (ctx, v) => drawCactus(ctx, 600 + v, v < 2)),
-      rock: rocksOf(SANDSTONE, 610, false),
+      rock: rocksOf(SANDSTONE, false),
       tallgrass: bladesOf([C.e2, C.e3, C.e4, C.e5, C.e6], 80, { tall: 9 }),
     },
     enchanted: {
@@ -168,7 +165,7 @@ export function buildBiomeArt(season: SeasonIdx): BiomeArt {
     },
     corrupted: {
       tree: list(3, (ctx, v) => drawVoidTree(ctx, 800 + v * 13)),
-      rock: rocksOf(OBSIDIAN, 810, true),
+      rock: rocksOf(OBSIDIAN, true),
       tallgrass: bladesOf([C.ink, C.night, C.q0, C.slate, C.steel], 99, { tall: 10, glow: C.q5 }),
       flowers: mushroomsOf([C.q0, C.q1, C.q2, C.q3], C.slate, C.q6, 105),
     },

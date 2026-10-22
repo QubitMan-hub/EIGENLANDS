@@ -63,7 +63,13 @@ function bookcase(face: Facing): ObjSprite {
         return fz - 1 > bh - 0.8 ? (lit ? C.pale : C.mist) : lit ? bk[1] : bk[0];           // page tops catch the light
       },
     });
-    p.box(A0 - 0.5, 0.3, H, DA + 1, D + 0.6, 1.4, { ramp: DARKWOOD });                     // crown moulding
+    p.box(A0 - 0.5, 0.3, H, DA + 1, D + 0.6, 1.4, { ramp: DARKWOOD });
+    p.box(A0 - 0.2, 0.5, 0, DA + 0.4, D + 0.4, 1.5, { ramp: WOODM }); // worn plinth
+    // A bound folio and scrolls on the top, all seated on the cornice.
+    p.box(3, 1, H + 1.4, 4, 3.2, 1.1, { ramp: [C.w0, C.w1, C.w2, C.w3], front: () => C.e6 });
+    p.line(8, 1.8, H + 2, 11.5, 1.8, H + 2, C.e6);
+    p.line(8, 2.8, H + 2, 11, 2.8, H + 2, C.pale);
+    p.dot(10, 2.4, H + 2.2, C.r2); // binding ribbon
   });
 }
 
@@ -84,6 +90,11 @@ function wardrobe(face: Facing): ObjSprite {
       end: planks(27, 5),
     });
     p.box(A0 - 0.6, 0.2, H, DA + 1.2, D + 0.7, 1.5, { ramp: WOODM });
+    p.box(A0 - 0.4, 0.3, 1, DA + 0.8, D + 0.4, 1.2, { ramp: DARKWOOD });
+    p.box(4, 1, H + 1.5, 6, 3.5, 1.6, { ramp: LINEN, front: (s) => s > 0.68 && s < 0.82 ? C.w3 : null });
+    for (const a of [A0 + 0.6, A0 + DA - 0.8]) for (const z of [7, 21]) {
+      p.line(a, D + 0.55, z, a + 0.8, D + 0.55, z, C.e5); // hinge straps
+    }
   });
 }
 
@@ -101,9 +112,14 @@ function shelf(face: Facing): ObjSprite {
         const jar = ((px - 1) % 3) < 2.2 && fz < 4.5;
         if (!jar) return C.ink;
         const cols = [[C.w3, C.w5], [C.g3, C.g5], [C.r3, C.r5], [C.e5, C.e7]][(col + row) % 4]!;
-        return fz > 3.7 ? C.e1 : lit ? cols[1] : cols[0];                                     // corked jars
+        if (fz > 3.7) return C.e1; // cork
+        if (fz > 1.4 && fz < 2.7) return lit ? C.e7 : C.e5; // paper label
+        return lit ? cols[1] : cols[0];
       },
     });
+    p.box(A0 - 0.3, 0.3, H, DA + 0.6, D + 0.4, 1, { ramp: LIGHTWOOD });
+    p.cyl(5.5, 2.4, H + 1, 1.3, 2.2, [C.r0, C.r1, C.r2, C.r3], [C.e1, C.e2]);
+    p.cyl(10, 2.4, H + 1, 1, 3, [C.w0, C.w1, C.w2, C.w3], [C.e2, C.e3]);
   });
 }
 
@@ -114,7 +130,9 @@ function table(face: Facing, items = true): ObjSprite {
     p.box(1.5, 2, 8, 13, 12, 1.6, { ramp: LIGHTWOOD, top: (s, t, c) => (Math.round(s * 13) % 4 === 0 ? c(-1) : null) });
     if (items) {
       p.cyl(5, 6, 9.6, 1.6, 2.5, [C.slate, C.steel, C.mist, C.fog], [C.e2, C.e3]);         // a mug
-      const iso2 = p.iso; void iso2;
+      p.cyl(10, 10, 9.6, 2.3, 0.5, LINEN, LINEN); // earthenware plate
+      p.cyl(10, 10, 10.1, 1.5, 1.2, STRAW, STRAW); // bread
+      p.line(9.4, 9.5, 11.3, 10.4, 10.5, 11.3, C.e7);
       p.box(8, 7, 9.6, 4.5, 3.5, 0.6, { ramp: LINEN });                                    // a folded cloth
       void ctx;
     }
@@ -129,6 +147,12 @@ function desk(face: Facing): ObjSprite {
     p.cyl(4, 3.5, 9.9, 1.2, 2, [C.ink, C.night, C.slate], [C.ink]);                         // inkpot
     p.line(4.6, 3.5, 12, 6.5, 2.5, 16, C.white);                                             // quill
     p.dot(6.5, 2.5, 16, C.fog);
+    // An open ledger: its two page planes rise toward the spine.
+    p.box(8, 2, 9.9, 5.5, 4.5, 0.5, { ramp: [C.r0, C.r1, C.r2, C.r3] });
+    p.box(8.3, 2.2, 10.4, 4.9, 4, 0.4, { ramp: LINEN,
+      top: (s, t) => Math.abs(s - 0.5) < 0.09 ? C.e3 : t > 0.25 && t < 0.8 && Math.floor(t * 12) % 3 === 0 && s > 0.1 && s < 0.9 ? C.e4 : C.e7 });
+    p.line(10.8, 2.3, 11, 10.8, 6.3, 11, C.e3);
+    p.dot(12.5, 6.6, 10.5, C.r2); // wax seal
   });
 }
 
@@ -167,7 +191,12 @@ function bed(face: Facing): ObjSprite {
     const QUILT: Ramp = [C.r0, C.r1, C.r2, C.r3, C.r4, C.r5];
     p.box(A0 + 0.2, 5.2, 4.2, DA - 0.4, 10.3, 2.8, {
       ramp: QUILT,
-      top: (s, t, c) => ((Math.round(s * 12) + Math.round(t * 10)) % 4 === 0 ? c(-1) : t < 0.1 ? C.pale : null),   // patchwork, a sheet fold
+      top: (s, t, c) => {
+        if (t < 0.13) return C.pale; // turned linen sheet
+        if (s < 0.1 || s > 0.9 || t > 0.9) return C.e6; // embroidered border
+        const a = Math.floor(s * 4), b = Math.floor(t * 4);
+        return (a + b) % 2 === 0 ? c(1) : c(-1);
+      },   // patchwork, a sheet fold
       front: (s, t, c) => (Math.round(s * 12) % 4 === 0 ? c(-1) : null),
     });
     p.box(A0 - 0.4, 0, 0, DA + 0.8, 1.4, 12, { ramp: DARKWOOD, front: (s, t, c) => (t > 0.45 && t < 0.85 && Math.round(s * 13) % 3 !== 0 ? c(-1) : null) });   // headboard
@@ -651,10 +680,27 @@ function shrineAltar(face: Facing, f: number): ObjSprite {
     const rune: Detail = (s, t) => (Math.abs(t - 0.45) < 0.08 && Math.round(s * 12) % 3 !== 0 ? glow : null);
     p.box(0.5, 0.5, 0, 15, 15, 3, { ramp: STONEM });                                            // a broad step
     p.box(2.5, 2.5, 3, 11, 11, 7, { ramp: STONEM, front: rune, end: rune });
-    p.box(4.5, 4.5, 10, 7, 7, 2, { ramp: STONEM });
-    const ox = p.X(8, 8), oy = p.Y(8, 8, 19);
-    blob(ctx, ox, oy, 4.5 + (f % 2) * 0.5, 4.5 + (f % 2) * 0.5, [C.q2, C.q4, glow, C.white], { seed: 14, noise: 0, edgeDark: 0.1 });   // the floating resonance orb
-    for (let i = 0; i < 6; i++) { const a = (i / 6) * 6.283 + f * 0.5; put(ctx, Math.round(ox + Math.cos(a) * 8), Math.round(oy + Math.sin(a) * 3), C.q7); }
+    p.box(4, 4, 10, 8, 8, 1.5, { ramp: [C.e1, C.e2, C.e3, C.e4, C.e5] });
+    p.cyl(8, 8, 11.5, 3.2, 1.5, [C.e1, C.e2, C.e4, C.e5], [C.q0, C.q1, C.q2]);
+    // A recessed brass cradle and a suspended, faceted qubit. Orbit threads have a back and a front half.
+    const ox = p.X(8, 8), oy = p.Y(8, 8, 21);
+    const orbit = (front: boolean) => {
+      for (let i = 0; i < 32; i++) {
+        const a = i / 32 * Math.PI * 2;
+        if ((Math.sin(a) >= 0) !== front) continue;
+        const x = Math.round(ox + Math.cos(a) * 8), y = Math.round(oy + Math.sin(a) * 3);
+        if (i % 4 !== 0) put(ctx, x, y, front ? C.q4 : C.q2);
+      }
+      const a = f * Math.PI / 2 + (front ? 0 : Math.PI);
+      put(ctx, Math.round(ox + Math.cos(a) * 8), Math.round(oy + Math.sin(a) * 3), front ? C.q7 : C.q5);
+    };
+    orbit(false);
+    poly(ctx, [[ox, oy - 6], [ox + 4, oy], [ox, oy + 5], [ox - 4, oy]], C.q3);
+    poly(ctx, [[ox, oy - 6], [ox - 4, oy], [ox, oy + 1]], C.q6);
+    poly(ctx, [[ox, oy - 6], [ox + 4, oy], [ox, oy + 1]], C.q4);
+    put(ctx, Math.round(ox - 1), Math.round(oy - 3), C.white, 1, 2);
+    orbit(true);
+    for (const a of [3, 12]) p.dot(a, 13, 4, C.e6);
   });
 }
 
@@ -662,7 +708,9 @@ function shrinePillar(face: Facing): ObjSprite {
   return iso(30, 64, face, (p) => {
     const rune: Detail = (s, t) => (Math.abs(s - 0.5) < 0.2 && [0.3, 0.5, 0.7].some((r) => Math.abs(t - r) < 0.03) ? C.q5 : null);
     p.box(3, 3, 0, 10, 10, 4, { ramp: STONEM });
-    p.box(4.5, 4.5, 4, 7, 7, 28, { ramp: STONEM, front: rune, end: rune });
+    const channel: Detail = (s, t, c, x, y, lit) => rune(s, t, c, x, y, lit) ?? (Math.abs(s - 0.5) < 0.2 && t > 0.16 && t < 0.85 ? c(-1) : null);
+    p.box(4.5, 4.5, 4, 7, 7, 28, { ramp: STONEM, front: channel, end: channel });
+    for (const z of [8, 28]) p.box(4, 4, z, 8, 8, 1, { ramp: [C.e1, C.e2, C.e3, C.e4, C.e5] });
     p.box(3.5, 3.5, 32, 9, 9, 3, { ramp: STONEM });
   });
 }

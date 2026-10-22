@@ -68,12 +68,12 @@ export class Fx {
         // filled fan (fades), bright leading edge (the "blade")
         const pts: number[] = [...P(ang, 0.15)];
         for (let i = 0; i <= n; i++) pts.push(...P(lo + ((hi - lo) * i) / n, reach));
-        g.poly(pts).fill({ color: pc(color), alpha: (thick ? 0.5 : 0.38) * (1 - k) });
+        g.poly(pts).fill({ color: pc(color), alpha: (thick ? 0.24 : 0.12) * (1 - k) });
         const inner: number[] = [];
         for (let i = 0; i <= n; i++) inner.push(...P(lo + ((hi - lo) * i) / n, reach * 0.62));
         const outer: number[] = [];
         for (let i = n; i >= 0; i--) outer.push(...P(lo + ((hi - lo) * i) / n, reach));
-        g.poly([...inner, ...outer]).fill({ color: pc(7), alpha: 0.55 * (1 - k) });
+        g.poly([...inner, ...outer]).fill({ color: pc(7), alpha: 0.4 * (1 - k) });
         const tip = P(a1, reach);
         g.moveTo(...P(a1, reach * 0.3)).lineTo(tip[0], tip[1]).stroke({ color: pc(7), width: thick ? 2 : 1.4, alpha: 1 - k });
       },

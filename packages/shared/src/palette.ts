@@ -1,15 +1,15 @@
 /** The fixed 48-colour master palette. All art is drawn from these values only. */
 export const PALETTE = [
   // neutrals (navy ink -> cool stone -> bone white); blue-grey like weathered rock, never pure black
-  '#090a14', '#151d28', '#202e37', '#394a50', '#577277', '#819796', '#a8b5b2', '#ebede9',
+  '#10141f', '#1c2630', '#2b3941', '#46565b', '#6b7c7c', '#98a49c', '#c3c9b9', '#f1efdb',
   // greens (deep moss -> olive -> lime highlight -> pale straw-green)
-  '#19332d', '#25562e', '#34692f', '#468232', '#5d953c', '#75a743', '#a8ca58', '#d0da91',
+  '#203b35', '#305343', '#45694c', '#5b8056', '#78965e', '#97ae70', '#bbca8a', '#dde0ab',
   // earth (plum-black soil -> cocoa -> clay -> warm tan -> parchment)
-  '#241527', '#341c27', '#4d2b32', '#7a4841', '#ad7757', '#c09473', '#d7b594', '#e7d5b3',
+  '#29202c', '#443039', '#62433f', '#89604b', '#af855e', '#cba67c', '#e1c49b', '#eee0bb',
   // water (night navy -> slate blue -> sea blue -> cyan foam)
-  '#172038', '#253a5e', '#3c5e8b', '#4f8fba', '#5fa5c6', '#73bed3', '#a4dddb', '#d6f0ea',
+  '#152b3b', '#224555', '#326779', '#4a8b98', '#69aab0', '#91c4c3', '#b9ddcf', '#e0eee0',
   // warm (rust soil -> brick red -> ember -> amber -> butter)
-  '#602c2c', '#884b2b', '#a53030', '#cf573c', '#da863e', '#de9e41', '#e8c170', '#f4e4ac',
+  '#61333e', '#874840', '#ae574b', '#ce7556', '#dd985f', '#e2b16d', '#eed093', '#f5e5b9',
   // quantum (signature; kept as small glowing accents: indigo -> violet -> lilac, magenta/pink, cyan glow)
   '#1e1d39', '#402751', '#61358a', '#8a52b8', '#b98ad6', '#c65197', '#df84a5', '#7fe3d3',
 ] as const;

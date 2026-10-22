@@ -147,23 +147,22 @@ function cropDef(d: CropData | undefined, sub: string): ObjSpriteDef {
   if (!b || dead) {
     out = still(sprite(32, 30, 16, 23, (ctx) => drawCluster(ctx, def, stage, a.length * 31 + stage, dead), { flat: true }), { noShadow: def.shape !== 'stalk', sway: def.shape === 'stalk' ? 0.05 : 0.04 });
   } else {
-    // superposition: both crops overlaid on a flickering checkerboard that swaps every frame, with q-sparkles
+    // A stable primary silhouette and a coherent alternate echo, rather than swapping single-pixel checkers.
     const defB = CROPS[b] ?? def;
-    const mk = (par: number) => sprite(32, 30, 16, 23, (ctx) => {
+    const mk = (phase: number) => sprite(32, 30, 16, 23, (ctx) => {
       const A = makeCanvas(32, 30), B = makeCanvas(32, 30);
       drawCluster(A.ctx, def, stage, a.length * 31 + stage, false, -1);
       drawCluster(B.ctx, defB, Math.min(3, stage), b.length * 17 + stage, false, 2);
-      const ia = A.ctx.getImageData(0, 0, 32, 30).data, ib = B.ctx.getImageData(0, 0, 32, 30).data;
-      const o = ctx.createImageData(32, 30);
-      for (let y = 0; y < 30; y++) for (let x = 0; x < 32; x++) {
-        const i = (y * 32 + x) * 4, pickA = ((x + y + par) & 1) === 0;
-        const src = pickA ? (ia[i + 3]! ? ia : ib) : (ib[i + 3]! ? ib : ia);
-        for (let k = 0; k < 4; k++) o.data[i + k] = src[i + k]!;
+      ctx.save(); ctx.globalAlpha = 0.36; ctx.drawImage(B.canvas, 0, 0); ctx.restore();
+      ctx.drawImage(A.canvas, 0, 0);
+      // One restrained strand links the two states; sparse motes move, the plants do not flicker.
+      for (let i = 0; i < 12; i++) {
+        const x = 9 + i, y = 10 + Math.round(Math.sin(i * 0.45) * 2);
+        if (i % 3 !== 0) put(ctx, x, y, i < 6 ? C.q4 : C.w5);
       }
-      ctx.putImageData(o, 0, 0);
-      for (let i = 0; i < 5; i++) put(ctx, 4 + ((i * 7 + par * 5) % 24), 4 + ((i * 5 + par * 3) % 20), i % 2 ? C.q7 : C.q5);
-    }, { flat: true, fringe: true });
-    out = anim([mk(0), mk(1)], 3, { noShadow: true });
+      for (let i = 0; i < 3; i++) put(ctx, 6 + i * 9, 5 + ((i * 5 + phase * 2) % 12), i % 2 ? C.q7 : C.q6);
+    }, { flat: true });
+    out = anim([mk(0), mk(1), mk(2), mk(3)], 1, { noShadow: true, sway: 0.025 });
   }
   cropCache.set(key, out);
   return out;

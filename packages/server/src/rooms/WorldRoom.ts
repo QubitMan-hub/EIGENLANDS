@@ -538,6 +538,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     const s = p.state;
     s.x = p.sim.x; s.y = p.sim.y; s.faceX = p.sim.faceX; s.faceY = p.sim.faceY;
     s.hp = p.hp; s.maxHp = p.maxHp; s.level = p.level; s.xp = p.xp; s.ack = p.lastSeq; s.look = lookOf(p);
+    s.weapon = this.weaponOf(p)?.id ?? '';
     p.client.send(MSG.ACK, encodeAck({ seq: p.lastSeq, tick, sim: p.sim }));
     const sim = p.sim;
     s.flags = (sim.dashT > 0 ? 1 : 0) | (sim.atkCd > 0.12 ? 2 : 0) | (p.deadT > 0 ? 4 : 0)
@@ -563,7 +564,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     const power = ev.heavy ? 0.7 + 0.5 * ev.level : 1;
     const aim = Math.hypot(cmd.aimX, cmd.aimY) > 1e-3 ? { x: cmd.aimX, y: cmd.aimY } : { x: p.sim.faceX, y: p.sim.faceY };
     if (!this.hookWeaponShot(p, shot, aim.x, aim.y, power * (1 + p.stats.atkBonus * 0.02))) this.resolveMelee(p, cmd, ev, tick);
-    else this.fx({ kind: 'shot', x: p.sim.x, y: p.sim.y, dx: aim.x, dy: aim.y, v: w.hue < 0 ? 8 : w.hue }, p.client.sessionId);
+    else this.fx({ kind: 'shot', id: p.client.sessionId, x: p.sim.x, y: p.sim.y, dx: aim.x, dy: aim.y, v: w.hue < 0 ? 8 : w.hue }, p.client.sessionId);
   }
 
   /** A sloop's guns replace melee while sailing. */

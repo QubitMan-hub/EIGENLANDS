@@ -3,10 +3,11 @@
  * the marble hero holding the qubit aloft. The other town props live in props.ts.
  */
 import { Texture } from 'pixi.js';
-import { mulberry32 } from '@eigenlands/shared';
+import { Scene, rampOf, type Mat } from './sprite';
+import { mulberry32, PALETTE } from '@eigenlands/shared';
 import type { ObjSprite } from './objects';
 import type { ObjSpriteDef } from './worldobjs';
-import { blob, C, limb, makeCanvas, outline, pixelText, poly, polish, put, rampAt, undithered, type Ctx, type Ramp } from './shade';
+import { blob, C, makeCanvas, outline, pixelText, poly, polish, put, undithered, type Ctx, type Ramp } from './shade';
 import { Iso } from './isokit';
 import { PLINTH, statueInscription, statuePlinth } from './props';
 
@@ -31,10 +32,70 @@ function make(w: number, h: number, ax: number, ay: number, draw: (ctx: Ctx) => 
   return finish(canvas, ax, ay);
 }
 
+/** Sculpted as actual volumes through the same 2:1 camera as creatures, with a quiet carved face. */
+let marbleHero: HTMLCanvasElement | null = null;
+function drawMarbleHero(ctx: Ctx): void {
+  if (!marbleHero) {
+    const { canvas, ctx: c } = makeCanvas(108, 128);
+    const colour = (i: number) => parseInt(PALETTE[i]!.slice(1), 16);
+    const marble: Mat = { r: rampOf(MARBLE.map(colour), 2) };
+    const shade: Mat = { r: rampOf(MARBLE_D.map(colour), 2) };
+    const gold: Mat = { r: rampOf([C.e2, C.e3, C.e4, C.e5, C.e6].map(colour), 2) };
+    // A restrained wind-swept mantle, with a folded hem and separate lit/shaded masses.
+    poly(c, [[39, 47], [47, 48], [49, 65], [43, 95], [36, 108], [25, 108], [23, 103], [28, 85], [33, 64]], (x, y) => {
+      const fold = (x - 17) / 45 + (y - 48) / 130;
+      return MARBLE_D[Math.max(0, Math.min(4, Math.floor(4.2 - fold * 2.8) - (x > 31 && x < 35 ? 1 : 0)))]!;
+    });
+    const s = new Scene(108, 128, 52, 110, 0);
+    // Weight over the planted leg, the other knee relaxed; feet share the plinth's actual projected plane.
+    s.cap([0, 5, 35], [0, 11, 20], 3.9, 3.1, marble);
+    s.cap([0, 11, 20], [4, 13, 4], 3.1, 2.4, marble);
+    s.ell([6, 13, 2.3], [5.3, 2.8, 2.4], marble);
+    s.cap([0, -5, 35], [-1, -10, 20], 3.8, 2.9, shade);
+    s.cap([-1, -10, 20], [1, -13, 4], 2.9, 2.3, shade);
+    s.ell([3, -13, 2.3], [5, 2.7, 2.4], shade);
+    s.ell([0, 0, 36], [5.2, 6.8, 7], marble);
+    s.ell([0, 0, 50], [5.5, 8.5, 12.5], marble);
+    // Tunic folds and a short sculpted hem avoid the old bodybuilder chest/etched abs.
+    s.ell([1, 0, 37], [6.1, 7.4, 5], shade);
+    s.cap([4.8, -3, 43], [5.3, -3, 55], 0.55, 0.7, shade);
+    s.cap([5, 3, 43], [5.5, 4, 56], 0.5, 0.7, marble);
+    s.ell([0.5, 0, 40.5], [5.8, 7, 1.5], shade);
+    s.ell([6, 0, 40.5], [1, 1.5, 1.7], gold);
+    // Resting hand gently closes over the cloak at the waist.
+    s.cap([0, 8, 58], [0, 13, 47], 3.4, 2.8, marble);
+    s.cap([0, 13, 47], [5, 6, 43], 2.7, 2.1, marble);
+    s.ell([5, 5, 43], [2.1, 2.2, 2.7], marble);
+    // Raised arm has distinct upper arm, elbow, forearm and supporting palm.
+    s.cap([0, -7, 59], [2, -16, 73], 3.4, 2.7, shade);
+    s.cap([2, -16, 73], [7, -22, 87], 2.7, 2.1, marble);
+    s.ell([7.5, -22, 89], [2.8, 2.5, 1.6], marble);
+    s.cap([7, -24, 88.5], [9, -25, 91], 0.8, 0.65, marble);
+    s.cap([1, 0, 61], [2, 0, 67], 2.5, 2.3, marble);
+    s.ell([2, 0, 73], [4.7, 4.2, 6.4], marble);
+    s.ell([5.8, 0, 72.8], [1.6, 1.1, 2], marble); // nose with a visible side plane
+    s.ell([1.4, 0, 78], [4.9, 4.4, 3.6], shade);
+    for (const y of [-3, 0, 3]) s.cap([4.7, y, 78], [-1.5, y, 80], 0.6, 0.8, marble);
+    for (const y of [-2.7, 2.7]) {
+      s.cap([5.4, y - 0.4, 75.4], [5.5, y + 0.4, 75.4], 0.55, 0.5, shade);
+      s.dot([5.8, y, 74.7], colour(C.steel), 1, 1, 1.2);
+    }
+    s.cap([3.7, 3.7, 77], [5.8, 0, 77], 0.5, 0.5, gold);
+    s.cap([6.2, -1, 70.4], [6.2, 1, 70.4], 0.45, 0.45, shade);
+    s.ell([2, 6.5, 59], [1.3, 1.6, 1.3], gold);
+    const data = c.createImageData(108, 128);
+    new Uint32Array(data.data.buffer).set(s.resolve({ topLight: true }));
+    // Composite the body over the mantle, retaining transparent negative space between the limbs.
+    const body = makeCanvas(108, 128); body.ctx.putImageData(data, 0, 0); c.drawImage(body.canvas, 0, 0);
+    marbleHero = canvas;
+  }
+  ctx.drawImage(marbleHero, 0, 0);
+}
+
 // ───────────────────────── the Statue of QubitMan ─────────────────────────
 function statueFrame(f: number): ObjSprite {
-  // a grand square plinth in true iso, the marble hero on top; the old figure art is re-seated onto the cap
-  const W = 156, H = 236, AX = 78, AY = H - 34;
+  // A projected stone plinth and a sculpted hero, both seated on the same ground plane.
+  const W = 156, H = 240, AX = 78, AY = 202; // retain ground anchor, leave room under the lowest plinth edge
   const FX = AX - 52, FY = AY - PLINTH.top - 108;                                    // figure offset (feet at y≈108 in its own frame)
   const brazier = (ctx: Ctx, u: number, v: number) => {
     const I = new Iso(ctx, AX, AY - 8);
@@ -47,51 +108,7 @@ function statueFrame(f: number): ObjSprite {
     statuePlinth(ctx, AX, AY, f);
     for (const [u, v] of corners) brazier(ctx, u, v);
     ctx.save(); ctx.translate(FX, FY);
-    // ── QubitMan (marble), feet on the cap at y≈110; the cape billows to the left in a quantum wind
-    poly(ctx, [[42, 41], [63, 41], [67, 62], [66, 102], [52, 108], [33, 112], [17, 104], [21, 84], [30, 60]], (x, y) => {
-      const fold = Math.sin(x * 0.42 + y * 0.1 + 0.6);
-      const t = 0.66 - (x - 17) / 110 + (fold > 0.6 ? 0.2 : fold < -0.55 ? -0.24 : 0) - (y - 41) / 300;
-      return rampAt(MARBLE_D, t, x, y);
-    });
-    for (let y = 100; y < 112; y++) for (let x = 18; x < 60; x++) if (Math.abs(y - (104 + (x - 17) * 0.15 + Math.sin(x * 0.5) * 1.5)) < 0.6) put(ctx, x, y, C.slate);
-    // legs: heroic stance
-    limb(ctx, 47, 72, 42, 90, 5.6, 4.6, MARBLE, 11);
-    limb(ctx, 42, 90, 40, 104, 4.4, 3.8, MARBLE, 12);
-    limb(ctx, 58, 72, 61, 90, 5.6, 4.6, MARBLE_D, 13);
-    limb(ctx, 61, 90, 63, 104, 4.4, 3.8, MARBLE_D, 14);
-    blob(ctx, 40, 106, 5.2, 3.4, MARBLE, { seed: 15, noise: 0.04, edgeDark: 0.3 });
-    blob(ctx, 64, 106, 5.2, 3.4, MARBLE_D, { seed: 16, noise: 0.04, edgeDark: 0.3 });
-    put(ctx, 36, 101, C.fog, 8, 1); put(ctx, 60, 101, C.mist, 8, 1);             // boot cuffs
-    // torso: broad chest, narrow belted waist
-    poly(ctx, [[39, 43], [66, 43], [62, 58], [60, 71], [45, 71], [42, 58]], (x, y) => rampAt(MARBLE, 0.98 - (x - 39) / 32 - (y - 43) / 110, x, y));
-    blob(ctx, 47, 50, 6.4, 4.6, MARBLE, { seed: 17, noise: 0.02, bright: 0.14, edgeDark: 0.18 });
-    blob(ctx, 58, 50, 6.2, 4.6, MARBLE, { seed: 18, noise: 0.02, bright: -0.04, edgeDark: 0.22 });
-    for (const y of [59, 63]) { put(ctx, 48, y, C.mist, 3, 1); put(ctx, 55, y, C.steel, 3, 1); }
-    put(ctx, 52, 56, C.steel, 1, 13);
-    put(ctx, 44, 69, C.steel, 17, 3); put(ctx, 44, 69, C.mist, 17, 1);           // belt
-    // left fist on the hip
-    limb(ctx, 41, 46, 34, 58, 4.6, 4, MARBLE, 19);
-    limb(ctx, 34, 58, 43, 67, 4, 3.4, MARBLE, 20);
-    blob(ctx, 43, 67, 3.4, 3, MARBLE_D, { seed: 21, noise: 0.03 });
-    // shoulders
-    blob(ctx, 41, 45, 5.6, 4.4, MARBLE, { seed: 22, noise: 0.02, bright: 0.12, edgeDark: 0.22 });
-    blob(ctx, 64, 45, 5.6, 4.4, MARBLE_D, { seed: 23, noise: 0.02, edgeDark: 0.22 });
-    // neck + head, chin up toward the orb
-    put(ctx, 50, 36, C.mist, 6, 6); put(ctx, 50, 36, C.fog, 2, 6);
-    blob(ctx, 53.5, 30, 6.2, 7, MARBLE, { seed: 24, noise: 0.02, edgeDark: 0.18 });
-    poly(ctx, [[49, 33], [60, 31], [59, 37], [54, 39], [49, 37]], (x, y) => rampAt(MARBLE, 0.8 - (x - 49) / 20 - (y - 31) / 25, x, y));
-    blob(ctx, 50.5, 25.5, 6.6, 4.6, MARBLE_D, { seed: 25, noise: 0.18, bright: 0.18, edgeDark: 0.12 });
-    for (const [x, y] of [[44, 26], [43, 28], [45, 23]] as const) put(ctx, x, y, C.mist, 2, 1);   // swept-back hair
-    put(ctx, 56, 29, C.slate, 2, 1); put(ctx, 57, 28, C.steel); put(ctx, 60, 31, C.fog); put(ctx, 59, 34, C.steel, 2, 1);
-    // raised right arm holding the qubit aloft
-    limb(ctx, 64, 46, 70, 31, 4.6, 4.2, MARBLE_D, 26);
-    limb(ctx, 70, 31, 72, 18, 4.2, 3.6, MARBLE, 27, 0.05);
-    blob(ctx, 72.5, 16, 4.4, 4, MARBLE, { seed: 28, noise: 0.03, edgeDark: 0.2 });
-    // gold leaf: circlet, cape clasp, belt buckle, boot trims
-    put(ctx, 47, 24, C.e6, 12, 1); put(ctx, 52, 22, C.e7, 2, 2);
-    put(ctx, 39, 44, C.e6, 3, 3); put(ctx, 40, 45, C.e7);
-    put(ctx, 51, 69, C.e6, 3, 3); put(ctx, 52, 70, C.e7);
-    put(ctx, 36, 101, C.e5, 8, 1); put(ctx, 60, 101, C.e4, 8, 1);
+    drawMarbleHero(ctx);
     ctx.restore();
   }, (ctx) => {
     statueInscription(ctx, AX, AY, ['ALL HAIL', 'QUBITMAN'], pixelText);
@@ -113,8 +130,8 @@ function statueFrame(f: number): ObjSprite {
     ctx.save(); ctx.translate(FX, FY);
     // emissive bits after the outline: chest emblem (a tiny Bloch circle) and the glowing orb
     const pulse = [0, 1, 2, 1][f]!;
-    for (let a = 0; a < 16; a++) put(ctx, Math.round(52.5 + Math.cos((a / 16) * 6.283) * 3.6), Math.round(53 + Math.sin((a / 16) * 6.283) * 3), C.q7);
-    put(ctx, 53, 52, C.white); put(ctx, 54, 51, C.q6);
+    for (let a = 0; a < 16; a++) put(ctx, Math.round(56 + Math.cos((a / 16) * 6.283) * 3.6), Math.round(57 + Math.sin((a / 16) * 6.283) * 3), C.q7);
+    put(ctx, 56, 56, C.white); put(ctx, 57, 55, C.q6);
     const ox = 73, oy = 8;
     blob(ctx, ox, oy, 6 + pulse * 0.35, 6 + pulse * 0.35, ORB, { seed: 30 + f, noise: 0.05, bright: -0.12 + pulse * 0.06, edgeDark: 0.12 });
     put(ctx, ox - 3, oy - 3, C.white, 2, 1); put(ctx, ox - 3, oy - 2, C.white);

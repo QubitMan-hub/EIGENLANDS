@@ -111,3 +111,60 @@ label { display: grid; gap: 4px; } label:has(input[type=checkbox]) { display: fl
 
 #hud-btns { position: fixed; right: 12px; top: 56px; display: grid; gap: 6px; z-index: 5; } .icon-btn.small { position: static; width: 36px; height: 36px; font-size: 18px; }
 @media (max-width: 640px) { #hud-btns { top: 98px; } }
+
+/* Touch landscape: keep the world clear between the two thumb zones. */
+#rotate-device { display: none; }
+/* Short browser windows need the same clear combat centre as landscape phones. */
+@media (orientation: landscape) and (max-height: 600px) {
+  html #toasts { top: 104px; bottom: auto; max-width: 32vw; }
+  html #toasts .toast { font-size: .75em; padding: 3px 6px; }
+  html #toasts .toast:nth-last-child(n + 3) { display: none; }
+  html #hud #hint { left: max(14px, env(safe-area-inset-left)); bottom: 138px; transform: none; max-width: 32vw; font-size: 12px; }
+  html body #qtrack { right: 60px; top: 80px; width: 190px; max-height: 100px; overflow-y: auto; pointer-events: auto; }
+}
+@media (pointer: coarse) and (orientation: portrait) and (max-width: 600px) {
+  html:not(.portrait-allowed) #rotate-device { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 24px; background: #10141ff5; }
+  html #rotate-device .panel { max-width: 360px; display: grid; gap: 12px; text-align: center; }
+}
+@media (pointer: coarse) {
+  body:has(#login:not([hidden])) #touch { display: none; }
+  html .window { max-height: calc(100dvh - 24px); }
+}
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 600px) {
+  html #hud-left { top: max(8px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); }
+  html .orbwrap { width: 44px; height: 44px; }
+  html #hud-right { top: 8px; right: max(286px, env(safe-area-inset-right)); }
+  html #hud-btns { top: 8px; right: max(10px, env(safe-area-inset-right)); display: flex; gap: 4px; }
+  html .gatebtn { width: 40px; height: 40px; }
+  html .gatebtn kbd { display: none; }
+  html #stick { width: 96px; height: 96px; left: max(18px, env(safe-area-inset-left)); bottom: max(14px, env(safe-area-inset-bottom)); }
+  html #knob { width: 36px; height: 36px; margin: -18px; }
+  html #tbtns { width: 150px; height: 126px; right: max(14px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); }
+  html #tbtns button { width: 48px; height: 48px; }
+  html #tbtns [data-a=attack] { width: 58px; height: 58px; right: 0; bottom: 30px; }
+  html #tbtns [data-a=skill] { right: 68px; bottom: 0; }
+  html #tbtns [data-a=dash] { right: 80px; bottom: 64px; }
+  html #tbtns [data-a=interact] { width: 44px; height: 44px; right: 8px; bottom: 98px; }
+  html #hotbar { bottom: max(6px, env(safe-area-inset-bottom)); gap: 2px; padding: 3px; max-width: calc(100vw - 330px); overflow-x: auto; }
+  html .hslot { width: 34px; height: 34px; flex-shrink: 0; }
+  html .hkey { display: none; }
+  html #hotbar-name { bottom: 52px; }
+  html #target-hint { bottom: 112px; }
+  html .overlay.title { overflow-y: auto; padding: 12px max(24px, env(safe-area-inset-right)); }
+  html .title-card { width: min(760px, 100%); grid-template-columns: 1fr 1fr; column-gap: 32px; }
+  html .title-card .qubit { grid-column: 1; width: 64px; height: 64px; }
+  html .title-card .wordmark { grid-column: 1; font-size: 24px; gap: 4px; }
+  html .title-card .trace-rule, .title-card .tag, .title-card .credits { grid-column: 1; }
+  html .title-card .menu { grid-column: 2; grid-row: 1 / 6; gap: 6px; padding: 12px; }
+  html .title-card .menu p { margin: 0; }
+  html .dialwrap { width: 38px; height: 38px; }
+  html #voice-chip { top: 64px; font-size: 11px; padding: 3px 8px; }
+  html body #qtrack { right: max(12px, env(safe-area-inset-right)); top: 58px; width: 190px; max-height: 100px; overflow-y: auto; pointer-events: auto; }
+  html #p3-abar.p3-touch { left: 50%; right: auto; bottom: 62px; transform: translateX(-50%); }
+  html #p3-abar.p3-touch .p3-slot { width: 40px; height: 40px; }
+  html #p3-lumen { bottom: 125px; width: min(560px, 72vw); max-height: calc(100dvh - 160px); overflow-y: auto; }
+  html .p3-lumen-port { width: 44px; height: 44px; }
+  html .p3-lumen-face { width: 40px; height: 40px; }
+  html .chat { --chat-w: 250px; --chat-h: 130px; --chat-bottom: 125px; }
+  html .chat-mini { bottom: 125px; }
+}

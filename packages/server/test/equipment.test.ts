@@ -79,6 +79,7 @@ describe('armour and weapons', () => {
     await until(() => p.sp.data.inv.some((s) => s?.id === 'ember_staff'), 2000);
     equip(p, 'weapon', 'crossbow');
     await until(() => p.sp.data.equip.weapon?.id === 'crossbow', 2000);
+    await until(() => p.r.state.players.get(p.r.sessionId)?.weapon === 'crossbow', 2000);
     const near = dummy(p.room, p.sp.sim.x + 4, p.sp.sim.y), far = dummy(p.room, p.sp.sim.x + 6, p.sp.sim.y);
     const hp0 = near.hp, hp1 = far.hp;
     // a charged shot goes through the first target to hit the second

@@ -29,6 +29,8 @@ export class Lighting {
     ctx.fillRect(0, 0, 128, 128);
     this.glow = Texture.from(canvas);
     this.rt = RenderTexture.create({ width: 16, height: 16 });
+    // Pixi must invalidate the submitted sprite quad when this render target resizes.
+    this.rt.dynamic = true;
     this.sprite = new Sprite(this.rt);
     this.sprite.blendMode = 'multiply';
     this.scene.addChild(this.base);
