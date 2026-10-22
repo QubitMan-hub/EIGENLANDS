@@ -30,7 +30,10 @@ export class DragDrop<S> {
   private suppressClickUntil = 0;
   dragging = false;
 
-  constructor(private root: HTMLElement, private host: DropHost<S>) {}
+  constructor(private root: HTMLElement, private host: DropHost<S>) {
+    // the browser's own image/link dragging would cancel the pointer stream (pointercancel)
+    root.addEventListener('dragstart', (e) => e.preventDefault());
+  }
 
   bind(el: HTMLElement, get: () => DragSource<S> | null): void {
     el.addEventListener('pointerdown', (e) => this.down(e, el, get));

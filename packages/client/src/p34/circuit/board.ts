@@ -8,7 +8,8 @@ import {
   boardPreview, checkBoard, cloneBoard, ketString, qubitsForLevel, MAX_QUBITS,
   type AbilityId, type Board, type ChooseMsg, type GateId, type Preview, type LinePreview,
 } from '@eigenlands/shared';
-import { clear, h, type Tooltip } from '../../ui/dom';
+import type { Tooltip } from '../../ui/dom';
+import { clear, h } from './el';
 import type { Sfx } from '../../audio';
 import { elementIcon, elHex, elName, gateTile, hex, runeIcon } from './art';
 import { buildCodex } from './codex';
@@ -294,6 +295,17 @@ export class BoardView {
     if (e.key === 'Escape' && (this.armed || this.pathPending)) {
       e.stopPropagation(); e.preventDefault();
       this.armed = null; this.pathPending = null; this.say('Cancelled.'); this.render();
+      return;
+    }
+    // the game binds Enter (chat) and Space (dash) and swallows their default action, so press buttons ourselves
+    if ((e.key === 'Enter' || e.key === ' ') && !e.repeat && (t.tagName === 'BUTTON' || t.tagName === 'SUMMARY')) {
+      e.preventDefault(); e.stopPropagation();
+      t.click();
+      return;
+    }
+    if (t.tagName === 'BUTTON' && !e.ctrlKey && !e.metaKey && /^(Arrow|Tab$)/.test(e.key) && !t.closest('.cb-cell')) {
+      // arrows move between controls instead of walking the character behind the window
+      if (e.key.startsWith('Arrow')) { e.preventDefault(); e.stopPropagation(); this.spatialMove(e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0, e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0); }
       return;
     }
     const cell = t.closest<HTMLElement>('.cb-cell');

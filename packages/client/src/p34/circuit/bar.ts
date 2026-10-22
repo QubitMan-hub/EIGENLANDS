@@ -4,7 +4,7 @@
  * same bar docks next to the touch buttons as big round buttons.
  */
 import { ABILITIES, ACTIVE_LINES, CLASSES, RESOURCE_MAX, type AbilityId, type ClassId, type LinePreview } from '@eigenlands/shared';
-import { h } from '../../ui/dom';
+import { h } from './el';
 import { elementIcon, elHex, elName, hex } from './art';
 import { cdFraction, cdLabel } from './model';
 import { formName, orbName } from './text';

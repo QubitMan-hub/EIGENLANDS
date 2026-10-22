@@ -1,5 +1,5 @@
 import { GATES, GATE_IDS, QUBITPEDIA, type CodexEntry } from '@eigenlands/shared';
-import { h } from '../../ui/dom';
+import { h } from './el';
 import { gateTile } from './art';
 
 /** The Qubitpedia tab: unlocked entries readable, the rest shown as "???" so players know there is more to find. */

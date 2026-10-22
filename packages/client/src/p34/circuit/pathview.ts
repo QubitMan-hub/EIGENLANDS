@@ -2,7 +2,7 @@ import {
   ABILITIES, CLASSES, MULTICLASS_LEVEL, PLAYABLE_CLASSES, SPEC_LEVEL,
   type ChooseMsg, type ClassDef, type ClassId,
 } from '@eigenlands/shared';
-import { h } from '../../ui/dom';
+import { h } from './el';
 import { elementIcon, hex } from './art';
 
 export interface PathState {
