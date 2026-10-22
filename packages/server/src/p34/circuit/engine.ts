@@ -76,6 +76,8 @@ export interface CastCtx {
   power: number;
   aimX: number;
   aimY: number;
+  /** selected target (validated by the circuit module): an enemy id or a party mate's session id */
+  target?: string;
 }
 
 interface Bolt {
@@ -105,6 +107,9 @@ interface HitOpts {
   /** echoed damage never echoes again */
   echo?: boolean;
 }
+
+/** tiles within which Mend can reach a selected party mate */
+export const MEND_TARGET_RANGE = 14;
 
 const norm = (x: number, y: number): [number, number] => {
   const l = Math.hypot(x, y);
@@ -381,8 +386,13 @@ export class AbilityEngine {
     }
   }
 
-  private nearestLinked(p: ServerPlayer, r: number, kinds: Array<Link['kind']>): Link | null {
+  private nearestLinked(p: ServerPlayer, r: number, kinds: Array<Link['kind']>, prefer?: string): Link | null {
     let best: Link | null = null, bd = Infinity;
+    if (prefer) {
+      const l = this.linksOf(p.id).find((x) => x.target === prefer && kinds.includes(x.kind));
+      const pos = l && this.pos(prefer);
+      if (l && pos && Math.hypot(pos.x - p.sim.x, pos.y - p.sim.y) <= r) return l;
+    }
     for (const l of this.linksOf(p.id)) {
       if (!kinds.includes(l.kind) || l.target === p.id) continue;
       const pos = this.pos(l.target);
@@ -395,7 +405,7 @@ export class AbilityEngine {
 
   private pull(c: CastCtx, f: AbilityForm): void {
     const p = c.caster;
-    const l = this.nearestLinked(p, f.radius ?? 12, ['enemy']);
+    const l = this.nearestLinked(p, f.radius ?? 12, ['enemy'], c.target);
     const e = l ? this.room.enemies.get(l.target) : undefined;
     if (!e) return;
     const dx = p.sim.x - e.x, dy = p.sim.y - e.y, d = Math.hypot(dx, dy);
@@ -409,7 +419,7 @@ export class AbilityEngine {
 
   private swap(c: CastCtx, f: AbilityForm): void {
     const p = c.caster;
-    const l = this.nearestLinked(p, f.radius ?? 12, ['enemy', 'ally']);
+    const l = this.nearestLinked(p, f.radius ?? 12, ['enemy', 'ally'], c.target);
     if (!l) return;
     const x0 = p.sim.x, y0 = p.sim.y;
     const e = this.room.enemies.get(l.target);
@@ -429,6 +439,13 @@ export class AbilityEngine {
 
   private mend(c: CastCtx, f: AbilityForm): void {
     const p = c.caster, amt = (f.heal ?? 20) * c.power;
+    // a selected party mate in reach receives the heal instead of the caster
+    const sel = c.target ? this.allies(p).find((q) => q.id === c.target && q !== p) : undefined;
+    if (sel && this.alive(sel) && Math.hypot(sel.sim.x - p.sim.x, sel.sim.y - p.sim.y) <= MEND_TARGET_RANGE) {
+      this.heal(sel, amt);
+      this.flash(SPELL.WARD, sel.sim.x, sel.sim.y, c.hue, p.id, { target: sel.id, r: 0.5 });
+      return;
+    }
     this.heal(p, amt);
     if (this.spec(p.id, 'entangler') === 'bondkeeper') {
       for (const q of this.allies(p)) if (q !== p && Math.hypot(q.sim.x - p.sim.x, q.sim.y - p.sim.y) <= BONDKEEPER_RANGE) this.heal(q, amt);

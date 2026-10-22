@@ -137,6 +137,26 @@ describe('abilities hurt things authoritatively', () => {
     await p.r.leave();
   });
 
+  it('a selected enemy is auto-aimed even when the cursor points elsewhere; bogus targets are ignored', async () => {
+    const p = await fielded('Locker');
+    const e = dummy(p.room, p.sp.sim.x, p.sp.sim.y + 4);
+    // the aim points the wrong way (+x); only the target puts the bolt on the enemy
+    st(p).cd.clear();
+    const n = p.casts.length;
+    p.r.send(MSG34.CAST, { line: 0, aimX: 1, aimY: 0, target: e.id });
+    await until(() => p.casts.length > n, 3000, 5);
+    await until(() => e.hp < 30, 2000);
+    // an unknown / non-string target falls back to the cursor aim and never crashes
+    for (const target of ['nope', 42, { x: 1 }, 'x'.repeat(500)]) {
+      st(p).cd.clear();
+      const m = p.casts.length;
+      p.r.send(MSG34.CAST, { line: 0, aimX: -1, aimY: 0, target });
+      await until(() => p.casts.length > m, 3000, 5);
+      expect(p.casts[m]!.ok).toBe(true);
+    }
+    await p.r.leave();
+  });
+
   it('bolts stop at walls', async () => {
     const p = await fielded('Waller');
     const x = Math.floor(p.sp.sim.x), y = Math.floor(p.sp.sim.y);

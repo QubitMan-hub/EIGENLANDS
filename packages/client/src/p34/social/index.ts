@@ -354,6 +354,8 @@ export class SocialClient implements ClientModule {
     // ours: the game must not also read this as an attack
     e.stopImmediatePropagation();
     e.preventDefault();
+    // first click selects the player (heals and threads can aim at them); clicking the selected player opens the menu
+    if (this.d.target()?.id !== hit.id) { this.d.setTarget(hit.id); return; }
     this.menu.show(hit.name, '', e.clientX, e.clientY);
   }
 }

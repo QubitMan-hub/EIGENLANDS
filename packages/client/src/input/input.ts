@@ -28,6 +28,12 @@ export class Input {
   /** ability armed with its key: the next left click fires it at the cursor (Esc or the same key disarms) */
   armed: typeof EXT_ACTIONS[number] | null = null;
   onArmChange: ((a: typeof EXT_ACTIONS[number] | null) => void) | null = null;
+  /** left click while an ability is armed: fire it at the cursor */
+  onFire: ((a: typeof EXT_ACTIONS[number]) => void) | null = null;
+  /** left click on the world (not firing an armed ability) */
+  onWorldClick: ((x: number, y: number) => void) | null = null;
+  onClearTarget: (() => void) | null = null;
+  arm(a: typeof EXT_ACTIONS[number] | null): void { this.setArmed(a); }
   private setArmed(a: typeof EXT_ACTIONS[number] | null): void { if (this.armed !== a) { this.armed = a; this.onArmChange?.(a); } }
   /** right mouse held: look ahead toward the cursor */
   get lookHeld(): boolean { return this.mouse.right; }
@@ -49,8 +55,8 @@ export class Input {
       if (e.pointerType !== 'mouse') return;
       this.mouse.x = e.clientX; this.mouse.y = e.clientY; this.mouse.lastMove = performance.now();
       if (e.button === 0) {
-        if (this.armed) { const a = this.armed; this.setArmed(null); this.onAction?.(a); }
-        else { this.mouse.left = true; this.buffer('attack'); }
+        if (this.armed) { const a = this.armed; this.setArmed(null); this.onFire?.(a); }
+        else { this.mouse.left = true; this.buffer('attack'); this.onWorldClick?.(e.clientX, e.clientY); }
       }
       if (e.button === 2) this.mouse.right = true;
     });
@@ -71,10 +77,10 @@ export class Input {
     if (this.keys.prev.includes(e.code)) this.onCycle?.(-1);
     if (this.keys.next.includes(e.code)) this.onCycle?.(1);
     for (const a of ['inventory', 'journal', 'craft'] as const) if (this.keys[a].includes(e.code)) { this.onPanel?.(a); e.preventDefault(); }
-    if (e.code === 'Escape') this.setArmed(null);
+    if (e.code === 'Escape') { if (this.armed) this.setArmed(null); else this.onClearTarget?.(); }
     for (const a of EXT_ACTIONS) if (this.keys[a].includes(e.code)) {
-      // abilities and the ultimate arm an aim; the click fires them. Board/chat/party act at once.
-      if (a.startsWith('ability') || a === 'ultimate') this.setArmed(this.armed === a ? null : a);
+      // an armed ability's own key cancels it; otherwise the module decides: cast now (quick / auto-aimed) or arm the aim
+      if (this.armed === a) this.setArmed(null);
       else { this.setArmed(null); this.onAction?.(a); }
       e.preventDefault();
     }

@@ -75,6 +75,9 @@ const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFi
 const lineGates = (s: CircuitState, q: number): GateId[] => s.pr.board.lines[q]!.filter((c) => !!c).map((c) => c!.g);
 
 /** Circuit Board progression + abilities (Phase 3). */
+/** tiles within which a selected target may be hit or healed */
+const TARGET_RANGE = 18;
+
 export class CircuitModule implements Module, CircuitApi {
   readonly engine: AbilityEngine;
   private states = new Map<string, CircuitState>();
@@ -252,7 +255,8 @@ export class CircuitModule implements Module, CircuitApi {
     const free = ability === 'swap' && s.freeSwap && s.pr.cls === 'entangler' && s.pr.spec === 'paradox';
     if ((s.cd.get(ability) ?? 0) > now && !free) return fail('Not ready yet.');
 
-    const [ax, ay] = this.aim(p, m.aimX, m.aimY);
+    const tgt = this.target(p, m.target);
+    const [ax, ay] = tgt ? this.toward(p, tgt) : this.aim(p, m.aimX, m.aimY);
     const lockPow = s.pr.cls === 'superposer' && s.pr.spec === 'collapse' ? LOCK_POWER_COLLAPSE : LOCK_POWER;
     const lines = castLines(s.pr.board, s.ev, line, s.errors, () => this.room.rand());
     const results: CastLineResult[] = [];
@@ -264,7 +268,7 @@ export class CircuitModule implements Module, CircuitApi {
       results.push({ q: l.q, ability: a, bit: l.bit, hue: l.hue, misfire: l.misfire, link: l.link, locked: l.locked });
       if (!a || !this.room.players.has(p.id)) continue;
       const power = (l.link ? LINK_POWER : 1) * (l.locked ? 1 + lockPow : 1);
-      this.engine.execute({ caster: p, ability: a, bit: l.bit, hue: l.hue, power, aimX: ax, aimY: ay });
+      this.engine.execute({ caster: p, ability: a, bit: l.bit, hue: l.hue, power, aimX: ax, aimY: ay, target: tgt?.id });
     }
     if (s.pr.cls === 'superposer') {
       const p1 = s.ev.p1[line] ?? 0;
@@ -289,7 +293,8 @@ export class CircuitModule implements Module, CircuitApi {
     const now = Date.now();
     if ((s.cd.get('ult') ?? 0) > now) return fail('Not ready yet.');
     if (s.res < RESOURCE_MAX - 1e-6) return fail(`${CLASSES[cls].resource.name} is not full yet.`);
-    const [ax, ay] = this.aim(p, m.aimX, m.aimY);
+    const tgt = this.target(p, m.target);
+    const [ax, ay] = tgt ? this.toward(p, tgt) : this.aim(p, m.aimX, m.aimY);
     const secs = CLASSES[cls].ultimate.secs;
     if (cls === 'superposer') this.engine.manyWorlds(p, secs, ax, ay);
     else this.engine.bellState(p, secs);
@@ -550,6 +555,17 @@ export class CircuitModule implements Module, CircuitApi {
     for (const id of ids) if (isCodex(id) && !s.pr.codex.includes(id)) { s.pr.codex.push(id); changed = true; }
     return changed;
   }
+
+  /** A selected target that is still valid: a live enemy within sight, or a live party mate in range. */
+  private target(p: ServerPlayer, id: unknown): { id: string; x: number; y: number } | null {
+    if (typeof id !== 'string' || id.length > 64 || id === p.id) return null;
+    const e = this.room.enemies.get(id);
+    if (e) return e.hp > 0 && Math.hypot(e.x - p.sim.x, e.y - p.sim.y) <= TARGET_RANGE ? { id, x: e.x, y: e.y } : null;
+    const q = this.engine.allies(p).find((a) => a.id === id);
+    return q && q.deadT <= 0 && Math.hypot(q.sim.x - p.sim.x, q.sim.y - p.sim.y) <= TARGET_RANGE ? { id, x: q.sim.x, y: q.sim.y } : null;
+  }
+
+  private toward(p: ServerPlayer, t: { x: number; y: number }): [number, number] { return this.aim(p, t.x - p.sim.x, t.y - p.sim.y); }
 
   private aim(p: ServerPlayer, x: unknown, y: unknown): [number, number] {
     const ax = num(x) ?? 0, ay = num(y) ?? 0;

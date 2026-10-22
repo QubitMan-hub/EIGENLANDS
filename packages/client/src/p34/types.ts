@@ -43,6 +43,10 @@ export interface P34Deps {
   toScreen: (x: number, y: number) => { x: number; y: number };
   /** current aim direction in world space (mouse, right stick, auto-aim, or facing) */
   aim: () => { x: number; y: number };
+  /** selected target (enemy id or other player's session id) or null; `targetKind` tells which */
+  target: () => { id: string; kind: 'enemy' | 'player' } | null;
+  /** select (or with null clear) the target */
+  setTarget: (id: string | null) => void;
   /** shared modal windows, tooltip, toasts and private profile (inventory, coins) */
   wins: Windows;
   tip: Tooltip;
@@ -70,6 +74,8 @@ export interface ClientModule {
   debug?(): Record<string, unknown>;
   /** a Phase 3/4 input action (ability1..4, ultimate, board, chat, party); return true when handled */
   action?(a: ExtAction): boolean;
+  /** an armed ability fired by a left click (aim = cursor) */
+  fire?(a: ExtAction): void;
 }
 
 export type ExtAction = typeof EXT_ACTIONS[number];

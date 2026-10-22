@@ -1,6 +1,6 @@
 import { Application, Container, Graphics, Sprite, Text } from 'pixi.js';
 import {
-  ChunkStore, ENEMY_BY_KIND, INTEREST_RADIUS, NPC_BY_ID, TILE_DEFS, TILE_SIZE, ambientColor, SEASONS, chunkOf,
+  ChunkStore, ELITE_NAMES, ENEMY_BY_KIND, INTEREST_RADIUS, NPC_BY_ID, TILE_DEFS, TILE_SIZE, ambientColor, SEASONS, chunkOf,
   darkness, decodeDiff, dayNumber, formatClock, gameHour, dayPhase, season, PALETTE, townFor, weatherForDay, type Ack, type ChunkMsg,
   type DialogueMsg, type FishBiteMsg, type FxMsg, type ObjMsg, type PanelMsg, type ProfileMsg, type RhythmResultMsg, type RhythmStartMsg,
   type ShopViewMsg, type TileMsg, type ToastMsg, type WelcomeMsg, type ForgePreviewReply,
@@ -26,6 +26,7 @@ import { Fx } from './fx';
 import { Lighting, type Light } from './lighting';
 import { buildFoeSheets, type FoeSheets } from '../art/foes';
 import { CombatView } from './combatview';
+import { TargetFrame } from '../ui/targetframe';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const pc = (i: number) => parseInt(PALETTE[i]!.slice(1), 16);
@@ -108,6 +109,8 @@ export class Game {
   private weatherLayer = new Container();
   private cursor = new Graphics();
   private aimGfx = new Graphics();
+  private targetId: string | null = null;
+  private targetFrame = new TargetFrame();
   /** smoothed right-mouse look offset in iso world px */
   private look = { x: 0, y: 0 };
   private bobber = new Graphics();
@@ -164,9 +167,12 @@ export class Game {
       renderTime: () => this.clock.serverNow(performance.now()) - this.clock.interpDelay,
       toScreen: (x, y) => ({ x: this.world.x + isoX(x, y) * this.scale, y: this.world.y + isoY(x, y) * this.scale }),
       aim: () => this.input.aimNow(this.predictor ? { x: this.predictor.sim.faceX, y: this.predictor.sim.faceY } : { x: 0, y: 1 }),
+      target: () => this.currentTarget(), setTarget: (id) => this.setTarget(id),
       wins: this.gameplay.wins, tip: this.gameplay.tip, toasts: this.gameplay.toasts, profile: this.gameplay.profile,
       level: () => this.self?.level ?? 1, dead: () => this.dead,
     });
+    this.input.onWorldClick = (x, y) => this.clickWorld(x, y);
+    this.input.onClearTarget = () => this.setTarget(null);
     this.store = new ChunkStore(0); // replaced once the seed is known
     window.addEventListener('resize', () => this.layout());
     this.layout();
@@ -506,13 +512,14 @@ export class Game {
       const u = unproject((m.x - this.world.x) / S, (m.y - this.world.y) / S);
       this.input.mouseTile = { tx: Math.floor(u.x), ty: Math.floor(u.y) };
     }
-    this.drawAim(me, now);
     this.input.playerScreen = { x: W / 2 + (isoX(me.x, me.y) - camX) * S, y: H / 2 + (isoY(me.x, me.y) - 10 - camY) * S };
 
     // hit-stop / phase slip: remote entities and effects run on a slightly delayed, dilated clock (visual only)
     const fxScale = this.combat.frame(dt);
     const renderT = this.clock.serverNow(now) - this.clock.interpDelay - this.combat.warp;
     this.updateViews(me, alpha, renderT, now, dtMs);
+    this.updateTarget34(renderT, me);
+    this.drawAim(me, now);
     for (const v of this.views.values()) this.castShadow(v, sun);
     this.fx.update(dt * fxScale);
     if (this.self) this.combat.vignette($('vignette'), this.self.hp, this.self.maxHp, this.dead, dt);
@@ -533,11 +540,64 @@ export class Game {
     this.frameMs = this.frameMs * 0.95 + (performance.now() - t0) * 0.05;
   }
 
+  currentTarget(): { id: string; kind: 'enemy' | 'player' } | null {
+    const v = this.targetId ? this.views.get(this.targetId) : undefined;
+    return v && (v.type === 'enemy' || v.type === 'player') ? { id: v.id, kind: v.type } : null;
+  }
+
+  setTarget(id: string | null): void {
+    this.targetId = id && id !== this.myId && this.views.has(id) ? id : null;
+    if (this.targetId) this.sound('pickup');
+  }
+
+  /** Left click on an enemy selects it (the click still swings). Players are picked by the social layer. */
+  private clickWorld(cx: number, cy: number): void {
+    const S = this.scale;
+    let best: ActorView | null = null, bd = Infinity;
+    for (const v of this.views.values()) {
+      if (v.type !== 'enemy' || !v.root.visible) continue;
+      const sx = this.world.x + v.root.x * S, sy = this.world.y + v.root.y * S;
+      const big = v.kind === 5 ? 1.4 : 1;
+      const dx = cx - sx, dy = cy - (sy - 9 * S * big);
+      if (Math.abs(dx) > 9 * S * big || Math.abs(dy) > 13 * S * big) continue;
+      const d = dx * dx + dy * dy;
+      if (d < bd) { bd = d; best = v; }
+    }
+    if (best) this.setTarget(best.id);
+  }
+
+  private updateTarget34(renderT: number, me: { x: number; y: number }): void {
+    const id = this.targetId;
+    const smp = id ? this.interp.sample(id, renderT) : null;
+    const v = id ? this.views.get(id) : undefined;
+    if (!id || !v || !smp || (v.type !== 'enemy' && v.type !== 'player') || smp.pose.hp <= 0 && v.type === 'enemy' || Math.hypot(smp.x - me.x, smp.y - me.y) > 26) {
+      if (id) this.targetId = null;
+      this.targetFrame.update(null);
+      return;
+    }
+    const p = smp.pose;
+    const def = v.type === 'enemy' ? ENEMY_BY_KIND[p.kind] : null;
+    const tags = v.type === 'enemy'
+      ? [def?.passive ? 'Passive' : 'Hostile', ...Object.entries(ELITE_NAMES).filter(([bit]) => (p.elite & Number(bit)) !== 0).map(([, n]) => n), ...(p.night ? ['Night'] : [])]
+      : ['Ally'];
+    this.targetFrame.update({
+      name: v.type === 'enemy' ? def?.name ?? 'Creature' : p.name || 'Player', level: v.type === 'enemy' ? Math.max(1, Math.round((def?.hp ?? 10) / 10)) : p.level,
+      hp: p.hp, maxHp: p.maxHp, kind: v.type, tags, poise: def?.armor ? p.poise : null, dist: Math.hypot(smp.x - me.x, smp.y - me.y),
+    });
+  }
+
   /** aim line + landing ring while an ability is armed; a soft view cone while the right mouse button looks */
   private drawAim(me: { x: number; y: number }, now: number): void {
     const g = this.aimGfx;
     g.clear();
     g.zIndex = 1e9;
+    const tv = this.targetId ? this.views.get(this.targetId) : undefined;
+    if (tv && tv.root.visible) {
+      const ally = tv.type === 'player', c = ally ? 0x7dffa0 : 0xff5a5a, pulse = 0.65 + 0.35 * Math.sin(now / 160);
+      const rx = tv.type === 'enemy' && tv.kind === 5 ? 13 : 9;
+      g.ellipse(tv.root.x, tv.root.y, rx, rx / 2).stroke({ width: 1.5, color: c, alpha: pulse });
+      g.ellipse(tv.root.x, tv.root.y, rx + 3, (rx + 3) / 2).stroke({ width: 1, color: c, alpha: 0.3 * pulse });
+    }
     const armed = this.input.armed, look = this.input.lookHeld;
     if ((!armed && !look) || this.dead || !this.input.mouseActive) return;
     const a = this.input.aimNow({ x: this.predictor.sim.faceX, y: this.predictor.sim.faceY });

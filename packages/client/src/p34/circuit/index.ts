@@ -1,7 +1,7 @@
 import './circuit.css';
 import {
   ABILITIES, ACTIVE_LINES, CLASSES, ELEMENTS, GATES, GATE_IDS, MSG34, RESOURCE_MAX, SPEC_LEVEL, TUTORIAL, TUTORIAL_DONE, CODEX_BY_ID,
-  boardPreview, type CastResultMsg, type ChooseMsg, type Preview, type ProgressMsg, type ResourceMsg,
+  boardPreview, type AbilityId, type CastResultMsg, type ChooseMsg, type Preview, type ProgressMsg, type ResourceMsg,
 } from '@eigenlands/shared';
 import { keyLabel } from '../../input/keymap';
 import type { ClientModule, ExtAction, P34Deps } from '../types';
@@ -265,7 +265,22 @@ export class CircuitClient implements ClientModule {
     }).map((s) => ({ ...s, readyAt: s.readyAt > now ? s.readyAt : 0 }));
   }
 
-  private cast(q: number): void {
+  /** How an ability is aimed: `quick` abilities fire at once; `skill` abilities are skill shots (arm, aim, click). */
+  private style(a: AbilityId): { skill: boolean; enemy: boolean; ally: boolean } {
+    const kinds = ABILITIES[a].forms.map((f) => f.kind);
+    const has = (...k: string[]) => kinds.some((x) => k.includes(x));
+    return { skill: has('bolt', 'blink', 'blink_back', 'link_enemy', 'link_ally'), enemy: has('bolt', 'link_enemy', 'pull', 'swap'), ally: has('heal', 'link_ally', 'swap') };
+  }
+
+  /** The selected target if this ability can use it (enemy for attacks, party mate for heals/threads). */
+  private pick(a: AbilityId): string | undefined {
+    const t = this.d.target();
+    if (!t) return undefined;
+    const st = this.style(a);
+    return (t.kind === 'enemy' && st.enemy) || (t.kind === 'player' && st.ally) ? t.id : undefined;
+  }
+
+  private cast(q: number, manual = false): void {
     if (this.d.dead() || this.d.wins.open) return;
     const p = this.progress;
     const info = this.slotInfo()[q];
@@ -274,7 +289,8 @@ export class CircuitClient implements ClientModule {
     if (!info.ability) { this.bar.pulse(q, 'denied'); this.d.toasts.add(`${orbName(q)} has no ability yet. Open the Board (${this.keyName('board')}).`, 'info'); return; }
     if (info.readyAt > this.now()) { this.bar.pulse(q, 'denied'); return; }
     const aim = this.d.aim();
-    this.send(MSG34.CAST, { line: q, aimX: aim.x, aimY: aim.y });
+    const target = manual ? undefined : this.pick(info.ability);
+    this.send(MSG34.CAST, { line: q, aimX: aim.x, aimY: aim.y, ...(target ? { target } : {}) });
     // prediction: cooldown sweep, flash and sound start now; the server's reply decides the form
     this.predicted[info.ability] = this.now() + ABILITIES[info.ability].cd * 1000;
     this.bar.pulse(q, 'cast');
@@ -296,7 +312,8 @@ export class CircuitClient implements ClientModule {
     if (this.res.v < this.res.max) { this.bar.pulse('ult', 'denied'); this.d.toasts.add(`${CLASSES[p.cls].ultimate.name} needs a full ${CLASSES[p.cls].resource.name} bar.`, 'info'); return; }
     if ((p.cd.ult ?? 0) > this.now()) { this.bar.pulse('ult', 'denied'); return; }
     const aim = this.d.aim();
-    this.send(MSG34.ULT, { aimX: aim.x, aimY: aim.y });
+    const t = this.d.target();
+    this.send(MSG34.ULT, { aimX: aim.x, aimY: aim.y, ...(t && t.kind === 'enemy' && p.cls === 'superposer' ? { target: t.id } : {}) });
     this.bar.pulse('ult', 'cast');
     this.d.sfx('levelup');
   }
@@ -338,9 +355,27 @@ export class CircuitClient implements ClientModule {
   action(a: ExtAction): boolean {
     if (this.dialog.open && !this.dialog.docked && a === 'chat') { this.dialog.advance(); return true; }
     if (a === 'board') { this.toggleBoard(); return true; }
-    if (a in ABILITY_ACTIONS) { if (!this.d.wins.open) this.cast(ABILITY_ACTIONS[a]!); return true; }
-    if (a === 'ultimate') { if (!this.d.wins.open) this.ult(); return true; }
+    if (a in ABILITY_ACTIONS) {
+      if (this.d.wins.open) return true;
+      const q = ABILITY_ACTIONS[a]!, info = this.slotInfo()[q];
+      // skill shots without a usable target wait for a click; everything else fires now
+      if (info?.ability && info.unlocked && info.readyAt <= this.now() && this.style(info.ability).skill && !this.pick(info.ability) && !this.d.dead()) this.d.input.arm(a as ExtAction);
+      else this.cast(q);
+      return true;
+    }
+    if (a === 'ultimate') {
+      if (this.d.wins.open) return true;
+      if (this.progress.cls === 'superposer' && !this.d.target() && this.res.v >= this.res.max && !this.d.dead()) this.d.input.arm('ultimate');
+      else this.ult();
+      return true;
+    }
     return false;
+  }
+
+  fire(a: ExtAction): void {
+    if (this.d.wins.open) return;
+    if (a in ABILITY_ACTIONS) this.cast(ABILITY_ACTIONS[a]!, true);
+    else if (a === 'ultimate') this.ult();
   }
 
   // Lumen talks while you walk: the story panel never freezes movement (Enter/Space/E or a click turns its pages)

@@ -40,8 +40,9 @@ export const MSG34 = {
 
 export interface AttuneMsg { board: Board }
 /** `line` 0..3 (action bar); aim is a world-space direction (normalised by the server). */
-export interface CastMsg { line: number; aimX: number; aimY: number }
-export interface UltMsg { aimX: number; aimY: number }
+/** `target`: optional selected enemy id or party mate's session id; the server aims at it and heals/links it (validated). */
+export interface CastMsg { line: number; aimX: number; aimY: number; target?: string }
+export interface UltMsg { aimX: number; aimY: number; target?: string }
 export type ChooseMsg = { what: 'class'; cls: ClassId } | { what: 'spec'; spec: string } | { what: 'second'; cls: ClassId };
 export type TutorialMsg = { action: 'board_open' } | { action: 'skip' } | { action: 'restart' };
 

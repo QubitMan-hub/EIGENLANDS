@@ -16,6 +16,7 @@ export class P34Client {
     this.shard = new ShardClient(d);
     this.mods = [this.shard, this.circuit, this.social];
     d.input.onAction = (a) => { for (const m of this.mods) if (m.action?.(a)) return; };
+    d.input.onFire = (a) => { for (const m of this.mods) m.fire?.(a); };
   }
 
   handlers(): Record<string, (m: any) => void> {
