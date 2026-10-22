@@ -68,7 +68,7 @@ export async function spawn3(
 /** Functional tests send faster than people do; the rate-limit test uses the real buckets. */
 export function relax3(p: P3): void {
   const big = () => new TokenBucket(100000, 100000);
-  const m = new Map(['cast', 'board', 'party', 'chat', 'trade', 'emote'].map((n) => [n, big()]));
+  const m = new Map(['cast', 'board', 'party', 'chat', 'voice', 'trade', 'emote'].map((n) => [n, big()]));
   (p.room as unknown as { buckets: Map<string, Map<string, TokenBucket>> }).buckets.set(p.sid, m as Map<string, TokenBucket>);
   p.sp.invBucket = big();
 }

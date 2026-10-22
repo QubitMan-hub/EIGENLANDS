@@ -71,7 +71,7 @@ export async function createApp(opts: AppOptions = {}): Promise<App> {
   app.use('/api/auth', authRouter({ repo, secret: config.sessionSecret, googleVerify, googleClientId: config.googleClientId, ratePerSec: config.authRatePerSec, burst: config.authBurst }));
 
   const http = createServer(app);
-  const game = new Server({ transport: new WebSocketTransport({ server: http }), greet: false });
+  const game = new Server({ transport: new WebSocketTransport({ server: http, maxPayload: 16 * 1024 }), greet: false });
   game.define(JOIN_ROOM, GameRoom).filterBy(['shard']);
   await game.listen(config.port);
   const addr = http.address();

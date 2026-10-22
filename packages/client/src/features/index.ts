@@ -3,6 +3,7 @@ import { CircuitClient } from './circuit';
 import { ShadowClient } from './shadows';
 import { ShardClient } from './shard';
 import { SocialClient } from './social';
+import { VoiceClient } from './voice';
 import type { ClientModule, P34Deps } from './types';
 
 /** Phase 3/4 client: the Circuit Board, abilities and tutorial; parties, chat and trading; shard handoff and ghosts. */
@@ -12,6 +13,7 @@ export class P34Client {
   readonly shard: ShardClient;
   readonly shadows: ShadowClient;
   readonly adventure: AdventureClient;
+  readonly voice: VoiceClient;
   private mods: ClientModule[];
 
   constructor(readonly d: P34Deps) {
@@ -20,7 +22,8 @@ export class P34Client {
     this.shard = new ShardClient(d);
     this.shadows = new ShadowClient(d);
     this.adventure = new AdventureClient(d);
-    this.mods = [this.shard, this.circuit, this.social, this.shadows, this.adventure];
+    this.voice = new VoiceClient(d);
+    this.mods = [this.shard, this.circuit, this.social, this.shadows, this.adventure, this.voice];
     d.input.onAction = (a) => { for (const m of this.mods) if (m.action?.(a)) return; };
     d.input.onFire = (a) => { for (const m of this.mods) m.fire?.(a); };
   }

@@ -35,6 +35,7 @@ export const MSG34 = {
   BOSS_EV: 'ad_boss',            // BossEvent
   SHRINE_EV: 'ad_shrine',        // ShrineEvent
   SEA_EV: 'sea_ev',              // SeaEvent
+  VOICE: 'voice_sig',            // VoiceSig (client -> server: {to, d}; server -> client: {from, d})
   // ── Adventure: client -> server
   SHRINE_HIT: 'ad_shrine_hit',   // { shrine, idx }
   // ── Phase 4: server -> client
@@ -208,3 +209,20 @@ export type ShadowCmd =
 
 /** Seafaring notices to the sailor (the ship itself is PlayerSim.boat). */
 export type SeaEvent = { kind: 'board' } | { kind: 'land' };
+
+/** Proximity voice chat: peers connect over WebRTC; the room only relays handshakes between players who are close. */
+export const VOICE_RELAY_RANGE = 40;
+/** full volume inside this many tiles, silent beyond VOICE_FAR */
+export const VOICE_NEAR = 5;
+export const VOICE_FAR = 28;
+export type VoiceSignal = { t: 'offer' | 'answer'; sdp: string } | { t: 'ice'; c: { candidate: string; sdpMid?: string | null; sdpMLineIndex?: number | null } } | { t: 'bye' };
+export interface VoiceMsg { to: string; d: VoiceSignal }
+export interface VoiceIn { from: string; d: VoiceSignal }
+
+/** Voice gain for a listener `dist` tiles from the speaker: flat up close, then a smooth fall to silence. */
+export function voiceGain(dist: number): number {
+  if (dist <= VOICE_NEAR) return 1;
+  if (dist >= VOICE_FAR) return 0;
+  const t = (dist - VOICE_NEAR) / (VOICE_FAR - VOICE_NEAR);
+  return (1 - t) * (1 - t);
+}

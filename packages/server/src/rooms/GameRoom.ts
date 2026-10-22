@@ -14,6 +14,7 @@ import { nullVillage } from '../features/shard/nullVillage';
 import { BossModule } from '../features/bosses';
 import { ShadowModule } from '../features/shadows';
 import { SailingModule } from '../features/sailing';
+import { VoiceModule } from '../features/voice';
 import { ShrineModule } from '../features/shrines';
 import { SocialModule } from '../features/social';
 import type { BucketName, Carry, JoinOpts, Module, Registrar } from '../features/types';
@@ -27,7 +28,7 @@ import { WorldRoom } from './WorldRoom';
 const disposing = new Map<string, Promise<void>>();
 
 const BUCKETS: Record<BucketName, [number, number]> = {
-  cast: [8, 12], board: [2, 4], party: [2, 5], chat: [2, 4], trade: [4, 8], emote: [1, 3],
+  cast: [8, 12], board: [2, 4], party: [2, 5], chat: [2, 4], voice: [40, 80], trade: [4, 8], emote: [1, 3],
 };
 
 /**
@@ -45,6 +46,7 @@ export class GameRoom extends WorldRoom {
   social!: SocialModule;
   shadows!: ShadowModule;
   sailing!: SailingModule;
+  voice!: VoiceModule;
   bosses!: BossModule;
   shrines!: ShrineModule;
   shardMod!: ShardModule;
@@ -77,9 +79,10 @@ export class GameRoom extends WorldRoom {
     this.social = new SocialModule(this);
     this.shadows = new ShadowModule(this);
     this.sailing = new SailingModule(this);
+    this.voice = new VoiceModule(this);
     this.bosses = new BossModule(this);
     this.shrines = new ShrineModule(this);
-    this.modules = [this.shardMod, this.circuit, this.social, this.shadows, this.bosses, this.shrines, this.sailing];
+    this.modules = [this.shardMod, this.circuit, this.social, this.shadows, this.bosses, this.shrines, this.sailing, this.voice];
     const reg: Registrar = {
       on: <M>(type: string, bucket: BucketName, fn: (p: ServerPlayer, msg: M) => void | Promise<void>) => {
         this.onMessage(type, (client: Client, msg: M) => {

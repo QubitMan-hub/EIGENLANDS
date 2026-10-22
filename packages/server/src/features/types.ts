@@ -17,7 +17,7 @@ export interface Carry {
   res?: number;
 }
 
-export type BucketName = 'cast' | 'board' | 'party' | 'chat' | 'trade' | 'emote';
+export type BucketName = 'cast' | 'board' | 'party' | 'chat' | 'voice' | 'trade' | 'emote';
 
 export interface Registrar {
   /** Register a client message handler. Unknown players, rate-limited or malformed calls are dropped. */
