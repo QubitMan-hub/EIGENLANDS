@@ -22,12 +22,15 @@ export function describeUse(sel: Stack | null, tile: number, obj: WorldObj | und
     if (obj.kind === 'station') return { kind: 'open', label: `Use ${STATION_NAMES[STATION_SUBS[obj.sub] ?? 'hand']}`, ok: true };
     if (obj.kind === 'chest') return { kind: 'open', label: 'Open chest', ok: true };
     if (obj.kind === 'shelter') return { kind: 'open', label: obj.sub === 'coop' ? 'Visit the coop' : 'Visit the barn', ok: true };
+    if (obj.sub === 'statue' || obj.sub === 'plaque') return { kind: 'open', label: 'Read the Statue of QubitMan', ok: true };
+    if (obj.sub === 'board') return { kind: 'open', label: 'Check the request board', ok: true };
     if (obj.kind === 'sign') return { kind: 'open', label: 'Read sign', ok: true };
     return null;
   }
   const td = TILE_DEFS[tile];
   const node = NODES[tile];
   if (tile === T.FORAGE) return { kind: 'forage', label: 'Forage', ok: true };
+  if (tile === T.GRASS_TALL && def?.tool?.type === 'axe') return { kind: 'tool', label: 'Cut tall grass (fiber)', ok: true };
   if (node && node.tool) {
     const tier = sel?.p?.tier ?? 1;
     if (def?.tool?.type === node.tool) {

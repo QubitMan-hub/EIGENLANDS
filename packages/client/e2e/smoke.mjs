@@ -34,8 +34,11 @@ await page.keyboard.down('KeyD');
 await sleep(1200);
 await page.keyboard.up('KeyD');
 const s1 = await page.evaluate(() => window.__eigen.state());
-console.log('after moving right', { x: s1.x, correction: s1.correction, pending: s1.pending });
-if (!(s1.x > s0.x + 3)) fail('player did not move right');
+// iso camera: D = screen-right = world (+x, -y); screen-right displacement is (dx - dy) / sqrt(2)
+const screenRight = ((s1.x - s0.x) - (s1.y - s0.y)) / Math.SQRT2;
+console.log('after moving right', { x: s1.x, y: s1.y, screenRight: screenRight.toFixed(2), correction: s1.correction, pending: s1.pending });
+if (!(screenRight > 3)) fail('player did not move right (screen space)');
+if (!(s1.x > s0.x + 1.5 && s1.y < s0.y - 1.5)) fail('screen-right should move along +x/-y in the world');
 
 await page.keyboard.press('Space');
 await sleep(100);

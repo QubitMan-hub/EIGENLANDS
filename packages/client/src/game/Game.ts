@@ -124,6 +124,8 @@ export class Game {
       npcNear: (x, y, m) => this.npcNear(x, y, m),
       player: () => (this.predictor ? { x: this.predictor.sim.x, y: this.predictor.sim.y, fx: this.predictor.sim.faceX, fy: this.predictor.sim.faceY } : { x: 0, y: 0, fx: 0, fy: 1 }),
       sfx: (s) => this.sound(s), features: () => this.features,
+      seed: () => this.seed, reduced: () => this.settings().reducedMotion,
+      npcScreens: () => [...this.views.values()].filter((v) => v.type === 'npc').map((v) => ({ id: v.id, x: v.lx, y: v.ly, sx: this.world.x + v.root.x * this.scale, sy: this.world.y + (v.root.y - 32) * this.scale, visible: v.root.visible })),
     });
     this.fx = new Fx(this.fxLayer, () => this.settings().reducedMotion);
     this.ext = new P34Client({
@@ -476,6 +478,7 @@ export class Game {
     const wa = this.weatherFx.ambient(weather), amb = ambientColor(hour);
     this.lighting.render([amb[0] * wa[0], amb[1] * wa[1], amb[2] * wa[2]], this.collectLights(topLeftIso.x, topLeftIso.y, hour, now, reduced));
     this.updateTarget(now);
+    this.gameplay.frame(now);
     if (!this.gameplay.blocking) this.gameplay.holdUse(now);
     this.hurtTimer = Math.max(0, this.hurtTimer - dt);
 
