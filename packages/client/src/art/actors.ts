@@ -119,10 +119,10 @@ function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, seed: numbe
   const sh = o.shorten ?? 0;
   const cx = 12.5;
   const foot = 30;
-  const hipY = 18.6 + sh * 0.7 + top * 0.6;
-  const y0 = 11.2 + sh * 0.6 + top;                                  // shoulder line
-  const waistY = y0 + 4.8;
-  const shW = profile ? 2.7 : three ? 3.8 : 4.3, waW = profile ? 2.2 : three ? 2.7 : 3.0, hiW = profile ? 2.5 : three ? 3.0 : 3.3;
+  const hipY = 20.6 + sh * 0.5 + top * 0.6;
+  const y0 = 13.0 + sh * 0.6 + top;                                  // shoulder line
+  const waistY = y0 + 4.2;
+  const shW = profile ? 2.9 : three ? 4.0 : 4.5, waW = profile ? 2.4 : three ? 3.0 : 3.3, hiW = profile ? 2.6 : three ? 3.2 : 3.5;
   const lean = (profile ? 0.6 : three ? 0.3 : 0) * s * (moving ? 1 : 0.5);   // the chest leads the hips a little
   const edge = (r: Ramp) => [r[0]!, r[0]!] as Ramp;                  // selective outline for limbs crossing the body
   // three-quarter views: the shoulder turned toward the camera is screen-left when facing down-right (and mirrored)
@@ -212,13 +212,18 @@ function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, seed: numbe
   else if (three) drawArm(nearK, true);
   else { drawArm(0, true); drawArm(1, true); }
 
+  // plate armour: rounded pauldrons over both shoulders
+  if (o.hatStyle === 'helm' && o.hat) for (const k of profile ? [1] : [0, 1]) {
+    const side = profile ? s : k ? 1 : -1;
+    blob(ctx, tcx + side * (shW - (profile ? 1.8 : 0.4)), y0 + 1.2, 2.3, 1.8, o.hat, { seed: seed + 70 + k, noise: 0.05, bright: side < 0 ? 0.12 : -0.05, edgeDark: 0.2 });
+  }
   // neck + head
   const hx = cx + (profile ? 0.7 * s : three ? 0.4 * s : 0) + lean * 0.6;
-  const hy = 6.2 + top + sh * 0.5;
+  const hy = 7.4 + top + sh * 0.5;
   put(ctx, Math.round(hx - 1), Math.round(hy + 2.8), o.skin[1]!, 2, 2);
   if (o.scarf) { blob(ctx, tcx, y0 + 0.3, shW - 1, 1.5, o.scarf, { seed: seed + 30, noise: 0.1, edgeDark: 0.15 }); if (!back) put(ctx, Math.round(cx + (profile ? -1.5 * s : 1.5)), Math.round(y0 + 0.8), o.scarf[1]!, 1, 4); }
   // head: soft, mostly mid-tone skin (faces read better flat), lit along the upper-left, jaw shaded
-  { const rx = profile ? 3.0 : 3.2, ry = 3.5;
+  { const rx = profile ? 3.9 : 4.2, ry = 4.4;
     for (let y = Math.floor(hy - ry); y <= Math.ceil(hy + ry); y++) for (let x = Math.floor(hx - rx); x <= Math.ceil(hx + rx); x++) {
       const nx = (x + 0.5 - hx) / rx, ny = (y + 0.5 - hy) / ry;
       const jaw = ny > 0.35 ? (ny - 0.35) * 0.9 : 0;                 // the chin narrows
@@ -226,94 +231,99 @@ function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, seed: numbe
       const t = 0.74 - nx * 0.22 - ny * 0.14 - (nx * nx + ny * ny > 0.7 && nx > 0 ? 0.14 : 0);
       put(ctx, x, y, rampAt(o.skin, t, x, y));
     } }
-  if (!front || turn === 0.5) if (!back || turn === 1.5) put(ctx, Math.round(hx - 1.2 * s), Math.round(hy + 0.3), o.skin[1]!, 1, 2);
-  // hair
+  if (!front || turn === 0.5) if (!back || turn === 1.5) put(ctx, Math.round(hx - 1.6 * s), Math.round(hy + 0.6), o.skin[1]!, 1, 2);
+  // hair: a big, chunky mass (the reference style): jagged bangs, side locks framing the face, a shine band and strands
   const style: HairStyle = o.hairStyle ?? (o.longHair ? 'long' : 'short');
   const H = o.hair;
+  const hr = (y: number, x: number, t: number) => rampAt(H, t, x, y);
   if (style !== 'bald') {
     const big = style === 'curly' ? 1 : 0;
-    // cap of hair: covers the top of the head; front views leave the face clear below the fringe
-    for (let y = Math.floor(hy - 4.6 - big); y <= Math.ceil(hy + 3.8); y++) for (let x = Math.floor(hx - 4.8 - big); x <= Math.ceil(hx + 4.8 + big); x++) {
-      const nx = (x + 0.5 - hx) / (3.6 + big * 0.9), ny = (y + 0.5 - (hy - 0.4)) / (3.8 + big * 0.9);
+    for (let y = Math.floor(hy - 6 - big); y <= Math.ceil(hy + 4.6); y++) for (let x = Math.floor(hx - 6 - big); x <= Math.ceil(hx + 6 + big); x++) {
+      const nx = (x + 0.5 - hx) / (4.9 + big * 0.9), ny = (y + 0.5 - (hy - 0.6)) / (5.0 + big * 0.9);
       if (nx * nx + ny * ny > 1) continue;
-      const fringe = hy - 1.5 + Math.sin(x * 1.7) * 0.5;
+      const fringe = hy - 1.6 + ((x * 5 + seed) % 3 === 0 ? 1.2 : (x * 5 + seed) % 3 === 1 ? 0.4 : 0);   // spiky bangs
       let cover: boolean;
-      if (back) cover = y < hy + 2.8;
-      else if (front) cover = y < fringe || (Math.abs(nx) > 0.8 && y < hy + 1.4);
-      else if (profile) cover = y < fringe - 0.4 || (x - hx) * s < -0.6;
-      else cover = y < fringe || ((x - hx) * s < -1.6 && y < hy + 2.2) || (turn === 1.5 && y < hy + 2.8 && (x - hx) * s < 1.1);
+      if (back) cover = y < hy + 3.2;
+      else if (front) cover = y < fringe || (Math.abs(nx) > 0.74 && y < hy + 2.6);
+      else if (profile) cover = y < fringe - 0.4 || (x - hx) * s < -0.4;
+      else cover = y < fringe || ((x - hx) * s < -1.6 && y < hy + 2.6) || (turn === 1.5 && y < hy + 3.2 && (x - hx) * s < 1.4);
       if (!cover) continue;
       const lam = -nx * 0.6 - ny * 0.7;
       const n = ((x * 7 + y * 13 + seed) % 5) / 5;
-      put(ctx, x, y, rampAt(H, 0.55 + lam * 0.5 + (big ? (n - 0.5) * 0.5 : (n - 0.5) * 0.15) + (y === Math.floor(hy - 3.8) ? 0.1 : 0), x, y));
+      const shine = ny > -0.66 && ny < -0.4 && nx > -0.7 && nx < 0.25 && !back ? 0.3 : back && ny > -0.5 && ny < -0.25 && nx < 0.2 ? 0.25 : 0;
+      const strand = (x + Math.floor(y * 0.5)) % 3 === 0 && ny > -0.3 ? -0.14 : 0;
+      put(ctx, x, y, hr(y, x, 0.5 + lam * 0.5 + shine + strand + (big ? (n - 0.5) * 0.5 : (n - 0.5) * 0.12)));
     }
-    const longLen = style === 'long' ? 7 : style === 'braids' ? 8.5 : 0;
+    const longLen = style === 'long' ? 9 : style === 'braids' ? 10 : 0;
     if (longLen) {
-      if (back) poly(ctx, [[hx - 3.6, hy], [hx + 3.6, hy], [hx + 3.3, hy + longLen - 2], [hx - 3.3, hy + longLen - 2]], (x, y) => rampAt(H, 0.65 - (y - hy) / 20 - (x - hx + 5) / 25 + (x % 2 ? 0.08 : 0), x, y));
-      else if (front || turn === 0.5) { for (const sx of style === 'braids' ? [-3.8, 3] : [-4, 3.3]) for (let y = 0; y < longLen - 1; y++) put(ctx, Math.round(hx + sx + (sx < 0 ? 0 : 0)), Math.round(hy + y), rampAt(H, 0.5 - y / 20 + (sx < 0 ? 0.15 : 0), 0, y), style === 'braids' ? 1 : 2, 1); }
-      else poly(ctx, [[hx - 0.8 * s, hy - 1], [hx - 3.6 * s, hy - 1], [hx - 3.3 * s, hy + longLen - 2], [hx - 1.2 * s, hy + longLen - 3]], (x, y) => rampAt(H, 0.45 - (y - hy) / 25, x, y));
+      if (back) poly(ctx, [[hx - 4.6, hy], [hx + 4.6, hy], [hx + 4.0, hy + longLen - 2], [hx, hy + longLen - 1], [hx - 4.0, hy + longLen - 2]], (x, y) => hr(y, x, 0.65 - (y - hy) / 20 - (x - hx + 5) / 25 + (x % 3 === 0 ? -0.12 : 0)));
+      else if (front || turn === 0.5) { for (const sx of style === 'braids' ? [-4.8, 4] : [-5, 4.2]) for (let y = 0; y < longLen - 1; y++) put(ctx, Math.round(hx + sx), Math.round(hy + 1 + y), hr(y, 0, 0.55 - y / 18 + (sx < 0 ? 0.15 : 0) + (style === 'braids' && y % 2 ? -0.2 : 0)), style === 'braids' ? 1 : 2, 1); }
+      else poly(ctx, [[hx - 0.8 * s, hy - 1], [hx - 4.6 * s, hy - 1], [hx - 4.2 * s, hy + longLen - 2], [hx - 1.4 * s, hy + longLen - 3]], (x, y) => hr(y, x, 0.45 - (y - hy) / 25));
     }
-    if (style === 'bun') blob(ctx, hx - (profile ? 2.2 * s : 0), hy - 4.6 + (back ? 1 : 0), 2.0, 1.8, H, { seed: seed + 40, noise: 0.15, edgeDark: 0.2 });
+    if (style === 'bun') blob(ctx, hx - (profile ? 3 * s : 0), hy - 5.8 + (back ? 1 : 0), 2.6, 2.2, H, { seed: seed + 40, noise: 0.15, edgeDark: 0.2, bright: 0.1 });
     if (style === 'ponytail') {
-      if (back) limb(ctx, hx, hy - 1, hx + 0.5, hy + 5.5, 1.5, 1.0, H, seed + 41);
-      else if (!front) limb(ctx, hx - 3 * s, hy - 1.5, hx - 4.6 * s, hy + 4, 1.4, 0.9, H, seed + 41);
-      else { put(ctx, Math.round(hx + 3.6), Math.round(hy - 1.5), H[1]!, 1, 4); }
+      if (back) limb(ctx, hx, hy - 1, hx + 0.5, hy + 7, 1.9, 1.2, H, seed + 41);
+      else if (!front) limb(ctx, hx - 4 * s, hy - 2, hx - 6 * s, hy + 5, 1.8, 1.1, H, seed + 41);
+      else limb(ctx, hx + 4.6, hy - 2, hx + 5.4, hy + 3, 1.2, 0.9, H, seed + 41);
     }
   } else {
-    put(ctx, Math.round(hx - 1.5), Math.round(hy - 3), o.skin[4]!, 2, 1);      // scalp shine
+    put(ctx, Math.round(hx - 2), Math.round(hy - 3.6), o.skin[4]!, 3, 1);      // scalp shine
   }
-  if (o.headband !== undefined) put(ctx, Math.round(hx - 3.5), Math.round(hy - 1.5), o.headband, 7, 1);
+  if (o.headband !== undefined) put(ctx, Math.round(hx - 4.5), Math.round(hy - 2), o.headband, 9, 1);
 
-  // face
-  const ey = Math.round(hy + 0.5);
+  // face: big readable eyes with a catch-light, a hint of mouth
+  const ey = Math.round(hy + 0.6);
+  const eye = (x: number) => { put(ctx, x, ey, C.ink, 1, 2); put(ctx, x, ey, C.night, 1, 1); };
   if (front) {
-    for (const ex of [-2, 1]) { put(ctx, Math.round(hx) + ex, ey, C.ink, 1, 2); put(ctx, Math.round(hx) + ex, ey, C.night, 1, 1); }
-    put(ctx, Math.round(hx) - 1, ey + 2, o.skin[1]!, 2, 1);
+    for (const ex of [-2, 1]) eye(Math.round(hx) + ex);
+    put(ctx, Math.round(hx) - 3, ey + 2, C.r5); put(ctx, Math.round(hx) + 2, ey + 2, C.r5);   // cheeks
+    put(ctx, Math.round(hx) - 1, ey + 3, o.skin[1]!, 2, 1);
   } else if (turn === 0.5) {
-    const e1 = Math.round(hx + 0.0 * s), e2 = Math.round(hx + 2.4 * s);
-    put(ctx, e1 - (s < 0 ? 1 : 0), ey, C.ink, 1, 2); put(ctx, e2 - (s < 0 ? 1 : 0), ey, C.ink, 1, 2);
-    put(ctx, Math.round(hx + 1.5 * s), ey + 2, o.skin[0]!, 1, 1);
+    eye(Math.round(hx - 0.4 * s) - (s < 0 ? 1 : 0)); eye(Math.round(hx + 2.6 * s) - (s < 0 ? 1 : 0));
+    put(ctx, Math.round(hx + 1.4 * s) - (s < 0 ? 1 : 0), ey + 3, o.skin[1]!, 1, 1);
   } else if (profile) {
-    put(ctx, Math.round(hx + 1.9 * s) - (s < 0 ? 1 : 0), ey, C.ink, 1, 2);
-    put(ctx, Math.round(hx + 3.4 * s) - (s < 0 ? 1 : 0), ey + 1, o.skin[2]!, 1, 1);           // nose
-    put(ctx, Math.round(hx + 2.4 * s) - (s < 0 ? 1 : 0), ey + 2, o.skin[0]!, 1, 1);
+    eye(Math.round(hx + 1.8 * s) - (s < 0 ? 1 : 0));
+    put(ctx, Math.round(hx + 3.4 * s) - (s < 0 ? 1 : 0), ey + 1, o.skin[3]!, 1, 1);           // nose
+    put(ctx, Math.round(hx + 2.6 * s) - (s < 0 ? 1 : 0), ey + 3, o.skin[1]!, 1, 1);
   }
   if (o.glasses && !back) {
-    if (front) { for (const ex of [-3, 0]) { put(ctx, Math.round(hx + ex) - 0, ey - 1, C.night, 3, 1); put(ctx, Math.round(hx + ex), ey + 2, C.night, 3, 1); put(ctx, Math.round(hx + ex + 1), ey - 0, C.w6); } }
-    else put(ctx, Math.round(hx + (turn === 0.5 ? 1 : 2) * s) - 1, ey - 1, C.night, 3, 1);
+    if (front) { for (const ex of [-3, 0]) { put(ctx, Math.round(hx + ex), ey - 1, C.night, 3, 1); put(ctx, Math.round(hx + ex), ey + 2, C.night, 3, 1); put(ctx, Math.round(hx + ex + 1), ey, C.w6); } }
+    else put(ctx, Math.round(hx + (turn === 0.5 ? 1 : 2.4) * s) - 1, ey - 1, C.night, 3, 1);
   }
   if (o.beard && !back) {
-    const bx = hx + (profile ? 1.8 * s : turn === 0.5 ? 1 * s : 0);
-    blob(ctx, bx, hy + 2.6, profile ? 1.9 : 2.5, 1.7, o.beard, { seed: seed + 50, noise: 0.3, edgeDark: 0.15 });
-    put(ctx, Math.round(bx) - 1, Math.round(hy + 1.9), o.skin[0]!, 2, 1);
+    const bx = hx + (profile ? 2.2 * s : turn === 0.5 ? 1 * s : 0);
+    blob(ctx, bx, hy + 3.2, profile ? 2.4 : 3.2, 2.1, o.beard, { seed: seed + 50, noise: 0.3, edgeDark: 0.15 });
+    put(ctx, Math.round(bx) - 1, Math.round(hy + 2.6), o.skin[0]!, 2, 1);
   }
-  if (o.moustache && !back) put(ctx, Math.round(hx + (profile ? 2.5 * s : turn === 0.5 ? 1.3 * s : 0)) - 2, Math.round(hy + 1.9), (o.beard ?? o.hair)[1]!, 3, 1);
+  if (o.moustache && !back) put(ctx, Math.round(hx + (profile ? 3 * s : turn === 0.5 ? 1.3 * s : 0)) - 2, Math.round(hy + 2.4), (o.beard ?? o.hair)[1]!, 4, 1);
 
   // hats
   if (o.hat) {
     const hs = o.hatStyle ?? 'cap';
     const hh = o.hat;
     if (hs === 'brim') {
-      blob(ctx, hx, hy - 2.8, 5.6, 1.7, hh, { seed: seed + 60, noise: 0.25, edgeDark: 0.2 });
-      blob(ctx, hx, hy - 4.2, 3.1, 2.1, hh, { seed: seed + 61, noise: 0.25, bright: 0.12, edgeDark: 0.12 });
-      put(ctx, Math.round(hx - 3), Math.round(hy - 3.4), C.r3, 6, 1);
+      blob(ctx, hx, hy - 3.6, 6.8, 2.0, hh, { seed: seed + 60, noise: 0.25, edgeDark: 0.2 });
+      blob(ctx, hx, hy - 5.2, 4.0, 2.6, hh, { seed: seed + 61, noise: 0.25, bright: 0.12, edgeDark: 0.12 });
+      put(ctx, Math.round(hx - 4), Math.round(hy - 4.4), C.r3, 8, 1);
     } else if (hs === 'helm') {
-      // domed iron helm with a visor slit and a short crest
-      blob(ctx, hx, hy - 1.6, 4.4, 4.2, hh, { seed: seed + 65, noise: 0.08, bright: 0.1, edgeDark: 0.2 });
-      if (!back) put(ctx, Math.round(hx) - (profile ? 0 : 2), Math.round(hy + 0.4), C.ink, profile ? 3 : 5, 1);
-      put(ctx, Math.round(hx) - 1, Math.round(hy - 6), o.cape ? o.cape[3]! : C.r4, 2, 2);
+      // domed iron helm with a visor slit, cheek guards and a crest
+      blob(ctx, hx, hy - 1.8, 5.2, 5.0, hh, { seed: seed + 65, noise: 0.08, bright: 0.1, edgeDark: 0.2 });
+      if (!back) put(ctx, Math.round(hx) - (profile ? 0 : 3), Math.round(hy + 0.6), C.ink, profile ? 4 : 6, 1);
+      if (front) for (const sx of [-4, 3]) put(ctx, Math.round(hx) + sx, Math.round(hy + 1), hh[1]!, 1, 3);
+      limb(ctx, hx, hy - 7.2, hx - 1.5 * s, hy - 5.5, 1.3, 0.9, o.cape ?? [C.r2, C.r3, C.r4, C.r5], seed + 67);
     } else if (hs === 'hood') {
-      blob(ctx, hx, hy - 2.4, 4.5, 2.8, hh, { seed: seed + 66, noise: 0.12, bright: 0.05, edgeDark: 0.2 });
-      for (const sx of [-1, 1]) put(ctx, Math.round(hx + sx * 4 - (sx < 0 ? 1 : 0)), Math.round(hy - 1), hh[1]!, 1, 5);
+      blob(ctx, hx, hy - 3, 5.4, 3.6, hh, { seed: seed + 66, noise: 0.12, bright: 0.05, edgeDark: 0.2 });
+      for (const sx of [-1, 1]) put(ctx, Math.round(hx + sx * 5 - (sx < 0 ? 1 : 0)), Math.round(hy - 1.5), hh[1]!, 1, 6);
+      if (!back) put(ctx, Math.round(hx - 3), Math.round(hy - 1.2), hh[0]!, 7, 1);
     } else if (hs === 'circlet') {
-      put(ctx, Math.round(hx - 3.5), Math.round(hy - 2.4), hh[2]!, 7, 1);
-      if (!back) { put(ctx, Math.round(hx) - 1, Math.round(hy - 3.4), C.white, 2, 2); put(ctx, Math.round(hx), Math.round(hy - 3), hh[4]!, 1, 1); }
+      put(ctx, Math.round(hx - 4.5), Math.round(hy - 3.2), hh[2]!, 9, 1);
+      if (!back) { put(ctx, Math.round(hx) - 1, Math.round(hy - 4.2), C.white, 2, 2); put(ctx, Math.round(hx), Math.round(hy - 3.8), hh[4]!, 1, 1); }
     } else if (hs === 'beret') {
-      blob(ctx, hx - 0.6 * s, hy - 3.4, 4.2, 1.9, hh, { seed: seed + 62, noise: 0.15, edgeDark: 0.15 });
-      put(ctx, Math.round(hx - 0.4 * s), Math.round(hy - 5.6), hh[0]!, 1, 1);
+      blob(ctx, hx - 0.8 * s, hy - 4.6, 5.2, 2.4, hh, { seed: seed + 62, noise: 0.15, edgeDark: 0.15 });
+      put(ctx, Math.round(hx - 0.6 * s), Math.round(hy - 7.1), hh[0]!, 1, 1);
     } else {
-      blob(ctx, hx, hy - 3.4, 3.9, 2.3, hh, { seed: seed + 63, noise: 0.1, edgeDark: 0.12 });
-      if (!back) blob(ctx, hx + (profile ? 3 * s : turn === 0.5 ? 1.5 * s : 0), hy - 1.8 + (front ? 0.4 : 0), profile ? 2.4 : 3, 1, hh, { seed: seed + 64, noise: 0, edgeDark: 0.3 });
+      blob(ctx, hx, hy - 4.4, 4.9, 2.8, hh, { seed: seed + 63, noise: 0.1, edgeDark: 0.12 });
+      if (!back) blob(ctx, hx + (profile ? 3.8 * s : turn === 0.5 ? 1.8 * s : 0), hy - 2.6 + (front ? 0.4 : 0), profile ? 3 : 3.8, 1.1, hh, { seed: seed + 64, noise: 0, edgeDark: 0.3 });
     }
   }
 }

@@ -934,7 +934,9 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
         // the land shapes its monsters: wisps haunt the glades, mites and brutes swarm the wastes, slimes breed in the fen
         const biome = biomeAt(this.seed, x, y);
         const br = this.rand();
-        if (isCaveY(y)) kind = br < 0.45 ? 'slime' : br < 0.8 || p.level < 3 ? 'mite' : 'brute';   // the Undercroft never sleeps
+        // (newcomers only ever meet the gentle level-1 table, wherever they wander)
+        if (p.level < 2) { /* keep the table's pick */ }
+        else if (isCaveY(y)) kind = br < 0.45 ? 'slime' : br < 0.8 || p.level < 3 ? 'mite' : 'brute';   // the Undercroft never sleeps
         else if (biome === 'enchanted' && br < 0.5) kind = 'wisp';
         else if (biome === 'corrupted' && br < 0.6) kind = br < 0.2 && p.level >= 3 ? 'brute' : 'mite';
         else if (biome === 'swamp' && br < 0.5) kind = 'slime';
