@@ -516,7 +516,8 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       if (p.deadT > 0) continue;
       // how far behind the server this client's view was (bounded; bogus values mean "no compensation")
       const lag = tick - cmd.viewTick;
-      p.viewLag = cmd.viewTick > 0 && lag > 0 && lag <= MAX_REWIND_TICKS ? lag : 0;
+      // jittery clients drift a tick or two past the window: clamp; absurd values get no compensation at all
+      p.viewLag = cmd.viewTick > 0 && lag > 0 && lag <= MAX_REWIND_TICKS * 3 ? Math.min(lag, MAX_REWIND_TICKS) : 0;
       p.lastViewTick = p.viewLag > 0 ? cmd.viewTick : tick;
       const ev = stepPlayer(p.sim, cmd, solid);
       if (ev.dashed) {
