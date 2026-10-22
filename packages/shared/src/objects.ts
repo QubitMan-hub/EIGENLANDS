@@ -26,6 +26,9 @@ export function objSolid(kind: WorldObjKind, sub: string): boolean {
 export interface ObjLight { radius: number; color: number }
 export function objLight(kind: WorldObjKind, sub: string): ObjLight | null {
   if (sub === 'lamp') return { radius: 5.5, color: C.e6 };
+  if (sub === 'hearth') return { radius: 5, color: C.r5 };
+  if (sub === 'candles') return { radius: 3.5, color: C.e6 };
+  if (sub === 'cauldron') return { radius: 2, color: C.q7 };
   if (sub === 'statue') return { radius: 6, color: C.q5 };
   if (sub === 'shrine_altar') return { radius: 5, color: C.q5 };
   if (sub === 'phase_lantern') return { radius: 4.5, color: C.q5 };

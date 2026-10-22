@@ -32,7 +32,7 @@ async function into10(token: string, name: string, x: number): Promise<Conn> {
   const a = await connect(token, { name, shard: '0,0' });
   await until(() => serverRoom(a.r).players.has(a.r.sessionId));
   const sp = serverRoom(a.r).players.get(a.r.sessionId)!;
-  sp.sim.x = x; sp.sim.y = 0.5;
+  sp.sim.x = x; sp.sim.y = -4.5; // a dry row across the east border
   await until(() => a.handoffs.length > 0, 4000);
   const h = a.handoffs[0]!;
   expect(h.shard).toBe('1,0');
@@ -51,7 +51,7 @@ describe('shards', () => {
     expect(ra.shard).toBe('0,0');
     const sp = ra.players.get(a.r.sessionId)!;
     // inside the margin: no handoff yet (hysteresis)
-    sp.sim.x = B0.x1 + 1; sp.sim.y = 0.5;
+    sp.sim.x = B0.x1 + 1; sp.sim.y = -4.5; // a dry row across the east border
     await sleep(300);
     expect(a.handoffs).toHaveLength(0);
     sp.sim.x = B0.x1 + 3;

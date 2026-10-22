@@ -217,44 +217,82 @@ function dress(t: Town, seed: number, get: (x: number, y: number) => number | un
 type ObjAdd = (x: number, y: number, kind: TownObject['kind'], sub: string) => void;
 type SpotAdd = (name: string, x: number, y: number) => void;
 
+/**
+ * Every building gets a lived-in interior that fits its trade and its owner: stations and work surfaces where the
+ * work happens, a hearth and bed for whoever lives there, storage along the walls, rugs, plants and lamps. Furniture
+ * hugs the walls (back wall first, then the side walls) and the entrance corridor stays clear.
+ */
 function furnish(b: Building, rawObj: ObjAdd, spot: SpotAdd): void {
-  const ix = b.x + 1, iy = b.y + 1, iw = b.w - 2;
+  const ix = b.x + 1, iy = b.y + 1, iw = b.w - 2, ih = b.h - 2;
+  const right = ix + iw - 1, bottom = iy + ih - 1;
+  const used = new Set<string>();
   // keep the entrance corridor (door column +-1, bottom two interior rows) clear so people can walk in
   const reserved = (x: number, y: number) => Math.abs(x - b.doorX) <= 1 && y >= b.doorY - 2;
-  const obj: ObjAdd = (x, y, kind, sub) => { if (!reserved(x, y)) rawObj(x, y, kind, sub); };
-  const bed = () => { obj(ix, iy, 'deco', 'bed'); spot(`${b.id}.bed`, ix + 1, iy + 1); };
-  const table = (x: number, y: number) => {
-    if (reserved(x, y) || reserved(x - 1, y) || reserved(x + 1, y)) return;
-    rawObj(x, y, 'deco', 'table'); rawObj(x - 1, y, 'deco', 'chair'); rawObj(x + 1, y, 'deco', 'chair');
+  const inside = (x: number, y: number) => x >= ix && x <= right && y >= iy && y <= bottom;
+  const free = (x: number, y: number) => inside(x, y) && !reserved(x, y) && !used.has(`${x},${y}`);
+  const obj = (x: number, y: number, kind: TownObject['kind'], sub: string): boolean => {
+    if (!free(x, y)) return false;
+    used.add(`${x},${y}`); rawObj(x, y, kind, sub); return true;
   };
+  const deco = (x: number, y: number, sub: string) => obj(x, y, 'deco', sub);
+  // a rug is walkable: it may sit in the middle of the room (never in the corridor)
+  const rug = (x: number, y: number) => { if (inside(x, y) && !reserved(x, y) && !used.has(`${x},${y}`)) { used.add(`${x},${y}`); rawObj(x, y, 'furniture', 'rug'); } };
+  const bed = () => { if (deco(ix, iy, 'bed')) spot(`${b.id}.bed`, ix + 1, iy + 1); };
+  const table = (x: number, y: number, seats = true) => {
+    if (!free(x, y) || (seats && (!free(x - 1, y) || !free(x + 1, y)))) return;
+    deco(x, y, 'table'); if (seats) { deco(x - 1, y, 'chair'); deco(x + 1, y, 'stool'); }
+  };
+  /** line the back wall from left to right with `subs` (cycled) */
+  const backWall = (subs: string[], x0 = ix, x1 = right, step = 1) => { let k = 0; for (let x = x0; x <= x1; x += step) if (deco(x, iy, subs[k % subs.length]!)) k++; };
+  const cozy = () => { deco(right, bottom, 'plant'); deco(ix, bottom, 'basket'); };
+  const midX = ix + Math.floor(iw / 2), midY = iy + Math.floor(ih / 2);
+
   switch (b.kind) {
     case 'smithy':
-      obj(ix + 1, iy, 'station', 'forge'); obj(ix + 3, iy, 'station', 'furnace'); obj(ix + iw - 1, iy, 'station', 'workbench');
-      obj(ix + iw - 2, iy, 'station', 'jeweler');
-      obj(ix + iw - 1, iy + 2, 'deco', 'barrel');
+      obj(ix + 1, iy, 'station', 'forge'); obj(ix + 3, iy, 'station', 'furnace'); obj(right, iy, 'station', 'workbench');
+      obj(right - 1, iy, 'station', 'jeweler');
+      deco(ix, iy, 'rack'); deco(ix + 2, iy, 'rack'); deco(right, iy + 2, 'barrel'); deco(right, iy + 1, 'crate'); deco(ix, iy + 2, 'barrel');
       spot('smithy.work', ix + 2, iy + 1); break;
     case 'store':
-      for (let i = 1; i < iw - 1; i++) obj(ix + i, iy + 2, 'deco', 'counter');
-      for (let i = 0; i < iw; i += 2) obj(ix + i, iy, 'deco', 'shelf');
-      spot('store.work', ix + Math.floor(iw / 2), iy + 1); break;
+      for (let i = 1; i < iw - 1; i++) deco(ix + i, iy + 2, 'counter');
+      backWall(['shelf', 'bookcase', 'shelf', 'basket']);
+      deco(ix, iy + 1, 'barrel'); deco(right, iy + 1, 'crate'); deco(ix, bottom, 'crate'); deco(right, bottom, 'basket');
+      spot('store.work', midX, iy + 1); break;
     case 'inn':
-      obj(ix + 1, iy, 'station', 'cooking_pot'); obj(ix + 3, iy, 'deco', 'counter'); obj(ix + 4, iy, 'deco', 'counter');
-      table(ix + 3, iy + 3); table(ix + 8, iy + 3); obj(ix + iw - 1, iy, 'deco', 'barrel');
+      obj(ix + 1, iy, 'station', 'cooking_pot'); deco(ix + 3, iy, 'counter'); deco(ix + 4, iy, 'counter'); deco(ix + 5, iy, 'counter');
+      deco(ix + 7, iy, 'hearth'); deco(right, iy, 'barrel'); deco(right - 1, iy, 'barrel'); deco(ix, iy, 'shelf');
+      table(ix + 3, iy + 3); table(ix + 8, iy + 3); rug(ix + 6, iy + 2); rug(ix + 5, iy + 2);
+      deco(ix, bottom, 'candles'); deco(right, bottom, 'plant'); deco(right, iy + 2, 'stool');
       spot('inn.work', ix + 2, iy + 1); spot('inn.table', ix + 5, iy + 2); break;
     case 'hall':
-      obj(ix + Math.floor(iw / 2), iy, 'deco', 'desk'); table(ix + 2, iy + 3); table(ix + iw - 3, iy + 3);
-      for (let i = 1; i < iw; i += 3) if (i !== Math.floor(iw / 2)) obj(ix + i, iy, 'deco', 'shelf');
-      spot('hall.work', ix + Math.floor(iw / 2), iy + 1); break;
+      deco(midX, iy, 'desk'); table(ix + 2, iy + 3); table(right - 2, iy + 3);
+      backWall(['bookcase', 'banner', 'shelf'], ix, midX - 1, 2); backWall(['shelf', 'banner', 'bookcase'], midX + 1, right, 2);
+      rug(midX, iy + 1); rug(midX, iy + 2); rug(midX, iy + 3);
+      deco(ix, bottom, 'candles'); deco(right, bottom, 'candles'); deco(ix, iy + 1, 'plant'); deco(right, iy + 1, 'plant');
+      spot('hall.work', midX, iy + 1); break;
     case 'farmhouse':
-      bed(); table(ix + iw - 3, iy + 2); obj(ix + iw - 1, iy, 'deco', 'shelf');
+      bed(); deco(ix + 2, iy, 'hearth'); table(right - 2, iy + 2); deco(right, iy, 'shelf'); deco(right - 1, iy, 'wardrobe');
+      deco(ix, bottom, 'basket'); deco(right, bottom, 'crate'); deco(ix + 4, iy, 'barrel'); rug(ix + 3, iy + 2);
       spot('farmhouse.work', ix + 4, iy + 2); break;
     default: {
-      bed(); obj(ix + iw - 1, iy, 'deco', 'shelf'); table(ix + Math.floor(iw / 2), iy + 1);
-      if (b.id === 'herbalist') obj(ix + iw - 1, iy + 1, 'station', 'alchemy');
-      if (b.id === 'tailor') obj(ix + iw - 1, iy + 1, 'station', 'loom');
-      if (b.id === 'carpenter') obj(ix + iw - 1, iy + 1, 'station', 'carpenter');
-      if (b.id === 'bakery') { obj(ix + iw - 1, iy + 1, 'station', 'cooking_pot'); obj(ix, iy + 1, 'deco', 'counter'); obj(ix + 1, iy + 1, 'deco', 'counter'); }
-      if (b.id === 'library') for (let i = 1; i < iw - 1; i += 2) obj(ix + i, iy, 'deco', 'shelf');
+      bed();
+      const trade: Record<string, () => void> = {
+        herbalist: () => { obj(right, iy + 1, 'station', 'alchemy'); deco(right - 1, iy, 'cauldron'); deco(ix + 2, iy, 'plant'); deco(ix + 3, iy, 'shelf'); deco(right, iy, 'plant'); deco(right, bottom, 'plant'); },
+        tailor: () => { obj(right, iy + 1, 'station', 'loom'); deco(right, iy, 'wardrobe'); deco(ix + 2, iy, 'basket'); rug(midX, midY); },
+        carpenter: () => { obj(right, iy + 1, 'station', 'carpenter'); deco(right, iy, 'rack'); deco(ix + 2, iy, 'crate'); deco(right, bottom, 'barrel'); },
+        bakery: () => { obj(right, iy + 1, 'station', 'cooking_pot'); deco(right, iy, 'stove'); deco(ix, iy + 1, 'counter'); deco(ix + 1, iy + 1, 'counter'); deco(ix + 2, iy, 'basket'); deco(ix + 3, iy, 'basket'); },
+        library: () => { for (let x = ix + 1; x < right; x++) deco(x, iy, x % 2 ? 'bookcase' : 'shelf'); deco(right, iy, 'candles'); deco(right, iy + 1, 'desk'); rug(midX, midY); },
+        fisher: () => { deco(right, iy, 'rack'); deco(ix + 2, iy, 'barrel'); deco(right, bottom, 'basket'); },
+        scout: () => { deco(right, iy, 'rack'); deco(ix + 2, iy, 'banner'); deco(right, bottom, 'crate'); },
+      };
+      if (trade[b.id]) trade[b.id]!();
+      else {
+        // a home: hearth on the back wall, wardrobe and shelf, a rug before the fire, something green
+        deco(ix + 2, iy, 'hearth'); deco(right, iy, 'wardrobe'); deco(right - 1, iy, 'shelf'); rug(ix + 2, iy + 1);
+        cozy();
+      }
+      table(midX, Math.min(bottom - 1, iy + 2));
+      deco(ix + 1, iy, 'lamp');
       spot(`${b.id}.work`, ix + 1, iy + 2);
     }
   }

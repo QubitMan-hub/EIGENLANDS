@@ -423,6 +423,66 @@ const DECO: Record<string, () => ObjSpriteDef> = {
   })),
   crate: () => still(sprite(16, 16, 8, 14, (ctx) => {
     slab(ctx, 2, 4, 12, 10, WOODL, 3, 0.3); put(ctx, 2, 4, C.e7, 12, 1); put(ctx, 2, 8, C.e1, 12, 1); line(ctx, 2, 4, 13, 13, C.e1); line(ctx, 13, 4, 2, 13, C.e1);
+  })),  // fieldstone hearth: arched firebox, living flames, a kettle hook and a mantel with keepsakes
+  hearth: () => anim(frames(3, (f) => sprite(26, 34, 13, 32, (ctx) => {
+    blob(ctx, 13, 19, 12, 14, STONE, { seed: 11, noise: 0.35, shape: 2.2, edgeDark: 0.3 });
+    for (let y = 8; y < 32; y += 4) for (let x = 2 + ((y >> 2) % 2) * 3; x < 24; x += 6) put(ctx, x, y, C.steel, 1, 1);
+    slab(ctx, 1, 9, 24, 3, WOOD, 4, 0.25); put(ctx, 1, 9, C.e5, 24, 1);                 // mantel
+    put(ctx, 4, 6, C.r4, 2, 3); put(ctx, 9, 7, C.pale, 3, 2); put(ctx, 19, 6, C.w4, 2, 3);  // keepsakes
+    poly(ctx, [[6, 31], [6, 18], [13, 14], [20, 18], [20, 31]], C.ink);                  // firebox
+    put(ctx, 7, 29, C.e1, 12, 2); put(ctx, 8, 28, C.e2, 4, 1); put(ctx, 14, 28, C.e1, 4, 1); // logs
+    const fl = [C.r3, C.r4, C.r5, C.r6, C.r7];
+    for (let i = 0; i < 4; i++) {
+      const x = 8 + i * 3 + ((f + i) % 2), h = 5 + ((i * 3 + f * 2) % 5);
+      for (let j = 0; j < h; j++) put(ctx, x, 27 - j, fl[Math.min(4, Math.floor((1 - j / h) * 4 + (j === 0 ? 1 : 0)))]!, j < h - 2 ? 2 : 1, 1);
+    }
+    put(ctx, 12 + (f % 2), 19, C.r6); put(ctx, 10 - f, 16 + f, C.r5);                     // sparks
+  })), 5),
+  wardrobe: () => still(sprite(20, 34, 10, 32, (ctx) => {
+    slab(ctx, 1, 2, 18, 30, [C.e0, C.e1, C.e2, C.e3], 6, 0.25); put(ctx, 1, 2, C.e4, 18, 2);
+    put(ctx, 10, 5, C.e0, 1, 26); put(ctx, 3, 6, C.e3, 6, 1); put(ctx, 12, 6, C.e2, 6, 1);   // doors
+    put(ctx, 8, 17, C.e6, 1, 2); put(ctx, 12, 17, C.e6, 1, 2);                             // brass pulls
+    put(ctx, 2, 30, C.e0, 3, 2); put(ctx, 15, 30, C.e0, 3, 2);
+  })),
+  plant: () => still(sprite(16, 24, 8, 22, (ctx) => {
+    blob(ctx, 8, 19, 5, 3.4, [C.r1, C.r2, C.r3, C.r4], { seed: 3, noise: 0.15, shape: 2.4, edgeDark: 0.2 });   // terracotta pot
+    put(ctx, 3, 16, C.r4, 10, 1);
+    for (let i = 0; i < 7; i++) { const a = -Math.PI / 2 + (i - 3) * 0.42; line(ctx, 8, 16, Math.round(8 + Math.cos(a) * (6 + (i % 3))), Math.round(15 + Math.sin(a) * (10 - (i % 2) * 2)), i % 2 ? C.g4 : C.g3); }
+    blob(ctx, 8, 8, 4.6, 4, [C.g1, C.g2, C.g4, C.g5, C.g6], { seed: 9, noise: 0.3, edgeDark: 0.2 });
+  })),
+  stool: () => still(sprite(12, 14, 6, 12, (ctx) => {
+    blob(ctx, 6, 4, 5, 2.4, WOODL, { seed: 2, noise: 0.15 }); put(ctx, 2, 4, C.e6, 8, 1);
+    for (const x of [2, 9]) slab(ctx, x, 6, 1, 6, WOOD, x, 0.1); slab(ctx, 5, 7, 2, 5, WOOD, 3, 0.1);
+  })),
+  rack: () => still(sprite(22, 30, 11, 28, (ctx) => {
+    for (const x of [2, 18]) slab(ctx, x, 4, 2, 24, WOOD, x, 0.2);
+    put(ctx, 2, 8, C.e2, 18, 2); put(ctx, 2, 20, C.e2, 18, 2);
+    for (let i = 0; i < 3; i++) { const x = 5 + i * 5; slab(ctx, x, 2, 1, 20, IRON, i, 0.1); put(ctx, x - 1, 2, C.pale, 3, 1); put(ctx, x, 1, C.white); }  // blades
+    blob(ctx, 11, 24, 4, 3, [C.e1, C.e2, C.e3], { seed: 5, noise: 0.2 });               // shield
+    put(ctx, 9, 23, C.e6, 4, 1);
+  })),
+  basket: () => still(sprite(16, 14, 8, 12, (ctx) => {
+    blob(ctx, 8, 9, 6.5, 4, [C.e2, C.e3, C.e4, C.e5], { seed: 4, noise: 0.25, shape: 2.6 });
+    for (let x = 3; x < 14; x += 2) put(ctx, x, 7, C.e1, 1, 5);
+    blob(ctx, 6, 5, 2.2, 1.8, [C.r2, C.r3, C.r4], { seed: 1, noise: 0 }); blob(ctx, 10, 5, 2, 1.7, [C.g2, C.g3, C.g4], { seed: 2, noise: 0 });
+  })),
+  candles: () => anim(frames(2, (f) => sprite(14, 30, 7, 28, (ctx) => {
+    slab(ctx, 6, 10, 2, 17, BRASS, 1, 0.1); slab(ctx, 3, 26, 8, 2, BRASS, 2, 0.1); put(ctx, 2, 10, BRASS[2]!, 10, 1);
+    for (const x of [2, 6, 10]) { put(ctx, x, 6, C.pale, 2, 4); put(ctx, x, 4 - (f && x === 6 ? 1 : 0), C.r6, 1, 2); put(ctx, x + (f ? 1 : 0), 3, C.r7); }
+  })), 3),
+  cauldron: () => anim(frames(2, (f) => sprite(20, 20, 10, 18, (ctx) => {
+    blob(ctx, 10, 12, 8, 6, IRON, { seed: 7, noise: 0.15, shape: 2.2, edgeDark: 0.3 });
+    blob(ctx, 10, 8, 6.5, 2.2, [C.g2, C.g4, C.q7], { seed: 3 + f, noise: 0.3, edgeDark: 0 });
+    put(ctx, 7 + f * 3, 7, C.white); put(ctx, 12 - f * 2, 3 - f, C.q7); put(ctx, 9, 1 + f, C.g5);
+    for (const x of [4, 15]) put(ctx, x, 17, C.slate, 2, 2);
+  })), 3),
+  bookcase: () => still(sprite(20, 36, 10, 34, (ctx) => {
+    slab(ctx, 1, 2, 18, 32, [C.e0, C.e1, C.e2, C.e3], 3, 0.3);
+    const books = [C.r3, C.w3, C.g4, C.q3, C.e5, C.r5, C.w5, C.e6, C.q4];
+    for (let r = 0; r < 4; r++) {
+      put(ctx, 1, 9 + r * 7, C.e0, 18, 1);
+      for (let x = 2; x < 18;) { const w = 1 + ((x * 7 + r * 3) % 3 === 0 ? 2 : 1), h = 5 - ((x + r) % 3 === 0 ? 1 : 0); put(ctx, x, 9 + r * 7 - h, books[(x + r * 4) % books.length]!, w, h); put(ctx, x, 9 + r * 7 - h, C.white, 1, 1); x += w + ((x + r) % 5 === 0 ? 1 : 0); }
+    }
   })),
 };
 
