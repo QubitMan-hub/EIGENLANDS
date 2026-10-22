@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { FLUX, MSG34, SPELL, T, lineErrors } from '@eigenlands/shared';
 import type { App } from '../src/app';
-import { signTicket } from '../src/p34/shard/ticket';
+import { signTicket } from '../src/features/shard/ticket';
 import { runtime } from '../src/rooms/runtime';
-import type { Carry } from '../src/p34/types';
+import type { Carry } from '../src/features/types';
 import {
   attune, boot3, cast, clearEnemies, dev3, dummy, flatten, mkBoard, remove, setClass, setLevel, sleep, spawn3, st, tp,
   until, type P3,

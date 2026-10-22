@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { CHAT_MAX, MSG34 } from '@eigenlands/shared';
 import type { App } from '../src/app';
-import { runtime34 } from '../src/p34/runtime34';
+import { runtime34 } from '../src/features/runtime34';
 import { TokenBucket } from '../src/rate';
 import { bootP4, hasSys, joinP4, partyUp, relaxP4, sleep, until, waitSys, type P4 } from './p4helpers';
 

@@ -10,7 +10,7 @@ import { buildObjectArt, destroyObjectArt, type ObjectArt, type SeasonIdx } from
 import { Audio, SFX_CAPTIONS, type Sfx } from '../audio';
 import type { Input } from '../input/input';
 import { Interpolator, ServerClock, type Pose } from '../net/interp';
-import { P34Client } from '../p34';
+import { P34Client } from '../features';
 import type { KeyMap } from '../input/keymap';
 import type { Net, NetHandlers } from '../net/session';
 import { Predictor } from '../net/prediction';

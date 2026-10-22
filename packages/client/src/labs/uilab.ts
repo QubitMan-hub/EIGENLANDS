@@ -1,21 +1,21 @@
 // Dev-only UI lab: renders each panel with mock data (?panel=inventory|station|forge|dialogue|shop|journal|chest|shelter|rhythm).
-import './style.css';
+import '../style.css';
 import { ITEMS, NPC_BY_ID, RECIPES, type DialogueMsg, type PanelMsg } from '@eigenlands/shared';
-import { Audio } from './audio';
-import { ServerClock } from './net/interp';
-import { Profile } from './game/profile';
-import { Tooltip, h } from './ui/dom';
-import { Windows } from './ui/windows';
-import { Hotbar } from './ui/hotbar';
-import { buildInventory } from './ui/inventory';
-import { buildStation } from './ui/station';
-import { buildForge } from './ui/forge';
-import { buildDialogue } from './ui/dialogue';
-import { buildShop } from './ui/shop';
-import { buildChest, buildShelter } from './ui/containers';
-import { buildJournal } from './ui/journal';
-import { RhythmOverlay } from './ui/rhythm';
-import { Toasts } from './ui/toast';
+import { Audio } from '../audio';
+import { ServerClock } from '../net/interp';
+import { Profile } from '../game/profile';
+import { Tooltip, h } from '../ui/dom';
+import { Windows } from '../ui/windows';
+import { Hotbar } from '../ui/hotbar';
+import { buildInventory } from '../ui/inventory';
+import { buildStation } from '../ui/station';
+import { buildForge } from '../ui/forge';
+import { buildDialogue } from '../ui/dialogue';
+import { buildShop } from '../ui/shop';
+import { buildChest, buildShelter } from '../ui/containers';
+import { buildJournal } from '../ui/journal';
+import { RhythmOverlay } from '../ui/rhythm';
+import { Toasts } from '../ui/toast';
 
 const panel = new URLSearchParams(location.search).get('panel') ?? 'inventory';
 const profile = new Profile();

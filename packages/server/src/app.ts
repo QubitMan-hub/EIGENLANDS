@@ -16,10 +16,10 @@ import { setRuntime } from './rooms/runtime';
 import { metrics } from './rooms/WorldRoom';
 import { GameRoom } from './rooms/GameRoom';
 import { Repo34 } from './db/repo34';
-import { MemoryBus, RedisBus, type Bus } from './p34/bus';
-import { setRuntime34 } from './p34/runtime34';
-import { ShardLocks } from './p34/shard/locks';
-import { shardRouter } from './p34/shard/routes';
+import { MemoryBus, RedisBus, type Bus } from './features/bus';
+import { setRuntime34 } from './features/runtime34';
+import { ShardLocks } from './features/shard/locks';
+import { shardRouter } from './features/shard/routes';
 import { Redis } from 'ioredis';
 
 export interface App {

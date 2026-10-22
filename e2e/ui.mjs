@@ -6,7 +6,7 @@ const p = await b.newPage({ viewport: { width: +w, height: +hh } });
 const logs = [];
 p.on('console', (m) => logs.push(m.type() + ': ' + m.text()));
 p.on('pageerror', (e) => logs.push('pageerror: ' + e.message));
-await p.goto('http://127.0.0.1:5173/uilab.html?panel=' + panel);
+await p.goto('http://127.0.0.1:5173/labs/uilab.html?panel=' + panel);
 await p.waitForFunction(() => window.__uilab, null, { timeout: 15000 });
 await new Promise((r) => setTimeout(r, 700));
 await p.screenshot({ path: out });

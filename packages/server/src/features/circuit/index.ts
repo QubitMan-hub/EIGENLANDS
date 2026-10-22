@@ -2,7 +2,7 @@
  * Phase 3 server: Circuit Board progression and class abilities.
  * Progress lives in `character_progress` (validated on load), the board is attuned and evaluated with the shared
  * simulator, casts are sampled from the attuned joint distribution and executed by the AbilityEngine.
- * See docs/phase3-4-design.md ("Phase 3").
+ * See docs/design/phase3-4-circuit-multiplayer.md ("Phase 3").
  */
 import {
   ABILITIES, ACTIVE_LINES, ATTUNE_COOLDOWN_MS, CLASSES, GATES, GATE_IDS, LINK_POWER, LOCK_POWER, LOCK_POWER_COLLAPSE,

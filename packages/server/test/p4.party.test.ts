@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { MSG34, PARTY_MAX } from '@eigenlands/shared';
 import type { App } from '../src/app';
-import { OFFLINE_KEEP_MS, normalizeParty, type PartyRec } from '../src/p34/social/party';
+import { OFFLINE_KEEP_MS, normalizeParty, type PartyRec } from '../src/features/social/party';
 import { bootP4, hasSys, joinP4, lastParty, partyUp, sleep, until, waitSys, type P4 } from './p4helpers';
 
 let app: App;

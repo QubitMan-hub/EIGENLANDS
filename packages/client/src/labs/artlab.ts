@@ -8,17 +8,17 @@ import { Application, Container, Graphics, Sprite, Text } from 'pixi.js';
 import {
   CROPS, ChunkStore, ITEMS, NPCS, PALETTE, T, TILE_DEFS, TILE_SIZE, ambientColor, darkness, chunkOf, townFor, type WorldObj, type Weather,
 } from '@eigenlands/shared';
-import { buildObjectArt, FRAMES_PER_VARIANT, type SeasonIdx } from './art/objects';
-import { buildActorSheets, OUTFITS, WALK_FRAMES, DIR_LEFT, DIR_RIGHT } from './art/actors';
-import { itemIconUrl } from './art/icons';
-import { GALLERY_OBJECTS, worldObjDef } from './art/worldobjs';
-import { ObjectViews, sunFor } from './game/objectviews';
-import { WorldObjViews } from './game/worldobjviews';
-import { BuildingViews } from './game/buildingviews';
-import { WeatherFx } from './game/weatherfx';
-import { Terrain } from './game/terrain';
-import { Lighting, type Light } from './game/lighting';
-import { depth, isoX, isoY, tileDiamond } from './game/iso';
+import { buildObjectArt, FRAMES_PER_VARIANT, type SeasonIdx } from '../art/objects';
+import { buildActorSheets, OUTFITS, WALK_FRAMES, DIR_LEFT, DIR_RIGHT } from '../art/actors';
+import { itemIconUrl } from '../art/icons';
+import { GALLERY_OBJECTS, worldObjDef } from '../art/worldobjs';
+import { ObjectViews, sunFor } from '../game/objectviews';
+import { WorldObjViews } from '../game/worldobjviews';
+import { BuildingViews } from '../game/buildingviews';
+import { WeatherFx } from '../game/weatherfx';
+import { Terrain } from '../game/terrain';
+import { Lighting, type Light } from '../game/lighting';
+import { depth, isoX, isoY, tileDiamond } from '../game/iso';
 
 const q = new URLSearchParams(location.search);
 const num = (k: string, d: number) => (q.has(k) ? Number(q.get(k)) : d);

@@ -5,7 +5,7 @@ import {
   MSG, MSG34, emptyBoard, type AbilityId, type Board, type CastResultMsg, type GateId, type ProgressMsg,
 } from '@eigenlands/shared';
 import type { App } from '../src/app';
-import { DEV_MSG, type CircuitModule, type CircuitState } from '../src/p34/circuit';
+import { DEV_MSG, type CircuitModule, type CircuitState } from '../src/features/circuit';
 import { TokenBucket } from '../src/rate';
 import type { GameRoom } from '../src/rooms/GameRoom';
 import type { ServerPlayer } from '../src/rooms/player';

@@ -1,5 +1,5 @@
 /**
- * Contracts between the world room and the Phase 2 systems. See docs/phase2-design.md.
+ * Contracts between the world room and the Phase 2 systems. See docs/design/phase2-village.md.
  * `PlayerRef` is the only way systems touch a connected player; `VillageSystem` is what the room calls for NPCs.
  */
 import type {

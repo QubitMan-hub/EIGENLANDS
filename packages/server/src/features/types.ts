@@ -1,6 +1,6 @@
 /**
  * Contracts between GameRoom (Phase 3/4 room) and its modules: circuit (progression + abilities),
- * social (party, chat, trade) and shard (handoff, ghosts, relays). See docs/phase3-4-design.md.
+ * social (party, chat, trade) and shard (handoff, ghosts, relays). See docs/design/phase3-4-circuit-multiplayer.md.
  */
 import type { Schema } from '@colyseus/schema';
 import type { ClassId } from '@eigenlands/shared';

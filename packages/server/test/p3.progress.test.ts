@@ -3,8 +3,8 @@ import {
   ATTUNE_COOLDOWN_MS, MSG34, RUNE_PRICE, TUTORIAL_DONE, allowedAbilities, emptyGateCounts, rewardsForLevel,
 } from '@eigenlands/shared';
 import type { App } from '../src/app';
-import { runtime34 } from '../src/p34/runtime34';
-import { validProgress } from '../src/p34/circuit';
+import { runtime34 } from '../src/features/runtime34';
+import { validProgress } from '../src/features/circuit';
 import { startApp } from './helpers';
 import {
   attune, boot3, cast, dev, dev3, mkBoard, relax3, setClass, setLevel, sleep, spawn3, st, until,

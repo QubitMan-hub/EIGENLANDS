@@ -1,8 +1,8 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { MSG, MSG34, TRADE_MAX_ITEMS } from '@eigenlands/shared';
 import type { App } from '../src/app';
-import { runtime34 } from '../src/p34/runtime34';
-import { tradeTuning } from '../src/p34/social/trade';
+import { runtime34 } from '../src/features/runtime34';
+import { tradeTuning } from '../src/features/social/trade';
 import { bootP4, countOf, giveP4, hasSys, joinP4, lastTrade, sleep, slotOfP4, tpP4, until, waitSys, type P4 } from './p4helpers';
 
 let app: App;

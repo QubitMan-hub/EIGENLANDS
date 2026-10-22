@@ -7,7 +7,7 @@ import type { GameRoom } from '../src/rooms/GameRoom';
 import type { ServerPlayer } from '../src/rooms/player';
 import { TokenBucket } from '../src/rate';
 import { tuning } from '../src/rooms/runtime';
-import { tradeTuning } from '../src/p34/social/trade';
+import { tradeTuning } from '../src/features/social/trade';
 import { guest, resetDb, sleep, startApp, until, wsUrl } from './helpers';
 
 export interface P4 {

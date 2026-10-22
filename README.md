@@ -1,43 +1,70 @@
 # EIGENLANDS
 
-A browser multiplayer, infinite, pixel-art open-world RPG where progression is powered by quantum circuits.
-This repository currently contains **Phase 1: Core** (see `docs/superpowers/specs/2026-10-21-phase1-core-design.md`).
+A browser multiplayer, infinite, isometric pixel-art open-world RPG where every skill is a quantum circuit.
+Gather, farm, craft and forge in a living town; wire gates into your Circuit Board to shape your abilities; play solo
+in the browser or share a world with other players.
 
-## What works today (Phase 1)
-- Infinite deterministic world: 32x32 chunks from a seed (simplex height/moisture/temperature/"quantum flux"), streamed on demand. One biome (Phase Meadows) with water, sand, trees, rocks, flowers, glowing "phase bloom" tiles, camps and a spawn shrine.
-- Real-time action combat: 8-way movement, dash with i-frames, 3-hit sword combo, aimed skill shot, telegraphed enemies (Wisp Slime, Glint Hopper), XP and levels, death and respawn.
-- Authoritative Colyseus server at 20 Hz with client-side prediction + reconciliation, entity interpolation, lag-compensated melee (250 ms rewind), per-client interest management (2-chunk radius), binary acks.
-- Day/night: 24 real minutes per day, smooth ambient colour, per-tile lights (torches, blooms), night makes enemies stronger; 4 seasons of 7 days (clock/season shown, gameplay effects arrive with farming).
-- Accounts: guest play (device secret) upgradable in place to Google sign-in; no passwords stored; account deletion; Postgres persistence (characters, chunk edits as diffs) with migrations; Redis presence.
-- Smash rocks/trees (E): the edit is saved as a chunk diff and survives restarts.
-- Accessibility: remappable keys, colour-blind modes, text size, reduce motion, high-contrast HUD, sound captions, keyboard/mouse/gamepad/touch.
+**Play now (single-player, in the browser):** deployed from `main` to GitHub Pages by `.github/workflows/pages.yml`.
+
+## Features
+- **World** – infinite deterministic chunks from a seed, GPU isometric terrain with smooth blending, day/night, seasons, weather.
+- **Village life** – the town of Hadamere with ten NPCs on schedules, dialogue, gifts, shops with dynamic prices, a quest chain, and the QubitMan statue.
+- **Crafting** – tools, stations, discovery recipes, farming with superposition crops, fishing, and Interference Forging (a rhythm minigame).
+- **Circuit Board** – place gates on orb lines to bias which form of each ability fires; classes Wanderer, Superposer, Entangler.
+- **Combat** – WASD movement, mouse aim, armed skill shots (Q/R/F/G then left click), auto-aim at a selected target, hold right mouse to look ahead, dash, combos, telegraphed enemies.
+- **Multiplayer** – authoritative 20 Hz Colyseus server with prediction, interpolation and lag compensation; parties, chat, trading, shard handoff.
+- **Accounts** – guest play upgradable to Google sign-in; Postgres persistence; Redis presence.
+- **Accessibility** – remappable keys, colour-blind modes, text size, reduced motion, high-contrast HUD, sound captions.
+
+## Controls
+| | |
+|---|---|
+| Move | `W A S D` / arrows (screen-relative) |
+| Attack | left click (aims at the cursor) |
+| Select target | left click an enemy or party mate · `Esc` clears |
+| Abilities | `Q R F G`: quick abilities fire at once, skill shots arm an aim line, then left click fires. `V` ultimate |
+| Look ahead | hold right mouse |
+| Dash | `Space` / `Shift` |
+| Use / talk | `E` · Pack `I` · Craft `C` · Journal `L` · Circuit Board `B` · Party `P` · Chat `Enter` |
+
+## Repository layout
+```
+packages/
+  shared/   deterministic game code used by client and server (sim, worldgen, rules, protocol, schema)
+  server/   Colyseus world room, game systems, village AI, Circuit/social features, auth, Postgres migrations
+  client/   PixiJS client: renderer, procedural art, UI, input, in-browser solo server (src/local)
+    labs/   art-lab and UI-lab pages for reviewing sprites and panels (dev server only)
+e2e/        headless-browser checks (smoke, solo, multiplayer, UI/art screenshots)
+docs/
+  design/   specs per phase · art/ style guide · legal/ privacy
+.github/    CI and GitHub Pages workflows
+```
 
 ## Run it
-Requires Node 22+, PostgreSQL 16, Redis 7 (`docker compose up -d` provides both).
+Requires Node 22+, PostgreSQL 16 and Redis 7 (`docker compose up -d` provides both).
 ```bash
 cp .env.example .env            # optional; defaults work with docker-compose
 npm install
-npm run dev:server              # http://localhost:2567  (runs migrations on start)
+npm run dev:server              # http://localhost:2567 (runs migrations on start)
 npm run dev:client              # http://localhost:5173
 ```
-Useful URLs/flags: `?hour=12` pins the in-game clock (screenshots/testing); `F3` shows fps, ping, prediction correction and netcode stats.
-
-Google sign-in: set `GOOGLE_CLIENT_ID` (a Web OAuth client id) on the server; the client fetches it from `/api/auth/config`. Without it the game runs guest-only.
+No database? Build the single-player variant, which runs the real server room inside the page:
+```bash
+npm run preview:pages           # http://localhost:5240
+```
+Handy flags: `?hour=12` pins the clock, `?dev=1` enables dev commands in solo builds, `F3` shows fps and netcode stats.
+Art lab: `http://localhost:5173/labs/artlab.html`, UI lab: `/labs/uilab.html`.
 
 ## Tests and tools
 ```bash
-npm test                                  # shared + server (real Postgres/Redis) + client unit tests
+npm test                      # shared + server (needs Postgres/Redis) + client unit tests
 npm run typecheck
-node packages/client/e2e/smoke.mjs        # headless Chromium: login, move, fight, stream chunks, reload
-node packages/client/e2e/multi.mjs        # two players + phone/touch emulation
-npx tsx packages/server/tools/loadtest.ts 100 20   # bot load test; reads /metrics
+npm run e2e                   # headless Chromium smoke test against the dev servers
+npm run e2e:solo              # same against the Pages build (npm run preview:pages first)
+npm run loadtest -- 100 20    # bot load test; the server exposes GET /metrics
 ```
-Server metrics: `GET /metrics` (players, enemies, tick time avg/max, over-budget ticks).
+Google sign-in: set `GOOGLE_CLIENT_ID` on the server (the client reads it from `/api/auth/config`); without it the game is guest-only.
 
-## Layout
-`packages/shared` deterministic game code used by both sides (sim, worldgen, chunks, protocol, schema) · `packages/server` Colyseus room, auth, DB · `packages/client` PixiJS client + procedural art · `docs/` design, style guide, privacy.
-
-## Honest status and known limits
-- Verified here: unit/integration tests, headless-browser play, a 100-bot load test (avg tick ~14 ms with everyone in one view). **Not verified:** real Google OAuth (tested through an injectable verifier), 60 fps on real GPUs/phones (software WebGL in CI gives ~20-40 fps; JS frame cost is ~2-3 ms), 1,000 players per shard (needs spatial hashing, worker sharding: Phase 4/6), 150 ms-ping feel on a real WAN (prediction is tested deterministically, not with injected latency).
-- Single world room per process; sharding, parties, chat, trading arrive in Phase 4.
-- No gathering/crafting/NPCs yet (Phase 2) and no Circuit Board/classes (Phase 3); only the placeholder "Wanderer" exists.
+## Status and known limits
+Not verified in CI: real Google OAuth (tested through an injectable verifier), 60 fps on real GPUs and phones,
+1,000 players per shard, and play at 150 ms real-world ping. See `docs/design/` for what each phase promises.

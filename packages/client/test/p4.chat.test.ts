@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ChatMsg } from '@eigenlands/shared';
-import { ChatModel, parseCommand, splitName } from '../src/p34/social/model';
+import { ChatModel, parseCommand, splitName } from '../src/features/social/model';
 
 const ctx = { ch: 'local' as const, known: ['Big Bob', 'Bo', 'Alice'] };
 const msg = (o: Partial<ChatMsg>): ChatMsg => ({ ch: 'local', from: 'Ann', fromId: 'id-ann', text: 'hi', t: 1, ...o });

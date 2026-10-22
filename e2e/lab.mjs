@@ -8,7 +8,7 @@ const logs = [];
 p.on('console', (m) => logs.push(m.type() + ': ' + m.text()));
 p.on('pageerror', (e) => logs.push('pageerror: ' + e.message));
 const t0 = Date.now();
-await p.goto(base + '/artlab.html?' + q + (/motion=/.test(q) ? '' : '&motion=0'));
+await p.goto(base + '/labs/artlab.html?' + q + (/motion=/.test(q) ? '' : '&motion=0'));
 await p.waitForFunction(() => window.__lab?.ready, null, { timeout: 60000 });
 await new Promise((r) => setTimeout(r, 1200));
 await p.screenshot({ path: out, fullPage: /lab=icons/.test(q) });

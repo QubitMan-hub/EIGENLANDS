@@ -1,7 +1,7 @@
 /**
  * The Circuit Board: a character's progression "talent tree", which is a real quantum circuit.
  * Lines = qubits (orbs), each powering one ability; cells hold gates. Shared by the client (live preview)
- * and the server (attune + casting), so both always agree. See docs/phase3-4-design.md.
+ * and the server (attune + casting), so both always agree. See docs/design/phase3-4-circuit-multiplayer.md.
  */
 import {
   ABILITIES, ACTIVE_LINES, ELEMENTS, FLUX, hueWrap, isAbilityId, type AbilityId,
