@@ -7,6 +7,14 @@ import type { Sun } from './objectviews';
 
 export interface TileLight { x: number; y: number; radius: number; color: number; intensity: number }
 
+type LightSource = (minX: number, minY: number, maxX: number, maxY: number) => TileLight[];
+let buildingLights: LightSource | null = null;
+const extraLights = new Map<string, LightSource>();
+/** BuildingViews registers its window lights here; they ride along with WorldObjViews.lights(). */
+export function setBuildingLights(fn: LightSource | null): void { buildingLights = fn; }
+/** Other art-side light sources (fireflies, glowing crystals...) keyed by name (re-registering replaces). */
+export function setExtraLights(key: string, fn: LightSource | null): void { if (fn) extraLights.set(key, fn); else extraLights.delete(key); }
+
 interface View {
   obj: WorldObj;
   def: ObjSpriteDef;
@@ -165,6 +173,8 @@ export class WorldObjViews {
       const flick = 0.9 + 0.1 * Math.sin(performance.now() / 160 + v.phase);
       out.push({ x: o.x + 0.5, y: o.y + 0.5, radius: l.radius * (0.95 + 0.05 * flick), color: l.color, intensity: 0.9 * flick });
     });
+    if (buildingLights) out.push(...buildingLights(minX, minY, maxX, maxY));
+    for (const fn of extraLights.values()) out.push(...fn(minX, minY, maxX, maxY));
     return out;
   }
 }

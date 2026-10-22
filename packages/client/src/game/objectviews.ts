@@ -1,12 +1,13 @@
 import { Container, Sprite } from 'pixi.js';
-import { CHUNK_SIZE, T, TILE_DEFS, chunkKey, hash2, sampleClimate, type ChunkStore } from '@eigenlands/shared';
+import { CHUNK_SIZE, T, TILE_DEFS, chunkKey, darkness, hash2, sampleClimate, type ChunkStore } from '@eigenlands/shared';
 import { depth, isoX, isoY } from './iso';
 import { FRAMES_PER_VARIANT, type ObjectArt, type ObjSprite } from '../art/objects';
 
 /** kinds that get the quantum echo ghost when standing in flux-rich ground */
 const ECHO_KINDS = new Set(['tree', 'rock', 'flowers', 'forage', 'ore_copper', 'ore_iron', 'ore_silver', 'ore_gold', 'crystal', 'bloom', 'stump']);
 
-export interface Sun { dx: number; len: number; alpha: number }
+/** dx/len/alpha drive cast shadows; `dark` (0 day .. 1 night) and `hour` let views light windows, fireflies... */
+export interface Sun { dx: number; len: number; alpha: number; dark?: number; hour?: number }
 
 interface Obj {
   root: Sprite;
@@ -25,9 +26,9 @@ export function sunFor(hour: number): Sun {
   if (hour >= 6 && hour <= 18) {
     const a = ((hour - 6) / 12) * Math.PI;
     const elev = Math.max(0.22, Math.sin(a));
-    return { dx: -Math.cos(a), len: Math.min(2.4, 0.55 / elev), alpha: 0.34 * Math.min(1, elev * 2.2) };
+    return { dx: -Math.cos(a), len: Math.min(2.4, 0.55 / elev), alpha: 0.34 * Math.min(1, elev * 2.2), dark: darkness(hour), hour };
   }
-  return { dx: 0.3, len: 0.9, alpha: 0.1 };
+  return { dx: 0.3, len: 0.9, alpha: 0.1, dark: darkness(hour), hour };
 }
 
 /** Sprites for every tile that carries an object (trees, rocks, flowers...), with sun-cast shadows. */
