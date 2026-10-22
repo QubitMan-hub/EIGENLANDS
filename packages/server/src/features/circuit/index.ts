@@ -5,7 +5,7 @@
  * See docs/design/phase3-4-circuit-multiplayer.md ("Phase 3").
  */
 import {
-  ABILITIES, ACTIVE_LINES, ATTUNE_COOLDOWN_MS, CLASSES, GATES, GATE_IDS, LINK_POWER, LOCK_POWER, LOCK_POWER_COLLAPSE,
+  ABILITIES, ACTIVE_LINES, ATTUNE_COOLDOWN_MS, CLASSES, ITEMS, WEAPONS, GATES, GATE_IDS, LINK_POWER, LOCK_POWER, LOCK_POWER_COLLAPSE,
   MSG34, MULTICLASS_LEVEL, PLAYABLE_CLASSES, RESOURCE_MAX, RUNE_PRICE, SPEC_LEVEL, TUTORIAL, TUTORIAL_DONE,
   TUTORIAL_REWARD, attuneLocks, castLines, checkBoard, evaluate, lineErrors, placedGates,
   qubitsForLevel, rewardsForLevel,
@@ -34,6 +34,8 @@ export const RES_DECAY = 3;
 export const RES_IDLE_MS = 4000;
 /** RES messages are throttled to at most 4 per second. */
 export const RES_SEND_MS = 250;
+/** chance a Focus staff flips a cast into its own element (when the ability has that form) */
+const FOCUS_BIAS = 0.3;
 /** a line counts as "split" for Coherence when both forms are genuinely possible */
 const SPLIT_MIN = 0.02;
 
@@ -259,6 +261,15 @@ export class CircuitModule implements Module, CircuitApi {
     const [ax, ay] = tgt ? this.toward(p, tgt) : this.aim(p, m.aimX, m.aimY);
     const lockPow = s.pr.cls === 'superposer' && s.pr.spec === 'collapse' ? LOCK_POWER_COLLAPSE : LOCK_POWER;
     const lines = castLines(s.pr.board, s.ev, line, s.errors, () => this.room.rand());
+    // a wielded staff is a Focus: it nudges the cast toward its own element when the ability has such a form
+    const focus = p.data.equip.weapon ? ITEMS[p.data.equip.weapon.id]?.weapon : undefined;
+    const fh = focus ? WEAPONS[focus].hue : -1;
+    if (fh >= 0) for (const l of lines) {
+      const a = s.pr.board.abilities[l.q];
+      if (!a || l.misfire) continue;
+      const f = ABILITIES[a].forms;
+      if (f[l.bit]!.hue !== fh && f[l.bit === 0 ? 1 : 0]!.hue === fh && this.room.rand() < FOCUS_BIAS) { l.bit = l.bit === 0 ? 1 : 0; l.hue = fh; }
+    }
     const results: CastLineResult[] = [];
     if (free) s.freeSwap = false; // spent before executing, so a Tether in the same cast re-arms it
     else s.cd.set(ability, now + ABILITIES[ability].cd * 1000);

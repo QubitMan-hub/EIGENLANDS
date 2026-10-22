@@ -43,6 +43,8 @@ export class ServerPlayer implements PlayerRef {
   viewLag = 0;
   /** server tick the client was displaying when it sent its last processed input */
   lastViewTick = 0;
+  /** wall-clock ms the equipped Focus/crossbow may fire again */
+  weaponReadyAt = 0;
   /** tick the current dash started, and the dash that already earned a phase slip (one per dash) */
   dashTick = -1;
   slipTick = -2;

@@ -5,7 +5,7 @@ import {
   type DialogueMsg, type FishBiteMsg, type FxMsg, type ObjMsg, type PanelMsg, type ProfileMsg, type RhythmResultMsg, type RhythmStartMsg,
   type ShopViewMsg, type TileMsg, type ToastMsg, type WelcomeMsg, type ForgePreviewReply,
 } from '@eigenlands/shared';
-import { buildActorSheets, dirOf, OUTFITS, WALK_FRAMES, DIR_DOWN, DIR_LEFT, type Sheets } from '../art/actors';
+import { buildActorSheets, dirOf, COSMETIC_OUTFITS, OUTFITS, WALK_FRAMES, DIR_DOWN, DIR_LEFT, type Sheets } from '../art/actors';
 import { buildObjectArt, destroyObjectArt, type ObjectArt, type SeasonIdx } from '../art/objects';
 import { Audio, SFX_CAPTIONS, type Sfx } from '../audio';
 import type { Input } from '../input/input';
@@ -28,7 +28,7 @@ import { buildFoeSheets, type FoeSheets } from '../art/foes';
 import { CombatView } from './combatview';
 import { WindField } from './windfield';
 import { Ambient } from './ambient';
-import { MSG34, SHADOW_RANKS } from '@eigenlands/shared';
+import { HUE_PALETTE, ITEMS, MSG34, SHADOW_RANKS, WEAPONS, isRangedWeapon } from '@eigenlands/shared';
 import { Critters } from '../art/critters';
 import { TargetFrame } from '../ui/targetframe';
 
@@ -167,7 +167,7 @@ export class Game {
     });
     this.combat = new CombatView({
       fx: () => this.fx, sound: (s, x, y) => this.sound(s, x, y), rawSound: (s) => this.audio.play(s),
-      reduced: () => this.settings().reducedMotion, sheets: () => this.sheets, foes: () => this.foes, critters: () => this.critters, myId: () => this.myId,
+      reduced: () => this.settings().reducedMotion, sheets: () => this.sheets, foes: () => this.foes, critters: () => this.critters, weapon: () => this.weaponInfo(), myId: () => this.myId,
       me: () => (this.predictor ? { x: this.predictor.sim.x, y: this.predictor.sim.y } : null), views: () => this.views.values(),
     }, this.decalLayer);
     this.ext = new P34Client({
@@ -358,7 +358,8 @@ export class Game {
   private fxFromServer(f: FxMsg): void {
     if (this.combat.onFx(f, (id) => this.views.get(id))) { if (f.kind === 'hurt' && f.id === this.myId) this.hurtTimer = 0.25; return; }
     switch (f.kind) {
-      case 'shot': this.fx.burst(f.x, f.y, [45, 46], 4); this.sound('shot', f.x, f.y); break;
+      case 'shot': this.fx.burst(f.x, f.y, f.v !== undefined ? [f.v >= 8 ? 22 : HUE_PALETTE[f.v] ?? 45, 7] : [45, 46], 4); this.sound('shot', f.x, f.y); break;
+      case 'form': this.fx.number(f.x, f.y - 1.2, f.v ? 'BEAR' : 'WOLF', f.v ? 37 : 46); this.fx.burst(f.x, f.y, f.v ? [37, 38, 22] : [46, 47, 7], f.v ? 10 : 6); break;
       case 'dash': this.fx.dash(f.x, f.y, f.dx ?? 0, f.dy ?? 1); this.sound('dash', f.x, f.y); break;
       case 'levelup': this.fx.ring(f.x, f.y, 38); this.fx.burst(f.x, f.y, [38, 39, 22], 12); this.fx.number(f.x, f.y - 1, `LEVEL ${f.v}!`, 38); this.sound('levelup'); break;
       case 'break': this.fx.burst(f.x, f.y, [4, 5, 20], 10); this.sound('break', f.x, f.y); break;
@@ -379,6 +380,7 @@ export class Game {
       case 'shadow': {
         const v = f.v ?? 0;
         if (v === 4) { this.fx.burst(f.x, f.y, [5, 6, 7], 8); break; }
+        if (v === 5) { this.fx.ring(f.x, f.y, 46, 1.2, 0.25, 1); this.fx.burst(f.x, f.y, [46, 47, 7], 8); this.fx.number(f.x, f.y - 1, 'PHASE', 46); break; }
         this.fx.burst(f.x, f.y, v === 2 ? [43, 45, 7, 47] : [43, 44, 45], v === 2 ? 22 : 12);
         this.fx.ring(f.x, f.y, 44, v === 2 ? 2.4 : 1.4);
         this.sound(v === 2 ? 'levelup' : 'craft', f.x, f.y);
@@ -414,7 +416,7 @@ export class Game {
       this.labelLayer.addChild(label);
     }
     if (type === 'player') {
-      outfit = id === this.myId ? 0 : [...id].reduce((a, c) => a + c.charCodeAt(0), 0) % OUTFITS.length;
+      outfit = id === this.myId ? 0 : [...id].reduce((a, c) => a + c.charCodeAt(0), 0) % COSMETIC_OUTFITS;
       // names live in screen space (crisp, not darkened by the night lightmap)
       label = new Text({ text: e.name || '', style: { fontFamily: 'ui-monospace, Menlo, Consolas, monospace', fontSize: 12, fontWeight: 'bold', fill: pc(id === this.myId ? 47 : 7), stroke: { color: pc(0), width: 3 } } });
       label.resolution = this.app.renderer.resolution || 1;
@@ -572,6 +574,13 @@ export class Game {
     this.frameMs = this.frameMs * 0.95 + (performance.now() - t0) * 0.05;
   }
 
+  /** wielded weapon summary for prediction and effects */
+  private weaponInfo(): { ranged: boolean; hue: number } {
+    const id = this.gameplay.profile.equip.weapon ? ITEMS[this.gameplay.profile.equip.weapon.id]?.weapon : undefined;
+    const w = id ? WEAPONS[id] : null;
+    return { ranged: isRangedWeapon(w), hue: w ? w.hue : -1 };
+  }
+
   currentTarget(): { id: string; kind: 'enemy' | 'player' } | null {
     const v = this.targetId ? this.views.get(this.targetId) : undefined;
     return v && (v.type === 'enemy' || v.type === 'player') ? { id: v.id, kind: v.type } : null;
@@ -672,6 +681,7 @@ export class Game {
     const frozen = this.dead || !this.connected || this.settingsOpen() || this.gameplay.blocking || this.ext.blocking || this.net.switching;
     if (frozen) { this.input.read(now); return; }
     const viewTick = Math.max(0, Math.floor(this.clock.tickAt(this.clock.serverNow(now) - this.clock.interpDelay - this.combat.warp)));
+    this.predictor.sim.ranged = this.weaponInfo().ranged;
     const { cmd, ev } = this.predictor.step(r, viewTick);
     this.net.sendInput(cmd);
     const acts = this.gameplay.acts;
@@ -714,7 +724,7 @@ export class Game {
         const deadP = isMe ? this.dead : ((s?.flags ?? 0) & 4) !== 0;
         const walking = moved > 0.003 * (dtMs / 16);
         const frame = walking ? 1 + (Math.floor(v.travel / 0.17) % (WALK_FRAMES - 1)) : 0;
-        const look = isMe ? this.gameplay.profile.equip.outfit : (s?.look ?? v.outfit);
+        const look = s?.look ?? (isMe ? this.gameplay.profile.equip.outfit : v.outfit);
         const sd = screenDir(fx, fy);
         v.sprite.texture = this.sheets.person(((look % OUTFITS.length) + OUTFITS.length) % OUTFITS.length, dirOf(sd.x, sd.y), frame);
         v.sprite.alpha = deadP ? 0.35 : dash ? 0.6 : 1;

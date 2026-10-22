@@ -1,6 +1,7 @@
 import { critterDir, type Critters, type CritterId } from '../art/critters';
 import type { Container, Graphics, Sprite } from 'pixi.js';
 import {
+  HUE_PALETTE,
   ATK, BRUTE_SLAM_RADIUS, CHARGE_FULL, CHARGE_MIN, CHARGE_WIDTH, COMBO, DASH_CHARGES, DASH_COOLDOWN, ELITE, ENEMY_BY_KIND, LEAP_RADIUS,
   PALETTE, PLAYER_RADIUS, heavyHit, hitStopMs, inArc, shakeFor, type FxMsg, type PlayerSim, type StepEvents,
 } from '@eigenlands/shared';
@@ -49,6 +50,8 @@ export interface CombatDeps {
   sheets: () => Sheets;
   foes: () => FoeSheets;
   critters: () => Critters;
+  /** the wielded weapon: ranged = shoots instead of swinging; hue = its element (-1 physical) */
+  weapon: () => { ranged: boolean; hue: number };
   myId: () => string;
   me: () => { x: number; y: number } | null;
   views: () => Iterable<CombatActor>;
@@ -121,6 +124,16 @@ export class CombatView {
     if (charging && !this.wasCharging) this.d.sound('charge');
     this.wasCharging = charging;
     if (!ev.attacked) return;
+    const wp = this.d.weapon();
+    if (wp.ranged) {
+      // a shot: muzzle flash toward the aim, a recoil kick; the server fires and resolves it
+      const col = wp.hue < 0 ? [22, 21, 7] : [HUE_PALETTE[wp.hue]!, 7];
+      fx.burst(sim.x + sim.faceX * 0.5, sim.y + sim.faceY * 0.5, col, ev.heavy ? 9 : 4);
+      if (ev.heavy) fx.ring(sim.x, sim.y, col[0]!, 1.1, 0.25, 1);
+      this.d.sound(ev.heavy ? 'heavy' : 'shot');
+      if (me) me.punch = ev.heavy ? 0.6 : 0.25;
+      return;
+    }
     const hit = ev.heavy ? heavyHit(ev.level) : COMBO[ev.combo]!;
     if (ev.heavy) { fx.heavy(sim.x, sim.y, sim.faceX, sim.faceY, ev.level); this.d.sound('heavy'); }
     else { fx.swing(sim.x, sim.y, sim.faceX, sim.faceY, ev.combo); this.d.sound(ev.combo === 2 ? 'finisher' : ev.combo === 1 ? 'swing2' : 'swing'); }

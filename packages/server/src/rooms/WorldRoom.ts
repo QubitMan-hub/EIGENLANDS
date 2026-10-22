@@ -13,6 +13,7 @@ import {
   type DevMsg, type UseMsg, type OpenMsg, type InvMoveMsg, type InvTrashMsg, type EquipMsg, type CraftMsg, type ExperimentMsg,
   type ForgePreviewMsg, type ForgeStartMsg, type RhythmDoneMsg, type FishHookMsg, type ChestMsg, type ShelterMsg, type NpcState,
   type SpellState,
+  ITEMS, MORPH_FORMS, WEAPONS, isRangedWeapon, type WeaponDef, type WeaponShot,
 } from '@eigenlands/shared';
 import { verifyToken } from '../auth/token';
 import { createEnemy, enemyDamage, stepEnemies, type Enemy, type EnemyKind, type SpawnOpts } from '../game/enemies';
@@ -25,7 +26,7 @@ import { dailyRollover, refreshCrop, rollShelter } from '../systems/farming';
 import { handleHook, tickFishing } from '../systems/fishing';
 import { handleForgePreview, handleForgeStart, handleRhythmDone } from '../systems/forging';
 import { addSkillXp, giveStacks } from '../systems/helpers';
-import { handleEquip, handleInvMove, handleInvTrash } from '../systems/inventory';
+import { handleEquip, handleInvMove, handleInvTrash, lookOf } from '../systems/inventory';
 import { ObjectManager } from '../systems/objects';
 import { loadPlayerData, serializePlayerData } from '../systems/profile';
 import { handleUse } from '../systems/tools';
@@ -521,12 +522,13 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       // jittery clients drift a tick or two past the window: clamp; absurd values get no compensation at all
       p.viewLag = cmd.viewTick > 0 && lag > 0 && lag <= MAX_REWIND_TICKS * 3 ? Math.min(lag, MAX_REWIND_TICKS) : 0;
       p.lastViewTick = p.viewLag > 0 ? cmd.viewTick : tick;
+      p.sim.ranged = isRangedWeapon(this.weaponOf(p));
       const ev = stepPlayer(p.sim, cmd, solid);
       if (ev.dashed) {
         p.dashTick = tick;
         this.fx({ kind: 'dash', x: p.sim.x, y: p.sim.y, dx: p.sim.faceX, dy: p.sim.faceY, id: p.id }, p.client.sessionId);
       }
-      if (ev.attacked) this.resolveMelee(p, cmd, ev, tick);
+      if (ev.attacked) this.attackWith(p, cmd, ev, tick);
       if (ev.skill) this.spawnProjectile(p);
     }
     p.history.push({ tick, x: p.sim.x, y: p.sim.y });
@@ -534,16 +536,39 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
 
     const s = p.state;
     s.x = p.sim.x; s.y = p.sim.y; s.faceX = p.sim.faceX; s.faceY = p.sim.faceY;
-    s.hp = p.hp; s.maxHp = p.maxHp; s.level = p.level; s.xp = p.xp; s.ack = p.lastSeq; s.look = p.data.equip.outfit;
+    s.hp = p.hp; s.maxHp = p.maxHp; s.level = p.level; s.xp = p.xp; s.ack = p.lastSeq; s.look = lookOf(p);
     p.client.send(MSG.ACK, encodeAck({ seq: p.lastSeq, tick, sim: p.sim }));
     const sim = p.sim;
     s.flags = (sim.dashT > 0 ? 1 : 0) | (sim.atkCd > 0.12 ? 2 : 0) | (p.deadT > 0 ? 4 : 0)
       | (sim.hold && sim.charge > 0 ? 8 : 0) | (sim.hold && sim.charge >= CHARGE_MIN ? 16 : 0) | (sim.slipT > 0 ? 32 : 0) | (sim.ifrT > 0 ? 64 : 0);
   }
 
+  private weaponOf(p: ServerPlayer): WeaponDef | null {
+    const id = p.data.equip.weapon ? ITEMS[p.data.equip.weapon.id]?.weapon : undefined;
+    return id ? WEAPONS[id] : null;
+  }
+
+  /** The wielded weapon decides what an attack does: blades swing, crossbows and staves shoot, the Shapeshifter flips a coin. */
+  private attackWith(p: ServerPlayer, cmd: InputCmd, ev: StepEvents, tick: number): void {
+    const w = this.weaponOf(p);
+    if (!w || w.cls === 'blade') { this.resolveMelee(p, cmd, ev, tick); return; }
+    if (w.id === 'morph_staff' && !ev.heavy) { this.resolveMelee(p, cmd, ev, tick, MORPH_FORMS[this.rand() < 0.5 ? 0 : 1]); return; }
+    const shot = ev.heavy ? w.charged : w.basic;
+    if (!shot) { this.resolveMelee(p, cmd, ev, tick); return; }
+    const now = Date.now();
+    if (p.weaponReadyAt > now) return;
+    p.weaponReadyAt = now + (w.cd * (ev.heavy ? 1.4 : 1) * 1000) / (1 + p.stats.haste * 0.05);
+    const power = ev.heavy ? 0.7 + 0.5 * ev.level : 1;
+    const aim = Math.hypot(cmd.aimX, cmd.aimY) > 1e-3 ? { x: cmd.aimX, y: cmd.aimY } : { x: p.sim.faceX, y: p.sim.faceY };
+    if (!this.hookWeaponShot(p, shot, aim.x, aim.y, power * (1 + p.stats.atkBonus * 0.02))) this.resolveMelee(p, cmd, ev, tick);
+    else this.fx({ kind: 'shot', x: p.sim.x, y: p.sim.y, dx: aim.x, dy: aim.y, v: w.hue < 0 ? 8 : w.hue }, p.client.sessionId);
+  }
+
   /** Light combo hits and charged heavies; lag-compensated against what the attacker saw. Also bats enemy orbs back. */
-  private resolveMelee(p: ServerPlayer, cmd: InputCmd, ev: StepEvents, tick: number): void {
-    const hit = ev.heavy ? heavyHit(ev.level) : COMBO[ev.combo]!;
+  private resolveMelee(p: ServerPlayer, cmd: InputCmd, ev: StepEvents, tick: number, form?: { name: string; dmg: number; knockback: number }): void {
+    const base = ev.heavy ? heavyHit(ev.level) : COMBO[ev.combo]!;
+    const hit = form ? { ...base, damage: Math.round(base.damage * form.dmg), knockback: base.knockback * form.knockback } : base;
+    if (form) this.fx({ kind: 'form', x: p.sim.x, y: p.sim.y, v: form.name === 'Bear' ? 1 : 0, id: p.id });
     const rewindTick = Math.min(tick, Math.max(cmd.viewTick, tick - MAX_REWIND_TICKS));
     const fx = p.sim.faceX, fy = p.sim.faceY;
     if (ev.heavy) this.fx({ kind: 'heavy', x: p.sim.x, y: p.sim.y, dx: fx, dy: fy, v: ev.level, id: p.id }, p.client.sessionId);
@@ -816,8 +841,10 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
 
   /** Apply an enemy hit to a player (ward buff, Phase 3 hook, shove, death). Returns whether damage was dealt. */
   private hurtPlayer(p: ServerPlayer, raw: number, e: Enemy, weight: number, dirX: number, dirY: number): boolean {
+    // armour: a hit may pass straight through (phase), otherwise worn defence trims it
+    if (p.stats.phase > 0 && this.rand() < p.stats.phase) { this.fx({ kind: 'shadow', x: p.sim.x, y: p.sim.y, v: 5, id: p.id }); return false; }
     const ward = p.data.buffs.ward;
-    const dmg = this.hookIncomingDamage(p, Math.max(1, Math.round(raw * (1 - (ward && ward.until > this.wclock.now() ? ward.power : 0)))), e);
+    const dmg = this.hookIncomingDamage(p, Math.max(1, Math.round(raw * (1 - p.stats.def) * (1 - (ward && ward.until > this.wclock.now() ? ward.power : 0)))), e);
     if (dmg <= 0) return false; // dodged or absorbed by a Phase 3 ability
     p.hp = Math.max(0, p.hp - dmg);
     p.invuln = 0.5;
@@ -968,6 +995,8 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   protected hookTargets(): Array<{ id: string; x: number; y: number; alive: boolean }> { return []; }
   /** an enemy strike was queued (summoned shadows in its shape take the hit) */
   protected hookStrike(_e: Enemy, _shape: StrikeShape, _dmg: number): void {}
+  /** a weapon's ranged attack (Phase 3 engine); return false when unhandled */
+  protected hookWeaponShot(_p: ServerPlayer, _shot: WeaponShot, _ax: number, _ay: number, _power: number): boolean { return false; }
   protected hookKilled(_e: Enemy, _killer: ServerPlayer | undefined): void {}
   protected hookIncomingDamage(_p: ServerPlayer, dmg: number, _e: Enemy): number { return dmg; }
 

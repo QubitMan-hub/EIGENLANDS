@@ -25,7 +25,7 @@ put(0, 'axe', 1, { tier: 2 }); put(1, 'pickaxe', 1, { tier: 1 }); put(2, 'hoe', 
 put(5, 'net', 1, { tier: 1 }); put(6, 'sword', 1, { atk: 11, tier: 3, qname: 'Superior', phase: 4.5, stats: { atk: 8, dur: 3, spd: 4 }, note: 'In phase: the metals sing together.' }); put(7, 'turnip_seed', 12); put(8, 'potato_seed', 4);
 put(10, 'wood', 64); put(11, 'stone', 40); put(12, 'copper_ingot', 6); put(13, 'iron_ingot', 3); put(14, 'silver_ingot', 2); put(15, 'qubit_crystal', 2); put(16, 'slime_gel', 3);
 put(17, 'turnip', 5); put(18, 'minnow', 3); put(19, 'ring_atk', 1, { stat: 'atk', val: 4 }); put(20, 'outfit_red', 1); put(21, 'healing_potion', 2); put(22, 'coal', 8); put(23, 'fiber', 20);
-profile.apply({ inv, coins: 482, recipes: RECIPES.filter((r) => r.learn === 'start').map((r) => r.id), skills: { farming: 130, mining: 40, foraging: 12, fishing: 0, crafting: 70 }, friends: { orla: { pts: 150, talked: 0, gifted: 0 }, tobin: { pts: 330, talked: 0, gifted: 0 } }, equip: { ring1: { id: 'ring_hp', n: 1, p: { stat: 'hp', val: 12 } }, ring2: null, outfit: 0 }, stats: { hpBonus: 12, atkBonus: 4, luck: 0, haste: 0.1 } });
+profile.apply({ inv, coins: 482, recipes: RECIPES.filter((r) => r.learn === 'start').map((r) => r.id), skills: { farming: 130, mining: 40, foraging: 12, fishing: 0, crafting: 70 }, friends: { orla: { pts: 150, talked: 0, gifted: 0 }, tobin: { pts: 330, talked: 0, gifted: 0 } }, equip: { ring1: { id: 'ring_hp', n: 1, p: { stat: 'hp', val: 12 } }, ring2: null, outfit: 0, weapon: null, head: null, chest: null, legs: null, feet: null }, stats: { hpBonus: 12, def: 0, phase: 0, atkBonus: 4, luck: 0, haste: 0.1 } });
 
 const tip = new Tooltip();
 const wins = new Windows();

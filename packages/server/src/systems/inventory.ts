@@ -1,6 +1,7 @@
 import {
-  ITEMS, addStack, cloneStack, moveSlot, type EquipMsg, type InvMoveMsg, type InvTrashMsg,
+  EQUIP_SLOTS, ITEMS, SET_BY_ID, WEAPONS, addStack, armorTotals, cloneStack, moveSlot, type EquipMsg, type EquipSlotKey, type InvMoveMsg, type InvTrashMsg,
 } from '@eigenlands/shared';
+import { fitsSlot } from './profile';
 import type { ServerPlayer } from '../rooms/player';
 import { isInt, validSlot } from './helpers';
 
@@ -18,20 +19,36 @@ export function handleInvTrash(p: ServerPlayer, msg: InvTrashMsg): void {
   p.dirty('inv');
 }
 
-/** Rings go into one of two slots (the old ring returns to the pack); outfits set the look. */
+/** The look a character shows: a worn armour set (3+ pieces) or the chosen outfit. */
+export function lookOf(p: ServerPlayer): number {
+  const e = p.data.equip;
+  const a = armorTotals({ head: e.head?.id ?? null, chest: e.chest?.id ?? null, legs: e.legs?.id ?? null, feet: e.feet?.id ?? null });
+  return a.look !== null ? 8 + a.look : e.outfit;
+}
+
+const levelNeeded = (id: string): number => {
+  const d = ITEMS[id];
+  if (!d) return 1;
+  if (d.weapon) return WEAPONS[d.weapon].level;
+  if (d.armor) return SET_BY_ID[d.armor.set]?.level ?? 1;
+  return 1;
+};
+
+/** Rings, armour and the main-hand Focus swap with the pack; outfits set the cosmetic look. */
 export function handleEquip(p: ServerPlayer, msg: EquipMsg): void {
-  if (!msg) return;
+  if (!msg || typeof msg.as !== 'string') return;
   const eq = p.data.equip;
-  if (msg.as === 'unequip_ring1' || msg.as === 'unequip_ring2') {
-    const key = msg.as === 'unequip_ring1' ? 'ring1' : 'ring2';
+  if (msg.as.startsWith('unequip_')) {
+    const key = msg.as.slice(8) as EquipSlotKey;
+    if (!EQUIP_SLOTS.includes(key)) return;
     const r = eq[key];
     if (!r) return;
     if (addStack(p.data.inv, cloneStack(r)) > 0) { p.toast('Your pack is full.', 'bad'); return; }
     eq[key] = null;
-    p.dirty('inv', 'equip');
+    p.state.look = lookOf(p);
+    p.dirty('inv', 'equip', 'stats');
     return;
   }
-  if (msg.as !== 'ring1' && msg.as !== 'ring2' && msg.as !== 'outfit') return;
   if (!validSlot(msg.slot)) return;
   const s = p.data.inv[msg.slot];
   if (!s) return;
@@ -39,14 +56,17 @@ export function handleEquip(p: ServerPlayer, msg: EquipMsg): void {
   if (msg.as === 'outfit') {
     if (def?.kind !== 'outfit' || def.outfit === undefined) return;
     eq.outfit = def.outfit;
-    p.state.look = def.outfit;
+    p.state.look = lookOf(p);
     p.dirty('equip');
     return;
   }
-  if (def?.kind !== 'ring') return;
-  const old = eq[msg.as];
-  eq[msg.as] = { id: s.id, n: 1, ...(s.p ? { p: s.p } : {}) };
-  p.data.inv[msg.slot] = old; // swap: the previous ring lands in the freed slot
-  p.dirty('inv', 'equip');
+  const slot = msg.as as EquipSlotKey;
+  if (!EQUIP_SLOTS.includes(slot) || !fitsSlot(slot, s)) return;
+  const need = levelNeeded(s.id);
+  if (p.level < need) { p.toast(`${def?.name ?? 'That'} needs level ${need}.`, 'bad'); return; }
+  const old = eq[slot];
+  eq[slot] = { id: s.id, n: 1, ...(s.p ? { p: s.p } : {}) };
+  p.data.inv[msg.slot] = old; // swap: the previous piece lands in the freed slot
+  p.state.look = lookOf(p);
+  p.dirty('inv', 'equip', 'stats');
 }
-

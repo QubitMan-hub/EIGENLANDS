@@ -23,7 +23,7 @@ export function dirOf(fx: number, fy: number): number {
 }
 
 export type HairStyle = 'short' | 'long' | 'bun' | 'bald' | 'braids' | 'curly' | 'ponytail';
-export type HatStyle = 'cap' | 'brim' | 'beret';
+export type HatStyle = 'cap' | 'brim' | 'beret' | 'helm' | 'hood' | 'circlet';
 export interface Outfit {
   shirt: Ramp; pants: Ramp; hair: Ramp; skin: Ramp; boots: Ramp;
   longHair?: boolean; hat?: Ramp;
@@ -58,6 +58,21 @@ export const OUTFITS: Outfit[] = [
   { shirt: cloth([C.r2, C.r3, C.r4, C.r5, C.r6]), pants: PANTS.navy, hair: HAIR.black, skin: SKIN_LIGHT, boots: BOOTS, hairStyle: 'bun' },
   { shirt: cloth([C.w2, C.w3, C.w4, C.w5, C.w6]), pants: PANTS.brown, hair: HAIR.blond, skin: SKIN_DARK, boots: BOOTS, hat: cloth([C.e1, C.e2, C.e3, C.e4]), hatStyle: 'brim' },
 ];
+
+/** Worn armour sets (look = 8 + set.look): shown whenever 3+ pieces of a set are equipped. */
+export const COSMETIC_OUTFITS = OUTFITS.length;
+OUTFITS.push(
+  // leather: soft brown hide, hood
+  { shirt: cloth([C.e1, C.e2, C.e3, C.e4, C.e5]), pants: PANTS.brown, hair: HAIR.brown, skin: SKIN_LIGHT, boots: BOOTS, vest: cloth([C.e0, C.e1, C.e2, C.e3]), hat: cloth([C.e1, C.e2, C.e3, C.e4]), hatStyle: 'hood' },
+  // hunter: forest green with a cap and short cloak
+  { shirt: cloth([C.g1, C.g2, C.g3, C.g4, C.g5]), pants: PANTS.olive, hair: HAIR.red, skin: SKIN_MID, boots: BOOTS, vest: cloth([C.e1, C.e2, C.e3, C.e4]), hat: cloth([C.g1, C.g2, C.g3, C.g4]), hatStyle: 'cap', cape: cloth([C.g0, C.g1, C.g2, C.g3]) },
+  // iron: full plate
+  { shirt: cloth([C.slate, C.steel, C.mist, C.fog, C.pale]), pants: cloth([C.night, C.slate, C.steel, C.mist]), hair: HAIR.black, skin: SKIN_LIGHT, boots: cloth([C.ink, C.night, C.slate, C.steel]), hat: cloth([C.slate, C.steel, C.mist, C.fog, C.pale]), hatStyle: 'helm', cape: cloth([C.r1, C.r2, C.r3, C.r4]) },
+  // silk: violet quantum robes with a glowing seam
+  { shirt: cloth([C.q1, C.q2, C.q3, C.q4, C.q6]), pants: cloth([C.q0, C.q1, C.q2, C.q3]), hair: HAIR.white, skin: SKIN_LIGHT, boots: cloth([C.q0, C.q1, C.q2]), hat: cloth([C.q1, C.q2, C.q3, C.q4]), hatStyle: 'hood', glow: C.q7, cape: cloth([C.q0, C.q1, C.q2, C.q3]), longHair: true },
+  // voidglass: crystal mail, cyan glow, circlet
+  { shirt: cloth([C.w2, C.w3, C.w5, C.w6, C.w7]), pants: cloth([C.w1, C.w2, C.w3, C.w4]), hair: HAIR.violet, skin: SKIN_DARK, boots: cloth([C.w0, C.w1, C.w2, C.w3]), hat: cloth([C.w3, C.w5, C.w6, C.w7, C.white]), hatStyle: 'circlet', glow: C.q7, cape: cloth([C.w0, C.w1, C.w2, C.w4]) },
+);
 
 const rmp = (a: number[]) => a as Ramp;
 /** One distinctive look per village NPC (ids from shared NPCS). */
@@ -251,6 +266,17 @@ function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, seed: numbe
       blob(ctx, hx, hy - 2.8, 5.6, 1.7, hh, { seed: seed + 60, noise: 0.25, edgeDark: 0.2 });
       blob(ctx, hx, hy - 4.2, 3.1, 2.1, hh, { seed: seed + 61, noise: 0.25, bright: 0.12, edgeDark: 0.12 });
       put(ctx, Math.round(hx - 3), Math.round(hy - 3.4), C.r3, 6, 1);
+    } else if (hs === 'helm') {
+      // domed iron helm with a visor slit and a short crest
+      blob(ctx, hx, hy - 1.6, 4.4, 4.2, hh, { seed: seed + 65, noise: 0.08, bright: 0.1, edgeDark: 0.2 });
+      if (!back) put(ctx, Math.round(hx) - (profile ? 0 : 2), Math.round(hy + 0.4), C.ink, profile ? 3 : 5, 1);
+      put(ctx, Math.round(hx) - 1, Math.round(hy - 6), o.cape ? o.cape[3]! : C.r4, 2, 2);
+    } else if (hs === 'hood') {
+      blob(ctx, hx, hy - 2.4, 4.5, 2.8, hh, { seed: seed + 66, noise: 0.12, bright: 0.05, edgeDark: 0.2 });
+      for (const sx of [-1, 1]) put(ctx, Math.round(hx + sx * 4 - (sx < 0 ? 1 : 0)), Math.round(hy - 1), hh[1]!, 1, 5);
+    } else if (hs === 'circlet') {
+      put(ctx, Math.round(hx - 3.5), Math.round(hy - 2.4), hh[2]!, 7, 1);
+      if (!back) { put(ctx, Math.round(hx) - 1, Math.round(hy - 3.4), C.white, 2, 2); put(ctx, Math.round(hx), Math.round(hy - 3), hh[4]!, 1, 1); }
     } else if (hs === 'beret') {
       blob(ctx, hx - 0.6 * s, hy - 3.4, 4.2, 1.9, hh, { seed: seed + 62, noise: 0.15, edgeDark: 0.15 });
       put(ctx, Math.round(hx - 0.4 * s), Math.round(hy - 5.6), hh[0]!, 1, 1);
@@ -400,7 +426,7 @@ function personSheet(looks: Outfit[], seedBase: number): HTMLCanvasElement {
 export function buildActorSheets(): Sheets {
   const base = Texture.from(personSheet(OUTFITS, 1)); base.source.scaleMode = 'nearest';
   const npcIds = NPCS.map((n) => n.id);
-  const npcBase = Texture.from(personSheet(npcIds.map((id, i) => NPC_LOOKS[id] ?? OUTFITS[i % OUTFITS.length]!), 700)); npcBase.source.scaleMode = 'nearest';
+  const npcBase = Texture.from(personSheet(npcIds.map((id, i) => NPC_LOOKS[id] ?? OUTFITS[i % COSMETIC_OUTFITS]!), 700)); npcBase.source.scaleMode = 'nearest';
 
   // creatures: slime 24x20 (day/night x4), hopper 22x22 (x4 x2), orb 16x16 x2, rabbit 20x18 x4, deer 34x34 x4
   const cw = 34 * 4, ch = 20 * 2 + 22 * 2 + 16 + 18 + 34;

@@ -18,6 +18,8 @@ export interface PlayerSim {
   dashCd: number;
   dashDx: number;
   dashDy: number;
+  /** a ranged weapon is wielded: attacks do not lunge */
+  ranged?: boolean;
   atkCd: number;
   combo: number; // index of the NEXT hit in the 3-hit combo
   comboT: number;
@@ -220,7 +222,7 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, solid: SolidQuery): Step
     p.atkCd = h.recovery;
     p.combo = 0; p.comboT = 0; p.charge = 0; p.atkBuf = 0;
     counter();
-    moveBody(p, p.faceX * h.lunge, p.faceY * h.lunge, PLAYER_RADIUS, solid);
+    if (!p.ranged) moveBody(p, p.faceX * h.lunge, p.faceY * h.lunge, PLAYER_RADIUS, solid);
   }
 
   // light combo (buffered)
@@ -235,7 +237,7 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, solid: SolidQuery): Step
     p.comboT = p.combo === 0 ? 0 : COMBO_WINDOW;
     p.atkBuf = 0;
     counter();
-    moveBody(p, p.faceX * hit.lunge, p.faceY * hit.lunge, PLAYER_RADIUS, solid);
+    if (!p.ranged) moveBody(p, p.faceX * hit.lunge, p.faceY * hit.lunge, PLAYER_RADIUS, solid);
   }
 
   // charging

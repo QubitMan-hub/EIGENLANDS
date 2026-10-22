@@ -1,10 +1,10 @@
 import {
-  CROPS, DEED_KINDS, ITEMS, NPC_BY_ID, QUEST_BY_ID, RECIPES, addStack, dayNumber, emptyInventory, pruneRequests, validInventory, validSkills,
-  type Inventory, type ProfileMsg, type QuestLog, type Stack,
+  CROPS, DEED_KINDS, ITEMS, NPC_BY_ID, QUEST_BY_ID, RECIPES, WEAPONS, addStack, armorTotals, dayNumber, emptyInventory, pruneRequests, validInventory, validSkills,
+  type EquipSlotKey, type EquipState, type Inventory, type ProfileMsg, type QuestLog, type Stack,
 } from '@eigenlands/shared';
 import type { Buff, DirtyPart, FriendRec, PlayerData } from './types';
 
-export interface DerivedStats { hpBonus: number; atkBonus: number; luck: number; haste: number }
+export interface DerivedStats { hpBonus: number; atkBonus: number; luck: number; haste: number; /** damage reduction 0..0.6 */ def: number; /** chance a hit passes straight through */ phase: number }
 
 const BUFF_KINDS = new Set(['regen', 'might', 'ward', 'lantern']);
 
@@ -30,7 +30,7 @@ export function newPlayerData(season: number): PlayerData {
   addStack(inv, { id: 'fiber', n: 5 });
   return {
     inv, coins: 100, skills: validSkills(null), recipes: new Set(startRecipes()),
-    equip: { ring1: null, ring2: null, outfit: 0 }, friends: {}, buffs: {}, quests: {}, deeds: {}, events: [],
+    equip: emptyEquip(), friends: {}, buffs: {}, quests: {}, deeds: {}, events: [],
   };
 }
 
@@ -49,6 +49,19 @@ export function validQuests(v: unknown, today: number): QuestLog {
   return out;
 }
 
+export const emptyEquip = (): EquipState => ({ ring1: null, ring2: null, outfit: 0, weapon: null, head: null, chest: null, legs: null, feet: null });
+
+/** Is `v` a stack of an item that fits this equipment slot? (stored data is never trusted) */
+export function fitsSlot(slot: EquipSlotKey, v: unknown): v is Stack {
+  const s = v as Stack | null;
+  if (!s || typeof s.id !== 'string') return false;
+  const d = ITEMS[s.id];
+  if (!d) return false;
+  if (slot === 'ring1' || slot === 'ring2') return d.kind === 'ring';
+  if (slot === 'weapon') return d.kind === 'weapon' && !!d.weapon;
+  return d.kind === 'armor' && d.armor?.slot === slot;
+}
+
 const isRing = (s: unknown): s is Stack => !!s && typeof (s as Stack).id === 'string' && ITEMS[(s as Stack).id]?.kind === 'ring';
 
 /** Never trust stored shapes: every field is re-validated (old characters with empty data get the starter kit). */
@@ -58,6 +71,7 @@ export function loadPlayerData(raw: unknown, season: number, nowMs: number): Pla
   const known = new Set(startRecipes());
   if (Array.isArray(r.recipes)) for (const id of r.recipes) if (typeof id === 'string' && RECIPES.some((x) => x.id === id)) known.add(id);
   const eq = (r.equip ?? {}) as Record<string, unknown>;
+  const slotStack = (slot: EquipSlotKey, v: unknown): Stack | null => (fitsSlot(slot, v) ? { id: v.id, n: 1, ...(v.p ? { p: v.p } : {}) } : null);
   const ring = (v: unknown): Stack | null => (isRing(v) ? { id: v.id, n: 1, ...(v.p ? { p: v.p } : {}) } : null);
   const outfit = typeof eq.outfit === 'number' && Number.isInteger(eq.outfit) && eq.outfit >= 0 && eq.outfit < 8 ? eq.outfit : 0;
   const friends: Record<string, FriendRec> = {};
@@ -88,7 +102,7 @@ export function loadPlayerData(raw: unknown, season: number, nowMs: number): Pla
   const events = Array.isArray(r.events) ? r.events.filter((x): x is string => typeof x === 'string' && /^[a-z]+:\d$/.test(x)).slice(0, 64) : [];
   return {
     inv: validInventory(r.inv), coins, skills: validSkills(r.skills), recipes: known,
-    equip: { ring1: ring(eq.ring1), ring2: ring(eq.ring2), outfit }, friends, buffs,
+    equip: { ring1: ring(eq.ring1), ring2: ring(eq.ring2), outfit, weapon: slotStack('weapon', eq.weapon), head: slotStack('head', eq.head), chest: slotStack('chest', eq.chest), legs: slotStack('legs', eq.legs), feet: slotStack('feet', eq.feet) }, friends, buffs,
     quests: validQuests(r.quests, dayNumber(nowMs)), deeds, events,
   };
 }
@@ -98,7 +112,7 @@ export function serializePlayerData(d: PlayerData): Record<string, unknown> {
 }
 
 export function deriveStats(d: PlayerData): DerivedStats {
-  const s: DerivedStats = { hpBonus: 0, atkBonus: 0, luck: 0, haste: 0 };
+  const s: DerivedStats = { hpBonus: 0, atkBonus: 0, luck: 0, haste: 0, def: 0, phase: 0 };
   for (const r of [d.equip.ring1, d.equip.ring2]) {
     if (!r?.p?.stat || !Number.isFinite(r.p.val)) continue;
     const v = r.p.val!;
@@ -107,6 +121,12 @@ export function deriveStats(d: PlayerData): DerivedStats {
   let best = 0;
   for (let i = 0; i < 10; i++) { const st = d.inv[i]; if (st && st.id === 'sword') best = Math.max(best, st.p?.atk ?? 0); }
   s.atkBonus += best;
+  // armor (with set bonuses) and the wielded Focus
+  const a = armorTotals({ head: d.equip.head?.id ?? null, chest: d.equip.chest?.id ?? null, legs: d.equip.legs?.id ?? null, feet: d.equip.feet?.id ?? null });
+  s.hpBonus += a.bonus.hp; s.atkBonus += a.bonus.atk; s.luck += a.bonus.luck; s.haste += a.bonus.haste; s.def += a.bonus.def; s.phase += a.bonus.phase;
+  const w = d.equip.weapon ? ITEMS[d.equip.weapon.id]?.weapon : undefined;
+  if (w) { const b = WEAPONS[w].bonus; s.hpBonus += b.hp ?? 0; s.atkBonus += b.atk ?? 0; s.def += b.def ?? 0; s.luck += b.luck ?? 0; s.haste += b.haste ?? 0; }
+  s.def = Math.min(0.6, s.def);
   return s;
 }
 

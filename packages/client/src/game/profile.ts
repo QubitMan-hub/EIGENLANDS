@@ -1,5 +1,5 @@
 import {
-  INV_SIZE, emptyInventory, emptySkills, type Inventory, type ProfileMsg, type QuestLog, type SkillXp, type Stack,
+  INV_SIZE, emptyInventory, emptySkills, type EquipState, type Inventory, type ProfileMsg, type QuestLog, type SkillXp, type Stack,
 } from '@eigenlands/shared';
 
 export interface FriendView { pts: number; talked: number; gifted: number }
@@ -11,10 +11,10 @@ export class Profile {
   coins = 0;
   skills: SkillXp = emptySkills();
   recipes = new Set<string>();
-  equip: { ring1: Stack | null; ring2: Stack | null; outfit: number } = { ring1: null, ring2: null, outfit: 0 };
+  equip: EquipState = { ring1: null, ring2: null, outfit: 0, weapon: null, head: null, chest: null, legs: null, feet: null };
   buffs: Buffs = {};
   friends: Record<string, FriendView> = {};
-  stats = { hpBonus: 0, atkBonus: 0, luck: 0, haste: 0 };
+  stats = { hpBonus: 0, atkBonus: 0, luck: 0, haste: 0, def: 0, phase: 0 };
   quests: QuestLog = {};
   /** heart events already seen */
   events: string[] = [];

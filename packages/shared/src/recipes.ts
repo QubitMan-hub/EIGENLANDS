@@ -1,4 +1,5 @@
 import { ITEMS } from './items';
+import { ARMOR_SLOTS, armorId } from './equipment';
 
 export type StationId = 'hand' | 'workbench' | 'furnace' | 'forge' | 'cooking_pot' | 'alchemy' | 'loom' | 'jeweler' | 'carpenter';
 export const STATION_NAMES: Record<StationId, string> = {
@@ -110,6 +111,26 @@ r('rug', 'carpenter', [['cloth', 4]], ['rug', 1], 3, 'start', 'Underfoot.');
 r('sign', 'carpenter', [['plank', 2]], ['sign', 1], 2, 'start', 'A post and a board.');
 r('coop', 'carpenter', [['plank', 12], ['hay', 4]], ['coop', 1], 10, 'start', 'Planks and hay.');
 r('barn', 'carpenter', [['plank', 30], ['hay', 10], ['iron_ingot', 2]], ['barn', 1], 20, 'npc:fenwick', 'Fenwick can show you how to raise a barn.');
+
+// Armor and Foci (see equipment.ts). Armor is made at the workbench (silk at the loom); staves and the crossbow at the carpenter's.
+const ARMOR_COSTS: Record<string, Record<string, Array<[string, number]>>> = {
+  leather: { head: [['hide', 3]], chest: [['hide', 6], ['fiber', 4]], legs: [['hide', 5]], feet: [['hide', 3], ['fiber', 2]] },
+  hunter: { head: [['hide', 3], ['wolf_fang', 1]], chest: [['hide', 6], ['wolf_fang', 2], ['boar_tusk', 1]], legs: [['hide', 5], ['wolf_fang', 1]], feet: [['hide', 3], ['boar_tusk', 1]] },
+  iron: { head: [['iron_ingot', 4]], chest: [['iron_ingot', 8], ['hide', 2]], legs: [['iron_ingot', 6]], feet: [['iron_ingot', 4], ['hide', 1]] },
+  silk: { head: [['cloth', 4], ['silver_ingot', 1]], chest: [['cloth', 8], ['silver_ingot', 1], ['qubit_crystal', 1]], legs: [['cloth', 6], ['silver_ingot', 1]], feet: [['cloth', 4], ['feather', 2]] },
+  voidglass: { head: [['qubit_crystal', 3], ['iron_ingot', 2]], chest: [['qubit_crystal', 6], ['iron_ingot', 4]], legs: [['qubit_crystal', 4], ['iron_ingot', 3]], feet: [['qubit_crystal', 3], ['iron_ingot', 2]] },
+};
+for (const [set, slots] of Object.entries(ARMOR_COSTS)) {
+  for (const slot of ARMOR_SLOTS) {
+    r(armorId(set, slot), set === 'silk' ? 'loom' : 'workbench', slots[slot]!, [armorId(set, slot), 1], 6 + ARMOR_SLOTS.indexOf(slot), set === 'leather' ? 'start' : 'discover', `Made from ${slots[slot]!.map(([i, n]) => `${n} ${i.replace('_', ' ')}`).join(', ')}.`);
+  }
+}
+r('crossbow', 'carpenter', [['plank', 6], ['iron_ingot', 2], ['fiber', 6]], ['crossbow', 1], 12, 'start', 'Planks, an iron stirrup and plenty of string.');
+r('ember_staff', 'carpenter', [['wood', 4], ['copper_ingot', 3], ['qubit_crystal', 1]], ['ember_staff', 1], 14, 'discover', 'Copper holds a crystal that remembers fire.');
+r('rime_staff', 'carpenter', [['wood', 4], ['silver_ingot', 2], ['slime_gel', 6], ['qubit_crystal', 1]], ['rime_staff', 1], 14, 'discover', 'Silver, gel and a crystal that remembers winter.');
+r('verdant_staff', 'carpenter', [['heartwood', 3], ['fiber', 6], ['qubit_crystal', 1]], ['verdant_staff', 1], 14, 'discover', 'Green heartwood wrapped around a crystal.');
+r('radiant_staff', 'carpenter', [['wood', 3], ['gold_ingot', 2], ['qubit_crystal', 1]], ['radiant_staff', 1], 16, 'discover', 'Gold catches the crystal\'s light.');
+r('morph_staff', 'carpenter', [['heartwood', 2], ['wolf_fang', 2], ['boar_tusk', 2], ['qubit_crystal', 2]], ['morph_staff', 1], 20, 'discover', 'Fang, tusk and crystal: two animals, one staff.');
 
 export const RECIPES: ReadonlyArray<Recipe> = R;
 export const recipeById = (id: string): Recipe | undefined => R.find((x) => x.id === id);

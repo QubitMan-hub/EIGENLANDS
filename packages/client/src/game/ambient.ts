@@ -2,7 +2,7 @@ import { Container, Graphics, Sprite, Text } from 'pixi.js';
 import { T, hash2, townFor, windScreenX, type ChunkStore, type Town, type Weather, type Wind } from '@eigenlands/shared';
 import { buildAmbientArt, type AmbientArt } from '../art/ambient';
 import type { Sheets } from '../art/actors';
-import { dirOf, OUTFITS, WALK_FRAMES } from '../art/actors';
+import { dirOf, COSMETIC_OUTFITS, WALK_FRAMES } from '../art/actors';
 import { depth, isoX, isoY, screenDir } from './iso';
 import type { Fx } from './fx';
 
@@ -170,7 +170,7 @@ export class Ambient {
   private spawnWalker(t: Town, i: number): void {
     const [X, Y] = this.roadGrid(t);
     const nx = Math.floor(hash2(this.townSeed, i, 1, 777) * X.length), ny = Math.floor(hash2(this.townSeed, i, 2, 777) * Y.length);
-    const c = this.add('walker', X[nx]!, Y[ny]!, { variant: Math.floor(hash2(this.townSeed, i, 3, 777) * OUTFITS.length) });
+    const c = this.add('walker', X[nx]!, Y[ny]!, { variant: Math.floor(hash2(this.townSeed, i, 3, 777) * COSMETIC_OUTFITS) });
     c.node = [nx, ny];
     c.tx = c.x; c.ty = c.y;
     c.st = 'idle'; c.t = Math.random() * 3;

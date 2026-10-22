@@ -6,7 +6,7 @@
  */
 import {
   ABILITIES, FLUX, PLAYER_RADIUS, SPELL, SpellState, TICK_DT, moveBody, segmentHitsCircle,
-  type AbilityForm, type AbilityId, type ClassId, type EnemyDef,
+  type AbilityForm, type WeaponShot, type AbilityId, type ClassId, type EnemyDef,
 } from '@eigenlands/shared';
 import type { Enemy } from '../../game/enemies';
 import type { GameRoom } from '../../rooms/GameRoom';
@@ -85,6 +85,9 @@ interface Bolt {
   x: number; y: number; dx: number; dy: number; speed: number; range: number; travelled: number;
   form: AbilityForm; hue: number; power: number; dmg: number;
   effect: 'dmg' | 'link_enemy' | 'link_ally';
+  /** weapon bolts: enemies it may still pass through, and those already hit */
+  pierce?: number;
+  hit?: Set<string>;
 }
 interface Echo { id: string; st: SpellState; owner: string; x: number; y: number; until: number; ult: boolean; ox: number; oy: number }
 interface Aura { id: string; st: SpellState; owner: string; kind: 'shield' | 'mirror' | 'ward'; until: number; amount: number }
@@ -140,7 +143,7 @@ export class AbilityEngine {
   private spell(kind: number, x: number, y: number, hue: number, owner: string, extra: Partial<SpellState> = {}): { id: string; st: SpellState } {
     const id = `sp${++this.seq}`;
     const st = new SpellState();
-    st.id = id; st.kind = kind; st.x = x; st.y = y; st.hue = Math.max(0, Math.min(7, Math.round(hue))); st.owner = owner;
+    st.id = id; st.kind = kind; st.x = x; st.y = y; st.hue = Math.max(0, Math.min(8, Math.round(hue))); st.owner = owner;
     Object.assign(st, extra);
     this.room.state.spells.set(id, st);
     return { id, st };
@@ -223,7 +226,34 @@ export class AbilityEngine {
     }
   }
 
-  private fireBolts(c: CastCtx, f: AbilityForm, ox: number, oy: number, effect: Bolt['effect']): void {
+  /**
+   * A weapon's basic or charged attack (staves, crossbow): the same bolts, rings and heals as abilities, so elements,
+   * Spooky Action echoes and kill credit all behave identically. `power` scales damage (charge level).
+   */
+  weaponShot(caster: ServerPlayer, shot: WeaponShot, aimX: number, aimY: number, power = 1, target?: string): void {
+    const hue = shot.hue < 0 ? 8 : shot.hue;
+    const form: AbilityForm = { name: shot.name, hue, kind: shot.kind === 'bolt' ? 'bolt' : 'ring', dmg: shot.dmg, count: shot.count, spread: shot.spread, range: shot.range, speed: shot.speed, radius: shot.radius, slow: shot.slow, secs: shot.secs, push: shot.push };
+    const c: CastCtx = { caster, ability: 'glimmer', bit: 0, hue, power, aimX, aimY, target };
+    if (shot.kind === 'bolt') this.fireBolts(c, form, caster.sim.x, caster.sim.y, 'dmg', shot.pierce);
+    else if (shot.kind === 'ring') {
+      this.ring(c, form, caster.sim.x, caster.sim.y);
+      if (shot.heal) this.healAround(caster, shot.radius ?? 3, shot.heal * power, hue);
+    } else if (shot.kind === 'heal_pulse') {
+      this.flash(SPELL.RING, caster.sim.x, caster.sim.y, hue, caster.id, { r: shot.radius ?? 5 });
+      this.healAround(caster, shot.radius ?? 5, (shot.heal ?? 20) * power, hue);
+    }
+  }
+
+  /** Heal `p` and their party mates within `r` tiles. */
+  private healAround(p: ServerPlayer, r: number, amt: number, hue: number): void {
+    for (const q of this.allies(p)) {
+      if (!this.alive(q) || Math.hypot(q.sim.x - p.sim.x, q.sim.y - p.sim.y) > r) continue;
+      this.heal(q, amt);
+      this.flash(SPELL.WARD, q.sim.x, q.sim.y, hue, p.id, { target: q.id, r: 0.5 });
+    }
+  }
+
+  private fireBolts(c: CastCtx, f: AbilityForm, ox: number, oy: number, effect: Bolt['effect'], pierce = 0): void {
     const n = Math.max(1, f.count ?? 1);
     const spread = ((f.spread ?? 10) * Math.PI) / 180;
     const base = Math.atan2(c.aimY, c.aimX);
@@ -233,7 +263,7 @@ export class AbilityEngine {
       const sp = this.spell(SPELL.BOLT, ox, oy, c.hue, c.caster.id, { dx, dy });
       this.bolts.set(sp.id, {
         ...sp, owner: c.caster.id, x: ox, y: oy, dx, dy, speed: f.speed ?? 12, range: f.range ?? 9, travelled: 0,
-        form: f, hue: c.hue, power: c.power, dmg: (f.dmg ?? 0) * c.power, effect,
+        form: f, hue: c.hue, power: c.power, dmg: (f.dmg ?? 0) * c.power, effect, pierce, hit: new Set<string>(),
       });
     }
   }
@@ -258,7 +288,7 @@ export class AbilityEngine {
       } else {
         let best: Enemy | null = null, bd = Infinity;
         for (const e of this.room.enemies.values()) {
-          if (e.hp <= 0 || !segmentHitsCircle(b.x, b.y, nx, ny, BOLT_RADIUS, { x: e.x, y: e.y, r: e.def.radius })) continue;
+          if (e.hp <= 0 || b.hit?.has(e.id) || !segmentHitsCircle(b.x, b.y, nx, ny, BOLT_RADIUS, { x: e.x, y: e.y, r: e.def.radius })) continue;
           const d = Math.hypot(e.x - b.x, e.y - b.y);
           if (d < bd) { bd = d; best = e; }
         }
@@ -266,8 +296,8 @@ export class AbilityEngine {
           const target = best;
           // a Tether links first, so its own damage already echoes along the caster's other threads
           if (b.effect === 'link_enemy') this.link(caster, 'enemy', target.id, b.hue, b.form.secs ?? LINK_SECS);
-          if (b.dmg > 0) this.hit(caster, target, b.dmg, { dx: b.dx, dy: b.dy, kb: BOLT_KB, hue: b.hue, slow: b.form.slow, slowSecs: b.form.secs });
-          landed = true;
+          if (b.dmg > 0) this.hit(caster, target, b.dmg, { dx: b.dx, dy: b.dy, kb: b.form.push ?? BOLT_KB, hue: b.hue, slow: b.form.slow, slowSecs: b.form.secs });
+          if ((b.pierce ?? 0) > 0) { b.pierce!--; (b.hit ??= new Set()).add(target.id); } else landed = true;
         }
       }
       const wall = !landed && solid(Math.floor(nx), Math.floor(ny));

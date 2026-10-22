@@ -1,3 +1,4 @@
+import type { EquipMsg } from '@eigenlands/shared';
 import {
   CROPS, ITEMS, MSG, NPC_BY_ID, STATION_NAMES, dayNumber, gameHour, weatherForDay, type ChunkStore, type DialogueMsg, type FishBiteMsg, type PanelMsg, type ProfileMsg, type RhythmResultMsg,
   type RhythmStartMsg, type ShopViewMsg, type StationId, type Stack, type ToastMsg, type Template,
@@ -92,7 +93,7 @@ export class Gameplay {
     return {
       move: (from: number, to: number) => net().invMove({ from, to }),
       trash: (slot: number, n: number) => net().invTrash({ slot, n }),
-      equip: (slot: number, as: 'ring1' | 'ring2' | 'outfit' | 'unequip_ring1' | 'unequip_ring2') => net().equip({ slot, as }),
+      equip: (slot: number, as: EquipMsg['as']) => net().equip({ slot, as }),
       use: (slot: number) => { const p = this.d.player(); net().use({ slot, tx: Math.floor(p.x), ty: Math.floor(p.y) }); },
     };
   }

@@ -1,11 +1,11 @@
-import { HOTBAR, INV_SIZE, ITEMS, type Stack } from '@eigenlands/shared';
+import { HOTBAR, INV_SIZE, ITEMS, SET_BY_ID, WEAPONS, armorTotals, type EquipMsg, type EquipSlotKey, type Stack } from '@eigenlands/shared';
 import type { Profile } from '../game/profile';
 import { clear, h, iconCell, tooltipFor, type Tooltip } from './dom';
 
 export interface InvActions {
   move(from: number, to: number): void;
   trash(slot: number, n: number): void;
-  equip(slot: number, as: 'ring1' | 'ring2' | 'outfit' | 'unequip_ring1' | 'unequip_ring2'): void;
+  equip(slot: number, as: EquipMsg['as']): void;
   use(slot: number): void;
 }
 
@@ -36,26 +36,45 @@ export function buildInventory(profile: Profile, tip: Tooltip, act: InvActions, 
     const d = ITEMS[st.id];
     if (d?.kind === 'ring') act.equip(i, profile.equip.ring1 ? (profile.equip.ring2 ? 'ring1' : 'ring2') : 'ring1');
     else if (d?.kind === 'outfit') act.equip(i, 'outfit');
+    else if (d?.kind === 'armor' && d.armor) act.equip(i, d.armor.slot);
+    else if (d?.kind === 'weapon' && d.weapon) act.equip(i, 'weapon');
     else act.use(i);
   };
 
   const render = () => {
     clear(grid); clear(side);
     for (let i = 0; i < INV_SIZE; i++) grid.append(cellFor(i));
-    // equipment
-    const eqSlot = (label: string, st: Stack | null, key: 'ring1' | 'ring2') => {
+    // equipment: a paper-doll with armour, the main-hand Focus and two rings
+    const slotKind = (key: EquipSlotKey, id: string): boolean => {
+      const d = ITEMS[id];
+      if (!d) return false;
+      if (key === 'ring1' || key === 'ring2') return d.kind === 'ring';
+      if (key === 'weapon') return d.kind === 'weapon' && !!d.weapon;
+      return d.kind === 'armor' && d.armor?.slot === key;
+    };
+    const eqSlot = (label: string, st: Stack | null, key: EquipSlotKey) => {
       const slot = h('div', { class: 'slot eq', title: label }, st ? iconCell(st) : h('span', { class: 'eqlabel', text: label }));
-      if (st) { tip.attach(slot, () => tooltipFor(st)); slot.addEventListener('click', () => act.equip(0, key === 'ring1' ? 'unequip_ring1' : 'unequip_ring2')); }
+      if (st) { tip.attach(slot, () => tooltipFor(st)); slot.addEventListener('click', () => act.equip(0, `unequip_${key}`)); }
       slot.addEventListener('dragover', (e) => e.preventDefault());
-      slot.addEventListener('drop', (e) => { e.preventDefault(); const f = Number(e.dataTransfer?.getData('text/plain')); if (Number.isInteger(f) && ITEMS[profile.inv[f]?.id ?? '']?.kind === 'ring') act.equip(f, key); });
+      slot.addEventListener('drop', (e) => { e.preventDefault(); const f = Number(e.dataTransfer?.getData('text/plain')); if (Number.isInteger(f) && slotKind(key, profile.inv[f]?.id ?? '')) act.equip(f, key); });
       return slot;
     };
+    const E = profile.equip;
     side.append(h('div', { class: 'side-title', text: 'Equipment' }));
-    side.append(h('div', { class: 'eq-row' }, portrait(), h('div', { class: 'eq-col' }, eqSlot('Ring', profile.equip.ring1, 'ring1'), eqSlot('Ring', profile.equip.ring2, 'ring2'))));
+    side.append(h('div', { class: 'eq-row' }, portrait(),
+      h('div', { class: 'eq-col' }, eqSlot('Head', E.head, 'head'), eqSlot('Body', E.chest, 'chest'), eqSlot('Legs', E.legs, 'legs'), eqSlot('Feet', E.feet, 'feet')),
+      h('div', { class: 'eq-col' }, eqSlot('Weapon', E.weapon, 'weapon'), eqSlot('Ring', E.ring1, 'ring1'), eqSlot('Ring', E.ring2, 'ring2'))));
+    const worn = armorTotals({ head: E.head?.id ?? null, chest: E.chest?.id ?? null, legs: E.legs?.id ?? null, feet: E.feet?.id ?? null });
+    const setLines = Object.entries(worn.sets).map(([id, n]) => { const set = SET_BY_ID[id]!; return h('div', { class: 'small', text: `${set.name} ${n}/4${n >= 4 ? ' · full set' : n >= 2 ? ' · 2-piece bonus' : ''}` }); });
+    const focus = E.weapon ? ITEMS[E.weapon.id]?.weapon : undefined;
     const st = profile.stats;
     side.append(h('div', { class: 'stats' },
       h('div', { text: `Max HP  +${st.hpBonus}` }), h('div', { text: `Attack  +${st.atkBonus}` }),
+      h('div', { text: `Defence  ${Math.round(st.def * 100)}%` }), h('div', { text: `Phase  ${Math.round(st.phase * 100)}%` }),
       h('div', { text: `Luck    +${st.luck}` }), h('div', { text: `Haste   +${Math.round(st.haste * 100)}%` })));
+    if (focus) side.append(h('div', { class: 'small dim', text: `${WEAPONS[focus].name}: ${WEAPONS[focus].quantum}` }));
+    for (const l of setLines) side.append(l);
+    
     // wardrobe
     const wardrobe = h('div', { class: 'ward' });
     profile.inv.forEach((s, i) => {

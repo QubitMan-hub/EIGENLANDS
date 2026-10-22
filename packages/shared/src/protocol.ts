@@ -72,6 +72,7 @@ export type FxKind = 'hit' | 'swing' | 'shot' | 'dash' | 'die' | 'levelup' | 'te
   | 'blast'     // an area attack went off (v = radius)
   | 'bomb'      // a volatile elite is about to burst (v = fuse s, w = radius)
   | 'crash'     // a charging brute hit a wall (id = enemy)
+  | 'form'      // Shapeshifter strike form (v: 0 wolf, 1 bear)
   | 'shadow';   // Shadow Army flourish (v: 0 extracted, 1 summoned, 2 evolved, 3 dismissed, 4 failed)
 export interface FxMsg {
   kind: FxKind; x: number; y: number; v?: number; dx?: number; dy?: number; id?: string;
@@ -104,7 +105,7 @@ export interface ProfileMsg {
   skills?: SkillXp;
   /** ids of recipes the player knows */
   recipes?: string[];
-  equip?: { ring1: Stack | null; ring2: Stack | null; outfit: number };
+  equip?: EquipState;
   /** active buffs: kind -> expiry (server epoch ms) */
   buffs?: Record<string, { until: number; power: number }>;
   /** friendship per NPC: points, last day talked, last day gifted */
@@ -114,7 +115,7 @@ export interface ProfileMsg {
   /** heart events seen ("npc:index"), sent with quests */
   events?: string[];
   /** derived stats from equipment/buffs */
-  stats?: { hpBonus: number; atkBonus: number; luck: number; haste: number };
+  stats?: { hpBonus: number; atkBonus: number; luck: number; haste: number; def: number; phase: number };
   /** selected quick-bar slot is client-side; this is the server's last accepted USE slot (diagnostics) */
 }
 
@@ -122,7 +123,16 @@ export interface UseMsg { slot: number; tx: number; ty: number }
 export interface OpenMsg { tx: number; ty: number }
 export interface InvMoveMsg { from: number; to: number }
 export interface InvTrashMsg { slot: number; n: number }
-export interface EquipMsg { slot: number; as: 'ring1' | 'ring2' | 'outfit' | 'unequip_ring1' | 'unequip_ring2' }
+/** What a character wears and wields. */
+export interface EquipState {
+  ring1: Stack | null; ring2: Stack | null; outfit: number;
+  /** main hand: a staff or crossbow (null = the hotbar sword) */
+  weapon: Stack | null;
+  head: Stack | null; chest: Stack | null; legs: Stack | null; feet: Stack | null;
+}
+export const EQUIP_SLOTS = ['ring1', 'ring2', 'weapon', 'head', 'chest', 'legs', 'feet'] as const;
+export type EquipSlotKey = typeof EQUIP_SLOTS[number];
+export interface EquipMsg { slot: number; as: 'ring1' | 'ring2' | 'outfit' | 'weapon' | 'head' | 'chest' | 'legs' | 'feet' | `unequip_${EquipSlotKey}` }
 export interface CraftMsg { station: StationId; tx: number; ty: number; recipe: string; n: number }
 export interface ExperimentMsg { station: StationId; tx: number; ty: number; items: Array<{ slot: number; n: number }> }
 export interface ForgePreviewMsg { materials: string[] }

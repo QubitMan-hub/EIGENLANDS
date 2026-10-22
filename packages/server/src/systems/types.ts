@@ -3,7 +3,7 @@
  * `PlayerRef` is the only way systems touch a connected player; `VillageSystem` is what the room calls for NPCs.
  */
 import type {
-  ChunkStore, DeedKind, DialogueChatMsg, DialogueMsg, Inventory, NpcState, QuestLog, QuestMsg, ShopMsg, ShopViewMsg, SkillXp, Stack, Weather, WorldState,
+  ChunkStore, DeedKind, DialogueChatMsg, DialogueMsg, EquipState, Inventory, NpcState, QuestLog, QuestMsg, ShopMsg, ShopViewMsg, SkillXp, Stack, Weather, WorldState,
 } from '@eigenlands/shared';
 
 export interface FriendRec {
@@ -21,7 +21,7 @@ export interface PlayerData {
   coins: number;
   skills: SkillXp;
   recipes: Set<string>;
-  equip: { ring1: Stack | null; ring2: Stack | null; outfit: number };
+  equip: EquipState;
   friends: Record<string, FriendRec>;
   buffs: Record<string, Buff>;
   /** quest log (story quests + request-board jobs) */

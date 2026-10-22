@@ -4,7 +4,7 @@
  */
 export type ItemKind =
   | 'resource' | 'tool' | 'weapon' | 'seed' | 'crop' | 'forage' | 'fish' | 'bug' | 'food' | 'potion'
-  | 'material' | 'placeable' | 'ring' | 'outfit' | 'animal' | 'fertilizer' | 'misc';
+  | 'material' | 'placeable' | 'ring' | 'outfit' | 'animal' | 'fertilizer' | 'misc' | 'armor';
 
 /** Glyph vocabulary the art pipeline must draw (16x16 inventory icons). `a` = main, `b` = accent palette index. */
 export type Glyph =
@@ -13,7 +13,9 @@ export type Glyph =
   | 'pie' | 'bread' | 'jar' | 'cloth' | 'axe' | 'pickaxe' | 'hoe' | 'can' | 'rod' | 'net' | 'sword' | 'ring'
   | 'shirt' | 'box' | 'bench' | 'furnace' | 'anvil' | 'pot' | 'loom' | 'chair' | 'table' | 'bed' | 'lamp'
   | 'shelf' | 'rug' | 'sprinkler' | 'coop' | 'barn' | 'chicken' | 'cow' | 'sign' | 'fence' | 'gel' | 'tooth'
-  | 'bag' | 'orb' | 'book';
+  | 'bag' | 'orb' | 'book' | 'staff' | 'crossbow' | 'helm' | 'cuirass' | 'greaves' | 'boots';
+
+import { ARMOR_SETS, ARMOR_SLOTS, ARMOR_SLOT_NAMES, WEAPONS, armorId, type ArmorSlot, type WeaponId } from './equipment';
 
 export interface ToolSpec { type: 'axe' | 'pickaxe' | 'hoe' | 'can' | 'rod' | 'net'; }
 export interface ItemDef {
@@ -37,6 +39,10 @@ export interface ItemDef {
   crop?: string;
   /** outfit index into the client outfit table */
   outfit?: number;
+  /** armor piece: slot and set id */
+  armor?: { slot: ArmorSlot; set: string };
+  /** weapon id in WEAPONS (staves, crossbow); the sword is a plain weapon */
+  weapon?: WeaponId;
   tags?: string[];
 }
 
@@ -70,7 +76,7 @@ const COL = {
   q2: 42, q3: 43, q4: 44, q5: 45, q6: 46, q7: 47,
 };
 function def(id: string, name: string, kind: ItemKind, value: number, g: Glyph, a: number, b: number, desc: string, o: Partial<ItemDef> = {}): void {
-  I[id] = { id, name, kind, stack: kind === 'tool' || kind === 'weapon' || kind === 'ring' || kind === 'outfit' ? 1 : 99, value, desc, icon: { g, a, b }, ...o };
+  I[id] = { id, name, kind, stack: kind === 'tool' || kind === 'weapon' || kind === 'ring' || kind === 'outfit' || kind === 'armor' ? 1 : 99, value, desc, icon: { g, a, b }, ...o };
 }
 const C = COL;
 
@@ -213,6 +219,23 @@ const OUTFITS: Array<[string, string, number, number, number]> = [
   ['outfit_crimson', 'Crimson Jerkin', 6, C.r4, C.w2], ['outfit_sky', "Skyfarer's Hat & Tunic", 7, C.w4, C.e3],
 ];
 for (const [id, name, idx, a, b] of OUTFITS) def(id, name, 'outfit', 160, 'shirt', a, b, 'Cosmetic. Equip to change your look.', { outfit: idx });
+
+// ── armor sets and Foci (see equipment.ts)
+const SET_COLORS: Record<string, [number, number]> = { leather: [C.e3, C.e5], hunter: [C.g3, C.e4], iron: [C.steel, C.pale], silk: [C.q3, C.q6], voidglass: [C.q5, C.w7] };
+const SLOT_GLYPH: Record<ArmorSlot, Glyph> = { head: 'helm', chest: 'cuirass', legs: 'greaves', feet: 'boots' };
+for (const set of ARMOR_SETS) {
+  const [a, b] = SET_COLORS[set.id]!;
+  for (const slot of ARMOR_SLOTS) {
+    const parts = [set.piece.def ? `-${Math.round(set.piece.def * 1000) / 10}% damage` : '', set.piece.hp ? `+${set.piece.hp} health` : '', set.piece.atk ? `+${set.piece.atk} attack` : '', set.piece.haste ? `+${set.piece.haste} haste` : ''].filter(Boolean).join(', ');
+    def(armorId(set.id, slot), set.pieces[slot], 'armor', 60 + set.level * 14, SLOT_GLYPH[slot], a, b, `${ARMOR_SLOT_NAMES[slot]} armour of ${set.name}. ${parts}. Level ${set.level}. ${set.blurb}`, { armor: { slot, set: set.id } });
+  }
+}
+const WEAPON_COLORS: Record<string, [number, number]> = { crossbow: [C.e4, C.steel], ember_staff: [C.r4, C.e6], rime_staff: [C.w4, C.pale], verdant_staff: [C.g4, C.e5], radiant_staff: [C.e6, C.white], morph_staff: [C.q4, C.e4] };
+for (const w of Object.values(WEAPONS)) {
+  if (w.id === 'sword') continue;
+  const [a, b] = WEAPON_COLORS[w.id]!;
+  def(w.id, w.name, 'weapon', 120 + w.level * 20, w.cls === 'crossbow' ? 'crossbow' : 'staff', a, b, `${w.blurb} ${w.quantum} Level ${w.level}.`, { weapon: w.id });
+}
 
 export const ITEMS: Readonly<Record<string, ItemDef>> = I;
 export const itemDef = (id: string): ItemDef | undefined => I[id];

@@ -161,6 +161,36 @@ const G: Record<Glyph, Draw> = {
     put(c, 2, 9, b, 5, 2); put(c, 3, 8, dk(b), 3, 1);
     line(c, 3, 12, 1, 14, C.e2); line(c, 4, 12, 2, 14, C.e3); put(c, 1, 14, b, 2, 1);
   },
+  staff: (c, a, b) => {
+    line(c, 3, 14, 11, 4, C.e3); line(c, 4, 14, 12, 4, C.e4); line(c, 2, 14, 10, 4, C.e2);              // shaft
+    blob(c, 12, 4, 3.4, 3.4, ramp4(a), { seed: 31, noise: 0.05, edgeDark: 0.2 });                        // focus gem
+    put(c, 11, 3, C.white, 1, 1); put(c, 10, 6, dk(b), 5, 1); put(c, 9, 7, b, 2, 1);                      // cradle
+    put(c, 14, 1, lt(a), 1, 1); put(c, 15, 4, lt(a), 1, 1);
+  },
+  crossbow: (c, a, b) => {
+    poly(c, [[2, 7], [13, 7], [13, 9], [2, 9]], (x, y) => (y === 7 ? C.e5 : C.e3));                       // stock
+    put(c, 1, 8, b, 2, 1);
+    for (let i = 0; i < 5; i++) { put(c, 11 - i, 3 + i, a, 1, 1); put(c, 11 - i, 13 - i, a, 1, 1); }       // limbs
+    line(c, 6, 3, 6, 13, C.pale);                                                                          // string
+    line(c, 6, 8, 15, 8, C.fog); put(c, 15, 8, C.white); put(c, 14, 7, C.steel); put(c, 14, 9, C.steel);   // bolt
+  },
+  helm: (c, a, b) => {
+    blob(c, 8, 8, 5.6, 5.4, ramp4(a), { seed: 32, noise: 0.05, edgeDark: 0.25 });
+    put(c, 3, 9, dk(dk(a)), 10, 5); put(c, 5, 10, C.ink, 6, 1);                                           // visor slit
+    put(c, 7, 2, b, 2, 3); put(c, 4, 6, lt(a), 2, 1);
+  },
+  cuirass: (c, a, b) => {
+    poly(c, [[4, 2], [12, 2], [15, 5], [13, 8], [12, 7], [12, 14], [4, 14], [4, 7], [3, 8], [1, 5]], (x, y) => (x < 6 ? lt(a) : x < 10 ? a : dk(a)));
+    put(c, 4, 6, dk(dk(a)), 8, 1); put(c, 4, 10, dk(dk(a)), 8, 1); put(c, 7, 3, b, 2, 10); put(c, 6, 3, lt(b), 1, 3);
+  },
+  greaves: (c, a, b) => {
+    poly(c, [[4, 2], [12, 2], [12, 14], [9, 14], [8, 6], [7, 14], [4, 14]], (x, y) => (x < 6 ? lt(a) : x < 9 ? a : dk(a)));
+    put(c, 4, 2, b, 8, 1); put(c, 4, 8, dk(dk(a)), 3, 1); put(c, 9, 8, dk(dk(a)), 3, 1);
+  },
+  boots: (c, a, b) => {
+    poly(c, [[4, 3], [9, 3], [9, 9], [14, 11], [14, 14], [4, 14]], (x, y) => (y > 12 ? dk(dk(a)) : x < 7 ? lt(a) : a));
+    put(c, 4, 3, b, 5, 1); put(c, 5, 6, dk(a), 4, 1); put(c, 12, 11, lt(a), 2, 1);
+  },
   ring: (c, a, b) => {
     blob(c, 8, 10, 5.2, 4.6, ramp4(a), { seed: 25, noise: 0.05, edgeDark: 0.2 }); blob(c, 8, 10.5, 3, 2.6, [C.ink, C.night, C.night], { seed: 1, noise: 0, edgeDark: 0 });
     poly(c, [[8, 2], [11, 5], [8, 8], [5, 5]], (x, y) => (x < 8 ? lt(b) : y < 5 ? b : dk(b))); put(c, 7, 4, C.white);

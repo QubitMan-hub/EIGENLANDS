@@ -2,7 +2,7 @@ import { matchMaker, type Client } from 'colyseus';
 import type { Schema } from '@colyseus/schema';
 import {
   CLASS_INDEX, MSG, MSG34, chunkOf, encodeDiff, inRegion, parseShard, regionBounds, shardAt, shardId, townFor,
-  type ChunkReq, type HandoffMsg, type Region, type ShardInfoMsg, type SpellState, type StrikeShape, type WorldObj,
+  type ChunkReq, type HandoffMsg, type Region, type ShardInfoMsg, type SpellState, type StrikeShape, type WeaponShot, type WorldObj,
 } from '@eigenlands/shared';
 import type { Enemy } from '../game/enemies';
 import { TokenBucket } from '../rate';
@@ -224,6 +224,13 @@ export class GameRoom extends WorldRoom {
 
   protected hookViewEntities(push: (id: string, x: number, y: number, st: SpellState) => void): void {
     for (const m of this.modules) m.viewEntities?.(push as (id: string, x: number, y: number, st: Schema) => void);
+  }
+
+  protected hookWeaponShot(p: ServerPlayer, shot: WeaponShot, ax: number, ay: number, power: number): boolean {
+    const eng = this.circuit?.engine;
+    if (!eng) return false;
+    eng.weaponShot(p, shot, ax, ay, power);
+    return true;
   }
 
   protected hookTargets(): Array<{ id: string; x: number; y: number; alive: boolean }> { return this.shadows?.targets() ?? []; }
