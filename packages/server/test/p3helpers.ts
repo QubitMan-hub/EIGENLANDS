@@ -141,6 +141,8 @@ export function flatten(room: GameRoom, cx: number, cy: number, r = 8, tile = 3)
 export function dummy(room: GameRoom, x: number, y: number, kind: 'slime' | 'hopper' = 'slime') {
   const e = room.spawnEnemy(kind, x, y, false);
   e.def = { ...e.def, speed: 0, sight: 0.1 };
+  // an unbreakable training dummy: Combat 2.0 poise breaks would add stagger damage and blur exact numbers
+  e.poise = e.maxPoise = Number.POSITIVE_INFINITY;
   e.resist = 0;
   return e;
 }

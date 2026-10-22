@@ -343,7 +343,8 @@ export class CircuitClient implements ClientModule {
     return false;
   }
 
-  blocking(): boolean { return this.dialog.open && !this.dialog.docked; }
+  // Lumen talks while you walk: the story panel never freezes movement (Enter/Space/E or a click turns its pages)
+  blocking(): boolean { return false; }
 
   frame(now: number, dt: number): void {
     const srv = this.now();

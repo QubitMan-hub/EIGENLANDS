@@ -44,7 +44,7 @@ describe('story quests through dialogue', () => {
     expect(offer.choices.map((c: any) => c.id)).toContain('accept:welcome');
     await quest('orla', 'welcome', 'accept');
     expect(p.sp.data.quests.welcome?.state).toBe('active');
-    expect(p.profiles.some((m) => m.quests?.welcome)).toBe(true);
+    await until(() => p.profiles.some((m) => m.quests?.welcome));
     for (const id of ['odo', 'brannoch', 'tobin']) { await near(id); await talk(id); }
     expect(p.sp.data.quests.welcome!.progress).toEqual([1, 1, 1]);
     expect(hasToast(p, /Quest ready: A Warm Welcome/)).toBe(true);
