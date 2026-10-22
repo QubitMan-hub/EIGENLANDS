@@ -84,4 +84,4 @@ export const QUBITPEDIA: CodexEntry[] = [
 ];
 
 export const CODEX_BY_ID: Record<string, CodexEntry> = Object.fromEntries(QUBITPEDIA.map((e) => [e.id, e]));
-export const isCodexId = (v: unknown): v is string => typeof v === 'string' && v in CODEX_BY_ID;
+export const isCodexId = (v: unknown): v is string => typeof v === 'string' && Object.hasOwn(CODEX_BY_ID, v);

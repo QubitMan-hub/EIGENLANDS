@@ -37,7 +37,7 @@ export const GATES: Record<GateId, GateDef> = {
   m: { id: 'm', name: 'Lock in', glyph: '◉', expert: 'M', color: 22, err: 0.01, codex: 'measurement', desc: 'Decides this orb\'s result once, when you attune. It then stays fixed and hits harder.' },
 };
 
-export const isGateId = (v: unknown): v is GateId => typeof v === 'string' && v in GATES;
+export const isGateId = (v: unknown): v is GateId => typeof v === 'string' && Object.hasOwn(GATES, v);
 
 export const BOARD_COLS = 8;
 export const MAX_LOCKS = 4;

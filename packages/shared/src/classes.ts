@@ -215,8 +215,8 @@ export const LINK_POWER = 0.6;
 export const LOCK_POWER = 0.25;
 export const LOCK_POWER_COLLAPSE = 0.45;
 
-export const isClassId = (v: unknown): v is ClassId => typeof v === 'string' && v in CLASSES;
-export const isAbilityId = (v: unknown): v is AbilityId => typeof v === 'string' && v in ABILITIES;
+export const isClassId = (v: unknown): v is ClassId => typeof v === 'string' && Object.hasOwn(CLASSES, v);
+export const isAbilityId = (v: unknown): v is AbilityId => typeof v === 'string' && Object.hasOwn(ABILITIES, v);
 
 /** Abilities a character may slot: their class's (plus the second class's from level 30). Wanderers also keep Glimmer. */
 export function allowedAbilities(cls: ClassId, second: ClassId | null): AbilityId[] {
