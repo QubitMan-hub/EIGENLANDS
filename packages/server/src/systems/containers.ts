@@ -1,5 +1,5 @@
 import {
-  BIOMES, BIOME_NAMES, FARM_ANIMALS, ITEMS, MSG, QUBITMAN, RUIN_LORE, RUIN_NAMES, ruinLoot, type Biome, STATUE_REMARKS, STATION_SUBS, addStack, chunkOf, cloneStack, countItem, isRipe, removeItem, validInventory,
+  BIOMES, BIOME_NAMES, caveLanding, isCaveY, FARM_ANIMALS, ITEMS, MSG, QUBITMAN, RUIN_LORE, RUIN_NAMES, ruinLoot, type Biome, STATUE_REMARKS, STATION_SUBS, addStack, chunkOf, cloneStack, countItem, isRipe, removeItem, validInventory,
   type ChestMsg, type Inventory, type OpenMsg, type PanelMsg, type ShelterMsg, type WorldObj,
 } from '@eigenlands/shared';
 import type { ServerPlayer } from '../rooms/player';
@@ -66,6 +66,7 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
     return;
   }
   if (o.static && o.sub === 'ruin_cache') { openRuinCache(room, p, o); return; }
+  if (o.static && (o.sub === 'cave_mouth' || o.sub === 'cave_ladder')) { await climb(room, p, o); return; }
   if (o.static && RUIN_LORE[o.sub]) {
     const l = RUIN_LORE[o.sub]!;
     p.client.send(MSG.PANEL, { kind: 'lore', tx: o.x, ty: o.y, sub: o.sub, lore: { title: RUIN_NAMES[o.sub] ?? 'Ruin', plaque: l.plaque, epitaph: l.epitaph, pages: [...l.pages] } });
@@ -145,6 +146,19 @@ function openRuinCache(room: RoomApi, p: ServerPlayer, o: WorldObj): void {
   if (!giveStacks(p, loot)) { p.toast('Your pack is too full to carry the cache\'s contents.', 'bad'); return; }
   p.data.prog.ruins.push(id);
   p.dirty('inv');
-  p.toast(`You found a forgotten cache in the ${BIOME_NAMES[biome]}!`, 'good');
+  p.toast(isCaveY(o.y) ? 'You found a forgotten miner\'s cache in the Undercroft!' : `You found a forgotten cache in the ${BIOME_NAMES[biome]}!`, 'good');
   room.fx({ kind: 'craft', x: o.x + 0.5, y: o.y + 0.5 });
+}
+
+/** Climb down a cave mouth into the Undercroft, or up its ladder back to daylight. */
+async function climb(room: RoomApi, p: ServerPlayer, o: WorldObj): Promise<void> {
+  const id = (o.data as { cave?: unknown } | undefined)?.cave;
+  const down = o.sub === 'cave_mouth';
+  const to = typeof id === 'string' ? caveLanding(room.seed, id, down) : null;
+  if (!to) return;
+  await room.ensureChunk(chunkOf(Math.floor(to.x)), chunkOf(Math.floor(to.y)));
+  p.sim.x = to.x; p.sim.y = to.y;
+  p.queue.length = 0;
+  p.toast(down ? 'You climb down into the Undercroft. Mind the dark.' : 'You climb back up into the daylight.');
+  room.fx({ kind: 'craft', x: to.x, y: to.y });
 }

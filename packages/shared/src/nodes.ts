@@ -44,6 +44,10 @@ export const NODES: Record<number, NodeDef> = {
   [T.CRYSTAL]: n(T.CRYSTAL, 'Qubit crystal', 'pickaxe', 4, 36, 'mining', 60, [
     { item: 'qubit_crystal', min: 1, max: 1, chance: 1 },
   ], T.GRASS, 3600),
+  // undercroft rock: tunnels you dig stay dug
+  [T.CAVE_WALL]: n(T.CAVE_WALL, 'Cave rock', 'pickaxe', 1, 16, 'mining', 3, [
+    { item: 'stone', min: 1, max: 3, chance: 1 }, { item: 'coal', min: 1, max: 1, chance: 0.12 }, { item: 'iron_ore', min: 1, max: 1, chance: 0.04, minTier: 2 },
+  ], T.CAVE_FLOOR, 0),
   [T.FENCE]: n(T.FENCE, 'Fence', 'axe', 1, 2, 'foraging', 0, [{ item: 'fence', min: 1, max: 1, chance: 1 }], T.GRASS, 0),
 };
 

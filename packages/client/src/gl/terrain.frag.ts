@@ -1,4 +1,4 @@
-import { PALETTE } from '@eigenlands/shared';
+import { CAVE_OY, PALETTE } from '@eigenlands/shared';
 
 const pal = PALETTE.map((h) => {
   const n = parseInt(h.slice(1), 16);
@@ -7,7 +7,9 @@ const pal = PALETTE.map((h) => {
 }).join(',');
 
 /** Surface height (art px, + up) of each ground class; PATH depends on its paving style. Mirrored in terrain.ts. */
-export const GROUND_Z = { water: -7, grass: 0, sand: -2, dirt: -2, road: -1, plaza: 0, soil: -2, floor: 0, wall: 0 } as const;
+export const GROUND_Z = { water: -7, grass: 0, sand: -2, dirt: -2, road: -1, plaza: 0, soil: -2, floor: 0, wall: 0, caveWall: 13 } as const;
+/** tile rows at or beyond this belong to the Undercroft (shared CAVE_OY - 512, with slack for the window origin) */
+const CAVE_ROW = CAVE_OY - 600;
 
 export const TERRAIN_VERT = /* glsl */ `#version 300 es
 in vec2 aPosition;
@@ -55,7 +57,7 @@ uniform vec3 uWind;         // world wind: direction xy + strength 0..1 (same fi
 const vec3 PAL[48] = vec3[48](${pal});
 
 const int B_MEADOW = 0, B_FOREST = 1, B_AUTUMN = 2, B_TAIGA = 3, B_SWAMP = 4, B_DESERT = 5, B_ENCHANTED = 6, B_CORRUPT = 7;
-const int DEEP = 0, WATER = 1, SAND = 2, GRASS = 3, PATH = 4, SOIL = 5, SOILWET = 6, FLOOR = 7, WALLC = 8;
+const int DEEP = 0, WATER = 1, SAND = 2, GRASS = 3, PATH = 4, SOIL = 5, SOILWET = 6, FLOOR = 7, WALLC = 8, CAVE = 9, CAVEWALL = 10;
 const int INK=0, NIGHT=1, SLATE=2, STEEL=3, MIST=4, FOG=5, PALE=6, WHITE=7;
 const int G0=8, G1=9, G2=10, G3=11, G4=12, G5=13, G6=14, G7=15;
 const int E0=16, E1=17, E2=18, E3=19, E4=20, E5=21, E6=22, E7=23;
@@ -64,7 +66,7 @@ const int R0=32, R1=33, R2=34, R3=35, R4=36, R5=37, R6=38, R7=39;
 const int Q0=40, Q1=41, Q2=42, Q3=43, Q4=44, Q5=45, Q6=46, Q7=47;
 
 const float Z_WATER = ${GROUND_Z.water}.0;
-const int STEPS = 9;          // ray samples from z = 0 down to z = -8
+const int STEPS = 9 + ${GROUND_Z.caveWall};   // ray samples from the top (0, or the cave rock's crown) down to z = -8
 
 uint pcg(uint v) {
   uint s = v * 747796405u + 2891336453u;
@@ -99,6 +101,7 @@ bool isWater(int c) { return c == WATER || c == DEEP; }
 float heightOf(vec4 t) {
   int c = clsOf(t);
   if (c == WATER || c == DEEP) return Z_WATER;
+  if (c == CAVEWALL) return ${GROUND_Z.caveWall}.0;
   if (c == SAND) return ${GROUND_Z.sand}.0;
   if (c == SOIL || c == SOILWET) return ${GROUND_Z.soil}.0;
   if (c == PATH) { int s = styleOf(t); return s >= 2 ? ${GROUND_Z.plaza}.0 : s == 1 ? ${GROUND_Z.road}.0 : ${GROUND_Z.dirt}.0; }
@@ -444,8 +447,15 @@ int waterTop(ivec2 ip, vec2 tf, float sdf, bool deep, float t, int s, int b) {
   float tt = t * uMotion;
   vec2 wp = vec2(ip);
   // layered depth bands with soft, wobbling contours (deep navy far out, slate-blue shelves near the banks)
-  float depth = sdf + (deep ? 1.6 : 0.0) + 0.55 * (vnoise(wp * 0.05 + vec2(tt * 0.05, 0.0)) - 0.5);
-  int c = depth < 0.6 ? W3 : depth < 1.5 ? W2 : depth < 3.6 ? W1 : W0;
+  // clear and bright like the reference tiles: pale shallows, mid-blue body, only the deepest open water goes navy
+  float depth = sdf + (deep ? 1.2 : 0.0) + 0.55 * (vnoise(wp * 0.05 + vec2(tt * 0.05, 0.0)) - 0.5);
+  int c = depth < 0.55 ? W4 : depth < 1.5 ? W3 : depth < 4.5 ? W2 : depth < 9.0 ? W1 : W0;
+  // drifting sky reflections: soft lighter patches
+  float sky = vnoise(wp * vec2(0.035, 0.07) + vec2(tt * 0.04, tt * 0.015));
+  if (sky > 0.68 && c <= W3 && c > W0) c += 1;
+  // lapping foam along the bank
+  float lap = 0.32 + 0.12 * sin(tt * 1.6 + wp.x * 0.15 + wp.y * 0.3);
+  if (sdf < lap && !deep) c = ((ip.x + ip.y) & 1) == 0 || sdf < lap - 0.12 ? W6 : W5;
   // ripple lines: long, gently slanted streaks (along the iso axes) on a jittered grid; they drift and fade
   ivec2 RC = ivec2(18, 7);
   int drift = int(floor(tt * 1.5));
@@ -462,10 +472,10 @@ int waterTop(ivec2 ip, vec2 tf, float sdf, bool deep, float t, int s, int b) {
     int len = 6 + int(h * 14.0);
     int dir = hashk(cc, 45) < 0.5 ? 1 : -1;
     int yy = (dir > 0 ? q.x : (len - 1 - q.x)) / 4;            // 1px rise every 4px: a flat, wavy streak
-    if (q.x >= 0 && q.x < len && q.y == yy) c = depth < 1.4 ? W4 : depth < 2.8 ? W3 : W2;
-    else if (q.x >= 1 && q.x < len - 1 && q.y == yy + 1) c = depth < 0.55 ? W2 : max(c - 1, W0);
+    if (q.x >= 0 && q.x < len && q.y == yy) c = depth < 1.4 ? W5 : depth < 4.5 ? W4 : W3;
+    else if (q.x >= 1 && q.x < len - 1 && q.y == yy + 1) c = depth < 0.55 ? W3 : max(c - 1, W0);
   }
-  if (hashk(ip, 43) > 0.9975 && fract(hashk(ip, 44) * 3.0 + tt * 0.5) < 0.2) c = W6;   // sparkles
+  if (hashk(ip, 43) > 0.9975 && fract(hashk(ip, 44) * 3.0 + tt * 0.5) < 0.2) c = W7;   // sparkles
   if (b == B_SWAMP) c = c >= W4 ? G3 : c == W3 ? G1 : c == W2 ? G0 : NIGHT;           // tannin-dark fen water
   else if (b == B_CORRUPT) c = c >= W4 ? Q3 : c == W3 ? Q1 : c == W2 ? Q0 : INK;     // ink-black, violet glints
   else if (b == B_ENCHANTED && c >= W3) c = c >= W4 ? Q7 : W4;                       // glowing glade pools
@@ -508,6 +518,42 @@ int sideStone(ivec2 ip, vec2 tf, bool left, int d) {
   return left ? (sh > 0.6 ? FOG : MIST) : (sh > 0.6 ? MIST : STEEL);
 }
 
+// ───────── the Undercroft ─────────
+// floor: warm packed earth worn into flagstones, pebbles, damp glinting patches (reads lighter than the rock above)
+int caveFloorTop(ivec2 ip, float t) {
+  vec2 wp = vec2(ip);
+  float n = vnoise(wp * 0.13), m = vnoise(wp * 0.035 + 17.0);
+  bool stone = m > 0.62;
+  int c = stone ? STEEL : E2;
+  if (n > 0.66) c = stone ? MIST : E3;
+  else if (n < 0.3) c = stone ? SLATE : E1;
+  if (abs(vnoise(wp * vec2(0.05, 0.1) + 5.0) - 0.5) < 0.02) c = stone ? NIGHT : E0;   // cracks
+  float h = hashi(ip);
+  if (h > 0.988) c = FOG; else if (h > 0.976) c = stone ? SLATE : E1;            // pebbles
+  if (vnoise(wp * 0.05 + 90.0) > 0.76 && ((ip.x + ip.y) & 1) == 0) c = (hashi(ip / 2) > 0.85 && fract(t * 0.3 + hashi(ip)) < 0.15) ? W4 : W1;
+  return c;
+}
+// rock crown seen from above: near-black lumpy stone, moss in the hollows, the rare crystal glint
+int caveRockTop(ivec2 ip, float t) {
+  vec2 wp = vec2(ip);
+  float n = vnoise(wp * 0.16) + 0.5 * vnoise(wp * 0.4 + 3.0);
+  int c = n > 1.1 ? SLATE : n > 0.55 ? NIGHT : INK;
+  if (vnoise(wp * 0.06 + 30.0) > 0.7 && n > 0.7) c = n > 1.0 ? G1 : G0;
+  if (hashi(ip + ivec2(7, 3)) > 0.9993) c = fract(hashi(ip) * 5.0 + t * 0.25 * uMotion) < 0.25 ? Q7 : Q3;
+  return c;
+}
+// rock faces: lit, layered strata on the left, shade on the right; chisel marks and ore flecks; dark foot
+int sideCave(ivec2 ip, vec2 tf, bool left, int d, int H) {
+  float u = (left ? tf.x : tf.y) * 16.0;
+  float n = vnoise(vec2(u * 0.5 + float(ip.x) * 0.1, float(d) * 0.35) + (left ? 0.0 : 9.0));
+  int c = left ? (n > 0.5 ? FOG : MIST) : (n > 0.55 ? STEEL : SLATE);
+  if (d <= 1) c = left ? PALE : MIST;                                           // worn top edge
+  else if ((d + int(n * 3.0)) % 5 == 0) c = left ? STEEL : NIGHT;               // strata
+  if (hashi(ip) > 0.985) c = hashi(ip + 1) > 0.5 ? E6 : W5;                    // ore flecks
+  if (d >= H - 1) c = left ? SLATE : INK;                                        // foot in shadow
+  return c;
+}
+
 void main() {
   vec2 sp = floor(vUV * uRes);
   vec2 iso = uIso + sp + 0.5;
@@ -523,8 +569,9 @@ void main() {
   float hHit = 0.0;
   int face = 0;      // 0 top, 1 left (+y) side, 2 right (+x) side
   int dPx = 0;
+  float zTop = uWin.y > ${CAVE_ROW}.0 ? ${GROUND_Z.caveWall}.0 : 0.0;
   for (int k = 0; k < STEPS; k++) {
-    float z = -float(k);
+    float z = zTop - float(k);
     vec2 tf = isoToTile(vec2(iso.x, iso.y + z));
     ivec2 tt = ivec2(floor(tf));
     vec4 X = tileAt(tt);
@@ -576,6 +623,10 @@ void main() {
       c = soilTop(ip, tfHit, cls == SOILWET, sb);
     } else if (cls == FLOOR) {
       c = floorTop(tfHit);
+    } else if (cls == CAVE) {
+      c = caveFloorTop(ip, t);
+    } else if (cls == CAVEWALL) {
+      c = caveRockTop(ip, t);
     } else {
       c = (hashi(ip / 3) > 0.5) ? MIST : STEEL;
     }
@@ -589,7 +640,7 @@ void main() {
         float br = vnoise(vec2(ip) * 0.35 + vec2(t * 0.6 * uMotion, 0.0));
         c = br > 0.3 ? W6 : W5;
         if (sb == 3) c = W7;
-      } else c = (cls == GRASS) ? (sb == 3 ? FOG : G2) : (cls == SAND ? E4 : (cls == PATH && style >= 1 ? STEEL : E2));
+      } else c = (cls == GRASS) ? (sb == 3 ? FOG : G2) : (cls == SAND ? E4 : (cls == PATH && style >= 1 ? STEEL : cls == CAVE ? INK : E2));
     } else if (water && ((hxm > hHit + 0.5 && ex < 2.5) || (hym > hHit + 0.5 && ey < 2.5))) {
       c = sb == 3 ? W6 : W4;                          // glow halo just off the foam
     } else if (!water && ((hxm < hHit - 0.5 && ex < 1.0) || (hym < hHit - 0.5 && ey < 1.0))) {
@@ -606,7 +657,8 @@ void main() {
     int H = int(hHit - hN + 0.5);
     bool toWater = isWater(clsOf(NX));
     int k = (cls == SAND) ? 1 : (cls == FLOOR || cls == WALLC || (cls == PATH && style >= 1)) ? 2 : 0;
-    if (k == 1) c = sideSand(ip, left, dPx);
+    if (cls == CAVEWALL) c = sideCave(ip, tfHit, left, dPx, H);
+    else if (k == 1) c = sideSand(ip, left, dPx);
     else if (k == 2) c = sideStone(ip, tfHit, left, dPx);
     else c = sideEarth(ip, left, dPx);
     // overhanging lip on top: grass blades, a dirt rim, snow

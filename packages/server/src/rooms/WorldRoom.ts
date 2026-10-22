@@ -13,7 +13,7 @@ import {
   type DevMsg, type UseMsg, type OpenMsg, type InvMoveMsg, type InvTrashMsg, type EquipMsg, type CraftMsg, type ExperimentMsg,
   type ForgePreviewMsg, type ForgeStartMsg, type RhythmDoneMsg, type FishHookMsg, type ChestMsg, type ShelterMsg, type NpcState,
   type SpellState,
-  biomeAt,
+  biomeAt, isCaveY,
   CANNON, ITEMS, MORPH_FORMS, WEAPONS, isRangedWeapon, type WeaponDef, type WeaponShot,
 } from '@eigenlands/shared';
 import { verifyToken } from '../auth/token';
@@ -916,9 +916,9 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   /** Meadow spawner: a per-player budget of enemy "points", a spawn table by level and time of day, mite packs and elites. */
   private ambientSpawn(now: number): void {
     if ([...this.enemies.values()].filter((e) => !e.def.passive && !e.def.neutral).length >= MAX_ENEMIES) return;
-    const night = isNight(now);
     for (const p of this.players.values()) {
       if (p.deadT > 0) continue;
+      const night = isNight(now) || isCaveY(p.sim.y);                // it is always night underground
       let used = 0;
       for (const e of this.enemies.values()) if (!e.def.passive && Math.hypot(e.x - p.sim.x, e.y - p.sim.y) < 32) used += e.def.budget ?? 1;
       const budget = spawnBudget(p.level, night);
@@ -934,12 +934,13 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
         // the land shapes its monsters: wisps haunt the glades, mites and brutes swarm the wastes, slimes breed in the fen
         const biome = biomeAt(this.seed, x, y);
         const br = this.rand();
-        if (biome === 'enchanted' && br < 0.5) kind = 'wisp';
+        if (isCaveY(y)) kind = br < 0.45 ? 'slime' : br < 0.8 || p.level < 3 ? 'mite' : 'brute';   // the Undercroft never sleeps
+        else if (biome === 'enchanted' && br < 0.5) kind = 'wisp';
         else if (biome === 'corrupted' && br < 0.6) kind = br < 0.2 && p.level >= 3 ? 'brute' : 'mite';
         else if (biome === 'swamp' && br < 0.5) kind = 'slime';
         if (kind === 'brute' && used + 3 > budget + 0.5) kind = 'slime';
         // wolf packs prowl woodland at night (and any snowy ground)
-        if ((night || biome === 'taiga') && p.level >= 3 && this.rand() < (biome === 'taiga' ? 0.35 : 0.22) && used + 3 <= budget + 1) {
+        if (!isCaveY(y) && (night || biome === 'taiga') && p.level >= 3 && this.rand() < (biome === 'taiga' ? 0.35 : 0.22) && used + 3 <= budget + 1) {
           let trees = 0;
           for (let dy = -5; dy <= 5; dy++) for (let dx = -5; dx <= 5; dx++) if (this.store.getTile(x + dx, y + dy) === T.TREE) trees++;
           if (trees >= 5) {
@@ -981,7 +982,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
         if (Math.hypot(x, y) < 12 || buildingAt(this.seed, x, y)) continue;
         const t = this.store.getTile(x, y);
         const biome = biomeAt(this.seed, x, y);
-        if (biome === 'corrupted') continue;                       // nothing gentle lives in the wastes
+        if (biome === 'corrupted' || isCaveY(y)) continue;         // nothing gentle lives in the wastes or underground
         if (t !== T.GRASS && t !== T.GRASS_TALL && t !== T.FLOWERS && !(biome === 'desert' && t === T.SAND)) continue;
         let trees = 0;
         for (let dy = -5; dy <= 5; dy++) for (let dx = -5; dx <= 5; dx++) if (this.store.getTile(x + dx, y + dy) === T.TREE) trees++;

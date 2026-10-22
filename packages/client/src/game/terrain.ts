@@ -1,7 +1,7 @@
 import {
   BufferImageSource, Container, Mesh, MeshGeometry, RenderTexture, Shader, Sprite, UniformGroup, type Renderer,
 } from 'pixi.js';
-import { BIOMES, CHUNK_SIZE, G, T, TILE_DEFS, biomeAt, chunkKey, sampleClimate, townFor, type ChunkStore } from '@eigenlands/shared';
+import { BIOMES, CHUNK_SIZE, G, T, TILE_DEFS, biomeAt, chunkKey, isCaveY, sampleClimate, townFor, type ChunkStore } from '@eigenlands/shared';
 import { TERRAIN_FRAG, TERRAIN_VERT } from '../gl/terrain.frag';
 
 const WIN_CHUNKS = 5;                         // window = 5x5 chunks around the player (160x160 tiles)
@@ -82,6 +82,7 @@ export class Terrain {
     const out = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE * 4);
     const chunk = this.store.get(cx, cy);
     const seed = this.store.seed;
+    const cave = isCaveY(cy * CHUNK_SIZE);
     for (let y = 0; y < CHUNK_SIZE; y++) {
       for (let x = 0; x < CHUNK_SIZE; x++) {
         const o = (y * CHUNK_SIZE + x) * 4;
@@ -90,6 +91,7 @@ export class Terrain {
         const biome = biomeAt(seed, tx, ty);
         let ground = TILE_DEFS[tile]?.ground ?? 3;
         if (biome === 'desert' && ground === G.GRASS) ground = G.SAND;     // scrub and cacti stand on the dunes
+        if (cave && ground === G.GRASS) ground = G.CAVE;                   // ore, crystals and glowcaps rest on the cave floor
         out[o] = ground;
         const flux = sampleClimate(seed, tx, ty).flux;
         const fl = flux > 0.4 ? Math.min(31, Math.round(((flux - 0.4) / 0.4) * 31)) : 0;   // iridescent meadow intensity

@@ -3,6 +3,7 @@ import { hash2 } from './rng';
 import { Simplex2D } from './simplex';
 import { T } from './tiles';
 import { townTileAt } from './town';
+import { CAVE_OY, caveTileAt, isCaveY } from './caves';
 
 /**
  * Biomes, in a fixed order (the index is packed into the client's terrain texture).
@@ -84,6 +85,7 @@ export function sampleClimate(seed: number, x: number, y: number): ClimateSample
 const biomeCache = new Map<number, Biome>();
 /** Which biome a tile belongs to: climate (temperature, moisture, quantum flux) with ragged, noise-jittered borders. */
 export function biomeAt(seed: number, x: number, y: number): Biome {
+  if (isCaveY(y)) y -= CAVE_OY;                                    // the Undercroft takes the biome of the land above
   const k = ((x & 0xffff) << 16) ^ (y & 0xffff) ^ (seed << 3);
   const hit = biomeCache.get(k);
   if (hit) return hit;
@@ -125,6 +127,7 @@ function campCenter(seed: number, cellX: number, cellY: number): { x: number; y:
 }
 
 export function tileAt(seed: number, x: number, y: number): number {
+  if (isCaveY(y)) return caveTileAt(seed, x, y);
   const tt = townTileAt(seed, x, y);
   if (tt !== null) return tt;
   // Spawn shrine: path disc, four torches.

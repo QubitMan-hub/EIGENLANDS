@@ -1,4 +1,5 @@
 import {
+  isCaveY,
   FORAGE_BY_SEASON, HEARTS_MAX, ITEMS, NODES, T, chunkOf, isSolid, toolDamage, type Stack, type UseMsg, type WorldObj,
 } from '@eigenlands/shared';
 import { tuning } from '../rooms/runtime';
@@ -140,7 +141,7 @@ function hitNode(room: RoomApi, p: ServerPlayer, tool: Stack, tx: number, ty: nu
   giveStacks(p, drops);
   room.nodeHp.delete(key);
   addSkillXp(p, node.skill, node.xp);
-  room.setTile(tx, ty, node.to);
+  room.setTile(tx, ty, isCaveY(ty) && node.to === T.GRASS ? T.CAVE_FLOOR : node.to);   // nothing grows back underground
   if (node.respawnSec > 0) room.scheduleRespawn(tx, ty, tile === T.STUMP ? T.TREE : tile, room.wclock.now() + node.respawnSec * 1000);
   room.fx({ kind: 'break', x: cx, y: cy });
 }

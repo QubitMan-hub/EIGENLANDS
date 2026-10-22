@@ -5,6 +5,7 @@ import type { SolidQuery } from './sim';
 import { objSolid, type WorldObj } from './objects';
 import { townFor } from './town';
 import { ruinObjectsIn } from './ruins';
+import { caveObjectsIn, isCaveY } from './caves';
 import { shrineObjectsIn } from './shrines';
 
 export type ChunkDiff = Map<number, number>;
@@ -119,7 +120,8 @@ export class ChunkStore {
       }
     }
     const town = this.townByChunk.get(chunkKey(cx, cy)) ?? [];
-    const wild = [...shrineObjectsIn(this.seed, cx, cy), ...ruinObjectsIn(this.seed, cx, cy)];
+    const wild = isCaveY(cy * CHUNK_SIZE) ? caveObjectsIn(this.seed, cx, cy)
+      : [...shrineObjectsIn(this.seed, cx, cy), ...ruinObjectsIn(this.seed, cx, cy), ...caveObjectsIn(this.seed, cx, cy)];
     return wild.length ? [...town, ...wild] : town;
   }
 

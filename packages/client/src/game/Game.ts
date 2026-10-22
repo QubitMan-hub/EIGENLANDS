@@ -1,5 +1,6 @@
 import { Application, Container, Graphics, Sprite, Text } from 'pixi.js';
 import {
+  CAVE_OY, isCaveY,
   ChunkStore, ELITE_NAMES, ENEMY_BY_KIND, INTEREST_RADIUS, NPC_BY_ID, TILE_DEFS, TILE_SIZE, ambientColor, SEASONS, chunkOf,
   darkness, decodeDiff, dayNumber, formatClock, gameHour, dayPhase, season, PALETTE, townFor, weatherForDay, biomeWeather, biomeAt, type Ack, type ChunkMsg,
   type DialogueMsg, type FishBiteMsg, type FxMsg, type ObjMsg, type PanelMsg, type ProfileMsg, type RhythmResultMsg, type RhythmStartMsg,
@@ -17,6 +18,9 @@ import { Predictor } from '../net/prediction';
 import type { Settings } from '../ui/ui';
 import { depth, isoX, isoY, screenDir, unproject, ISO_HH, ISO_HW } from './iso';
 import { Gameplay } from './gameplay';
+
+/** The Undercroft's ambient light: near-black, a little warm (torches and crystals do the rest). */
+const CAVE_AMBIENT: [number, number, number] = [0.4, 0.37, 0.46];
 import { BuildingViews } from './buildingviews';
 import { WeatherFx } from './weatherfx';
 import { WorldObjViews } from './worldobjviews';
@@ -508,7 +512,8 @@ export class Game {
     const hour = this.hourOverride ?? gameHour(this.clock.serverNow(now));
     const sun = sunFor(hour);
     const wall = this.clock.serverNow(now);
-    const weather = biomeWeather(weatherForDay(this.seed, dayNumber(wall)), biomeAt(this.seed, Math.floor(this.predictor.sim.x), Math.floor(this.predictor.sim.y)));
+    const underground = isCaveY(this.predictor.sim.y);
+    const weather = underground ? 'clear' : biomeWeather(weatherForDay(this.seed, dayNumber(wall)), biomeAt(this.seed, Math.floor(this.predictor.sim.x), Math.floor(this.predictor.sim.y)));
     this.wind.update(this.seed, wall / 1000, now / 1000, weather);
     this.setSeason(this.seasonOverride ?? ((SEASONS.indexOf(season(wall)) as SeasonIdx)));
 
@@ -558,7 +563,7 @@ export class Game {
     const fxScale = this.combat.frame(dt);
     const renderT = this.clock.serverNow(now) - this.clock.interpDelay - this.combat.warp;
     this.updateViews(me, alpha, renderT, now, dtMs);
-    this.ambient.frame({ now, dt, view: this.vis, me, hour, weather, season: this.seasonIdx, wind: this.wind.w, reduced });
+    this.ambient.frame({ now, dt, view: this.vis, me, hour: underground ? 0 : hour, weather, season: this.seasonIdx, wind: this.wind.w, reduced });
     this.updateTarget34(renderT, me);
     this.syncFocus(now);
     this.drawAim(me, now);
@@ -569,9 +574,9 @@ export class Game {
 
     // lighting
     const topLeftIso = { x: camX - W / 2 / S, y: camY - H / 2 / S };
-    this.weatherFx.update(dt, weather, W, H, reduced, hour, this.wind.w, this.seasonIdx);
-    const wa = this.weatherFx.ambient(weather), amb = ambientColor(hour);
-    this.lighting.render([amb[0] * wa[0], amb[1] * wa[1], amb[2] * wa[2]], this.collectLights(topLeftIso.x, topLeftIso.y, hour, now, reduced));
+    this.weatherFx.update(dt, weather, W, H, reduced, underground ? 0 : hour, underground ? undefined : this.wind.w, this.seasonIdx);
+    const wa = this.weatherFx.ambient(weather), amb = underground ? CAVE_AMBIENT : ambientColor(hour);
+    this.lighting.render([amb[0] * wa[0], amb[1] * wa[1], amb[2] * wa[2]], this.collectLights(topLeftIso.x, topLeftIso.y, underground ? 0 : hour, now, reduced));
     this.updateTarget(now);
     this.gameplay.frame(now);
     if (!this.gameplay.blocking) this.gameplay.holdUse(now);
@@ -874,7 +879,7 @@ export class Game {
     for (const l of this.worldObjs.lights(v.x0, v.y0, v.x1, v.y1)) out.push({ ...toL(l.x, l.y), radius: l.radius, color: l.color, intensity: l.intensity });
     const me = this.predictor.visual(0);
     const lantern = this.gameplay.profile.buffs.lantern && this.gameplay.profile.buffs.lantern.until > this.clock.serverNow(now);
-    out.push({ ...toL(me.x, me.y), y: toL(me.x, me.y).y - 10, radius: lantern ? 8 : 4.5, color: pc(22), intensity: Math.min(1, dark * (lantern ? 1.4 : 1.1)) });
+    out.push({ ...toL(me.x, me.y), y: toL(me.x, me.y).y - 10, radius: lantern ? 8 : isCaveY(me.y) ? 6.5 : 4.5, color: pc(22), intensity: Math.min(1, dark * (lantern ? 1.4 : 1.1)) });
     for (const view of this.views.values()) {
       const p = toL(view.lx, view.ly);
       if (view.type === 'proj') out.push({ ...p, y: p.y - 8, radius: 2.2, color: pc(this.interp.sample(view.id, 0)?.pose.kind === 1 ? 45 : 46), intensity: 0.9 });
@@ -927,8 +932,9 @@ export class Game {
     for (const [k, b] of buffs) { const el = document.createElement('span'); el.className = 'buff'; el.textContent = `${k} ${Math.ceil((b.until - sn) / 1000)}s`; bb.append(el); }
     const town = townFor(this.seed);
     const me = this.predictor.sim;
-    const tdx = town.cx - me.x, tdy = town.cy - me.y, td = Math.hypot(tdx, tdy);
-    $('townhint').textContent = td > 30 ? `${town.name} ${['→', '↘', '↓', '↙', '←', '↖', '↑', '↗'][Math.round(((Math.atan2(tdy, tdx) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8]} ${Math.round(td)} tiles` : `${town.name}`;
+    const under = isCaveY(me.y);
+    const tdx = town.cx - me.x, tdy = town.cy - (under ? me.y - CAVE_OY : me.y), td = Math.hypot(tdx, tdy);
+    $('townhint').textContent = (under ? 'Undercroft · ' : '') + (td > 30 ? `${town.name} ${['→', '↘', '↓', '↙', '←', '↖', '↑', '↗'][Math.round(((Math.atan2(tdy, tdx) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8]} ${Math.round(td)} tiles` : `${town.name}`);
 
     const dbg = $('debug');
     if (!dbg.hidden) {

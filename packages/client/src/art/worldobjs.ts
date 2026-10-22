@@ -836,13 +836,42 @@ function ruinDef(sub: string, biome: string): ObjSpriteDef {
   }
 }
 
+/** Cave mouths (a timbered mine entrance in a rocky knoll, a lantern on the lintel) and the ladder back up. */
+function caveDef(sub: string, biome: string): ObjSpriteDef {
+  const st = ruinStone(biome);
+  if (sub === 'cave_ladder') return anim(frames(2, (f) => sprite(22, 46, 11, 44, (ctx) => {
+    for (let y = 0; y < 40; y++) for (let x = 3 + Math.floor(y / 14); x < 19 - Math.floor(y / 14); x++) if (((x + y + f) & 1) === 0 || (y < 12 && (x + y) % 3 === 0)) put(ctx, x, y, y < 10 ? C.pale : C.fog);   // daylight falling down the shaft
+    for (const x of [6, 14]) { put(ctx, x, 2, C.e3, 2, 41); put(ctx, x, 2, C.e5, 1, 41); }
+    for (let y = 6; y < 42; y += 5) { put(ctx, 7, y, C.e4, 7, 1); put(ctx, 7, y + 1, C.e1, 7, 1); }
+    for (const [x, y, r] of [[5, 42, 2.6], [16, 42, 2.2], [11, 43, 1.8]] as const) blob(ctx, x, y, r, r * 0.6, R.stone, { seed: x, noise: 0.2 });
+  }, { plain: true })), 2, { noShadow: true });
+  return anim(frames(2, (f) => sprite(52, 40, 26, 36, (ctx) => {
+    // the knoll
+    for (const [x, y, rx, ry] of [[26, 22, 21, 14], [12, 28, 10, 8], [40, 27, 11, 9], [22, 13, 9, 6], [33, 15, 8, 6]] as const) blob(ctx, x, y, rx, ry, st.ramp, { seed: x + y, noise: 0.18, edgeDark: 0.25 });
+    if (st.cap) blob(ctx, 24, 11, 12, 4, st.cap, { seed: 9, noise: 0.15, edgeDark: 0 });
+    else if (st.moss) { blob(ctx, 20, 12, 10, 3.5, st.moss, { seed: 4, noise: 0.45, edgeDark: 0 }); blob(ctx, 40, 22, 5, 2.4, st.moss, { seed: 6, noise: 0.5, edgeDark: 0 }); }
+    // the dark mouth, deepening inward
+    poly(ctx, [[17, 36], [17, 24], [20, 20], [32, 20], [35, 24], [35, 36]], (x, y) => (y > 33 ? C.night : Math.abs(x - 26) < 5 && y > 24 ? C.ink : y < 23 ? C.night : C.ink));
+    put(ctx, 22, 34, C.slate, 8, 1); put(ctx, 24, 33, C.night, 4, 1);                                         // rails leading in
+    // timbers: two posts and a lintel
+    for (const x of [15, 35]) { put(ctx, x, 19, C.e2, 3, 17); put(ctx, x, 19, C.e4, 1, 17); put(ctx, x + 2, 19, C.e0, 1, 17); }
+    put(ctx, 13, 17, C.e3, 27, 3); put(ctx, 13, 17, C.e5, 27, 1); put(ctx, 13, 19, C.e1, 27, 1);
+    for (const x of [16, 36]) put(ctx, x, 18, C.slate);                                                        // iron spikes
+    // lantern on a hook, flame breathing
+    put(ctx, 38, 20, C.night, 1, 2); put(ctx, 37, 22, C.e1, 3, 1); put(ctx, 37, 23, f ? C.e7 : C.e6, 3, 3); put(ctx, 38, 24, C.white); put(ctx, 37, 26, C.e1, 3, 1);
+    // spoil heap of the old diggings
+    for (const [x, y, r] of [[7, 35, 3], [11, 36, 2.4], [44, 35, 2.6]] as const) blob(ctx, x, y, r, r * 0.7, R.stone, { seed: x * 3, noise: 0.3 });
+  })), 2.5);
+}
+
 export function worldObjDef(o: WorldObj): ObjSpriteDef {
   if (o.kind === 'crop') return cropDef(o.data as unknown as CropData | undefined, o.sub);
   const ruinBiome = o.sub.startsWith('ruin_') ? String((o.data as { biome?: string } | undefined)?.biome ?? 'meadow') : '';
-  const key = o.kind === 'sprinkler' ? `sprinkler:${o.sub}:${(o.data as { watering?: boolean } | undefined)?.watering ? 1 : 0}` : ruinBiome ? `ruin:${o.sub}:${ruinBiome}` : `${o.kind}:${o.sub}`;
+  const key = o.kind === 'sprinkler' ? `sprinkler:${o.sub}:${(o.data as { watering?: boolean } | undefined)?.watering ? 1 : 0}` : ruinBiome ? `ruin:${o.sub}:${ruinBiome}` : o.sub === 'cave_mouth' ? `cave:${String((o.data as { biome?: string } | undefined)?.biome)}` : `${o.kind}:${o.sub}`;
   let d = objCache.get(key);
   if (!d) {
     if (ruinBiome) d = ruinDef(o.sub, ruinBiome);
+    else if (o.sub === 'cave_mouth' || o.sub === 'cave_ladder') d = caveDef(o.sub, String((o.data as { biome?: string } | undefined)?.biome ?? 'meadow'));
     else if ((o.kind === 'deco' || o.kind === 'sign' || o.kind === 'furniture') && TOWN_DECO[o.sub]) d = TOWN_DECO[o.sub]!();
     else if (o.kind === 'station') d = (STATIONS[o.sub] ?? DECO.crate!)();
     else if (o.kind === 'sprinkler') d = sprinkler(o.sub === 'sprinkler2', !!(o.data as { watering?: boolean } | undefined)?.watering);
