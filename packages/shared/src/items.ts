@@ -44,7 +44,7 @@ export interface ItemDef {
   /** weapon id in WEAPONS (staves, crossbow); the sword is a plain weapon */
   weapon?: WeaponId;
   /** consumed on use for a special effect: a Heart Crystal (+10 max health) or a boss summon */
-  special?: 'heart' | 'summon';
+  special?: 'heart' | 'summon' | 'ship';
   tags?: string[];
 }
 
@@ -230,6 +230,8 @@ def('warden_heart', 'Warden Heart', 'resource', 500, 'orb', C.g3, C.e6, 'A heart
 def('void_core', 'Void Core', 'resource', 900, 'orb', C.q3, C.q7, 'A crystal that is mostly absence.');
 def('slime_crown', 'Slime Crown', 'misc', 300, 'orb', C.g5, C.e6, 'Use it far from any village to call the Gelatinous Sovereign. Level 10.', { special: 'summon', stack: 5 });
 def('warden_horn', 'Warden Horn', 'misc', 500, 'tooth', C.e5, C.g4, 'Blow it in the wilds to call the Warden of the Grove. Level 18.', { special: 'summon', stack: 5 });
+def('sloop', 'Sloop Charter', 'misc', 260, 'cloth', C.pale, C.e5, 'Use it at the water\'s edge to board your sloop; use it again at a shore to step off. Fire cannons with attack.', { special: 'ship', stack: 1 });
+def('doubloon', 'Doubloon', 'misc', 55, 'gem', C.e6, C.e4, 'A pirate\'s gold coin. Merchants pay well for them.');
 def('colossus_core', 'Colossus Core', 'misc', 900, 'orb', C.q4, C.w7, 'Use it far from any village to wake the Decoherent Colossus. Level 28.', { special: 'summon', stack: 5 });
 
 // ── armor sets and Foci (see equipment.ts)

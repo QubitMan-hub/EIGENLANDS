@@ -133,6 +133,7 @@ r('radiant_staff', 'carpenter', [['wood', 3], ['gold_ingot', 2], ['qubit_crystal
 r('morph_staff', 'carpenter', [['heartwood', 2], ['wolf_fang', 2], ['boar_tusk', 2], ['qubit_crystal', 2]], ['morph_staff', 1], 20, 'discover', 'Fang, tusk and crystal: two animals, one staff.');
 
 // Adventure: Heart Crystals and boss summons (each boss drops the key to the next)
+r('sloop', 'workbench', [['plank', 24], ['cloth', 8], ['iron_ingot', 2]], ['sloop', 1], 26, 'start', 'Planks, sailcloth and iron fittings: a hull that rides the swell.');
 r('heart_crystal', 'hand', [['shrine_shard', 4]], ['heart_crystal', 1], 20, 'start', 'Four solved shrines, fused.');
 r('slime_crown', 'workbench', [['slime_gel', 20], ['gold_ingot', 2], ['qubit_crystal', 1]], ['slime_crown', 1], 18, 'discover', 'Gel, gold and a crystal: a crown for something large.');
 r('warden_horn', 'workbench', [['slime_core', 1], ['boar_tusk', 3], ['wolf_fang', 3]], ['warden_horn', 1], 24, 'discover', 'Carved from tusk and fang, tuned by a slime core.');

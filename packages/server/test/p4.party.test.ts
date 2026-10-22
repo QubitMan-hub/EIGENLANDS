@@ -150,13 +150,13 @@ describe('parties', () => {
 
   it('cross-shard: invite reaches a player on another shard; frames carry shard, HP and position at ~2 Hz', async () => {
     const a = await joinP4(app, 'Sol', { shard: '0,0', pos: [2.5, 4.5] });
-    const b = await joinP4(app, 'Tam', { shard: '1,0', pos: [200.5, 3.5] });
+    const b = await joinP4(app, 'Tam', { shard: '1,0', pos: [145.5, 3.5] });
     expect(a.room).not.toBe(b.room);
     expect(b.room.shard).toBe('1,0');
     const id = await partyUp(a, b);
     await until(() => {
       const m = lastParty(a)?.members?.find((x) => x.accountId === b.accountId);
-      return !!m && m.shard === '1,0' && m.online && Math.abs(m.x - 200.5) < 0.6;
+      return !!m && m.shard === '1,0' && m.online && Math.abs(m.x - 145.5) < 0.6;
     }, 4000);
     const inA = lastParty(a)!;
     expect(inA.id).toBe(id);

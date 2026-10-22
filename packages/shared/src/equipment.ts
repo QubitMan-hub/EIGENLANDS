@@ -139,6 +139,12 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     bonus: { hp: 16, atk: 3 }, blurb: 'Your strikes become a wolf\'s fangs or a bear\'s fist, whichever the dice collapse to.', quantum: 'Each strike is a coin flip between Wolf (fast, light) and Bear (slow, crushing). Hold to Collapse both at once.' },
 };
 export const isWeaponId = (v: unknown): v is WeaponId => typeof v === 'string' && Object.hasOwn(WEAPONS, v);
+/** A sloop's guns: the attack button fires cannonballs, held and released a chain-shot broadside. Hue 5 = ember. */
+export const CANNON = {
+  cd: 1.1,
+  basic: { name: 'Cannonball', hue: 5, kind: 'bolt', dmg: 34, range: 16, speed: 15, radius: 0.35 } as WeaponShot,
+  charged: { name: 'Broadside', hue: 5, kind: 'bolt', dmg: 30, count: 3, spread: 14, range: 15, speed: 15, radius: 0.35 } as WeaponShot,
+};
 /** Strike modifiers of the Shapeshifter's two forms (melee). */
 export const MORPH_FORMS = [
   { name: 'Wolf', dmg: 0.8, knockback: 0.7, recovery: 0.75 },

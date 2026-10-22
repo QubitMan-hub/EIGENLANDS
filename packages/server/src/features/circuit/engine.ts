@@ -269,7 +269,7 @@ export class AbilityEngine {
   }
 
   private stepBolts(dt: number): void {
-    const solid = this.room.store.solidAt;
+    const solid = this.room.store.shotBlockedAt;
     for (const b of [...this.bolts.values()]) {
       const caster = this.player(b.owner);
       const step = Math.min(b.speed * dt, b.range - b.travelled);

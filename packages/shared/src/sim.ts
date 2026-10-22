@@ -1,6 +1,6 @@
 import {
   ATTACK_BUFFER, CHARGE_FULL, CHARGE_MIN, CHARGE_MOVE_MULT, COMBO_WINDOW, DASH_CHARGES, DASH_COOLDOWN, DASH_SPEED, DASH_TIME,
-  IFRAME_TIME, PLAYER_RADIUS, PLAYER_SPEED, SKILL_COOLDOWN, SWING_MOVE_MULT, TICK_DT,
+  BOAT_SPEED_MULT, IFRAME_TIME, PLAYER_RADIUS, PLAYER_SPEED, SKILL_COOLDOWN, SWING_MOVE_MULT, TICK_DT,
 } from './constants';
 import { COMBO, heavyHit } from './combat';
 
@@ -36,6 +36,8 @@ export interface PlayerSim {
   atkBuf: number;
   /** phase slip: set by the server on a perfect dodge; the next attack is a critical counter */
   slipT: number;
+  /** 1 while sailing: water is open, land is solid, no dashing, faster, no lunges */
+  boat: number;
 }
 
 export interface InputCmd {
@@ -73,13 +75,14 @@ export interface StepEvents {
   chargeFull: boolean;
 }
 
-export type SolidQuery = (tx: number, ty: number) => boolean;
+/** `sea` (when present) is the collision query of a ship: land and obstacles are solid, open water is not. */
+export type SolidQuery = ((tx: number, ty: number) => boolean) & { sea?: (tx: number, ty: number) => boolean };
 
 export function newPlayerSim(x: number, y: number): PlayerSim {
   return {
     x, y, faceX: 0, faceY: 1, dashT: 0, dashCd: 0, dashDx: 0, dashDy: 0,
     atkCd: 0, combo: 0, comboT: 0, skillCd: 0,
-    dashN: DASH_CHARGES, ifrT: 0, hold: 0, charge: 0, atkBuf: 0, slipT: 0,
+    dashN: DASH_CHARGES, ifrT: 0, hold: 0, charge: 0, atkBuf: 0, slipT: 0, boat: 0,
   };
 }
 
@@ -164,7 +167,9 @@ export function chargeLevel(charge: number): number {
  * - dash: DASH_CHARGES charges that recharge one at a time; cancels swing recovery and charge, keeps the combo.
  * - phase slip (set by the server on a perfect dodge): the next attack is a critical counter.
  */
-export function stepPlayer(p: PlayerSim, cmd: InputCmd, solid: SolidQuery): StepEvents {
+export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepEvents {
+  const sailing = p.boat > 0 && !!land.sea;
+  const solid: SolidQuery = sailing ? land.sea! : land;
   const ev: StepEvents = {
     dashed: false, attacked: false, combo: 0, skill: false, heavy: false, level: 0, counter: false, chargeReady: false, chargeFull: false,
   };
@@ -197,7 +202,7 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, solid: SolidQuery): Step
   const aim = () => { if (hasAim) { p.faceX = cmd.aimX; p.faceY = cmd.aimY; } };
 
   // dash (always available while a charge remains: cancels swing recovery and a held charge)
-  if (cmd.dash && p.dashT <= 0 && p.dashN >= 1) {
+  if (cmd.dash && p.dashT <= 0 && p.dashN >= 1 && !sailing) {
     p.dashN -= 1;
     if (p.dashCd <= 0) p.dashCd = DASH_COOLDOWN;
     p.dashT = DASH_TIME;
@@ -264,8 +269,9 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, solid: SolidQuery): Step
   } else {
     // committed swing slows you; so does holding a charge
     const k = p.atkCd > 0.15 ? SWING_MOVE_MULT : p.charge > 0 ? CHARGE_MOVE_MULT : 1;
-    vx = cmd.dx * PLAYER_SPEED * k;
-    vy = cmd.dy * PLAYER_SPEED * k;
+    const sp = sailing ? PLAYER_SPEED * BOAT_SPEED_MULT : PLAYER_SPEED;
+    vx = cmd.dx * sp * k;
+    vy = cmd.dy * sp * k;
   }
   moveBody(p, vx * TICK_DT, vy * TICK_DT, PLAYER_RADIUS, solid);
   return ev;

@@ -13,6 +13,7 @@ import { signTicket, verifyTicket } from '../features/shard/ticket';
 import { nullVillage } from '../features/shard/nullVillage';
 import { BossModule } from '../features/bosses';
 import { ShadowModule } from '../features/shadows';
+import { SailingModule } from '../features/sailing';
 import { ShrineModule } from '../features/shrines';
 import { SocialModule } from '../features/social';
 import type { BucketName, Carry, JoinOpts, Module, Registrar } from '../features/types';
@@ -43,6 +44,7 @@ export class GameRoom extends WorldRoom {
   circuit!: CircuitModule;
   social!: SocialModule;
   shadows!: ShadowModule;
+  sailing!: SailingModule;
   bosses!: BossModule;
   shrines!: ShrineModule;
   shardMod!: ShardModule;
@@ -74,9 +76,10 @@ export class GameRoom extends WorldRoom {
     this.circuit = new CircuitModule(this);
     this.social = new SocialModule(this);
     this.shadows = new ShadowModule(this);
+    this.sailing = new SailingModule(this);
     this.bosses = new BossModule(this);
     this.shrines = new ShrineModule(this);
-    this.modules = [this.shardMod, this.circuit, this.social, this.shadows, this.bosses, this.shrines];
+    this.modules = [this.shardMod, this.circuit, this.social, this.shadows, this.bosses, this.shrines, this.sailing];
     const reg: Registrar = {
       on: <M>(type: string, bucket: BucketName, fn: (p: ServerPlayer, msg: M) => void | Promise<void>) => {
         this.onMessage(type, (client: Client, msg: M) => {
@@ -240,6 +243,7 @@ export class GameRoom extends WorldRoom {
   }
 
   summonBoss(p: ServerPlayer, itemId: string, x: number, y: number): boolean { return this.bosses?.summon(p, itemId, x, y) ?? false; }
+  toggleShip(p: ServerPlayer): void { this.sailing?.toggle(p); }
   shrineInteract(p: ServerPlayer, o: WorldObj): void { this.shrines?.interact(p, o); }
 
   protected hookTargets(): Array<{ id: string; x: number; y: number; alive: boolean }> { return this.shadows?.targets() ?? []; }

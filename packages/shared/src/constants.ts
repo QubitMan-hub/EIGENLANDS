@@ -5,6 +5,8 @@ export const TICK_DT = 1 / TICK_RATE;
 export const TICK_MS = 1000 / TICK_RATE;
 
 export const PLAYER_SPEED = 4.5; // tiles / s
+/** a sloop under sail outruns a walker */
+export const BOAT_SPEED_MULT = 1.55;
 export const PLAYER_RADIUS = 0.3;
 export const DASH_TIME = 0.18;
 export const DASH_SPEED = 13;

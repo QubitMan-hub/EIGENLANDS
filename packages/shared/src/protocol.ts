@@ -260,7 +260,7 @@ export const JOIN_ROOM = 'world';
  */
 export const ACK_FIELDS = [
   'x', 'y', 'faceX', 'faceY', 'dashT', 'dashCd', 'dashDx', 'dashDy', 'atkCd', 'combo', 'comboT', 'skillCd',
-  'dashN', 'ifrT', 'hold', 'charge', 'atkBuf', 'slipT',
+  'dashN', 'ifrT', 'hold', 'charge', 'atkBuf', 'slipT', 'boat',
 ] as const satisfies ReadonlyArray<keyof PlayerSim>;
 export const ACK_BYTES = 8 + ACK_FIELDS.length * 4;
 export interface Ack { seq: number; tick: number; sim: PlayerSim }
@@ -282,6 +282,7 @@ export function decodeAck(buf: Uint8Array): Ack {
   sim.combo = Math.round(sim.combo);
   sim.dashN = Math.round(sim.dashN);
   sim.hold = Math.round(sim.hold);
+  sim.boat = Math.round(sim.boat);
   return { seq: dv.getUint32(0, true), tick: dv.getUint32(4, true), sim };
 }
 

@@ -136,7 +136,7 @@ export function stepEnemies(
   }
   for (const e of all) {
     if (e.slowT > 0) e.slowT = Math.max(0, e.slowT - dt);
-    stepEnemy(e, e.slowT > 0 ? dt * SLIP_SLOW : dt, tick, targets, solid, rand, hooks, ctx);
+    stepEnemy(e, e.slowT > 0 ? dt * SLIP_SLOW : dt, tick, targets, e.def.sea ? (solid.sea ?? solid) : solid, rand, hooks, ctx);
   }
 }
 

@@ -38,6 +38,7 @@ export async function handleUse(room: RoomApi, p: ServerPlayer, msg: UseMsg): Pr
     room.fx({ kind: 'levelup', x: p.sim.x, y: p.sim.y, v: 0, id: p.id });
     return;
   }
+  if (def.special === 'ship') { p.toolReadyAt = t0 + tuning.toolCooldownMs; room.toggleShip?.(p); return; }
   if (def.special === 'summon') {
     p.toolReadyAt = t0 + tuning.toolCooldownMs;
     if (room.summonBoss?.(p, first.id, p.sim.x + p.sim.faceX * 4, p.sim.y + p.sim.faceY * 4)) {

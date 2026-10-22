@@ -4,6 +4,7 @@
 //   objects  gallery of tile objects, crops, stations and furniture (&season=)
 //   town     Hadamere with buildings, furnishing and NPC line-up (&hour=&season=)
 //   actors   NPC / fauna / person sheets
+//   ships    sloop and corsair hulls at every heading, the Brine Serpent
 import { Application, Container, Graphics, Sprite, Text } from 'pixi.js';
 import {
   CROPS, ChunkStore, ITEMS, NPCS, PALETTE, T, TILE_DEFS, TILE_SIZE, ambientColor, darkness, chunkOf, townFor, type WorldObj, type Weather,
@@ -11,6 +12,7 @@ import {
 import { buildObjectArt, FRAMES_PER_VARIANT, type SeasonIdx } from '../art/objects';
 import { buildActorSheets, OUTFITS, WALK_FRAMES, DIR_LEFT, DIR_RIGHT } from '../art/actors';
 import { itemIconUrl } from '../art/icons';
+import { Ships, HEADINGS, SHIP_AX, SHIP_AY } from '../art/ships';
 import { GALLERY_OBJECTS, worldObjDef } from '../art/worldobjs';
 import { ObjectViews, sunFor } from '../game/objectviews';
 import { WorldObjViews } from '../game/worldobjviews';
@@ -60,6 +62,18 @@ if (mode === 'icons') {
       const s = new Sprite(sp.tex); s.x = x; s.y = 4; root.addChild(s); x += sp.tex.width + 4;
     }
   }
+  (window as unknown as { __lab: unknown }).__lab = { ready: true };
+} else if (mode === 'ships') {
+  const bg = new Graphics().rect(0, 0, 4000, 4000).fill(0x2a70b0);
+  const root = new Container();
+  app.stage.addChild(bg, root);
+  root.scale.set(num('scale', 2));
+  const ships = new Ships();
+  const place = (tex: Sprite['texture'], ax: number, ay: number, x: number, y: number) => { const s = new Sprite(tex); s.anchor.set(ax, ay); s.x = x; s.y = y; root.addChild(s); };
+  for (const [row, kind] of (['sloop', 'pirate'] as const).entries()) {
+    for (let h = 0; h < HEADINGS; h++) place(ships.ship(kind, h, h % 3), SHIP_AX, SHIP_AY, 40 + (h % 8) * 80, 60 + row * 150 + Math.floor(h / 8) * 70);
+  }
+  for (let i = 0; i < 2; i++) place(ships.serpent('head', i), 0.5, 0.95, 60 + i * 50, 370);
   (window as unknown as { __lab: unknown }).__lab = { ready: true };
 } else if (mode === 'objects' || mode === 'actors' || mode === 'person') {
   const bg = new Graphics().rect(0, 0, 4000, 4000).fill(0x3b6a3a);

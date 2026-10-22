@@ -14,6 +14,7 @@ interface Layers {
   forest: Simplex2D;
   meadow: Simplex2D;
   rocky: Simplex2D;
+  sea: Simplex2D;
 }
 
 const layerCache = new Map<number, Layers>();
@@ -28,12 +29,17 @@ function layers(seed: number): Layers {
       forest: new Simplex2D(seed ^ 0x5555),
       meadow: new Simplex2D(seed ^ 0x6666),
       rocky: new Simplex2D(seed ^ 0x7777),
+      sea: new Simplex2D(seed ^ 0x8888),
     };
     if (layerCache.size > 8) layerCache.clear();
     layerCache.set(seed, l);
   }
   return l;
 }
+
+/** the home continent ends here: open sea begins between these radii */
+export const SEA_START = 150;
+export const SEA_FULL = 230;
 
 export interface ClimateSample {
   height: number;
@@ -48,6 +54,12 @@ export function sampleClimate(seed: number, x: number, y: number): ClimateSample
   // keep the spawn area dry land
   const dist = Math.hypot(x, y);
   height += Math.max(0, 1 - dist / 22) * 0.8;
+  // beyond the home continent lies the sea: a ring of open water broken by islands and archipelagos
+  const ring = smooth(dist, SEA_START, SEA_FULL);
+  if (ring > 0) {
+    const isles = l.sea.fbm(x / 58 + 700, y / 58 - 700, 4) + 0.35 * l.sea.fbm(x / 21 - 300, y / 21 + 300, 2);
+    height = height * (1 - ring) + ring * (isles * 1.15 - 0.52);
+  }
   return {
     height,
     moisture: l.moisture.fbm(x / 64 + 100, y / 64 - 100, 3),

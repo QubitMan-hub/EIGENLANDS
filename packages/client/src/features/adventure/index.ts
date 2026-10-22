@@ -1,7 +1,7 @@
 import { Graphics } from 'pixi.js';
 import {
   BOSSES, BOSS_BY_KIND, ENEMY_BY_KIND, MSG34, SHRINE_REACH, shrinesNear,
-  type BossEvent, type Shrine, type ShrineEvent,
+  type BossEvent, type SeaEvent, type Shrine, type ShrineEvent,
 } from '@eigenlands/shared';
 import { keyLabel } from '../../input/keymap';
 import { isoX, isoY } from '../../game/iso';
@@ -69,7 +69,15 @@ export class AdventureClient implements ClientModule {
     return {
       [MSG34.BOSS_EV]: (m: BossEvent) => this.onBoss(m),
       [MSG34.SHRINE_EV]: (m: ShrineEvent) => this.onShrine(m),
+      [MSG34.SEA_EV]: (m: SeaEvent) => { this.d.sfx(m.kind === 'board' ? 'splash' : 'pickup'); },
     };
+  }
+
+  /** H: board your sloop at the water's edge, or step ashore (needs a Sloop Charter). */
+  action(a: string): boolean {
+    if (a !== 'sail') return false;
+    if (!this.d.wins.open && !this.d.dead()) try { this.d.net().send(MSG34.BOARD, {}); } catch { /* offline */ }
+    return true;
   }
 
   // ───────────────────────── bosses ─────────────────────────

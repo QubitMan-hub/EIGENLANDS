@@ -196,6 +196,8 @@ export interface EnemyDef {
   boss?: boolean;
   /** attack area multiplier (bosses hit wide) */
   aoe?: number;
+  /** sea creature: lives on open water, land is its wall */
+  sea?: boolean;
 }
 
 /** Attack ids for telegraph decals (synced as EnemyState.atk). */
@@ -221,7 +223,7 @@ export const REFLECT_SPEED_MULT = 1.7;
 export const REFLECT_DAMAGE = 18;
 
 const melee = { ai: 'melee' as const };
-export const ENEMY_DEFS: Record<'slime' | 'hopper' | 'rabbit' | 'deer' | 'wisp' | 'brute' | 'mite' | 'boar' | 'wolf' | 'badger' | 'slime_king' | 'warden' | 'colossus', EnemyDef> = {
+export const ENEMY_DEFS: Record<'slime' | 'hopper' | 'rabbit' | 'deer' | 'wisp' | 'brute' | 'mite' | 'boar' | 'wolf' | 'badger' | 'slime_king' | 'warden' | 'colossus' | 'pirate' | 'serpent', EnemyDef> = {
   slime: { kind: 0, name: 'Wisp Slime', hp: 30, speed: 2.1, radius: 0.4, damage: 7, sight: 7, windup: 0.55, strikeRange: 1.1, xp: 10, ...melee, poise: 8, staggerTime: 0.7, cooldown: 0.5, budget: 1, drops: [{ item: 'slime_gel', min: 1, max: 2, chance: 0.7 }] },
   hopper: { kind: 1, name: 'Glint Hopper', hp: 22, speed: 3.0, radius: 0.35, damage: 9, sight: 9, windup: 0.7, strikeRange: 3.0, xp: 14, ai: 'leap', poise: 6, staggerTime: 0.7, cooldown: 0.6, budget: 1, drops: [{ item: 'hopper_tooth', min: 1, max: 1, chance: 0.45 }, { item: 'hide', min: 1, max: 1, chance: 0.25 }] },
   rabbit: { kind: 2, name: 'Meadow Rabbit', passive: true, ai: 'passive', hp: 8, speed: 4.6, radius: 0.3, damage: 0, sight: 6, windup: 0, strikeRange: 0, xp: 3, drops: [{ item: 'raw_meat', min: 1, max: 1, chance: 0.9 }, { item: 'hide', min: 1, max: 1, chance: 0.5 }] },
@@ -243,10 +245,14 @@ export const ENEMY_DEFS: Record<'slime' | 'hopper' | 'rabbit' | 'deer' | 'wisp' 
     drops: [{ item: 'slime_core', min: 1, max: 1, chance: 1 }, { item: 'heart_crystal', min: 1, max: 1, chance: 1 }, { item: 'slime_gel', min: 10, max: 16, chance: 1 }, { item: 'qubit_crystal', min: 1, max: 2, chance: 0.6 }] },
   warden: { kind: 11, name: 'Warden of the Grove', boss: true, hp: 1400, speed: 2.5, radius: 1.1, damage: 20, sight: 18, windup: 0.9, strikeRange: 9, xp: 900, ai: 'boar', poise: 200, staggerTime: 1.2, armor: true, resist: 0.1, cooldown: 1.2, aoe: 1.8, budget: 99,
     drops: [{ item: 'warden_heart', min: 1, max: 1, chance: 1 }, { item: 'heart_crystal', min: 1, max: 1, chance: 1 }, { item: 'boar_tusk', min: 3, max: 5, chance: 1 }, { item: 'wolf_fang', min: 2, max: 4, chance: 1 }, { item: 'hide', min: 3, max: 5, chance: 1 }, { item: 'heartwood', min: 2, max: 4, chance: 0.8 }] },
+  pirate: { kind: 13, name: 'Corsair Sloop', sea: true, hp: 80, speed: 2.7, radius: 0.9, damage: 11, sight: 16, windup: 0.9, strikeRange: 9, xp: 70, ai: 'caster', poise: 40, staggerTime: 0.9, armor: true, resist: 0.4, cooldown: 1.6, budget: 2,
+    drops: [{ item: 'doubloon', min: 1, max: 3, chance: 0.9 }, { item: 'plank', min: 2, max: 5, chance: 0.8 }, { item: 'cloth', min: 1, max: 3, chance: 0.5 }, { item: 'iron_ingot', min: 1, max: 1, chance: 0.2 }] },
+  serpent: { kind: 14, name: 'Brine Serpent', sea: true, hp: 150, speed: 3.4, radius: 0.8, damage: 18, sight: 12, windup: 0.8, strikeRange: 7, xp: 120, ai: 'brute', poise: 80, staggerTime: 1.1, armor: true, resist: 0.3, cooldown: 1.4, budget: 3,
+    drops: [{ item: 'doubloon', min: 2, max: 5, chance: 0.8 }, { item: 'hide', min: 2, max: 3, chance: 0.9 }, { item: 'qubit_crystal', min: 1, max: 2, chance: 0.35 }] },
   colossus: { kind: 12, name: 'Decoherent Colossus', boss: true, hp: 2200, speed: 1.8, radius: 1.5, damage: 26, sight: 20, windup: 1.0, strikeRange: 9, xp: 1600, ai: 'brute', poise: 300, staggerTime: 1.4, armor: true, resist: 0.1, cooldown: 1.3, aoe: 2.2, budget: 99,
     drops: [{ item: 'void_core', min: 1, max: 1, chance: 1 }, { item: 'heart_crystal', min: 2, max: 2, chance: 1 }, { item: 'qubit_crystal', min: 4, max: 6, chance: 1 }, { item: 'iron_ore', min: 6, max: 10, chance: 1 }, { item: 'coal', min: 4, max: 8, chance: 1 }] },
 };
-export const ENEMY_BY_KIND: EnemyDef[] = [ENEMY_DEFS.slime, ENEMY_DEFS.hopper, ENEMY_DEFS.rabbit, ENEMY_DEFS.deer, ENEMY_DEFS.wisp, ENEMY_DEFS.brute, ENEMY_DEFS.mite, ENEMY_DEFS.boar, ENEMY_DEFS.wolf, ENEMY_DEFS.badger, ENEMY_DEFS.slime_king, ENEMY_DEFS.warden, ENEMY_DEFS.colossus];
+export const ENEMY_BY_KIND: EnemyDef[] = [ENEMY_DEFS.slime, ENEMY_DEFS.hopper, ENEMY_DEFS.rabbit, ENEMY_DEFS.deer, ENEMY_DEFS.wisp, ENEMY_DEFS.brute, ENEMY_DEFS.mite, ENEMY_DEFS.boar, ENEMY_DEFS.wolf, ENEMY_DEFS.badger, ENEMY_DEFS.slime_king, ENEMY_DEFS.warden, ENEMY_DEFS.colossus, ENEMY_DEFS.pirate, ENEMY_DEFS.serpent];
 export type EnemyKindName = keyof typeof ENEMY_DEFS;
 
 export const NIGHT_HP_MULT = 1.6;

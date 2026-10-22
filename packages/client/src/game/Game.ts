@@ -30,6 +30,7 @@ import { WindField } from './windfield';
 import { Ambient } from './ambient';
 import { HUE_PALETTE, ITEMS, MSG34, SHADOW_RANKS, WEAPONS, isRangedWeapon } from '@eigenlands/shared';
 import { Critters } from '../art/critters';
+import { Ships } from '../art/ships';
 import { TargetFrame } from '../ui/targetframe';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -73,6 +74,7 @@ export class Game {
   private sheets!: Sheets;
   private foes!: FoeSheets;
   private critters!: Critters;
+  private ships = new Ships();
   private combat!: CombatView;
   private decalLayer = new Graphics();
   private deadAt = 0;
@@ -167,7 +169,7 @@ export class Game {
     });
     this.combat = new CombatView({
       fx: () => this.fx, sound: (s, x, y) => this.sound(s, x, y), rawSound: (s) => this.audio.play(s),
-      reduced: () => this.settings().reducedMotion, sheets: () => this.sheets, foes: () => this.foes, critters: () => this.critters, weapon: () => this.weaponInfo(), myId: () => this.myId,
+      reduced: () => this.settings().reducedMotion, sheets: () => this.sheets, foes: () => this.foes, critters: () => this.critters, ships: () => this.ships, weapon: () => this.weaponInfo(), myId: () => this.myId,
       me: () => (this.predictor ? { x: this.predictor.sim.x, y: this.predictor.sim.y } : null), views: () => this.views.values(),
     }, this.decalLayer);
     this.ext = new P34Client({
@@ -730,7 +732,9 @@ export class Game {
         v.sprite.alpha = deadP ? 0.35 : dash ? 0.6 : 1;
         v.sprite.rotation = deadP ? Math.PI / 2 : 0;
         v.sprite.scale.set(1);
-        v.gfx.ellipse(0, 0, 7, 3).fill({ color: 0x2a1060, alpha: 0.28 });
+        const boat = isMe ? this.predictor.sim.boat > 0 : ((s?.flags ?? 0) & 128) !== 0;
+        this.combat.rig(v, boat, fx, fy, now / 1000);
+        if (!boat) v.gfx.ellipse(0, 0, 7, 3).fill({ color: 0x2a1060, alpha: 0.28 });
         if (!deadP) this.combat.decoratePlayer(v, s?.flags ?? 0, isMe ? this.predictor.sim : null, x, y, now, dtMs / 1000);
         v.flash *= Math.exp(-dtMs / 45);
         v.fl.texture = v.sprite.texture; v.fl.scale.copyFrom(v.sprite.scale); v.fl.rotation = v.sprite.rotation; v.fl.alpha = v.flash;

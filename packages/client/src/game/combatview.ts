@@ -1,8 +1,9 @@
 import { critterDir, type Critters, type CritterId } from '../art/critters';
-import type { Container, Graphics, Sprite } from 'pixi.js';
+import { Sprite, type Container, type Graphics } from 'pixi.js';
+import { SHIP_AX, SHIP_AY, headingOf, type Ships } from '../art/ships';
 import {
   HUE_PALETTE,
-  ATK, BRUTE_SLAM_RADIUS, CHARGE_FULL, CHARGE_MIN, CHARGE_WIDTH, COMBO, DASH_CHARGES, DASH_COOLDOWN, ELITE, ENEMY_BY_KIND, LEAP_RADIUS,
+  ATK, BRUTE_SLAM_RADIUS, C, CHARGE_FULL, CHARGE_MIN, CHARGE_WIDTH, COMBO, DASH_CHARGES, DASH_COOLDOWN, ELITE, ENEMY_BY_KIND, LEAP_RADIUS,
   PALETTE, PLAYER_RADIUS, heavyHit, hitStopMs, inArc, shakeFor, type FxMsg, type PlayerSim, type StepEvents,
 } from '@eigenlands/shared';
 import type { Sfx } from '../audio';
@@ -31,6 +32,8 @@ export interface CombatActor {
   flash: number;
   punch: number;
   ghostT: number;
+  /** hull sprite under a sailing player */
+  ship?: Sprite;
 }
 
 /** Synced fields combat reads from interpolated snapshots. */
@@ -50,6 +53,7 @@ export interface CombatDeps {
   sheets: () => Sheets;
   foes: () => FoeSheets;
   critters: () => Critters;
+  ships: () => Ships;
   /** the wielded weapon: ranged = shoots instead of swinging; hue = its element (-1 physical) */
   weapon: () => { ranged: boolean; hue: number };
   myId: () => string;
@@ -322,6 +326,71 @@ export class CombatView {
     v.fl.anchor.set(a.x, a.y);
   }
 
+  /** A corsair sloop: the hull sprite for its heading, bobbing, with a wake. */
+  private sailer(v: CombatActor, s: CombatSnap | null, fx: number, t: number): void {
+    const ships = this.d.ships();
+    const h = headingOf(s?.faceX ?? fx, s?.faceY ?? 1);
+    v.sprite.texture = ships.ship('pirate', h, Math.floor(t * 2 + v.outfit) % 3);
+    v.sprite.anchor.set(SHIP_AX, SHIP_AY); v.fl.anchor.set(SHIP_AX, SHIP_AY);
+    v.sprite.y = Math.round(Math.sin(t * 1.7 + v.outfit) * 1);
+    this.wake(v.gfx, s?.faceX ?? fx, s?.faceY ?? 1, t, 0.9);
+  }
+
+  /** A Brine Serpent: head and three humps swimming in a sine wave, wake rings where each breaks the surface. */
+  private serpent(v: CombatActor, s: CombatSnap | null, st: number, fx: number, t: number): void {
+    const ships = this.d.ships();
+    const fxx = s?.faceX ?? fx, fyy = s?.faceY ?? 1;
+    const l = Math.hypot(fxx, fyy) || 1;
+    const ux = fxx / l, uy = fyy / l;
+    const g = v.gfx;
+    for (let i = 3; i >= 1; i--) {
+      const wx = -ux * i * 0.85, wy = -uy * i * 0.85;
+      const sx = (wx - wy) * 16, sy = (wx + wy) * 8;
+      const rise = Math.max(0, Math.sin(t * 3.2 - i * 1.3));
+      g.ellipse(sx, sy, 9, 4).stroke({ color: pc(C.w6), width: 1, alpha: 0.5 + 0.3 * rise });
+      if (rise > 0.08) {
+        g.ellipse(sx, sy - 4 * rise, 6.5, 3 + 4 * rise).fill(pc(C.g2));
+        g.ellipse(sx - 1, sy - 5 * rise - 1, 4, 2 + 2.5 * rise).fill(pc(C.g4));
+      }
+    }
+    v.sprite.texture = ships.serpent('head', st === 3 || st === 2 ? 1 : Math.floor(t * 3) & 1);
+    v.sprite.anchor.set(0.5, 0.95); v.fl.anchor.set(0.5, 0.95);
+    v.sprite.scale.x = ux - uy < 0 ? -1 : 1;
+    this.wake(g, ux, uy, t, 0.6);
+  }
+
+  /** Foam trailing a hull. */
+  wake(g: Graphics, ux: number, uy: number, t: number, k: number): void {
+    const l = Math.hypot(ux, uy) || 1;
+    for (let i = 1; i <= 5; i++) {
+      const al = -(0.6 + i * 0.5) * k;
+      const wx = (ux / l) * al, wy = (uy / l) * al;
+      const sx = (wx - wy) * 16, sy = (wx + wy) * 8;
+      const rx = 5 + i * 3, a = 0.5 - i * 0.08;
+      g.ellipse(sx, sy, rx, rx * 0.45).stroke({ color: pc(C.w7), width: 1, alpha: Math.max(0.05, a * (0.7 + 0.3 * Math.sin(t * 3 + i))) });
+    }
+  }
+
+  /** Hull, wake and bobbing under a sailing player; restores the walking pose when they step ashore. */
+  rig(v: CombatActor, boat: boolean, fx: number, fy: number, t: number): void {
+    if (!boat) {
+      if (v.ship) { v.ship.visible = false; v.sprite.y = 0; v.fl.y = 0; }
+      return;
+    }
+    if (!v.ship) {
+      v.ship = new Sprite();
+      v.root.addChildAt(v.ship, 0);
+    }
+    const ships = this.d.ships();
+    v.ship.visible = true;
+    v.ship.texture = ships.ship('sloop', headingOf(fx, fy), Math.floor(t * 1.6 + v.outfit) % 3);
+    v.ship.anchor.set(SHIP_AX, SHIP_AY);
+    const bob = Math.round(Math.sin(t * 1.9 + v.outfit) * 1);
+    v.ship.y = bob;
+    v.sprite.y = -7 + bob; v.fl.y = -7 + bob;
+    this.wake(v.gfx, fx, fy, t, 1);
+  }
+
   /** Enemy sprite, animation, flash, squash/stretch, stagger, elite aura, bars and its telegraph. */
   drawEnemy(v: CombatActor, s: CombatSnap | null, x: number, y: number, fx: number, now: number, dt: number, moved: boolean): void {
     const isShadow = v.type === 'shadow';
@@ -333,7 +402,7 @@ export class CombatView {
     const def = ENEMY_BY_KIND[kind];
     const fsx = screenDir(fx, s?.faceY ?? 1).x;
     let flip = false;
-    const isCritter = kind === 3 || (kind >= 7 && kind !== 10 && kind !== 12);
+    const isCritter = kind === 3 || (kind >= 7 && kind <= 11 && kind !== 10);
     if (!isCritter && v.sprite.anchor.y !== 1) { v.sprite.anchor.set(0.5, 1); v.fl.anchor.set(0.5, 1); }
     switch (kind) {
       case 0: v.sprite.texture = sheets.slime(night, st === 2 ? 2 : Math.floor(t * 4 + v.outfit) % 4); break;
@@ -344,6 +413,8 @@ export class CombatView {
       case 12: v.sprite.texture = foes.brute(true, st === 2 ? 2 : st === 3 ? 3 : moved ? Math.floor(v.travel / 0.5) % 2 : Math.floor(t * 1.2) % 2); flip = fsx < 0; break;
       case 4: v.sprite.texture = foes.wisp(night, st === 2 ? 2 : st === 3 || st === 4 ? 3 : Math.floor(t * 5 + v.outfit) % 2); flip = fsx < 0; break;
       case 5: v.sprite.texture = foes.brute(night, st === 2 ? 2 : st === 3 ? 3 : moved ? Math.floor(v.travel / 0.4) % 2 : Math.floor(t * 1.5) % 2); flip = fsx < 0; break;
+      case 13: this.sailer(v, s, fx, t); break;
+      case 14: this.serpent(v, s, st, fx, t); break;
       case 6: v.sprite.texture = foes.mite(night, st === 2 ? 2 : [0, 1, 3, 1][Math.floor(t * 12 + v.outfit) % 4]!); flip = fsx < 0; break;
     }
     // squash & stretch: hit punch, windup rear-up, stagger wobble

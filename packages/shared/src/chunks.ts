@@ -1,6 +1,7 @@
 import { CHUNK_SIZE } from './constants';
 import { generateChunk } from './worldgen';
-import { isSolid } from './tiles';
+import { T, isSolid } from './tiles';
+import type { SolidQuery } from './sim';
 import { objSolid, type WorldObj } from './objects';
 import { townFor } from './town';
 import { shrineObjectsIn } from './shrines';
@@ -129,5 +130,18 @@ export class ChunkStore {
   removeObject(x: number, y: number): void { const k = `${x},${y}`; this.objects.delete(k); this.solidObjs.delete(k); }
   objectAt(x: number, y: number): WorldObj | undefined { return this.objects.get(`${x},${y}`); }
 
-  solidAt = (x: number, y: number): boolean => isSolid(this.getTile(x, y)) || this.solidObjs.has(`${x},${y}`);
+  /** a ship's collision: only open water is passable */
+  private seaSolidAt = (x: number, y: number): boolean => {
+    const t = this.getTile(x, y);
+    return (t !== T.WATER && t !== T.DEEP_WATER) || this.solidObjs.has(`${x},${y}`);
+  };
+  solidAt: SolidQuery = Object.assign(
+    (x: number, y: number): boolean => isSolid(this.getTile(x, y)) || this.solidObjs.has(`${x},${y}`),
+    { sea: (x: number, y: number): boolean => this.seaSolidAt(x, y) },
+  );
+  /** cannonballs and bolts fly over water but stop at land, walls and trees */
+  shotBlockedAt = (x: number, y: number): boolean => {
+    const t = this.getTile(x, y);
+    return (t !== T.WATER && t !== T.DEEP_WATER && isSolid(t)) || this.solidObjs.has(`${x},${y}`);
+  };
 }

@@ -25,6 +25,7 @@ export const MSG34 = {
   EMOTE: 'p4_emote',             // EmoteMsg
   TRADE: 'p4_trade',             // TradeMsg
   // ── Shadow Army: client -> server
+  BOARD: 'sea_board',            // {} toggle boarding your sloop (needs the Sloop Charter)
   EXTRACT: 'sh_extract',         // {} extract the nearest residue of yours
   SHADOW_CMD: 'sh_cmd',          // ShadowCmd
   // ── Shadow Army: server -> client
@@ -33,6 +34,7 @@ export const MSG34 = {
   // ── Adventure: server -> client
   BOSS_EV: 'ad_boss',            // BossEvent
   SHRINE_EV: 'ad_shrine',        // ShrineEvent
+  SEA_EV: 'sea_ev',              // SeaEvent
   // ── Adventure: client -> server
   SHRINE_HIT: 'ad_shrine_hit',   // { shrine, idx }
   // ── Phase 4: server -> client
@@ -203,3 +205,6 @@ export type ShadowCmd =
   | { act: 'focus'; target: string | null }
   | { act: 'rename'; id: string; name: string }
   | { act: 'release'; id: string };
+
+/** Seafaring notices to the sailor (the ship itself is PlayerSim.boat). */
+export type SeaEvent = { kind: 'board' } | { kind: 'land' };

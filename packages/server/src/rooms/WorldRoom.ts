@@ -13,7 +13,7 @@ import {
   type DevMsg, type UseMsg, type OpenMsg, type InvMoveMsg, type InvTrashMsg, type EquipMsg, type CraftMsg, type ExperimentMsg,
   type ForgePreviewMsg, type ForgeStartMsg, type RhythmDoneMsg, type FishHookMsg, type ChestMsg, type ShelterMsg, type NpcState,
   type SpellState,
-  ITEMS, MORPH_FORMS, WEAPONS, isRangedWeapon, type WeaponDef, type WeaponShot,
+  CANNON, ITEMS, MORPH_FORMS, WEAPONS, isRangedWeapon, type WeaponDef, type WeaponShot,
 } from '@eigenlands/shared';
 import { verifyToken } from '../auth/token';
 import { createEnemy, enemyDamage, stepEnemies, type Enemy, type EnemyKind, type SpawnOpts } from '../game/enemies';
@@ -540,7 +540,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     p.client.send(MSG.ACK, encodeAck({ seq: p.lastSeq, tick, sim: p.sim }));
     const sim = p.sim;
     s.flags = (sim.dashT > 0 ? 1 : 0) | (sim.atkCd > 0.12 ? 2 : 0) | (p.deadT > 0 ? 4 : 0)
-      | (sim.hold && sim.charge > 0 ? 8 : 0) | (sim.hold && sim.charge >= CHARGE_MIN ? 16 : 0) | (sim.slipT > 0 ? 32 : 0) | (sim.ifrT > 0 ? 64 : 0);
+      | (sim.hold && sim.charge > 0 ? 8 : 0) | (sim.hold && sim.charge >= CHARGE_MIN ? 16 : 0) | (sim.slipT > 0 ? 32 : 0) | (sim.ifrT > 0 ? 64 : 0) | (sim.boat > 0 ? 128 : 0);
   }
 
   private weaponOf(p: ServerPlayer): WeaponDef | null {
@@ -550,6 +550,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
 
   /** The wielded weapon decides what an attack does: blades swing, crossbows and staves shoot, the Shapeshifter flips a coin. */
   private attackWith(p: ServerPlayer, cmd: InputCmd, ev: StepEvents, tick: number): void {
+    if (p.sim.boat) { this.fireCannon(p, cmd, ev); return; }
     const w = this.weaponOf(p);
     if (!w || w.cls === 'blade') { this.resolveMelee(p, cmd, ev, tick); return; }
     if (w.id === 'morph_staff' && !ev.heavy) { this.resolveMelee(p, cmd, ev, tick, MORPH_FORMS[this.rand() < 0.5 ? 0 : 1]); return; }
@@ -562,6 +563,17 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     const aim = Math.hypot(cmd.aimX, cmd.aimY) > 1e-3 ? { x: cmd.aimX, y: cmd.aimY } : { x: p.sim.faceX, y: p.sim.faceY };
     if (!this.hookWeaponShot(p, shot, aim.x, aim.y, power * (1 + p.stats.atkBonus * 0.02))) this.resolveMelee(p, cmd, ev, tick);
     else this.fx({ kind: 'shot', x: p.sim.x, y: p.sim.y, dx: aim.x, dy: aim.y, v: w.hue < 0 ? 8 : w.hue }, p.client.sessionId);
+  }
+
+  /** A sloop's guns replace melee while sailing. */
+  private fireCannon(p: ServerPlayer, cmd: InputCmd, ev: StepEvents): void {
+    const now = Date.now();
+    if (p.weaponReadyAt > now) return;
+    p.weaponReadyAt = now + (CANNON.cd * (ev.heavy ? 1.5 : 1) * 1000) / (1 + p.stats.haste * 0.05);
+    const aim = Math.hypot(cmd.aimX, cmd.aimY) > 1e-3 ? { x: cmd.aimX, y: cmd.aimY } : { x: p.sim.faceX, y: p.sim.faceY };
+    const power = (ev.heavy ? 0.8 + 0.4 * ev.level : 1) * (1 + p.stats.atkBonus * 0.02);
+    this.hookWeaponShot(p, ev.heavy ? CANNON.charged : CANNON.basic, aim.x, aim.y, power);
+    this.fx({ kind: 'shot', x: p.sim.x, y: p.sim.y, dx: aim.x, dy: aim.y, v: 5 }, p.client.sessionId);
   }
 
   /** Light combo hits and charged heavies; lag-compensated against what the attacker saw. Also bats enemy orbs back. */
@@ -647,7 +659,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       }
       const step = pr.speed * TICK_DT;
       const nx = pr.x + pr.dx * step, ny = pr.y + pr.dy * step;
-      let done = this.store.solidAt(Math.floor(nx), Math.floor(ny)) || pr.travelled + step > pr.range;
+      let done = this.store.shotBlockedAt(Math.floor(nx), Math.floor(ny)) || pr.travelled + step > pr.range;
       if (!done && pr.team === 'player') {
         for (const e of this.enemies.values()) {
           if (segmentHitsCircle(pr.x, pr.y, nx, ny, pr.radius, { x: e.x, y: e.y, r: e.def.radius })) {
@@ -895,7 +907,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2 + 0.3;
       const x = p.sim.x + Math.cos(a) * d, y = p.sim.y + Math.sin(a) * d;
-      if (this.store.solidAt(Math.floor(x), Math.floor(y))) continue;
+      if ((ENEMY_DEFS[m.kind as EnemyKind].sea ? this.store.solidAt.sea! : this.store.solidAt)(Math.floor(x), Math.floor(y))) continue;
       this.spawnEnemy(m.kind as EnemyKind, x, y, m.night === true || (m.night === undefined && isNight(this.wclock.now())), { level: p.level, elite: Number(m.elite) & 7 });
     }
   }
@@ -996,6 +1008,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
 
   /** boss summoning (the Phase 3/4 room provides the boss module) */
   summonBoss(_p: ServerPlayer, _itemId: string, _x: number, _y: number): boolean { return false; }
+  toggleShip(_p: ServerPlayer): void {}
 
   /** extra things enemies may aggro on (summoned shadows) */
   protected hookTargets(): Array<{ id: string; x: number; y: number; alive: boolean }> { return []; }
