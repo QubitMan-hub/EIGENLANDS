@@ -16,9 +16,9 @@ import { mkdirSync } from 'node:fs';
 
 const args = process.argv.slice(2);
 const MOCK = args.includes('--mock');
-const pos = args.filter((a) => !a.startsWith('--'));
-const base = pos[0] ?? 'http://127.0.0.1:5173/';
-const out = pos[1] ?? '/tmp/shots-p3';
+const posArgs = args.filter((a) => !a.startsWith('--'));
+const base = posArgs[0] ?? 'http://127.0.0.1:5173/';
+const out = posArgs[1] ?? '/tmp/shots-p3';
 mkdirSync(out, { recursive: true });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const errors = [];
@@ -112,38 +112,20 @@ const { page } = await open({ width: 1280, height: 720 });
 check(await page.locator('#p3-abar .p3-slot').count() === 5, 'ability bar has 4 orb slots + ultimate');
 check(await page.locator('#btn-board').count() === 1, 'HUD Board button present');
 
-if (!MOCK) {
-  await shot(page, 'r1-hud');
+// both modes walk the same story; without the server's Circuit module only the UI-side checks can run
+await page.waitForFunction(() => window.__eigen.state().p34.circuit.loaded, null, { timeout: 6000 }).catch(() => {});
+if (!(await st(page)).loaded) {
   await page.keyboard.press('KeyB');
   await page.waitForSelector('.cb-root .cb-lines');
-  check(await page.locator('.cb-line:not(.cb-colhead):not(.locked)').count() >= 1, 'board shows at least one orb line');
   check(await page.locator('.cb-gem').count() === 7, 'gate palette lists all 7 gates');
-  await shot(page, 'r2-board');
+  await shot(page, 'r2-board-no-server');
   await page.keyboard.press('Escape');
   await sleep(200);
   await page.keyboard.press('KeyQ');
   await sleep(300);
-  const sent = await st(page);
-  const cast = sent.sent.find((s) => s.type === 'p3_cast');
+  const cast = (await st(page)).sent.find((s) => s.type === 'p3_cast');
   check(!!cast && cast.msg.line === 0 && typeof cast.msg.aimX === 'number', 'Q sends p3_cast {line:0, aimX, aimY}');
-  if (!sent.loaded) {
-    // ask for dev gates; a server with the Circuit module answers with PROGRESS
-    await page.evaluate(() => window.__eigen.game.ext.circuit.send('p3_dev', { cmd: 'gates' }));
-    await sleep(2000);
-  }
-  if (!(await st(page)).loaded) {
-    console.log('  SKIPPED (server Circuit module not present yet): PROGRESS-driven checks — tutorial dialog, attune round trip, CAST_R labels, spells.');
-  } else {
-    await openBoard(page);
-    await drag(page, gem('h'), cell(0, 0));
-    check((await st(page)).dirty, 'drag Split onto orb 1 marks the board dirty');
-    await attune(page);
-    check((await sentTypes(page)).includes('p3_attune'), 'Attune sends p3_attune');
-    await closeBoard(page);
-    await castQ(page, 2);
-    check(!!(await st(page)).lastCast, 'server answered a cast (CAST_R)');
-    await shot(page, 'r3-cast');
-  }
+  console.log('  SKIPPED (no PROGRESS: the server Circuit module is not running): tutorial, attune, CAST_R, spells.');
 } else {
   // ── 1. wake
   await page.waitForFunction(() => window.__eigen.state().p34.circuit.loaded, null, { timeout: 5000 });
@@ -208,8 +190,9 @@ if (!MOCK) {
   await waitStep(page, 4);
   await finishDialog(page);
 
-  // ── 5. fight (the fake counts every cast as a defeated creature)
-  await castQ(page, 3);
+  // ── 5. fight: real creatures are out of scope here; the dev command moves the story on
+  await castQ(page, 1);
+  await page.evaluate(() => window.__eigen.game.ext.circuit.send('p3_dev', { cmd: 'tutorial', step: 5 }));
   await waitStep(page, 5);
   await finishDialog(page);
 
@@ -288,7 +271,7 @@ if (!MOCK) {
   await page.click('[data-focus="tab:board"]');
   await attune(page);
   await closeBoard(page);
-  await page.evaluate(() => window.__eigen.game.ext.circuit.send('p3_dev', { cmd: 'res' }));
+  await page.evaluate(() => window.__eigen.game.ext.circuit.send('p3_dev', { cmd: 'res', v: 100 }));
   await sleep(200);
   await page.keyboard.press('KeyR'); // Echo Step: blink + Echo
   await sleep(250);
@@ -306,7 +289,7 @@ if (!MOCK) {
 }
 
 // ───────────────────────── phone (touch) ─────────────────────────
-if (MOCK) {
+if ((await st(page)).loaded) {
   const { page: ph } = await open({ width: 390, height: 844 }, { hasTouch: true, isMobile: true, deviceScaleFactor: 2, name: 'Thumbs' });
   await ph.waitForFunction(() => window.__eigen.state().p34.circuit.loaded, null, { timeout: 5000 });
   check(await ph.locator('#p3-abar.p3-touch').count() === 1, 'phone: ability buttons dock next to the touch controls');

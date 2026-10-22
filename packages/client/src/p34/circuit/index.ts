@@ -140,7 +140,7 @@ export class CircuitClient implements ClientModule {
       if (c.has('runes') && p.runes > prev.runes) this.d.toasts.add('An Error Correction rune joins your collection.', 'good');
       if (c.has('qubits') && p.qubits > prev.qubits) this.d.toasts.add(`A new orb wakes up: ${orbName(p.qubits - 1)}.`, 'good');
       if (c.has('codex')) for (const id of p.codex) if (!prev.codex.includes(id)) this.d.toasts.add(`Qubitpedia: “${CODEX_BY_ID[id]?.title ?? id}” discovered.`, 'good');
-      if (c.has('cls') && p.cls !== prev.cls) { this.d.toasts.add(`You walk the path of the ${CLASSES[p.cls].name}.`, 'good'); this.d.sfx('levelup'); }
+      if (c.has('cls') && p.cls !== prev.cls) this.d.sfx('levelup'); // the server announces the class itself
     }
     if (c.has('tutorial') || first) this.tutorialChanged(prev, first);
     if (!this.specNagged && p.loaded && p.cls !== 'wanderer' && !p.spec && this.d.level() >= SPEC_LEVEL) {

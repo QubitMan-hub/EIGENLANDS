@@ -113,7 +113,9 @@ export class MockServer {
           this.p.runes += 4; this.p.qubits = Math.max(this.p.qubits, 4);
           this.send({ gates: this.p.gates, runes: this.p.runes, qubits: this.p.qubits });
         }
-        if (msg?.cmd === 'res') { this.res = RESOURCE_MAX; this.c.emit(MSG34.RES, { v: this.res, max: RESOURCE_MAX }); }
+        if (msg?.cmd === 'tutorial') { while (this.p.tutorial.step < Math.min(TUTORIAL_DONE, Number(msg.step) || 0)) this.advance(); }
+        if (msg?.cmd === 'class' && msg.cls in CLASSES) this.handle(MSG34.CHOOSE, { what: 'class', cls: msg.cls });
+        if (msg?.cmd === 'res') { this.res = typeof msg.v === 'number' ? msg.v : RESOURCE_MAX; this.c.emit(MSG34.RES, { v: this.res, max: RESOURCE_MAX }); }
         return;
     }
   }

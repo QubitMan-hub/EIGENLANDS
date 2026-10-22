@@ -771,8 +771,8 @@ export class BoardView {
     const now = this.host.now();
     const wait = p.attuneReady - now;
     const err = checkBoard(this.draft, this.rules());
-    const pending = this.sent && performance.now() - this.sentAt < 4000;
-    if (this.sent && !pending) { this.sent = null; this.say('The world did not answer. Try attuning again in a moment.', 'bad'); }
+    const pending = this.sent && performance.now() - this.sentAt < 2500;
+    if (this.sent && !pending) { this.sent = null; this.say('Not attuned: the world refused this board (see the message on the left).', 'bad'); }
     const t = pending ? 'Attuning…' : wait > 0 ? `Attune in ${Math.ceil(wait / 1000)}s` : this.dirty ? 'Attune changes' : 'Attune';
     const span = at.querySelector('.cb-attune-t')!;
     if (span.textContent !== t) span.textContent = t;
