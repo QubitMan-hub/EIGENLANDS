@@ -1,5 +1,5 @@
 import {
-  INV_SIZE, emptyInventory, emptySkills, type Inventory, type ProfileMsg, type SkillXp, type Stack,
+  INV_SIZE, emptyInventory, emptySkills, type Inventory, type ProfileMsg, type QuestLog, type SkillXp, type Stack,
 } from '@eigenlands/shared';
 
 export interface FriendView { pts: number; talked: number; gifted: number }
@@ -15,6 +15,9 @@ export class Profile {
   buffs: Buffs = {};
   friends: Record<string, FriendView> = {};
   stats = { hpBonus: 0, atkBonus: 0, luck: 0, haste: 0 };
+  quests: QuestLog = {};
+  /** heart events already seen */
+  events: string[] = [];
   loaded = false;
   private listeners = new Set<(changed: Set<string>) => void>();
 
@@ -30,6 +33,8 @@ export class Profile {
     if (m.buffs) { this.buffs = m.buffs; changed.add('buffs'); }
     if (m.friends) { this.friends = { ...this.friends, ...m.friends }; changed.add('friends'); }
     if (m.stats) { this.stats = m.stats; changed.add('stats'); }
+    if (m.quests) { this.quests = m.quests; changed.add('quests'); }
+    if (m.events) this.events = m.events;
     this.loaded = true;
     for (const l of this.listeners) l(changed);
   }

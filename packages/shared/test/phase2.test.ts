@@ -5,6 +5,7 @@ import {
   moveSlot, preview, removeItem, countItem, rollFish, sanitizeHits, scheduleAt, scoreHits, sellPrice, skillLevel, townFor, weatherForDay,
   tileAt, isSolid, FISH_TABLE, NODES, TILE_DEFS, FORAGE_BY_SEASON, validInventory, mulberry32, tierOf, giftTaste, SHOP_NPCS, buildingAt,
   type CropData, DAY_MS, QUESTS, QUEST_BY_ID, offerable, startQuest, applyQuestEvent, questComplete, type QuestLog,
+  syncDeliveries, dailyRequests, questDef, pruneRequests, VOICES, composeTalk, pendingEvent, barkFor, QUBITMAN, NPC_BY_ID, shopOpen, STATION_SUBS,
 } from '../src';
 
 const SEED = 20260101;
@@ -260,7 +261,9 @@ describe('quests', () => {
       expect(NPCS.find((n) => n.id === q.giver), q.id).toBeTruthy();
       for (const r of q.requires ?? []) expect(QUEST_BY_ID[r], `${q.id} requires ${r}`).toBeTruthy();
       for (const i of q.rewards.items ?? []) expect(ITEMS[i.id], `${q.id}:${i.id}`).toBeTruthy();
-      for (const o of q.objectives) if (o.type === 'gain' || o.type === 'craft') expect(ITEMS[o.target], `${q.id}:${o.target}`).toBeTruthy();
+      for (const o of q.objectives) if ((o.type === 'gain' || o.type === 'craft' || o.type === 'deliver') && !/^[*#@]/.test(o.target)) expect(ITEMS[o.target], `${q.id}:${o.target}`).toBeTruthy();
+      for (const o of q.objectives) if (o.target.startsWith('@')) expect(Object.values(STATION_SUBS)).toContain(o.target.slice(1));
+      if (q.rewards.recipe) expect(RECIPES.some((r) => r.id === q.rewards.recipe), q.id).toBe(true);
       expect(q.lines.offer.length).toBeGreaterThan(10);
     }
   });
@@ -274,11 +277,101 @@ describe('quests', () => {
     log.welcome!.state = 'done';
     expect(offerable('odo', log).map((q) => q.id)).toContain('timber');
     startQuest(log, 'timber');
+    // deliveries track what is in the pack, not events
     applyQuestEvent(log, { type: 'gain', target: 'wood', n: 5 });
-    applyQuestEvent(log, { type: 'gain', target: 'stone', n: 5 });
+    expect(log.timber!.progress[0]).toBe(0);
+    syncDeliveries(log, (id) => (id === 'wood' ? 5 : 0));
     expect(log.timber!.progress[0]).toBe(5);
-    applyQuestEvent(log, { type: 'gain', target: 'wood', n: 50 });
+    syncDeliveries(log, (id) => (id === 'wood' ? 50 : 0));
     expect(log.timber!.progress[0]).toBe(12);
+    expect(questComplete(QUEST_BY_ID.timber!, log.timber!)).toBe(true);
     expect(startQuest(log, 'timber')).toBe(false);
+    // pattern targets: any forage item, anything cooked at a pot, a specific enemy
+    startQuest(log, 'forager'); startQuest(log, 'supper'); log.bugs = { state: 'done', progress: [3] }; startQuest(log, 'slimes');
+    applyQuestEvent(log, { type: 'gain', target: 'wood', n: 3 });
+    applyQuestEvent(log, { type: 'gain', target: 'daffodil', n: 2 });
+    expect(log.forager!.progress[0]).toBe(2);
+    applyQuestEvent(log, { type: 'craft', target: 'plank', n: 1, station: 'workbench' });
+    expect(log.supper!.progress[0]).toBe(0);
+    applyQuestEvent(log, { type: 'craft', target: 'roast_potato', n: 1, station: 'cooking_pot' });
+    expect(log.supper!.progress[0]).toBe(1);
+    applyQuestEvent(log, { type: 'kill', target: 'hopper', n: 1 });
+    applyQuestEvent(log, { type: 'kill', target: 'slime', n: 2 });
+    expect(log.slimes!.progress[0]).toBe(2);
+  });
+  it('every villager has at least one story quest', () => {
+    for (const n of NPCS) expect(QUESTS.some((q) => q.giver === n.id), n.id).toBe(true);
+  });
+  it('the request board posts three deterministic, season-appropriate jobs a day that expire', () => {
+    for (let day = 0; day < 40; day++) {
+      const a = dailyRequests(SEED, day), b = dailyRequests(SEED, day);
+      expect(a.length).toBe(3);
+      expect(a.map((q) => q.id)).toEqual(b.map((q) => q.id));
+      expect(new Set(a.map((q) => q.giver)).size).toBe(3);
+      for (const q of a) {
+        expect(questDef(q.id, SEED)).toEqual(q); // single lookups regenerate the same job
+        expect(NPCS.some((n) => n.id === q.giver)).toBe(true);
+        expect(q.rewards.coins).toBeGreaterThan(0);
+        for (const o of q.objectives) {
+          expect(o.n).toBeGreaterThan(0);
+          if (o.type === 'deliver') {
+            expect(ITEMS[o.target], o.target).toBeTruthy();
+            const crop = CROPS[o.target];
+            if (crop) expect(crop.seasons).toContain(Math.floor(day / 7) % 4);
+          }
+        }
+      }
+    }
+    const log: QuestLog = { 'req:5:0': { state: 'active', progress: [0] }, 'req:9:1': { state: 'done', progress: [1] }, welcome: { state: 'done', progress: [1, 1, 1] } };
+    expect(pruneRequests(log, 9)).toEqual(['req:5:0']);
+    expect(Object.keys(log).sort()).toEqual(['req:9:1', 'welcome']);
+    expect(questDef('req:x:1', SEED)).toBeUndefined();
+  });
+});
+
+describe('dialogue', () => {
+  const rand = mulberry32(3);
+  it('every villager has a full voice: greetings, three tiers, heart events with choices, barks', () => {
+    for (const n of NPCS) {
+      const v = VOICES[n.id]!;
+      expect(v, n.id).toBeTruthy();
+      for (const k of ['morning', 'day', 'evening', 'night'] as const) expect(v.greet[k].length, `${n.id}:${k}`).toBeGreaterThan(0);
+      expect(v.chat.every((t) => t.length >= 2)).toBe(true);
+      expect(v.events.length).toBeGreaterThanOrEqual(3);
+      for (const e of v.events) { expect(e.pages.length).toBeGreaterThanOrEqual(3); expect(e.choices.length).toBe(3); }
+      expect(v.qubitman.length).toBeGreaterThan(0);
+      expect(v.barks.work.length + v.barks.free.length).toBeGreaterThan(4);
+    }
+  });
+  it('lines vary with time of day, friendship, weather and memory', () => {
+    const orla = NPC_BY_ID.orla!;
+    const morning = composeTalk(orla, { pts: 0, hour: 8, season: 0, weather: 'clear', first: true, atWork: true, rand: () => 0 }).text;
+    expect(VOICES.orla!.greet.morning.some((g) => morning.startsWith(g))).toBe(true);
+    const night = composeTalk(orla, { pts: 0, hour: 23, season: 0, weather: 'clear', first: true, atWork: false, rand: () => 0 }).text;
+    expect(night).not.toBe(morning);
+    const deed = composeTalk(NPC_BY_ID.brannoch!, { pts: 0, hour: 10, season: 0, weather: 'clear', first: true, atWork: true, rand: () => 0.1, deed: { kind: 'perfect_forge', what: 'Sword' } });
+    expect(deed.usedDeed).toBe(true);
+    expect(deed.text).toContain('Perfect Sword');
+    const seen = new Set<string>();
+    for (let i = 0; i < 60; i++) seen.add(composeTalk(NPC_BY_ID.juniper!, { pts: 300, hour: 14, season: 1, weather: 'rain', first: i % 2 === 0, atWork: false, rand }).text);
+    expect(seen.size).toBeGreaterThan(10);
+  });
+  it('heart events unlock in order and only once', () => {
+    expect(pendingEvent('sedge', 40, [])).toBeNull();
+    expect(pendingEvent('sedge', 80, [])!.id).toBe('sedge:0');
+    expect(pendingEvent('sedge', 400, ['sedge:0'])!.id).toBe('sedge:1');
+    expect(pendingEvent('sedge', 400, ['sedge:0', 'sedge:1', 'sedge:2'])).toBeNull();
+  });
+  it('QubitMan has a plaque, a legend, and villagers who talk about him', () => {
+    expect(QUBITMAN.plaque).toBe('ALL HAIL QUBITMAN');
+    expect(QUBITMAN.legend.length).toBeGreaterThanOrEqual(4);
+    expect(NPCS.filter((n) => VOICES[n.id]!.qubitman.length > 0).length).toBe(10);
+    expect(barkFor('brannoch', 'asleep', 'clear', rand)).toBe('Zzz…');
+    expect(typeof barkFor('brannoch', 'working the forge', 'clear', rand)).toBe('string');
+  });
+  it('shops keep opening hours', () => {
+    expect(shopOpen(NPC_BY_ID.tobin!, 9)).toBe(true);
+    expect(shopOpen(NPC_BY_ID.tobin!, 19)).toBe(false);
+    expect(shopOpen(NPC_BY_ID.orla!, 3)).toBe(true);
   });
 });

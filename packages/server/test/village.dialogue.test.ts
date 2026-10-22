@@ -50,6 +50,7 @@ describe('talking', () => {
     const { village, p } = await setup();
     nextTo(p, village, 'tobin');
     p.data.friends.tobin = { pts: 330, talked: -1, gifted: -1 };
+    p.data.events = ['tobin:0', 'tobin:1', 'tobin:2']; // heart events already seen, so small talk shows
     const seen = new Set<string>();
     for (let i = 0; i < 80; i++) { p.data.friends.tobin!.talked = -1; seen.add(village.talk(p, 'tobin')!.text); }
     expect(seen.size).toBeGreaterThan(3);
@@ -61,7 +62,7 @@ describe('talking', () => {
     p.give('melon', 2);
     village.gift(p, 'tobin', 0);
     let remembered = false;
-    for (let i = 0; i < 60 && !remembered; i++) { p.data.friends.tobin!.talked = -1; if (village.talk(p, 'tobin')!.text.startsWith('Thanks again for the melon')) remembered = true; }
+    for (let i = 0; i < 60 && !remembered; i++) { p.data.friends.tobin!.talked = -1; if (village.talk(p, 'tobin')!.text.includes('melon')) remembered = true; }
     expect(remembered).toBe(true);
   });
 

@@ -4,7 +4,7 @@ import { itemIconUrl } from '../art/icons';
 type Child = Node | string | null | undefined | false;
 export interface Attrs {
   class?: string; text?: string; title?: string; style?: string; id?: string; type?: string; value?: string;
-  placeholder?: string; src?: string; draggable?: boolean; disabled?: boolean; maxLength?: number;
+  placeholder?: string; src?: string; alt?: string; draggable?: boolean; disabled?: boolean; maxLength?: number;
   on?: Partial<{ [K in keyof HTMLElementEventMap]: (e: HTMLElementEventMap[K]) => void }>;
   data?: Record<string, string | number>;
 }
@@ -20,6 +20,7 @@ export function h<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Attrs = 
   if (attrs.value !== undefined) (el as HTMLInputElement).value = attrs.value;
   if (attrs.placeholder) (el as HTMLInputElement).placeholder = attrs.placeholder;
   if (attrs.src) (el as HTMLImageElement).src = attrs.src;
+  if (attrs.alt !== undefined) (el as HTMLImageElement).alt = attrs.alt;
   if (attrs.maxLength) (el as HTMLInputElement).maxLength = attrs.maxLength;
   if (attrs.draggable) el.draggable = true;
   if (attrs.disabled) (el as HTMLButtonElement).disabled = true;

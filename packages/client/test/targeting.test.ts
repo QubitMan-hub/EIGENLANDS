@@ -19,6 +19,12 @@ describe('use targeting', () => {
     expect(describeUse({ id: 'chest', n: 1 }, T.GRASS, undefined, 0)).toMatchObject({ kind: 'place' });
     expect(describeUse({ id: 'chest', n: 1 }, T.WATER, undefined, 0)).toBeNull();
     expect(describeUse(null, T.GRASS, undefined, 0)).toBeNull();
+    expect(describeUse(tool('axe'), T.GRASS_TALL, undefined, 0)).toMatchObject({ kind: 'tool', ok: true, label: 'Cut tall grass (fiber)' });
+    expect(describeUse(tool('net'), T.GRASS_TALL, undefined, 0)).toMatchObject({ kind: 'net' });
+    const statue: WorldObj = { x: 0, y: 0, kind: 'deco', sub: 'statue', static: true };
+    expect(describeUse(null, T.PATH, statue, 0)).toMatchObject({ kind: 'open', label: 'Read the Statue of QubitMan' });
+    expect(describeUse(null, T.PATH, { x: 0, y: 0, kind: 'sign', sub: 'board', static: true }, 0)).toMatchObject({ kind: 'open', label: 'Check the request board' });
+    expect(describeUse(null, T.PATH, { x: 0, y: 0, kind: 'deco', sub: 'bench', static: true }, 0)).toBeNull();
   });
   it('routes objects: stations open, ripe crops harvest, unripe crops show progress', () => {
     const station: WorldObj = { x: 0, y: 0, kind: 'station', sub: 'forge' };

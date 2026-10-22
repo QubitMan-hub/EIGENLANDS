@@ -54,7 +54,7 @@ describe('village rumors', () => {
     let heardIt = false;
     nextTo(p, village, teller);
     p.name = 'Listener';
-    for (let i = 0; i < 100 && !heardIt; i++) { p.data.friends[teller] = { pts: 0, talked: -1, gifted: -1 }; const m = village.talk(p, teller)!; if (m.rumor) { heardIt = true; expect(m.text).toContain('I heard that'); expect(m.rumor).toContain('Zed'); } }
+    for (let i = 0; i < 100 && !heardIt; i++) { p.data.friends[teller] = { pts: 0, talked: -1, gifted: -1 }; const m = village.talk(p, teller)!; if (m.rumor) { heardIt = true; expect(m.text).toContain(m.rumor); expect(m.rumor).toContain('Zed'); } }
     expect(heardIt).toBe(true);
     // the subject of the rumor does not hear about themselves
     p.name = 'Zed';

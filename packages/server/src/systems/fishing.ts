@@ -5,6 +5,7 @@ import { tuning } from '../rooms/runtime';
 import type { ServerPlayer } from '../rooms/player';
 import type { RoomApi } from './api';
 import { addSkillXp, distToTile, giveStacks, skillLv } from './helpers';
+import { questEvent, recordDeed } from './quests';
 
 const BITE_WINDOW_MS = 1200;
 const BITE_GRACE_MS = 300;
@@ -95,6 +96,8 @@ export function finishFish(room: RoomApi, p: ServerPlayer, msg: RhythmDoneMsg): 
   }
   addSkillXp(p, 'fishing', Math.round(6 + s.fish!.difficulty * 20));
   if (s.fish!.difficulty >= RARE) room.village.rumor('rare_fish', p.name, ITEMS[fishId]?.name ?? fishId);
+  questEvent(p, { type: 'fish', target: fishId, n: 1 });
+  recordDeed(p, s.fish!.difficulty >= RARE ? 'rare_fish' : 'fish', (ITEMS[fishId]?.name ?? fishId).toLowerCase(), room.wclock.day());
   room.fx({ kind: 'catch', x: p.sim.x, y: p.sim.y, id: p.id });
   p.client.send(MSG.RHYTHM_RESULT, { id: s.id, kind: 'fish', accuracy, ok: true, text: `You caught ${n > 1 ? 'two ' : 'a '}${ITEMS[fishId]?.name ?? fishId}!`, item });
 }

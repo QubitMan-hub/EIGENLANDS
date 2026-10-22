@@ -6,7 +6,7 @@ import type { StationId } from './recipes';
 import type { Template, ForgePreview } from './forge';
 import type { WorldObj } from './objects';
 import type { Weather } from './weather';
-import type { QuestLog } from './quests';
+import type { QuestLog, Objective } from './quests';
 
 export const MSG = {
   INPUT: 'input',
@@ -36,8 +36,8 @@ export const MSG = {
   GIFT: 'gift',               // GiftMsg -> DIALOGUE
   SHOP: 'shop',               // ShopMsg -> SHOP_VIEW + PROFILE
   CHEST: 'chest',             // ChestMsg -> PANEL
-  SHELTER: 'shelter',
-  QUEST: 'quest',             // QuestMsg: accept / turn in         // ShelterMsg -> PANEL
+  SHELTER: 'shelter',         // ShelterMsg -> PANEL
+  QUEST: 'quest',             // QuestMsg: accept / turn in -> DIALOGUE (npc) or PANEL (request board)
   DIALOGUE_CHAT: 'dialogue_chat', // DialogueChatMsg (optional AI layer) -> DIALOGUE
   DEV: 'dev',                 // DevMsg: test/e2e helpers; ignored unless the server runs with DEV_COMMANDS=1
   // ── Phase 2 (server -> client)
@@ -90,6 +90,8 @@ export interface ProfileMsg {
   friends?: Record<string, { pts: number; talked: number; gifted: number }>;
   /** quest log: state + per-objective progress */
   quests?: QuestLog;
+  /** heart events seen ("npc:index"), sent with quests */
+  events?: string[];
   /** derived stats from equipment/buffs */
   stats?: { hpBonus: number; atkBonus: number; luck: number; haste: number };
   /** selected quick-bar slot is client-side; this is the server's last accepted USE slot (diagnostics) */
@@ -126,7 +128,10 @@ export interface FishCastMsg { tx: number; ty: number }
 export interface FishBiteMsg { id: string; windowMs: number }
 export interface FishHookMsg { id: string }
 
-export interface TalkMsg { npcId: string }
+/** `topic` picks a dialogue branch: 'ask', 'ask:about|town|qubitman|rumor', 'quest:<id>', 'event:<n>', 'back', 'bye'. */
+export interface TalkMsg { npcId: string; topic?: string }
+/** A response button. The client sends TALK {topic: id}, except 'accept:<quest>' / 'turnin:<quest>' which go as QUEST. */
+export interface DialogueChoice { id: string; text: string; kind?: 'quest' | 'ready' | 'ask' | 'event' | 'back' | 'accept' | 'turnin' }
 export interface QuestMsg { npcId: string; quest: string; action: 'accept' | 'turnin' }
 export interface GiftMsg { npcId: string; slot: number }
 export interface DialogueChatMsg { npcId: string; text: string }
@@ -150,6 +155,19 @@ export interface DialogueMsg {
   rumor?: string;
   /** quests this NPC can offer / is waiting on */
   quests?: Array<{ id: string; title: string; state: 'offer' | 'active' | 'ready' }>;
+  /** extra pages shown (one at a time) after `text`: heart events, the legend... */
+  pages?: string[];
+  /** response buttons shown after the last page */
+  choices?: DialogueChoice[];
+  /** heart event / cutscene title */
+  event?: string;
+  /** portrait mood */
+  mood?: 'happy' | 'sad' | 'neutral' | 'surprised' | 'angry';
+  /** shop opening hours, and whether it is open right now */
+  hours?: [number, number];
+  shopOpen?: boolean;
+  /** the conversation is over (goodbye line): the client closes after showing it */
+  end?: boolean;
 }
 
 export interface ShopMsg {
@@ -173,7 +191,7 @@ export interface ChestMsg { tx: number; ty: number; action: 'put' | 'take'; slot
 export interface ShelterMsg { tx: number; ty: number; action: 'add' | 'feed' | 'collect' }
 
 export interface PanelMsg {
-  kind: 'station' | 'chest' | 'shelter' | 'sign';
+  kind: 'station' | 'chest' | 'shelter' | 'sign' | 'lore' | 'board';
   tx: number;
   ty: number;
   sub: string;
@@ -182,6 +200,22 @@ export interface PanelMsg {
   chest?: Slot[];
   shelter?: { type: 'coop' | 'barn'; animals: number; max: number; fed: boolean; ready: number };
   sign?: string;
+  /** reading the statue (and other lore objects) */
+  lore?: { title: string; plaque: string; epitaph: string; pages: string[]; remark?: { npc: string; text: string } };
+  /** the daily request board */
+  board?: { day: number; requests: BoardRequest[] };
+}
+export interface BoardRequest {
+  id: string;
+  giver: string;
+  title: string;
+  summary: string;
+  objectives: Objective[];
+  progress: number[];
+  coins: number;
+  state: 'open' | 'active' | 'ready' | 'done' | 'expired';
+  /** world day it was posted */
+  day: number;
 }
 
 export interface ObjMsg { x: number; y: number; obj: WorldObj | null }
@@ -226,4 +260,5 @@ export type DevMsg =
   | { cmd: 'time'; offsetMs: number }      // ADDS offsetMs to the world clock offset (one day = 1_440_000)
   | { cmd: 'learn'; recipe: string }       // recipe id, or '*' for every recipe
   | { cmd: 'friend'; npc: string; pts: number }  // sets friendship points
-  | { cmd: 'level'; level: number };
+  | { cmd: 'level'; level: number }
+  | { cmd: 'quest'; id: string; action: 'start' | 'done' | 'reset' };  // force quest state (e2e)

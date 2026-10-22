@@ -5,6 +5,8 @@ import { runtime } from '../rooms/runtime';
 import type { ServerPlayer } from '../rooms/player';
 import type { RoomApi } from './api';
 import { giveStacks } from './helpers';
+import { acceptQuest } from './quests';
+import { QUEST_BY_ID } from '@eigenlands/shared';
 
 /** E2E/test helpers. Does nothing unless the server was started with devCommands. */
 export function handleDev(room: RoomApi, p: ServerPlayer, msg: DevMsg): void {
@@ -54,6 +56,15 @@ export function handleDev(room: RoomApi, p: ServerPlayer, msg: DevMsg): void {
       f.pts = Math.max(0, Math.floor(pts));
       p.data.friends[msg.npc] = f;
       p.dirty('friends');
+      return;
+    }
+    case 'quest': {
+      if (typeof msg.id !== 'string' || !QUEST_BY_ID[msg.id]) return;
+      const log = p.data.quests;
+      if (msg.action === 'reset') delete log[msg.id];
+      else if (msg.action === 'done') log[msg.id] = { state: 'done', progress: QUEST_BY_ID[msg.id]!.objectives.map((o) => o.n) };
+      else { for (const r of QUEST_BY_ID[msg.id]!.requires ?? []) log[r] ??= { state: 'done', progress: QUEST_BY_ID[r]!.objectives.map((o) => o.n) }; acceptQuest(p, msg.id, room.wclock.day(), room.seed); }
+      p.dirty('quests');
       return;
     }
     case 'level': {

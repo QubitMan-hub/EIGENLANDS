@@ -3,6 +3,7 @@ import {
   type Inventory, type SkillId, type Stack,
 } from '@eigenlands/shared';
 import type { ServerPlayer } from '../rooms/player';
+import { questEvent, syncQuests } from './quests';
 
 export const isInt = (n: unknown, lo: number, hi: number): n is number => Number.isInteger(n) && (n as number) >= lo && (n as number) <= hi;
 export const validSlot = (n: unknown): n is number => isInt(n, 0, INV_SIZE - 1);
@@ -22,8 +23,10 @@ export function giveStacks(p: ServerPlayer, stacks: Stack[], announce = true): b
   for (const s of stacks) {
     addStack(p.data.inv, s);
     if (announce) p.toast(`+${s.n} ${s.id.replace(/_/g, ' ')}`, 'item', s);
+    questEvent(p, { type: 'gain', target: s.id, n: s.n });
   }
   p.dirty('inv');
+  syncQuests(p);
   return true;
 }
 

@@ -1,5 +1,5 @@
 import {
-  CROPS, ITEMS, NPC_BY_ID, STATION_NAMES, type ChunkStore, type DialogueMsg, type FishBiteMsg, type PanelMsg, type ProfileMsg, type RhythmResultMsg,
+  CROPS, ITEMS, MSG, NPC_BY_ID, STATION_NAMES, dayNumber, gameHour, weatherForDay, type ChunkStore, type DialogueMsg, type FishBiteMsg, type PanelMsg, type ProfileMsg, type RhythmResultMsg,
   type RhythmStartMsg, type ShopViewMsg, type StationId, type Stack, type ToastMsg, type Template,
 } from '@eigenlands/shared';
 import type { Audio, Sfx } from '../audio';
@@ -16,6 +16,8 @@ import { buildInventory } from '../ui/inventory';
 import { buildJournal } from '../ui/journal';
 import { RhythmOverlay } from '../ui/rhythm';
 import { buildShop } from '../ui/shop';
+import { VillageOverlay, type NpcScreen } from '../ui/overlay';
+import { buildBoard, buildLore } from '../ui/village';
 import { buildStation } from '../ui/station';
 import { Toasts } from '../ui/toast';
 import { Windows } from '../ui/windows';
@@ -36,6 +38,10 @@ export interface GameplayDeps {
   player: () => { x: number; y: number; fx: number; fy: number };
   sfx: (s: Sfx) => void;
   features: () => { aiDialogue: boolean };
+  /** Phase 2 village overlay: world seed, NPC screen positions, reduced motion (optional so other hosts can omit them) */
+  seed?: () => number;
+  npcScreens?: () => NpcScreen[];
+  reduced?: () => boolean;
 }
 
 const REPEATABLE = new Set(['tool', 'till', 'water', 'net', 'forage', 'harvest']);
@@ -49,6 +55,7 @@ export class Gameplay {
   readonly toasts = new Toasts();
   readonly hotbar: Hotbar;
   readonly rhythm: RhythmOverlay;
+  readonly village: VillageOverlay;
   acts: Acts = freshActs();
   fishing: { id: string; tx: number; ty: number; bite: boolean; until: number } | null = null;
   private done = new Set<string>();
@@ -63,6 +70,7 @@ export class Gameplay {
 
   constructor(private d: GameplayDeps) {
     this.hotbar = new Hotbar(this.profile, this.tip);
+    this.village = new VillageOverlay(this.profile);
     this.rhythm = new RhythmOverlay(() => d.clock, d.audio, (id, hits) => d.net().rhythmDone(id, hits));
     document.body.append(this.hotbar.el, this.hotbarName, this.targetHint);
     try { JSON.parse(localStorage.getItem('eigen.tutorial2') ?? '[]').forEach((i: string) => this.done.add(i)); } catch { /* fresh */ }
@@ -96,8 +104,8 @@ export class Gameplay {
   }
   toggleJournal(): void {
     if (this.wins.name === 'journal') { this.wins.close(); return; }
-    this.acts.openedPack = true;
-    this.wins.show('journal', 'Journal', buildJournal(this.profile, this.d.portrait), { wide: true });
+    this.acts.journal = true;
+    this.wins.show('journal', 'Journal', buildJournal(this.profile, this.d.portrait, 'quests', this.d.seed?.() ?? 0), { wide: true });
   }
   toggleFieldCraft(): void {
     if (this.wins.name === 'hand') { this.wins.close(); return; }
@@ -126,6 +134,8 @@ export class Gameplay {
     }
     if (this.profile.coins > coins0) this.d.sfx('coin');
     if (this.profile.recipes.size > recipes0) this.acts.crafted = true;
+    if (Object.keys(this.profile.quests).length) this.acts.quest = true;
+    if (this.profile.coins > coins0 && this.wins.name === 'shop') this.acts.sold = true;
   }
 
   onPanel(m: PanelMsg): void {
@@ -153,6 +163,16 @@ export class Gameplay {
         add: () => net.shelter({ tx: m.tx, ty: m.ty, action: 'add' }), feed: () => net.shelter({ tx: m.tx, ty: m.ty, action: 'feed' }), collect: () => net.shelter({ tx: m.tx, ty: m.ty, action: 'collect' }),
       });
       if (this.wins.name === 'shelter') this.wins.update('shelter', render()); else this.wins.show('shelter', m.sub === 'coop' ? 'Chicken coop' : 'Barn', render());
+    } else if (m.kind === 'lore' && m.lore) {
+      this.acts.statue = true;
+      this.wins.show('lore', m.lore.title, buildLore(m, this.d.portrait));
+    } else if (m.kind === 'board' && m.board) {
+      this.acts.board = true;
+      const el = buildBoard(m, this.profile, this.d.portrait, {
+        accept: (id) => net.send(MSG.QUEST, { npcId: 'board', quest: id, action: 'accept' }),
+        turnin: (id) => net.send(MSG.QUEST, { npcId: 'board', quest: id, action: 'turnin' }),
+      });
+      if (this.wins.name === 'board') this.wins.update('board', el); else this.wins.show('board', 'Hadamere Request Board', el, { wide: true });
     } else if (m.kind === 'sign') this.wins.show('sign', 'Sign', buildSign(m));
   }
 
@@ -161,12 +181,14 @@ export class Gameplay {
     this.dialogueMsg = m;
     const net = this.d.net();
     const el = buildDialogue({ ...m, canChat: m.canChat && this.d.features().aiDialogue }, this.d.portrait(m.npcId), this.profile, this.tip, {
+      talk: (id, topic) => net.send(MSG.TALK, { npcId: id, topic }),
+      quest: (id, quest, action) => { if (action === 'accept') this.acts.quest = true; net.send(MSG.QUEST, { npcId: id, quest, action }); },
       shop: (id) => net.shop({ npcId: id, action: 'open' }),
       gift: (id, slot) => net.gift(id, slot),
       learn: (id, recipe) => net.shop({ npcId: id, action: 'learn', item: recipe }),
       chat: (id, text) => net.chat({ npcId: id, text }),
       close: () => this.wins.close(),
-    });
+    }, { reduced: this.d.reduced?.() ?? false });
     if (this.wins.name === `dialogue:${m.npcId}`) this.wins.update(`dialogue:${m.npcId}`, el);
     else this.wins.show(`dialogue:${m.npcId}`, NPC_BY_ID[m.npcId]?.name ?? 'Villager', el);
   }
@@ -231,7 +253,7 @@ export class Gameplay {
       for (const reach of [0.9, 1.5]) {
         const tx = Math.floor(p.x + p.fx * reach), ty = Math.floor(p.y + p.fy * reach + 0.2);
         const o = store.objectAt(tx, ty);
-        if (o && (o.kind === 'station' || o.kind === 'chest' || o.kind === 'shelter' || o.kind === 'sign')) { net.open(tx, ty); return true; }
+        if (o && (o.kind === 'station' || o.kind === 'chest' || o.kind === 'shelter' || o.kind === 'sign' || o.sub === 'statue')) { net.open(tx, ty); return true; }
       }
     }
     this.lastUse = performance.now();
@@ -294,4 +316,15 @@ export class Gameplay {
   }
 
   describeCrop(id: string): string { return CROPS[id]?.name ?? id; }
+
+  /** Per-frame screen-space village overlay (quest markers, chatter bubbles, quest tracker). */
+  frame(now: number): void {
+    const seed = this.d.seed?.() ?? 0;
+    const sn = this.d.clock.serverNow(now);
+    const p = this.d.player();
+    this.village.frame(now, {
+      npcs: this.d.npcScreens?.() ?? [], me: { x: p.x, y: p.y }, hour: gameHour(sn), weather: weatherForDay(seed, dayNumber(sn)), seed,
+      hidden: this.blocking || !this.profile.loaded, reduced: this.d.reduced?.() ?? false,
+    });
+  }
 }

@@ -15,7 +15,7 @@ export interface NpcDef {
   loves: string[];
   likes: string[];
   hates: string[];
-  shop?: { name: string; stock: ShopStock[]; buys: Array<ItemKind | 'all'>; buyBonus: number };
+  shop?: { name: string; stock: ShopStock[]; buys: Array<ItemKind | 'all'>; buyBonus: number; /** opening hours [open, close) in game hours */ hours?: [number, number] };
   lines: {
     greet: [string[], string[], string[]]; // by friendship tier: acquaintance, friend, close
     work: string[];
@@ -51,7 +51,7 @@ export const NPCS: NpcDef[] = [
     home: 'store.in',
     schedule: [B(0, 8, 'store.in', 'asleep'), B(8, 18, 'store.work', 'minding the counter'), B(18, 20, 'plaza_b', 'taking the evening air'), B(20, 24, 'store.in', 'asleep')],
     loves: ['melon', 'strawberry', 'fish_fry', 'qubit_crystal'], likes: ['corn', 'tomato', 'omelet', 'blueberry'], hates: ['mushroom', 'raw_meat', 'cricket'],
-    shop: { name: 'Greenbough General Store', buys: ['crop', 'forage', 'resource', 'material', 'bug', 'seed', 'fertilizer', 'misc'], buyBonus: 1, stock: [
+    shop: { name: 'Greenbough General Store', hours: [8, 18], buys: ['crop', 'forage', 'resource', 'material', 'bug', 'seed', 'fertilizer', 'misc'], buyBonus: 1, stock: [
       { item: 'turnip_seed', markup: 1, seasons: [0] }, { item: 'potato_seed', markup: 1, seasons: [0] }, { item: 'strawberry_seed', markup: 1, seasons: [0] }, { item: 'green_bean_seed', markup: 1, seasons: [0] },
       { item: 'tomato_seed', markup: 1, seasons: [1] }, { item: 'melon_seed', markup: 1, seasons: [1] }, { item: 'corn_seed', markup: 1, seasons: [1, 2] }, { item: 'blueberry_seed', markup: 1, seasons: [1] },
       { item: 'pumpkin_seed', markup: 1, seasons: [2] }, { item: 'cranberry_seed', markup: 1, seasons: [2] }, { item: 'yam_seed', markup: 1, seasons: [2] }, { item: 'eggplant_seed', markup: 1, seasons: [2] },
@@ -71,7 +71,7 @@ export const NPCS: NpcDef[] = [
     home: 'smithy.in',
     schedule: [B(0, 7, 'smithy.in', 'asleep'), B(7, 12, 'smithy.work', 'working the forge'), B(12, 13, 'inn.table', 'eating lunch'), B(13, 18, 'smithy.work', 'working the forge'), B(18, 21, 'inn.table', 'with a mug at the inn'), B(21, 24, 'smithy.in', 'asleep')],
     loves: ['gold_ingot', 'grilled_meat', 'hearty_stew', 'iron_ingot'], likes: ['silver_ingot', 'copper_ingot', 'fish_fry', 'coal'], hates: ['daffodil', 'berry_jam', 'cloth'],
-    shop: { name: 'Ironhand Smithy', buys: ['resource', 'material'], buyBonus: 1.15, stock: [{ item: 'coal', markup: 1.1 }, { item: 'copper_ingot', markup: 1.1 }, { item: 'iron_ingot', markup: 1.15 }, { item: 'forge', markup: 1 }, { item: 'furnace', markup: 1 }] },
+    shop: { name: 'Ironhand Smithy', hours: [7, 18], buys: ['resource', 'material'], buyBonus: 1.15, stock: [{ item: 'coal', markup: 1.1 }, { item: 'copper_ingot', markup: 1.1 }, { item: 'iron_ingot', markup: 1.15 }, { item: 'forge', markup: 1 }, { item: 'furnace', markup: 1 }] },
     lines: {
       greet: [['Mm. You want something forged, or just warm hands?', 'Don\'t touch the anvil. It bites.'], ['Ah. The one who actually listens. Come, watch.', 'You\'re getting a feel for the rhythm. Keep at it.'], ['You\'re the only one who understands why I hum at the forge. Come here.', 'A good blade, a good friend. Both take a long time to make.']],
       work: ['Match the phases. Two metals that sing the same note make something stronger than either.', 'Opposite phases cancel each other out. Use that to quiet a flaw.', 'Hit on the beat, not near it. The metal knows.'],
@@ -86,7 +86,7 @@ export const NPCS: NpcDef[] = [
     home: 'inn.in',
     schedule: [B(0, 6, 'inn.in', 'asleep'), B(6, 12, 'inn.work', 'cooking'), B(12, 13, 'plaza_c', 'shopping for supper'), B(13, 22, 'inn.work', 'cooking'), B(22, 24, 'inn.in', 'asleep')],
     loves: ['fruit_pie', 'strawberry', 'hearty_stew', 'milk'], likes: ['egg', 'wild_leek', 'mushroom', 'pumpkin'], hates: ['slime_gel', 'hopper_tooth', 'coal'],
-    shop: { name: 'The Crooked Spoon', buys: ['food', 'crop', 'forage', 'fish'], buyBonus: 1.1, stock: [{ item: 'roast_potato', markup: 1.2 }, { item: 'veggie_stew', markup: 1.2 }, { item: 'omelet', markup: 1.2 }, { item: 'berry_jam', markup: 1.2 }, { item: 'milk', markup: 1.1 }, { item: 'egg', markup: 1.1 }] },
+    shop: { name: 'The Crooked Spoon', hours: [6, 22], buys: ['food', 'crop', 'forage', 'fish'], buyBonus: 1.1, stock: [{ item: 'roast_potato', markup: 1.2 }, { item: 'veggie_stew', markup: 1.2 }, { item: 'omelet', markup: 1.2 }, { item: 'berry_jam', markup: 1.2 }, { item: 'milk', markup: 1.1 }, { item: 'egg', markup: 1.1 }] },
     lines: {
       greet: [['Sit, sit! Soup or stew? Or just the gossip?', 'The kettle\'s always on. So are my ears.'], ['There\'s my favorite appetite! Pull up a chair.', 'I saved you the corner table.'], ['Oh, you\'re family now. Family eats first.', 'I made your favorite. Don\'t ask how I knew.']],
       work: ['A good stew is patience, a good pie is courage.', 'Everyone tells their secrets to the soup. It\'s a good listener.'],
@@ -102,7 +102,7 @@ export const NPCS: NpcDef[] = [
     home: 'farmhouse.in',
     schedule: [B(0, 6, 'farmhouse.in', 'asleep'), B(6, 12, 'field', 'tending the fields'), B(12, 13, 'farmhouse.work', 'eating lunch'), B(13, 18, 'field', 'tending the fields'), B(18, 20, 'inn.table', 'at the inn'), B(20, 24, 'farmhouse.in', 'asleep')],
     loves: ['pumpkin', 'melon', 'omelet', 'hearty_stew'], likes: ['corn', 'potato', 'milk', 'egg'], hates: ['slime_gel', 'feather', 'qubit_tea'],
-    shop: { name: 'Hartley Farm Supply', buys: ['crop', 'animal', 'food'], buyBonus: 1.1, stock: [{ item: 'chicken', markup: 1 }, { item: 'cow', markup: 1 }, { item: 'hay', markup: 1.1 }, { item: 'fertilizer', markup: 1.1 }, { item: 'coop', markup: 1.1 }, { item: 'sprinkler_1', markup: 1.1 }] },
+    shop: { name: 'Hartley Farm Supply', hours: [6, 18], buys: ['crop', 'animal', 'food'], buyBonus: 1.1, stock: [{ item: 'chicken', markup: 1 }, { item: 'cow', markup: 1 }, { item: 'hay', markup: 1.1 }, { item: 'fertilizer', markup: 1.1 }, { item: 'coop', markup: 1.1 }, { item: 'sprinkler_1', markup: 1.1 }] },
     lines: {
       greet: [['Fields are open to anyone. Water what you plant, and it\'ll water you back.', 'You planting? Good. The soil\'s been lonely.'], ['Morning! Your turnips are looking good. Don\'t tell the others I peeked.', 'Folks who farm always come back. Soil\'s sticky that way.'], ['You\'ve got the touch, friend. Not everybody does.', 'Come help me with the barn gate? …Joking. Mostly.']],
       work: ['Water every day, or pray for rain. I do both.', 'Crops are fussy about seasons. A turnip in summer is just sadness.', 'Sprinklers are worth every copper. Trust me, my back says so.'],
@@ -118,7 +118,7 @@ export const NPCS: NpcDef[] = [
     home: 'fisher.bed',
     schedule: [B(0, 6, 'fisher.bed', 'asleep'), B(6, 12, 'pond_south', 'fishing'), B(12, 13, 'plaza_a', 'selling the morning catch'), B(13, 18, 'pond_south', 'fishing'), B(18, 21, 'inn.table', 'at the inn'), B(21, 24, 'fisher.bed', 'asleep')],
     loves: ['koi', 'glowfin', 'fish_fry', 'eel'], likes: ['trout', 'pike', 'perch', 'blackberry'], hates: ['mushroom', 'slime_gel', 'egg'],
-    shop: { name: "Marlow's Tackle", buys: ['fish', 'bug'], buyBonus: 1.2, stock: [{ item: 'rod', markup: 1 }, { item: 'minnow', markup: 1.3 }] },
+    shop: { name: "Marlow's Tackle", hours: [6, 18], buys: ['fish', 'bug'], buyBonus: 1.2, stock: [{ item: 'rod', markup: 1 }, { item: 'minnow', markup: 1.3 }] },
     lines: {
       greet: [['Shh — you\'ll scare the fish. And me.', 'Fishing takes patience. Standing next to me takes more.'], ['You\'re learning the tugs, aren\'t you? I can tell by how you stand.', 'Catch anything worth lying about yet?'], ['You\'re the only one who doesn\'t talk during a bite. I appreciate that.', 'Stay. The pond\'s better with two of us.']],
       work: ['When the line twitches, wait for the tug. Then pull on the beat.', 'Rain brings the big ones. Eels, catfish. Bring a coat.', 'At night, something glows down there. I\'ve never gotten it.'],
@@ -133,7 +133,7 @@ export const NPCS: NpcDef[] = [
     home: 'herbalist.bed',
     schedule: [B(0, 7, 'herbalist.bed', 'asleep'), B(7, 10, 'herbalist.work', 'brewing'), B(10, 13, 'field_gate', 'gathering herbs'), B(13, 18, 'herbalist.work', 'brewing'), B(18, 20, 'plaza_a', 'stargazing'), B(20, 24, 'herbalist.bed', 'asleep')],
     loves: ['qubit_crystal', 'crocus', 'qubit_tea', 'healing_herb'], likes: ['daffodil', 'sunpetal', 'blackberry', 'firefly'], hates: ['raw_meat', 'coal', 'hopper_tooth'],
-    shop: { name: 'Thistle & Thyme', buys: ['forage', 'bug', 'fertilizer'], buyBonus: 1.15, stock: [{ item: 'healing_potion', markup: 1.1 }, { item: 'regen_potion', markup: 1.1 }, { item: 'healing_herb', markup: 1.2 }, { item: 'alchemy_table', markup: 1 }] },
+    shop: { name: 'Thistle & Thyme', hours: [7, 18], buys: ['forage', 'bug', 'fertilizer'], buyBonus: 1.15, stock: [{ item: 'healing_potion', markup: 1.1 }, { item: 'regen_potion', markup: 1.1 }, { item: 'healing_herb', markup: 1.2 }, { item: 'alchemy_table', markup: 1 }] },
     lines: {
       greet: [['Don\'t mind the fumes. They\'re mostly harmless.', 'You smell like fresh air. That\'s rare around here.'], ['A crop that\'s two crops until you look at it. I\'ve been working on that.', 'You\'re the kind who asks good questions. Ask me one.'], ['You noticed it too: a plant can be two plants until it\'s picked. We should talk about this more.', 'You\'re a friend of the experiment. Welcome.']],
       work: ['Mix two seeds with a qubit crystal. At harvest the plant picks which one it was. Tonics tilt the odds.', 'A good potion is just a patient question.'],
@@ -149,7 +149,7 @@ export const NPCS: NpcDef[] = [
     home: 'tailor.bed',
     schedule: [B(0, 8, 'tailor.bed', 'asleep'), B(8, 17, 'tailor.work', 'at the loom'), B(17, 19, 'plaza_d', 'people-watching'), B(19, 22, 'inn.table', 'at the inn'), B(22, 24, 'tailor.bed', 'asleep')],
     loves: ['crocus', 'sunpetal', 'cloth', 'fruit_pie'], likes: ['daffodil', 'feather', 'blackberry', 'berry_jam'], hates: ['coal', 'slime_gel', 'raw_meat'],
-    shop: { name: 'Loomis & Daughter', buys: ['material', 'outfit', 'forage'], buyBonus: 1.1, stock: [{ item: 'cloth', markup: 1.1 }, { item: 'outfit_traveler', markup: 1 }, { item: 'loom', markup: 1 }] },
+    shop: { name: 'Loomis & Daughter', hours: [8, 17], buys: ['material', 'outfit', 'forage'], buyBonus: 1.1, stock: [{ item: 'cloth', markup: 1.1 }, { item: 'outfit_traveler', markup: 1 }, { item: 'loom', markup: 1 }] },
     lines: {
       greet: [['Oh, that coat. We\'ll fix that. Gently.', 'Everything\'s better with a little color.'], ['You\'ve got an eye for colors now, I can tell.', 'Come by the loom later, I have an idea for you.'], ['You wear everything well. It\'s infuriating.', 'My best work was always for friends.']],
       work: ['A dye is just a plant\'s secret, told on cloth.', 'I\'ve got some threads that shift when you\'re not looking.'],
@@ -165,7 +165,7 @@ export const NPCS: NpcDef[] = [
     home: 'carpenter.bed',
     schedule: [B(0, 7, 'carpenter.bed', 'asleep'), B(7, 12, 'carpenter.work', 'building'), B(12, 13, 'plaza_b', 'on a lunch break'), B(13, 17, 'carpenter.work', 'building'), B(17, 20, 'pond_west', 'by the pond'), B(20, 24, 'carpenter.bed', 'asleep')],
     loves: ['plank', 'heartwood', 'grilled_meat', 'hearty_stew'], likes: ['wood', 'iron_ingot', 'omelet', 'fish_fry'], hates: ['cloth', 'daffodil', 'berry_jam'],
-    shop: { name: 'Plank & Peg', buys: ['material', 'resource'], buyBonus: 1.1, stock: [{ item: 'plank', markup: 1.2 }, { item: 'wood', markup: 1.2 }, { item: 'chair', markup: 1.2 }, { item: 'table', markup: 1.2 }, { item: 'bed', markup: 1.2 }, { item: 'shelf', markup: 1.2 }, { item: 'carpenter_bench', markup: 1 }] },
+    shop: { name: 'Plank & Peg', hours: [7, 17], buys: ['material', 'resource'], buyBonus: 1.1, stock: [{ item: 'plank', markup: 1.2 }, { item: 'wood', markup: 1.2 }, { item: 'chair', markup: 1.2 }, { item: 'table', markup: 1.2 }, { item: 'bed', markup: 1.2 }, { item: 'shelf', markup: 1.2 }, { item: 'carpenter_bench', markup: 1 }] },
     lines: {
       greet: [['Mind the sawdust. And the saw.', 'You need something built, or just ambling?'], ['Back for more wood, eh? Good. I\'ve got a surplus.', 'You\'ve got hands. Good. Not everyone does.'], ['You\'d make a decent carpenter. Don\'t let it go to your head.', 'Come on, hold this beam. I\'ll tell you a story about it.']],
       work: ['Measure twice, cut once, swear thrice.', 'A coop needs planks and hay. Don\'t skimp on the roof.'],
@@ -241,6 +241,12 @@ export const RUMOR_TEMPLATES: Record<string, string> = {
   boss_slain: '{who} defeated something terrible out in the wilds.',
   level: '{who} is becoming quite the adventurer.',
 };
+
+/** Is this villager's shop open at `hour`? (Shops without hours are always open.) */
+export const shopOpen = (npc: NpcDef, hour: number): boolean => !npc.shop?.hours || (hour >= npc.shop.hours[0] && hour < npc.shop.hours[1]);
+/** Is the villager at work right now (for dialogue colour and ambient chatter)? */
+export const isWorking = (doing: string): boolean => /work|forge|cook|counter|field|fishing|brewing|loom|building|desk|tending|minding/.test(doing);
+export const hoursText = (h: [number, number]): string => `${String(h[0]).padStart(2, '0')}:00-${String(h[1] % 24).padStart(2, '0')}:00`;
 
 export const SHOP_NPCS = NPCS.filter((n) => n.shop).map((n) => n.id);
 export const itemExists = (id: string): boolean => !!ITEMS[id];

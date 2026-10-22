@@ -47,7 +47,7 @@ switch (panel) {
   case 'station': wins.show('st', 'Workbench', buildStation('workbench', profile, tip, { craft: noop, experiment: noop }), { wide: true }); break;
   case 'alchemy': wins.show('st', 'Alchemy Table', buildStation('alchemy', profile, tip, { craft: noop, experiment: noop }), { wide: true }); break;
   case 'forge': wins.show('f', 'Anvil & Forge', buildForge(profile, tip, { start: noop }), { wide: true }); break;
-  case 'dialogue': wins.show('d', NPC_BY_ID.tobin!.name, buildDialogue(dlg, portraitUrl('tobin'), profile, tip, { shop: noop, gift: noop, learn: noop, chat: noop, close: noop })); break;
+  case 'dialogue': wins.show('d', NPC_BY_ID.tobin!.name, buildDialogue(dlg, portraitUrl('tobin'), profile, tip, { talk: noop, quest: noop, shop: noop, gift: noop, learn: noop, chat: noop, close: noop })); break;
   case 'shop': wins.show('s', 'Greenbough General Store', buildShop({ npcId: 'tobin', name: 'Store', coins: 482, stock: [{ item: 'turnip_seed', price: 10 }, { item: 'potato_seed', price: 14 }, { item: 'fertilizer', price: 20 }, { item: 'chest', price: 50 }], sell: { 17: 18, 18: 6, 10: 2, 12: 13 } }, profile, tip, { buy: noop, sell: noop }), { wide: true }); break;
   case 'journal': wins.show('j', 'Journal', buildJournal(profile, portraitUrl), { wide: true }); break;
   case 'friends': wins.show('j', 'Journal', buildJournal(profile, portraitUrl, 'friends'), { wide: true }); break;

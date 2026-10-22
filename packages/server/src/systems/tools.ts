@@ -8,6 +8,7 @@ import { startCast } from './fishing';
 import { catchBug } from './bugs';
 import { fertilize, harvestCrop, plantSeed, uprootCrop, waterCrop, wetTile } from './farming';
 import { addSkillXp, distToTile, fitsAll, giveStacks, isInt, skillLv, validSlot } from './helpers';
+import { questEvent, syncQuests } from './quests';
 
 const TILLABLE: number[] = [T.GRASS, T.GRASS_TALL, T.FLOWERS, T.STUMP];
 const TOOL_NAME: Record<string, string> = { axe: 'an axe', pickaxe: 'a pickaxe' };
@@ -56,6 +57,7 @@ export async function handleUse(room: RoomApi, p: ServerPlayer, msg: UseMsg): Pr
   const tile = room.store.getTile(tx, ty);
   const node = NODES[tile];
   if (tile === T.FORAGE && kind !== 'seed' && kind !== 'placeable') return gatherForage(room, p, tx, ty);
+  if (tile === T.GRASS_TALL && tool === 'axe') return cutGrass(room, p, tx, ty);
   if (node && (tool === 'axe' || tool === 'pickaxe')) return hitNode(room, p, stack, tx, ty, tile);
   if (node && tool) { p.toast(`${node.label} needs ${TOOL_NAME[node.tool ?? 'axe']}.`); return; }
 
@@ -120,6 +122,16 @@ function hitNode(room: RoomApi, p: ServerPlayer, tool: Stack, tx: number, ty: nu
   room.fx({ kind: 'break', x: cx, y: cy });
 }
 
+/** Axe on tall grass: cut it for fiber (it grows back the next morning). */
+function cutGrass(room: RoomApi, p: ServerPlayer, tx: number, ty: number): void {
+  const n = 1 + (room.rand() < 0.4 + 0.05 * skillLv(p, 'foraging') ? 1 : 0);
+  if (!giveStacks(p, [{ id: 'fiber', n }])) { p.toast('Your pack is full.', 'bad'); return; }
+  addSkillXp(p, 'foraging', 1);
+  room.setTile(tx, ty, T.GRASS);
+  room.scheduleRespawn(tx, ty, T.GRASS_TALL, room.wclock.dayStart(room.wclock.day() + 1));
+  room.fx({ kind: 'chop', x: tx + 0.5, y: ty + 0.5 });
+}
+
 function gatherForage(room: RoomApi, p: ServerPlayer, tx: number, ty: number): void {
   const list = FORAGE_BY_SEASON[room.wclock.season()]!;
   const id = list[Math.floor(room.rand() * list.length)]!;
@@ -174,6 +186,8 @@ function place(room: RoomApi, p: ServerPlayer, slot: number, tx: number, ty: num
   if (stack.n <= 0) p.data.inv[slot] = null;
   p.dirty('inv');
   room.fx({ kind: 'place', x: tx + 0.5, y: ty + 0.5 });
+  questEvent(p, { type: 'place', target: def.id, n: 1 });
+  syncQuests(p);
 }
 
 /** Axe on a placed object you own: take it back (containers must be empty). */

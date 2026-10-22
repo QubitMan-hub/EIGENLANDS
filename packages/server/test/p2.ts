@@ -35,7 +35,15 @@ export async function boot(config: Record<string, unknown> = {}): Promise<App> {
   await resetDb();
   tuning.toolCooldownMs = 0;
   tuning.pace = 0.1;
-  return startApp({ config: { devCommands: true, ...config } });
+  const app = await startApp({ config: { devCommands: true, ...config } });
+  // Pin the world clock (spring, day 1, noon) so new characters, crops, shops and NPC schedules never depend on the real date.
+  pinClock(1, 12);
+  return app;
+}
+
+/** Set the world clock to `day` at game hour `hour` before any room exists (no rollover bookkeeping needed). */
+export function pinClock(day: number, hour = 12): void {
+  worldClock().setOffset(WORLD_EPOCH_MS + day * DAY_MS + ((hour - 6 + 24) % 24) * 60_000 + 5_000 - Date.now());
 }
 
 export const serverRoom = (): WorldRoom => matchMaker.getLocalRoomById(lastRoomId()) as unknown as WorldRoom;

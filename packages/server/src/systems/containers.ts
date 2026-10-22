@@ -1,5 +1,5 @@
 import {
-  FARM_ANIMALS, ITEMS, MSG, STATION_SUBS, addStack, chunkOf, cloneStack, countItem, isRipe, removeItem, validInventory,
+  FARM_ANIMALS, ITEMS, MSG, QUBITMAN, STATUE_REMARKS, STATION_SUBS, addStack, chunkOf, cloneStack, countItem, isRipe, removeItem, validInventory,
   type ChestMsg, type Inventory, type OpenMsg, type PanelMsg, type ShelterMsg, type WorldObj,
 } from '@eigenlands/shared';
 import type { ServerPlayer } from '../rooms/player';
@@ -7,6 +7,16 @@ import type { RoomApi } from './api';
 import { cropOf, harvestCrop } from './farming';
 import { addSkillXp, distToTile, giveStacks, isInt, validSlot } from './helpers';
 import { forageAt } from './tools';
+import { boardPanel, questEvent, recordDeed } from './quests';
+
+/** The statue of QubitMan (and its plaque): inscription + legend, and a villager's remark. */
+function lorePanel(room: RoomApi, o: WorldObj): PanelMsg {
+  const r = STATUE_REMARKS[Math.floor(room.rand() * STATUE_REMARKS.length)]!;
+  return {
+    kind: 'lore', tx: o.x, ty: o.y, sub: o.sub,
+    lore: { title: QUBITMAN.title, plaque: QUBITMAN.plaque, epitaph: QUBITMAN.epitaph, pages: [...QUBITMAN.legend], remark: { npc: r[0], text: r[1] } },
+  };
+}
 
 const OPEN_REACH = 3.5;
 
@@ -48,6 +58,13 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
     return;
   }
   if ((o.kind === 'chest' || o.kind === 'shelter') && o.owner !== p.accountId) { p.toast("That isn't yours."); return; }
+  if (o.static && (o.sub === 'statue' || o.sub === 'plaque')) {
+    p.client.send(MSG.PANEL, lorePanel(room, o));
+    questEvent(p, { type: 'read', target: 'statue', n: 1 });
+    if (!p.data.deeds.statue) recordDeed(p, 'statue', 'the plaque', room.wclock.day());
+    return;
+  }
+  if (o.static && o.sub === 'board') { p.client.send(MSG.PANEL, boardPanel(p, room.wclock.day(), room.seed, { x: o.x, y: o.y })); return; }
   sendPanel(p, o);
 }
 
