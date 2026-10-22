@@ -12,7 +12,7 @@ export interface InputReading extends LocalInput {
 export class Input {
   private down = new Set<string>();
   private buffered = new Map<Action, number>();
-  private mouse = { x: 0, y: 0, lastMove: -1e9, left: false, right: false };
+  private mouse = { x: 0, y: 0, lastMove: -1, left: false, right: false };
   private stick = { x: 0, y: 0 };
   private touchHeld = new Set<Action>();
   private padPrev: boolean[] = [];
@@ -25,6 +25,12 @@ export class Input {
   /** Phase 3/4 actions: abilities, ultimate, board, chat, party (keys, gamepad and touch) */
   onAction: ((a: typeof EXT_ACTIONS[number]) => void) | null = null;
   private interactDown = false;
+  /** ability armed with its key: the next left click fires it at the cursor (Esc or the same key disarms) */
+  armed: typeof EXT_ACTIONS[number] | null = null;
+  onArmChange: ((a: typeof EXT_ACTIONS[number] | null) => void) | null = null;
+  private setArmed(a: typeof EXT_ACTIONS[number] | null): void { if (this.armed !== a) { this.armed = a; this.onArmChange?.(a); } }
+  /** right mouse held: look ahead toward the cursor */
+  get lookHeld(): boolean { return this.mouse.right; }
   /** where the player is on screen, for mouse aiming (CSS px) */
   playerScreen = { x: 0, y: 0 };
   /** optional aim assist used by touch and gamepad */
@@ -36,14 +42,17 @@ export class Input {
     this.keys = keys;
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
-    window.addEventListener('blur', () => { this.down.clear(); this.mouse.left = this.mouse.right = false; });
+    window.addEventListener('blur', () => { this.down.clear(); this.mouse.left = this.mouse.right = false; this.setArmed(null); });
     el.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') { this.mouse.x = e.clientX; this.mouse.y = e.clientY; this.mouse.lastMove = performance.now(); } });
     el.addEventListener('pointerdown', (e) => {
       this.firstGesture?.();
       if (e.pointerType !== 'mouse') return;
       this.mouse.x = e.clientX; this.mouse.y = e.clientY; this.mouse.lastMove = performance.now();
-      if (e.button === 0) { this.mouse.left = true; this.buffer('attack'); }
-      if (e.button === 2) { this.mouse.right = true; this.buffer('skill'); }
+      if (e.button === 0) {
+        if (this.armed) { const a = this.armed; this.setArmed(null); this.onAction?.(a); }
+        else { this.mouse.left = true; this.buffer('attack'); }
+      }
+      if (e.button === 2) this.mouse.right = true;
     });
     window.addEventListener('pointerup', (e) => { if (e.button === 0) this.mouse.left = false; if (e.button === 2) this.mouse.right = false; });
     el.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -62,7 +71,13 @@ export class Input {
     if (this.keys.prev.includes(e.code)) this.onCycle?.(-1);
     if (this.keys.next.includes(e.code)) this.onCycle?.(1);
     for (const a of ['inventory', 'journal', 'craft'] as const) if (this.keys[a].includes(e.code)) { this.onPanel?.(a); e.preventDefault(); }
-    for (const a of EXT_ACTIONS) if (this.keys[a].includes(e.code)) { this.onAction?.(a); e.preventDefault(); }
+    if (e.code === 'Escape') this.setArmed(null);
+    for (const a of EXT_ACTIONS) if (this.keys[a].includes(e.code)) {
+      // abilities and the ultimate arm an aim; the click fires them. Board/chat/party act at once.
+      if (a.startsWith('ability') || a === 'ultimate') this.setArmed(this.armed === a ? null : a);
+      else { this.setArmed(null); this.onAction?.(a); }
+      e.preventDefault();
+    }
     if (this.isBound(e.code)) e.preventDefault();
   };
   private onKeyUp = (e: KeyboardEvent): void => { this.down.delete(e.code); };
@@ -89,7 +104,7 @@ export class Input {
   /** mouse tile under the cursor (set by the game each frame), for cursor-targeted tool use */
   mouseTile: { tx: number; ty: number } | null = null;
   get mouseXY(): { x: number; y: number } { return { x: this.mouse.x, y: this.mouse.y }; }
-  get mouseActive(): boolean { return performance.now() - this.mouse.lastMove < 4000; }
+  get mouseActive(): boolean { return this.mouse.lastMove > 0; }
   get interactHeld(): boolean { return this.isDown('interact') || this.touchHeld.has('interact'); }
 
   read(now = performance.now()): InputReading {
@@ -128,7 +143,7 @@ export class Input {
     r.dx = dx; r.dy = dy;
 
     const attackHeld = this.isDown('attack') || this.mouse.left || this.touchHeld.has('attack') || padAttack;
-    const skillHeld = this.isDown('skill') || this.mouse.right || this.touchHeld.has('skill') || padSkill;
+    const skillHeld = this.isDown('skill') || this.touchHeld.has('skill') || padSkill;
     // attack = a press (tap: 3-hit combo, buffered by the sim); hold = still held (charges a heavy, released to strike)
     r.attack = this.consume('attack', now) || padAttackEdge;
     r.hold = attackHeld;
@@ -140,7 +155,7 @@ export class Input {
     // aiming: recent mouse > right stick > auto-aim (touch/pad) > facing (server falls back to face)
     const toWorld = (sx: number, sy: number) => ({ x: sy / 16 + sx / 32, y: sy / 16 - sx / 32 }); // screen delta -> world delta (iso)
     if (padAim) { const a = toWorld(padAim.x, padAim.y); r.aimX = a.x; r.aimY = a.y; }
-    else if (now - this.mouse.lastMove < 4000 && !this.touchHeld.size) {
+    else if (this.mouse.lastMove > 0 && !this.touchHeld.size) {
       const a = toWorld(this.mouse.x - this.playerScreen.x, this.mouse.y - this.playerScreen.y); r.aimX = a.x; r.aimY = a.y;
     } else if ((r.attack || r.hold || r.skill) && this.autoAim) {
       const t = this.autoAim();
@@ -155,7 +170,7 @@ export class Input {
     let a: { x: number; y: number } | null = null;
     const pad = navigator.getGamepads?.().find((p) => !!p);
     if (pad && Math.hypot(pad.axes[2] ?? 0, pad.axes[3] ?? 0) > 0.35) a = toWorld(pad.axes[2]!, pad.axes[3]!);
-    else if (performance.now() - this.mouse.lastMove < 4000 && !this.touchHeld.size) a = toWorld(this.mouse.x - this.playerScreen.x, this.mouse.y - this.playerScreen.y);
+    else if (this.mouse.lastMove > 0 && !this.touchHeld.size) a = toWorld(this.mouse.x - this.playerScreen.x, this.mouse.y - this.playerScreen.y);
     else if (this.autoAim) a = this.autoAim();
     const l = a ? Math.hypot(a.x, a.y) : 0;
     return a && l > 1e-6 ? { x: a.x / l, y: a.y / l } : face;

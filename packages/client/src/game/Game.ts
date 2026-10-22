@@ -107,6 +107,9 @@ export class Game {
   private roofLayer = new Container();
   private weatherLayer = new Container();
   private cursor = new Graphics();
+  private aimGfx = new Graphics();
+  /** smoothed right-mouse look offset in iso world px */
+  private look = { x: 0, y: 0 };
   private bobber = new Graphics();
   features = { aiDialogue: false };
   private portraitCache = new Map<string, string>();
@@ -132,7 +135,7 @@ export class Game {
     this.sheets = buildActorSheets();
     this.foes = buildFoeSheets();
     this.entityLayer.sortableChildren = true;
-    this.world.addChild(this.shadowLayer, this.decalLayer, this.entityLayer, this.roofLayer, this.cursor, this.bobber, this.fxLayer);
+    this.world.addChild(this.shadowLayer, this.decalLayer, this.entityLayer, this.roofLayer, this.cursor, this.aimGfx, this.bobber, this.fxLayer);
     this.lighting = new Lighting(this.app.renderer);
     this.app.stage.addChild(this.lighting.sprite, this.weatherLayer, this.labelLayer);
     this.gameplay = new Gameplay({
@@ -468,7 +471,22 @@ export class Game {
     let ox = 0, oy = 0;
     if (this.fx.shake > 0 && !reduced) { ox = Math.round((Math.random() - 0.5) * 6 * this.fx.shake); oy = Math.round((Math.random() - 0.5) * 6 * this.fx.shake); }
     // iso camera: centred on the player's body (feet minus 6px), snapped to device pixels
-    const camX = Math.round(isoX(me.x, me.y) * S) / S, camY = Math.round((isoY(me.x, me.y) - 6) * S) / S;
+    // holding the right mouse button slides the camera toward the cursor (eased, frame-rate independent)
+    {
+      const m = this.input.mouseXY, held = this.input.lookHeld && !this.dead;
+      const reach = Math.min(W, H) * 0.42;
+      let tx = 0, ty = 0;
+      if (held) {
+        let dx = (m.x - this.input.playerScreen.x) / S, dy = (m.y - this.input.playerScreen.y) / S;
+        const l = Math.hypot(dx, dy), cap = reach / S;
+        if (l > cap) { dx = (dx / l) * cap; dy = (dy / l) * cap; }
+        tx = dx * 0.85; ty = dy * 0.85;
+      }
+      const k = 1 - Math.exp(-dt * (held ? 9 : 12));
+      this.look.x += (tx - this.look.x) * k; this.look.y += (ty - this.look.y) * k;
+      if (!held && Math.hypot(this.look.x, this.look.y) < 0.05) this.look.x = this.look.y = 0;
+    }
+    const camX = Math.round((isoX(me.x, me.y) + this.look.x) * S) / S, camY = Math.round((isoY(me.x, me.y) - 6 + this.look.y) * S) / S;
     this.world.x = Math.round(W / 2 - camX * S) + ox;
     this.world.y = Math.round(H / 2 - camY * S) + oy;
     {
@@ -488,6 +506,7 @@ export class Game {
       const u = unproject((m.x - this.world.x) / S, (m.y - this.world.y) / S);
       this.input.mouseTile = { tx: Math.floor(u.x), ty: Math.floor(u.y) };
     }
+    this.drawAim(me, now);
     this.input.playerScreen = { x: W / 2 + (isoX(me.x, me.y) - camX) * S, y: H / 2 + (isoY(me.x, me.y) - 10 - camY) * S };
 
     // hit-stop / phase slip: remote entities and effects run on a slightly delayed, dilated clock (visual only)
@@ -512,6 +531,37 @@ export class Game {
 
     if (now - this.lastHud > 100) { this.lastHud = now; this.hud(hour, now); }
     this.frameMs = this.frameMs * 0.95 + (performance.now() - t0) * 0.05;
+  }
+
+  /** aim line + landing ring while an ability is armed; a soft view cone while the right mouse button looks */
+  private drawAim(me: { x: number; y: number }, now: number): void {
+    const g = this.aimGfx;
+    g.clear();
+    g.zIndex = 1e9;
+    const armed = this.input.armed, look = this.input.lookHeld;
+    if ((!armed && !look) || this.dead || !this.input.mouseActive) return;
+    const a = this.input.aimNow({ x: this.predictor.sim.faceX, y: this.predictor.sim.faceY });
+    const px = isoX(me.x, me.y), py = isoY(me.x, me.y) - 6;
+    if (look) {
+      // 70° cone, 9 tiles deep, projected onto the iso ground
+      const pts: number[] = [px, py];
+      const base = Math.atan2(a.y, a.x), half = (70 * Math.PI) / 360;
+      for (let i = 0; i <= 14; i++) { const t = base - half + (i / 14) * half * 2; pts.push(isoX(me.x + Math.cos(t) * 9, me.y + Math.sin(t) * 9), isoY(me.x + Math.cos(t) * 9, me.y + Math.sin(t) * 9) - 6); }
+      g.poly(pts).fill({ color: 0xcfe8ff, alpha: 0.07 });
+    }
+    if (armed) {
+      const pulse = 0.6 + 0.4 * Math.sin(now / 120);
+      const range = 7;
+      const ex = me.x + a.x * range, ey = me.y + a.y * range;
+      const n = 12;
+      for (let i = 1; i <= n; i++) {
+        const t0 = (i - 0.55) / n, t1 = i / n;
+        g.moveTo(isoX(me.x + a.x * range * t0, me.y + a.y * range * t0), isoY(me.x + a.x * range * t0, me.y + a.y * range * t0) - 6)
+          .lineTo(isoX(me.x + a.x * range * t1, me.y + a.y * range * t1), isoY(me.x + a.x * range * t1, me.y + a.y * range * t1) - 6);
+      }
+      g.stroke({ width: 1.5, color: 0x9ff3ff, alpha: 0.85 * pulse });
+      g.ellipse(isoX(ex, ey), isoY(ex, ey), 9, 4.5).stroke({ width: 1.5, color: 0xffffff, alpha: pulse });
+    }
   }
 
   private fixedStep(now: number): void {
