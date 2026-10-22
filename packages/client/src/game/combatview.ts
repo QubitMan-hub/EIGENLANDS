@@ -7,7 +7,11 @@ import {
   PALETTE, PLAYER_RADIUS, heavyHit, hitStopMs, inArc, shakeFor, type FxMsg, type PlayerSim, type StepEvents,
 } from '@eigenlands/shared';
 import type { Sfx } from '../audio';
-import type { FoeSheets } from '../art/foes';
+import type { Anim, FoeSheets } from '../art/foes';
+import { D4_SE, dir4 } from '../art/sprite';
+
+/** tiles of travel per walk frame for each drawn model (0 = animate by time) */
+const MOVE_STRIDE: number[] = [0, 0.25, 0.18, 0, 0, 0.42, 0];
 import type { Sheets } from '../art/actors';
 import { DIR_LEFT } from '../art/actors';
 import type { Fx } from './fx';
@@ -89,6 +93,8 @@ export class CombatView {
   private shown: Set<string>;
   private dashesUsed = 0;
   private wasCharging = false;
+  /** last D4 facing per drawn creature (hysteresis) */
+  private dirs = new WeakMap<CombatActor, number>();
   killedBy = '';
 
   constructor(private d: CombatDeps, private decal: Graphics) {
@@ -398,25 +404,35 @@ export class CombatView {
     v.kind = kind;
     const st = s?.st ?? 0;
     const t = now / 1000;
-    const sheets = this.d.sheets(), foes = this.d.foes();
+    const foes = this.d.foes();
     const def = ENEMY_BY_KIND[kind];
     const fsx = screenDir(fx, s?.faceY ?? 1).x;
     let flip = false;
     const isCritter = kind === 3 || (kind >= 7 && kind <= 11 && kind !== 10);
     if (!isCritter && v.sprite.anchor.y !== 1) { v.sprite.anchor.set(0.5, 1); v.fl.anchor.set(0.5, 1); }
-    switch (kind) {
-      case 0: v.sprite.texture = sheets.slime(night, st === 2 ? 2 : Math.floor(t * 4 + v.outfit) % 4); break;
-      case 1: v.sprite.texture = sheets.hopper(night, st === 2 ? 1 : st === 3 ? 2 : Math.floor(t * 3) % 2 === 0 ? 0 : 3); break;
-      case 2: v.sprite.texture = sheets.rabbit(moved ? 1 + (Math.floor(v.travel / 0.25) % 3) : 0, fsx < 0 ? DIR_LEFT : 3); break;
+    // the drawn creatures (slime, hopper, rabbit, wisp, brute, mite; slime king and colossus reuse their models):
+    // four iso facings with hysteresis, never mirrored, so the key light stays top-left
+    const model = kind === 10 ? 0 : kind === 12 ? 5 : kind;
+    const drawn = model <= 6 && model !== 3;
+    if (drawn) {
+      const sd = screenDir(fx, s?.faceY ?? 1);
+      const dir = dir4(sd.x, sd.y, this.dirs.get(v) ?? D4_SE);
+      this.dirs.set(v, dir);
+      const tele0 = Math.min(1, (s?.tele ?? 0) / 100);
+      let anim: Anim = 'idle', f = 0;
+      const n = (a: Anim) => foes.frames(model, a);
+      if (st === 5 || v.flash > 0.55) anim = 'hurt';
+      else if (st === 2) { anim = 'windup'; f = Math.min(n('windup') - 1, Math.floor(tele0 * n('windup'))); }
+      else if (st === 3) { anim = 'attack'; f = Math.floor(t * 9) % n('attack'); }
+      else if (moved) { anim = 'move'; const stride = MOVE_STRIDE[model]; f = stride ? Math.floor(v.travel / stride) : Math.floor(t * (model === 6 ? 14 : 8) + v.outfit); }
+      else f = Math.floor(t * (model === 6 ? 6 : 5) + v.outfit * 1.7);
+      v.sprite.texture = foes.frame(model, night || kind === 12, dir, anim, f);
+    } else switch (kind) {
       case 3: case 7: case 8: case 9: case 11: this.critter(v, kind, s, st, moved, t, dt); break;
-      case 10: v.sprite.texture = sheets.slime(false, st === 2 ? 2 : Math.floor(t * 3 + v.outfit) % 4); break;
-      case 12: v.sprite.texture = foes.brute(true, st === 2 ? 2 : st === 3 ? 3 : moved ? Math.floor(v.travel / 0.5) % 2 : Math.floor(t * 1.2) % 2); flip = fsx < 0; break;
-      case 4: v.sprite.texture = foes.wisp(night, st === 2 ? 2 : st === 3 || st === 4 ? 3 : Math.floor(t * 5 + v.outfit) % 2); flip = fsx < 0; break;
-      case 5: v.sprite.texture = foes.brute(night, st === 2 ? 2 : st === 3 ? 3 : moved ? Math.floor(v.travel / 0.4) % 2 : Math.floor(t * 1.5) % 2); flip = fsx < 0; break;
       case 13: this.sailer(v, s, fx, t); break;
       case 14: this.serpent(v, s, st, fx, t); break;
-      case 6: v.sprite.texture = foes.mite(night, st === 2 ? 2 : [0, 1, 3, 1][Math.floor(t * 12 + v.outfit) % 4]!); flip = fsx < 0; break;
     }
+    void fsx;
     // squash & stretch: hit punch, windup rear-up, stagger wobble
     v.punch *= Math.exp(-dt * 11);
     v.flash *= Math.exp(-dt * 22);
