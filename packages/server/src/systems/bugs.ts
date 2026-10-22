@@ -2,6 +2,7 @@ import { T, sampleClimate, type Stack } from '@eigenlands/shared';
 import type { ServerPlayer } from '../rooms/player';
 import type { RoomApi } from './api';
 import { addSkillXp, giveStacks } from './helpers';
+import { questEvent, recordDeed } from './quests';
 
 interface BugRule { id: string; seasons: number[]; time: 'day' | 'night' | 'any'; needsWater?: boolean; flux?: boolean }
 const BUGS: BugRule[] = [
@@ -48,4 +49,6 @@ export function catchBug(room: RoomApi, p: ServerPlayer, tx: number, ty: number,
   const item: Stack = { id: bug.id, n: 1 };
   if (!giveStacks(p, [item])) { p.toast('Your pack is full.', 'bad'); return; }
   addSkillXp(p, 'foraging', 3);
+  questEvent(p, { type: 'bug', target: bug.id, n: 1 });
+  recordDeed(p, 'bug', bug.id, day);
 }

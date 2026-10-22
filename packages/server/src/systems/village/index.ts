@@ -1,9 +1,10 @@
 import {
-  DAY_MS, GIFT_POINTS, ITEMS, NPCS, NpcState, RECIPES, SEASONS, TALK_POINTS, addStack, buildingAt, buyPrice, canAdd, decaySupply,
-  findPath, giftTaste, hearts, pickLine, scheduleAt, sellPrice, townFor,
-  type DialogueChatMsg, type DialogueMsg, type NpcDef, type ShopMsg, type ShopViewMsg, type Supply,
+  DAY_MS, GIFT_EXTRA, GIFT_POINTS, ITEMS, NPCS, NpcState, RECIPES, SEASONS, TALK_POINTS, addStack, buildingAt, buyPrice, canAdd, composeTalk, decaySupply,
+  fill, findPath, giftTaste, hearts, isWorking, objectiveText, offerable, pendingEvent, questComplete, questDef, scheduleAt, sellPrice, shopOpen, tierOf, townFor, voiceOf,
+  type DeedKind, type DialogueChatMsg, type DialogueChoice, type DialogueMsg, type NpcDef, type QuestMsg, type ShopMsg, type ShopViewMsg, type Supply,
 } from '@eigenlands/shared';
 import type { FriendRec, PlayerRef, VillageHost, VillageSystem } from '../types';
+import { acceptQuest, questEvent, syncQuests, turnInQuest } from '../quests';
 import { AiDialogue, type AiOptions } from './ai';
 import { RumorBook } from './rumors';
 
@@ -199,6 +200,7 @@ export class Village implements VillageSystem {
     this.rumorDirty = true;
   }
 
+
   // ───────────────────────── dialogue ─────────────────────────
 
   private near(p: PlayerRef, r: Runner): boolean {
@@ -220,16 +222,44 @@ export class Village implements VillageSystem {
     return RECIPES.filter((x) => x.learn === `npc:${def.id}` && !p.data.recipes.has(x.id)).map((x) => x.id);
   }
 
+  /** Quests this villager offers, is waiting on, or can take back (story quests and their own board requests). */
+  private questList(p: PlayerRef, def: NpcDef): NonNullable<DialogueMsg['quests']> {
+    const log = p.data.quests ?? {};
+    const out: NonNullable<DialogueMsg['quests']> = [];
+    for (const [id, st] of Object.entries(log)) {
+      if (st.state !== 'active') continue;
+      const d = questDef(id, this.host.seed);
+      if (!d || d.giver !== def.id) continue;
+      out.push({ id, title: d.title, state: questComplete(d, st) ? 'ready' : 'active' });
+    }
+    for (const d of offerable(def.id, log)) out.push({ id: d.id, title: d.title, state: 'offer' });
+    return out.sort((a, b) => ['ready', 'offer', 'active'].indexOf(a.state) - ['ready', 'offer', 'active'].indexOf(b.state));
+  }
+
+  private mainChoices(p: PlayerRef, def: NpcDef): DialogueChoice[] {
+    const ch: DialogueChoice[] = this.questList(p, def).map((q) => ({
+      id: `quest:${q.id}`, kind: q.state === 'ready' ? 'ready' : 'quest',
+      text: q.state === 'ready' ? `★ ${q.title} (done!)` : q.state === 'offer' ? `! ${q.title}` : `… ${q.title}`,
+    }));
+    ch.push({ id: 'ask', text: 'Ask about…', kind: 'ask' });
+    return ch;
+  }
+
   private message(p: PlayerRef, r: Runner, rec: FriendRec, text: string, extra: Partial<DialogueMsg> = {}): DialogueMsg {
     const def = r.def;
+    const hour = this.host.clock.hour();
+    const open = shopOpen(def, hour);
     return {
       npcId: def.id, name: def.name, title: def.title, text,
       hearts: hearts(rec.pts), pts: rec.pts,
-      doing: scheduleAt(def, this.host.clock.hour(), this.host.clock.weather()).doing,
-      canShop: !!def.shop,
+      doing: scheduleAt(def, hour, this.host.clock.weather()).doing,
+      canShop: !!def.shop && open,
       canGift: rec.gifted !== this.host.clock.day(),
       canChat: this.ai.enabled,
       teaches: this.teachable(p, def, rec.pts),
+      quests: this.questList(p, def),
+      choices: this.mainChoices(p, def),
+      ...(def.shop?.hours ? { hours: def.shop.hours, shopOpen: open } : {}),
       ...extra,
     };
   }
@@ -240,12 +270,33 @@ export class Village implements VillageSystem {
     return r;
   }
 
-  private scriptedLine(r: Runner, rec: FriendRec, today: boolean): string {
-    const c = this.host.clock;
-    return pickLine(r.def, { pts: rec.pts, hour: c.hour(), season: c.season(), weather: c.weather(), talkedToday: today, rand: this.host.rand });
+  /** A recent deed of the player this villager has not mentioned yet. */
+  private deedFor(p: PlayerRef, r: Runner, rec: FriendRec): { kind: DeedKind; what: string; key: string } | null {
+    const v = voiceOf(r.def.id);
+    if (!v) return null;
+    const today = this.host.clock.day();
+    let best: { kind: DeedKind; what: string; key: string; day: number } | null = null;
+    for (const [k, d] of Object.entries(p.data.deeds ?? {}) as Array<[DeedKind, { day: number; what: string }]>) {
+      const key = `${k}:${d.day}`;
+      if (!d || d.day < today - 1 || rec.noted?.includes(key) || !v.deeds[k]?.length) continue;
+      if (!best || d.day > best.day) best = { kind: k, what: d.what, key, day: d.day };
+    }
+    return best;
   }
 
-  talk(p: PlayerRef, npcId: string): DialogueMsg | null {
+  private scriptedLine(p: PlayerRef, r: Runner, rec: FriendRec, first: boolean): string {
+    const c = this.host.clock;
+    const doing = scheduleAt(r.def, c.hour(), c.weather()).doing;
+    const deed = this.deedFor(p, r, rec);
+    const out = composeTalk(r.def, {
+      pts: rec.pts, hour: c.hour(), season: c.season(), weather: c.weather(), first, atWork: isWorking(doing), rand: this.host.rand,
+      deed, lastGift: rec.lastGift ? ITEMS[rec.lastGift]?.name.toLowerCase() ?? null : null, outfit: p.data.equip?.outfit,
+    });
+    if (out.usedDeed && deed) rec.noted = [...(rec.noted ?? []), deed.key].slice(-6);
+    return out.text;
+  }
+
+  talk(p: PlayerRef, npcId: string, topic?: string): DialogueMsg | null {
     const r = this.runnerFor(p, npcId);
     if (!r) return null;
     const day = this.host.clock.day();
@@ -253,18 +304,122 @@ export class Village implements VillageSystem {
     const first = rec.talked !== day;
     if (first) { rec.pts += TALK_POINTS; rec.talked = day; p.dirty('friends'); }
     this.freeze(r, p);
-    let text = this.scriptedLine(r, rec, !first);
-    // memory: sometimes remember what the player gave us
-    if (rec.lastGift && ITEMS[rec.lastGift] && this.host.rand() < 0.35) {
-      text = `Thanks again for the ${ITEMS[rec.lastGift]!.name.toLowerCase()}! ${text}`;
+    p.data.quests ??= {};
+    questEvent(p, { type: 'talk', target: npcId, n: 1 }, this.host.seed);
+    syncQuests(p, this.host.seed);
+    const v = voiceOf(npcId);
+    const t = typeof topic === 'string' ? topic.slice(0, 48) : '';
+    const rand = this.host.rand;
+
+    if (t === 'bye') return this.message(p, r, rec, v ? pickOne(v.bye, rand) : 'Goodbye.', { end: true, choices: [] });
+    if (t === 'ask' || t.startsWith('ask:')) return this.ask(p, r, rec, t.slice(4));
+    if (t.startsWith('quest:')) return this.questTopic(p, r, rec, t.slice(6));
+    if (t.startsWith('event:')) return this.eventChoice(p, r, rec, t);
+    if (t === 'back') return this.message(p, r, rec, v ? pickOne(v.again, rand) : 'Anything else?');
+
+    // a heart event the player has earned takes over the conversation
+    const ev = pendingEvent(npcId, rec.pts, p.data.events ?? []);
+    if (ev) {
+      const idx = Number(ev.id.split(':')[1]);
+      return this.message(p, r, rec, ev.ev.pages[0]!, {
+        event: `${'♥'.repeat(Math.min(3, Math.ceil(ev.ev.hearts / 3)))} ${ev.ev.title}`, pages: ev.ev.pages.slice(1), mood: 'surprised',
+        choices: ev.ev.choices.map((c, i) => ({ id: `event:${idx}:${i}`, text: c.text, kind: 'event' as const })),
+      });
     }
+
+    let text = this.scriptedLine(p, r, rec, first);
     // rumors: share something heard about someone else
     let rumor: string | undefined;
-    if (this.host.rand() < 0.25) {
+    if (rand() < 0.25) {
       const mine = this.rumors.heardBy(npcId).filter((x) => x.who !== p.name);
-      if (mine.length) { rumor = mine[Math.floor(this.host.rand() * mine.length)]!.text; text += ` I heard that ${rumor.charAt(0).toLowerCase()}${rumor.slice(1)}`; }
+      if (mine.length) {
+        rumor = mine[Math.floor(rand() * mine.length)]!.text;
+        text += ' ' + (v ? fill(pickOne(v.rumorIn, rand), { rumor }) : `I heard that ${rumor.charAt(0).toLowerCase()}${rumor.slice(1)}`);
+      }
     }
     return this.message(p, r, rec, text, rumor ? { rumor } : {});
+  }
+
+  private ask(p: PlayerRef, r: Runner, rec: FriendRec, what: string): DialogueMsg {
+    const v = voiceOf(r.def.id);
+    const rand = this.host.rand;
+    const menu: DialogueChoice[] = [
+      { id: 'ask:about', text: 'Tell me about yourself.', kind: 'ask' },
+      { id: 'ask:town', text: 'What\'s Hadamere like?', kind: 'ask' },
+      { id: 'ask:qubitman', text: 'Who is QubitMan?', kind: 'ask' },
+      { id: 'ask:rumor', text: 'Heard any rumors?', kind: 'ask' },
+      { id: 'back', text: 'That\'s all.', kind: 'back' },
+    ].filter((c) => c.id !== `ask:${what}`) as DialogueChoice[];
+    let text = v ? pickOne(v.again, rand) : 'What would you like to know?';
+    if (v) {
+      if (what === 'about') text = v.about[tierOf(rec.pts)];
+      else if (what === 'town') text = v.town;
+      else if (what === 'qubitman') text = pickOne(v.qubitman, rand);
+      else if (what === 'rumor') {
+        const mine = this.rumors.heardBy(r.def.id).filter((x) => x.who !== p.name);
+        text = mine.length ? fill(pickOne(v.rumorIn, rand), { rumor: mine[Math.floor(rand() * mine.length)]!.text }) : v.noRumor;
+      }
+    }
+    if (what === 'about' && tierOf(rec.pts) < 2) text += tierOf(rec.pts) === 0 ? '\n\n(Become better friends to learn more.)' : '\n\n(There is more to their story. Keep being a friend.)';
+    return this.message(p, r, rec, text, { choices: menu });
+  }
+
+  private questTopic(p: PlayerRef, r: Runner, rec: FriendRec, id: string): DialogueMsg {
+    const d = questDef(id, this.host.seed);
+    const v = voiceOf(r.def.id);
+    const back: DialogueChoice = { id: 'back', text: 'Maybe later.', kind: 'back' };
+    if (!d || d.giver !== r.def.id) return this.message(p, r, rec, v ? pickOne(v.again, this.host.rand) : '…');
+    const st = p.data.quests[id];
+    const list = (prog: number[]) => d.objectives.map((o, i) => `• ${objectiveText(o, prog[i] ?? 0)}`).join('\n');
+    if (!st) {
+      if (!offerable(r.def.id, p.data.quests).some((x) => x.id === id)) return this.message(p, r, rec, 'Not yet. Come back later.');
+      const reward = `Reward: ${d.rewards.coins} coins${(d.rewards.items ?? []).map((s) => `, ${s.n} ${ITEMS[s.id]?.name}`).join('')}${d.rewards.recipe ? ', a recipe' : ''}`;
+      return this.message(p, r, rec, d.lines.offer || d.summary, { pages: [`${list([])}\n\n${reward}`], choices: [{ id: `accept:${id}`, text: 'I\'ll do it!', kind: 'accept' }, back] });
+    }
+    if (st.state === 'done') return this.message(p, r, rec, v ? pickOne(v.thanks, this.host.rand) : 'Thanks again!');
+    if (questComplete(d, st)) return this.message(p, r, rec, `${list(st.progress)}\n\nAll done! Ready to hand it over?`, { choices: [{ id: `turnin:${id}`, text: 'Here you go.', kind: 'turnin' }, back] });
+    return this.message(p, r, rec, `${d.lines.progress || d.summary}\n\n${list(st.progress)}`, { choices: [{ id: 'back', text: 'I\'m on it.', kind: 'back' }] });
+  }
+
+  private eventChoice(p: PlayerRef, r: Runner, rec: FriendRec, topic: string): DialogueMsg {
+    const [, a, b] = topic.split(':');
+    const idx = Number(a), ci = Number(b);
+    const ev = pendingEvent(r.def.id, rec.pts, p.data.events ?? []);
+    if (!ev || Number(ev.id.split(':')[1]) !== idx) return this.message(p, r, rec, voiceOf(r.def.id) ? pickOne(voiceOf(r.def.id)!.again, this.host.rand) : '…');
+    const c = ev.ev.choices[ci];
+    if (!c) return this.message(p, r, rec, '…');
+    (p.data.events ??= []).push(ev.id);
+    rec.pts = Math.min(400, rec.pts + c.pts);
+    p.dirty('friends', 'quests');
+    return this.message(p, r, rec, c.reply, { mood: 'happy', gift: undefined });
+  }
+
+  /** QUEST with a villager: accept an offer or hand in a finished job. */
+  quest(p: PlayerRef, msg: QuestMsg): DialogueMsg | null {
+    if (!msg || typeof msg.npcId !== 'string' || typeof msg.quest !== 'string') return null;
+    const r = this.runnerFor(p, msg.npcId);
+    if (!r) return null;
+    const rec = this.friend(p, msg.npcId);
+    const v = voiceOf(msg.npcId);
+    const rand = this.host.rand;
+    p.data.quests ??= {};
+    this.freeze(r, p);
+    const d = questDef(msg.quest, this.host.seed);
+    if (!d || d.giver !== msg.npcId) return this.message(p, r, rec, 'I don\'t know anything about that.');
+    const today = this.host.clock.day();
+    if (msg.action === 'accept') {
+      if (d.daily) return this.message(p, r, rec, 'Take it from the request board in the plaza, would you? Orla likes things done properly.');
+      const res = acceptQuest(p, msg.quest, today, this.host.seed);
+      if (!res.ok) return this.message(p, r, rec, res.text);
+      const st = p.data.quests[msg.quest]!;
+      return this.message(p, r, rec, `${v ? pickOne(v.accept, rand) : 'Thank you!'}\n\n${d.objectives.map((o, i) => `• ${objectiveText(o, st.progress[i] ?? 0)}`).join('\n')}`, { mood: 'happy' });
+    }
+    if (msg.action === 'turnin') {
+      const res = turnInQuest(p, msg.quest, this.host.seed, today);
+      if (!res.ok) return this.message(p, r, rec, res.text);
+      return this.message(p, r, rec, `${d.lines.done || (v ? pickOne(v.thanks, rand) : 'Thank you!')}\n\n(Received: ${res.text})`, { mood: 'happy' });
+    }
+    return null;
   }
 
   gift(p: PlayerRef, npcId: string, slot: number): DialogueMsg | null {
@@ -273,20 +428,25 @@ export class Village implements VillageSystem {
     const day = this.host.clock.day();
     const rec = this.friend(p, npcId);
     const stack = Number.isInteger(slot) ? p.data.inv[slot] : null;
-    if (!stack) { p.toast('Nothing to give.', 'bad'); return this.message(p, r, rec, this.scriptedLine(r, rec, true), { gift: { taste: 'neutral', delta: 0 } }); }
+    if (!stack) { p.toast('Nothing to give.', 'bad'); return this.message(p, r, rec, this.scriptedLine(p, r, rec, false), { gift: { taste: 'neutral', delta: 0 } }); }
     this.freeze(r, p);
     if (rec.gifted === day) return this.message(p, r, rec, pickOne(r.def.lines.gift.again, this.host.rand), { gift: { taste: 'neutral', delta: 0 } });
     const taste = giftTaste(r.def, stack.id);
     const delta = GIFT_POINTS[taste];
+    const itemName = ITEMS[stack.id]?.name ?? stack.id;
     stack.n -= 1;
     if (stack.n <= 0) p.data.inv[slot] = null;
-    rec.pts = Math.max(0, rec.pts + delta);
+    rec.pts = Math.max(0, Math.min(400, rec.pts + delta));
     rec.gifted = day;
     rec.lastGift = stack.id;
     p.dirty('inv', 'friends');
-    if (taste === 'love') this.rumor('gift_love', p.name, r.def.name);
-    const text = pickOne(r.def.lines.gift[taste], this.host.rand);
-    return this.message(p, r, rec, text, { gift: { taste, delta } });
+    p.data.quests ??= {};
+    questEvent(p, { type: 'gift', target: npcId, n: 1 }, this.host.seed);
+    syncQuests(p, this.host.seed);
+    if (taste === 'love') { this.rumor('gift_love', p.name, r.def.name); p.data.deeds.gift_love = { day, what: r.def.name.split(' ')[0]! }; }
+    const pool = [...r.def.lines.gift[taste], ...(GIFT_EXTRA[npcId]?.[taste] ?? []).map((t) => fill(t, { item: itemName.toLowerCase() }))];
+    const text = pickOne(pool, this.host.rand);
+    return this.message(p, r, rec, text, { gift: { taste, delta }, mood: taste === 'love' || taste === 'like' ? 'happy' : taste === 'hate' ? 'sad' : 'neutral' });
   }
 
   async chat(p: PlayerRef, msg: DialogueChatMsg): Promise<DialogueMsg | null> {
@@ -301,7 +461,7 @@ export class Village implements VillageSystem {
       doing: scheduleAt(r.def, c.hour(), c.weather()).doing,
     });
     // any failure (disabled, rate limited, timeout, bad output) falls back to the scripted line
-    return this.message(p, r, rec, ai ?? this.scriptedLine(r, rec, true));
+    return this.message(p, r, rec, ai ?? this.scriptedLine(p, r, rec, false));
   }
 
   // ───────────────────────── shops ─────────────────────────
@@ -338,10 +498,11 @@ export class Village implements VillageSystem {
       if (!recipe || recipe.learn !== `npc:${def.id}`) p.toast('They cannot teach that.', 'bad');
       else if (hearts(rec.pts) < 4) p.toast(`${def.name} will teach you once you are better friends (4 hearts).`, 'bad');
       else if (p.data.recipes.has(recipe.id)) p.toast('You already know that.', 'info');
-      else { p.data.recipes.add(recipe.id); p.dirty('recipes'); p.toast(`${def.name} taught you a recipe!`, 'good'); }
+      else { p.data.recipes.add(recipe.id); p.dirty('recipes'); p.toast(`${def.name} taught you a recipe: ${ITEMS[recipe.out.id]?.name ?? recipe.id}!`, 'good'); }
       return this.view(p, def);
     }
     if (!def.shop) return null;
+    if (!shopOpen(def, this.host.clock.hour())) { p.toast(voiceOf(def.id)?.closed ?? 'The shop is closed.', 'info'); return null; }
     if (msg.action === 'open') { this.freeze(r, p); return this.view(p, def); }
     const n = msg.n === undefined ? 1 : msg.n;
     if (!Number.isInteger(n) || n < 1 || n > 99) return this.view(p, def);
@@ -357,6 +518,7 @@ export class Village implements VillageSystem {
       p.data.coins -= cost;
       p.dirty('inv', 'coins');
       p.toast(`Bought ${n} ${ITEMS[entry.item]!.name} for ${cost}.`, 'good', stack);
+      if (p.data.quests) syncQuests(p, this.host.seed);
       return this.view(p, def);
     }
     if (msg.action === 'sell') {
@@ -373,15 +535,19 @@ export class Village implements VillageSystem {
       this.marketDirty = true;
       p.dirty('inv', 'coins');
       p.toast(`Sold ${n} ${ITEMS[id]!.name} for ${total}.`, 'good');
+      if (p.data.quests) {
+        questEvent(p, { type: 'sell', target: id, n }, this.host.seed);
+        syncQuests(p, this.host.seed);
+        if (p.data.deeds) p.data.deeds.sell = { day: this.host.clock.day(), what: ITEMS[id]!.name };
+      }
       return this.view(p, def);
     }
     return this.view(p, def);
   }
 }
 
-const pickOne = (a: string[], rand: () => number): string => a[Math.floor(rand() * a.length)]!;
+const pickOne = (a: readonly string[], rand: () => number): string => a[Math.floor(rand() * a.length)]!;
 
 export function createVillage(host: VillageHost, opts?: VillageOptions): Village {
   return new Village(host, opts);
 }
-

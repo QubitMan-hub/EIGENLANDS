@@ -3,10 +3,16 @@
  * `PlayerRef` is the only way systems touch a connected player; `VillageSystem` is what the room calls for NPCs.
  */
 import type {
-  ChunkStore, DialogueChatMsg, DialogueMsg, Inventory, NpcState, ShopMsg, ShopViewMsg, SkillXp, Stack, Weather, WorldState,
+  ChunkStore, DeedKind, DialogueChatMsg, DialogueMsg, Inventory, NpcState, QuestLog, QuestMsg, ShopMsg, ShopViewMsg, SkillXp, Stack, Weather, WorldState,
 } from '@eigenlands/shared';
 
-export interface FriendRec { pts: number; talked: number; gifted: number; /** last item id gifted to this NPC (NPC memory) */ lastGift?: string }
+export interface FriendRec {
+  pts: number; talked: number; gifted: number;
+  /** last item id gifted to this NPC (NPC memory) */
+  lastGift?: string;
+  /** deeds this NPC already commented on ("kind:day") */
+  noted?: string[];
+}
 export interface Buff { until: number; power: number }
 
 /** Persisted, private per-character data (characters.data JSONB). */
@@ -18,9 +24,15 @@ export interface PlayerData {
   equip: { ring1: Stack | null; ring2: Stack | null; outfit: number };
   friends: Record<string, FriendRec>;
   buffs: Record<string, Buff>;
+  /** quest log (story quests + request-board jobs) */
+  quests: QuestLog;
+  /** recent notable deeds, for NPC memory */
+  deeds: Partial<Record<DeedKind, { day: number; what: string }>>;
+  /** heart events already seen ("npc:index") */
+  events: string[];
 }
 
-export type DirtyPart = 'inv' | 'coins' | 'skills' | 'recipes' | 'equip' | 'friends' | 'buffs' | 'stats';
+export type DirtyPart = 'inv' | 'coins' | 'skills' | 'recipes' | 'equip' | 'friends' | 'buffs' | 'stats' | 'quests';
 
 export interface PlayerRef {
   /** colyseus session id */
@@ -66,10 +78,13 @@ export interface VillageSystem {
   tick(tick: number): void;
   /** world day rolled over */
   onNewDay(day: number): void;
-  talk(p: PlayerRef, npcId: string): DialogueMsg | null;
+  /** `topic` picks a dialogue branch (see TalkMsg) */
+  talk(p: PlayerRef, npcId: string, topic?: string): DialogueMsg | null;
   gift(p: PlayerRef, npcId: string, slot: number): DialogueMsg | null;
   shop(p: PlayerRef, msg: ShopMsg): ShopViewMsg | null;
   chat(p: PlayerRef, msg: DialogueChatMsg): Promise<DialogueMsg | null>;
+  /** accept / turn in a quest with this villager (optional: shards without the town have no village) */
+  quest?(p: PlayerRef, msg: QuestMsg): DialogueMsg | null;
   /** record a notable player deed so NPCs can gossip about it */
   rumor(kind: string, who: string, what?: string): void;
   /** NPC positions for interest management / tests */

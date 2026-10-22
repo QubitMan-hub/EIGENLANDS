@@ -27,6 +27,7 @@ import { ObjectManager } from '../systems/objects';
 import { loadPlayerData, serializePlayerData } from '../systems/profile';
 import { handleUse } from '../systems/tools';
 import { handleDev } from '../systems/dev';
+import { onKill, registerQuests } from '../systems/quests';
 import type { PlayerRef, VillageHost, VillageSystem } from '../systems/types';
 import { createVillage } from '../systems/village';
 import { ServerPlayer } from './player';
@@ -129,7 +130,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     on<ShelterMsg>(MSG.SHELTER, 'openBucket', (p, m) => handleShelter(this, p, m));
     on<TalkMsg>(MSG.TALK, 'socialBucket', (p, m) => {
       if (!this.npcNear(p, m?.npcId)) return;
-      const d = this.village.talk(p, m.npcId);
+      const d = this.village.talk(p, m.npcId, typeof m.topic === 'string' ? m.topic : undefined);
       if (d) p.client.send(MSG.DIALOGUE, d);
     });
     on<GiftMsg>(MSG.GIFT, 'socialBucket', (p, m) => {
@@ -142,6 +143,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       const v = this.village.shop(p, m);
       if (v) p.client.send(MSG.SHOP_VIEW, v);
     });
+    registerQuests(this, on);
     on<DialogueChatMsg>(MSG.DIALOGUE_CHAT, 'socialBucket', async (p, m) => {
       if (!this.npcNear(p, m?.npcId)) return;
       const d = await this.village.chat(p, m);
@@ -573,6 +575,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
         if (!giveStacks(killer, [stack])) killer.toast('Your pack is full.', 'bad');
       }
       if (e.def.passive) addSkillXp(killer, 'foraging', e.def.xp);
+      onKill(killer, e.def, this.wclock.day()); // Phase 2 quests: kill objectives
     }
     this.hookKilled(e, killer);
   }

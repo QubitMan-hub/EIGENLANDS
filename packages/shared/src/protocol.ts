@@ -90,6 +90,8 @@ export interface ProfileMsg {
   friends?: Record<string, { pts: number; talked: number; gifted: number }>;
   /** quest log: state + per-objective progress */
   quests?: QuestLog;
+  /** heart events seen ("npc:index"), sent with quests */
+  events?: string[];
   /** derived stats from equipment/buffs */
   stats?: { hpBonus: number; atkBonus: number; luck: number; haste: number };
   /** selected quick-bar slot is client-side; this is the server's last accepted USE slot (diagnostics) */

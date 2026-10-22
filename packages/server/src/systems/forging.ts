@@ -9,6 +9,7 @@ import { stationNear } from './crafting';
 import { cloneInv, validSlot, addSkillXp } from './helpers';
 import { addStack, countItem, removeItem } from '@eigenlands/shared';
 import { finishFish } from './fishing';
+import { questEvent, recordDeed, syncQuests } from './quests';
 
 let seq = 0;
 
@@ -74,6 +75,9 @@ function finishForge(room: RoomApi, p: ServerPlayer, msg: RhythmDoneMsg): void {
   p.dirty('inv');
   addSkillXp(p, 'crafting', Math.round(10 + 15 * accuracy));
   if (qualityName(accuracy) === 'Perfect') room.village.rumor('perfect_forge', p.name, s.template!);
+  questEvent(p, { type: 'forge', target: res.item.id, n: 1 });
+  recordDeed(p, qualityName(accuracy) === 'Perfect' ? 'perfect_forge' : 'forge', s.template!, room.wclock.day());
+  syncQuests(p);
   room.fx({ kind: 'craft', x: p.sim.x, y: p.sim.y, id: p.id });
   p.client.send(MSG.RHYTHM_RESULT, { id: s.id, kind: 'forge', accuracy, ok: true, text: `${res.qname} ${s.template}! ${res.note}`, item });
 }
