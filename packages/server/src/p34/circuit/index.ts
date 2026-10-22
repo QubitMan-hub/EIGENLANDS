@@ -7,8 +7,8 @@
 import {
   ABILITIES, ACTIVE_LINES, ATTUNE_COOLDOWN_MS, CLASSES, GATES, GATE_IDS, LINK_POWER, LOCK_POWER, LOCK_POWER_COLLAPSE,
   MSG34, MULTICLASS_LEVEL, PLAYABLE_CLASSES, RESOURCE_MAX, RUNE_PRICE, SPEC_LEVEL, TUTORIAL, TUTORIAL_DONE,
-  TUTORIAL_REWARD, attuneLocks, castLines, checkBoard, evaluate, isClassId, isCodexId, lineErrors, placedGates,
-  qubitsForLevel, rewardsForLevel, validBoard,
+  TUTORIAL_REWARD, attuneLocks, castLines, checkBoard, evaluate, lineErrors, placedGates,
+  qubitsForLevel, rewardsForLevel,
   type AbilityId, type AttuneMsg, type CastLineResult, type CastMsg, type CastResultMsg, type ChooseMsg, type ClassId,
   type Evaluation, type GateId, type ProgressMsg, type ResourceMsg, type TutorialGoal, type TutorialMsg, type UltMsg,
 } from '@eigenlands/shared';
@@ -21,7 +21,7 @@ import { runtime34 } from '../runtime34';
 import type { Carry, CircuitApi, Module, Registrar } from '../types';
 import { AbilityEngine, type Kit } from './engine';
 import {
-  MAX_GATE_TOKENS, MAX_RUNES, placeAbilities, rulesFor, serializeProgress, validProgress, type Progress,
+  MAX_GATE_TOKENS, MAX_RUNES, cleanBoard, isAbility, isClass, isCodex, placeAbilities, rulesFor, serializeProgress, validProgress, type Progress,
 } from './progress';
 
 export { AbilityEngine } from './engine';
@@ -134,7 +134,7 @@ export class CircuitModule implements Module, CircuitApi {
     if (raw !== null && !failed && !reroll) s.saved = JSON.stringify(serializeProgress(pr));
     const now = Date.now();
     if (carry?.cd) {
-      for (const [k, ms] of Object.entries(carry.cd)) if (k === 'ult' || k in ABILITIES) s.cd.set(k as AbilityId | 'ult', now + ms);
+      for (const [k, ms] of Object.entries(carry.cd)) if (k === 'ult' || isAbility(k)) s.cd.set(k as AbilityId | 'ult', now + ms);
     }
     if (pr.cls !== 'wanderer' && typeof carry?.res === 'number') s.res = Math.max(0, Math.min(RESOURCE_MAX, carry.res));
     this.states.set(p.id, s);
@@ -220,7 +220,7 @@ export class CircuitModule implements Module, CircuitApi {
     if (!s || !m.board || typeof m.board !== 'object') return;
     const now = Date.now();
     if (now < s.attuneReady) { p.toast('Your Board is still settling. Try again in a moment.', 'bad'); return; }
-    const board = validBoard(m.board);
+    const board = cleanBoard(m.board);
     const err = checkBoard(board, rulesFor(s.pr, p.level));
     if (err) { p.toast(err, 'bad'); return; }
     s.pr.board = board;
@@ -305,7 +305,7 @@ export class CircuitModule implements Module, CircuitApi {
     if (!s) return;
     const pr = s.pr;
     if (m.what === 'class') {
-      if (!isClassId(m.cls) || !PLAYABLE_CLASSES.includes(m.cls)) return;
+      if (!isClass(m.cls) || !PLAYABLE_CLASSES.includes(m.cls)) return;
       const viaTutorial = this.goal(s)?.kind === 'choose_class';
       if (pr.cls !== 'wanderer' && !viaTutorial) { p.toast('Your path is already chosen.', 'bad'); return; }
       if (m.cls === pr.second) { p.toast('That is already your second class.', 'bad'); return; }
@@ -323,7 +323,7 @@ export class CircuitModule implements Module, CircuitApi {
       p.toast(`Specialization: ${spec.name}.`, 'good');
       this.sendProgress(s, ['spec']);
     } else if (m.what === 'second') {
-      if (!isClassId(m.cls) || !PLAYABLE_CLASSES.includes(m.cls)) return;
+      if (!isClass(m.cls) || !PLAYABLE_CLASSES.includes(m.cls)) return;
       if (pr.cls === 'wanderer') { p.toast('Choose a class first.', 'bad'); return; }
       if (p.level < MULTICLASS_LEVEL) { p.toast(`A second class opens at level ${MULTICLASS_LEVEL}.`, 'bad'); return; }
       if (pr.second) { p.toast('You already have a second class.', 'bad'); return; }
@@ -387,7 +387,7 @@ export class CircuitModule implements Module, CircuitApi {
         this.sendProgress(s, ['gates', 'runes']);
         break;
       case 'class':
-        if (!isClassId(m.cls)) return;
+        if (!isClass(m.cls)) return;
         this.setClass(s, m.cls);
         this.sendProgress(s, ['cls', 'spec', 'second', 'board', 'locks']);
         break;
@@ -540,7 +540,7 @@ export class CircuitModule implements Module, CircuitApi {
 
   private unlock(s: CircuitState, ids: string[]): boolean {
     let changed = false;
-    for (const id of ids) if (isCodexId(id) && !s.pr.codex.includes(id)) { s.pr.codex.push(id); changed = true; }
+    for (const id of ids) if (isCodex(id) && !s.pr.codex.includes(id)) { s.pr.codex.push(id); changed = true; }
     return changed;
   }
 

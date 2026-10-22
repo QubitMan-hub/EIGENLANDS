@@ -4,10 +4,26 @@
  */
 import {
   ABILITIES, CLASSES, GATE_IDS, MAX_QUBITS, PLAYABLE_CLASSES, TUTORIAL, TUTORIAL_DONE,
-  allowedAbilities, checkBoard, compile, emptyBoard, emptyGateCounts, isClassId, isCodexId, lockKey, qubitsForLevel,
+  CODEX_BY_ID, GATES, allowedAbilities, checkBoard, compile, emptyBoard, emptyGateCounts, lockKey, qubitsForLevel,
   validBoard, validLocks,
-  type AbilityId, type Board, type BoardRules, type ClassId, type GateCounts, type Locks, type TutorialProgress,
+  type AbilityId, type Board, type BoardRules, type ClassId, type GateCounts, type GateId, type Locks, type TutorialProgress,
 } from '@eigenlands/shared';
+
+// The shared `isClassId` / `isGateId` / `isAbilityId` / `isCodexId` use `in`, which also accepts prototype keys such as
+// "toString" or "constructor". Client and stored input is checked with own-property tests instead.
+const own = (o: object, v: unknown): v is string => typeof v === 'string' && Object.prototype.hasOwnProperty.call(o, v);
+export const isClass = (v: unknown): v is ClassId => own(CLASSES, v);
+export const isAbility = (v: unknown): v is AbilityId => own(ABILITIES, v);
+export const isGate = (v: unknown): v is GateId => own(GATES, v);
+export const isCodex = (v: unknown): v is string => own(CODEX_BY_ID, v);
+
+/** `validBoard` plus own-property checks on gate and ability ids. */
+export function cleanBoard(raw: unknown): Board {
+  const b = validBoard(raw);
+  for (const line of b.lines) for (let c = 0; c < line.length; c++) if (line[c] && !isGate(line[c]!.g)) line[c] = null;
+  for (let q = 0; q < b.abilities.length; q++) if (b.abilities[q] && !isAbility(b.abilities[q])) b.abilities[q] = null;
+  return b;
+}
 
 /** Most gate tokens of one kind a character may hold (a sanity cap for stored data). */
 export const MAX_GATE_TOKENS = 999;
@@ -104,15 +120,15 @@ export function validProgress(raw: unknown, level: number): { pr: Progress; rero
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { pr, reroll: false };
   const r = raw as Record<string, unknown>;
 
-  if (isClassId(r.cls)) pr.cls = r.cls;
+  if (isClass(r.cls)) pr.cls = r.cls;
   if (pr.cls !== 'wanderer' && typeof r.spec === 'string' && CLASSES[pr.cls].specs.some((s) => s.id === r.spec)) pr.spec = r.spec;
-  if (pr.cls !== 'wanderer' && isClassId(r.second) && PLAYABLE_CLASSES.includes(r.second) && r.second !== pr.cls) pr.second = r.second;
+  if (pr.cls !== 'wanderer' && isClass(r.second) && PLAYABLE_CLASSES.includes(r.second) && r.second !== pr.cls) pr.second = r.second;
 
   const g = (r.gates && typeof r.gates === 'object' ? r.gates : {}) as Record<string, unknown>;
   for (const id of GATE_IDS) pr.gates[id] = int(g[id], 0, MAX_GATE_TOKENS, 0);
   pr.runes = int(r.runes, 0, MAX_RUNES, 0);
 
-  if (Array.isArray(r.codex)) pr.codex = [...new Set(r.codex.filter(isCodexId))];
+  if (Array.isArray(r.codex)) pr.codex = [...new Set(r.codex.filter(isCodex))];
 
   const t = (r.tutorial && typeof r.tutorial === 'object' ? r.tutorial : {}) as Record<string, unknown>;
   pr.tutorial = { step: int(t.step, 0, TUTORIAL_DONE, 0), count: int(t.count, 0, 1000, 0), skipped: t.skipped === true };
@@ -122,8 +138,10 @@ export function validProgress(raw: unknown, level: number): { pr: Progress; rero
   pr.qubitBonus = int(r.qubitBonus, 0, 1, 0);
 
   const n = qubitsForLevel(level, pr.qubitBonus);
-  const board = validBoard(r.board);
+  const board = cleanBoard(r.board);
   pr.board = board;
+  // an orb set with no ability at all (a lost or blank row) gets the class's abilities back
+  if (!board.abilities.slice(0, n).some(Boolean)) placeAbilities(pr, n);
   if (checkBoard(board, rulesFor(pr, level))) {
     pr.board = emptyBoard();
     pr.locks = {};
@@ -143,9 +161,4 @@ export function serializeProgress(pr: Progress): Record<string, unknown> {
     codex: pr.codex, tutorial: pr.tutorial, tutGranted: pr.tutGranted, tutRewarded: pr.tutRewarded,
     rewardedLevel: pr.rewardedLevel, qubitBonus: pr.qubitBonus,
   };
-}
-
-/** Abilities currently slotted on unlocked orbs. */
-export function slotted(pr: Progress, qubits: number): AbilityId[] {
-  return pr.board.abilities.slice(0, qubits).filter((a): a is AbilityId => !!a && a in ABILITIES);
 }
