@@ -61,7 +61,7 @@ if (mode === 'icons') {
     }
   }
   (window as unknown as { __lab: unknown }).__lab = { ready: true };
-} else if (mode === 'objects' || mode === 'actors') {
+} else if (mode === 'objects' || mode === 'actors' || mode === 'person') {
   const bg = new Graphics().rect(0, 0, 4000, 4000).fill(0x3b6a3a);
   const root = new Container();
   app.stage.addChild(bg, root);
@@ -70,7 +70,15 @@ if (mode === 'icons') {
   root.scale.set(SC);
   root.y = -num('shift', 0) * SC;
   const place = (tex: Sprite['texture'], ax: number, ay: number, x: number, y: number) => { const s = new Sprite(tex); s.anchor.set(ax / tex.width, ay / tex.height); s.x = x; s.y = y; root.addChild(s); return s; };
-  if (mode === 'objects') {
+  if (mode === 'person') {
+    const sheets = buildActorSheets();
+    label('8 directions (idle) for 4 looks, then a walk cycle facing down / right / up-left', 4, 2);
+    for (let o = 0; o < Math.min(4, OUTFITS.length); o++) {
+      for (let d = 0; d < 8; d++) place(sheets.person(o, d, 0), 12, 31, 14 + d * 26, 46 + o * 38);
+    }
+    for (const [row, d] of [[0, 0], [1, 3], [2, 6]] as const) for (let f = 1; f < WALK_FRAMES; f++) place(sheets.person(0, d, f), 12, 31, 14 + (f - 1) * 26, 214 + row * 38);
+    for (let n = 0; n < 6; n++) place(sheets.npc(NPCS[n]!.id, 0, 0), 12, 31, 240 + n * 26, 46 + 38 * 4 + 0);
+  } else if (mode === 'objects') {
     const art = buildObjectArt(season);
     let y = 8;
     label(`tile objects (season ${season})`, 4, y); y += 14;
