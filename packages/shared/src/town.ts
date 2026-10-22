@@ -151,7 +151,7 @@ export function townFor(seed: number): Town {
   }
 
   // 6. lamps along the streets and a few decorative trees
-  const lamp = (x: number, y: number) => { if (!t.buildings.some((b) => Math.abs(b.doorX - x) <= 1 && y > b.doorY && y <= b.doorY + 8)) obj(x, y, 'furniture', 'lamp'); };
+  const lamp = (x: number, y: number) => { if (t.objects.some((o) => o.x === x && o.y === y)) return; if (!t.buildings.some((b) => Math.abs(b.doorX - x) <= 1 && y > b.doorY && y <= b.doorY + 8)) obj(x, y, 'furniture', 'lamp'); };
   for (let x = cx - 36; x <= cx + 36; x += 8) { lamp(x, cy - 9); lamp(x + 4, cy + 4); lamp(x + 2, cy - 19); }
   dress(t, seed, get, set, obj, spot);
   for (let y = y0; y <= t.y1; y++) for (let x = x0; x <= t.x1; x++) {
@@ -243,7 +243,7 @@ function furnish(b: Building, rawObj: ObjAdd, spot: SpotAdd): void {
       spot('inn.work', ix + 2, iy + 1); spot('inn.table', ix + 5, iy + 2); break;
     case 'hall':
       obj(ix + Math.floor(iw / 2), iy, 'deco', 'desk'); table(ix + 2, iy + 3); table(ix + iw - 3, iy + 3);
-      for (let i = 1; i < iw; i += 3) obj(ix + i, iy, 'deco', 'shelf');
+      for (let i = 1; i < iw; i += 3) if (i !== Math.floor(iw / 2)) obj(ix + i, iy, 'deco', 'shelf');
       spot('hall.work', ix + Math.floor(iw / 2), iy + 1); break;
     case 'farmhouse':
       bed(); table(ix + iw - 3, iy + 2); obj(ix + iw - 1, iy, 'deco', 'shelf');
@@ -254,7 +254,7 @@ function furnish(b: Building, rawObj: ObjAdd, spot: SpotAdd): void {
       if (b.id === 'tailor') obj(ix + iw - 1, iy + 1, 'station', 'loom');
       if (b.id === 'carpenter') obj(ix + iw - 1, iy + 1, 'station', 'carpenter');
       if (b.id === 'bakery') { obj(ix + iw - 1, iy + 1, 'station', 'cooking_pot'); obj(ix, iy + 1, 'deco', 'counter'); obj(ix + 1, iy + 1, 'deco', 'counter'); }
-      if (b.id === 'library') for (let i = 0; i < iw; i += 2) obj(ix + i, iy, 'deco', 'shelf');
+      if (b.id === 'library') for (let i = 1; i < iw - 1; i += 2) obj(ix + i, iy, 'deco', 'shelf');
       spot(`${b.id}.work`, ix + 1, iy + 2);
     }
   }

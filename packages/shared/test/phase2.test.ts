@@ -376,3 +376,17 @@ describe('dialogue', () => {
     expect(shopOpen(NPC_BY_ID.orla!, 3)).toBe(true);
   });
 });
+
+describe('town objects never share a tile', () => {
+  it('every static object has its own tile, off the buildings and the plaza statue stays the statue', () => {
+    const town = townFor(SEED);
+    const seen = new Map<string, string>();
+    for (const o of town.objects) {
+      const k = `${o.x},${o.y}`;
+      expect(seen.get(k), `${o.sub} overlaps ${seen.get(k)} at ${k}`).toBeUndefined();
+      seen.set(k, o.sub);
+    }
+    const statue = town.objects.find((o) => o.sub === 'statue')!;
+    expect(seen.get(`${statue.x},${statue.y}`)).toBe('statue');
+  });
+});
