@@ -58,6 +58,7 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
     return;
   }
   if ((o.kind === 'chest' || o.kind === 'shelter') && o.owner !== p.accountId) { p.toast("That isn't yours."); return; }
+  if (o.static && (o.sub === 'shrine_altar' || o.sub === 'shrine_pillar')) { room.shrineInteract?.(p, o); return; }
   if (o.static && (o.sub === 'statue' || o.sub === 'plaque')) {
     p.client.send(MSG.PANEL, lorePanel(room, o));
     questEvent(p, { type: 'read', target: 'statue', n: 1 });

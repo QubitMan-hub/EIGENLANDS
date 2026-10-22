@@ -30,6 +30,11 @@ export const MSG34 = {
   // ── Shadow Army: server -> client
   SHADOW_ROSTER: 'sh_roster',    // ShadowRosterMsg
   SHADOW_EV: 'sh_ev',            // ShadowEvent
+  // ── Adventure: server -> client
+  BOSS_EV: 'ad_boss',            // BossEvent
+  SHRINE_EV: 'ad_shrine',        // ShrineEvent
+  // ── Adventure: client -> server
+  SHRINE_HIT: 'ad_shrine_hit',   // { shrine, idx }
   // ── Phase 4: server -> client
   PARTY_STATE: 'p4_party_state', // PartyStateMsg | { id: null }
   PARTY_INVITE: 'p4_party_invite', // PartyInviteMsg

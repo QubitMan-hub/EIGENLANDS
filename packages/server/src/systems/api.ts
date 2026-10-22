@@ -27,4 +27,7 @@ export interface RoomApi {
   scheduleRespawn(x: number, y: number, restoreTile: number, atMs: number): void;
   fx(msg: FxMsg, exceptId?: string): void;
   nearby(x: number, y: number, radius: number): ServerPlayer[];
+  /** call a boss at (x, y); false = refused (the module toasts why) */
+  shrineInteract?(p: ServerPlayer, o: import('@eigenlands/shared').WorldObj): void;
+  summonBoss?(p: ServerPlayer, itemId: string, x: number, y: number): boolean;
 }

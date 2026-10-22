@@ -39,3 +39,5 @@ export * from './schema34';
 export * from './wind';
 export * from './shadows';
 export * from './equipment';
+export * from './bosses';
+export * from './shrines';

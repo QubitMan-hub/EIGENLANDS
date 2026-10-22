@@ -11,7 +11,9 @@ import { runtime34 } from '../features/runtime34';
 import { ShardModule } from '../features/shard';
 import { signTicket, verifyTicket } from '../features/shard/ticket';
 import { nullVillage } from '../features/shard/nullVillage';
+import { BossModule } from '../features/bosses';
 import { ShadowModule } from '../features/shadows';
+import { ShrineModule } from '../features/shrines';
 import { SocialModule } from '../features/social';
 import type { BucketName, Carry, JoinOpts, Module, Registrar } from '../features/types';
 import type { VillageHost, VillageSystem } from '../systems/types';
@@ -41,6 +43,8 @@ export class GameRoom extends WorldRoom {
   circuit!: CircuitModule;
   social!: SocialModule;
   shadows!: ShadowModule;
+  bosses!: BossModule;
+  shrines!: ShrineModule;
   shardMod!: ShardModule;
   private modules: Module[] = [];
   private buckets = new Map<string, Map<BucketName, TokenBucket>>();
@@ -70,7 +74,9 @@ export class GameRoom extends WorldRoom {
     this.circuit = new CircuitModule(this);
     this.social = new SocialModule(this);
     this.shadows = new ShadowModule(this);
-    this.modules = [this.shardMod, this.circuit, this.social, this.shadows];
+    this.bosses = new BossModule(this);
+    this.shrines = new ShrineModule(this);
+    this.modules = [this.shardMod, this.circuit, this.social, this.shadows, this.bosses, this.shrines];
     const reg: Registrar = {
       on: <M>(type: string, bucket: BucketName, fn: (p: ServerPlayer, msg: M) => void | Promise<void>) => {
         this.onMessage(type, (client: Client, msg: M) => {
@@ -232,6 +238,9 @@ export class GameRoom extends WorldRoom {
     eng.weaponShot(p, shot, ax, ay, power);
     return true;
   }
+
+  summonBoss(p: ServerPlayer, itemId: string, x: number, y: number): boolean { return this.bosses?.summon(p, itemId, x, y) ?? false; }
+  shrineInteract(p: ServerPlayer, o: WorldObj): void { this.shrines?.interact(p, o); }
 
   protected hookTargets(): Array<{ id: string; x: number; y: number; alive: boolean }> { return this.shadows?.targets() ?? []; }
   protected hookStrike(e: Enemy, shape: StrikeShape, dmg: number): void { this.shadows?.strikeShadows(e, shape, dmg); }

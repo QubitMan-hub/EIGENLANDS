@@ -1,5 +1,5 @@
 import {
-  FORAGE_BY_SEASON, ITEMS, NODES, T, chunkOf, isSolid, toolDamage, type Stack, type UseMsg, type WorldObj,
+  FORAGE_BY_SEASON, HEARTS_MAX, ITEMS, NODES, T, chunkOf, isSolid, toolDamage, type Stack, type UseMsg, type WorldObj,
 } from '@eigenlands/shared';
 import { tuning } from '../rooms/runtime';
 import type { ServerPlayer } from '../rooms/player';
@@ -25,6 +25,28 @@ export async function handleUse(room: RoomApi, p: ServerPlayer, msg: UseMsg): Pr
   if (!def) return;
   const { tx, ty } = msg;
   const kind = def.kind;
+
+  // special items: Heart Crystals and boss summons
+  if (def.special === 'heart') {
+    p.toolReadyAt = t0 + tuning.toolCooldownMs;
+    if (p.data.prog.hearts >= HEARTS_MAX) { p.toast('You cannot hold any more Heart Crystals.'); return; }
+    const s0 = p.data.inv[msg.slot]!;
+    s0.n--; if (s0.n <= 0) p.data.inv[msg.slot] = null;
+    p.data.prog.hearts++;
+    p.dirty('inv');
+    p.toast(`Your heart grows: +10 maximum health (${p.data.prog.hearts}/${HEARTS_MAX}).`, 'good');
+    room.fx({ kind: 'levelup', x: p.sim.x, y: p.sim.y, v: 0, id: p.id });
+    return;
+  }
+  if (def.special === 'summon') {
+    p.toolReadyAt = t0 + tuning.toolCooldownMs;
+    if (room.summonBoss?.(p, first.id, p.sim.x + p.sim.faceX * 4, p.sim.y + p.sim.faceY * 4)) {
+      const s0 = p.data.inv[msg.slot]!;
+      s0.n--; if (s0.n <= 0) p.data.inv[msg.slot] = null;
+      p.dirty('inv');
+    }
+    return;
+  }
 
   // items that do not need a target
   if (kind === 'food' || kind === 'potion') { p.toolReadyAt = t0 + tuning.toolCooldownMs; eat(room, p, msg.slot); return; }

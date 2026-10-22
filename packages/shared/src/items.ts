@@ -43,6 +43,8 @@ export interface ItemDef {
   armor?: { slot: ArmorSlot; set: string };
   /** weapon id in WEAPONS (staves, crossbow); the sword is a plain weapon */
   weapon?: WeaponId;
+  /** consumed on use for a special effect: a Heart Crystal (+10 max health) or a boss summon */
+  special?: 'heart' | 'summon';
   tags?: string[];
 }
 
@@ -219,6 +221,16 @@ const OUTFITS: Array<[string, string, number, number, number]> = [
   ['outfit_crimson', 'Crimson Jerkin', 6, C.r4, C.w2], ['outfit_sky', "Skyfarer's Hat & Tunic", 7, C.w4, C.e3],
 ];
 for (const [id, name, idx, a, b] of OUTFITS) def(id, name, 'outfit', 160, 'shirt', a, b, 'Cosmetic. Equip to change your look.', { outfit: idx });
+
+// ── adventure: shrines and bosses (see shrines.ts, bosses.ts)
+def('shrine_shard', 'Shrine Shard', 'misc', 80, 'gem', C.q4, C.w7, 'A sliver of solved resonance. Four of them make a Heart Crystal.');
+def('heart_crystal', 'Heart Crystal', 'misc', 400, 'gem', C.r4, C.r7, 'Use it to permanently gain 10 maximum health (up to 20 crystals).', { special: 'heart' });
+def('slime_core', 'Slime Core', 'resource', 300, 'gel', C.g4, C.e7, 'The still heart of the Gelatinous Sovereign. A Warden would pay dearly for the scent.');
+def('warden_heart', 'Warden Heart', 'resource', 500, 'orb', C.g3, C.e6, 'A heart that still beats slowly, in time with the forest.');
+def('void_core', 'Void Core', 'resource', 900, 'orb', C.q3, C.q7, 'A crystal that is mostly absence.');
+def('slime_crown', 'Slime Crown', 'misc', 300, 'orb', C.g5, C.e6, 'Use it far from any village to call the Gelatinous Sovereign. Level 10.', { special: 'summon', stack: 5 });
+def('warden_horn', 'Warden Horn', 'misc', 500, 'tooth', C.e5, C.g4, 'Blow it in the wilds to call the Warden of the Grove. Level 18.', { special: 'summon', stack: 5 });
+def('colossus_core', 'Colossus Core', 'misc', 900, 'orb', C.q4, C.w7, 'Use it far from any village to wake the Decoherent Colossus. Level 28.', { special: 'summon', stack: 5 });
 
 // ── armor sets and Foci (see equipment.ts)
 const SET_COLORS: Record<string, [number, number]> = { leather: [C.e3, C.e5], hunter: [C.g3, C.e4], iron: [C.steel, C.pale], silk: [C.q3, C.q6], voidglass: [C.q5, C.w7] };

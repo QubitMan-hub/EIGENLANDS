@@ -1,0 +1,151 @@
+/**
+ * Resonance Shrines: a Simon-says Resonance puzzle (watch the pillars light up, strike them in order) and a three-wave
+ * Gauntlet. Solving one pays a Shrine Shard, coins and XP, once per character. Placement lives in shared/shrines.ts.
+ */
+import { MSG34, SHRINE_REACH, shrineOfRegion, type Shrine, type ShrineEvent, type WorldObj } from '@eigenlands/shared';
+import type { EnemyKind } from '../../game/enemies';
+import type { GameRoom } from '../../rooms/GameRoom';
+import type { ServerPlayer } from '../../rooms/player';
+import { giveStacks } from '../../systems/helpers';
+import type { Module, Registrar } from '../types';
+
+interface Session {
+  shrine: Shrine;
+  player: string;
+  /** sequence puzzle */
+  pattern: number[];
+  stage: number;
+  fails: number;
+  /** gauntlet */
+  wave: number;
+  enemies: Set<string>;
+  until: number;
+}
+
+const STEP_MS = 650;
+const WAVES: EnemyKind[][] = [['slime', 'slime', 'hopper'], ['hopper', 'wisp', 'wisp', 'slime'], ['brute', 'wisp', 'hopper']];
+
+export class ShrineModule implements Module {
+  private sessions = new Map<string, Session>();
+  private t = 0;
+
+  constructor(private room: GameRoom) {}
+
+  install(_reg: Registrar): void { /* driven by OPEN on the static objects */ }
+
+  private shrineById(id: string): Shrine | null {
+    const m = /^sh(-?\d+)_(-?\d+)$/.exec(id);
+    return m ? shrineOfRegion(this.room.seed, Number(m[1]), Number(m[2])) : null;
+  }
+
+  private send(p: ServerPlayer, ev: ShrineEvent): void { p.client.send(MSG34.SHRINE_EV, ev); }
+
+  async join(p: ServerPlayer): Promise<void> { this.send(p, { kind: 'state', solved: p.data.prog.shrines }); }
+
+  leave(p: ServerPlayer): void {
+    for (const [id, s] of this.sessions) if (s.player === p.id) this.abort(id, s);
+  }
+
+  /** An object of a shrine was interacted with (OPEN on a static shrine_altar / shrine_pillar). */
+  interact(p: ServerPlayer, o: WorldObj): void {
+    const sid = String((o.data as { shrine?: string } | undefined)?.shrine ?? '');
+    const sh = this.shrineById(sid);
+    if (!sh || Math.hypot(sh.x - p.sim.x, sh.y - p.sim.y) > SHRINE_REACH + 4) return;
+    if (o.sub === 'shrine_altar') return this.touchAltar(p, sh);
+    if (o.sub === 'shrine_pillar') return this.touchPillar(p, sh, Number((o.data as { idx?: number }).idx));
+  }
+
+  private touchAltar(p: ServerPlayer, sh: Shrine): void {
+    if (p.data.prog.shrines.includes(sh.id)) { p.toast('The shrine is quiet. Its gift is already yours.'); return; }
+    const old = this.sessions.get(sh.id);
+    if (old && old.player !== p.id && this.room.players.has(old.player)) { p.toast('Someone else is working this shrine.'); return; }
+    if (old) this.abort(sh.id, old);
+    const s: Session = { shrine: sh, player: p.id, pattern: [], stage: 0, fails: 0, wave: 0, enemies: new Set(), until: this.t + 240 };
+    this.sessions.set(sh.id, s);
+    if (sh.type === 'sequence') {
+      const n = p.level >= 20 ? 6 : p.level >= 10 ? 5 : 4;
+      for (let i = 0; i < n; i++) s.pattern.push(Math.floor(this.room.rand() * 4));
+      p.toast('The pillars hum. Watch the order they wake in, then strike them the same way (E).', 'info');
+      this.send(p, { kind: 'show', shrine: sh.id, pattern: s.pattern, stepMs: STEP_MS });
+    } else {
+      p.toast('Stone seals around you. Survive three waves.', 'info');
+      this.send(p, { kind: 'barrier', shrine: sh.id, on: true, wave: 1, waves: WAVES.length });
+      this.spawnWave(p, s);
+    }
+  }
+
+  private touchPillar(p: ServerPlayer, sh: Shrine, idx: number): void {
+    const s = this.sessions.get(sh.id);
+    if (!s || s.player !== p.id || sh.type !== 'sequence') { p.toast('The pillar is cold. Wake the altar first.'); return; }
+    if (!Number.isInteger(idx) || idx < 0 || idx > 3) return;
+    const ok = s.pattern[s.stage] === idx;
+    this.send(p, { kind: 'hit', shrine: sh.id, idx, ok });
+    if (ok) {
+      s.stage++;
+      if (s.stage >= s.pattern.length) this.solve(p, s);
+    } else {
+      s.fails++; s.stage = 0;
+      this.send(p, { kind: 'fail', shrine: sh.id });
+      // the shrine bites back, a little, then shows the pattern again
+      for (let i = 0; i < 2; i++) {
+        const a = this.room.rand() * Math.PI * 2;
+        this.room.spawnEnemy('mite', sh.x + Math.cos(a) * 3, sh.y + Math.sin(a) * 3, false, { level: Math.max(1, p.level - 2) });
+      }
+      setTimeout(() => { if (this.sessions.get(sh.id) === s && this.room.players.has(p.id)) this.send(p, { kind: 'show', shrine: sh.id, pattern: s.pattern, stepMs: STEP_MS }); }, 1400);
+    }
+  }
+
+  private spawnWave(p: ServerPlayer, s: Session): void {
+    const sh = s.shrine;
+    const kinds = WAVES[s.wave]!;
+    kinds.forEach((k, i) => {
+      const a = (i / kinds.length) * Math.PI * 2 + s.wave, x = sh.x + Math.cos(a) * 5.5, y = sh.y + Math.sin(a) * 5.5;
+      const e = this.room.spawnEnemy(k, x, y, false, { level: Math.max(2, p.level + s.wave) });
+      s.enemies.add(e.id);
+    });
+  }
+
+  tick(_now: number, dt: number): void {
+    this.t += dt;
+    for (const [id, s] of [...this.sessions]) {
+      const p = this.room.players.get(s.player);
+      if (!p || p.deadT > 0 || this.t > s.until || Math.hypot(s.shrine.x - p.sim.x, s.shrine.y - p.sim.y) > 22) { this.abort(id, s, p); continue; }
+      if (s.shrine.type === 'gauntlet') {
+        for (const eid of [...s.enemies]) if (!this.room.enemies.has(eid)) s.enemies.delete(eid);
+        if (s.enemies.size === 0) {
+          s.wave++;
+          if (s.wave >= WAVES.length) this.solve(p, s);
+          else { this.send(p, { kind: 'barrier', shrine: id, on: true, wave: s.wave + 1, waves: WAVES.length }); this.spawnWave(p, s); }
+        }
+      }
+    }
+  }
+
+  private abort(id: string, s: Session, p?: ServerPlayer): void {
+    this.sessions.delete(id);
+    for (const eid of s.enemies) { const e = this.room.enemies.get(eid); if (e) { this.room.enemies.delete(eid); this.room.state.enemies.delete(eid); } }
+    const who = p ?? this.room.players.get(s.player);
+    if (who) { this.send(who, { kind: 'barrier', shrine: id, on: false }); if (!who.data.prog.shrines.includes(id)) who.toast('The shrine falls quiet. Touch the altar to try again.'); }
+  }
+
+  private solve(p: ServerPlayer, s: Session): void {
+    this.sessions.delete(s.shrine.id);
+    p.data.prog.shrines.push(s.shrine.id);
+    const gift = [{ id: 'shrine_shard', n: 1 }];
+    // an occasional piece of gear, scaled to the solver
+    const r = this.room.rand();
+    if (r < 0.2) gift.push({ id: p.level >= 12 ? 'armor_iron_feet' : 'armor_leather_feet', n: 1 });
+    else if (r < 0.3 && p.level >= 8) gift.push({ id: 'crossbow', n: 1 });
+    if (!giveStacks(p, gift)) p.toast('Your pack is full; the shard fades.', 'bad');
+    p.data.coins += 100 + p.level * 12;
+    p.dirty('coins', 'inv');
+    this.room.grantXp(p, 80 + p.level * 14);
+    const text = s.shrine.type === 'sequence' ? 'The pillars sing in unison. A shard of resonance is yours.' : 'The seal breaks. A shard of resonance is yours.';
+    p.toast(text, 'good');
+    this.send(p, { kind: 'solved', shrine: s.shrine.id, text });
+    this.send(p, { kind: 'state', solved: p.data.prog.shrines });
+    this.send(p, { kind: 'barrier', shrine: s.shrine.id, on: false });
+  }
+
+  debug(): { sessions: number } { return { sessions: this.sessions.size }; }
+}

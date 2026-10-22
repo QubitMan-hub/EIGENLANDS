@@ -28,7 +28,7 @@ export class FakePlayer implements PlayerRef {
   name = 'Tester';
   x = 0;
   y = 0;
-  data: PlayerData = { inv: emptyInventory(), coins: 0, skills: { farming: 0, mining: 0, foraging: 0, fishing: 0, crafting: 0 }, recipes: new Set(), equip: emptyEquip(), friends: {}, buffs: {}, quests: {}, deeds: {}, events: [] };
+  data: PlayerData = { inv: emptyInventory(), coins: 0, skills: { farming: 0, mining: 0, foraging: 0, fishing: 0, crafting: 0 }, recipes: new Set(), equip: emptyEquip(), friends: {}, buffs: {}, quests: {}, deeds: {}, events: [], prog: { hearts: 0, bosses: [], shrines: [] } };
   dirtied = new Set<DirtyPart>();
   toasts: string[] = [];
   dirty(...parts: DirtyPart[]): void { parts.forEach((p) => this.dirtied.add(p)); }

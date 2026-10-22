@@ -611,7 +611,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   }
 
   /** Phase Wisp attack: one slow orb (a fan of three at night). */
-  private fireOrbs(e: Enemy, dx: number, dy: number): void {
+  fireOrbs(e: Enemy, dx: number, dy: number): void {
     const angles = e.night ? [-ORB_SPREAD, 0, ORB_SPREAD] : [0];
     for (const a of angles) {
       const c = Math.cos(a), s = Math.sin(a);
@@ -787,7 +787,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   }
 
   /** A circular enemy strike (bite, slam, shockwave). */
-  private enemyStrike(e: Enemy, x: number, y: number, radius: number, mult = 1): void {
+  enemyStrike(e: Enemy, x: number, y: number, radius: number, mult = 1): void {
     const heavy = e.def.kind === ENEMY_DEFS.brute.kind;
     if (radius >= 1.5) this.fx({ kind: 'blast', x, y, v: radius, id: e.id });
     this.queueStrike(e, { kind: 'circle', x, y, r: radius }, enemyDamage(e, mult), heavy ? 2 : 1, null);
@@ -980,7 +980,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   private despawnFar(): void {
     for (const e of [...this.enemies.values()]) {
       let close = false;
-      for (const p of this.players.values()) if (Math.hypot(e.x - p.sim.x, e.y - p.sim.y) < 48) { close = true; break; }
+      for (const p of this.players.values()) if (Math.hypot(e.x - p.sim.x, e.y - p.sim.y) < (e.def.boss ? 90 : 48)) { close = true; break; }
       if (!close) { this.enemies.delete(e.id); this.state.enemies.delete(e.id); }
     }
   }
@@ -991,6 +991,12 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   protected hookTileChanged(_x: number, _y: number, _tile: number): void {}
   protected hookTick(_now: number): void {}
   protected hookViewEntities(_push: (id: string, x: number, y: number, st: SpellState) => void): void {}
+  /** an adventure object (shrine altar/pillar) was opened */
+  shrineInteract(_p: ServerPlayer, _o: WorldObj): void {}
+
+  /** boss summoning (the Phase 3/4 room provides the boss module) */
+  summonBoss(_p: ServerPlayer, _itemId: string, _x: number, _y: number): boolean { return false; }
+
   /** extra things enemies may aggro on (summoned shadows) */
   protected hookTargets(): Array<{ id: string; x: number; y: number; alive: boolean }> { return []; }
   /** an enemy strike was queued (summoned shadows in its shape take the hit) */

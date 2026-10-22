@@ -657,7 +657,33 @@ function mailbox(): ObjSpriteDef {
   }));
 }
 
-const TOWN_DECO: Record<string, () => ObjSpriteDef> = { statue, stall, bench, banner, planter, hay, signpost, plaque, crate, cart, woodpile, scarecrow, laundry, beehive, trough, hedge, mailbox };
+// ───────────────────────── shrines ─────────────────────────
+
+function shrineAltar(): ObjSpriteDef {
+  const mk = (f: number) => sprite(40, 44, 20, 40, (ctx) => {
+    stoneFace(ctx, 6, 22, 28, 16, 12, 1);                                                   // base slab
+    poly(ctx, [[8, 22], [32, 22], [28, 14], [12, 14]], (x, y) => (y < 18 ? C.fog : C.mist));     // sloped top
+    stoneFace(ctx, 14, 10, 12, 8, 13, 1);
+    const glow = [C.q5, C.q6, C.q7, C.q6][f % 4]!;
+    blob(ctx, 20, 8, 5 + (f % 2) * 0.6, 5 + (f % 2) * 0.6, [C.q2, C.q4, glow, C.white], { seed: 14, noise: 0, edgeDark: 0.1 });   // floating resonance orb
+    for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2 + f * 0.5; put(ctx, Math.round(20 + Math.cos(a) * 8), Math.round(8 + Math.sin(a) * 3), C.q7); }
+    put(ctx, 9, 30, glow, 22, 1);                                                          // rune line
+    for (const x of [13, 18, 24]) put(ctx, x, 32, C.q5, 2, 3);
+  });
+  return anim(frames(4, mk), 3);
+}
+
+function shrinePillar(): ObjSpriteDef {
+  return still(sprite(24, 52, 12, 49, (ctx) => {
+    stoneFace(ctx, 4, 40, 16, 9, 15, 1);                                                    // plinth
+    slab(ctx, 7, 12, 10, 30, STONE, 16, 0.3); put(ctx, 7, 12, C.pale, 10, 1);
+    stoneFace(ctx, 5, 6, 14, 7, 17, 1);                                                     // capital
+    for (const y of [18, 25, 32]) put(ctx, 10, y, C.q5, 4, 1);                              // dormant runes
+    put(ctx, 11, 9, C.q4, 2, 1);
+  }));
+}
+
+const TOWN_DECO: Record<string, () => ObjSpriteDef> = { shrine_altar: shrineAltar, shrine_pillar: shrinePillar, statue, stall, bench, banner, planter, hay, signpost, plaque, crate, cart, woodpile, scarecrow, laundry, beehive, trough, hedge, mailbox };
 
 const objCache = new Map<string, ObjSpriteDef>();
 
@@ -685,7 +711,7 @@ export const GALLERY_OBJECTS: Array<{ kind: WorldObj['kind']; sub: string }> = [
   { kind: 'sprinkler', sub: 'sprinkler1' }, { kind: 'sprinkler', sub: 'sprinkler2' },
   { kind: 'shelter', sub: 'coop' }, { kind: 'shelter', sub: 'barn' }, { kind: 'chest', sub: 'chest' }, { kind: 'sign', sub: 'sign' },
   ...Object.keys(SEATS).map((sub) => ({ kind: 'furniture' as const, sub })),
-  ...['well', 'board', 'counter', 'desk', 'barrel', 'stove', 'trophy', 'crate', 'statue', 'stall', 'bench', 'banner', 'planter', 'hay', 'signpost', 'cart', 'woodpile', 'scarecrow', 'laundry', 'beehive', 'trough', 'hedge', 'mailbox'].map((sub) => ({ kind: 'deco' as const, sub })),
+  ...['well', 'board', 'counter', 'desk', 'barrel', 'stove', 'trophy', 'crate', 'statue', 'stall', 'bench', 'banner', 'planter', 'hay', 'signpost', 'cart', 'woodpile', 'scarecrow', 'laundry', 'beehive', 'trough', 'hedge', 'mailbox', 'shrine_altar', 'shrine_pillar'].map((sub) => ({ kind: 'deco' as const, sub })),
   { kind: 'sign', sub: 'plaque' },
 ];
 

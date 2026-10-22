@@ -3,6 +3,7 @@ import { generateChunk } from './worldgen';
 import { isSolid } from './tiles';
 import { objSolid, type WorldObj } from './objects';
 import { townFor } from './town';
+import { shrineObjectsIn } from './shrines';
 
 export type ChunkDiff = Map<number, number>;
 
@@ -115,7 +116,9 @@ export class ChunkStore {
         this.townByChunk.set(k, list);
       }
     }
-    return this.townByChunk.get(chunkKey(cx, cy)) ?? [];
+    const town = this.townByChunk.get(chunkKey(cx, cy)) ?? [];
+    const shrine = shrineObjectsIn(this.seed, cx, cy);
+    return shrine.length ? [...town, ...shrine] : town;
   }
 
   putObject(o: WorldObj): void {

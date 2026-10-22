@@ -30,6 +30,8 @@ export interface PlayerData {
   deeds: Partial<Record<DeedKind, { day: number; what: string }>>;
   /** heart events already seen ("npc:index") */
   events: string[];
+  /** adventure progress: Heart Crystals used, bosses defeated, shrines solved */
+  prog: { hearts: number; bosses: string[]; shrines: string[] };
 }
 
 export type DirtyPart = 'inv' | 'coins' | 'skills' | 'recipes' | 'equip' | 'friends' | 'buffs' | 'stats' | 'quests';

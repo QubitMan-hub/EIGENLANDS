@@ -192,6 +192,10 @@ export interface EnemyDef {
   cooldown?: number;
   /** spawn budget cost (a player's area holds a few points of enemies) */
   budget?: number;
+  /** boss: never despawns while players are near, gets a health bar, resists knockback */
+  boss?: boolean;
+  /** attack area multiplier (bosses hit wide) */
+  aoe?: number;
 }
 
 /** Attack ids for telegraph decals (synced as EnemyState.atk). */
@@ -217,7 +221,7 @@ export const REFLECT_SPEED_MULT = 1.7;
 export const REFLECT_DAMAGE = 18;
 
 const melee = { ai: 'melee' as const };
-export const ENEMY_DEFS: Record<'slime' | 'hopper' | 'rabbit' | 'deer' | 'wisp' | 'brute' | 'mite' | 'boar' | 'wolf' | 'badger', EnemyDef> = {
+export const ENEMY_DEFS: Record<'slime' | 'hopper' | 'rabbit' | 'deer' | 'wisp' | 'brute' | 'mite' | 'boar' | 'wolf' | 'badger' | 'slime_king' | 'warden' | 'colossus', EnemyDef> = {
   slime: { kind: 0, name: 'Wisp Slime', hp: 30, speed: 2.1, radius: 0.4, damage: 7, sight: 7, windup: 0.55, strikeRange: 1.1, xp: 10, ...melee, poise: 8, staggerTime: 0.7, cooldown: 0.5, budget: 1, drops: [{ item: 'slime_gel', min: 1, max: 2, chance: 0.7 }] },
   hopper: { kind: 1, name: 'Glint Hopper', hp: 22, speed: 3.0, radius: 0.35, damage: 9, sight: 9, windup: 0.7, strikeRange: 3.0, xp: 14, ai: 'leap', poise: 6, staggerTime: 0.7, cooldown: 0.6, budget: 1, drops: [{ item: 'hopper_tooth', min: 1, max: 1, chance: 0.45 }, { item: 'hide', min: 1, max: 1, chance: 0.25 }] },
   rabbit: { kind: 2, name: 'Meadow Rabbit', passive: true, ai: 'passive', hp: 8, speed: 4.6, radius: 0.3, damage: 0, sight: 6, windup: 0, strikeRange: 0, xp: 3, drops: [{ item: 'raw_meat', min: 1, max: 1, chance: 0.9 }, { item: 'hide', min: 1, max: 1, chance: 0.5 }] },
@@ -234,8 +238,15 @@ export const ENEMY_DEFS: Record<'slime' | 'hopper' | 'rabbit' | 'deer' | 'wisp' 
   wolf: { kind: 8, name: 'Dire Wolf', hp: 44, speed: 4.2, radius: 0.45, damage: 10, sight: 12, windup: 0.6, strikeRange: 3.6, xp: 30, ai: 'leap', poise: 10, staggerTime: 0.8, cooldown: 0.9, budget: 1.5, drops: [{ item: 'hide', min: 1, max: 2, chance: 0.8 }, { item: 'wolf_fang', min: 1, max: 1, chance: 0.4 }, { item: 'raw_meat', min: 1, max: 2, chance: 0.8 }] },
   /** badger: small, stubborn and fast to bite; leave it alone and it digs for grubs */
   badger: { kind: 9, name: 'Badger', neutral: true, ai: 'melee', hp: 30, speed: 3.2, radius: 0.35, damage: 8, sight: 6, windup: 0.4, strikeRange: 1.1, xp: 14, poise: 6, staggerTime: 0.6, cooldown: 0.7, budget: 0, drops: [{ item: 'hide', min: 1, max: 1, chance: 0.6 }, { item: 'raw_meat', min: 1, max: 1, chance: 0.7 }] },
+  // ── bosses (see bosses.ts)
+  slime_king: { kind: 10, name: 'Gelatinous Sovereign', boss: true, hp: 900, speed: 1.5, radius: 1.4, damage: 16, sight: 18, windup: 1.1, strikeRange: 5, xp: 500, ai: 'leap', poise: 150, staggerTime: 1.2, armor: true, resist: 0.08, cooldown: 1.3, aoe: 3, budget: 99,
+    drops: [{ item: 'slime_core', min: 1, max: 1, chance: 1 }, { item: 'heart_crystal', min: 1, max: 1, chance: 1 }, { item: 'slime_gel', min: 10, max: 16, chance: 1 }, { item: 'qubit_crystal', min: 1, max: 2, chance: 0.6 }] },
+  warden: { kind: 11, name: 'Warden of the Grove', boss: true, hp: 1400, speed: 2.5, radius: 1.1, damage: 20, sight: 18, windup: 0.9, strikeRange: 9, xp: 900, ai: 'boar', poise: 200, staggerTime: 1.2, armor: true, resist: 0.1, cooldown: 1.2, aoe: 1.8, budget: 99,
+    drops: [{ item: 'warden_heart', min: 1, max: 1, chance: 1 }, { item: 'heart_crystal', min: 1, max: 1, chance: 1 }, { item: 'boar_tusk', min: 3, max: 5, chance: 1 }, { item: 'wolf_fang', min: 2, max: 4, chance: 1 }, { item: 'hide', min: 3, max: 5, chance: 1 }, { item: 'heartwood', min: 2, max: 4, chance: 0.8 }] },
+  colossus: { kind: 12, name: 'Decoherent Colossus', boss: true, hp: 2200, speed: 1.8, radius: 1.5, damage: 26, sight: 20, windup: 1.0, strikeRange: 9, xp: 1600, ai: 'brute', poise: 300, staggerTime: 1.4, armor: true, resist: 0.1, cooldown: 1.3, aoe: 2.2, budget: 99,
+    drops: [{ item: 'void_core', min: 1, max: 1, chance: 1 }, { item: 'heart_crystal', min: 2, max: 2, chance: 1 }, { item: 'qubit_crystal', min: 4, max: 6, chance: 1 }, { item: 'iron_ore', min: 6, max: 10, chance: 1 }, { item: 'coal', min: 4, max: 8, chance: 1 }] },
 };
-export const ENEMY_BY_KIND: EnemyDef[] = [ENEMY_DEFS.slime, ENEMY_DEFS.hopper, ENEMY_DEFS.rabbit, ENEMY_DEFS.deer, ENEMY_DEFS.wisp, ENEMY_DEFS.brute, ENEMY_DEFS.mite, ENEMY_DEFS.boar, ENEMY_DEFS.wolf, ENEMY_DEFS.badger];
+export const ENEMY_BY_KIND: EnemyDef[] = [ENEMY_DEFS.slime, ENEMY_DEFS.hopper, ENEMY_DEFS.rabbit, ENEMY_DEFS.deer, ENEMY_DEFS.wisp, ENEMY_DEFS.brute, ENEMY_DEFS.mite, ENEMY_DEFS.boar, ENEMY_DEFS.wolf, ENEMY_DEFS.badger, ENEMY_DEFS.slime_king, ENEMY_DEFS.warden, ENEMY_DEFS.colossus];
 export type EnemyKindName = keyof typeof ENEMY_DEFS;
 
 export const NIGHT_HP_MULT = 1.6;

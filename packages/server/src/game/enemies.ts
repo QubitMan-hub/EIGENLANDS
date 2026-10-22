@@ -253,7 +253,7 @@ export function stepEnemy(
         }
         if (ai === 'swarm' && d <= e.def.strikeRange + 0.25) { startWindup(e, ATK.SELF, e.def.windup, target, hooks); break; }
         if (ai === 'brute' && token) {
-          if (d <= BRUTE_SLAM_RADIUS * 0.85) { startWindup(e, ATK.SLAM, BRUTE_SLAM_WINDUP, target, hooks); break; }
+          if (d <= BRUTE_SLAM_RADIUS * (e.def.aoe ?? 1) * 0.85) { startWindup(e, ATK.SLAM, BRUTE_SLAM_WINDUP, target, hooks); break; }
           if (d >= 2.8 && d <= e.def.strikeRange && lineOfSight(solid, e.x, e.y, target.x, target.y)) { startWindup(e, ATK.CHARGE, e.def.windup, target, hooks); break; }
         }
         if (ai === 'caster' && casting < MAX_CASTING && d <= e.def.strikeRange + 1 && lineOfSight(solid, e.x, e.y, target.x, target.y)) {
@@ -310,11 +310,11 @@ export function stepEnemy(
             e.mode = 'recover'; e.t = 0.45; e.atk = ATK.NONE;
             break;
           case ATK.SLAM:
-            hooks.strike(e, e.x, e.y, BRUTE_SLAM_RADIUS, 0.75);
+            hooks.strike(e, e.x, e.y, BRUTE_SLAM_RADIUS * (e.def.aoe ?? 1), 0.75);
             e.mode = 'recover'; e.t = 1.0; e.atk = ATK.NONE;
             break;
           default:
-            hooks.strike(e, e.x, e.y, e.def.strikeRange);
+            hooks.strike(e, e.x, e.y, ai === 'boar' ? 1.4 * (e.def.aoe ?? 1) : e.def.strikeRange);
             e.mode = 'recover'; e.t = ai === 'swarm' ? 0.35 : 0.65; e.atk = ATK.NONE;
         }
       }
@@ -328,7 +328,7 @@ export function stepEnemy(
         moveBody(e, (dx / d) * s, (dy / d) * s, e.def.radius, solid);
       }
       if (e.t <= 0) {
-        hooks.strike(e, e.x, e.y, LEAP_RADIUS);
+        hooks.strike(e, e.x, e.y, LEAP_RADIUS * (e.def.aoe ?? 1));
         e.mode = 'recover'; e.t = 0.9; e.atk = ATK.NONE;
       }
       break;

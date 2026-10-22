@@ -30,7 +30,7 @@ export function newPlayerData(season: number): PlayerData {
   addStack(inv, { id: 'fiber', n: 5 });
   return {
     inv, coins: 100, skills: validSkills(null), recipes: new Set(startRecipes()),
-    equip: emptyEquip(), friends: {}, buffs: {}, quests: {}, deeds: {}, events: [],
+    equip: emptyEquip(), friends: {}, buffs: {}, quests: {}, deeds: {}, events: [], prog: { hearts: 0, bosses: [], shrines: [] },
   };
 }
 
@@ -103,12 +103,18 @@ export function loadPlayerData(raw: unknown, season: number, nowMs: number): Pla
   return {
     inv: validInventory(r.inv), coins, skills: validSkills(r.skills), recipes: known,
     equip: { ring1: ring(eq.ring1), ring2: ring(eq.ring2), outfit, weapon: slotStack('weapon', eq.weapon), head: slotStack('head', eq.head), chest: slotStack('chest', eq.chest), legs: slotStack('legs', eq.legs), feet: slotStack('feet', eq.feet) }, friends, buffs,
-    quests: validQuests(r.quests, dayNumber(nowMs)), deeds, events,
+    quests: validQuests(r.quests, dayNumber(nowMs)), deeds, events, prog: validProg(r.prog),
   };
 }
 
+export function validProg(raw: unknown): PlayerData['prog'] {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const ids = (v: unknown): string[] => (Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === 'string' && x.length <= 40))].slice(0, 400) : []);
+  return { hearts: typeof r.hearts === 'number' && Number.isFinite(r.hearts) ? Math.max(0, Math.min(40, Math.floor(r.hearts))) : 0, bosses: ids(r.bosses), shrines: ids(r.shrines) };
+}
+
 export function serializePlayerData(d: PlayerData): Record<string, unknown> {
-  return { inv: d.inv, coins: d.coins, skills: d.skills, recipes: [...d.recipes], equip: d.equip, friends: d.friends, buffs: d.buffs, quests: d.quests, deeds: d.deeds, events: d.events };
+  return { prog: d.prog, inv: d.inv, coins: d.coins, skills: d.skills, recipes: [...d.recipes], equip: d.equip, friends: d.friends, buffs: d.buffs, quests: d.quests, deeds: d.deeds, events: d.events };
 }
 
 export function deriveStats(d: PlayerData): DerivedStats {
@@ -126,6 +132,7 @@ export function deriveStats(d: PlayerData): DerivedStats {
   s.hpBonus += a.bonus.hp; s.atkBonus += a.bonus.atk; s.luck += a.bonus.luck; s.haste += a.bonus.haste; s.def += a.bonus.def; s.phase += a.bonus.phase;
   const w = d.equip.weapon ? ITEMS[d.equip.weapon.id]?.weapon : undefined;
   if (w) { const b = WEAPONS[w].bonus; s.hpBonus += b.hp ?? 0; s.atkBonus += b.atk ?? 0; s.def += b.def ?? 0; s.luck += b.luck ?? 0; s.haste += b.haste ?? 0; }
+  s.hpBonus += d.prog.hearts * 10;
   s.def = Math.min(0.6, s.def);
   return s;
 }
