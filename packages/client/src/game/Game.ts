@@ -27,6 +27,7 @@ import { Lighting, type Light } from './lighting';
 import { buildFoeSheets, type FoeSheets } from '../art/foes';
 import { CombatView } from './combatview';
 import { WindField } from './windfield';
+import { Ambient } from './ambient';
 import { MSG34, SHADOW_RANKS } from '@eigenlands/shared';
 import { Critters } from '../art/critters';
 import { TargetFrame } from '../ui/targetframe';
@@ -116,6 +117,7 @@ export class Game {
   private cursor = new Graphics();
   private aimGfx = new Graphics();
   readonly wind = new WindField();
+  private ambient!: Ambient;
   private targetId: string | null = null;
   private targetFrame = new TargetFrame();
   /** smoothed right-mouse look offset in iso world px */
@@ -159,6 +161,10 @@ export class Game {
       npcScreens: () => [...this.views.values()].filter((v) => v.type === 'npc').map((v) => ({ id: v.id, x: v.lx, y: v.ly, sx: this.world.x + v.root.x * this.scale, sy: this.world.y + (v.root.y - 32) * this.scale, visible: v.root.visible })),
     });
     this.fx = new Fx(this.fxLayer, () => this.settings().reducedMotion);
+    this.ambient = new Ambient({
+      layer: () => this.entityLayer, labels: () => this.labelLayer, store: () => this.store, seed: () => this.seed, sheets: () => this.sheets, fx: () => this.fx,
+      toScreen: (x, y) => ({ x: this.world.x + isoX(x, y) * this.scale, y: this.world.y + isoY(x, y) * this.scale }),
+    });
     this.combat = new CombatView({
       fx: () => this.fx, sound: (s, x, y) => this.sound(s, x, y), rawSound: (s) => this.audio.play(s),
       reduced: () => this.settings().reducedMotion, sheets: () => this.sheets, foes: () => this.foes, critters: () => this.critters, myId: () => this.myId,
@@ -543,6 +549,7 @@ export class Game {
     const fxScale = this.combat.frame(dt);
     const renderT = this.clock.serverNow(now) - this.clock.interpDelay - this.combat.warp;
     this.updateViews(me, alpha, renderT, now, dtMs);
+    this.ambient.frame({ now, dt, view: this.vis, me, hour, weather, season: this.seasonIdx, wind: this.wind.w, reduced });
     this.updateTarget34(renderT, me);
     this.syncFocus(now);
     this.drawAim(me, now);
