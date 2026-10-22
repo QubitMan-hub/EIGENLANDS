@@ -35,7 +35,7 @@ export interface Outfit {
   glow?: number; cape?: Ramp; vest?: Ramp;
 }
 
-const SKIN_LIGHT = [C.e4, C.e5, C.e6, C.e7, C.white] as Ramp;
+const SKIN_LIGHT = [C.e3, C.e4, C.e5, C.e6, C.e7] as Ramp;
 const SKIN_MID = [C.e3, C.e4, C.e5, C.e6, C.e7] as Ramp;
 const SKIN_DARK = [C.e1, C.e2, C.e3, C.e4, C.e5] as Ramp;
 const HAIR = {

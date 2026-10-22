@@ -163,8 +163,12 @@ export function polish(ctx: Ctx, w: number, h: number, o: PolishOpts = {}): void
     for (let y = ay - 1; y <= ay + 3; y++) for (let x = Math.floor(ax - rx); x <= Math.ceil(ax + rx); x++) {
       if (x < 0 || y < 0 || x >= w || y >= h || solid(x, y)) continue;
       const dd = ((x - ax) / rx) ** 2 + ((y - ay) / 2.6) ** 2;
-      if (dd < 1 && ((x + y) & 1) === 0 ? dd < 0.9 : dd < 0.45) put(ctx, x, y, C.q0);
+      if (dd >= 1) continue;
+      // soft contact shadow: translucent ink, denser toward the centre (blends with any ground)
+      ctx.globalAlpha = dd < 0.35 ? 0.42 : dd < 0.7 ? 0.28 : 0.14;
+      put(ctx, x, y, C.ink);
     }
+    ctx.globalAlpha = 1;
   }
 }
 
@@ -315,10 +319,12 @@ function rgbaOf(style: string): number {
 }
 export class PixBuf {
   fillStyle = '#000000';
+  globalAlpha = 1;
   readonly px: Uint32Array;
   constructor(readonly width: number, readonly height: number) { this.px = new Uint32Array(width * height); }
   fillRect(x: number, y: number, w: number, h: number): void {
-    const c = rgbaOf(this.fillStyle as string);
+    let c = rgbaOf(this.fillStyle as string);
+    if (this.globalAlpha < 1) c = ((Math.round(255 * this.globalAlpha) << 24) | (c & 0xffffff)) >>> 0;
     const x0 = Math.max(0, Math.round(x)), y0 = Math.max(0, Math.round(y)), x1 = Math.min(this.width, Math.round(x + w)), y1 = Math.min(this.height, Math.round(y + h));
     for (let j = y0; j < y1; j++) this.px.fill(c, j * this.width + x0, j * this.width + x1);
   }

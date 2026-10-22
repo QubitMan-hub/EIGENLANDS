@@ -19,6 +19,8 @@ interface Obj {
   variant: number;
   frames: number;
   base: ObjSprite;
+  /** which ObjectArt list the sprite came from (a tree tile may draw from 'qtree') */
+  artKey: string;
 }
 
 /** Sun azimuth/elevation from the in-game hour: long shadows at dawn/dusk, short at noon, faint moon shadows at night. */
@@ -55,19 +57,21 @@ export class ObjectViews {
 
   get count(): number { let n = 0; for (const m of this.chunks.values()) n += m.size; return n; }
 
-  private pickSprite(kind: string, tx: number, ty: number): { s: ObjSprite; variant: number; frames: number } | null {
+  private pickSprite(kind0: string, tx: number, ty: number): { s: ObjSprite; variant: number; frames: number; key: string } | null {
+    // trees in flux-rich ground are quantum superposition trees
+    const kind = kind0 === 'tree' && sampleClimate(this.store.seed, tx, ty).flux > 0.5 && hash2(this.store.seed, tx, ty, 97) < 0.6 ? 'qtree' : kind0;
     const list = (this.art as unknown as Record<string, ObjSprite[]>)[kind];
     if (!list || !list.length) return null;
     if (kind === 'fence') {
       // connect to neighbouring fences: N=1 E=2 S=4 W=8
       const f = (x: number, y: number) => (this.store.getTile(x, y) === T.FENCE ? 1 : 0);
       const mask = f(tx, ty - 1) | (f(tx + 1, ty) << 1) | (f(tx, ty + 1) << 2) | (f(tx - 1, ty) << 3);
-      return { s: list[mask]!, variant: mask, frames: 1 };
+      return { s: list[mask]!, variant: mask, frames: 1, key: kind };
     }
     const frames = FRAMES_PER_VARIANT[kind] ?? 1;
     const nvar = Math.max(1, Math.floor(list.length / frames));
     const variant = Math.floor(hash2(this.store.seed, tx, ty, 99) * nvar);
-    return { s: list[variant * frames]!, variant, frames };
+    return { s: list[variant * frames]!, variant, frames, key: kind };
   }
 
   private makeObj(tx: number, ty: number, kind: string): Obj | null {
@@ -88,16 +92,16 @@ export class ObjectViews {
     this.shadowLayer.addChild(shadow);
     let echo: Sprite | null = null;
     const flux = ECHO_KINDS.has(kind) ? sampleClimate(this.store.seed, tx, ty).flux : -1;
-    if (kind === 'crystal' || kind === 'bloom' || (flux > 0.42 && kind !== 'tallgrass')) {
+    if (kind === 'crystal' || kind === 'bloom' || p.key === 'qtree' || (flux > 0.6 && (kind === 'rock' || kind === 'stump'))) {
       echo = new Sprite(p.s.tex);
       echo.anchor.copyFrom(root.anchor);
-      echo.tint = kind === 'crystal' || kind === 'bloom' ? 0xff9ae8 : 0x5af0d0;
+      echo.tint = kind === 'crystal' || kind === 'bloom' || p.key === 'qtree' ? 0xff9ae8 : 0x5af0d0;
       echo.alpha = 0.22;
       echo.position.set(root.x + 2, root.y - 1);
       echo.zIndex = root.zIndex - 0.5;
       this.layer.addChild(echo);
     }
-    return { root, shadow, echo, kind, phase: hash2(this.store.seed, tx, ty, 98) * 6.28, variant: p.variant, frames: p.frames, base: p.s };
+    return { root, shadow, echo, kind, phase: hash2(this.store.seed, tx, ty, 98) * 6.28, variant: p.variant, frames: p.frames, base: p.s, artKey: p.key };
   }
 
   buildChunk(cx: number, cy: number): void {
@@ -162,8 +166,8 @@ export class ObjectViews {
             o.echo.alpha = reduced ? 0.2 : 0.16 + 0.1 * Math.sin(t * 1.7 + o.phase);
           }
           if (o.frames > 1) {
-            const list = (this.art as unknown as Record<string, ObjSprite[]>)[o.kind]!;
-            const rate = o.kind === 'crystal' ? 2.2 : o.kind === 'torch' ? 6 : o.kind === 'bloom' ? 3 : 1.4;
+            const list = (this.art as unknown as Record<string, ObjSprite[]>)[o.artKey]!;
+            const rate = o.artKey === 'qtree' ? 0.9 : o.kind === 'crystal' ? 2.2 : o.kind === 'torch' ? 6 : o.kind === 'bloom' ? 3 : 1.4;
             const f = reduced ? 0 : Math.floor(t * rate + o.phase) % o.frames;
             o.root.texture = list[o.variant * o.frames + f]!.tex;
             o.shadow.texture = o.root.texture;
