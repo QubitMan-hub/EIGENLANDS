@@ -12,7 +12,7 @@ export function makeCanvas(w: number, h: number): { canvas: HTMLCanvasElement; c
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
   ctx.imageSmoothingEnabled = false;
   return { canvas, ctx };
 }

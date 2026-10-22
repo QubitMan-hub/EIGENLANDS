@@ -5,6 +5,7 @@
 import { Texture } from 'pixi.js';
 import { CROPS, cropStage, type CropData, type CropDef, type WorldObj, mulberry32 } from '@eigenlands/shared';
 import type { ObjSprite } from './objects';
+import { TOWN_DECO } from './town';
 import { blob, C, line, makeCanvas, pixelText, poly, polish, put, R, ramp4, slab, dk, lt, type Ctx, type Ramp } from './shade';
 
 export interface ObjSpriteDef {
@@ -427,7 +428,8 @@ export function worldObjDef(o: WorldObj): ObjSpriteDef {
   const key = o.kind === 'sprinkler' ? `sprinkler:${o.sub}:${(o.data as { watering?: boolean } | undefined)?.watering ? 1 : 0}` : `${o.kind}:${o.sub}`;
   let d = objCache.get(key);
   if (!d) {
-    if (o.kind === 'station') d = (STATIONS[o.sub] ?? DECO.crate!)();
+    if ((o.kind === 'deco' || o.kind === 'sign' || o.kind === 'furniture') && TOWN_DECO[o.sub]) d = TOWN_DECO[o.sub]!();
+    else if (o.kind === 'station') d = (STATIONS[o.sub] ?? DECO.crate!)();
     else if (o.kind === 'sprinkler') d = sprinkler(o.sub === 'sprinkler2', !!(o.data as { watering?: boolean } | undefined)?.watering);
     else if (o.kind === 'shelter') d = o.sub === 'barn' ? barn() : coop();
     else if (o.kind === 'chest') d = chest();
@@ -444,6 +446,7 @@ export const GALLERY_OBJECTS: Array<{ kind: WorldObj['kind']; sub: string }> = [
   { kind: 'sprinkler', sub: 'sprinkler1' }, { kind: 'sprinkler', sub: 'sprinkler2' },
   { kind: 'shelter', sub: 'coop' }, { kind: 'shelter', sub: 'barn' }, { kind: 'chest', sub: 'chest' }, { kind: 'sign', sub: 'sign' },
   ...Object.keys(SEATS).map((sub) => ({ kind: 'furniture' as const, sub })),
+  ...['statue', 'plaque', 'bench', 'planter', 'stall', 'signpost'].map((sub) => ({ kind: 'deco' as const, sub })),
   ...['well', 'board', 'counter', 'desk', 'barrel', 'stove', 'trophy', 'crate'].map((sub) => ({ kind: 'deco' as const, sub })),
 ];
 

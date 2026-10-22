@@ -1,7 +1,7 @@
 import {
   BufferImageSource, Container, Mesh, MeshGeometry, RenderTexture, Shader, Sprite, UniformGroup, type Renderer,
 } from 'pixi.js';
-import { CHUNK_SIZE, TILE_DEFS, chunkKey, sampleClimate, type ChunkStore } from '@eigenlands/shared';
+import { CHUNK_SIZE, T, TILE_DEFS, chunkKey, sampleClimate, townFor, type ChunkStore } from '@eigenlands/shared';
 import { TERRAIN_FRAG, TERRAIN_VERT } from '../gl/terrain.frag';
 
 const WIN_CHUNKS = 5;                         // window = 5x5 chunks around the player (160x160 tiles)
@@ -27,6 +27,7 @@ export class Terrain {
   private winDirty = true;
   private w = 16;
   private h = 16;
+  private plaza: { x: number; y: number; r: number; x0: number; y0: number; x1: number; y1: number };
 
   constructor(private renderer: Renderer, private store: ChunkStore) {
     this.rt = RenderTexture.create({ width: 16, height: 16, scaleMode: 'nearest' });
@@ -36,12 +37,16 @@ export class Terrain {
       uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
       indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
     });
-    this.src = new BufferImageSource({ resource: this.data, width: WIN, height: WIN, format: 'rgba8unorm', scaleMode: 'nearest' });
+    this.src = new BufferImageSource({ resource: this.data, width: WIN, height: WIN, format: 'rgba8unorm', scaleMode: 'nearest', alphaMode: 'no-premultiply-alpha' });
     this.common = new UniformGroup({
       uTime: { value: 0, type: 'f32' }, uSeason: { value: 1, type: 'f32' }, uMotion: { value: 1, type: 'f32' },
       uWin: { value: new Float32Array([0, 0]), type: 'vec2<f32>' }, uWinSize: { value: WIN, type: 'f32' },
       uIso: { value: new Float32Array([0, 0]), type: 'vec2<f32>' }, uRes: { value: new Float32Array([16, 16]), type: 'vec2<f32>' },
+      uPlaza: { value: new Float32Array([0, 0, 0, 0]), type: 'vec4<f32>' }, uShrine: { value: new Float32Array([0.5, 0.5, 3.05, 0]), type: 'vec4<f32>' },
     });
+    const town = townFor(store.seed);
+    this.plaza = { x: town.cx + 0.5, y: town.cy + 4.5, r: 5.9, x0: town.x0, y0: town.y0, x1: town.x1, y1: town.y1 };
+    this.common.uniforms.uPlaza = new Float32Array([this.plaza.x, this.plaza.y, this.plaza.r, 0]);
     const shader = Shader.from({ gl: { vertex: TERRAIN_VERT, fragment: TERRAIN_FRAG }, resources: { uTiles: this.src, commonUniforms: this.common } });
     this.mesh = new Mesh({ geometry: this.geometry, shader });
     this.scene.addChild(this.mesh);
@@ -61,6 +66,17 @@ export class Terrain {
     this.common.uniforms.uRes = new Float32Array([wPx, hPx]);
   }
 
+  /** Paving style of a PATH tile: 0 worn dirt, 1 cobbled road, 2 ring-laid plaza, 3 the spawn shrine. */
+  private paving(tx: number, ty: number): number {
+    if (Math.hypot(tx, ty) <= 3) return 3;
+    const p = this.plaza;
+    if (tx < p.x0 || tx > p.x1 || ty < p.y0 || ty > p.y1) return 0;
+    if (Math.hypot(tx + 0.5 - p.x, ty + 0.5 - p.y) < p.r + 0.6) return 2;
+    let n = 0;
+    for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (this.store.getTile(tx + i, ty + j) === T.PATH) n++;
+    return n >= 5 ? 1 : 0;   // two-wide streets are cobbled; single-file door paths stay trodden earth
+  }
+
   private compute(cx: number, cy: number): Uint8Array {
     const out = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE * 4);
     const chunk = this.store.get(cx, cy);
@@ -69,14 +85,47 @@ export class Terrain {
       for (let x = 0; x < CHUNK_SIZE; x++) {
         const o = (y * CHUNK_SIZE + x) * 4;
         const tx = cx * CHUNK_SIZE + x, ty = cy * CHUNK_SIZE + y;
-        out[o] = TILE_DEFS[chunk.tiles[y * CHUNK_SIZE + x]!]?.ground ?? 3;
+        const tile = chunk.tiles[y * CHUNK_SIZE + x]!;
+        out[o] = TILE_DEFS[tile]?.ground ?? 3;
         const flux = sampleClimate(seed, tx, ty).flux;
         out[o + 1] = flux > 0.4 ? Math.min(255, Math.round(((flux - 0.4) / 0.4) * 255)) : 0; // iridescent meadow intensity
-        out[o + 2] = (tx * 31 + ty * 17) & 255;
-        out[o + 3] = 255;
+        out[o + 2] = tile === T.PATH ? this.paving(tx, ty) : 0;
+        out[o + 3] = 128;
       }
     }
     return out;
+  }
+
+  /** Signed distance (tiles) from each tile centre to the shoreline: + inside water, - on land. Stored in alpha. */
+  private shoreField(): void {
+    const N = WIN, d = this.data;
+    const wet = new Uint8Array(N * N);
+    for (let i = 0; i < N * N; i++) wet[i] = d[i * 4]! <= 1 ? 1 : 0;
+    const field = (src: number) => {
+      const f = new Float32Array(N * N);
+      for (let i = 0; i < N * N; i++) f[i] = wet[i] === src ? 0 : 99;
+      const D = Math.SQRT2;
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+        const i = y * N + x;
+        let v = f[i]!;
+        if (x > 0) v = Math.min(v, f[i - 1]! + 1);
+        if (y > 0) { v = Math.min(v, f[i - N]! + 1); if (x > 0) v = Math.min(v, f[i - N - 1]! + D); if (x < N - 1) v = Math.min(v, f[i - N + 1]! + D); }
+        f[i] = v;
+      }
+      for (let y = N - 1; y >= 0; y--) for (let x = N - 1; x >= 0; x--) {
+        const i = y * N + x;
+        let v = f[i]!;
+        if (x < N - 1) v = Math.min(v, f[i + 1]! + 1);
+        if (y < N - 1) { v = Math.min(v, f[i + N]! + 1); if (x < N - 1) v = Math.min(v, f[i + N + 1]! + D); if (x > 0) v = Math.min(v, f[i + N - 1]! + D); }
+        f[i] = v;
+      }
+      return f;
+    };
+    const toLand = field(0), toWater = field(1);
+    for (let i = 0; i < N * N; i++) {
+      const sd = wet[i] ? toLand[i]! - 0.5 : -(toWater[i]! - 0.5);
+      d[i * 4 + 3] = Math.max(0, Math.min(255, Math.round(128 + sd * 12)));
+    }
   }
 
   /** Cache a chunk's tile classes (cheap to call repeatedly; use invalidate() after edits). */
@@ -113,6 +162,7 @@ export class Terrain {
         }
       }
     }
+    this.shoreField();
     this.common.uniforms.uWin = new Float32Array([(cx - half) * CHUNK_SIZE, (cy - half) * CHUNK_SIZE]);
     this.src.update();
     this.winCx = cx; this.winCy = cy; this.winDirty = false;

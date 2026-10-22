@@ -1,16 +1,16 @@
 /** The fixed 48-colour master palette. All art is drawn from these values only. */
 export const PALETTE = [
-  // neutrals
-  '#0b0c1a', '#1a1c2e', '#2c2f4a', '#484c6e', '#6d7194', '#9a9ec0', '#c9cce6', '#f4f4ff',
-  // greens
-  '#0f2a1e', '#14402a', '#1f5e33', '#2f8040', '#4da64a', '#7bc95a', '#a9e07a', '#d4f2a0',
-  // earth
-  '#2a1810', '#45281a', '#6b3f26', '#8f5c36', '#b57f4a', '#d6a566', '#ecd08e', '#f8ecc0',
-  // water
-  '#0a1a3a', '#0f2f66', '#1650a0', '#2a7ad0', '#4aa6f0', '#7cd0ff', '#b4eaff', '#e0f8ff',
-  // warm
-  '#3a0f1c', '#6b1a2e', '#a02a3a', '#d44a4a', '#f07a4a', '#f8a84a', '#fcd45a', '#fff08a',
-  // quantum
+  // neutrals (cool violet shadows -> warm paper white)
+  '#0d0b17', '#1c1a2e', '#2e2c45', '#4a4964', '#6f6e8a', '#9d9db4', '#cfcfdc', '#f7f4ec',
+  // greens (teal shade -> sunlit yellow-green)
+  '#10282a', '#163d34', '#1f5a3a', '#2f7a3e', '#4f9a3f', '#7cb649', '#b0d266', '#e2ec9e',
+  // earth (plum-brown -> cream)
+  '#2a1a20', '#472a28', '#6c4231', '#93603b', '#b9834b', '#d7a861', '#edcb88', '#f8e9c0',
+  // water (ink blue -> foam)
+  '#0e1838', '#152f5c', '#1c4c88', '#2a70b0', '#3d96cf', '#66bfe2', '#a2dded', '#e0f7f5',
+  // warm (wine -> butter)
+  '#3a1320', '#691d2d', '#9e2d39', '#cf4b45', '#ea7a4b', '#f5a654', '#fad26a', '#fdf1a4',
+  // quantum (signature)
   '#2a1060', '#4a1a9a', '#7a3ad0', '#a46aff', '#d49aff', '#ff6ad0', '#ff9ae8', '#5af0d0',
 ] as const;
 
