@@ -17,8 +17,13 @@ const store = {
 
 export interface AuthState { token: string; guest: boolean; accountId: string }
 
+/** Solo builds (GitHub Pages) answer the API inside the page: see src/local/api.ts. */
+const SOLO = import.meta.env.VITE_SOLO === '1';
+const xfetch = (url: string, init?: RequestInit): Promise<Response> =>
+  SOLO ? import('../local/api').then((m) => m.localFetch(url, init)) : fetch(url, init);
+
 async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const r = await fetch(`${SERVER_URL}/api/auth${path}`, {
+  const r = await xfetch(`${SERVER_URL}/api/auth${path}`, {
     ...init, headers: { 'content-type': 'application/json', ...(init.headers ?? {}) },
   });
   if (!r.ok) throw new Error(((await r.json().catch(() => ({}))) as { error?: string }).error ?? `HTTP ${r.status}`);
@@ -67,7 +72,7 @@ export const signOut = () => store.del('eigen.token');
 /** Which shard (world region) this character lives in. Falls back to the spawn region. */
 export async function fetchShard(token: string): Promise<string> {
   try {
-    const r = await fetch(`${SERVER_URL}/api/shard`, { headers: { authorization: `Bearer ${token}` } });
+    const r = await xfetch(`${SERVER_URL}/api/shard`, { headers: { authorization: `Bearer ${token}` } });
     if (!r.ok) return '0,0';
     const j = (await r.json()) as { shard?: string };
     return typeof j.shard === 'string' ? j.shard : '0,0';
