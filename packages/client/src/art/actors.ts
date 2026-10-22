@@ -1,18 +1,25 @@
-import { Rectangle, Texture } from 'pixi.js';
-import { NPCS } from '@eigenlands/shared';
-import { blob, C, limb, makeCanvas, outline, PixBuf, polish, poly, put, rampAt, type Ctx, type Ramp } from './shade';
+import type { Texture } from 'pixi.js';
+import { NPCS, PALETTE } from '@eigenlands/shared';
+import { C, type Ramp as IdxRamp } from './shade';
+import { D4_SE, D4_SW, Scene, Sheet, add, lerp3, mute, ramp, rampOf, rotX, rotY, rotZ, type M3, type Mat, type Ramp, type V3 } from './sprite';
+import { critter, orbTex } from './foes';
 
 /**
- * Characters, enemies and fauna. People are 24x32 frames in 8 iso directions with an idle pair (breathing) and an
- * 8-frame walk. Every direction is drawn (never mirrored) so the key light always comes from the top-left.
+ * Characters: the player outfits and the Hadamere villagers, modelled once (see sprite.ts) and rendered in 8 iso
+ * directions: an idle pair (breathing), an 8-frame walk, a 3-frame swing, a hurt recoil and a 4-frame fall.
+ * No outlines: forms read by value with a top-left key light; colours are muted versions of each look's palette.
  */
 export const DIR_DOWN = 0, DIR_UP = 1, DIR_LEFT = 2, DIR_RIGHT = 3;
 export const DIR_DOWN_LEFT = 4, DIR_DOWN_RIGHT = 5, DIR_UP_LEFT = 6, DIR_UP_RIGHT = 7;
 /** frame 0 = idle, 1..8 = walk cycle */
 export const WALK_FRAMES = 9;
-export const PERSON_W = 24;
-export const PERSON_H = 32;
-const COLS = WALK_FRAMES + 1;          // + a second idle (breathing) frame
+export const PERSON_W = 44;
+export const PERSON_H = 40;
+/** extra poses beyond idle/walk */
+export type Pose = 'attack' | 'hurt' | 'death';
+export const POSE_FRAMES: Record<Pose, number> = { attack: 3, hurt: 1, death: 4 };
+const COL_BREATH = 9, COL_ATTACK = 10, COL_HURT = 13, COL_DEATH = 14;
+const COLS = 18;
 
 /** Screen-space facing vector -> one of 8 directions. */
 export function dirOf(fx: number, fy: number): number {
@@ -21,33 +28,36 @@ export function dirOf(fx: number, fy: number): number {
   const o = ((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8;
   return [DIR_RIGHT, DIR_DOWN_RIGHT, DIR_DOWN, DIR_DOWN_LEFT, DIR_LEFT, DIR_UP_LEFT, DIR_UP, DIR_UP_RIGHT][o]!;
 }
+/** world yaw of each 8-way direction (0 = world +x = screen lower-right) */
+const YAW = [Math.PI / 4, -3 * Math.PI / 4, 3 * Math.PI / 4, -Math.PI / 4, Math.PI / 2, 0, Math.PI, -Math.PI / 2];
 
 export type HairStyle = 'short' | 'long' | 'bun' | 'bald' | 'braids' | 'curly' | 'ponytail';
 export type HatStyle = 'cap' | 'brim' | 'beret';
+/** Looks are authored as palette-index ramps (shared with item icons); the sprite uses muted versions of them. */
 export interface Outfit {
-  shirt: Ramp; pants: Ramp; hair: Ramp; skin: Ramp; boots: Ramp;
-  longHair?: boolean; hat?: Ramp;
+  shirt: IdxRamp; pants: IdxRamp; hair: IdxRamp; skin: IdxRamp; boots: IdxRamp;
+  longHair?: boolean; hat?: IdxRamp;
   /** NPC extras */
-  hairStyle?: HairStyle; hatStyle?: HatStyle; beard?: Ramp; moustache?: boolean; glasses?: boolean; apron?: Ramp; scarf?: Ramp;
+  hairStyle?: HairStyle; hatStyle?: HatStyle; beard?: IdxRamp; moustache?: boolean; glasses?: boolean; apron?: IdxRamp; scarf?: IdxRamp;
   /** px by which the body is shorter (children) */
   shorten?: number; headband?: number;
   /** quantum adventurer trim: glowing seams on the tunic */
-  glow?: number; cape?: Ramp; vest?: Ramp;
+  glow?: number; cape?: IdxRamp; vest?: IdxRamp;
 }
 
-const SKIN_LIGHT = [C.e3, C.e4, C.e5, C.e6, C.e7] as Ramp;
-const SKIN_MID = [C.e3, C.e4, C.e5, C.e6, C.e7] as Ramp;
-const SKIN_DARK = [C.e1, C.e2, C.e3, C.e4, C.e5] as Ramp;
+const SKIN_LIGHT = [C.e3, C.e4, C.e5, C.e6, C.e7] as IdxRamp;
+const SKIN_MID = [C.e2, C.e3, C.e4, C.e5, C.e6] as IdxRamp;
+const SKIN_DARK = [C.e1, C.e2, C.e3, C.e4, C.e5] as IdxRamp;
 const HAIR = {
-  brown: [C.e0, C.e1, C.e2, C.e3, C.e4] as Ramp, black: [C.ink, C.night, C.slate, C.steel] as Ramp,
-  blond: [C.e3, C.e4, C.e5, C.e6, C.e7] as Ramp, red: [C.r0, C.r1, C.r2, C.r3, C.r4] as Ramp,
-  white: [C.steel, C.mist, C.fog, C.pale, C.white] as Ramp, violet: [C.q0, C.q1, C.q2, C.q3, C.q4] as Ramp,
+  brown: [C.e0, C.e1, C.e2, C.e3, C.e4] as IdxRamp, black: [C.ink, C.night, C.slate, C.steel] as IdxRamp,
+  blond: [C.e3, C.e4, C.e5, C.e6, C.e7] as IdxRamp, red: [C.r0, C.r1, C.r2, C.r3, C.r4] as IdxRamp,
+  white: [C.steel, C.mist, C.fog, C.pale, C.white] as IdxRamp, violet: [C.q0, C.q1, C.q2, C.q3, C.q4] as IdxRamp,
 };
-const cloth = (a: number[]) => a as Ramp;
+const cloth = (a: number[]) => a as IdxRamp;
 const PANTS = { brown: cloth([C.e0, C.e1, C.e2, C.e3]), slate: cloth([C.night, C.slate, C.steel, C.mist]), navy: cloth([C.w0, C.w1, C.w2, C.w3]), olive: cloth([C.g0, C.g1, C.g2, C.g3]) };
 const BOOTS = cloth([C.ink, C.e0, C.e1, C.e2]);
 
-/** Player appearance presets (chosen from the session id) and NPC outfits. */
+/** Player appearance presets (index = outfit item) and NPC outfits. */
 export const OUTFITS: Outfit[] = [
   { shirt: cloth([C.w1, C.w2, C.w3, C.w4, C.w5]), pants: PANTS.brown, hair: HAIR.brown, skin: SKIN_LIGHT, boots: BOOTS, glow: C.q7, cape: cloth([C.q0, C.q1, C.q2, C.q3]) },
   { shirt: cloth([C.r1, C.r2, C.r3, C.r4, C.r5]), pants: PANTS.slate, hair: HAIR.black, skin: SKIN_MID, boots: BOOTS, longHair: true, glow: C.q6 },
@@ -59,7 +69,7 @@ export const OUTFITS: Outfit[] = [
   { shirt: cloth([C.w2, C.w3, C.w4, C.w5, C.w6]), pants: PANTS.brown, hair: HAIR.blond, skin: SKIN_DARK, boots: BOOTS, hat: cloth([C.e1, C.e2, C.e3, C.e4]), hatStyle: 'brim' },
 ];
 
-const rmp = (a: number[]) => a as Ramp;
+const rmp = (a: number[]) => a as IdxRamp;
 /** One distinctive look per village NPC (ids from shared NPCS). */
 export const NPC_LOOKS: Record<string, Outfit> = {
   orla: { shirt: rmp([C.q0, C.q1, C.q2, C.q3, C.q4]), pants: rmp([C.night, C.slate, C.steel, C.mist]), hair: rmp([C.steel, C.mist, C.fog, C.pale, C.white]), skin: SKIN_MID, boots: BOOTS, hairStyle: 'bun', glasses: true, scarf: rmp([C.r4, C.r5, C.r6, C.r7]), cape: rmp([C.q0, C.q1, C.q2, C.q3]) },
@@ -74,376 +84,250 @@ export const NPC_LOOKS: Record<string, Outfit> = {
   juniper: { shirt: rmp([C.g3, C.g4, C.g5, C.g6, C.g7]), pants: PANTS.brown, hair: rmp([C.e3, C.e4, C.e5, C.e6, C.e7]), skin: SKIN_MID, boots: BOOTS, hairStyle: 'ponytail', shorten: 3, hat: rmp([C.r2, C.r3, C.r4, C.r5]), hatStyle: 'beret', scarf: rmp([C.r5, C.r6, C.r7, C.r7]) },
 };
 
-// ───────────────────────── people ─────────────────────────
-interface View { turn: number; s: number }      // turn 0 front .. 1 profile .. 2 back; s = +1 facing right, -1 left
-const VIEWS: View[] = [
-  { turn: 0, s: 1 },     // DOWN
-  { turn: 2, s: 1 },     // UP
-  { turn: 1, s: -1 },    // LEFT
-  { turn: 1, s: 1 },     // RIGHT
-  { turn: 0.5, s: -1 },  // DOWN_LEFT
-  { turn: 0.5, s: 1 },   // DOWN_RIGHT
-  { turn: 1.5, s: -1 },  // UP_LEFT
-  { turn: 1.5, s: 1 },   // UP_RIGHT
-];
+// ───────────────────────── look -> materials ─────────────────────────
 
-/** Draw one 24x32 person frame. frame 0 idle, 1..8 walk, 9 idle-breath. */
-function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, seed: number): void {
-  const v = VIEWS[dir]!;
-  const s = v.s, turn = v.turn;
-  const back = turn > 1.2, front = turn < 0.8, profile = turn === 1;
-  const moving = frame >= 1 && frame <= 8;
-  const p = moving ? ((frame - 1) / 8) * Math.PI * 2 : 0;
-  const sw = moving ? Math.sin(p) : 0;
-  const cosp = moving ? Math.cos(p) : 0;
-  const bob = moving ? (Math.abs(sw) < 0.6 ? -1 : 0) : frame === 9 ? 1 : 0;
-  const sh = o.shorten ?? 0;
-  const cx = 12;
-  const foot = 30;
-  const hip = 21 + sh;
-  const top = bob;                       // vertical shift of the upper body
-  const tw = profile ? 3.6 : front || back ? 5.2 : 4.6;     // torso half width
-  // depth ordering helpers: "near" side is the one toward the camera (screen down); for side views the s side leads
-  const legX = (k: number) => (profile ? cx + (k ? 0.5 : -0.5) * s : cx + (k ? 2.4 : -2.4) + (turn === 0.5 || turn === 1.5 ? 0.6 * s : 0));
-  const legSwing = (k: number) => (k ? -sw : sw);
-  const drawLeg = (k: number) => {
-    const sk = legSwing(k);
-    const lift = moving ? Math.max(0, (k ? -cosp : cosp)) * 1.6 : 0;
-    const dx = profile ? sk * 3.2 * s : turn === 0.5 || turn === 1.5 ? sk * 1.8 * s : 0;
-    const dy = profile ? 0 : front ? sk * 0.9 : back ? -sk * 0.9 : sk * 0.6;
-    const x0 = legX(k), ax = x0 + dx, ay = foot - 2 - lift + dy;
-    limb(ctx, x0, hip + top * 0.5, ax, ay, 2.3, 2, o.pants, seed + k, k ? -0.08 : 0);
-    const toe = profile ? 1.3 * s : turn === 0.5 || turn === 1.5 ? 0.7 * s : 0;
-    blob(ctx, ax + toe, ay + 1.2, profile ? 2.8 : 2.4, 1.6, o.boots, { seed: seed + 5 + k, noise: 0.04, edgeDark: 0.2, bright: 0.05 });
+const hexOf = (i: number) => parseInt(PALETTE[i]!.slice(1), 16);
+/** the look's key colour (middle of its index ramp), muted, as a fresh hue-shifted ramp */
+function matOf(r: IdxRamp, k = 0.78, o: Partial<Mat> = {}): Mat {
+  const mid = r[Math.floor((r.length - 1) / 2)]!;
+  return { r: ramp(mute(hexOf(mid), k), 3, 2), ...o };
+}
+const darker = (m: Mat, n = 1): Mat => ({ ...m, r: rampOf(m.r.c.slice(0, m.r.c.length - n) as number[], Math.max(0, m.r.base - n)) });
+
+interface Kit {
+  shirt: Mat; shirtFar: Mat; pants: Mat; pantsFar: Mat; boots: Mat; skin: Mat; skinFar: Mat; hair: Mat; belt: Mat;
+  hat?: Mat; beard?: Mat; apron?: Mat; scarf?: Mat; cape?: Mat; vest?: Mat; band?: Mat; glow?: number;
+}
+function kitOf(o: Outfit): Kit {
+  const skin = { r: ramp(mute(hexOf(o.skin[Math.min(2, o.skin.length - 1)]!), 0.82), 3, 2, { hue: 9 }) };
+  const shirt = matOf(o.shirt), pants = matOf(o.pants, 0.72);
+  return {
+    shirt, shirtFar: darker(shirt), pants, pantsFar: darker(pants), skin, skinFar: darker(skin),
+    boots: { r: rampOf([0x1c1620, 0x2c2027, 0x433036, 0x5c4440], 2) },
+    hair: matOf(o.hair, 0.7), belt: { r: rampOf([0x24181f, 0x3a2a2a, 0x54403a], 1) },
+    hat: o.hat && matOf(o.hat), beard: o.beard && matOf(o.beard, 0.7), apron: o.apron && matOf(o.apron, 0.72),
+    scarf: o.scarf && matOf(o.scarf), cape: o.cape && matOf(o.cape, 0.75), vest: o.vest && matOf(o.vest, 0.75),
+    band: o.headband !== undefined ? { r: ramp(mute(hexOf(o.headband)), 2, 1) } : undefined,
+    glow: o.glow !== undefined ? mute(hexOf(o.glow), 0.95) : undefined,
   };
-  const armSwing = (k: number) => (k ? sw : -sw);
-  const drawArm = (k: number) => {
-    // k: 0 = left side of the screen, 1 = right side (front/back views); for profile, 1 = near arm
-    const sk = armSwing(k);
-    let sx: number, hx: number, hy: number;
-    if (profile) { sx = cx + (k ? -0.6 : 0.6) * s; hx = sx + sk * 2.8 * s; hy = 25 + Math.abs(sk) * -0.8; }
-    else { sx = cx + (k ? tw + 0.4 : -tw - 0.4); hx = sx + (k ? 0.7 : -0.7) + (turn === 0.5 || turn === 1.5 ? sk * 1.2 * s : 0); hy = 25 + (front ? sk : back ? -sk : sk * 0.6) * 0.9; }
-    limb(ctx, sx, 16 + top + sh * 0.6, hx, hy - 1 + top + sh * 0.6, 1.9, 1.6, o.shirt, seed + 10 + k, k ? -0.06 : 0.04);
-    blob(ctx, hx, hy + top + sh * 0.6, 1.5, 1.5, o.skin, { seed: seed + 12 + k, noise: 0, edgeDark: 0.2 });
-  };
+}
 
-  // cape behind everything (front views) / over the back (back views)
-  const capeDraw = () => {
-    if (!o.cape) return;
-    const flutter = moving ? Math.sin(p * 2) * 0.8 : 0;
-    if (back) poly(ctx, [[cx - tw - 0.5, 15 + top], [cx + tw + 0.5, 15 + top], [cx + tw + 2, 27 + flutter], [cx - tw - 2, 27 - flutter]], (x, y) => rampAt(o.cape!, 0.75 - (x - cx + tw) / 18 - (y - 15) / 40 + ((x + y) % 4 === 0 ? -0.15 : 0), x, y));
-    else if (!front) poly(ctx, [[cx - 2 * s, 15 + top], [cx - 4.5 * s, 16 + top], [cx - 7 * s + flutter * s, 26], [cx - 2.5 * s, 27]], (x, y) => rampAt(o.cape!, 0.5 - (y - 15) / 40, x, y));
-    else { put(ctx, Math.round(cx - tw - 1.5), 16 + top, o.cape[1]!, 1, 10); put(ctx, Math.round(cx + tw + 0.5), 16 + top, o.cape[0]!, 1, 10); }
-  };
-  if (!back) capeDraw();
+// ───────────────────────── the person model ─────────────────────────
 
-  // far limbs first
-  if (profile) { drawArm(0); drawLeg(s > 0 ? 0 : 1); drawLeg(s > 0 ? 1 : 0); }
-  else { drawLeg(0); drawLeg(1); }
+interface Rig {
+  /** foot targets (x forward, lift) per side: +1 = left */
+  footL: [number, number]; footR: [number, number];
+  handL: V3; handR: V3;
+  bob: number; lean: number; twist: number; headTilt: number;
+  /** whole-body fall (death): roll about the ground line, sink */
+  roll: number; sink: number; kneel: number;
+  blade: V3 | null;
+  breath: number;
+}
 
-  // torso (slightly tapered tunic), belt
-  const ty0 = 14 + top + sh * 0.6, ty1 = hip + 1 + top * 0.5;
-  poly(ctx, [[cx - tw, ty0], [cx + tw, ty0], [cx + tw - 0.6, ty1], [cx - tw + 0.6, ty1]], (x, y) => {
-    const u = (x + 0.5 - (cx - tw)) / (2 * tw);
-    const lit = 0.9 - u * 0.65 - (y - ty0) / 28 + (front || back ? 0 : 0);
-    return rampAt(o.shirt, lit, x, y);
+function rigFor(col: number): Rig {
+  const r: Rig = { footL: [0, 0], footR: [0, 0], handL: [0.4, 4.3, 10.8], handR: [0.4, -4.3, 10.8], bob: 0, lean: 0, twist: 0, headTilt: 0, roll: 0, sink: 0, kneel: 0, blade: null, breath: 0 };
+  if (col >= 1 && col <= 8) {
+    const p = ((col - 1) / 8) * Math.PI * 2;
+    const sw = Math.sin(p), cs = Math.cos(p);
+    r.footL = [sw * 3.0, Math.max(0, cs) * 1.8];
+    r.footR = [-sw * 3.0, Math.max(0, -cs) * 1.8];
+    r.handL = [-sw * 2.6 + 0.4, 4.4, 11.2 + Math.abs(sw) * 0.5];
+    r.handR = [sw * 2.6 + 0.4, -4.4, 11.2 + Math.abs(sw) * 0.5];
+    r.bob = Math.abs(cs) > 0.7 ? 0.7 : 0;          // up while passing, down on contact
+    r.lean = 0.05;
+  } else if (col === COL_BREATH) r.breath = 0.6;
+  else if (col >= COL_ATTACK && col < COL_HURT) {
+    const k = col - COL_ATTACK;
+    if (k === 0) { r.twist = 0.55; r.handR = [-2.6, -4.2, 18.2]; r.blade = [-4.2, -2.6, 23]; r.handL = [2.2, 3.6, 13]; r.footR = [-1.6, 0]; r.lean = -0.06; }
+    else if (k === 1) { r.twist = -0.35; r.handR = [5.4, -2.0, 15.2]; r.blade = [11.5, -0.6, 14.6]; r.handL = [-1.2, 4.6, 11.6]; r.footL = [2.4, 0]; r.footR = [-1.8, 0]; r.lean = 0.16; r.bob = -0.4; }
+    else { r.twist = -0.6; r.handR = [3.0, 3.0, 11.5]; r.blade = [5.0, 8.2, 9.0]; r.handL = [-1.6, 4.6, 12]; r.footL = [2.4, 0]; r.footR = [-1.4, 0]; r.lean = 0.1; }
+  } else if (col === COL_HURT) {
+    r.lean = -0.24; r.headTilt = -0.3; r.handL = [-1.4, 5.6, 13.5]; r.handR = [-1.4, -5.6, 13.5]; r.footL = [1.2, 0.6]; r.bob = 0.3;
+  } else if (col >= COL_DEATH) {
+    const k = col - COL_DEATH;
+    r.kneel = [0.45, 1, 1, 1][k]!;
+    r.sink = [1.6, 4.2, 4.6, 4.6][k]!;
+    r.lean = [0.15, 0.35, 0.3, 0][k]!;
+    r.roll = [0, 0, 0.75, Math.PI / 2][k]!;
+    r.headTilt = [0.2, 0.4, 0.3, 0][k]!;
+    r.handL = [2.5, 4.0, 6]; r.handR = [2.5, -4.0, 6];
+  }
+  return r;
+}
+
+function drawPerson(s: Scene, col: number, o: Outfit, K: Kit): void {
+  const r = rigFor(col);
+  const child = (o.shorten ?? 0) > 0;
+  const k = child ? 0.84 : 1;
+  const sc: M3 = [k, 0, 0, 0, k, 0, 0, 0, k];
+  s.push(sc);
+  s.push(rotX(r.roll), [0, -3.6, 0]);
+  // legs: two segments, knees bow forward
+  const hipZ = 9.6 - r.sink;
+  const legs: Array<[number, [number, number]]> = [[1, r.footL], [-1, r.footR]];
+  for (const [sd, [fx, lift]] of legs) {
+    const pm = sd < 0 ? K.pantsFar : K.pants;
+    const p = s.newPart();
+    const hip: V3 = [0, sd * 1.75, hipZ];
+    let foot: V3 = [fx, sd * 1.9, 1.3 + lift];
+    let knee: V3 = [fx * 0.5 + 0.9 + lift * 0.5, sd * 1.85, (hipZ + 1.3) / 2 + lift * 0.4];
+    if (r.kneel > 0) { knee = [2.6 * r.kneel, sd * 2, Math.max(1.4, hipZ - 4 + 3 * (1 - r.kneel))]; foot = [-2.6 * r.kneel + fx, sd * 2, 1.0]; }
+    s.cap(hip, knee, 1.75, 1.55, pm, p);
+    s.cap(knee, foot, 1.55, 1.35, pm, p);
+    s.ell(add(foot, [0.7, 0, -0.2]), [2.0, 1.3, 1.15], K.boots, I_, p);
+  }
+  // upper body pivots at the hips (lean, twist), breathes
+  s.push(mul3(rotZ(r.twist), rotY(r.lean)), [0, 0, hipZ], [0, 0, 0]);
+  const bz = hipZ + r.bob;
+  s.ell([0, 0, bz + 0.8], [2.3, 3.2, 2.0], K.pants);                              // seat / hips
+  const ty = bz + 5.2 + r.breath * 0.4;
+  const beltLo = -0.92, beltHi = -0.72;
+  s.ell([0, 0, ty], [2.5, 3.5, 4.5 + r.breath * 0.2], (q) => {
+    if (q[2] > beltLo && q[2] < beltHi) return K.belt;
+    if (K.vest && q[0] > -0.35 && Math.abs(q[1]) > 0.22 && q[2] > beltHi) return K.vest;
+    return q[1] < -0.6 ? K.shirtFar : K.shirt;
   });
-  // shoulders rounded
-  blob(ctx, cx - tw + 1.2, ty0 + 1, 2, 1.6, o.shirt, { seed: seed + 20, noise: 0, bright: 0.12, edgeDark: 0.1 });
-  blob(ctx, cx + tw - 1.2, ty0 + 1, 2, 1.6, o.shirt, { seed: seed + 21, noise: 0, bright: -0.1, edgeDark: 0.1 });
-  if (o.vest && !back) poly(ctx, [[cx - tw, ty0 + 1], [cx - 1, ty0 + 1], [cx - 1.5, ty1 - 1], [cx - tw + 0.6, ty1 - 1]], (x, y) => rampAt(o.vest!, 0.7 - (y - ty0) / 30, x, y));
-  if (o.vest && !back && !profile) poly(ctx, [[cx + 1, ty0 + 1], [cx + tw, ty0 + 1], [cx + tw - 0.6, ty1 - 1], [cx + 1.5, ty1 - 1]], (x, y) => rampAt(o.vest!, 0.35 - (y - ty0) / 30, x, y));
-  const beltY = Math.round(ty1 - 1.5);
-  put(ctx, Math.round(cx - tw + 0.6), beltY, C.e0, Math.round(2 * tw - 1.2), 1);
-  if (!back) put(ctx, Math.round(cx + (profile ? 1 * s : 0)) - (profile ? 0 : 0), beltY, C.r6, 1, 1);
-  // quantum trim: a glowing seam down the tunic
-  if (o.glow !== undefined && !back) { const gx = Math.round(cx + (profile ? 1.6 * s : turn === 0.5 ? 1.2 * s : 0)); for (let y = Math.round(ty0) + 2; y < beltY; y += 2) put(ctx, gx, y, o.glow); }
-  // apron
-  if (o.apron) {
-    if (front || turn === 0.5) poly(ctx, [[cx - tw + 1.2 + (turn === 0.5 ? s : 0), ty0 + 3], [cx + tw - 1.2 + (turn === 0.5 ? s : 0), ty0 + 3], [cx + tw - 0.6, hip + 5], [cx - tw + 0.6, hip + 5]], (x, y) => rampAt(o.apron!, 0.85 - (x - cx + tw) / 16 - (y - ty0) / 40, x, y));
-    else if (profile) poly(ctx, [[cx + 1 * s, ty0 + 3], [cx + 2.6 * s, ty0 + 3], [cx + 3.4 * s, hip + 5], [cx + 1.2 * s, hip + 5]], o.apron[2]!);
-    else { put(ctx, Math.round(cx - 1), Math.round(ty1 - 3), o.apron[1]!, 3, 2); put(ctx, Math.round(cx - tw + 1), Math.round(ty0), o.apron[1]!, 1, 4); put(ctx, Math.round(cx + tw - 2), Math.round(ty0), o.apron[1]!, 1, 4); }
+  if (K.glow !== undefined) for (let z = ty - 2.5; z < ty + 3; z += 2) s.dot([2.45, 0, z], K.glow, 1, 1, 1.5);
+  if (K.apron) s.ell([0.9, 0, ty - 2.6], [1.9, 3.15, 4.8], (q) => (q[0] > 0.45 ? K.apron! : null));
+  if (K.cape) {
+    const fl = col >= 1 && col <= 8 ? Math.sin(((col - 1) / 8) * Math.PI * 4) * 0.1 : 0;
+    s.ell([-2.7, 0, ty - 3], [0.9, 3.9, 6.8], K.cape, rotY(-0.2 - fl - (col >= 1 && col <= 8 ? 0.12 : 0)));
   }
-  if (back) capeDraw();
-
-  // near limbs
-  if (profile) drawArm(1);
-  else { drawArm(0); drawArm(1); }
-
-  // neck + head
-  const hx = cx + (profile ? 0.8 * s : turn === 0.5 || turn === 1.5 ? 0.4 * s : 0);
-  const hy = 8.5 + top + sh * 0.5;
-  put(ctx, Math.round(hx) - 1, Math.round(hy + 4), o.skin[1]!, 3, 2);
-  if (o.scarf) { blob(ctx, cx, ty0 + 0.6, tw - 0.6, 1.6, o.scarf, { seed: seed + 30, noise: 0.1, edgeDark: 0.15 }); if (!back) put(ctx, Math.round(cx + (profile ? -1.5 * s : 1.5)), Math.round(ty0 + 1), o.scarf[1]!, 1, 4); }
-  blob(ctx, hx, hy, profile ? 4.6 : 5, 5.2, o.skin, { seed: seed + 31, noise: 0.02, edgeDark: 0.16, bright: 0.04 });
-  // ear (profile / three-quarter)
-  if (!front || turn === 0.5) if (!back || turn === 1.5) put(ctx, Math.round(hx - 1.5 * s), Math.round(hy + 0.5), o.skin[1]!, 1, 2);
-
-  // hair
+  // arms: sleeve + hand; the near (left, +y) arm lighter
+  const sh = ty + 2.7;
+  for (const [sd, hand] of [[1, r.handL], [-1, r.handR]] as const) {
+    const m = sd < 0 ? K.shirtFar : K.shirt;
+    const p = s.newPart();
+    const shoulder: V3 = [0, sd * 3.7, sh];
+    const h: V3 = [hand[0], hand[1], hand[2] + (bz - 9.6)];
+    const elbow = lerp3(shoulder, h, 0.5);
+    elbow[0] -= 0.6;
+    s.cap(shoulder, elbow, 1.35, 1.2, m, p);
+    s.cap(elbow, h, 1.2, 1.05, m, p);
+    s.sph(h, 1.15, sd < 0 ? K.skinFar : K.skin, p);
+    if (sd < 0 && r.blade) {
+      const b: V3 = [r.blade[0], r.blade[1], r.blade[2] + (bz - 9.6)];
+      s.line(h, b, (t) => (t < 0.18 ? 0x5a4234 : t > 0.8 ? 0xf2efe2 : 0xb9c2c8), 3);
+    }
+  }
+  if (K.scarf) {
+    s.ell([0.2, 0, sh + 0.9], [2.6, 3.3, 1.3], K.scarf);
+    s.cap([2.2, 1.2, sh + 0.3], [2.6, 1.6, sh - 3.4], 0.75, 0.65, K.scarf);
+  }
+  // head
+  s.push(rotY(r.headTilt), [0, 0, sh + 1.5]);
+  const hz = sh + 5.6 + (child ? 0.4 : 0);
+  const hr = child ? 4.45 : 4.2;
+  s.cap([0, 0, sh], [0.3, 0, hz - 3], 1.3, 1.3, K.skinFar);
+  s.sph([0.3, 0, hz], hr, K.skin);
+  const H = K.hair;
   const style: HairStyle = o.hairStyle ?? (o.longHair ? 'long' : 'short');
-  const H = o.hair;
+  const band = K.band;
   if (style !== 'bald') {
-    const big = style === 'curly' ? 1 : 0;
-    // cap of hair: covers the top of the head; front views leave the face clear below the fringe
-    for (let y = Math.floor(hy - 6 - big); y <= Math.ceil(hy + 5); y++) for (let x = Math.floor(hx - 6 - big); x <= Math.ceil(hx + 6 + big); x++) {
-      const nx = (x + 0.5 - hx) / (5.4 + big), ny = (y + 0.5 - (hy - 0.6)) / (5.5 + big);
-      if (nx * nx + ny * ny > 1) continue;
-      const fringe = hy - 1.5 + Math.sin(x * 1.7) * 0.6;
-      let cover: boolean;
-      if (back) cover = y < hy + 4;
-      else if (front) cover = y < fringe || (Math.abs(nx) > 0.8 && y < hy + 2);
-      else if (profile) cover = y < fringe - 0.5 || (x - hx) * s < -0.8;
-      else cover = y < fringe || ((x - hx) * s < -2.2 && y < hy + 3) || (turn === 1.5 && y < hy + 4 && (x - hx) * s < 1.5);
-      if (!cover) continue;
-      const lam = -nx * 0.6 - ny * 0.7;
-      const n = ((x * 7 + y * 13 + seed) % 5) / 5;
-      put(ctx, x, y, rampAt(H, 0.55 + lam * 0.5 + (big ? (n - 0.5) * 0.5 : (n - 0.5) * 0.15) + (y === Math.floor(hy - 5) ? 0.1 : 0), x, y));
+    const big = style === 'curly' ? 0.5 : 0;
+    s.ell([-0.15, 0, hz + 0.45], [hr + 0.5 + big, hr + 0.45 + big, hr + 0.45 + big], (q) => {
+      const front = q[0] > 0.18;
+      if (front && q[2] < 0.42 - Math.abs(q[1]) * 0.25) return null;              // the face
+      if (!front && q[2] < (style === 'short' ? -0.45 : -0.75) && q[0] > -0.6) return null;
+      if (Math.abs(q[1]) > 0.62 && q[2] < 0.05 && q[0] > -0.25) return null;        // ears / cheeks
+      if (band && q[2] > 0.2 && q[2] < 0.42) return band;
+      return H;
+    });
+    if (style === 'curly') for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * Math.PI * 2;
+      s.sph([-0.6 + Math.cos(a) * 3.6, Math.sin(a) * 3.8, hz + 2.6 + Math.sin(a * 3) * 0.6], 1.9, H);
     }
-    const longLen = style === 'long' ? 9 : style === 'braids' ? 11 : 0;
-    if (longLen) {
-      if (back) poly(ctx, [[hx - 5, hy], [hx + 5, hy], [hx + 4.5, hy + longLen - 2], [hx - 4.5, hy + longLen - 2]], (x, y) => rampAt(H, 0.65 - (y - hy) / 20 - (x - hx + 5) / 25 + (x % 2 ? 0.08 : 0), x, y));
-      else if (front || turn === 0.5) { for (const sx of style === 'braids' ? [-5, 4] : [-5.5, 4.5]) for (let y = 0; y < longLen - 1; y++) put(ctx, Math.round(hx + sx + (sx < 0 ? 0 : 0)), Math.round(hy + y), rampAt(H, 0.5 - y / 20 + (sx < 0 ? 0.15 : 0), 0, y), style === 'braids' ? 1 : 2, 1); }
-      else poly(ctx, [[hx - 1 * s, hy - 1], [hx - 5 * s, hy - 1], [hx - 4.6 * s, hy + longLen - 2], [hx - 1.5 * s, hy + longLen - 3]], (x, y) => rampAt(H, 0.45 - (y - hy) / 25, x, y));
-    }
-    if (style === 'bun') blob(ctx, hx - (profile ? 3 * s : turn === 1.5 ? 0 : 0), hy - 6.2 + (back ? 1 : 0), 2.6, 2.3, H, { seed: seed + 40, noise: 0.15, edgeDark: 0.2 });
-    if (style === 'ponytail') {
-      if (back) limb(ctx, hx, hy - 1, hx + 0.5, hy + 7, 1.8, 1.2, H, seed + 41);
-      else if (!front) limb(ctx, hx - 4 * s, hy - 2, hx - 6 * s, hy + 5, 1.7, 1.1, H, seed + 41);
-      else { put(ctx, Math.round(hx + 5), Math.round(hy - 2), H[1]!, 1, 5); }
-    }
-  } else {
-    put(ctx, Math.round(hx - 2), Math.round(hy - 4), o.skin[4]!, 2, 1);      // scalp shine
+    if (style === 'long') s.ell([-2.4, 0, hz - 3.2], [1.9, hr, 4.4], H);
+    if (style === 'bun') s.sph([-2.6, 0, hz + 3.4], 2.1, H);
+    if (style === 'ponytail') s.cap([-3.8, 0, hz + 1.6], [-5.4, 0, hz - 5.6], 1.5, 0.95, H);
+    if (style === 'braids') for (const sd of [1, -1]) s.cap([-0.6, sd * 3.9, hz - 1.5], [0.6, sd * 4.3, hz - 9.0], 1.05, 0.85, sd < 0 ? darker(H) : H);
+  } else if (band) s.ell([0.3, 0, hz + 0.3], [hr + 0.25, hr + 0.25, 1.0], band);
+  // face: eyes, a hint of cheek; facial hair
+  const eye = 0x1b1722;
+  for (const sd of [1, -1]) s.dot([0.3 + hr * 0.86, sd * hr * 0.42, hz - 0.2], eye, 1, 2, 1.6);
+  if (o.glasses) for (const sd of [1, -1]) { s.dot([0.4 + hr * 0.92, sd * hr * 0.42, hz + 0.9], 0xb8d8e0, 1, 1, 1.6); s.dot([0.4 + hr * 0.95, 0, hz + 0.6], 0x2a2330, 1, 1, 1.6); }
+  if (K.beard) {
+    s.ell([1.6, 0, hz - 2.4], [2.9, 3.3, 2.5], (q) => (q[0] > 0.1 ? K.beard! : null));
   }
-  if (o.headband !== undefined) put(ctx, Math.round(hx - 5), Math.round(hy - 2), o.headband, 10, 1);
-
-  // face
-  const ey = Math.round(hy + 0.6);
-  if (front) {
-    for (const ex of [-2, 2]) { put(ctx, Math.round(hx + ex) - (ex < 0 ? 1 : 0), ey, C.ink, 1, 2); put(ctx, Math.round(hx + ex) - (ex < 0 ? 1 : 0), ey, C.night, 1, 1); }
-    put(ctx, Math.round(hx - 4), ey + 2, C.r4); put(ctx, Math.round(hx + 3), ey + 2, C.r4);
-    put(ctx, Math.round(hx) - 1, ey + 3, o.skin[0]!, 2, 1);
-  } else if (turn === 0.5) {
-    const e1 = Math.round(hx + 0.2 * s), e2 = Math.round(hx + 3.2 * s);
-    put(ctx, e1 - (s < 0 ? 1 : 0), ey, C.ink, 1, 2); put(ctx, e2 - (s < 0 ? 1 : 0), ey, C.ink, 1, 2);
-    put(ctx, Math.round(hx - 2.5 * s), ey + 2, C.r4);
-    put(ctx, Math.round(hx + 2 * s), ey + 3, o.skin[0]!, 1, 1);
-  } else if (profile) {
-    put(ctx, Math.round(hx + 2.6 * s) - (s < 0 ? 1 : 0), ey, C.ink, 1, 2);
-    put(ctx, Math.round(hx + 4.6 * s) - (s < 0 ? 1 : 0), ey + 1, o.skin[2]!, 1, 1);           // nose
-    put(ctx, Math.round(hx + 3.4 * s) - (s < 0 ? 1 : 0), ey + 3, o.skin[0]!, 1, 1);
-  }
-  if (o.glasses && !back) {
-    if (front) { for (const ex of [-3, 1]) { put(ctx, Math.round(hx + ex) - 0, ey - 1, C.night, 3, 1); put(ctx, Math.round(hx + ex), ey + 2, C.night, 3, 1); put(ctx, Math.round(hx + ex + 1), ey - 0, C.w6); } }
-    else put(ctx, Math.round(hx + (turn === 0.5 ? 1 : 2) * s) - 1, ey - 1, C.night, 3, 1);
-  }
-  if (o.beard && !back) {
-    const bx = hx + (profile ? 1.8 * s : turn === 0.5 ? 1 * s : 0);
-    blob(ctx, bx, hy + 3.6, profile ? 2.6 : 3.4, 2.2, o.beard, { seed: seed + 50, noise: 0.3, edgeDark: 0.15 });
-    put(ctx, Math.round(bx) - 1, Math.round(hy + 2.6), o.skin[0]!, 2, 1);
-  }
-  if (o.moustache && !back) put(ctx, Math.round(hx + (profile ? 2.5 * s : turn === 0.5 ? 1.3 * s : 0)) - 2, Math.round(hy + 2.6), (o.beard ?? o.hair)[1]!, 4, 1);
-
+  if (o.moustache) s.dot([0.3 + hr * 0.97, 0, hz - 1.7], (K.beard ?? K.hair).r.c[1]!, 2, 1, 2, 0.5);
   // hats
-  if (o.hat) {
+  if (K.hat) {
     const hs = o.hatStyle ?? 'cap';
-    const hh = o.hat;
     if (hs === 'brim') {
-      blob(ctx, hx, hy - 3.6, 7.6, 2.2, hh, { seed: seed + 60, noise: 0.25, edgeDark: 0.2 });
-      blob(ctx, hx, hy - 5.6, 4.2, 2.8, hh, { seed: seed + 61, noise: 0.25, bright: 0.12, edgeDark: 0.12 });
-      put(ctx, Math.round(hx - 4), Math.round(hy - 4.5), C.r3, 8, 1);
+      s.ell([0, 0, hz + 3.0], [6.6, 6.6, 0.75], K.hat);
+      s.ell([-0.2, 0, hz + 4.3], [3.7, 3.7, 2.3], (q) => (q[2] < -0.35 ? { r: ramp(0x8a3b34, 2, 1) } : K.hat!));
     } else if (hs === 'beret') {
-      blob(ctx, hx - 0.8 * s, hy - 4.6, 5.8, 2.4, hh, { seed: seed + 62, noise: 0.15, edgeDark: 0.15 });
-      put(ctx, Math.round(hx - 0.5 * s), Math.round(hy - 7.4), hh[0]!, 1, 1);
+      s.ell([-0.6, 0.4, hz + 3.4], [5.0, 4.9, 1.9], K.hat, rotY(-0.22));
+      s.sph([-0.6, 0.4, hz + 5.3], 0.7, K.hat);
     } else {
-      blob(ctx, hx, hy - 4.4, 5.4, 3, hh, { seed: seed + 63, noise: 0.1, edgeDark: 0.12 });
-      if (!back) blob(ctx, hx + (profile ? 4 * s : turn === 0.5 ? 2 * s : 0), hy - 2.4 + (front ? 0.5 : 0), profile ? 3 : 4, 1, hh, { seed: seed + 64, noise: 0, edgeDark: 0.3 });
+      s.ell([-0.15, 0, hz + 0.8], [hr + 0.75, hr + 0.7, hr + 0.6], (q) => (q[2] > 0.32 ? K.hat! : null));
+      s.ell([3.6, 0, hz + 2.3], [2.6, 3.3, 0.55], K.hat, rotY(0.12));
     }
   }
+  s.pop();   // head
+  s.pop();   // upper body
+  s.pop();   // fall
+  s.pop();   // scale
+}
+const I_: M3 = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+function mul3(a: M3, b: M3): M3 {
+  const o = new Array(9).fill(0) as M3;
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) o[i * 3 + j] = a[i * 3]! * b[j]! + a[i * 3 + 1]! * b[3 + j]! + a[i * 3 + 2]! * b[6 + j]!;
+  return o;
 }
 
-// ───────────────────────── fauna & enemies ─────────────────────────
-const FUR: Ramp = [C.e1, C.e2, C.e3, C.e4, C.e5, C.e6];
-const FUR_DEER: Ramp = [C.e0, C.e1, C.e2, C.e3, C.e4, C.e5];
-const CREAM: Ramp = [C.e5, C.e6, C.e7, C.white];
+// ───────────────────────── sheets ─────────────────────────
 
-/** 20x18 hopping rabbit facing right. frames: 0 crouch, 1 launch, 2 peak, 3 land. */
-function drawRabbit(ctx: Ctx, frame: number): void {
-  const air = [0, 2, 4, 1][frame]!;
-  const st = [0, 1.5, 1, -0.5][frame]!;     // stretch (+) / squash (-)
-  const by = 14 - air;
-  blob(ctx, 6 - st, by - 0.5, 4.4, 3.4 - st * 0.3, FUR, { seed: 4, noise: 0.15, edgeDark: 0.25 });           // haunch
-  blob(ctx, 10, by - 2.4, 5.6 + st * 0.6, 3.8 - st * 0.4, FUR, { seed: 5, noise: 0.15, edgeDark: 0.22 });     // body
-  blob(ctx, 10.5, by - 0.8, 4, 1.6, CREAM, { seed: 6, noise: 0.05, edgeDark: 0 });
-  blob(ctx, 2.6 - st, by - 3.4, 2, 2, [C.fog, C.pale, C.white, C.white], { seed: 3, noise: 0.05, edgeDark: 0.15 });  // tail
-  blob(ctx, 15 + st * 0.5, by - 5, 3.4, 3, FUR, { seed: 7, noise: 0.1, edgeDark: 0.2, bright: 0.05 });       // head
-  const ear = frame === 2 ? 1 : 0;
-  limb(ctx, 13.5 + st * 0.5, by - 7, 12.5 - ear, by - 12 + ear, 1.2, 1.1, FUR, 8);
-  limb(ctx, 15.2 + st * 0.5, by - 7, 15.8 - ear, by - 12.5 + ear, 1.2, 1.1, FUR, 9, 0.1);
-  put(ctx, Math.round(15.7 + st * 0.5 - ear), by - 11, C.r5, 1, 3);
-  put(ctx, Math.round(16.6 + st * 0.5), by - 6, C.ink, 1, 2); put(ctx, Math.round(16.6 + st * 0.5), by - 6, C.night);
-  put(ctx, Math.round(18.2 + st * 0.5), by - 4, C.r5);
-  // feet
-  put(ctx, Math.round(13 + st), by + 1 + Math.min(air, 1), FUR[2]!, 3, 1);
-  put(ctx, Math.round(3 - st * 2), by + 1, FUR[1]!, 5, 1);
-}
-
-/** 34x34 walking stag facing right. 4-frame walk cycle. */
-function drawDeer(ctx: Ctx, frame: number): void {
-  const sw = [2, 0, -2, 0][frame]!;
-  const bob = frame % 2 === 0 ? 0 : 1;
-  const B = 18 - bob;
-  for (const [lx, d, ramp] of [[11, -sw, [C.e0, C.e1, C.e2]], [23, sw, [C.e0, C.e1, C.e2]], [9, sw, FUR_DEER], [25, -sw, FUR_DEER]] as const) {
-    limb(ctx, lx, B + 2, lx + d * 0.6, 30, 1.8, 1.1, ramp as Ramp, lx);
-    put(ctx, Math.round(lx + d * 0.6) - 1, 31, C.ink, 2, 2);
+function bakeLook(o: Outfit): Sheet {
+  const sheet = new Sheet(PERSON_W, PERSON_H, COLS, 8);
+  const K = kitOf(o);
+  for (let d = 0; d < 8; d++) for (let c = 0; c < COLS; c++) {
+    const s = new Scene(PERSON_W, PERSON_H, PERSON_W / 2, PERSON_H - 2, YAW[d]!);
+    drawPerson(s, c, o, K);
+    sheet.put(c, d, s.resolve());
   }
-  blob(ctx, 17, B - 1, 10, 5, FUR_DEER, { seed: 12, noise: 0.12, edgeDark: 0.25 });
-  blob(ctx, 16, B + 2, 7, 2, CREAM, { seed: 13, noise: 0.05, edgeDark: 0 });
-  for (let i = 0; i < 5; i++) put(ctx, 11 + i * 3, B - 3 + (i % 2), C.e6);
-  blob(ctx, 7, B - 3, 2, 2.4, [C.pale, C.white, C.white], { seed: 14, noise: 0 });
-  limb(ctx, 24, B - 2, 27, B - 10, 3.2, 2.4, FUR_DEER, 15, 0.08);
-  blob(ctx, 28.5, B - 11.5, 3.6, 2.8, FUR_DEER, { seed: 16, noise: 0.08, edgeDark: 0.2, bright: 0.06 });
-  blob(ctx, 31.3, B - 10.5, 1.6, 1.4, [C.e1, C.e2, C.e3], { seed: 17, noise: 0 });
-  put(ctx, 29, B - 13, C.ink, 1, 2); put(ctx, 32, B - 10, C.ink);
-  put(ctx, 25, B - 14, FUR_DEER[1]!, 2, 2);
-  // antlers
-  const ant = [[27, B - 14, 25, B - 20], [25, B - 20, 23, B - 23], [25, B - 20, 27, B - 23], [28, B - 14, 30, B - 19], [30, B - 19, 29, B - 23], [30, B - 19, 32, B - 21]] as const;
-  for (const [x0, y0, x1, y1] of ant) limb(ctx, x0, y0, x1, y1, 0.7, 0.6, [C.e4, C.e5, C.e6, C.e7], 18);
-}
-
-const GEL: Ramp = [C.w1, C.w2, C.w3, C.w4, C.w5, C.w6, C.w7];
-const GEL_N: Ramp = [C.q0, C.q1, C.q2, C.q3, C.q4, C.q6, C.white];
-
-/** Wisp Slime, 24x20: wobbly jelly with a floating wisp-core and squash/stretch. */
-function drawSlime(ctx: Ctx, frame: number, night: boolean): void {
-  const ramp = night ? GEL_N : GEL;
-  const squash = [0, 1.4, 2.4, 1][frame % 4]!;
-  const ry = 7.2 - squash * 0.9, rx = 8 + squash * 0.9;
-  const cy = 19 - ry;
-  // gooey base puddle
-  blob(ctx, 12, 18.4, rx + 1.2, 1.6, ramp, { seed: 2, noise: 0.05, bright: -0.25, edgeDark: 0.1 });
-  blob(ctx, 12, cy, rx, ry, ramp, { seed: night ? 7 : 3, noise: 0.06, bright: 0.02, edgeDark: 0.42, shape: 2.15 });
-  // translucent core with a wisp inside
-  blob(ctx, 12.6, cy + 1.5, rx * 0.45, ry * 0.4, ramp, { seed: 4, noise: 0.05, bright: 0.25, edgeDark: 0.05 });
-  const wy = Math.round(cy + 1 - (frame % 2));
-  put(ctx, 12, wy, night ? C.q7 : C.w7, 2, 2); put(ctx, 13, wy - 1, C.white);
-  // highlights
-  put(ctx, Math.round(12 - rx * 0.55), Math.round(cy - ry * 0.55), C.white, 2, 1);
-  put(ctx, Math.round(12 - rx * 0.62), Math.round(cy - ry * 0.4), C.white, 1, 1);
-  // face
-  const ey = Math.round(cy - ry * 0.12);
-  for (const ex of [8, 15]) { put(ctx, ex, ey, C.ink, 2, 3); put(ctx, ex, ey, night ? C.q7 : C.white); }
-  put(ctx, 11, ey + 3, C.ink, 3, 1);
-  if (frame % 4 === 2) put(ctx, 12, ey + 4, C.r4);   // a tongue on the big squash
-}
-
-/** Glint Hopper, 22x22: a crystal-backed jumping critter; frames 0 idle, 1 squat, 2 air, 3 land. */
-function drawHopper(ctx: Ctx, frame: number, night: boolean): void {
-  const ramp: Ramp = night ? [C.r0, C.r1, C.r2, C.r3, C.r4, C.r5] : FUR;
-  const air = frame === 2 ? 4 : 0, squat = frame === 1 ? 2 : frame === 3 ? 1 : 0;
-  const by = 20 - air;
-  blob(ctx, 11, by - 5 + squat * 0.5, 7 + squat * 0.5, 5 - squat * 0.4 + (frame === 2 ? 0.8 : 0), ramp, { seed: night ? 5 : 2, noise: 0.15, edgeDark: 0.3 });
-  blob(ctx, 11, by - 3 + squat * 0.4, 5, 2.2, CREAM, { seed: 3, noise: 0.05, edgeDark: 0, bright: -0.1 });
-  // glinting crystal crest
-  for (const [x, h] of [[7, 4], [10, 6], [13, 5], [15, 3]] as const) {
-    const y0 = by - 9 + squat;
-    poly(ctx, [[x - 1.2, y0 + 1], [x, y0 - h], [x + 1.2, y0 + 1]], (px) => (px < x ? (night ? C.q6 : C.q7) : (night ? C.q3 : C.w5)));
-  }
-  // ears + eyes
-  limb(ctx, 7, by - 8 + squat, 4.5, by - 13 + squat + (frame === 2 ? 2 : 0), 1.3, 1, ramp, 8);
-  limb(ctx, 15, by - 8 + squat, 17.5, by - 13 + squat + (frame === 2 ? 2 : 0), 1.3, 1, ramp, 9);
-  const ey = by - 6 + squat;
-  put(ctx, 8, ey, C.ink, 2, 2); put(ctx, 13, ey, C.ink, 2, 2);
-  put(ctx, 8, ey, night ? C.r6 : C.white); put(ctx, 13, ey, night ? C.r6 : C.white);
-  put(ctx, 10, ey + 2, C.r3, 3, 1);
-  // feet
-  blob(ctx, 6, by - 0.5, 2.6, 1.4, ramp, { seed: 11, noise: 0.05 }); blob(ctx, 16, by - 0.5, 2.6, 1.4, ramp, { seed: 12, noise: 0.05 });
-}
-
-function drawOrb(ctx: Ctx, frame: number): void {
-  const r = frame ? 4.6 : 3.8;
-  blob(ctx, 8, 8, r, r, [C.q2, C.q3, C.q4, C.q6, C.white], { seed: 1, noise: 0, bright: 0.15, edgeDark: 0.1 });
-  put(ctx, 6, 6, C.white, 2, 1);
-  put(ctx, frame ? 2 : 13, 8, C.q7); put(ctx, 8, frame ? 13 : 2, C.q7);
+  return sheet;
 }
 
 export interface Sheets {
   /** frame 0 = idle (breathes on its own), 1..WALK_FRAMES-1 = walk; dir = one of the 8 DIR_* constants */
   person(outfit: number, dir: number, frame: number): Texture;
+  /** attack (0..2), hurt (0), death (0..3, holds the last) for a player look */
+  personPose(outfit: number, dir: number, pose: Pose, k: number): Texture;
   /** unique sprite per village NPC; same layout as `person` */
   npc(npcId: string, dir: number, frame: number): Texture;
-  /** passive fauna: 4 frames, always drawn facing right (flip the sprite to face left) */
+  /** legacy fauna/foe accessors (see critters.ts for the full 4-direction animation sets) */
   rabbit(frame: number, dir: number): Texture;
   deer(frame: number, dir: number): Texture;
   slime(night: boolean, frame: number): Texture;
   hopper(night: boolean, frame: number): Texture;
+  /** the player's light bolt */
   orb(frame: number): Texture;
 }
 
-function polished(buf: PixBuf, ax: number, ay: number, rx: number): void {
-  outline(buf.ctx, buf.width, buf.height, C.night);
-  polish(buf.ctx, buf.width, buf.height, { rim: true, ao: { ax, ay, rx } });
-}
-
-function personSheet(looks: Outfit[], seedBase: number): HTMLCanvasElement {
-  const { canvas, ctx } = makeCanvas(PERSON_W * COLS, looks.length * 8 * PERSON_H);
-  looks.forEach((o, i) => {
-    for (let d = 0; d < 8; d++) for (let f = 0; f < COLS; f++) {
-      const buf = new PixBuf(PERSON_W, PERSON_H);
-      drawPerson(buf.ctx, d, f, o, seedBase + i * 37 + d * 13);
-      polished(buf, 12, 31, 6);
-      buf.blit(ctx, f * PERSON_W, (i * 8 + d) * PERSON_H);
-    }
-  });
-  return canvas;
-}
-
 export function buildActorSheets(): Sheets {
-  const base = Texture.from(personSheet(OUTFITS, 1)); base.source.scaleMode = 'nearest';
+  const looks = new Map<string, Sheet>();
   const npcIds = NPCS.map((n) => n.id);
-  const npcBase = Texture.from(personSheet(npcIds.map((id, i) => NPC_LOOKS[id] ?? OUTFITS[i % OUTFITS.length]!), 700)); npcBase.source.scaleMode = 'nearest';
-
-  // creatures: slime 24x20 (day/night x4), hopper 22x22 (x4 x2), orb 16x16 x2, rabbit 20x18 x4, deer 34x34 x4
-  const cw = 34 * 4, ch = 20 * 2 + 22 * 2 + 16 + 18 + 34;
-  const { canvas: cc, ctx: cctx } = makeCanvas(cw, ch);
-  const stamp = (w: number, h: number, x: number, y: number, draw: (c: Ctx) => void, ao: [number, number, number] | null) => {
-    const buf = new PixBuf(w, h);
-    draw(buf.ctx);
-    outline(buf.ctx, w, h, C.night);
-    polish(buf.ctx, w, h, { rim: true, ao: ao ? { ax: ao[0], ay: ao[1], rx: ao[2] } : null });
-    buf.blit(cctx, x, y);
-  };
-  const Y = { slime: 0, hopper: 40, orb: 84, rabbit: 100, deer: 118 };
-  for (let f = 0; f < 4; f++) {
-    stamp(24, 20, f * 24, Y.slime, (c) => drawSlime(c, f, false), null);
-    stamp(22, 22, f * 22, Y.hopper, (c) => drawHopper(c, f, false), null);
-    stamp(22, 22, f * 22, Y.hopper + 22, (c) => drawHopper(c, f, true), null);
-    stamp(20, 18, f * 20, Y.rabbit, (c) => drawRabbit(c, f), null);
-    stamp(34, 34, f * 34, Y.deer, (c) => drawDeer(c, f), null);
-  }
-  // night slimes go in the second slime row
-  const slimeN = makeCanvas(96, 20);
-  for (let f = 0; f < 4; f++) { const buf = new PixBuf(24, 20); drawSlime(buf.ctx, f, true); outline(buf.ctx, 24, 20, C.night); polish(buf.ctx, 24, 20, { rim: true }); buf.blit(slimeN.ctx, f * 24, 0); }
-  for (let f = 0; f < 2; f++) stamp(16, 16, f * 16, Y.orb, (c) => drawOrb(c, f), null);
-  const cBase = Texture.from(cc); cBase.source.scaleMode = 'nearest';
-  const nBase = Texture.from(slimeN.canvas); nBase.source.scaleMode = 'nearest';
-
-  const cache = new Map<string, Texture>();
-  const sub = (src: Texture, key: string, x: number, y: number, w: number, h: number) => {
-    let t = cache.get(key);
-    if (!t) { t = new Texture({ source: src.source, frame: new Rectangle(x, y, w, h) }); cache.set(key, t); }
-    return t;
-  };
+  const sheetFor = (key: string, o: Outfit) => { let s = looks.get(key); if (!s) { s = bakeLook(o); looks.set(key, s); } return s; };
+  const lookOf = (i: number) => ((i % OUTFITS.length) + OUTFITS.length) % OUTFITS.length;
   // idle frames alternate with a breathing frame on their own clock (phase-offset per look/direction)
-  const idleCol = (k: number) => ((performance.now() / 700 + k * 0.37) % 2 < 1.15 ? 0 : COLS - 1);
+  const idleCol = (k: number) => ((performance.now() / 700 + k * 0.37) % 2 < 1.15 ? 0 : COL_BREATH);
   const col = (f: number, k: number) => (f <= 0 ? idleCol(k) : Math.min(WALK_FRAMES - 1, f));
   const dd = (d: number) => ((d % 8) + 8) % 8;
+  const poseCol = (p: Pose, k: number) => (p === 'attack' ? COL_ATTACK + Math.max(0, Math.min(2, k)) : p === 'hurt' ? COL_HURT : COL_DEATH + Math.max(0, Math.min(3, k)));
+  const side = (dir: number) => (dir === DIR_LEFT || dir === DIR_DOWN_LEFT || dir === DIR_UP_LEFT ? D4_SW : D4_SE);
   return {
-    person: (o, d, f) => { const c = col(f, o * 3 + d); return sub(base, `p${o}.${dd(d)}.${c}`, c * PERSON_W, (o * 8 + dd(d)) * PERSON_H, PERSON_W, PERSON_H); },
-    npc: (id, d, f) => { const i = Math.max(0, npcIds.indexOf(id)); const c = col(f, i * 5 + d); return sub(npcBase, `n${i}.${dd(d)}.${c}`, c * PERSON_W, (i * 8 + dd(d)) * PERSON_H, PERSON_W, PERSON_H); },
-    rabbit: (f) => sub(cBase, `r${f % 4}`, (f % 4) * 20, Y.rabbit, 20, 18),
-    deer: (f) => sub(cBase, `d${f % 4}`, (f % 4) * 34, Y.deer, 34, 34),
-    slime: (n, f) => (n ? sub(nBase, `sn${f % 4}`, (f % 4) * 24, 0, 24, 20) : sub(cBase, `s${f % 4}`, (f % 4) * 24, Y.slime, 24, 20)),
-    hopper: (n, f) => sub(cBase, `h${n}.${f % 4}`, (f % 4) * 22, Y.hopper + (n ? 22 : 0), 22, 22),
-    orb: (f) => sub(cBase, `o${f % 2}`, (f % 2) * 16, Y.orb, 16, 16),
+    person: (o, d, f) => sheetFor(`p${lookOf(o)}`, OUTFITS[lookOf(o)]!).frame(col(f, o * 3 + d), dd(d)),
+    personPose: (o, d, p, k) => sheetFor(`p${lookOf(o)}`, OUTFITS[lookOf(o)]!).frame(poseCol(p, k), dd(d)),
+    npc: (id, d, f) => {
+      const i = Math.max(0, npcIds.indexOf(id));
+      return sheetFor(`n${i}`, NPC_LOOKS[id] ?? OUTFITS[i % OUTFITS.length]!).frame(col(f, i * 5 + d), dd(d));
+    },
+    rabbit: (f, d) => critter('rabbit', false, side(d), f > 0 ? 'move' : 'idle', Math.max(0, f - 1)),
+    deer: (f, d) => critter('deer', false, side(d), f > 0 ? 'move' : 'idle', Math.max(0, f - 1)),
+    slime: (n, f) => critter('slime', n, D4_SE, 'idle', f),
+    hopper: (n, f) => critter('hopper', n, D4_SE, f === 1 ? 'windup' : f === 2 ? 'attack' : 'idle', f === 3 ? 1 : 0),
+    orb: (f) => orbTex(0, f),
   };
 }
