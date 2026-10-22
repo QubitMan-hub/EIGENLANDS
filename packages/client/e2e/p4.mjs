@@ -34,7 +34,11 @@ async function player(name, contextOpts = {}) {
   }
   await page.fill('#name', name);
   await page.click('#btn-guest');
-  await page.waitForFunction(() => window.__eigen?.state().ready, null, { timeout: 120000 });
+  try { await page.waitForFunction(() => window.__eigen?.state().ready, null, { timeout: 120000 }); } catch (e) {
+    await page.screenshot({ path: `${out}/p4-fail-${name}.png` });
+    console.error('never got ready:', name, await page.evaluate(() => document.getElementById('login-msg')?.textContent), errors);
+    throw e;
+  }
   await page.waitForSelector('#chat:not([hidden]), #chat-mini:not([hidden])', { timeout: 30000 });
   return page;
 }
