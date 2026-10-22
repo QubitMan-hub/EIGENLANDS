@@ -585,7 +585,8 @@ export function worldObjDef(o: WorldObj): ObjSpriteDef {
   const key = o.kind === 'sprinkler' ? `sprinkler:${o.sub}:${(o.data as { watering?: boolean } | undefined)?.watering ? 1 : 0}` : `${o.kind}:${o.sub}`;
   let d = objCache.get(key);
   if (!d) {
-    if (o.kind === 'station') d = (STATIONS[o.sub] ?? DECO.crate!)();
+    if ((o.kind === 'deco' || o.kind === 'sign' || o.kind === 'furniture') && TOWN_DECO[o.sub]) d = TOWN_DECO[o.sub]!();
+    else if (o.kind === 'station') d = (STATIONS[o.sub] ?? DECO.crate!)();
     else if (o.kind === 'sprinkler') d = sprinkler(o.sub === 'sprinkler2', !!(o.data as { watering?: boolean } | undefined)?.watering);
     else if (o.kind === 'shelter') d = o.sub === 'barn' ? barn() : coop();
     else if (o.kind === 'chest') d = chest();

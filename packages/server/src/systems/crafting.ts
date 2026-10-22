@@ -1,10 +1,21 @@
 import {
-  ITEMS, MSG, STATION_SUBS, addStack, canCraft, countItem, matchExperiment, recipeById, removeItem,
+  ITEMS, MSG, STATION_SUBS, addStack, canCraft, countItem, matchExperiment, recipeById, recipesFor, removeItem,
   type CraftMsg, type ExperimentMsg, type Props, type Recipe, type Stack, type StationId,
 } from '@eigenlands/shared';
 import type { ServerPlayer } from '../rooms/player';
 import type { RoomApi } from './api';
 import { addSkillXp, cloneInv, isInt, skillLv, validSlot } from './helpers';
+import { questEvent, recordDeed, syncQuests } from './quests';
+
+/** Quest events, deeds and delivery sync after anything was made. */
+function made(room: RoomApi, p: ServerPlayer, rec: Recipe, n: number, discovered: boolean): void {
+  const id = rec.out.id, name = ITEMS[id]?.name ?? id, day = room.wclock.day();
+  questEvent(p, { type: 'craft', target: id, n, station: rec.station });
+  if (rec.station === 'furnace') { questEvent(p, { type: 'smelt', target: id, n }); recordDeed(p, 'smelt', name, day); }
+  if (rec.station === 'cooking_pot') recordDeed(p, 'cook', name.toLowerCase(), day);
+  if (discovered) { questEvent(p, { type: 'discover', target: id, n: 1 }); recordDeed(p, 'discover', name, day); }
+  syncQuests(p);
+}
 
 const STATION_REACH = 3.5;
 const STATION_IDS = new Set<string>(['hand', 'workbench', 'furnace', 'forge', 'cooking_pot', 'alchemy', 'loom', 'jeweler', 'carpenter']);
@@ -46,6 +57,7 @@ export function handleCraft(room: RoomApi, p: ServerPlayer, msg: CraftMsg): void
   addSkillXp(p, 'crafting', rec.xp * msg.n);
   room.fx({ kind: 'craft', x: p.sim.x, y: p.sim.y, id: p.id });
   p.toast(`Crafted ${out.n} ${ITEMS[out.id]?.name ?? out.id}${saved ? ' (saved an ingredient!)' : ''}`, 'good', { id: out.id, n: out.n });
+  made(room, p, rec, out.n, false);
 }
 
 export function handleExperiment(room: RoomApi, p: ServerPlayer, msg: ExperimentMsg): void {
@@ -62,7 +74,14 @@ export function handleExperiment(room: RoomApi, p: ServerPlayer, msg: Experiment
   }
   const offered = picks.map((x) => ({ id: p.data.inv[x.slot]!.id, n: x.n }));
   const rec = matchExperiment(msg.station, offered);
-  if (!rec) { p.toast('Nothing happens… but the ingredients hum faintly.'); return; }
+  if (!rec) {
+    // right ingredients, wrong amounts: give the player a nudge instead of a dead end
+    const ids = new Set(offered.map((o) => o.id));
+    const near = recipesFor(msg.station).find((r) => !r.inputs.some((i) => i.id.startsWith('*')) && r.inputs.length === ids.size && r.inputs.every((i) => ids.has(i.id)));
+    if (near) p.toast('So close! These belong together, but the amounts are off. Try different quantities.', 'info');
+    else p.toast('Nothing happens… but the ingredients hum faintly. (Nothing was used up.)');
+    return;
+  }
 
   let extra: Props | undefined;
   if (rec.inputs.some((i) => i.id.startsWith('*'))) {
@@ -71,6 +90,7 @@ export function handleExperiment(room: RoomApi, p: ServerPlayer, msg: Experiment
     extra = { a: seeds[0]!, b: seeds[1]! };
   }
   const sim = cloneInv(p.data.inv);
+  const discovered = !p.data.recipes.has(rec.id);
   for (const x of picks) { const s = sim[x.slot]!; s.n -= x.n; if (s.n <= 0) sim[x.slot] = null; }
   const out = outStack(rec, 1, extra);
   if (addStack(sim, out) > 0) { p.toast('Your pack is full.', 'bad'); return; }
@@ -84,5 +104,6 @@ export function handleExperiment(room: RoomApi, p: ServerPlayer, msg: Experiment
   addSkillXp(p, 'crafting', rec.xp);
   room.fx({ kind: 'craft', x: p.sim.x, y: p.sim.y, id: p.id });
   p.client.send(MSG.TOAST, { text: `Made ${ITEMS[out.id]?.name ?? out.id}`, kind: 'item', item: out });
+  made(room, p, rec, 1, discovered);
 }
 

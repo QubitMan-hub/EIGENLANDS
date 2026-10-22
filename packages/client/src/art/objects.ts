@@ -1,6 +1,6 @@
 import { Rectangle, Texture } from 'pixi.js';
-import { hash2, mulberry32 } from '@eigenlands/shared';
-import { bayer, blob, C, line, makeCanvas, poly, polish, put, R, slab, type Ctx } from './shade';
+import { PALETTE, hash2, mulberry32 } from '@eigenlands/shared';
+import { bayer, blob, C, line, makeCanvas, poly, polish, put, R, slab, type Ctx, type Ramp } from './shade';
 
 export interface ObjSprite { tex: Texture; ax: number; ay: number }
 export type SeasonIdx = 0 | 1 | 2 | 3;
@@ -92,6 +92,50 @@ export function buildTrees(season: SeasonIdx): ObjSprite[] {
   return out;
 }
 
+/**
+ * Quantum "superposition" tree: an oak and a crystal conifer occupying the same spot. Frames run
+ * oak -> dithered superposition -> crystal pine -> superposition, so the tree flickers between its two forms.
+ */
+export function buildQTree(season: SeasonIdx): ObjSprite[] {
+  const out: ObjSprite[] = [];
+  const CRY: Ramp = [C.q0, C.q1, C.q2, C.q3, C.q4, C.q6, C.q7];
+  const oak = makeCanvas(48, 64), pine = makeCanvas(48, 64);
+  drawBroadleaf(oak.ctx, 77, season === 3 ? 1 : season);
+  // tint the oak's canopy toward teal/violet: redraw the leaf blobs in the crystal ramp at low noise
+  drawPine(pine.ctx, 91, 1);
+  const recolor = (ctx: Ctx, map: (i: number, x: number, y: number) => number) => {
+    const img = ctx.getImageData(0, 0, 48, 64);
+    const d = img.data;
+    for (let y = 0; y < 64; y++) for (let x = 0; x < 48; x++) {
+      const i = (y * 48 + x) * 4;
+      if (!d[i + 3]) continue;
+      const hex = '#' + [d[i]!, d[i + 1]!, d[i + 2]!].map((v) => v.toString(16).padStart(2, '0')).join('');
+      const idx = PALETTE.indexOf(hex as (typeof PALETTE)[number]);
+      if (idx >= 8 && idx < 16) put(ctx, x, y, map(idx, x, y));
+    }
+  };
+  const TEAL = [C.q0, C.w1, C.w2, C.w3, C.w4, C.w5, C.w6, C.q7];
+  recolor(oak.ctx, (i) => TEAL[i - 8]!);
+  recolor(pine.ctx, (i) => CRY[Math.min(6, Math.max(0, i - 8))]!);
+  const a = oak.ctx.getImageData(0, 0, 48, 64).data, b = pine.ctx.getImageData(0, 0, 48, 64).data;
+  const mix = (mode: number): ObjSprite => {
+    const { canvas, ctx } = makeCanvas(48, 64);
+    const img = ctx.createImageData(48, 64);
+    for (let y = 0; y < 64; y++) for (let x = 0; x < 48; x++) {
+      const i = (y * 48 + x) * 4;
+      const pickA = mode === 0 ? true : mode === 2 ? false : ((x >> 1) + (y >> 1) + (mode === 1 ? 0 : 1)) % 2 === 0;
+      const src = pickA ? (a[i + 3] ? a : b) : (b[i + 3] ? b : a);
+      if (mode === 0 && !a[i + 3]) continue;
+      if (mode === 2 && !b[i + 3]) continue;
+      for (let k = 0; k < 4; k++) img.data[i + k] = src[i + k]!;
+    }
+    ctx.putImageData(img, 0, 0);
+    return toSprite(canvas, 24, 61, { fringe: true });
+  };
+  out.push(mix(0), mix(1), mix(2), mix(3));
+  return out;
+}
+
 /** Faceted boulder: a low-poly fan around the centre, each facet lit by its own normal. */
 export function facetRock(ctx: Ctx, cx: number, cy: number, rx: number, ry: number, seed: number, snow: boolean): void {
   const rng = mulberry32(seed);
@@ -130,13 +174,24 @@ export function facetRock(ctx: Ctx, cx: number, cy: number, rx: number, ry: numb
 export function buildRocks(season: SeasonIdx): ObjSprite[] {
   const out: ObjSprite[] = [];
   for (let v = 0; v < 6; v++) {
-    const { canvas, ctx } = makeCanvas(34, 26);
+    const { canvas, ctx } = makeCanvas(40, 32);
     const big = v % 3 === 0;
-    facetRock(ctx, big ? 17 : 13, big ? 15 : 16, big ? 13.5 : 9.5, big ? 9.5 : 7, 40 + v * 13, season === 3);
-    if (v % 3 === 1) facetRock(ctx, 23, 17, 8, 6.4, 90 + v * 7, season === 3);
-    out.push(toSprite(canvas, 17, 23));
+    facetRock(ctx, big ? 20 : 17, big ? 19 : 21, big ? 16 : 11.5, big ? 11.5 : 8.5, 40 + v * 13, season === 3);
+    if (v % 3 === 1) facetRock(ctx, 27, 23, 8.5, 6.4, 90 + v * 7, season === 3);
+    if (v % 3 === 2) { facetRock(ctx, 9, 25, 5, 3.6, 70 + v, season === 3); facetRock(ctx, 30, 26, 4, 3, 75 + v, season === 3); }
+    outlineSoft(ctx, 40, 32);
+    out.push(toSprite(canvas, 20, 28));
   }
   return out;
+}
+
+/** dark outline around opaque pixels (keeps translucent AO out of it) */
+function outlineSoft(ctx: Ctx, w: number, h: number): void {
+  const d = ctx.getImageData(0, 0, w, h).data;
+  const solid = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && d[(y * w + x) * 4 + 3]! > 200;
+  const mark: Array<[number, number]> = [];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!solid(x, y) && (solid(x - 1, y) || solid(x + 1, y) || solid(x, y - 1) || solid(x, y + 1))) mark.push([x, y]);
+  for (const [x, y] of mark) put(ctx, x, y, C.night);
 }
 
 const PETALS: number[][] = [[C.r5, C.r6], [C.e6, C.e7], [C.q4, C.q5], [C.w5, C.w6], [C.r3, C.r4], [C.q6, C.white]];
@@ -196,15 +251,15 @@ export function buildBloom(): ObjSprite[] {
 export function buildTorch(): ObjSprite[] {
   const out: ObjSprite[] = [];
   for (let f = 0; f < 2; f++) {
-    const { canvas, ctx } = makeCanvas(16, 24);
-    slab(ctx, 7, 11, 2, 12, R.bark, 4, 0.3);
-    slab(ctx, 5, 9, 6, 3, R.gold, 5, 0.2);
-    put(ctx, 4, 8, C.e2, 8, 1);
-    blob(ctx, 8, 5 - f * 0.4, 3.4, 4.6 + f * 0.6, [C.r3, C.r4, C.e4, C.e5, C.e6], { seed: f + 3, noise: 0.15, bright: 0.2 });
-    blob(ctx, 8, 6, 1.8, 2.8, [C.e6, C.e7, C.white], { seed: 9, noise: 0.05, bright: 0.2, edgeDark: 0 });
-    put(ctx, 8 + (f ? 1 : -1), 0 + f, C.e7);
-    put(ctx, 6, 22, C.e1, 4, 1);
-    out.push(toSprite(canvas, 8, 23));
+    const { canvas, ctx } = makeCanvas(18, 34);
+    // standing torch: wrapped pole, iron basket, living flame
+    slab(ctx, 8, 14, 3, 18, R.bark, 4, 0.2);
+    for (let y = 17; y < 31; y += 4) put(ctx, 8, y, C.e1, 3, 1);
+    put(ctx, 5, 12, C.night, 9, 3); put(ctx, 6, 12, C.slate, 7, 1); put(ctx, 5, 10, C.night, 1, 3); put(ctx, 13, 10, C.night, 1, 3);
+    blob(ctx, 9.5, 7 - f * 0.5, 4.2, 5.4 + f * 0.6, [C.r2, C.r3, C.r4, C.r5, C.r6], { seed: f + 3, noise: 0.2, bright: 0.15, edgeDark: 0.05 });
+    blob(ctx, 9.5, 8.5, 2.2, 3, [C.r6, C.r7, C.white], { seed: 9, noise: 0.05, bright: 0.2, edgeDark: 0 });
+    put(ctx, 9 + (f ? 2 : -2), 1 + f, C.r6); put(ctx, 10 - (f ? 3 : -1), 0, C.r5);
+    out.push(toSprite(canvas, 9, 31));
   }
   return out;
 }
@@ -220,37 +275,47 @@ export function buildStump(season: SeasonIdx): ObjSprite[] {
 }
 
 // ───────── Phase 2 tile objects ─────────
-const ORE_STYLE: Record<string, { vein: number[]; seed: number; glint?: boolean }> = {
-  ore_copper: { vein: [C.e4, C.e5, C.e6], seed: 210 },
-  ore_iron: { vein: [C.steel, C.w4, C.w5], seed: 230 },
-  ore_silver: { vein: [C.fog, C.pale, C.w7], seed: 250, glint: true },
-  ore_gold: { vein: [C.e5, C.e6, C.e7], seed: 270, glint: true },
+const ORE_STYLE: Record<string, { ramp: number[]; seed: number; glint?: boolean; host?: number }> = {
+  ore_copper: { ramp: [C.r1, C.r3, C.r4, C.r5, C.r6], seed: 210 },
+  ore_iron: { ramp: [C.e0, C.e1, C.e2, C.r2, C.mist], seed: 230 },
+  ore_silver: { ramp: [C.steel, C.fog, C.pale, C.w7, C.white], seed: 250, glint: true },
+  ore_gold: { ramp: [C.e3, C.r5, C.r6, C.r7, C.white], seed: 270, glint: true },
 };
 
-/** Rock with coloured metal veins and nuggets; silver and gold glint on a second frame. */
+/** Boulder shot through with a readable metal seam and chunky shiny nuggets; silver and gold glint. */
 export function buildOre(kind: keyof typeof ORE_STYLE, season: SeasonIdx): ObjSprite[] {
   const st = ORE_STYLE[kind]!;
   const out: ObjSprite[] = [];
+  const R5 = st.ramp as unknown as Ramp;
   for (let v = 0; v < 3; v++) {
     for (let f = 0; f < (st.glint ? 2 : 1); f++) {
-      const { canvas, ctx } = makeCanvas(34, 26);
+      const { canvas, ctx } = makeCanvas(40, 32);
       const rng = mulberry32(st.seed + v * 17);
-      facetRock(ctx, 17, 15, v === 1 ? 11 : 13, 9.5, st.seed + v, season === 3);
+      facetRock(ctx, 20, 19, v === 1 ? 13 : 15.5, 11, st.seed + v, season === 3);
+      if (v === 2) facetRock(ctx, 31, 24, 6, 4.5, st.seed + 9, season === 3);
+      const img = ctx.getImageData(0, 0, 40, 32).data;
+      const onRock = (x: number, y: number) => x >= 0 && y >= 0 && x < 40 && y < 32 && img[(y * 40 + x) * 4 + 3]! > 0;
+      // a diagonal seam
+      let x = 9 + Math.floor(rng() * 4), y = 14 + Math.floor(rng() * 3);
+      for (let j = 0; j < 22; j++) {
+        if (onRock(x, y) && onRock(x, y + 1)) { put(ctx, x, y, R5[1]!); put(ctx, x, y + 1, R5[0]!); if (j % 3 === 0) put(ctx, x, y - 1, R5[2]!); }
+        x += 1; y += rng() > 0.55 ? 1 : rng() > 0.75 ? -1 : 0;
+      }
+      // nuggets: lit top-left, dark rim bottom-right
       for (let i = 0; i < 6; i++) {
-        let x = 8 + Math.floor(rng() * 16), y = 9 + Math.floor(rng() * 9);
-        const len = 4 + Math.floor(rng() * 5), dx = rng() > 0.5 ? 1 : -1;
-        for (let j = 0; j < len; j++) {
-          put(ctx, x, y, st.vein[j % 3]!);
-          if (j % 2 === 0) put(ctx, x, y + 1, st.vein[0]!);
-          x += dx; y += rng() > 0.6 ? 1 : 0;
-        }
+        const nx = 9 + Math.floor(rng() * 21), ny = 11 + Math.floor(rng() * 12);
+        if (!onRock(nx, ny) || !onRock(nx + 2, ny + 2)) continue;
+        const w = 2 + (i % 2), h = 2;
+        put(ctx, nx, ny, R5[2]!, w, h); put(ctx, nx, ny, R5[3]!, w - 1, 1); put(ctx, nx, ny, R5[4]!);
+        put(ctx, nx + w, ny + 1, C.night, 1, h); put(ctx, nx + 1, ny + h, C.night, w, 1);
       }
-      for (let i = 0; i < 5; i++) {
-        const x = 8 + Math.floor(rng() * 17), y = 9 + Math.floor(rng() * 9);
-        put(ctx, x, y, st.vein[1]!, 2, 2); put(ctx, x, y, st.vein[2]!); put(ctx, x + 1, y + 1, st.vein[0]!);
+      if (st.glint) {
+        const gx = 12 + ((v * 7 + f * 9) % 15), gy = 12 + ((v * 3 + f * 5) % 8);
+        put(ctx, gx, gy, C.white); for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]] as const) put(ctx, gx + dx, gy + dy, R5[3]!);
+        put(ctx, gx - 2, gy, R5[2]!); put(ctx, gx + 2, gy, R5[2]!);
       }
-      if (st.glint) { const gx = 9 + ((v * 5 + f * 7) % 15), gy = 9 + ((v * 3 + f * 3) % 7); put(ctx, gx, gy, C.white); put(ctx, gx - 1, gy, st.vein[2]!); put(ctx, gx + 1, gy, st.vein[2]!); put(ctx, gx, gy - 1, st.vein[2]!); put(ctx, gx, gy + 1, st.vein[2]!); }
-      out.push(toSprite(canvas, 17, 23, { fringe: kind === 'ore_silver' }));
+      outlineSoft(ctx, 40, 32);
+      out.push(toSprite(canvas, 20, 28, { fringe: kind === 'ore_silver' }));
     }
   }
   return out;
@@ -322,20 +387,29 @@ export function buildForage(season: SeasonIdx): ObjSprite[] {
   return out;
 }
 
-/** 16 connection variants (mask: N=1, E=2, S=4, W=8). */
+/** 16 connection variants (mask: N=1, E=2, S=4, W=8), iso: N = up-right, E = down-right, S = down-left, W = up-left. */
 export function buildFence(): ObjSprite[] {
   const out: ObjSprite[] = [];
+  const W = 34, H = 32, PX = 17, PY = 26;
   for (let m = 0; m < 16; m++) {
-    const { canvas, ctx } = makeCanvas(16, 20);
-    const rail = (x: number, w: number) => { slab(ctx, x, 6, w, 2, R.bark, m + 1, 0.2); slab(ctx, x, 11, w, 2, R.bark, m + 5, 0.2); put(ctx, x, 6, C.e5, w, 1); put(ctx, x, 11, C.e5, w, 1); };
-    if (m & 8) rail(0, 7);
-    if (m & 2) rail(9, 7);
-    if (m & 1) { slab(ctx, 6, 0, 4, 6, R.bark, m + 9, 0.2); put(ctx, 7, 1, C.e5, 2, 1); }       // runs "up" behind the post
-    if (m & 4) { slab(ctx, 6, 14, 4, 5, R.bark, m + 13, 0.2); put(ctx, 6, 14, C.e5, 4, 1); }    // runs "down" in front
-    slab(ctx, 6, 3, 4, 12, R.bark, 3, 0.35);
-    put(ctx, 6, 3, C.e5, 4, 1); put(ctx, 7, 2, C.e4, 2, 1);
-    put(ctx, 6, 15, C.e0, 4, 1);
-    out.push(toSprite(canvas, 8, 16));
+    const { canvas, ctx } = makeCanvas(W, H);
+    const rail = (dx: number, dy: number, lit: boolean) => {
+      for (const h of [5, 11]) {
+        for (let i = 0; i <= 16; i++) {
+          const x = PX + Math.sign(dx) * i, y = PY - h + Math.round((i / 16) * 8) * Math.sign(dy);
+          put(ctx, x, y - 1, lit ? C.e5 : C.e4); put(ctx, x, y, lit ? C.e3 : C.e2); put(ctx, x, y + 1, C.e1);
+        }
+      }
+    };
+    // rails behind the post first (N, W), then the post, then the rails in front (E, S)
+    if (m & 1) rail(1, -1, false);
+    if (m & 8) rail(-1, -1, true);
+    slab(ctx, PX - 2, PY - 15, 4, 16, R.bark, 3, 0.25);
+    put(ctx, PX - 2, PY - 16, C.e5, 4, 1); put(ctx, PX - 1, PY - 17, C.e4, 2, 1);
+    put(ctx, PX - 2, PY - 15, C.e4, 1, 15);
+    if (m & 2) rail(1, 1, false);
+    if (m & 4) rail(-1, 1, true);
+    out.push(toSprite(canvas, PX, PY + 1));
   }
   return out;
 }
@@ -346,9 +420,11 @@ export interface ObjectArt {
   bloom: ObjSprite[]; torch: ObjSprite[]; stump: ObjSprite[];
   ore_copper: ObjSprite[]; ore_iron: ObjSprite[]; ore_silver: ObjSprite[]; ore_gold: ObjSprite[];
   crystal: ObjSprite[]; forage: ObjSprite[]; fence: ObjSprite[];
+  /** superposition trees (flux-rich groves); 4 frames per variant */
+  qtree: ObjSprite[];
 }
 /** Kinds whose sprite list is [variant][frame] flattened with this many frames per variant (animated). */
-export const FRAMES_PER_VARIANT: Record<string, number> = { crystal: 3, ore_silver: 2, ore_gold: 2, torch: 2, bloom: 2 };
+export const FRAMES_PER_VARIANT: Record<string, number> = { qtree: 4, crystal: 3, ore_silver: 2, ore_gold: 2, torch: 2, bloom: 2 };
 
 export function buildObjectArt(season: SeasonIdx): ObjectArt {
   return {
@@ -356,7 +432,7 @@ export function buildObjectArt(season: SeasonIdx): ObjectArt {
     bloom: buildBloom(), torch: buildTorch(), stump: buildStump(season),
     ore_copper: buildOre('ore_copper', season), ore_iron: buildOre('ore_iron', season),
     ore_silver: buildOre('ore_silver', season), ore_gold: buildOre('ore_gold', season),
-    crystal: buildCrystal(), forage: buildForage(season), fence: buildFence(),
+    crystal: buildCrystal(), forage: buildForage(season), fence: buildFence(), qtree: buildQTree(season),
   };
 }
 

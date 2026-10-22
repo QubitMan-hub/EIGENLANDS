@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ChunkStore, CHUNK_SIZE, decodeAck, encodeAck, COMBO, PALETTE, T, TICK_DT, ambientColor, decodeDiff, dayPhase, encodeDiff,
+  ACK_BYTES, ChunkStore, CHUNK_SIZE, decodeAck, encodeAck, COMBO, PALETTE, T, TICK_DT, ambientColor, decodeDiff, dayPhase, encodeDiff,
   gameHour, generateChunk, inArc, isSolid, moveBody, newPlayerSim, rewindPosition, sanitizeCmd,
   segmentHitsCircle, stepPlayer, dayNumber, season, WORLD_EPOCH_MS, tileAt, DASH_COOLDOWN, DASH_SPEED, DAY_MS, type InputCmd,
 } from '../src';
@@ -129,11 +129,11 @@ describe('combat maths and lag compensation', () => {
 });
 
 describe('ack codec', () => {
-  it('round-trips a player sim in 56 bytes', () => {
+  it('round-trips a player sim in ACK_BYTES bytes', () => {
     const sim = newPlayerSim(12.25, -7.5);
     sim.atkCd = 0.15; sim.combo = 2; sim.dashT = 0.1;
     const bytes = encodeAck({ seq: 4000000000, tick: 99, sim });
-    expect(bytes.byteLength).toBe(56);
+    expect(bytes.byteLength).toBe(ACK_BYTES);
     const back = decodeAck(bytes);
     expect(back.seq).toBe(4000000000);
     expect(back.tick).toBe(99);

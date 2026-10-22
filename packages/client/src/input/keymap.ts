@@ -1,17 +1,23 @@
-export type Action = 'up' | 'down' | 'left' | 'right' | 'attack' | 'skill' | 'dash' | 'interact' | 'inventory' | 'journal' | 'craft' | 'prev' | 'next';
+export type Action = 'up' | 'down' | 'left' | 'right' | 'attack' | 'skill' | 'dash' | 'interact' | 'inventory' | 'journal' | 'craft' | 'prev' | 'next'
+  | 'ability1' | 'ability2' | 'ability3' | 'ability4' | 'ultimate' | 'board' | 'chat' | 'party';
+/** Phase 3/4 actions handled through `Input.onAction`. */
+export const EXT_ACTIONS = ['ability1', 'ability2', 'ability3', 'ability4', 'ultimate', 'board', 'chat', 'party'] as const;
 export type KeyMap = Record<Action, string[]>;
 
-export const ACTIONS: Action[] = ['up', 'down', 'left', 'right', 'attack', 'skill', 'dash', 'interact', 'inventory', 'journal', 'craft', 'prev', 'next'];
+export const ACTIONS: Action[] = ['up', 'down', 'left', 'right', 'attack', 'skill', 'dash', 'interact', 'inventory', 'journal', 'craft', 'prev', 'next', ...EXT_ACTIONS];
 export const ACTION_LABELS: Record<Action, string> = {
   up: 'Move up', down: 'Move down', left: 'Move left', right: 'Move right',
   attack: 'Attack', skill: 'Skill shot', dash: 'Dash (dodge)', interact: 'Use item / talk / open',
   inventory: 'Pack', journal: 'Journal', craft: 'Field crafting', prev: 'Previous quick-bar slot', next: 'Next quick-bar slot',
+  ability1: 'Orb ability 1', ability2: 'Orb ability 2', ability3: 'Orb ability 3', ability4: 'Orb ability 4', ultimate: 'Ultimate',
+  board: 'Circuit Board', chat: 'Chat', party: 'Party',
 };
 
 export const DEFAULT_KEYS: KeyMap = {
   up: ['KeyW', 'ArrowUp'], down: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
   attack: ['KeyJ', 'KeyZ'], skill: ['KeyK', 'KeyX'], dash: ['Space', 'ShiftLeft'], interact: ['KeyE'],
   inventory: ['KeyI', 'Tab'], journal: ['KeyL'], craft: ['KeyC'], prev: ['BracketLeft'], next: ['BracketRight'],
+  ability1: ['KeyQ'], ability2: ['KeyR'], ability3: ['KeyF'], ability4: ['KeyG'], ultimate: ['KeyV'], board: ['KeyB'], chat: ['Enter'], party: ['KeyP'],
 };
 
 const STORE_KEY = 'eigen.keys';

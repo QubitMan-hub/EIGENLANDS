@@ -1,4 +1,4 @@
-import type { Action, KeyMap } from './keymap';
+import { EXT_ACTIONS, type Action, type KeyMap } from './keymap';
 import type { LocalInput } from '../net/prediction';
 
 const BUFFER_MS = 160;
@@ -22,6 +22,8 @@ export class Input {
   onHotbar: ((i: number) => void) | null = null;
   onCycle: ((dir: number) => void) | null = null;
   onPanel: ((a: 'inventory' | 'journal' | 'craft') => void) | null = null;
+  /** Phase 3/4 actions: abilities, ultimate, board, chat, party (keys, gamepad and touch) */
+  onAction: ((a: typeof EXT_ACTIONS[number]) => void) | null = null;
   private interactDown = false;
   /** where the player is on screen, for mouse aiming (CSS px) */
   playerScreen = { x: 0, y: 0 };
@@ -60,6 +62,7 @@ export class Input {
     if (this.keys.prev.includes(e.code)) this.onCycle?.(-1);
     if (this.keys.next.includes(e.code)) this.onCycle?.(1);
     for (const a of ['inventory', 'journal', 'craft'] as const) if (this.keys[a].includes(e.code)) { this.onPanel?.(a); e.preventDefault(); }
+    for (const a of EXT_ACTIONS) if (this.keys[a].includes(e.code)) { this.onAction?.(a); e.preventDefault(); }
     if (this.isBound(e.code)) e.preventDefault();
   };
   private onKeyUp = (e: KeyboardEvent): void => { this.down.delete(e.code); };
@@ -90,14 +93,14 @@ export class Input {
   get interactHeld(): boolean { return this.isDown('interact') || this.touchHeld.has('interact'); }
 
   read(now = performance.now()): InputReading {
-    const r: InputReading = { dx: 0, dy: 0, dash: false, attack: false, skill: false, aimX: 0, aimY: 0, interact: false, usedKeyboardOrPad: false };
+    const r: InputReading = { dx: 0, dy: 0, dash: false, attack: false, hold: false, skill: false, aimX: 0, aimY: 0, interact: false, usedKeyboardOrPad: false };
     if (!this.enabled) { this.buffered.clear(); return r; }
     let dx = (this.isDown('right') ? 1 : 0) - (this.isDown('left') ? 1 : 0);
     let dy = (this.isDown('down') ? 1 : 0) - (this.isDown('up') ? 1 : 0);
     if (dx || dy) r.usedKeyboardOrPad = true;
 
     // gamepad
-    let padAttack = false, padSkill = false, padDash = false, padInteract = false;
+    let padAttack = false, padAttackEdge = false, padSkill = false, padDash = false, padInteract = false;
     let padAim: { x: number; y: number } | null = null;
     const pad = navigator.getGamepads?.().find((p) => !!p);
     if (pad) {
@@ -108,10 +111,13 @@ export class Input {
       if (Math.hypot(rx, ry) > 0.35) padAim = { x: rx, y: ry };
       const b = (i: number) => !!pad.buttons[i]?.pressed;
       const edge = (i: number) => b(i) && !this.padPrev[i];
-      padAttack = b(0) || b(7); padSkill = b(2) || b(6); padDash = edge(1); padInteract = edge(3);
+      padAttack = b(0) || b(7); padAttackEdge = edge(0) || edge(7); padSkill = b(2) || b(6); padDash = edge(1); padInteract = edge(3);
       if (edge(4)) this.onCycle?.(-1);
       if (edge(5)) this.onCycle?.(1);
       if (edge(9)) this.onPanel?.('inventory');
+      // d-pad: orb abilities 1-4; stick clicks: ultimate; select: Circuit Board
+      ([[12, 'ability1'], [15, 'ability2'], [13, 'ability3'], [14, 'ability4'], [10, 'ultimate'], [11, 'ultimate'], [8, 'board']] as const)
+        .forEach(([i, a]) => { if (edge(i)) this.onAction?.(a); });
       this.padPrev = pad.buttons.map((x) => x.pressed);
     }
 
@@ -123,7 +129,9 @@ export class Input {
 
     const attackHeld = this.isDown('attack') || this.mouse.left || this.touchHeld.has('attack') || padAttack;
     const skillHeld = this.isDown('skill') || this.mouse.right || this.touchHeld.has('skill') || padSkill;
-    r.attack = attackHeld || this.consume('attack', now);
+    // attack = a press (tap: 3-hit combo, buffered by the sim); hold = still held (charges a heavy, released to strike)
+    r.attack = this.consume('attack', now) || padAttackEdge;
+    r.hold = attackHeld;
     r.skill = skillHeld || this.consume('skill', now);
     r.dash = this.consume('dash', now) || padDash;
     r.interact = this.consume('interact', now) || padInteract;
@@ -134,11 +142,23 @@ export class Input {
     if (padAim) { const a = toWorld(padAim.x, padAim.y); r.aimX = a.x; r.aimY = a.y; }
     else if (now - this.mouse.lastMove < 4000 && !this.touchHeld.size) {
       const a = toWorld(this.mouse.x - this.playerScreen.x, this.mouse.y - this.playerScreen.y); r.aimX = a.x; r.aimY = a.y;
-    } else if ((r.attack || r.skill) && this.autoAim) {
+    } else if ((r.attack || r.hold || r.skill) && this.autoAim) {
       const t = this.autoAim();
       if (t) { r.aimX = t.x; r.aimY = t.y; }
     }
     return r;
+  }
+
+  /** Where the player is aiming right now (world-space unit vector); `face` when nothing aims. */
+  aimNow(face: { x: number; y: number }): { x: number; y: number } {
+    const toWorld = (sx: number, sy: number) => ({ x: sy / 16 + sx / 32, y: sy / 16 - sx / 32 });
+    let a: { x: number; y: number } | null = null;
+    const pad = navigator.getGamepads?.().find((p) => !!p);
+    if (pad && Math.hypot(pad.axes[2] ?? 0, pad.axes[3] ?? 0) > 0.35) a = toWorld(pad.axes[2]!, pad.axes[3]!);
+    else if (performance.now() - this.mouse.lastMove < 4000 && !this.touchHeld.size) a = toWorld(this.mouse.x - this.playerScreen.x, this.mouse.y - this.playerScreen.y);
+    else if (this.autoAim) a = this.autoAim();
+    const l = a ? Math.hypot(a.x, a.y) : 0;
+    return a && l > 1e-6 ? { x: a.x / l, y: a.y / l } : face;
   }
 
   destroy(): void {

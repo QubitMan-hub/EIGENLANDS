@@ -1,0 +1,253 @@
+import { matchMaker, type Client } from 'colyseus';
+import type { Schema } from '@colyseus/schema';
+import {
+  CLASS_INDEX, MSG, MSG34, chunkOf, encodeDiff, inRegion, parseShard, regionBounds, shardAt, shardId, townFor,
+  type ChunkReq, type HandoffMsg, type Region, type ShardInfoMsg, type SpellState, type WorldObj,
+} from '@eigenlands/shared';
+import type { Enemy } from '../game/enemies';
+import { TokenBucket } from '../rate';
+import { CircuitModule } from '../p34/circuit';
+import { runtime34 } from '../p34/runtime34';
+import { ShardModule } from '../p34/shard';
+import { signTicket, verifyTicket } from '../p34/shard/ticket';
+import { nullVillage } from '../p34/shard/nullVillage';
+import { SocialModule } from '../p34/social';
+import type { BucketName, Carry, JoinOpts, Module, Registrar } from '../p34/types';
+import type { VillageHost, VillageSystem } from '../systems/types';
+import { createVillage } from '../systems/village';
+import type { ServerPlayer } from './player';
+import { runtime } from './runtime';
+import { WorldRoom } from './WorldRoom';
+
+/** Shards whose previous room is still saving: a new room for the same shard waits for it. */
+const disposing = new Map<string, Promise<void>>();
+
+const BUCKETS: Record<BucketName, [number, number]> = {
+  cast: [8, 12], board: [2, 4], party: [2, 5], chat: [2, 4], trade: [4, 8], emote: [1, 3],
+};
+
+/**
+ * The Phase 3/4 world room: one shard (region) of the world, plus the Circuit Board, abilities, parties, chat,
+ * trading, handoffs and ghosts. Phase 1/2 behaviour lives unchanged in WorldRoom; this class plugs in through its hooks.
+ */
+export class GameRoom extends WorldRoom {
+  region: Region = { rx: 0, ry: 0 };
+  shard = '0,0';
+  /** a room joined without a shard id outside production simulates the whole world (tools, tests, old clients) */
+  unsharded = false;
+  /** set when another room already owns this shard: every join is redirected there */
+  private redirectTo: string | null = null;
+  circuit!: CircuitModule;
+  social!: SocialModule;
+  shardMod!: ShardModule;
+  private modules: Module[] = [];
+  private buckets = new Map<string, Map<BucketName, TokenBucket>>();
+  /** read-only copies of neighbouring shards' chunks (diff loaded, objects cached) */
+  private foreign = new Map<string, { at: number; objs: WorldObj[]; pr: Promise<void> | null }>();
+  private lockTimer: ReturnType<typeof setInterval> | null = null;
+
+  async onCreate(options: JoinOpts = {}): Promise<void> {
+    const asked = parseShard(options?.shard);
+    this.unsharded = !asked && process.env.NODE_ENV !== 'production';
+    this.region = asked ?? { rx: 0, ry: 0 };
+    this.shard = this.unsharded ? '*' : shardId(this.region);
+    const locks = runtime34().locks;
+    await disposing.get(this.shard);
+    const owner = await locks.claim(this.shard, this.roomId, (id) => {
+      const r = matchMaker.getLocalRoomById(id) as GameRoom | undefined;
+      return !!r && !r.disposed;
+    });
+    if (owner !== this.roomId) this.redirectTo = owner;
+    else this.lockTimer = setInterval(() => { void locks.refresh(this.shard, this.roomId).catch(() => {}); }, 5000);
+    await this.setMetadata({ shard: this.shard });
+
+    await super.onCreate();
+    if (this.redirectTo) return;
+
+    this.shardMod = new ShardModule(this);
+    this.circuit = new CircuitModule(this);
+    this.social = new SocialModule(this);
+    this.modules = [this.shardMod, this.circuit, this.social];
+    const reg: Registrar = {
+      on: <M>(type: string, bucket: BucketName, fn: (p: ServerPlayer, msg: M) => void | Promise<void>) => {
+        this.onMessage(type, (client: Client, msg: M) => {
+          const p = this.players.get(client.sessionId);
+          if (!p || !this.bucket(p.id, bucket).take() || !msg || typeof msg !== 'object') return;
+          try {
+            const r = fn(p, msg);
+            if (r instanceof Promise) r.catch((e) => console.error(`${type} failed`, e));
+          } catch (e) { console.error(`${type} failed`, e); }
+        });
+      },
+    };
+    for (const m of this.modules) m.install(reg);
+  }
+
+  private bucket(sid: string, name: BucketName): TokenBucket {
+    let m = this.buckets.get(sid);
+    if (!m) { m = new Map(); this.buckets.set(sid, m); }
+    let b = m.get(name);
+    if (!b) { const [rate, burst] = BUCKETS[name]; b = new TokenBucket(rate, burst); m.set(name, b); }
+    return b;
+  }
+
+  async onJoin(client: Client, options: JoinOpts & { name?: string }, auth: { accountId: string }): Promise<void> {
+    if (this.redirectTo) {
+      const m: HandoffMsg = { shard: this.shard, roomId: this.redirectTo, ticket: signTicket(auth.accountId, this.shard, {}, runtime().config.sessionSecret) };
+      client.send(MSG34.HANDOFF, m);
+      setTimeout(() => client.leave(4002), 2000);
+      return;
+    }
+    const carry = options?.ticket ? verifyTicket(options.ticket, auth.accountId, this.shard, runtime().config.sessionSecret) : null;
+    // one live session per account across every shard
+    this.shardMod.claimAccount(auth.accountId, client.sessionId);
+    await super.onJoin(client, options, auth);
+    const p = this.players.get(client.sessionId);
+    if (!p) return;
+    const b = regionBounds(this.region);
+    const info: ShardInfoMsg = { id: this.shard, ...b };
+    client.send(MSG34.SHARD, info);
+    for (const m of this.modules) await m.join?.(p, carry);
+  }
+
+  async onLeave(client: Client): Promise<void> {
+    const p = this.players.get(client.sessionId);
+    if (p) for (const m of this.modules) await Promise.resolve(m.leave?.(p, 'leave')).catch((e) => console.error('leave failed', e));
+    this.buckets.delete(client.sessionId);
+    await super.onLeave(client);
+  }
+
+  /** Remove a player because they moved to another shard or signed in elsewhere. Saves everything first. */
+  async detach(p: ServerPlayer, reason: 'handoff' | 'kick'): Promise<Carry> {
+    const carry: Carry = {};
+    for (const m of this.modules) m.carry?.(p, carry);
+    for (const m of this.modules) await Promise.resolve(m.leave?.(p, reason)).catch((e) => console.error('leave failed', e));
+    this.buckets.delete(p.id);
+    await this.removePlayer(p, true);
+    return carry;
+  }
+
+  protected async savePlayer(p: ServerPlayer): Promise<void> {
+    await super.savePlayer(p);
+    for (const m of this.modules) await m.save?.(p);
+  }
+
+  disposed = false;
+
+  async onDispose(): Promise<void> {
+    if (this.lockTimer) clearInterval(this.lockTimer);
+    if (this.redirectTo) { this.disposed = true; return; }
+    const done = (async () => {
+      await super.onDispose();
+      for (const m of this.modules) await m.dispose?.().catch((e) => console.error('dispose failed', e));
+      await runtime34().locks.release(this.shard, this.roomId).catch(() => {});
+    })();
+    disposing.set(this.shard, done);
+    try { await done; } finally {
+      this.disposed = true;
+      if (disposing.get(this.shard) === done) disposing.delete(this.shard);
+    }
+  }
+
+  // ───────────────────────── shard ownership ─────────────────────────
+
+  owns(x: number, y: number): boolean { return this.unsharded || inRegion(this.region, x, y); }
+  ownsChunk(cx: number, cy: number): boolean { return this.owns(cx * 32, cy * 32); }
+
+  protected makeVillage(host: VillageHost): VillageSystem {
+    const t = townFor(host.seed);
+    return this.unsharded || shardAt(t.cx, t.cy) === this.shard ? createVillage(host) : nullVillage();
+  }
+
+  /** World edits (anything aimed at a tile) are only accepted for this shard's own tiles. */
+  protected hookAccepts(_p: ServerPlayer, msg: unknown): boolean {
+    const m = msg as { tx?: unknown; ty?: unknown } | null;
+    if (m && typeof m === 'object' && typeof m.tx === 'number' && typeof m.ty === 'number') return this.owns(m.tx, m.ty);
+    return true;
+  }
+
+  /** Neighbouring shards' chunks are loaded read-only: tiles for collision and drawing, never saved or simulated here. */
+  ensureChunk(cx: number, cy: number): Promise<void> {
+    if (this.ownsChunk(cx, cy)) return super.ensureChunk(cx, cy);
+    return this.ensureForeign(cx, cy);
+  }
+
+  private ensureForeign(cx: number, cy: number, maxAgeMs = Infinity): Promise<void> {
+    const k = `${cx},${cy}`;
+    const f = this.foreign.get(k);
+    if (f && (f.pr || Date.now() - f.at < maxAgeMs)) return f.pr ?? Promise.resolve();
+    const rec = f ?? { at: 0, objs: [], pr: null };
+    const repo = runtime().repo;
+    rec.pr = Promise.all([repo.loadChunkDiff(this.seed, cx, cy), repo.loadObjects(this.seed, cx, cy)]).then(([diff, objs]) => {
+      // tiles relayed live by the owner shard win over the stored copy
+      const live = this.store.get(cx, cy).diff;
+      this.store.applyDiff(cx, cy, new Map([...diff, ...live]));
+      rec.objs = objs; rec.at = Date.now(); rec.pr = null;
+    }).catch((e) => { rec.pr = null; throw e; });
+    this.foreign.set(k, rec);
+    return rec.pr;
+  }
+
+  protected async onChunkReq(client: Client, msg: ChunkReq): Promise<void> {
+    if (!Number.isInteger(msg?.cx) || !Number.isInteger(msg?.cy) || this.ownsChunk(msg.cx, msg.cy)) return super.onChunkReq(client, msg);
+    const p = this.players.get(client.sessionId);
+    if (!p || !p.chunkBucket.take()) return;
+    const pcx = chunkOf(Math.floor(p.sim.x)), pcy = chunkOf(Math.floor(p.sim.y));
+    if (Math.abs(msg.cx - pcx) > 3 || Math.abs(msg.cy - pcy) > 3) return;
+    await this.ensureForeign(msg.cx, msg.cy, 5000);
+    const objs: WorldObj[] = [...this.store.townObjectsIn(msg.cx, msg.cy), ...(this.foreign.get(`${msg.cx},${msg.cy}`)?.objs ?? [])];
+    client.send(MSG.CHUNK, { cx: msg.cx, cy: msg.cy, diff: encodeDiff(this.store.get(msg.cx, msg.cy).diff), objs });
+  }
+
+  /** A tile changed in a neighbouring shard (relayed over the bus). */
+  applyForeignTile(x: number, y: number, tile: number): void {
+    if (this.owns(x, y)) return;
+    this.store.setTile(x, y, tile);
+    for (const q of this.nearby(x, y, 3 * 32)) q.client.send(MSG.TILE, { tx: x, ty: y, tile });
+  }
+
+  // ───────────────────────── hooks → modules ─────────────────────────
+
+  protected hookTileChanged(x: number, y: number, tile: number): void { this.shardMod?.tileChanged(x, y, tile); }
+
+  protected hookTick(now: number): void {
+    for (const p of this.players.values()) {
+      const c = this.circuit?.classOf(p.id) ?? 'wanderer';
+      p.state.cls = Math.max(0, CLASS_INDEX.indexOf(c));
+      p.state.party = this.social?.partyOf(p.accountId) ?? '';
+    }
+    for (const m of this.modules) m.tick?.(now, 0.05);
+  }
+
+  protected hookViewEntities(push: (id: string, x: number, y: number, st: SpellState) => void): void {
+    for (const m of this.modules) m.viewEntities?.(push as (id: string, x: number, y: number, st: Schema) => void);
+  }
+
+  protected hookKilled(e: Enemy, killer: ServerPlayer | undefined): void {
+    for (const m of this.modules) m.killed?.(e, killer);
+  }
+
+  protected hookIncomingDamage(p: ServerPlayer, dmg: number, e: Enemy): number {
+    let d = dmg;
+    for (const m of this.modules) { if (d <= 0) break; if (m.incomingDamage) d = m.incomingDamage(p, d, e); }
+    return d;
+  }
+
+  // ───────────────────────── combat access for modules ─────────────────────────
+
+  /** Damage an enemy as `by` (drops, XP and kill credit work exactly like melee). */
+  hitEnemy(e: Enemy, dmg: number, by: ServerPlayer | null, dx: number, dy: number, kb: number): void {
+    if (!this.enemies.has(e.id) || e.hp <= 0) return;
+    this.damageEnemy(e, Math.max(1, Math.round(dmg)), by, dx, dy, kb);
+  }
+
+  grantXp(p: ServerPlayer, xp: number): void { if (xp > 0) this.giveXp(p, Math.round(xp)); }
+
+  playerByAccount(accountId: string): ServerPlayer | undefined { return this.byAccount.get(accountId); }
+
+  playerByName(name: string): ServerPlayer | undefined {
+    const n = name.trim().toLowerCase();
+    for (const p of this.players.values()) if (p.name.toLowerCase() === n) return p;
+    return undefined;
+  }
+}

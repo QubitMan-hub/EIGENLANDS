@@ -87,7 +87,8 @@ export function townFor(seed: number): Town {
   obj(cx, cy + 4, 'deco', 'statue');
   obj(cx, cy + 5, 'sign', 'plaque', { text: 'ALL HAIL QUBITMAN\n\nHe measured the world, and the world chose to be.\nErected by the grateful people of Hadamere.' });
   obj(cx - 6, cy + 7, 'deco', 'well');
-  obj(cx - 3, cy + 1, 'sign', 'board', { text: 'HADAMERE\nA friendly village on the edge of the Eigenlands.\nTraders: General Store (west) · Smithy · The Crooked Spoon inn · Town Hall.\nFarm plots are free to use by the farmhouse.' });
+  // the plaza notice board doubles as the daily request board (see quests.ts dailyRequests)
+  obj(cx - 3, cy + 1, 'sign', 'board', { text: 'HADAMERE\nA friendly village on the edge of the Eigenlands.\nTraders: General Store (west) · Smithy (north-west) · The Crooked Spoon inn (north) · Town Hall (north).\nFarm plots by the farmhouse (east) are free to use. The pond is south.' });
   for (const [dx, dy] of [[-6, 3], [6, 3], [-6, 10], [6, 10]] as const) obj(cx + dx, cy + dy, 'deco', 'bench');
   obj(cx + 7, cy + 6, 'deco', 'planter'); obj(cx - 7, cy + 5, 'deco', 'planter');
   obj(cx - 10, cy + 1, 'deco', 'stall'); obj(cx + 10, cy + 1, 'deco', 'stall'); obj(cx + 12, cy + 5, 'deco', 'stall');
@@ -155,6 +156,7 @@ function furnish(b: Building, rawObj: ObjAdd, spot: SpotAdd): void {
   switch (b.kind) {
     case 'smithy':
       obj(ix + 1, iy, 'station', 'forge'); obj(ix + 3, iy, 'station', 'furnace'); obj(ix + iw - 1, iy, 'station', 'workbench');
+      obj(ix + iw - 2, iy, 'station', 'jeweler');
       obj(ix + iw - 1, iy + 2, 'deco', 'barrel');
       spot('smithy.work', ix + 2, iy + 1); break;
     case 'store':

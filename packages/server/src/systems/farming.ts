@@ -5,6 +5,7 @@ import {
 import type { ServerPlayer } from '../rooms/player';
 import type { RoomApi } from './api';
 import { addSkillXp, giveStacks, skillLv } from './helpers';
+import { expireRequests, questEvent, recordDeed } from './quests';
 
 export const lanternNear = (room: RoomApi, x: number, y: number): boolean => {
   for (let dy = -LANTERN_RADIUS; dy <= LANTERN_RADIUS; dy++) {
@@ -77,7 +78,9 @@ export function dailyRollover(room: RoomApi, day: number): void {
       if (rollShelter(o, day)) room.objects.update(o);
     }
   }
-  // 3. sprinklers wet the tilled soil they cover (even without crops)
+  // 3. request-board jobs whose time ran out
+  for (const p of room.players.values()) expireRequests(p, day);
+  // 4. sprinklers wet the tilled soil they cover (even without crops)
   for (const o of objs) {
     if (o.kind !== 'sprinkler') continue;
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && sprinklerCovers(o.sub, dx, dy)) wetTile(room, o.x + dx, o.y + dy);
@@ -111,6 +114,8 @@ export function plantSeed(room: RoomApi, p: ServerPlayer, slot: number, tx: numb
   room.objects.put({ x: tx, y: ty, kind: 'crop', sub: alt ? `*${crop}+${alt}` : crop, owner: p.accountId, data: data as unknown as Record<string, unknown> });
   addSkillXp(p, 'farming', 2);
   room.fx({ kind: 'plant', x: tx + 0.5, y: ty + 0.5 });
+  questEvent(p, { type: 'plant', target: crop, n: 1 });
+  recordDeed(p, 'plant', cropName(crop), day);
 }
 
 export function waterCrop(room: RoomApi, p: ServerPlayer, o: WorldObj): void {
@@ -163,6 +168,8 @@ export function harvestCrop(room: RoomApi, p: ServerPlayer, o: WorldObj): void {
   addSkillXp(p, 'farming', CROPS[crop]!.xp);
   room.fx({ kind: 'harvest', x: o.x + 0.5, y: o.y + 0.5 });
   if (d.alt) p.toast(`The superposition collapses into ${cropName(crop)}!`, 'good');
+  questEvent(p, { type: 'harvest', target: crop, n: 1 });
+  recordDeed(p, 'harvest', cropName(crop).toLowerCase(), room.wclock.day());
   if (n >= 3) room.village.rumor('harvest', p.name, cropName(crop));
 }
 

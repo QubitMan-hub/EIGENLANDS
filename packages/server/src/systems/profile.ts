@@ -1,6 +1,6 @@
 import {
-  CROPS, ITEMS, RECIPES, addStack, emptyInventory, validInventory, validSkills,
-  type Inventory, type ProfileMsg, type Stack,
+  CROPS, DEED_KINDS, ITEMS, NPC_BY_ID, QUEST_BY_ID, RECIPES, addStack, dayNumber, emptyInventory, pruneRequests, validInventory, validSkills,
+  type Inventory, type ProfileMsg, type QuestLog, type Stack,
 } from '@eigenlands/shared';
 import type { Buff, DirtyPart, FriendRec, PlayerData } from './types';
 
@@ -30,8 +30,23 @@ export function newPlayerData(season: number): PlayerData {
   addStack(inv, { id: 'fiber', n: 5 });
   return {
     inv, coins: 100, skills: validSkills(null), recipes: new Set(startRecipes()),
-    equip: { ring1: null, ring2: null, outfit: 0 }, friends: {}, buffs: {},
+    equip: { ring1: null, ring2: null, outfit: 0 }, friends: {}, buffs: {}, quests: {}, deeds: {}, events: [],
   };
+}
+
+/** Quest log from storage: known quests only, progress arrays of the right length, bounded numbers. */
+export function validQuests(v: unknown, today: number): QuestLog {
+  const out: QuestLog = {};
+  if (!v || typeof v !== 'object') return out;
+  for (const [id, raw] of Object.entries(v as Record<string, unknown>)) {
+    const s = raw as { state?: unknown; progress?: unknown };
+    if (!s || (s.state !== 'active' && s.state !== 'done') || !Array.isArray(s.progress) || s.progress.length > 8) continue;
+    if (!QUEST_BY_ID[id] && !/^req:-?\d+:\d$/.test(id)) continue;
+    const n = QUEST_BY_ID[id]?.objectives.length ?? s.progress.length;
+    out[id] = { state: s.state, progress: Array.from({ length: n }, (_, i) => { const x = (s.progress as unknown[])[i]; return typeof x === 'number' && Number.isFinite(x) ? Math.max(0, Math.min(999, Math.floor(x))) : 0; }) };
+  }
+  pruneRequests(out, today);
+  return out;
 }
 
 const isRing = (s: unknown): s is Stack => !!s && typeof (s as Stack).id === 'string' && ITEMS[(s as Stack).id]?.kind === 'ring';
@@ -49,7 +64,10 @@ export function loadPlayerData(raw: unknown, season: number, nowMs: number): Pla
   if (r.friends && typeof r.friends === 'object') {
     for (const [id, v] of Object.entries(r.friends as Record<string, unknown>)) {
       const f = v as Partial<FriendRec>;
-      if (f && Number.isFinite(f.pts) && Number.isFinite(f.talked) && Number.isFinite(f.gifted)) friends[id] = { pts: Math.max(0, f.pts!), talked: f.talked!, gifted: f.gifted! };
+      if (!NPC_BY_ID[id] || !f || !Number.isFinite(f.pts) || !Number.isFinite(f.talked) || !Number.isFinite(f.gifted)) continue;
+      friends[id] = { pts: Math.max(0, Math.min(400, f.pts!)), talked: f.talked!, gifted: f.gifted! };
+      if (typeof f.lastGift === 'string' && ITEMS[f.lastGift]) friends[id]!.lastGift = f.lastGift;
+      if (Array.isArray(f.noted)) friends[id]!.noted = f.noted.filter((x): x is string => typeof x === 'string').slice(-6);
     }
   }
   const buffs: Record<string, Buff> = {};
@@ -60,14 +78,23 @@ export function loadPlayerData(raw: unknown, season: number, nowMs: number): Pla
     }
   }
   const coins = typeof r.coins === 'number' && Number.isFinite(r.coins) ? Math.max(0, Math.floor(r.coins)) : 0;
+  const deeds: PlayerData['deeds'] = {};
+  if (r.deeds && typeof r.deeds === 'object') {
+    for (const k of DEED_KINDS) {
+      const d = (r.deeds as Record<string, { day?: unknown; what?: unknown }>)[k];
+      if (d && typeof d.day === 'number' && Number.isFinite(d.day) && typeof d.what === 'string') deeds[k] = { day: d.day, what: d.what.slice(0, 60) };
+    }
+  }
+  const events = Array.isArray(r.events) ? r.events.filter((x): x is string => typeof x === 'string' && /^[a-z]+:\d$/.test(x)).slice(0, 64) : [];
   return {
     inv: validInventory(r.inv), coins, skills: validSkills(r.skills), recipes: known,
     equip: { ring1: ring(eq.ring1), ring2: ring(eq.ring2), outfit }, friends, buffs,
+    quests: validQuests(r.quests, dayNumber(nowMs)), deeds, events,
   };
 }
 
 export function serializePlayerData(d: PlayerData): Record<string, unknown> {
-  return { inv: d.inv, coins: d.coins, skills: d.skills, recipes: [...d.recipes], equip: d.equip, friends: d.friends, buffs: d.buffs };
+  return { inv: d.inv, coins: d.coins, skills: d.skills, recipes: [...d.recipes], equip: d.equip, friends: d.friends, buffs: d.buffs, quests: d.quests, deeds: d.deeds, events: d.events };
 }
 
 export function deriveStats(d: PlayerData): DerivedStats {
@@ -84,7 +111,7 @@ export function deriveStats(d: PlayerData): DerivedStats {
 }
 
 export function profileMsg(d: PlayerData, stats: DerivedStats, parts: Iterable<DirtyPart> | 'all'): ProfileMsg {
-  const set = parts === 'all' ? new Set<DirtyPart>(['inv', 'coins', 'skills', 'recipes', 'equip', 'friends', 'buffs', 'stats']) : new Set(parts);
+  const set = parts === 'all' ? new Set<DirtyPart>(['inv', 'coins', 'skills', 'recipes', 'equip', 'friends', 'buffs', 'stats', 'quests']) : new Set(parts);
   const m: ProfileMsg = {};
   if (set.has('inv')) m.inv = d.inv as Inventory;
   if (set.has('coins')) m.coins = d.coins;
@@ -94,5 +121,6 @@ export function profileMsg(d: PlayerData, stats: DerivedStats, parts: Iterable<D
   if (set.has('friends')) m.friends = d.friends;
   if (set.has('buffs')) m.buffs = d.buffs;
   if (set.has('stats')) m.stats = stats;
+  if (set.has('quests')) { m.quests = d.quests; m.events = d.events; }
   return m;
 }
