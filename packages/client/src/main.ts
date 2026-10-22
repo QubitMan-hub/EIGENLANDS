@@ -7,6 +7,10 @@ import {
 } from './net/session';
 import { HTML, SettingsUI, applySettings, loadSettings } from './ui/ui';
 
+/** single-player build (GitHub Pages): the world runs and is saved in this browser, see src/local/ */
+const SOLO = import.meta.env.VITE_SOLO === '1';
+const SOLO_NOTE = 'Single-player preview: your world is saved in this browser.';
+
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 declare global {
@@ -34,7 +38,7 @@ async function boot(): Promise<void> {
   ui.bind({
     signOut: () => { signOut(); location.reload(); },
     deleteAccount: async () => { if (auth) { await deleteAccount(auth.token); location.reload(); } },
-    accountInfo: () => auth ? (auth.guest ? 'Playing as a guest. Progress is saved on this device — sign in with Google to keep it safe.' : 'Signed in with Google.') : '',
+    accountInfo: () => SOLO ? SOLO_NOTE : auth ? (auth.guest ? 'Playing as a guest. Progress is saved on this device — sign in with Google to keep it safe.' : 'Signed in with Google.') : '',
   });
   game.settingsOpen = () => ui.open;
   window.addEventListener('keydown', (e) => { if (e.code === 'F3') { e.preventDefault(); game.toggleDebug(); } });
@@ -94,6 +98,7 @@ async function boot(): Promise<void> {
 }
 
 function setupGoogle(clientId: string | null, onCredential: (idToken: string) => void): void {
+  if (SOLO) { $('g-off').hidden = false; $('g-off').textContent = SOLO_NOTE; return; }
   if (!clientId) { $('g-off').hidden = false; return; }
   const s = document.createElement('script');
   s.src = 'https://accounts.google.com/gsi/client';
