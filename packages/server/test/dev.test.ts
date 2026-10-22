@@ -17,7 +17,8 @@ describe('dev commands (enabled)', () => {
     await give(p, 'coal', 25);
     expect(count(p, 'coal')).toBe(25);
     dev(p, { cmd: 'coins', n: 50 });
-    await until(() => p.sp.data.coins === 150);
+    // wait for the PROFILE carrying 150 before the next command, so both changes are never merged into one tick's update
+    await until(() => p.sp.data.coins === 150 && p.profiles.some((m) => m.coins === 150));
     dev(p, { cmd: 'coins', n: -1000 });
     await until(() => p.sp.data.coins === 0);
     dev(p, { cmd: 'level', level: 5 });
