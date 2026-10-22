@@ -1,3 +1,5 @@
+import './fonts';
+import { iconSvg } from './icons';
 import { ACTIONS, ACTION_LABELS, keyLabel, rebind, saveKeys, type Action, type KeyMap } from '../input/keymap';
 
 export interface Settings {
@@ -54,63 +56,77 @@ export const HTML = `
   <filter id="cb-protan"><feColorMatrix type="matrix" values="${colorblindMatrix('protan')}"/></filter>
   <filter id="cb-deutan"><feColorMatrix type="matrix" values="${colorblindMatrix('deutan')}"/></filter>
   <filter id="cb-tritan"><feColorMatrix type="matrix" values="${colorblindMatrix('tritan')}"/></filter>
+  <filter id="decohere" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="1" seed="3"/><feDisplacementMap in="SourceGraphic" scale="4"/></filter>
 </svg>
 <div id="hud" hidden>
-  <div id="hud-left" class="panel">
-    <div class="row"><b id="hud-name">-</b><span id="hud-level">Lv 1</span></div>
-    <div class="bar hp"><i id="hp-fill"></i><span id="hp-text"></span></div>
-    <div class="bar xp"><i id="xp-fill"></i></div>
-    <div id="coins" class="coinsm"></div>
+  <div id="hud-left">
+    <div id="orb" class="orbwrap" role="img" aria-label="Health"></div>
+    <div class="orbinfo">
+      <b id="hud-name" class="pname">-</b>
+      <div class="statrow"><span class="gate" id="hud-level">Lv 1</span><span class="coinrow">${iconSvg('coin', 16)}<span id="coins">0 coins</span></span></div>
+      <div id="buff-chips"></div>
+    </div>
+    <div class="legacy" aria-hidden="true"><i id="hp-fill"></i><span id="hp-text"></span><i id="xp-fill"></i><span id="clock"></span><div id="buffs"></div></div>
   </div>
-  <div id="buffs"></div>
-  <div id="hud-right" class="panel" aria-live="off">
-    <div id="clock">--:--</div>
-    <div id="dayinfo"></div>
-    <div id="townhint" class="small dim"></div>
+  <div id="hud-right">
+    <div id="dial" class="dialwrap" role="img" aria-label="Time of day"><div id="dial-time" class="dialtime">--:--</div></div>
+    <div id="dayinfo" class="dayinfo"></div>
+    <div id="townhint" class="townhint"></div>
+    <div id="wx" class="wxrow"></div>
   </div>
-  <div id="hint" class="panel" hidden role="status"></div>
+  <div id="hud-btns">
+    <button id="btn-settings" class="gatebtn" aria-label="Settings" title="Settings">${iconSvg('gear', 20)}</button>
+    <button id="btn-pack" class="gatebtn" aria-label="Pack (I)" title="Pack (I)">${iconSvg('pack', 20)}<kbd>I</kbd></button>
+    <button id="btn-craft" class="gatebtn" aria-label="Field crafting (C)" title="Field crafting (C)">${iconSvg('hammer', 20)}<kbd>C</kbd></button>
+    <button id="btn-journal" class="gatebtn" aria-label="Journal (L)" title="Journal (L)">${iconSvg('book', 20)}<kbd>L</kbd></button>
+  </div>
+  <div id="hint" class="panel node-hint" hidden role="status"></div>
   <div id="captions" aria-live="polite"></div>
   <div id="debug" class="panel" hidden></div>
-  <button id="btn-settings" class="icon-btn" aria-label="Settings">&#9881;</button>
-  <div id="hud-btns">
-    <button id="btn-pack" class="icon-btn small" aria-label="Pack (I)" title="Pack (I)">&#127890;</button>
-    <button id="btn-craft" class="icon-btn small" aria-label="Field crafting (C)" title="Field crafting (C)">&#128296;</button>
-    <button id="btn-journal" class="icon-btn small" aria-label="Journal (L)" title="Journal (L)">&#128214;</button>
-  </div>
   <div id="vignette"></div>
 </div>
 <div id="touch" hidden>
   <div id="stick"><div id="knob"></div></div>
   <div id="tbtns">
-    <button data-a="attack" aria-label="Attack">ATK</button>
-    <button data-a="skill" aria-label="Skill shot">SKL</button>
-    <button data-a="dash" aria-label="Dash">DSH</button>
-    <button data-a="interact" aria-label="Smash">USE</button>
+    <button data-a="attack" aria-label="Attack">${iconSvg('sword', 26)}</button>
+    <button data-a="skill" aria-label="Skill shot">${iconSvg('bolt', 24)}</button>
+    <button data-a="dash" aria-label="Dash">${iconSvg('dash', 24)}</button>
+    <button data-a="interact" aria-label="Use">${iconSvg('hand', 22)}</button>
   </div>
 </div>
-<div id="login" class="overlay">
-  <div class="card">
-    <h1>EIGENLANDS</h1>
+<div id="login" class="overlay title">
+  <div class="stars" aria-hidden="true"></div><div class="traces" aria-hidden="true"></div>
+  <div class="title-card">
+    <div class="qubit" aria-hidden="true">
+      <svg viewBox="-50 -50 100 100"><circle r="30" class="q-core"/><ellipse rx="44" ry="14" class="q-orbit"/><ellipse rx="44" ry="14" class="q-orbit" transform="rotate(60)"/><ellipse rx="44" ry="14" class="q-orbit" transform="rotate(120)"/><circle r="4" class="q-e e1"/><circle r="4" class="q-e e2"/><circle r="4" class="q-e e3"/><path class="q-arrow" d="M0 0 L16 -18"/><circle cx="16" cy="-18" r="3" class="q-tip"/></svg>
+    </div>
+    <h1 class="wordmark" aria-label="EIGENLANDS"><span>EIGEN</span><span>LANDS</span></h1>
+    <div class="trace-rule" aria-hidden="true"></div>
     <p class="tag">An infinite world where every skill is a quantum circuit.</p>
-    <label for="name">Your name</label>
-    <input id="name" maxlength="16" autocomplete="off" placeholder="Wanderer" />
-    <button id="btn-guest" class="primary">Play as guest</button>
-    <div id="google-slot"><div id="g-btn"></div><p id="g-off" class="small" hidden>Google sign-in isn't configured on this server. Guest progress is saved on this device and can be upgraded later.</p></div>
-    <p id="login-msg" class="small" role="alert"></p>
+    <div class="menu panel">
+      <label for="name">Name your wanderer</label>
+      <input id="name" maxlength="16" autocomplete="off" placeholder="Wanderer" />
+      <button id="btn-guest" class="primary big">${iconSvg('spark', 16)} Play</button>
+      <div id="google-slot"><div id="g-btn"></div><p id="g-off" class="small" hidden>Google sign-in isn't configured on this server. Guest progress is saved on this device and can be upgraded later.</p></div>
+      <button id="btn-title-settings">${iconSvg('gear', 14)} Settings</button>
+      <p id="login-msg" class="small" role="alert"></p>
+    </div>
+    <div class="credits">v0.2 &middot; Hail QubitMan</div>
   </div>
 </div>
-<div id="settings" class="overlay" hidden>
-  <div class="card wide" role="dialog" aria-label="Settings">
-    <h2>Settings</h2>
+<div id="settings" class="overlay soft-modal" hidden>
+  <div class="window panel wide" role="dialog" aria-label="Settings">
+    <div class="win-head"><div class="win-title">Settings</div></div>
+    <div class="win-body">
     <div class="grid">
-      <section><h3>Controls</h3><div id="keys"></div><p class="small">Click a control, then press the new key. Mouse: left = attack, right = skill (aims at the cursor).</p></section>
+      <section><h3>Controls</h3><div id="keys"></div><p class="small dim">Click a control, then press the new key. Mouse: left = attack, right = skill (aims at the cursor).</p></section>
       <section><h3>Accessibility</h3>
-        <label><input type="checkbox" id="s-motion"> Reduce motion (no screen shake, fewer particles, still water)</label>
+        <label class="tog"><input type="checkbox" id="s-motion"> Reduce motion (no shake, fewer particles, still water)</label>
         <label>Text size <select id="s-text"><option value="1">Normal</option><option value="1.25">Large</option><option value="1.5">Extra large</option></select></label>
         <label>Colour-blind mode <select id="s-cb"><option value="off">Off</option><option value="protan">Protanopia (red-weak)</option><option value="deutan">Deuteranopia (green-weak)</option><option value="tritan">Tritanopia (blue-weak)</option></select></label>
-        <label><input type="checkbox" id="s-hc"> High-contrast HUD</label>
-        <label><input type="checkbox" id="s-cap"> Sound captions</label>
-        <label><input type="checkbox" id="s-mute"> Mute sound</label>
+        <label class="tog"><input type="checkbox" id="s-hc"> High-contrast HUD</label>
+        <label class="tog"><input type="checkbox" id="s-cap"> Sound captions</label>
+        <label class="tog"><input type="checkbox" id="s-mute"> Mute sound</label>
         <label>Volume <input type="range" id="s-vol" min="0" max="100"></label>
       </section>
       <section><h3>Account</h3><p id="acct-info" class="small"></p>
@@ -120,10 +136,11 @@ export const HTML = `
       </section>
     </div>
     <button id="btn-close" class="primary">Back to game</button>
+    </div>
   </div>
 </div>
-<div id="lost" class="overlay" hidden><div class="card"><h2 id="lost-title">Connection lost</h2><p id="lost-msg" class="small"></p><button id="btn-reload" class="primary">Reconnect</button></div></div>
-<div id="dead" class="overlay soft" hidden><div class="card small-card"><h2>You were defeated</h2><p class="small">Respawning at the shrine&hellip; Tip: dash through a glowing red warning to dodge it.</p></div></div>
+<div id="lost" class="overlay" hidden><div class="panel lostbox"><h2 id="lost-title">Connection lost</h2><p id="lost-msg" class="small"></p><button id="btn-reload" class="primary">Reconnect</button></div></div>
+<div id="dead" class="overlay soft" hidden><div class="panel deadbox"><h2>Wavefunction collapsed</h2><p class="small">You were defeated. Respawning at the shrine&hellip; Tip: dash through a glowing red warning to dodge it.</p></div></div>
 `;
 
 export class SettingsUI {
@@ -162,6 +179,7 @@ export class SettingsUI {
     });
     $('btn-settings').addEventListener('click', () => { $('acct-info').textContent = handlers.accountInfo(); this.renderKeys(); this.show(true); });
     $('btn-close').addEventListener('click', () => this.show(false));
+    document.getElementById('btn-title-settings')?.addEventListener('click', () => { $('acct-info').textContent = handlers.accountInfo(); this.renderKeys(); this.show(true); });
     window.addEventListener('keydown', (e) => { if (e.code === 'Escape' && !$('settings').hidden) this.show(false); });
     this.renderKeys();
   }
@@ -195,6 +213,7 @@ export class SettingsUI {
 export function applySettings(s: Settings, audio: { muted: boolean; volume: number }): void {
   document.documentElement.style.setProperty('--ui-scale', String(s.textScale));
   document.documentElement.classList.toggle('hc', s.highContrastHud);
+  document.documentElement.classList.toggle('reduced-motion', s.reducedMotion);
   const cv = $('game');
   cv.style.filter = s.colorblind === 'off' ? '' : `url(#cb-${s.colorblind})`;
   audio.muted = s.muted;

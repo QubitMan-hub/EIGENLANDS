@@ -151,8 +151,8 @@ export function polish(ctx: Ctx, w: number, h: number, o: PolishOpts = {}): void
       if (c < 0) continue;
       const lit = !solid(x - 1, y - 1) || !solid(x, y - 1) && !solid(x - 1, y);
       const shaded = !solid(x + 1, y + 1) || (!solid(x + 1, y) && !solid(x, y + 1));
-      if (lit) sets.push([x, y, o.fringe && (x + y) % 2 === 0 ? C.q7 : lt(c)]);
-      else if (shaded && c !== C.night && c !== C.ink) sets.push([x, y, o.fringe && (x + y) % 3 === 0 ? C.q5 : dk(c)]);
+      if (lit) sets.push([x, y, o.fringe && (x * 3 + y) % 5 === 0 ? C.q7 : lt(c)]);
+      else if (shaded && c !== C.night && c !== C.ink) sets.push([x, y, o.fringe && (x + y * 3) % 6 === 0 ? C.q5 : dk(c)]);
     }
   }
   for (const [x, y, c] of sets) put(ctx, x, y, c);

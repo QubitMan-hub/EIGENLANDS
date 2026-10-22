@@ -352,11 +352,16 @@ const SEATS: Record<string, () => ObjSpriteDef> = {
     for (let r = 0; r < 2; r++) for (let i = 0; i < 6; i++) put(ctx, 2 + i * 2 + (r ? 1 : 0), 3 + r * 7 + (i % 3 === 0 ? 1 : 0), books[(i + r * 3) % 7]!, 2, 6 - (i % 3 === 0 ? 1 : 0));
     blob(ctx, 5, 19, 2.4, 2.4, [C.w2, C.w3, C.w5], { seed: 1, noise: 0 }); blob(ctx, 12, 19, 2.2, 2.2, [C.e3, C.e5, C.e6], { seed: 2, noise: 0.1 });
   })),
-  rug: () => still(sprite(16, 16, 8, 16, (ctx) => {
-    for (let y = 1; y < 15; y++) for (let x = 1; x < 15; x++) put(ctx, x, y, (x === 1 || y === 1 || x === 14 || y === 14) ? C.q1 : (x === 2 || y === 2 || x === 13 || y === 13) ? C.r4 : ((x + y) % 4 < 2 ? C.q3 : C.q2));
-    put(ctx, 7, 7, C.e6, 2, 2); put(ctx, 6, 8, C.e5); put(ctx, 9, 7, C.e5);
-    for (let x = 1; x < 15; x += 2) { put(ctx, x, 0, C.e6); put(ctx, x, 15, C.e6); }
-  }), { noShadow: true }),
+  rug: () => still(sprite(32, 16, 16, 8, (ctx) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 32; x++) {
+      const dx = Math.abs(x + 0.5 - 16) / 15, dy = Math.abs(y + 0.5 - 8) / 7.5;
+      const d = dx + dy;
+      if (d > 1) continue;
+      const c = d > 0.9 ? C.q1 : d > 0.8 ? C.e6 : d > 0.7 ? C.r4 : d > 0.55 ? ((x >> 1) + y) % 2 ? C.q3 : C.q2 : d > 0.4 ? C.q1 : ((x + y) % 4 < 2 ? C.q3 : C.q2);
+      put(ctx, x, y, c);
+    }
+    put(ctx, 15, 7, C.e6, 2, 2); put(ctx, 13, 8, C.e5); put(ctx, 18, 7, C.e5);
+  }, { flat: true }), { noShadow: true }),
   phase_lantern: () => anim(frames(3, (f) => sprite(16, 30, 8, 28, (ctx) => {
     slab(ctx, 7, 12, 2, 16, IRON, 1, 0.1); slab(ctx, 4, 26, 8, 2, IRON, 2, 0.1);
     poly(ctx, [[3, 12], [5, 4], [11, 4], [13, 12]], (x, y) => VIOLET[Math.min(5, Math.max(0, 2 + (x > 8 ? -1 : 1) + (y < 7 ? 1 : 0) + (f === 1 ? 1 : 0)))]!);
@@ -419,6 +424,159 @@ const DECO: Record<string, () => ObjSpriteDef> = {
   })),
 };
 
+
+// ───────────────────────── town decor (Hadamere) ─────────────────────────
+const STONEL: Ramp = [C.slate, C.steel, C.mist, C.fog, C.pale, C.white];
+const VIOLETS: Ramp = [C.q0, C.q1, C.q2, C.q3, C.q4, C.pale, C.white];
+
+/** Stone block face with strata and chisel marks. */
+function stoneFace(ctx: Ctx, x: number, y: number, w: number, h: number, seed: number, lit = 0): void {
+  slab(ctx, x, y, w, h, STONEL.slice(lit, lit + 5) as unknown as Ramp, seed, 0.45);
+  for (let j = 3; j < h; j += 4) put(ctx, x, y + j, C.slate, w, 1);
+  for (let j = 0; j < h; j += 4) for (let i = (j / 4) % 2 ? 4 : 9; i < w; i += 11) put(ctx, x + i, y + j, C.slate, 1, 3);
+  put(ctx, x, y, C.white, w, 1);
+}
+
+/** The heroic statue of QubitMan: stepped plinth, plaque, caped figure holding a pulsing violet qubit orb aloft. */
+function statue(): ObjSpriteDef {
+  const mk = (f: number) => sprite(52, 96, 26, 93, (ctx) => {
+    const SL = (c: number, t: number) => STONEL[Math.max(0, Math.min(5, c + t))]!;
+    // plinth: two steps, pedestal with the name plaque, cap stone
+    stoneFace(ctx, 3, 86, 46, 8, 3, 1); put(ctx, 3, 93, C.night, 46, 1);
+    stoneFace(ctx, 7, 79, 38, 8, 4, 1);
+    stoneFace(ctx, 9, 60, 34, 20, 6, 0);
+    put(ctx, 8, 57, C.white, 36, 1); slab(ctx, 8, 58, 36, 3, [C.mist, C.fog, C.pale], 2, 0.1);
+    slab(ctx, 10, 65, 32, 10, [C.night, C.slate, C.steel], 7, 0.1); put(ctx, 10, 65, C.mist, 32, 1); put(ctx, 10, 74, C.night, 32, 1);
+    pixelText(ctx, 'QUBITMAN', 11, 67, C.e7);
+    for (const [x, y] of [[11, 66], [40, 66], [11, 73], [40, 73]] as const) put(ctx, x, y, C.e5);
+    // cape billowing behind and to the left
+    poly(ctx, [[17, 24], [36, 24], [41, 48], [34, 57], [20, 55], [10, 52], [14, 38]], (x, y) => ((x + y) % 11 < 3 ? SL(1, 0) : x < 22 ? SL(1, 1) : SL(2, 0)));
+    for (const [x0, y0, x1, y1] of [[20, 26, 14, 52], [25, 28, 22, 55], [31, 28, 34, 54]] as const) line(ctx, x0, y0, x1, y1, C.slate);
+    // legs in a heroic stance + boots
+    poly(ctx, [[19, 40], [26, 40], [25, 56], [18, 56]], (x) => (x < 22 ? SL(3, 0) : SL(2, 1)));
+    poly(ctx, [[27, 40], [34, 40], [36, 56], [29, 56]], (x) => (x < 31 ? SL(2, 1) : SL(1, 2)));
+    slab(ctx, 16, 54, 11, 4, [C.slate, C.steel, C.mist, C.fog], 8, 0.2); slab(ctx, 28, 54, 11, 4, [C.slate, C.steel, C.mist, C.fog], 9, 0.2);
+    // torso with chest emblem, belt
+    poly(ctx, [[14, 24], [38, 24], [34, 41], [18, 41]], (x, y) => (x < 22 ? SL(4, -1) : x < 31 ? SL(3, 1) : SL(2, 1)) + 0 * y);
+    put(ctx, 18, 38, C.steel, 17, 3); put(ctx, 24, 38, C.e6, 4, 3); put(ctx, 25, 39, C.e7);
+    blob(ctx, 26, 30, 3, 3, [C.q2, C.q3, C.q4, C.white], { seed: 5, noise: 0, bright: 0.2, edgeDark: 0 });           // glowing emblem
+    put(ctx, 17, 26, C.white, 8, 1);
+    // left arm on hip
+    poly(ctx, [[10, 25], [15, 24], [16, 36], [11, 40], [7, 34]], (x) => (x < 12 ? SL(3, 0) : SL(2, 1))); put(ctx, 7, 34, C.pale, 5, 4);
+    // right arm raised, fist at the top
+    poly(ctx, [[34, 25], [39, 24], [45, 12], [41, 9]], (x, y) => (y < 16 ? SL(4, 0) : SL(3, 0)));
+    blob(ctx, 43, 9, 3, 3, STONEL, { seed: 6, noise: 0.15, edgeDark: 0.2 });
+    // head: jaw, brow, swept hair and a small cape clasp
+    blob(ctx, 26, 15, 5.4, 6, STONEL, { seed: 21, noise: 0.12, edgeDark: 0.25 });
+    put(ctx, 22, 13, C.slate, 4, 1); put(ctx, 27, 13, C.slate, 4, 1); put(ctx, 23, 15, C.night); put(ctx, 29, 15, C.night); put(ctx, 25, 19, C.steel, 4, 1); put(ctx, 26, 17, C.mist);
+    blob(ctx, 26, 10, 6.4, 4, [C.slate, C.steel, C.mist, C.fog], { seed: 22, noise: 0.5, edgeDark: 0.1 });
+    put(ctx, 22, 9, C.pale, 6, 1); put(ctx, 20, 13, C.steel, 2, 5);
+    slab(ctx, 22, 21, 8, 3, [C.mist, C.fog], 3, 0.1); put(ctx, 26, 22, C.e6, 2, 2);
+    // the orb
+    const pulse = [3.6, 4.3, 5, 4.3][f]!;
+    const ox = 44, oy = 3;
+    for (let y = -8; y <= 8; y++) for (let x = -8; x <= 8; x++) { const d = Math.hypot(x, y); if (d <= pulse + 2.4 && d > pulse && (x + y + f) % 2 === 0) { const px = ox + x, py = oy + y + 1; if (px >= 0 && px < 52 && py >= 0) put(ctx, px, py, C.q3); } }
+    blob(ctx, ox, oy + 1, pulse, pulse, [C.q2, C.q3, C.q4, C.pale, C.white], { seed: 23, noise: 0, bright: 0.25, edgeDark: 0 });
+    put(ctx, ox - 1, oy - 1, C.white, 2, 2); put(ctx, ox + 5, oy - 2 + (f % 2), C.q7); put(ctx, ox - 5, oy + 5 - (f % 2), C.q7);
+  }, { fringe: true });
+  return anim(frames(4, mk), 1.4);
+}
+
+function stall(): ObjSpriteDef {
+  return still(sprite(46, 50, 23, 46, (ctx) => {
+    // posts + counter
+    for (const x of [4, 40]) slab(ctx, x, 14, 3, 30, WOOD, x, 0.3);
+    slab(ctx, 2, 28, 42, 15, WOODL, 5, 0.3); put(ctx, 2, 28, C.e7, 42, 1); put(ctx, 2, 42, C.e0, 42, 1);
+    for (let x = 6; x < 44; x += 6) put(ctx, x, 31, C.e1, 1, 11);
+    // wares on the counter: crates of produce, bread, a jar
+    slab(ctx, 5, 23, 14, 6, WOOD, 3, 0.3); for (let i = 0; i < 5; i++) { blob(ctx, 8 + i * 2.6, 22, 1.9, 1.9, ramp4(i % 2 ? C.r4 : C.g5), { seed: i, noise: 0.1 }); }
+    slab(ctx, 22, 24, 10, 5, WOOD, 4, 0.3); for (let i = 0; i < 4; i++) blob(ctx, 24 + i * 2.4, 23, 1.7, 1.4, [C.e3, C.e4, C.e5, C.e6], { seed: i + 4, noise: 0.2 });
+    blob(ctx, 38, 24, 2.6, 3.2, [C.fog, C.pale, C.white], { seed: 9, noise: 0 }); put(ctx, 37, 22, C.q4, 3, 3);
+    // striped awning with scalloped valance
+    poly(ctx, [[0, 14], [46, 14], [43, 3], [3, 3]], (x, y) => (Math.floor(x / 5) % 2 ? (y < 8 ? C.pale : C.fog) : (y < 8 ? C.r4 : C.r3)));
+    for (let x = 0; x < 46; x += 5) { const c = Math.floor(x / 5) % 2 ? C.pale : C.r4; poly(ctx, [[x, 14], [x + 5, 14], [x + 2.5, 18]], c); }
+    put(ctx, 3, 3, C.white, 40, 1); put(ctx, 0, 14, C.r1, 46, 1);
+    // little hanging sign
+    put(ctx, 20, 18, C.e2, 1, 3); put(ctx, 26, 18, C.e2, 1, 3); slab(ctx, 19, 20, 9, 5, WOOD, 6, 0.1); put(ctx, 22, 22, C.e7, 3, 2);
+  }));
+}
+
+function bench(): ObjSpriteDef {
+  return still(sprite(34, 22, 17, 19, (ctx) => {
+    for (const x of [4, 28]) { slab(ctx, x, 8, 3, 10, WOOD, x, 0.3); put(ctx, x - 1, 18, C.e0, 5, 1); }
+    plank(ctx, 1, 8, 32, 4, 3); plank(ctx, 2, 12, 30, 3, 4);                              // seat
+    plank(ctx, 3, 1, 28, 3, 5); plank(ctx, 3, 5, 28, 3, 6);                               // back rests
+    for (const x of [5, 27]) slab(ctx, x, 1, 2, 9, WOOD, x + 1, 0.2);
+  }));
+}
+
+function banner(): ObjSpriteDef {
+  return anim(frames(2, (f) => sprite(24, 56, 12, 53, (ctx) => {
+    slab(ctx, 11, 4, 2, 49, [C.e0, C.e1, C.e2, C.e3], 1, 0.2); blob(ctx, 12, 3, 2.4, 2.4, BRASS, { seed: 1, noise: 0.1 });
+    slab(ctx, 3, 5, 18, 2, WOOD, 2, 0.2);
+    const sway = f ? 1 : 0;
+    poly(ctx, [[4, 7], [20, 7], [20 + sway, 32], [12 + sway, 38], [4 + sway, 32]], (x, y) => (y < 9 ? C.q1 : x < 12 ? C.q2 : C.q1));
+    poly(ctx, [[6, 9], [18, 9], [18 + sway, 30], [12 + sway, 35], [6 + sway, 30]], (x) => (x < 12 ? C.q3 : C.q2));
+    blob(ctx, 12 + sway, 19, 4.4, 4.4, [C.q3, C.q4, C.pale, C.white], { seed: 4, noise: 0, bright: 0.2, edgeDark: 0 });  // the qubit orb emblem
+    put(ctx, 11 + sway, 17, C.white, 2, 2); put(ctx, 9 + sway, 27, C.e6, 6, 1);
+    for (let x = 5; x < 20; x += 3) put(ctx, x + sway, 7 + 0, C.e6);
+  }, { fringe: true })), 1.6, { sway: 0.03 });
+}
+
+function planter(): ObjSpriteDef {
+  return still(sprite(30, 24, 15, 21, (ctx) => {
+    slab(ctx, 2, 12, 26, 9, WOOD, 3, 0.35); put(ctx, 2, 12, C.e6, 26, 1); put(ctx, 2, 20, C.e0, 26, 1);
+    for (const x of [8, 15, 22]) put(ctx, x, 13, C.e1, 1, 7);
+    blob(ctx, 15, 11, 12, 3, R.bark, { seed: 4, noise: 0.4, edgeDark: 0.1 });
+    for (let i = 0; i < 9; i++) {
+      const x = 5 + i * 2.5, h = 4 + (i * 5) % 6, pal = [C.r5, C.e6, C.q4, C.w5, C.r3][i % 5]!;
+      line(ctx, Math.round(x), 11, Math.round(x), 11 - h, C.g3);
+      blob(ctx, x, 10 - h, 2.2, 2.2, ramp4(pal), { seed: i, noise: 0.1 }); put(ctx, Math.round(x), 10 - h, C.e7);
+    }
+    blob(ctx, 7, 9, 3, 2, R.leaf, { seed: 5, noise: 0.5 }); blob(ctx, 24, 9, 3, 2, R.leaf, { seed: 6, noise: 0.5 });
+  }), { sway: 0.03 });
+}
+
+function hay(): ObjSpriteDef {
+  return still(sprite(28, 22, 14, 19, (ctx) => {
+    blob(ctx, 14, 12, 12.4, 7.4, [C.e2, C.e3, C.e4, C.e5, C.e6, C.e7], { seed: 31, noise: 0.5, shape: 2.6, edgeDark: 0.3 });
+    for (let i = 0; i < 26; i++) { const x = 4 + (i * 7) % 21, y = 6 + (i * 5) % 11; put(ctx, x, y, i % 2 ? C.e7 : C.e4, 3, 1); }
+    for (const x of [9, 19]) { put(ctx, x, 6, C.e2, 1, 12); put(ctx, x + 1, 6, C.e1, 1, 12); }
+    put(ctx, 6, 8, C.e7, 4, 1);
+  }));
+}
+
+function signpost(): ObjSpriteDef {
+  return still(sprite(34, 42, 17, 39, (ctx) => {
+    slab(ctx, 15, 4, 4, 35, WOOD, 3, 0.35); blob(ctx, 17, 3, 3, 2, BRASS, { seed: 1, noise: 0.1 });
+    // two arrow boards pointing opposite ways
+    poly(ctx, [[3, 8], [24, 8], [29, 12], [24, 16], [3, 16]], (x, y) => (y < 10 ? C.e6 : y < 14 ? C.e5 : C.e4));
+    poly(ctx, [[9, 20], [30, 20], [30, 28], [9, 28], [4, 24]], (x, y) => (y < 22 ? C.e6 : y < 26 ? C.e5 : C.e4));
+    put(ctx, 6, 11, C.e1, 14, 1); put(ctx, 6, 13, C.e1, 10, 1); put(ctx, 12, 23, C.e1, 14, 1); put(ctx, 12, 25, C.e1, 10, 1);
+    put(ctx, 3, 8, C.e7, 21, 1); put(ctx, 9, 20, C.e7, 21, 1);
+    put(ctx, 12, 39, C.night, 12, 1);
+  }));
+}
+
+function plaque(): ObjSpriteDef {
+  return still(sprite(24, 22, 12, 19, (ctx) => {
+    stoneFace(ctx, 3, 14, 18, 6, 3, 1);
+    poly(ctx, [[5, 14], [19, 14], [17, 3], [7, 3]], (x, y) => (y < 8 ? C.fog : C.mist));   // sloped plate
+    for (const y of [5, 8, 11]) put(ctx, 8, y, C.slate, 9 - (y > 8 ? 3 : 0), 1);
+    put(ctx, 7, 3, C.white, 11, 1);
+  }));
+}
+
+function crate(): ObjSpriteDef {
+  return still(sprite(24, 22, 12, 19, (ctx) => {
+    slab(ctx, 2, 6, 20, 13, WOODL, 3, 0.3); put(ctx, 2, 6, C.e7, 20, 1);
+    for (const y of [6, 18]) put(ctx, 2, y, C.e1, 20, 1); for (const x of [2, 20]) put(ctx, x, 6, C.e1, 2, 13);
+    line(ctx, 3, 7, 20, 18, C.e1); line(ctx, 20, 7, 3, 18, C.e1);
+  }));
+}
+
+const TOWN_DECO: Record<string, () => ObjSpriteDef> = { statue, stall, bench, banner, planter, hay, signpost, plaque, crate };
+
 const objCache = new Map<string, ObjSpriteDef>();
 
 /** Sprite definition for a world object. Crops depend on growth stage / dead / superposition. */
@@ -431,8 +589,8 @@ export function worldObjDef(o: WorldObj): ObjSpriteDef {
     else if (o.kind === 'sprinkler') d = sprinkler(o.sub === 'sprinkler2', !!(o.data as { watering?: boolean } | undefined)?.watering);
     else if (o.kind === 'shelter') d = o.sub === 'barn' ? barn() : coop();
     else if (o.kind === 'chest') d = chest();
-    else if (o.kind === 'sign') d = o.sub === 'board' ? DECO.board!() : sign();
-    else d = (SEATS[o.sub] ?? DECO[o.sub] ?? DECO.crate!)();
+    else if (o.kind === 'sign') d = o.sub === 'board' ? DECO.board!() : (TOWN_DECO[o.sub] ?? sign)();
+    else d = (TOWN_DECO[o.sub] ?? SEATS[o.sub] ?? DECO[o.sub] ?? DECO.crate!)();
     objCache.set(key, d);
   }
   return d;
@@ -444,7 +602,8 @@ export const GALLERY_OBJECTS: Array<{ kind: WorldObj['kind']; sub: string }> = [
   { kind: 'sprinkler', sub: 'sprinkler1' }, { kind: 'sprinkler', sub: 'sprinkler2' },
   { kind: 'shelter', sub: 'coop' }, { kind: 'shelter', sub: 'barn' }, { kind: 'chest', sub: 'chest' }, { kind: 'sign', sub: 'sign' },
   ...Object.keys(SEATS).map((sub) => ({ kind: 'furniture' as const, sub })),
-  ...['well', 'board', 'counter', 'desk', 'barrel', 'stove', 'trophy', 'crate'].map((sub) => ({ kind: 'deco' as const, sub })),
+  ...['well', 'board', 'counter', 'desk', 'barrel', 'stove', 'trophy', 'crate', 'statue', 'stall', 'bench', 'banner', 'planter', 'hay', 'signpost'].map((sub) => ({ kind: 'deco' as const, sub })),
+  { kind: 'sign', sub: 'plaque' },
 ];
 
 export function clearWorldObjCache(): void { cropCache.clear(); objCache.clear(); }
