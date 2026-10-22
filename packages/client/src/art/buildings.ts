@@ -16,7 +16,7 @@
 import { Texture } from 'pixi.js';
 import type { Building } from '@eigenlands/shared';
 import { hash2 } from '@eigenlands/shared';
-import { bigTextC, bigTextWidth, C, makeCanvas, outline, put, rampAt, type Ctx, type Ramp } from './shade';
+import { bigTextC, bigTextWidth, C, makeCanvas, put, rampAt, undithered, type Ctx, type Ramp } from './shade';
 
 export const WALL_H = 44;
 const CUT_H = 8;
@@ -46,11 +46,11 @@ const tex = (canvas: HTMLCanvasElement): Texture => { const t = Texture.from(can
 interface Style { wall: Ramp; timber: Ramp | null; kind: 'plaster' | 'stone' | 'siding'; shutter: Ramp | null; roof: Ramp; roofKind: 'thatch' | 'slate' | 'tile' | 'shingle'; trim: number }
 const STYLES: Style[] = [
   { wall: [C.e4, C.e5, C.e6, C.e7, C.white], timber: [C.e0, C.e1, C.e2, C.e3], kind: 'plaster', shutter: [C.g1, C.g2, C.g3, C.g4], roof: [C.e1, C.e2, C.e3, C.e4, C.e5, C.e6], roofKind: 'thatch', trim: C.e1 },
-  { wall: [C.slate, C.steel, C.mist, C.fog, C.pale], timber: null, kind: 'stone', shutter: null, roof: [C.ink, C.night, C.slate, C.steel, C.mist], roofKind: 'slate', trim: C.night },
-  { wall: [C.w1, C.w2, C.w3, C.w4, C.w5], timber: null, kind: 'siding', shutter: [C.white, C.pale, C.white, C.white], roof: [C.r0, C.r1, C.r2, C.r3, C.r4, C.r5], roofKind: 'tile', trim: C.pale },
-  { wall: [C.g3, C.g4, C.g5, C.g6, C.g7], timber: [C.e0, C.e1, C.e2, C.e3], kind: 'plaster', shutter: [C.r1, C.r2, C.r3, C.r4], roof: [C.e0, C.e1, C.e2, C.e3, C.e4], roofKind: 'shingle', trim: C.e1 },
+  { wall: [C.slate, C.steel, C.mist, C.fog, C.pale], timber: null, kind: 'stone', shutter: null, roof: [C.night, C.slate, C.steel, C.mist, C.fog], roofKind: 'slate', trim: C.slate },
+  { wall: [C.w0, C.slate, C.w1, C.steel, C.mist], timber: null, kind: 'siding', shutter: [C.fog, C.pale, C.white, C.white], roof: [C.e0, C.r0, C.r2, C.r1, C.r3, C.e4], roofKind: 'tile', trim: C.pale },
+  { wall: [C.mist, C.fog, C.pale, C.white, C.white], timber: [C.e0, C.e1, C.e2, C.e3], kind: 'plaster', shutter: [C.g1, C.g2, C.g3, C.g4], roof: [C.e0, C.e1, C.e2, C.e3, C.e4], roofKind: 'shingle', trim: C.e1 },
 ];
-const GRANITE: Ramp = [C.night, C.slate, C.steel, C.mist, C.fog];
+const GRANITE: Ramp = [C.slate, C.steel, C.mist, C.fog, C.pale];
 const GLASS_DAY: Ramp = [C.w1, C.w2, C.w3, C.w5, C.w6];
 const GLASS_NIGHT: Ramp = [C.r4, C.r5, C.r6, C.r7, C.r7];
 const BRICK: Ramp = [C.r0, C.r1, C.r2, C.r3];
@@ -106,7 +106,7 @@ function wallMat(b: Building, st: Style, seed: number, interior: boolean, capC: 
     // foundation course
     if (z < 6) {
       const brick = Math.floor((upx + (iz < 3 ? 0 : 5)) / 10);
-      if (iz === 2 || Math.floor(upx + (iz < 3 ? 0 : 5)) % 10 === 0) return C.night;
+      if (iz === 2 || Math.floor(upx + (iz < 3 ? 0 : 5)) % 10 === 0) return face === 'east' ? C.slate : C.steel;
       return rampAt(GRANITE, 0.55 + lightOff + (hash2(seed, brick, iz < 3 ? 0 : 1, 3) - 0.5) * 0.3, ix, iz);
     }
     // windows
@@ -114,12 +114,12 @@ function wallMat(b: Building, st: Style, seed: number, interior: boolean, capC: 
       const inU = fu >= 0.28 && fu <= 0.72, inZ = z >= 17 && z < 31;
       if (inU && inZ) {
         const frame = fu < 0.34 || fu > 0.66 || z < 18 || z >= 30 || Math.abs(fu - 0.5) < 0.03 || Math.abs(z - 24) < 0.6;
-        if (frame) return st.kind === 'siding' ? C.pale : (st.timber ? st.timber[1]! : C.night);
+        if (frame) return st.kind === 'siding' ? C.pale : (st.timber ? st.timber[1]! : C.slate);
         const refl = ((ix + iz) % 9) < 2;
         const gi = refl ? 4 : z > 25 ? 3 : z > 21 ? 2 : 1;
         return GLASS + Math.max(0, Math.min(4, gi + (face === 'east' ? -1 : 0)));
       }
-      if (z < 17 && z >= 15 && fu > 0.24 && fu < 0.76) return z < 16 ? C.night : (st.kind === 'siding' ? C.white : C.fog);  // sill
+      if (z < 17 && z >= 15 && fu > 0.24 && fu < 0.76) return z < 16 ? C.steel : (st.kind === 'siding' ? C.white : C.pale);  // sill
       if (st.shutter && inZ && ((fu > 0.14 && fu < 0.28) || (fu > 0.72 && fu < 0.86))) {
         return (iz % 3 === 0) ? st.shutter[0]! : rampAt(st.shutter, 0.6 + lightOff, ix, iz);
       }
@@ -182,7 +182,7 @@ function buildRoof(b: Building, st: Style, seed: number): { canvas: HTMLCanvasEl
         const isTop = z > chTop - 0.6;
         const face = isTop ? 'top' : (ch.s - fy) < (ch.s - fx) ? 'south' : 'east';
         let c: number;
-        if (isTop) c = (fx > 0.15 && fx < ch.s - 0.15 && fy > 0.15 && fy < ch.s - 0.15) ? C.ink : C.mist;
+        if (isTop) c = (fx > 0.15 && fx < ch.s - 0.15 && fy > 0.15 && fy < ch.s - 0.15) ? C.night : C.fog;
         else {
           const u = (face === 'south' ? x : y) * 16, row = Math.floor((chTop - z) / 3);
           c = (Math.floor(chTop - z) % 3 === 2 || Math.floor(u + (row % 2) * 3) % 6 === 0) ? C.r0 : rampAt(BRICK, (face === 'south' ? 0.75 : 0.35) + (hash2(seed, Math.floor((u + (row % 2) * 3) / 6), row, 8) - 0.5) * 0.3, px, py);
@@ -197,7 +197,7 @@ function buildRoof(b: Building, st: Style, seed: number): { canvas: HTMLCanvasEl
       const slab = z >= rz - 3;
       if (slab) {
         const edge = z < rz - 0.75;   // fascia/barge board (the slab's thickness)
-        if (edge) { put(ctx, px, py, (alongX ? (y > mid ? st.trim : C.night) : (x > mid ? st.trim : C.night))); break; }
+        if (edge) { put(ctx, px, py, (alongX ? (y > mid ? st.trim : R0[0]!) : (x > mid ? st.trim : R0[0]!))); break; }
         // roof surface: courses run along the ridge
         const along = alongX ? x : y, down = Math.abs((alongX ? y : x) - mid);
         const side = (alongX ? y : x) > mid ? 1 : -1;      // +1 = south/east slope (faces the camera)
@@ -239,7 +239,7 @@ function buildRoof(b: Building, st: Style, seed: number): { canvas: HTMLCanvasEl
         let c: number;
         if (win) {
           const r = Math.hypot((u - cu) * 16, (z - zMid)) ;
-          c = r > 4.2 ? C.night : (r < 1 || Math.abs((u - cu) * 16) < 0.5 || Math.abs(z - zMid) < 0.5) ? C.night : (z > zMid ? C.w5 : C.w3);
+          c = r > 4.2 ? C.e1 : (r < 1 || Math.abs((u - cu) * 16) < 0.5 || Math.abs(z - zMid) < 0.5) ? C.e1 : (z > zMid ? C.w4 : C.w2);
         } else if (STYLES[b.style % 4]!.kind === 'stone') c = rampAt(STYLES[1]!.wall, gableFace === 'east' ? 0.35 : 0.65, px, py);
         else {
           const boards = Math.floor(u * 16 / 3);
@@ -250,7 +250,6 @@ function buildRoof(b: Building, st: Style, seed: number): { canvas: HTMLCanvasEl
       }
     }
   }
-  outline(ctx, w, h, C.ink);
   if (ch) windows.push();
   const chimney = ch ? { x: (ch.x0 + ch.s / 2 - (ch.y0 + ch.s / 2)) * 16, y: (ch.x0 + ch.y0 + ch.s) * 8 - chTop } : null;
   return { canvas, left: L, top, chimney, windows };
@@ -271,20 +270,21 @@ function signTexture(kind: string): HTMLCanvasElement | null {
   const bw = tw + 18, bh = 13;
   const { canvas, ctx } = makeCanvas(bw + 4, bh + 8);
   // bracket + chains
-  put(ctx, 0, 1, C.night, bw + 4, 2); put(ctx, 0, 1, C.slate, bw + 4, 1);
+  put(ctx, 0, 1, C.slate, bw + 4, 2); put(ctx, 0, 1, C.steel, bw + 4, 1);
   put(ctx, 3, 3, C.slate, 1, 3); put(ctx, bw, 3, C.slate, 1, 3);
   for (let y = 6; y < 6 + bh; y++) for (let x = 1; x < bw + 3; x++) {
     const edge = y === 6 || y === 5 + bh || x === 1 || x === bw + 2;
-    put(ctx, x, y, edge ? C.ink : rampAt(s.board, 0.85 - (y - 6) / 18, x, y));
+    put(ctx, x, y, edge ? s.board[0]! : rampAt(s.board, 0.85 - (y - 6) / 18, x, y));
   }
   put(ctx, 2, 7, s.board[3]!, bw, 1);
   s.icon(ctx, 4, 9);
-  bigTextC(ctx, s.text, 14 + tw / 2 + 0.5, 9, C.e7, C.ink);
+  bigTextC(ctx, s.text, 14 + tw / 2 + 0.5, 9, C.e7, s.board[0]!);
   return canvas;
 }
 
 /** Build every texture for one building (call lazily; ~tens of ms). */
-export function buildBuildingArt(b: Building): BuildingArt {
+export function buildBuildingArt(b: Building): BuildingArt { return undithered(() => buildBuildingArtInner(b)); }
+function buildBuildingArtInner(b: Building): BuildingArt {
   const seed = b.x * 31 + b.y * 17;
   const st = STYLES[b.style % 4]!;
   const x1 = b.x + b.w, y1 = b.y + b.h;

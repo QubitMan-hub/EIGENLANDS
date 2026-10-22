@@ -6,7 +6,7 @@ import { Texture } from 'pixi.js';
 import { CROPS, cropStage, type CropData, type CropDef, type WorldObj, mulberry32 } from '@eigenlands/shared';
 import type { ObjSprite } from './objects';
 import { TOWN_DECO } from './town';
-import { blob, C, line, makeCanvas, pixelText, poly, polish, put, R, ramp4, slab, dk, lt, type Ctx, type Ramp } from './shade';
+import { blob, C, line, makeCanvas, pixelText, poly, polish, put, R, ramp4, slab, dk, lt, undithered, type Ctx, type Ramp } from './shade';
 
 export interface ObjSpriteDef {
   frames: ObjSprite[];
@@ -29,8 +29,10 @@ interface SpriteOpts { flat?: boolean; fringe?: boolean; plain?: boolean }
 /** Draw a sprite, then add rim light + contact shadow (unless flat/plain) and optional quantum fringe. */
 function sprite(w: number, h: number, ax: number, ay: number, draw: (ctx: Ctx) => void, o: SpriteOpts = {}): ObjSprite {
   const { canvas, ctx } = makeCanvas(w, h);
-  draw(ctx);
-  if (!o.plain) polish(ctx, w, h, { rim: !o.flat, fringe: o.fringe, ao: o.flat ? null : { ax, ay, rx: Math.min(13, w * 0.3) } });
+  undithered(() => {
+    draw(ctx);
+    if (!o.plain) polish(ctx, w, h, { rim: !o.flat, fringe: o.fringe, ao: o.flat ? null : { ax, ay, rx: Math.min(13, w * 0.3) } });
+  });
   const tex = Texture.from(canvas);
   tex.source.scaleMode = 'nearest';
   return { tex, ax, ay };
@@ -195,7 +197,7 @@ const STATIONS: Record<string, () => ObjSpriteDef> = {
     const tongues = [[7, 5 + (f % 3)], [10, 7 - (f % 2)], [12, 4 + ((f + 1) % 3)]] as const;
     for (const [x, h] of tongues) { for (let j = 0; j < h; j++) put(ctx, x, 22 - j, j < 2 ? C.e5 : j < h - 1 ? C.e6 : C.e7, j < h - 2 ? 2 : 1); put(ctx, x + 1, 21 - Math.floor(h / 2), C.r4); }
     put(ctx, 6, 14, C.slate, 8, 1);
-    put(ctx, 4, 26, C.night, 12, 1);
+
     for (const x of [3, 16]) put(ctx, x, 10, C.steel, 2, 15);                      // iron straps
     if (f === 1) { put(ctx, 6, 1, C.fog); put(ctx, 7, 0, C.pale); }                // smoke
   })), 5),
@@ -207,7 +209,7 @@ const STATIONS: Record<string, () => ObjSpriteDef> = {
     slab(ctx, 17, 14, 8, 8, WOOD, 9, 0.5);                                         // stump
     poly(ctx, [[14, 12], [27, 12], [25, 14], [23, 14], [22, 16], [18, 16], [18, 14], [15, 14]], (x, y) => (y < 13 ? IRON[4]! : y < 15 ? IRON[3]! : IRON[2]!));
     put(ctx, 14, 12, C.white, 13, 1); put(ctx, 26, 12, IRON[3]!, 2, 1);
-    put(ctx, 13, 22, C.night, 14, 1);
+
   })), 6),
   cooking_pot: () => anim(frames(3, (f) => sprite(20, 26, 10, 24, (ctx) => {
     for (const [x0, x1] of [[3, 8], [17, 12], [10, 10]] as const) line(ctx, x0, 22, x1, 8, C.e1);   // tripod
@@ -301,7 +303,7 @@ function barn(): ObjSpriteDef {
     put(ctx, 13, 17, C.white, 14, 1); put(ctx, 13, 37, C.pale, 14, 1);
     slab(ctx, 16, 9, 8, 7, [C.e5, C.e6, C.e7], 5, 0.1); put(ctx, 17, 10, C.night, 6, 5);  // loft
     blob(ctx, 8, 36, 4, 2.4, [C.e5, C.e6, C.e7], { seed: 6, noise: 0.6 });
-    put(ctx, 3, 38, C.night, 34, 1);
+
   }));
 }
 function chest(): ObjSpriteDef {
@@ -311,7 +313,7 @@ function chest(): ObjSpriteDef {
     put(ctx, 2, 8, C.e1, 14, 1);
     for (const x of [4, 12]) { put(ctx, x, 5, C.steel, 2, 11); put(ctx, x, 5, C.fog); }
     put(ctx, 8, 9, C.e6, 3, 4); put(ctx, 9, 10, C.e2);
-    put(ctx, 2, 16, C.night, 14, 1);
+
   }));
 }
 function sign(): ObjSpriteDef {
@@ -338,7 +340,7 @@ const SEATS: Record<string, () => ObjSpriteDef> = {
     slab(ctx, 2, 4, 14, 8, [C.pale, C.white, C.white], 4, 0.1); blob(ctx, 9, 6.5, 5, 2.6, [C.fog, C.pale, C.white], { seed: 5, noise: 0.05 }); // pillow
     slab(ctx, 2, 12, 14, 13, [C.r2, C.r3, C.r4, C.r5], 6, 0.2); put(ctx, 2, 12, C.r6, 14, 1);
     for (let i = 0; i < 3; i++) put(ctx, 4 + i * 4, 16, C.r2, 2, 7);
-    put(ctx, 1, 26, C.night, 16, 1);
+
   })),
   lamp: () => anim(frames(2, (f) => sprite(14, 30, 7, 28, (ctx) => {
     slab(ctx, 6, 9, 2, 19, [C.e1, C.e2, C.e3], 1, 0.15); slab(ctx, 3, 26, 8, 2, [C.e1, C.e2, C.e3], 2, 0.1);
@@ -377,7 +379,7 @@ const DECO: Record<string, () => ObjSpriteDef> = {
     put(ctx, 12, 21, C.w6, 3, 1); put(ctx, 18, 23, C.w5, 3, 1);
     for (let i = 0; i < 5; i++) put(ctx, 6 + i * 4, 26, C.slate, 2, 1);
     line(ctx, 16, 8, 16, 18, C.e2); slab(ctx, 14, 16, 5, 4, WOOD, 3, 0.2);          // rope + bucket
-    put(ctx, 5, 31, C.night, 22, 1);
+
   })),
   board: () => still(sprite(26, 30, 13, 28, (ctx) => {
     for (const x of [3, 21]) slab(ctx, x, 6, 3, 22, WOOD, x, 0.3);
@@ -385,7 +387,7 @@ const DECO: Record<string, () => ObjSpriteDef> = {
     const paper = (x: number, y: number, w: number, h: number, c: number) => { put(ctx, x, y, c, w, h); put(ctx, x, y, lt(c), w, 1); put(ctx, x + Math.floor(w / 2), y, C.r4); for (let k = 2; k < h; k += 2) put(ctx, x + 1, y + k, C.slate, w - 2, 1); };
     paper(5, 5, 6, 8, C.pale); paper(12, 6, 5, 6, C.e7); paper(18, 5, 4, 9, C.w7);
     poly(ctx, [[0, 2], [13, -2], [26, 2], [24, 3], [13, 0], [2, 3]], C.e2);
-    put(ctx, 3, 29, C.night, 20, 1);
+
   })),
   counter: () => still(sprite(18, 18, 9, 16, (ctx) => {
     slab(ctx, 0, 6, 18, 10, WOOD, 5, 0.3); put(ctx, 0, 6, C.e6, 18, 2);
@@ -397,7 +399,7 @@ const DECO: Record<string, () => ObjSpriteDef> = {
     slab(ctx, 1, 8, 24, 10, [C.e0, C.e1, C.e2, C.e3], 5, 0.3); put(ctx, 1, 8, C.e4, 24, 2);
     put(ctx, 4, 6, C.pale, 7, 3); put(ctx, 4, 6, C.white, 7, 1); put(ctx, 6, 5, C.fog, 6, 1);
     blob(ctx, 19, 6, 1.8, 1.8, [C.night, C.slate, C.w3], { seed: 1, noise: 0 }); line(ctx, 21, 5, 24, 1, C.pale);   // inkwell + quill
-    put(ctx, 2, 18, C.night, 22, 1);
+
   })),
   barrel: () => still(sprite(16, 20, 8, 18, (ctx) => {
     blob(ctx, 8, 11, 6, 7, WOODL, { seed: 3, noise: 0.25, shape: 2.6, edgeDark: 0.25 });

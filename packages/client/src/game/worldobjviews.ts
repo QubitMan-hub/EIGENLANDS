@@ -1,7 +1,12 @@
 import { Sprite, type Container } from 'pixi.js';
-import { CHUNK_SIZE, chunkKey, hash2, objLight, sampleClimate, type ChunkStore, type WorldObj } from '@eigenlands/shared';
+import { C, CHUNK_SIZE, PALETTE, chunkKey, hash2, objLight, sampleClimate, type ChunkStore, type WorldObj } from '@eigenlands/shared';
 import { depth, isoX, isoY } from './iso';
+import { GROUND_Z } from '../gl/terrain.frag';
 import type { SeasonIdx } from '../art/objects';
+
+const hexOf = (i: number) => parseInt(PALETTE[i]!.slice(1), 16);
+/** cast shadows are deep navy, quantum echoes pink (qubit things) or cyan (flux ground) */
+const SHADOW = hexOf(C.night), ECHO_Q = hexOf(C.q6), ECHO_FLUX = hexOf(C.q7);
 import { worldObjDef, type ObjSpriteDef } from '../art/worldobjs';
 import type { Sun } from './objectviews';
 
@@ -55,13 +60,14 @@ export class WorldObjViews {
     root.anchor.set(f.ax / f.tex.width, f.ay / f.tex.height);
     // iso billboard: feet on the tile's ground centre
     root.x = Math.round(isoX(o.x + 0.5, o.y + 0.5));
-    root.y = Math.round(isoY(o.x + 0.5, o.y + 0.5));
+    // crops stand in tilled soil, which the terrain draws a little below the turf
+    root.y = Math.round(isoY(o.x + 0.5, o.y + 0.5)) - (o.kind === 'crop' ? GROUND_Z.soil : 0);
     // rugs sit on the ground: behind anything standing on the tile; crops just under entities of the same tile
     const dz = depth(o.x + 0.5, o.y + 0.5);
     root.zIndex = o.kind === 'furniture' && o.sub === 'rug' ? dz - 1e6 : o.kind === 'crop' ? dz - 6 : dz;
     const shadow = new Sprite(f.tex);
     shadow.anchor.copyFrom(root.anchor);
-    shadow.tint = 0x2a1060;
+    shadow.tint = SHADOW;
     shadow.position.copyFrom(root);
     this.layer.addChild(root);
     this.shadowLayer.addChild(shadow);
@@ -72,7 +78,7 @@ export class WorldObjViews {
     if (sup || o.sub === 'phase_lantern' || o.sub === 'statue' || flux > 0.45) {
       echo = new Sprite(f.tex);
       echo.anchor.copyFrom(root.anchor);
-      echo.tint = o.sub === 'statue' || o.sub === 'phase_lantern' || sup ? 0xff9ae8 : 0x5af0d0;
+      echo.tint = o.sub === 'statue' || o.sub === 'phase_lantern' || sup ? ECHO_Q : ECHO_FLUX;
       echo.alpha = 0.22;
       echo.position.set(root.x + 2, root.y - 1);
       echo.zIndex = root.zIndex - 0.5;

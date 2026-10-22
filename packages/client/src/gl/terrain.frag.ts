@@ -6,6 +6,9 @@ const pal = PALETTE.map((h) => {
   return `vec3(${f((n >> 16) & 255)},${f((n >> 8) & 255)},${f(n & 255)})`;
 }).join(',');
 
+/** Surface height (art px, + up) of each ground class; PATH depends on its paving style. Mirrored in terrain.ts. */
+export const GROUND_Z = { water: -7, grass: 0, sand: -2, dirt: -2, road: -1, plaza: 0, soil: -2, floor: 0, wall: 0 } as const;
+
 export const TERRAIN_VERT = /* glsl */ `#version 300 es
 in vec2 aPosition;
 in vec2 aUV;
@@ -20,11 +23,13 @@ void main() {
 }`;
 
 /**
- * Terrain painter. Every screen art-pixel is inverse-projected into the world; the four nearest tile centres form a
- * dual grid whose class borders are warped by noise (organic, never square). Each ground class is then *painted*
- * from fixed palette ramps: calm low-contrast bases with hand-placed-looking detail stamped on a jittered screen grid
- * (grass tufts, flowers, pebbles, fallen leaves), patterned paving (cobbles, a ring-laid plaza, the shrine glyph),
- * furrowed soil, plank floors and water with a depth gradient, banks, rolling foam, glints and ice.
+ * Block-tile terrain painter. Every tile is an isometric block (a 32x16 diamond top) whose surface height depends
+ * on its ground class: water sits 7px down, sand / dirt / tilled soil 2px, roads 1px, grass and paving at 0. Each
+ * screen art-pixel marches a short vertical ray (one step per pixel, front to back) through those heights, so it
+ * lands either on a tile's top face or on one of the two camera-facing side faces (left = lit, right = shaded).
+ * Tops are painted from the palette with clustered, dither-free detail (leafy grass clumps, cracked dirt, cobbles,
+ * the ring-laid plaza, furrows, planks, layered water with ripple lines); sides show soil / sand strata / stone
+ * courses under an overhanging grass lip, and a cyan foam line where a bank meets the water.
  *
  * Tile texel: r = ground class, g = quantum flux (0..1), b = paving style (1 road, 2 plaza, 3 shrine),
  *             a = signed distance to the shoreline in tiles (128 + 12*d; + inside water, - on land).
@@ -47,16 +52,17 @@ uniform vec4 uPlaza;        // town plaza centre (tiles) + radius
 uniform vec4 uShrine;       // spawn shrine centre (tiles) + radius
 
 const vec3 PAL[48] = vec3[48](${pal});
-const int BAYER[16] = int[16](0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5);
 
 const int DEEP = 0, WATER = 1, SAND = 2, GRASS = 3, PATH = 4, SOIL = 5, SOILWET = 6, FLOOR = 7, WALLC = 8;
-// palette indices
 const int INK=0, NIGHT=1, SLATE=2, STEEL=3, MIST=4, FOG=5, PALE=6, WHITE=7;
 const int G0=8, G1=9, G2=10, G3=11, G4=12, G5=13, G6=14, G7=15;
 const int E0=16, E1=17, E2=18, E3=19, E4=20, E5=21, E6=22, E7=23;
 const int W0=24, W1=25, W2=26, W3=27, W4=28, W5=29, W6=30, W7=31;
 const int R0=32, R1=33, R2=34, R3=35, R4=36, R5=37, R6=38, R7=39;
 const int Q0=40, Q1=41, Q2=42, Q3=43, Q4=44, Q5=45, Q6=46, Q7=47;
+
+const float Z_WATER = ${GROUND_Z.water}.0;
+const int STEPS = 9;          // ray samples from z = 0 down to z = -8
 
 uint pcg(uint v) {
   uint s = v * 747796405u + 2891336453u;
@@ -73,452 +79,498 @@ float vnoise(vec2 p) {
   float a = hashi(ii), b = hashi(ii + ivec2(1, 0)), c = hashi(ii + ivec2(0, 1)), d = hashi(ii + ivec2(1, 1));
   return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
-float bayer(ivec2 p) { return (float(BAYER[(p.x & 3) + (p.y & 3) * 4]) + 0.5) / 16.0; }
-vec3 P(int i) { return PAL[clamp(i, 0, 47)]; }
-// pick from an explicit dark->light ramp; dithering only inside a narrow seam so surfaces stay calm and flat
-int ramp(int r[5], int n, float v, float d) {
-  float x = clamp(v, 0.0, 0.999) * float(n - 1);
-  float lo = floor(x);
-  int i = int(lo) + (smoothstep(0.3, 0.7, x - lo) > d ? 1 : 0);
-  return r[clamp(i, 0, n - 1)];
+// two rotated octaves: breaks the axis-aligned look of a single value-noise lattice
+float fbm(vec2 p) {
+  vec2 r = vec2(p.x * 0.8 - p.y * 0.6, p.x * 0.6 + p.y * 0.8);
+  return vnoise(p) * 0.55 + vnoise(r * 2.1 + 17.3) * 0.3 + vnoise(r.yx * 4.3 - 5.1) * 0.15;
 }
+vec3 P(int i) { return PAL[clamp(i, 0, 47)]; }
 ivec2 cellOf(ivec2 p, ivec2 size) { return ivec2(floor(vec2(p) / vec2(size))); }
 vec2 isoToTile(vec2 iso) { return vec2(iso.y / 16.0 + iso.x / 32.0, iso.y / 16.0 - iso.x / 32.0); }
 
-// ───────── tile window + dual-grid classification ─────────
-vec4 tileTex(ivec2 t) { int hi = int(uWinSize) - 1; return texelFetch(uTiles, clamp(t, ivec2(0), ivec2(hi)), 0); }
+// ───────── tiles ─────────
+vec4 tileAt(ivec2 t) { int hi = int(uWinSize) - 1; return texelFetch(uTiles, clamp(t - ivec2(uWin), ivec2(0), ivec2(hi)), 0); }
 int clsOf(vec4 t) { return int(t.r * 255.0 + 0.5); }
+int styleOf(vec4 t) { return int(t.b * 255.0 + 0.5); }
 float sdfOf(vec4 t) { return (t.a * 255.0 - 128.0) / 12.0; }
 bool isWater(int c) { return c == WATER || c == DEEP; }
-
-struct Ground { int best; int other; float margin; vec4 near; float sdf; float flux; };
-
-Ground classify(vec2 tf) {
-  Ground g;
-  vec2 wpf = tf * 16.0;
+float heightOf(vec4 t) {
+  int c = clsOf(t);
+  if (c == WATER || c == DEEP) return Z_WATER;
+  if (c == SAND) return ${GROUND_Z.sand}.0;
+  if (c == SOIL || c == SOILWET) return ${GROUND_Z.soil}.0;
+  if (c == PATH) { int s = styleOf(t); return s >= 2 ? ${GROUND_Z.plaza}.0 : s == 1 ? ${GROUND_Z.road}.0 : ${GROUND_Z.dirt}.0; }
+  return 0.0;
+}
+float sdfAt(vec2 tf) {
   vec2 u = tf - 0.5;
-  vec2 fl = floor(u);
-  vec2 f = u - fl;
-  ivec2 t00 = ivec2(fl - uWin);
-  vec4 T0 = tileTex(t00), T1 = tileTex(t00 + ivec2(1, 0)), T2 = tileTex(t00 + ivec2(0, 1)), T3 = tileTex(t00 + ivec2(1, 1));
-  int c[4];
-  c[0] = clsOf(T0); c[1] = clsOf(T1); c[2] = clsOf(T2); c[3] = clsOf(T3);
-  float w[4];
-  w[0] = (1.0 - f.x) * (1.0 - f.y); w[1] = f.x * (1.0 - f.y); w[2] = (1.0 - f.x) * f.y; w[3] = f.x * f.y;
-  float sc[4];
-  for (int j = 0; j < 4; j++) {
-    float s = 0.0;
-    for (int k = 0; k < 4; k++) if (c[k] == c[j]) s += w[k];
-    // water and paving get calmer borders than grass/soil
-    float amp = (c[j] == PATH || c[j] == FLOOR || c[j] == WALLC) ? 0.16 : 0.3;
-    s += amp * (vnoise(wpf * 0.105 + float(c[j]) * 13.7) - 0.5) * 2.0 * (1.0 - s);
-    sc[j] = s;
-  }
-  int bj = 0;
-  for (int j = 1; j < 4; j++) if (sc[j] > sc[bj]) bj = j;
-  g.best = c[bj];
-  float second = -1.0;
-  g.other = g.best;
-  for (int j = 0; j < 4; j++) if (c[j] != g.best && sc[j] > second) { second = sc[j]; g.other = c[j]; }
-  g.margin = second < 0.0 ? 1.0 : sc[bj] - second;
-  g.near = f.x > 0.5 ? (f.y > 0.5 ? T3 : T1) : (f.y > 0.5 ? T2 : T0);
-  g.sdf = mix(mix(sdfOf(T0), sdfOf(T1), f.x), mix(sdfOf(T2), sdfOf(T3), f.x), f.y);
-  g.flux = mix(mix(T0.g, T1.g, f.x), mix(T2.g, T3.g, f.x), f.y);
-  return g;
+  ivec2 b = ivec2(floor(u));
+  vec2 f = u - floor(u);
+  float a = sdfOf(tileAt(b)), c = sdfOf(tileAt(b + ivec2(1, 0))), d = sdfOf(tileAt(b + ivec2(0, 1))), e = sdfOf(tileAt(b + ivec2(1, 1)));
+  return mix(mix(a, c, f.x), mix(d, e, f.x), f.y);
+}
+float fluxAt(vec2 tf) {
+  vec2 u = tf - 0.5;
+  ivec2 b = ivec2(floor(u));
+  vec2 f = u - floor(u);
+  return mix(mix(tileAt(b).g, tileAt(b + ivec2(1, 0)).g, f.x), mix(tileAt(b + ivec2(0, 1)).g, tileAt(b + ivec2(1, 1)).g, f.x), f.y);
 }
 
-// ───────── grass ─────────
-// quantum phase colour: cyan -> lilac -> pink cycling slowly ("phase-shifting" tips)
+// quantum phase colour for rare glints: cyan -> lilac -> pink
 int phaseCol(float h, float t) {
   float ph = fract(t * 0.11 * uMotion + h * 3.7);
   return ph < 0.34 ? Q7 : ph < 0.67 ? Q4 : Q6;
 }
 
-// one grass tuft: 3 diverging blades from base b. -1 none, -2 contact shadow under the tuft
-int tuftPix(ivec2 p, ivec2 b, float h, int s, float flux, float t) {
-  int dx = p.x - b.x;
-  int up = b.y - p.y;
-  if (dx < -3 || dx > 3 || up < -1 || up > 6) return -1;
-  if (up == -1) return (dx >= -1 && dx <= 1) ? -2 : -1;
-  for (int k = 0; k < 3; k++) {
-    float hk = 2.0 + floor(fract(h * (7.0 + float(k) * 3.1)) * 2.99) + (k == 1 ? 1.0 : 0.0);
-    if (float(up) >= hk) continue;
-    float lean = float(k - 1) * (0.8 + fract(h * 17.0) * 0.9);
-    int x = (k - 1) + int(floor(lean * float(up) / hk + 0.5));
-    if (dx != x) continue;
-    float tt = float(up) / hk;
-    int lvl = tt > 0.62 ? 2 : tt > 0.25 ? 1 : 0;
-    bool tip = float(up) >= hk - 1.0;
-    if (tip && flux > 0.12 && h < flux * 0.9) return phaseCol(h, t);
-    if (s == 3) { int r[3] = int[3](E2, E3, E4); return r[clamp(lvl + (k == 0 ? 1 : 0) - (k == 2 ? 1 : 0), 0, 2)]; }
-    if (s == 2) {
-      if (k == 0) { int r[3] = int[3](G4, E5, E6); return r[lvl]; }
-      if (k == 1) { int r[3] = int[3](G3, G4, E5); return r[lvl]; }
-      int r[3] = int[3](E2, E3, G4); return r[lvl];
-    }
-    int sh = s == 0 ? 1 : 0;
-    if (k == 0) { int r[3] = int[3](G4, G5, G6); return r[lvl] + sh; }
-    if (k == 1) { int r[3] = int[3](G3, G4, G5); return r[lvl] + sh; }
-    int r[3] = int[3](G2, G3, G4); return r[lvl] + sh;
+// ───────── grass ─────────
+// tone set for a patch: base, clump body, clump highlight, shade, deep shade
+struct Tones { int base; int body; int hi; int sh; int dk; };
+Tones grassTones(int s, bool lush) {
+  Tones T;
+  if (s == 3) { T.base = PALE; T.body = PALE; T.hi = WHITE; T.sh = FOG; T.dk = MIST; return T; }
+  if (s == 2) {
+    if (lush) { T.base = G5; T.body = G5; T.hi = R6; T.sh = G4; T.dk = G3; }
+    else { T.base = G2; T.body = G4; T.hi = R5; T.sh = G1; T.dk = G1; }
+    return T;
   }
+  if (lush) { T.base = G6; T.body = G6; T.hi = G7; T.sh = G5; T.dk = G4; }
+  else { T.base = G3; T.body = G5; T.hi = G6; T.sh = G2; T.dk = G2; }
+  if (s == 0 && !lush) { T.base = G4; T.body = G5; T.hi = G6; T.sh = G3; T.dk = G3; }
+  return T;
+}
+
+// leafy clumps on a jittered grid (world-anchored screen px): lit top-left crown, dark underside, no outline.
+// Clumps overlap front-to-back; big scales them (dense turf uses big leafy ones, meadows small tufty ones).
+int clumpPix(ivec2 ip, float dens, float big, Tones T, out bool hit) {
+  hit = false;
+  ivec2 CS = ivec2(int(7.0 + 4.0 * big), int(4.0 + 3.0 * big));
+  ivec2 c0 = cellOf(ip, CS);
+  float bestY = -1e9;
+  int col = -1;
+  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+    ivec2 c = c0 + ivec2(i, j);
+    if (hashk(c, 1) > dens) continue;
+    vec2 ctr = vec2(c * CS) + vec2(hashk(c, 2), hashk(c, 3)) * vec2(CS);
+    float rx = (1.8 + hashk(c, 4) * 1.6) * (0.8 + big * 0.9), ry = rx * (0.55 + hashk(c, 5) * 0.15);
+    vec2 q = (vec2(ip) + 0.5 - ctr);
+    vec2 n = q / vec2(rx, ry);
+    float dd = dot(n, n);
+    // jagged leaf rim: a per-pixel wobble so the silhouette reads as leaves, plus a notch on top
+    float wob = (hashi(ip + c * 3) - 0.5) * 0.7;
+    if (dd < 1.0 + wob && ctr.y > bestY) {
+      bestY = ctr.y;
+      float lit = -(n.x * 0.5 + n.y * 0.9) + (hashi(ip * 2 + c) - 0.5) * 0.35;
+      col = lit > 0.45 ? T.hi : lit < -0.6 ? T.sh : T.body;
+    }
+  }
+  if (col >= 0) hit = true;
+  return col;
+}
+
+// small 3-blade tuft (^) in a darker tone, base at b
+int tuftPix(ivec2 p, ivec2 b, int c, int cHi) {
+  int dx = p.x - b.x, up = b.y - p.y;
+  if (up < 0 || up > 2) return -1;
+  if (up == 0 && abs(dx) <= 1) return c;
+  if (up == 1 && (dx == -1 || dx == 1)) return c;
+  if (up == 2 && (dx == -2 || dx == 1)) return cHi;
   return -1;
 }
 
-// small flower: petals left/right/top, centre, a leaf below
 int flowerPix(ivec2 p, ivec2 b, float kind) {
   int dx = p.x - b.x, dy = p.y - b.y;
   int petal, centre;
-  if (kind < 0.25) { petal = WHITE; centre = R6; }
-  else if (kind < 0.45) { petal = R6; centre = R5; }
-  else if (kind < 0.65) { petal = Q6; centre = WHITE; }
-  else if (kind < 0.82) { petal = W5; centre = WHITE; }
-  else { petal = R3; centre = R6; }
+  if (kind < 0.3) { petal = R3; centre = R6; }
+  else if (kind < 0.5) { petal = R6; centre = R4; }
+  else if (kind < 0.7) { petal = Q5; centre = Q6; }
+  else if (kind < 0.85) { petal = WHITE; centre = R6; }
+  else { petal = Q4; centre = WHITE; }
   if (dx == 0 && dy == 0) return centre;
   if ((abs(dx) == 1 && dy == 0) || (dx == 0 && dy == -1)) return petal;
-  if (dx == 0 && dy == 1) return G2;
-  if (dx == 1 && dy == 1) return G3;
+  if (dx == 0 && dy == 1) return G3;
   return -1;
 }
 
-int grassPixel(ivec2 ip, vec2 wp, int s, float flux, float t, float d, float edgePx) {
-  // calm base: three tones in big soft patches
-  float big = vnoise(wp * 0.014 + 3.0);
-  float mid = vnoise(wp * 0.055 + 17.0);
-  float v = 0.5 + 0.62 * (big - 0.5) + 0.3 * (mid - 0.5);
-  int base;
-  if (s == 3) {
-    int r[5] = int[5](W6, PALE, WHITE, WHITE, WHITE);
-    base = ramp(r, 3, v * 1.15 - 0.05, d);
-  } else if (s == 2) {
-    int r[5] = int[5](G3, G4, E5, E5, E5);
-    base = ramp(r, 3, v, d);
-  } else if (s == 0) {
-    int r[5] = int[5](G4, G5, G6, G6, G6);
-    base = ramp(r, 3, v * 0.95, d);
-  } else {
-    int r[5] = int[5](G3, G4, G5, G5, G5);
-    base = ramp(r, 3, v, d);
+int grassTop(ivec2 ip, vec2 tf, int s, float flux, float t) {
+  vec2 wp = vec2(ip);
+  // large soft regions of sunlit lime meadow vs. deeper leafy turf
+  float lushN = fbm(tf * 0.2 + 3.0);
+  bool lush = lushN > (s == 0 ? 0.46 : 0.55);
+  Tones T = grassTones(s, lush);
+  int c = T.base;
+  float dn = fbm(tf * 0.5 + 50.0);
+  float dens = lush ? 0.12 + 0.25 * smoothstep(0.4, 0.8, dn) : 0.8 + 0.2 * dn;
+  float big = lush ? 0.0 : 0.35 + 0.65 * smoothstep(0.3, 0.75, fbm(tf * 0.35 + 70.0));
+  if (s == 3) { dens *= 0.35; big = 0.0; }
+  bool hit;
+  int cl = clumpPix(ip, dens, big, T, hit);
+  if (hit) return cl;
+  if (lush) {
+    // meadow: soft lighter/darker patches and fine tufts
+    float pn = vnoise(wp * 0.08 + 31.0) * 0.75 + hashi(ip / 2) * 0.25;
+    if (pn > 0.74) c = T.hi;
+    else if (pn < 0.2) c = T.sh;
   }
-  if (edgePx < 3.0) return base;
-
-  // detail layer 1: grass tufts on a jittered screen grid, clumped by a low-frequency density field
-  float dens = (s == 3 ? 0.12 : 0.18) + (s == 3 ? 0.2 : 0.55) * smoothstep(0.3, 0.75, vnoise(wp * 0.04 + 50.0));
-  ivec2 TC = ivec2(9, 6);
-  ivec2 c0 = cellOf(ip, TC);
-  for (int j = 1; j >= 0; j--) for (int i = -1; i <= 1; i++) {
-    ivec2 c = c0 + ivec2(i, j);
-    float h = hashk(c, 1);
-    if (h > dens) continue;
-    ivec2 b = c * TC + ivec2(int(hashk(c, 2) * float(TC.x)), int(hashk(c, 3) * float(TC.y)));
-    int r = tuftPix(ip, b, h / max(dens, 0.01), s, flux, t);
-    if (r == -2) return s == 3 ? W6 : base - 1;
+  ivec2 TC = ivec2(6, 4);
+  ivec2 tc = cellOf(ip, TC);
+  for (int j = 0; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+    ivec2 cc = tc + ivec2(i, j);
+    if (hashk(cc, 6) > (lush ? 0.2 : 0.25)) continue;
+    ivec2 b = cc * TC + ivec2(int(hashk(cc, 7) * 5.0), int(hashk(cc, 8) * 3.0));
+    int r = tuftPix(ip, b, lush ? T.sh : T.body, lush ? T.dk : T.hi);
     if (r >= 0) return r;
   }
-  // detail layer 2: flowers (spring/summer), fallen leaves (autumn), sparkle (winter)
+  // flowers (spring/summer), fallen leaves (autumn), glitter (winter)
   if (s <= 1) {
-    float fd = smoothstep(0.55, 0.8, vnoise(wp * 0.03 + 90.0)) * (s == 0 ? 0.7 : 0.4);
-    ivec2 FC = ivec2(11, 8);
+    float fd = smoothstep(0.6, 0.85, vnoise(tf * 0.4 + 90.0)) * (s == 0 ? 0.6 : 0.35);
+    ivec2 FC = ivec2(11, 7);
     ivec2 f0 = cellOf(ip, FC);
     for (int j = 1; j >= 0; j--) for (int i = -1; i <= 1; i++) {
-      ivec2 c = f0 + ivec2(i, j);
-      if (hashk(c, 4) > fd) continue;
-      ivec2 b = c * FC + ivec2(1 + int(hashk(c, 5) * float(FC.x - 2)), 1 + int(hashk(c, 6) * float(FC.y - 2)));
-      float kind = vnoise(vec2(c) * 0.21 + 7.0);
-      kind = fract(kind * 2.3 + hashk(c, 7) * 0.25);
-      int r = flowerPix(ip, b, kind);
+      ivec2 cc = f0 + ivec2(i, j);
+      if (hashk(cc, 9) > fd) continue;
+      ivec2 b = cc * FC + ivec2(1 + int(hashk(cc, 10) * float(FC.x - 2)), 1 + int(hashk(cc, 11) * float(FC.y - 2)));
+      int r = flowerPix(ip, b, fract(vnoise(vec2(cc) * 0.2) * 2.3 + hashk(cc, 12) * 0.2));
       if (r >= 0) return r;
     }
   } else if (s == 2) {
     ivec2 LC = ivec2(8, 6);
-    ivec2 c = cellOf(ip, LC);
-    float ld = 0.08 + 0.25 * smoothstep(0.4, 0.8, vnoise(wp * 0.03 + 21.0));
-    if (hashk(c, 8) < ld) {
-      ivec2 b = c * LC + ivec2(int(hashk(c, 9) * 6.0), int(hashk(c, 10) * 5.0));
-      ivec2 q = ip - b;
-      float k = hashk(c, 11);
-      int lc = k < 0.4 ? R3 : k < 0.75 ? R4 : E5;
+    ivec2 cc = cellOf(ip, LC);
+    if (hashk(cc, 13) < 0.22) {
+      ivec2 q = ip - (cc * LC + ivec2(int(hashk(cc, 14) * 6.0), int(hashk(cc, 15) * 5.0)));
+      int lc = hashk(cc, 16) < 0.5 ? R3 : R4;
       if (q.y == 0 && (q.x == 0 || q.x == 1)) return q.x == 0 ? lc : lc + 1;
-      if (q.y == 1 && q.x == 1) return lc - 1;
+      if (q.y == 1 && q.x == 1) return R1;
     }
-  } else {
-    float tw = fract(hashi(ip) * 7.0 + t * 0.35 * uMotion);
-    if (hashi(ip + ivec2(3, 1)) > 0.993 && tw < 0.35) return WHITE;
-  }
-  // quantum meadow: tiny phase glints
+  } else if (hashi(ip + ivec2(3, 1)) > 0.994 && fract(hashi(ip) * 7.0 + t * 0.35 * uMotion) < 0.35) return WHITE;
+  // quantum meadow: rare phase glints
   if (flux > 0.2) {
-    float tw = fract(hashk(ip, 12) * 5.0 + t * 0.3 * uMotion);
-    if (hashk(ip, 13) > 1.0 - 0.004 * flux && tw < 0.4) return phaseCol(hashk(ip, 14), t);
+    float tw = fract(hashk(ip, 17) * 5.0 + t * 0.3 * uMotion);
+    if (hashk(ip, 18) > 1.0 - 0.005 * flux && tw < 0.4) return phaseCol(hashk(ip, 19), t);
   }
-  return base;
+  return c;
 }
 
-// ───────── sand ─────────
-int sandPixel(ivec2 ip, vec2 wp, float sdf, float d, int s, float edgePx, int other) {
+// ───────── sand / dirt / soil ─────────
+int sandTop(ivec2 ip, float sdf, int s) {
+  vec2 wp = vec2(ip);
+  int c = E6;
   float n = vnoise(wp * 0.06);
-  float v = 0.55 + 0.3 * (n - 0.5);
-  int r[5] = int[5](E4, E5, E6, E6, E6);
-  int base = ramp(r, 3, v, d);
-  // wet band near the waterline
-  float wet = smoothstep(-0.9, -0.15, sdf);
-  if (wet > 0.0) { int rw[5] = int[5](E3, E4, E5, E5, E5); if (wet > 0.75 || (wet > 0.4 && d < 0.5)) base = ramp(rw, 2, 0.6 - wet * 0.6, d); }
+  if (n > 0.66) c = E7;
+  else if (n < 0.3) c = E5;
   float rip = sin(wp.x * 0.42 + wp.y * 0.95 + vnoise(wp * 0.07) * 6.0);
-  if (rip > 0.93 && wet < 0.2) base = E7;
-  else if (rip < -0.96 && wet < 0.2) base = E4;
-  // shells and pebbles
-  ivec2 c = cellOf(ip, ivec2(10, 7));
-  if (hashk(c, 20) < 0.18) {
-    ivec2 b = c * ivec2(10, 7) + ivec2(int(hashk(c, 21) * 8.0), int(hashk(c, 22) * 5.0));
-    ivec2 q = ip - b;
-    float k = hashk(c, 23);
-    if (q == ivec2(0)) return k < 0.5 ? PALE : R5;
-    if (q == ivec2(1, 0)) return k < 0.5 ? FOG : R4;
-    if (q == ivec2(1, 1) || q == ivec2(0, 1)) return E4;
+  if (rip > 0.975 && n > 0.4) c = E7; else if (rip < -0.985) c = E5;
+  if (sdf > -0.75) c = sdf > -0.35 ? E4 : E5;            // wet sand along the waterline
+  ivec2 cc = cellOf(ip, ivec2(10, 7));
+  if (hashk(cc, 20) < 0.2) {
+    ivec2 q = ip - (cc * ivec2(10, 7) + ivec2(int(hashk(cc, 21) * 8.0), int(hashk(cc, 22) * 5.0)));
+    if (q == ivec2(0)) return hashk(cc, 23) < 0.5 ? PALE : R6;
+    if (q == ivec2(1, 0)) return FOG;
+    if (q == ivec2(0, 1) || q == ivec2(1, 1)) return E4;
   }
-  // dune grass where sand meets grass
-  if (other == GRASS && edgePx < 8.0 && s != 3) {
-    ivec2 tc = cellOf(ip, ivec2(7, 5));
-    if (hashk(tc, 24) < 0.5) {
-      ivec2 b = tc * ivec2(7, 5) + ivec2(int(hashk(tc, 25) * 6.0), int(hashk(tc, 26) * 4.0));
-      int tp = tuftPix(ip, b, hashk(tc, 27), 2, 0.0, 0.0);
-      if (tp >= 0) return tp;
-    }
-  }
-  if (s == 3 && v > 0.52 && wet < 0.3) base = (d < 0.5 ? PALE : WHITE);
-  return base;
+  if (s == 3 && n > 0.45 && sdf < -0.6) c = n > 0.6 ? WHITE : PALE;
+  return c;
 }
 
-// ───────── paths ─────────
-int dirtPixel(ivec2 ip, vec2 wp, float d, float edgePx) {
-  float n = vnoise(wp * 0.08 + 5.0);
-  float v = 0.45 + 0.35 * (n - 0.5) + clamp((edgePx - 2.0) * 0.06, 0.0, 0.2);
-  int r[5] = int[5](E2, E3, E4, E4, E4);
-  int base = ramp(r, 3, v, d);
-  if (edgePx < 1.5) return E2;
-  // worn ruts and pebbles
-  ivec2 c = cellOf(ip, ivec2(7, 5));
-  if (hashk(c, 30) < 0.3) {
-    ivec2 b = c * ivec2(7, 5) + ivec2(int(hashk(c, 31) * 5.0), int(hashk(c, 32) * 4.0));
-    ivec2 q = ip - b;
-    if (q == ivec2(0)) return FOG;
-    if (q == ivec2(1, 0)) return hashk(c, 33) < 0.5 ? MIST : FOG;
-    if (q == ivec2(0, 1) || q == ivec2(1, 1)) return E1;
+int dirtTop(ivec2 ip, int s) {
+  vec2 wp = vec2(ip);
+  int c = E4;
+  float n = vnoise(wp * 0.07 + 5.0);
+  if (n > 0.64) c = E5;
+  else if (n < 0.24) c = E3;
+  // dry cracks: thin warped iso-lines
+  float cr = abs(vnoise(wp * vec2(0.11, 0.2) + 40.0) - 0.5);
+  if (cr < 0.022) c = E3;
+  if (cr < 0.022 && hashi(ip) > 0.6) c = E2;
+  // pebbles: lit top-left, shaded below
+  ivec2 cc = cellOf(ip, ivec2(8, 5));
+  if (hashk(cc, 30) < 0.28) {
+    ivec2 q = ip - (cc * ivec2(8, 5) + ivec2(int(hashk(cc, 31) * 6.0), int(hashk(cc, 32) * 3.0)));
+    if (q == ivec2(0)) return E6;
+    if (q == ivec2(1, 0)) return E5;
+    if (q == ivec2(0, 1) || q == ivec2(1, 1)) return E2;
   }
-  return base;
+  if (s == 3 && vnoise(wp * 0.08) > 0.58) c = vnoise(wp * 0.3) > 0.5 ? WHITE : PALE;
+  return c;
 }
 
-int cobblePixel(ivec2 ip, vec2 wp, float d) {
-  vec2 g = wp / vec2(7.5, 6.0);
+int soilTop(ivec2 ip, vec2 tf, bool wet, int s) {
+  vec2 wp = vec2(ip);
+  // furrows run along the tile x axis: rows of rounded ridges
+  float row = tf.y * 4.0 + vnoise(wp * 0.08) * 0.18;
+  float fr = fract(row);
+  int c;
+  if (wet) c = fr < 0.22 ? E1 : fr < 0.5 ? R0 : fr < 0.8 ? E2 : R0;
+  else c = fr < 0.22 ? R0 : fr < 0.45 ? R1 : fr < 0.8 ? R1 : E3;
+  if (!wet && fr > 0.3 && fr < 0.45 && hashi(ip) > 0.55) c = E4;     // lit clods on the ridge
+  if (wet && fr < 0.22 && hashi(ip + ivec2(9, 2)) > 0.82) c = W2;    // a glint of standing water
+  if (s == 3 && !wet && fr > 0.25 && fr < 0.5 && hashi(ip) > 0.35) c = PALE;
+  return c;
+}
+
+// ───────── paving ─────────
+int cobbleTop(ivec2 ip, vec2 tf) {
+  vec2 g = tf * vec2(2.7, 2.7);
   vec2 gi = floor(g);
   float f1 = 9.0, f2 = 9.0;
   ivec2 id1 = ivec2(0);
   vec2 p1 = vec2(0.0);
   for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
     ivec2 cell = ivec2(gi) + ivec2(i, j);
-    vec2 pt = vec2(cell) + 0.5 + 0.34 * vec2(hashi(cell) - 0.5, hashi(cell + ivec2(31, 17)) - 0.5) * 2.0;
+    vec2 pt = vec2(cell) + 0.5 + 0.32 * (vec2(hashi(cell), hashi(cell + ivec2(31, 17))) - 0.5) * 2.0;
     float dist = distance(g, pt);
     if (dist < f1) { f2 = f1; f1 = dist; id1 = cell; p1 = pt; } else if (dist < f2) f2 = dist;
   }
-  float edge = (f2 - f1) * 7.0;
-  if (edge < 0.8) return E2;
-  float sh = hashi(id1 + ivec2(5, 9));
-  vec2 rel = g - p1;                         // lit from the top-left (in screen terms: -x-y in world)
-  float lit = -(rel.x + rel.y) * 0.9;
-  bool grey = hashi(id1 + ivec2(2, 3)) < 0.35;
-  int warm[5] = int[5](E3, E4, E5, E6, E7);
-  int cool[5] = int[5](STEEL, MIST, FOG, PALE, PALE);
-  float v = 0.38 + 0.28 * sh + lit * 0.5;
-  if (edge < 1.7) v -= 0.25;
-  return grey ? ramp(cool, 4, v, d) : ramp(warm, 4, v, d);
+  float edge = (f2 - f1) * 6.0;
+  if (edge < 0.55) return STEEL;
+  vec2 rel = g - p1;
+  float lit = -(rel.x + rel.y);                // tile -x/-y = screen up: lit from the top-left
+  bool warm = hashi(id1 + ivec2(2, 3)) < 0.1;
+  float v = 0.45 + lit * 1.1 + (hashi(id1 + ivec2(5, 9)) - 0.5) * 0.35;
+  if (edge < 1.3) v -= 0.4;
+  if (warm) return v > 0.75 ? E5 : v > 0.3 ? E4 : E3;
+  return v > 0.8 ? PALE : v > 0.3 ? FOG : MIST;
 }
 
 // ring-laid paving around a centre (the town plaza and the spawn shrine)
-int ringPixel(ivec2 ip, vec2 tf, vec4 C, float d, float t, bool shrine) {
+int ringTop(ivec2 ip, vec2 tf, vec4 C, float t, bool shrine) {
   vec2 rel = tf - C.xy;
   float r = length(rel);
   float R = C.z;
   float a = atan(rel.y, rel.x);
-  float wpR = r * 16.0;
-  // outer curb
   if (r > R - 0.45) {
     float segs = floor(6.2831 * R / 0.7);
-    float sa = (a / 6.2831 + 0.5) * segs;
-    float spx = fract(sa) * 6.2831 * R / segs * 16.0;
-    if (spx < 1.0 || (R - r) * 16.0 < 1.0) return SLATE;
+    float spx = fract((a / 6.2831 + 0.5) * segs) * 6.2831 * R / segs * 16.0;
+    if (spx < 1.0) return STEEL;
     float lv = (r - (R - 0.45)) / 0.45;
-    return lv < 0.3 ? FOG : lv < 0.75 ? MIST : STEEL;
+    return lv < 0.35 ? PALE : lv < 0.8 ? FOG : MIST;
   }
   float rw = shrine ? 0.36 : 0.52;
   float ri = floor(r / rw);
-  float rf = fract(r / rw);
+  float rpx = fract(r / rw) * rw * 16.0;
   float circ = 6.2831 * max(r, 0.25);
   float nseg = max(5.0, floor(circ / 0.5));
   float sa = (a / 6.2831 + 0.5) * nseg + ri * 0.5;
-  float sf = fract(sa);
-  float rpx = rf * rw * 16.0;
-  float spx = sf * circ / nseg * 16.0;
+  float spx = fract(sa) * circ / nseg * 16.0;
   int ring = int(ri);
   if (shrine) {
-    // the qubit glyph: a glowing Bloch circle with its state arrow, pulsing through the phase colours
+    // the qubit glyph: a glowing Bloch circle with its state arrow, slowly pulsing
     float pulse = 0.5 + 0.5 * sin(t * 1.6 * uMotion + r * 3.0);
-    if (abs(r - 1.55) < 0.07) return pulse > 0.5 ? Q7 : Q4;
-    float ang = 0.785;
-    vec2 dir = vec2(cos(ang), sin(ang));
+    if (abs(r - 1.55) < 0.07) return pulse > 0.5 ? Q7 : W6;
+    vec2 dir = vec2(0.7071, 0.7071);
     float along = dot(rel, dir), across = abs(rel.x * dir.y - rel.y * dir.x);
     if (along > 0.0 && along < 1.4 && across < 0.06) return pulse > 0.5 ? Q6 : Q5;
     if (r < 0.14) return WHITE;
   }
-  if (rpx < 1.0 || spx < 1.0) return shrine ? SLATE : E2;
+  if (rpx < 1.0 || spx < 1.0) return shrine ? STEEL : MIST;
   float sh = hashi(ivec2(ring * 131 + int(floor(sa)), ring));
-  float lit = (rpx < 2.0 || spx < 2.0) ? 0.18 : 0.0;
-  // decorative bands: cream rings, grey rings and one inlaid quantum ring
-  if (!shrine && ring == 4 && rpx < rw * 16.0 * 0.62) { int q[5] = int[5](Q1, Q2, Q3, Q4, Q4); return ramp(q, 4, 0.35 + 0.4 * sh + lit, d); }
+  bool lit = rpx < 2.0 || spx < 2.0;
+  if (!shrine && ring == 4 && rpx < rw * 16.0 * 0.62) return lit ? Q4 : (sh > 0.5 ? Q3 : Q2);
   bool cream = shrine ? (ring % 2 == 0) : (ring % 4 != 2 && ring != 4);
-  int warm[5] = int[5](E4, E5, E6, E7, E7);
-  int cool[5] = int[5](MIST, FOG, PALE, WHITE, WHITE);
-  float v = 0.3 + 0.35 * sh + lit;
-  return cream ? ramp(warm, 4, v, d) : ramp(cool, 4, v, d);
+  if (cream) return lit ? E7 : sh > 0.66 ? E5 : E6;
+  return lit ? PALE : sh > 0.6 ? MIST : FOG;
 }
 
-// ───────── soil / floors ─────────
-int soilPixel(ivec2 ip, vec2 wp, bool wet, float d) {
-  float row = wp.y / 4.0 + vnoise(wp * 0.07) * 0.25;
-  float fr = fract(row);
-  float clod = hashi(ip);
-  int lv = fr < 0.18 ? 3 : fr < 0.5 ? 2 : fr < 0.75 ? 1 : 0;
-  if (clod > 0.93 && lv > 0) lv += 1;
-  int dry[5] = int[5](E1, E2, E3, E4, E5);
-  int dmp[5] = int[5](E0, E1, E1, E2, E3);
-  int c = wet ? dmp[clamp(lv, 0, 4)] : dry[clamp(lv, 0, 4)];
-  if (wet && lv == 3 && hashi(ip + ivec2(9, 2)) > 0.85) c = W2;   // a glint of standing water
-  return c;
-}
-
-int floorPixel(vec2 wp, float d) {
+int floorTop(vec2 tf) {
+  vec2 wp = tf * 16.0;
   float rowF = wp.y / 5.0;
   int row = int(floor(rowF));
   float off = float(int(hashi(ivec2(0, row)) * 24.0));
   float px = mod(wp.x + off, 24.0);
-  if (fract(rowF) * 5.0 < 1.0 || px < 1.0) return E1;
+  if (fract(rowF) * 5.0 < 1.0 || px < 1.0) return E2;
   float sh = hashi(ivec2(int(floor((wp.x + off) / 24.0)), row));
-  float grain = vnoise(vec2(wp.x * 0.3, wp.y * 2.0));
-  int r[5] = int[5](E2, E3, E4, E5, E5);
-  float v = 0.3 + 0.4 * sh + 0.25 * (grain - 0.5) + (fract(rowF) * 5.0 < 2.0 ? 0.15 : 0.0);
-  return ramp(r, 4, v, d);
-}
-
-int wallGround(vec2 wp, float d) {
-  int r[5] = int[5](SLATE, STEEL, MIST, MIST, MIST);
-  return ramp(r, 3, 0.5 + 0.3 * (vnoise(wp * 0.2) - 0.5), d);
+  if (fract(rowF) * 5.0 < 2.0) return sh > 0.5 ? E5 : E4;
+  return sh > 0.7 ? E4 : E3;
 }
 
 // ───────── water ─────────
-int waterPixel(ivec2 ip, vec2 wp, float sdf, bool deep, float t, float d, int s, float edgePx) {
+int waterTop(ivec2 ip, vec2 tf, float sdf, bool deep, float t, int s) {
   float tt = t * uMotion;
-  float depth = clamp(sdf, 0.0, 6.0) + (deep ? 1.5 : 0.0) + 0.6 * (vnoise(wp * 0.04 + tt * 0.03) - 0.5);
-  int r[5] = int[5](W1, W2, W3, W4, W5);
-  int base = ramp(r, 5, 1.0 - depth / 5.0, d);
-  if (depth > 4.2 && d < 0.5) base = W0 + 1;
-  // slow sky reflection streaks
-  float sky = vnoise(vec2(wp.x * 0.02 + wp.y * 0.02, wp.y * 0.09 - wp.x * 0.03) + vec2(tt * 0.04, 0.0));
-  if (sky > 0.72 && depth > 0.8) base = min(base + 1, W5);
-  // glinting wave dashes on a jittered grid
-  ivec2 WC = ivec2(12, 6);
-  ivec2 c = cellOf(ip, WC);
-  float h = hashk(c, 40);
-  float ph = fract(h * 9.0 + tt * (0.18 + 0.1 * h));
-  if (ph < 0.55) {
-    ivec2 b = c * WC + ivec2(int(hashk(c, 41) * 8.0), int(hashk(c, 42) * 5.0));
-    int len = 2 + int(h * 3.0);
-    int shift = int(floor(ph * 4.0));
-    ivec2 q = ip - b;
-    if (q.y == 0 && q.x >= shift && q.x < shift + len) base = depth < 1.2 ? W7 : W6;
-    else if (q.y == 1 && q.x >= shift + 1 && q.x < shift + len - 1) base = max(base - 1, W1);
+  vec2 wp = vec2(ip);
+  // layered depth bands with soft, wobbling contours (deep navy far out, slate-blue shelves near the banks)
+  float depth = sdf + (deep ? 1.6 : 0.0) + 0.55 * (vnoise(wp * 0.05 + vec2(tt * 0.05, 0.0)) - 0.5);
+  int c = depth < 0.6 ? W3 : depth < 1.5 ? W2 : depth < 3.6 ? W1 : W0;
+  // ripple lines: long, gently slanted streaks (along the iso axes) on a jittered grid; they drift and fade
+  ivec2 RC = ivec2(18, 7);
+  int drift = int(floor(tt * 1.5));
+  ivec2 ipd = ip + ivec2(drift, 0);
+  ivec2 rc0 = cellOf(ipd, RC);
+  for (int j = 0; j <= 1; j++) for (int i = -1; i <= 0; i++) {
+    ivec2 cc = rc0 + ivec2(i, j);
+    float h = hashk(cc, 40);
+    if (h > 0.6) continue;
+    float ph = fract(h * 7.0 + tt * 0.2);
+    if (ph > 0.8) continue;
+    ivec2 b = cc * RC + ivec2(int(hashk(cc, 41) * 8.0), int(hashk(cc, 42) * 5.0));
+    ivec2 q = ipd - b;
+    int len = 6 + int(h * 14.0);
+    int dir = hashk(cc, 45) < 0.5 ? 1 : -1;
+    int yy = (dir > 0 ? q.x : (len - 1 - q.x)) / 4;            // 1px rise every 4px: a flat, wavy streak
+    if (q.x >= 0 && q.x < len && q.y == yy) c = depth < 1.4 ? W4 : depth < 2.8 ? W3 : W2;
+    else if (q.x >= 1 && q.x < len - 1 && q.y == yy + 1) c = depth < 0.55 ? W2 : max(c - 1, W0);
   }
-  // sun sparkles
-  if (hashk(ip, 43) > 0.9975 && fract(hashk(ip, 44) * 3.0 + tt * 0.5) < 0.2 && depth > 0.6) base = WHITE;
-  // shoreline: rolling foam lines and a broken white edge
-  if (sdf < 1.1) {
-    float wave = fract(sdf * 1.25 - tt * 0.22 + vnoise(wp * 0.12) * 0.35);
-    float breakup = vnoise(wp * 0.35 + vec2(tt * 0.4, 0.0));
-    if (wave < 0.07 && breakup > 0.42 && sdf > 0.15) base = W6;
-    if (edgePx < 2.2 + 1.2 * sin(tt * 1.3 + wp.x * 0.15) && breakup > 0.25) base = edgePx < 1.2 ? WHITE : W7;
+  if (hashk(ip, 43) > 0.9975 && fract(hashk(ip, 44) * 3.0 + tt * 0.5) < 0.2) c = W6;   // sparkles
+  if (s == 3 && sdf < 1.3 + 0.5 * vnoise(wp * 0.05)) {
+    // frozen shallows with cracks
+    float cr = abs(vnoise(wp * 0.09 + 40.0) - 0.5);
+    if (cr < 0.02) return W4;
+    float v = vnoise(wp * 0.05 + 70.0);
+    return v > 0.62 ? W7 : v > 0.3 ? W6 : W5;
   }
-  if (s == 3) {
-    // frozen shallows with cracks; open dark water further out
-    if (sdf < 1.4 + 0.5 * vnoise(wp * 0.05)) {
-      float cr = abs(vnoise(wp * 0.09 + 40.0) - 0.5);
-      if (cr < 0.02) return W3;
-      int ice[5] = int[5](W5, W6, PALE, WHITE, WHITE);
-      return ramp(ice, 4, 0.55 + 0.4 * (vnoise(wp * 0.05 + 70.0) - 0.5) + (hashi(ip) > 0.995 ? 0.5 : 0.0), d);
-    }
-  }
-  return base;
+  return c;
 }
 
-int bankPixel(int k, int land, int s) {
-  if (k == 1) return land == SAND ? E3 : (s == 3 ? MIST : E1);
-  if (k == 2) return land == SAND ? E2 : (s == 3 ? STEEL : E0);
-  return -1;
+// ───────── side faces ─────────
+// k: 0 earth (under grass/dirt/soil), 1 sand, 2 stone; left = lit face; d = px below the top edge; H = face height
+int sideEarth(ivec2 ip, bool left, int d) {
+  vec2 wp = vec2(ip);
+  float n = vnoise(wp * vec2(0.22, 0.5) + (left ? 3.0 : 9.0));
+  int c = left ? E1 : E0;
+  if (n > 0.62) c = left ? E2 : E1;
+  if (left && n > 0.8) c = R0;
+  if (hashi(ip) > 0.93) c = left ? E2 : E1;                // grit
+  if (n < 0.18) c = left ? E0 : INK + 1;
+  return c;
+}
+int sideSand(ivec2 ip, bool left, int d) {
+  float n = vnoise(vec2(ip) * vec2(0.15, 0.6) + 7.0);
+  int c = left ? E5 : E4;
+  if ((d % 3) == 2) c = left ? E4 : E3;                     // strata
+  if (n > 0.7) c = left ? E6 : E5;
+  return c;
+}
+int sideStone(ivec2 ip, vec2 tf, bool left, int d) {
+  float u = (left ? tf.x : tf.y) * 16.0;
+  int row = (d - 1) / 4;
+  float off = row % 2 == 1 ? 5.0 : 0.0;
+  if ((d - 1) % 4 == 3 || mod(floor(u + off), 10.0) < 1.0) return left ? STEEL : SLATE;
+  float sh = hashi(ivec2(int(floor((u + off) / 10.0)), row + 7));
+  if ((d - 1) % 4 == 0) return left ? FOG : MIST;
+  return left ? (sh > 0.6 ? FOG : MIST) : (sh > 0.6 ? MIST : STEEL);
 }
 
 void main() {
   vec2 sp = floor(vUV * uRes);
   vec2 iso = uIso + sp + 0.5;
-  vec2 tf = isoToTile(iso);
-  vec2 wpf = tf * 16.0;
-  ivec2 ip = ivec2(floor(uIso + sp));
-  float d = bayer(ip);
   float t = uTime;
   int s = int(uSeason + 0.5);
 
-  Ground g = classify(tf);
-  float fw = fwidth(g.margin);
-  float edgePx = g.other == g.best ? 99.0 : g.margin / max(fw, 0.0005);
-  int style = int(g.near.b * 255.0 + 0.5);
-
-  int c;
-  if (isWater(g.best)) {
-    c = waterPixel(ip, wpf, g.sdf, g.best == DEEP, t, d, s, isWater(g.other) ? 99.0 : edgePx);
-    // banks: land sits a little above the water, so the strip just below a shore shows earth
-    if (g.sdf < 1.5 && !(s == 3 && g.sdf < 1.4)) {
-      for (int k = 1; k <= 3; k++) {
-        Ground g2 = classify(isoToTile(iso - vec2(0.0, float(k))));
-        if (!isWater(g2.best)) {
-          int b = bankPixel(k, g2.best, s);
-          if (b >= 0) c = b; else if (c > W1 && c <= W7) c -= 1;
-          break;
-        }
+  // ── march: front-most surface first. At z the ray sits over ground position (iso.x, iso.y + z).
+  ivec2 prevT = ivec2(-2147483);
+  float prevH = 99.0;
+  ivec2 T0 = ivec2(0);
+  vec4 X0 = vec4(0.0);
+  vec2 tfHit = vec2(0.0);
+  float hHit = 0.0;
+  int face = 0;      // 0 top, 1 left (+y) side, 2 right (+x) side
+  int dPx = 0;
+  for (int k = 0; k < STEPS; k++) {
+    float z = -float(k);
+    vec2 tf = isoToTile(vec2(iso.x, iso.y + z));
+    ivec2 tt = ivec2(floor(tf));
+    vec4 X = tileAt(tt);
+    float h = heightOf(X);
+    if (h >= z - 0.001) {
+      T0 = tt; X0 = X; hHit = h; tfHit = tf;
+      if (h < z + 0.5 || tt == prevT) { face = 0; tfHit = isoToTile(vec2(iso.x, iso.y + h)); }
+      else {
+        dPx = int(h - z + 0.5);
+        bool crossX = prevT.x != tt.x, crossY = prevT.y != tt.y;
+        if (crossX && crossY) { vec2 f = fract(tf); face = f.x > f.y ? 2 : 1; }
+        else face = crossX ? 2 : 1;
       }
+      break;
     }
-  } else if (g.best == GRASS) {
-    c = grassPixel(ip, wpf, s, g.flux, t, d, edgePx);
-    if (g.other != GRASS && edgePx < 2.6) {
-      // a lit lip and a dark outline where turf meets anything else
-      if (edgePx < 1.1) c = s == 3 ? FOG : (isWater(g.other) ? G2 : G2);
-      else c = s == 3 ? WHITE : (s == 2 ? E6 : (s == 0 ? G6 : G5));
-    }
-  } else if (g.best == SAND) {
-    c = sandPixel(ip, wpf, g.sdf, d, s, edgePx, g.other);
-  } else if (g.best == PATH) {
-    if (style == 2 && distance(tf, uPlaza.xy) < uPlaza.z) c = ringPixel(ip, tf, uPlaza, d, t, false);
-    else if (style == 3 && distance(tf, uShrine.xy) < uShrine.z) c = ringPixel(ip, tf, uShrine, d, t, true);
-    else if (style >= 1) { c = cobblePixel(ip, wpf, d); if (g.other != PATH && edgePx < 1.6) c = SLATE; }
-    else c = dirtPixel(ip, wpf, d, g.other != PATH ? edgePx : 99.0);
-    if (s == 3 && style == 0 && vnoise(wpf * 0.08) > 0.6) c = d < 0.5 ? PALE : WHITE;
-  } else if (g.best == SOIL || g.best == SOILWET) {
-    c = soilPixel(ip, wpf, g.best == SOILWET, d);
-    if (g.other != g.best && edgePx < 1.5) c = E0 + 1;
-    if (s == 3 && g.best == SOIL && hashi(ip) > 0.7 && fract(wpf.y / 4.0) < 0.4) c = PALE;
-  } else if (g.best == FLOOR) {
-    c = floorPixel(wpf, d);
-  } else {
-    c = wallGround(wpf, d);
+    prevT = tt; prevH = h;
   }
-  vec3 col = P(c);
 
-  // drifting cloud shadows (soft, dithered, never in winter overcast)
-  float cloud = vnoise(wpf * 0.006 + vec2(t * 0.012, t * 0.005) * uMotion);
-  if (cloud > 0.64 && s != 3) col *= (cloud > 0.7 || d > 0.5) ? 0.86 : 1.0;
+  int cls = clsOf(X0);
+  int style = styleOf(X0);
+  // world-anchored pixel grid of the hit surface (patterns stay glued to the ground at any height)
+  ivec2 ip = ivec2(floor(iso.x), int(floor(iso.y + hHit)));
+  vec2 fr = fract(tfHit);
+  int c;
 
-  fragColor = vec4(col, 1.0);
+  if (face == 0) {
+    float sdf = sdfAt(tfHit);
+    if (isWater(cls)) {
+      c = waterTop(ip, tfHit, sdf, cls == DEEP, t, s);
+    } else if (cls == GRASS) {
+      c = grassTop(ip, tfHit, s, fluxAt(tfHit), t);
+    } else if (cls == SAND) {
+      c = sandTop(ip, sdf, s);
+    } else if (cls == PATH) {
+      if (style == 2 && distance(tfHit, uPlaza.xy) < uPlaza.z) c = ringTop(ip, tfHit, uPlaza, t, false);
+      else if (style == 3 && distance(tfHit, uShrine.xy) < uShrine.z) c = ringTop(ip, tfHit, uShrine, t, true);
+      else if (style >= 1) c = cobbleTop(ip, tfHit);
+      else c = dirtTop(ip, s);
+    } else if (cls == SOIL || cls == SOILWET) {
+      c = soilTop(ip, tfHit, cls == SOILWET, s);
+    } else if (cls == FLOOR) {
+      c = floorTop(tfHit);
+    } else {
+      c = (hashi(ip / 3) > 0.5) ? MIST : STEEL;
+    }
+    // block edges: the foot of a taller neighbour behind gets a contact shadow; a lower one leaves a lit lip
+    float hxm = heightOf(tileAt(T0 - ivec2(1, 0))), hym = heightOf(tileAt(T0 - ivec2(0, 1)));
+    float ex = fr.x * 16.0, ey = fr.y * 16.0;       // vertical px from the back-left / back-right edges
+    bool water = isWater(cls);
+    if ((hxm > hHit + 0.5 && ex < 1.0) || (hym > hHit + 0.5 && ey < 1.0)) {
+      if (water) {
+        // foam where the bank meets the water: bright cyan line that breaks up and breathes
+        float br = vnoise(vec2(ip) * 0.35 + vec2(t * 0.6 * uMotion, 0.0));
+        c = br > 0.3 ? W6 : W5;
+        if (s == 3) c = W7;
+      } else c = (cls == GRASS) ? (s == 3 ? FOG : G2) : (cls == SAND ? E4 : (cls == PATH && style >= 1 ? STEEL : E2));
+    } else if (water && ((hxm > hHit + 0.5 && ex < 2.5) || (hym > hHit + 0.5 && ey < 2.5))) {
+      c = s == 3 ? W6 : W4;                          // glow halo just off the foam
+    } else if (!water && ((hxm < hHit - 0.5 && ex < 1.0) || (hym < hHit - 0.5 && ey < 1.0))) {
+      if (cls == GRASS) c = s == 3 ? WHITE : (s == 2 ? G5 : G6);
+      else if (cls == SAND) c = E7;
+      else if (cls == PATH && style == 0) c = E5;
+    }
+  } else {
+    bool left = face == 1;
+    // neighbour in front of this face: its surface is where the face ends
+    ivec2 Nt = T0 + (left ? ivec2(0, 1) : ivec2(1, 0));
+    vec4 NX = tileAt(Nt);
+    float hN = heightOf(NX);
+    int H = int(hHit - hN + 0.5);
+    bool toWater = isWater(clsOf(NX));
+    int k = (cls == SAND) ? 1 : (cls == FLOOR || cls == WALLC || (cls == PATH && style >= 1)) ? 2 : 0;
+    if (k == 1) c = sideSand(ip, left, dPx);
+    else if (k == 2) c = sideStone(ip, tfHit, left, dPx);
+    else c = sideEarth(ip, left, dPx);
+    // overhanging lip on top: grass blades, a dirt rim, snow
+    float u = left ? tfHit.x : tfHit.y;
+    int col = int(floor(u * 16.0));
+    if (cls == GRASS) {
+      float hang = hashi(ivec2(col, T0.x * 7 + T0.y * 13));
+      int lip = 1 + (hang > 0.45 ? 1 : 0) + (hang > 0.85 ? 1 : 0);
+      if (dPx <= lip) {
+        if (s == 3) c = dPx == 1 ? WHITE : PALE;
+        else if (s == 2) c = dPx == 1 ? (left ? G4 : G3) : (left ? G3 : G2);
+        else c = dPx == 1 ? (left ? G4 : G3) : (left ? G3 : G2);
+        if (dPx == lip && dPx > 1) c = left ? G2 : G1;
+      }
+    } else if (cls == PATH && style == 0 && dPx == 1) c = left ? E3 : E2;
+    else if (cls == SOIL || cls == SOILWET) { if (dPx == 1) c = left ? R1 : R0; }
+    else if (cls == SAND && dPx == 1) c = left ? E6 : E5;
+    // the waterline at the foot of a bank: cyan foam, a glow above it
+    if (toWater) {
+      float br = vnoise(vec2(ip) * 0.4 + vec2(t * 0.7 * uMotion, 3.0));
+      float rise = 0.5 + 0.5 * sin(t * 1.4 * uMotion + u * 9.0);
+      if (dPx >= H) c = s == 3 ? W7 : (br > 0.35 ? W6 : W5);
+      else if (dPx == H - 1 && (br > 0.55 || rise > 0.8)) c = s == 3 ? W6 : W5;
+      else if (dPx == H - 2 && H > 3) c = k == 1 ? (left ? E3 : E2) : (k == 2 ? (left ? STEEL : SLATE) : (left ? E0 : NIGHT));  // wet, darker band
+    } else if (dPx >= H && H > 1) {
+      c = k == 1 ? (left ? E3 : E2) : (k == 2 ? (left ? STEEL : SLATE) : (left ? E1 : E0));   // contact shadow at the foot
+    }
+  }
+  vec3 col3 = P(c);
+
+  // drifting cloud shadows (soft, never in winter overcast)
+  float cloud = vnoise(tfHit * 0.1 + vec2(37.0, 11.0) + vec2(t * 0.012, t * 0.005) * uMotion);
+  if (cloud > 0.68 && s != 3) col3 *= 0.9;
+
+  fragColor = vec4(col3, 1.0);
 }`;

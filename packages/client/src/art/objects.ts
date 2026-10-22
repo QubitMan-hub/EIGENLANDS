@@ -1,7 +1,11 @@
 import { Rectangle, Texture } from 'pixi.js';
 import { PALETTE, hash2, mulberry32 } from '@eigenlands/shared';
-import { bayer, blob, C, line, makeCanvas, poly, polish, put, R, slab, type Ctx, type Ramp } from './shade';
+import { C, line, lump, makeCanvas, poly, polish, put, stonePile, type Ctx, type Ramp } from './shade';
 
+/**
+ * Tile objects in the painterly block-tile style: no outlines, forms read by value alone (lit from the top-left,
+ * cool navy-leaning shadows), clean dither-free bands, leaf clusters and rounded stones.
+ */
 export interface ObjSprite { tex: Texture; ax: number; ay: number }
 export type SeasonIdx = 0 | 1 | 2 | 3;
 
@@ -13,73 +17,103 @@ function toSprite(canvas: HTMLCanvasElement, ax: number, ay: number, o: { ao?: b
   return { tex, ax, ay };
 }
 
+// ───────── ramps (dark -> light) ─────────
+const LEAF: Ramp = [C.g0, C.g1, C.g2, C.g3, C.g5, C.g6];
+const LEAF_SPRING: Ramp = [C.g1, C.g2, C.g3, C.g5, C.g6, C.g7];
+const LEAF_AUT_O: Ramp = [C.e1, C.r0, C.r1, C.r4, C.r5, C.r6];
+const LEAF_AUT_R: Ramp = [C.e0, C.r0, C.r2, C.r3, C.r4, C.r5];
+const LEAF_AUT_Y: Ramp = [C.g1, C.g3, C.g5, C.r5, C.r6, C.r7];
+const PINE: Ramp = [C.g0, C.g0, C.g1, C.g2, C.g3, C.g4];
+const SNOW: Ramp = [C.mist, C.fog, C.pale, C.white, C.white];
+const BARK: Ramp = [C.e0, C.e1, C.e2, C.e3, C.e4];
+const WOOD: Ramp = [C.e1, C.e2, C.e3, C.e4, C.e5];
+const STONE: Ramp = [C.steel, C.mist, C.fog, C.fog, C.pale];
+const MOSS: Ramp = [C.g1, C.g2, C.g3, C.g4, C.g5];
+
 function trunk(ctx: Ctx, cx: number, top: number, bot: number, w: number, seed: number): void {
   const x0 = cx - Math.floor(w / 2);
-  slab(ctx, x0, top, w, bot - top, R.bark, seed, 0.5);
-  // bark ridges: darker vertical furrows with lit edges, plus a few knots
-  for (let i = 1; i < w - 1; i += 2) for (let y = top; y < bot; y++) { if (hash2(seed, i, y, 11) > 0.35) { put(ctx, x0 + i, y, C.e0); if (hash2(seed, i, y, 12) > 0.6) put(ctx, x0 + i - 1, y, C.e4); } }
-  put(ctx, x0, top, C.e4, 1, bot - top);
-  put(ctx, x0 + Math.floor(w / 2), top + Math.floor((bot - top) * 0.45), C.e0, 2, 2);
+  for (let y = top; y < bot; y++) for (let i = 0; i < w; i++) {
+    const u = i / Math.max(1, w - 1);
+    let c = u < 0.25 ? C.e3 : u < 0.7 ? C.e2 : C.e1;
+    if (i === 0 && hash2(seed, i, y >> 1, 2) > 0.3) c = C.e4;               // lit edge
+    if (i > 0 && i < w - 1 && (i + (y >> 2)) % 3 === 0 && hash2(seed, i, y >> 1, 3) > 0.35) c = u < 0.5 ? C.e2 : C.e0;  // bark furrows
+    put(ctx, x0 + i, y, c);
+  }
   // root flare
-  slab(ctx, x0 - 2, bot - 3, w + 4, 3, R.bark, seed + 3, 0.4);
-  put(ctx, x0 - 3, bot - 1, C.e1, 1, 1); put(ctx, x0 + w + 2, bot - 1, C.e1, 1, 1);
-  put(ctx, x0 - 2, bot - 3, C.e4, 1, 1);
+  for (let i = -2; i < w + 2; i++) { const yy = bot - 1 - (i < 0 || i >= w ? 0 : 1); put(ctx, x0 + i, yy, i < w / 2 ? C.e2 : C.e1); }
+  put(ctx, x0 - 2, bot - 1, C.e3); put(ctx, x0 + w + 1, bot - 1, C.e0);
+  put(ctx, x0 + Math.floor(w / 2), top + Math.floor((bot - top) * 0.5), C.e0, 2, 2);          // knot
 }
 
 function branches(ctx: Ctx, rng: () => number, x: number, y: number, ang: number, len: number, depth: number, snow: boolean): void {
   if (depth === 0 || len < 2) return;
   const x2 = Math.round(x + Math.cos(ang) * len), y2 = Math.round(y - Math.sin(ang) * len);
-  line(ctx, Math.round(x), Math.round(y), x2, y2, depth > 2 ? C.e2 : C.e1);
-  if (snow && rng() > 0.4) put(ctx, x2, y2 - 1, C.white);
-  branches(ctx, rng, x2, y2, ang + 0.5 + rng() * 0.35, len * 0.72, depth - 1, snow);
-  branches(ctx, rng, x2, y2, ang - 0.5 - rng() * 0.35, len * 0.72, depth - 1, snow);
+  line(ctx, Math.round(x), Math.round(y), x2, y2, depth > 3 ? C.e2 : depth > 1 ? C.e1 : C.e2);
+  if (depth > 3) line(ctx, Math.round(x) - 1, Math.round(y), x2 - 1, y2, C.e3);
+  if (snow && rng() > 0.35) { put(ctx, x2, y2 - 1, C.white); put(ctx, x2 - 1, y2 - 1, C.pale); }
+  branches(ctx, rng, x2, y2, ang + 0.45 + rng() * 0.35, len * 0.72, depth - 1, snow);
+  branches(ctx, rng, x2, y2, ang - 0.45 - rng() * 0.35, len * 0.72, depth - 1, snow);
 }
 
-/** 48x60 broadleaf tree (anchor: trunk base). Seasonal: blossom, lush, autumn colours, bare + snow. */
+/** A rounded crown of leaf clusters, back to front; lower clusters sit in the crown's own shade. */
+function crown(ctx: Ctx, rng: () => number, cx: number, cy: number, rx: number, ry: number, n: number, rampOf: (i: number) => Ramp, seed: number): void {
+  const cl: Array<[number, number, number]> = [];
+  for (let i = 0; i < n; i++) {
+    const a = rng() * Math.PI * 2, r = Math.sqrt(rng());
+    cl.push([cx + Math.cos(a) * r * (rx - 5), cy + Math.sin(a) * r * (ry - 4), 5 + rng() * 3.5]);
+  }
+  cl.sort((a, b) => a[1] - b[1]);
+  // dark core so gaps between clusters read as depth
+  lump(ctx, cx, cy + 2, rx - 2, ry - 2, [C.g0, C.g0, C.g1, C.g1], { seed, leafy: 0.4, edge: 0 });
+  cl.forEach(([x, y, r], i) => {
+    const low = (y - (cy - ry)) / (2 * ry);           // 0 top .. 1 bottom
+    lump(ctx, x, y, r, r * 0.82, rampOf(i), { seed: seed + i * 13, leafy: 0.55, bright: 0.12 - low * 0.32, edge: 0.25 });
+  });
+  // sun-caught leaf clumps on the upper-left shoulder
+  for (let i = 0; i < 4; i++) {
+    const x = cx - rx * 0.35 + (rng() - 0.5) * rx * 0.7, y = cy - ry * 0.5 + (rng() - 0.5) * ry * 0.4;
+    lump(ctx, x, y, 3 + rng() * 1.5, 2.4, rampOf(99 + i), { seed: seed + 50 + i, leafy: 0.6, bright: 0.32, edge: 0.1 });
+  }
+}
+
+/** 48x64 broadleaf tree (anchor: trunk base). Seasonal: blossom, lush, autumn colours, bare + snow. */
 function drawBroadleaf(ctx: Ctx, seed: number, season: SeasonIdx): void {
   const rng = mulberry32(seed * 7919 + 13);
-  trunk(ctx, 24, season === 3 ? 26 : 32, 58, 7, seed);
+  trunk(ctx, 24, season === 3 ? 26 : 34, 59, 6, seed);
   if (season === 3) {
-    for (let i = 0; i < 5; i++) branches(ctx, rng, 24, 38 - i * 3, Math.PI / 2 + (i - 2) * 0.5, 14 - i * 1.5, 5, true);
-    blob(ctx, 24, 58, 9, 3, R.snow, { seed, noise: 0.2, edgeDark: 0.1 });
+    for (let i = 0; i < 5; i++) branches(ctx, rng, 24, 38 - i * 3, Math.PI / 2 + (i - 2) * 0.5, 13 - i * 1.4, 5, true);
+    lump(ctx, 24, 58.5, 8, 2.2, SNOW, { seed, edge: 0 });
     return;
   }
-  const blobs: Array<[number, number, number, number]> = [];
-  const n = 12;
-  for (let i = 0; i < n; i++) {
-    const a = (i / n) * Math.PI * 2 + rng() * 0.6;
-    const r = 7 + rng() * 9;
-    blobs.push([24 + Math.cos(a) * r * 1.1, 21 + Math.sin(a) * r * 0.8, 8 + rng() * 5, 6.5 + rng() * 5]);
-  }
-  blobs.sort((a, b) => a[1] - b[1]);
-  blobs.forEach(([x, y, rx, ry], i) => {
-    let ramp = season === 0 ? R.leafSpring : R.leaf;
-    if (season === 2) {
-      const h = hash2(seed, i, 0, 5);
-      ramp = h < 0.35 ? R.leafAutumnO : h < 0.6 ? R.leafAutumnR : h < 0.85 ? R.leafAutumnY : R.leaf;
-    }
-    blob(ctx, x, y, rx, ry, ramp, { seed: seed + i * 31, noise: 0.5, bright: season === 2 ? 0.02 : 0 });
-  });
-  // leaf clusters: small bright/dark clumps break the blobs into foliage
-  for (let i = 0; i < 26; i++) {
-    const lx = 10 + rng() * 28, ly = 6 + rng() * 26, up = ly < 18;
-    const ramp = season === 2 ? R.leafAutumnY : season === 0 ? R.leafSpring : R.leaf;
-    put(ctx, lx, ly, ramp[up ? ramp.length - 1 : 1]!, 2 + Math.floor(rng() * 2), 1 + Math.floor(rng() * 2));
-  }
-  blob(ctx, 20, 12, 8, 5.5, season === 2 ? R.leafAutumnY : season === 0 ? R.leafSpring : R.leaf, { seed: seed + 5, noise: 0.45, bright: 0.2, edgeDark: 0.1 });
-  if (season === 0) for (let i = 0; i < 24; i++) put(ctx, 8 + rng() * 32, 7 + rng() * 22, rng() > 0.5 ? C.r6 : C.q6);
-  if (season === 2) for (let i = 0; i < 9; i++) put(ctx, 8 + rng() * 32, 44 + rng() * 12, rng() > 0.5 ? C.e5 : C.r4);
+  const rampOf = (i: number): Ramp => {
+    if (season === 0) return LEAF_SPRING;
+    if (season === 2) { const h = hash2(seed, i, 0, 5); return h < 0.4 ? LEAF_AUT_O : h < 0.62 ? LEAF_AUT_R : h < 0.88 ? LEAF_AUT_Y : LEAF; }
+    return LEAF;
+  };
+  // a couple of limbs reaching into the crown
+  line(ctx, 23, 38, 16, 30, C.e2); line(ctx, 25, 37, 31, 29, C.e1);
+  crown(ctx, rng, 24, 25, 21, 18, 16, rampOf, seed);
+  if (season === 0) for (let i = 0; i < 16; i++) { const x = 8 + rng() * 32, y = 8 + rng() * 24; put(ctx, x, y, rng() > 0.4 ? C.q6 : C.white); if (rng() > 0.5) put(ctx, x + 1, y, C.q5); }
+  if (season === 2) for (let i = 0; i < 8; i++) put(ctx, 10 + rng() * 28, 52 + rng() * 6, rng() > 0.5 ? C.r5 : C.r4, 2, 1);
+  // a shaded trunk under the crown
+  for (let y = 40; y < 45; y++) for (let x = 21; x < 27; x++) put(ctx, x, y, y < 43 ? C.e0 : C.e1);
 }
 
 /** Layered conifer (48x64); keeps its needles in winter and gains snow. */
 function drawPine(ctx: Ctx, seed: number, season: SeasonIdx): void {
-  trunk(ctx, 24, 48, 62, 5, seed);
-  const tiers = [[46, 16], [37, 13.5], [29, 11.5], [21, 9], [13, 6]];
-  for (const [y, rx] of tiers) {
-    blob(ctx, 24, y!, rx!, 8.5, R.pine, { seed: seed + y!, noise: 0.55, shape: 1.6, edgeDark: 0.3 });
-    for (let k = 0; k < 6; k++) put(ctx, 24 - rx! + 2 + ((k * 7 + y!) % Math.floor(rx! * 2 - 3)), y! + 3 + (k % 3), C.g0, 3, 1);   // needle shadows
-    if (season === 3) blob(ctx, 23.5, y! - 3.4, rx! * 0.8, 3.6, R.snow, { seed: seed + y! + 1, noise: 0.25, shape: 1.8, edgeDark: 0.05 });
-  }
+  trunk(ctx, 24, 48, 62, 4, seed);
+  const tiers: Array<[number, number]> = [[46, 15], [37, 12.5], [28.5, 10.5], [20.5, 8], [13, 5.5]];
+  tiers.forEach(([y, rx], k) => {
+    // each tier: a drooping fan of needles, dark beneath, lit on the upper left
+    poly(ctx, [[24 - rx, y + 4], [24, y - 7], [24 + rx, y + 4], [24 + rx * 0.5, y + 6], [24, y + 5], [24 - rx * 0.5, y + 6]], (x, yy) => {
+      const u = (x - (24 - rx)) / (2 * rx), v = (yy - (y - 7)) / 13;
+      const lit = 0.75 - u * 0.65 - v * 0.35 + (hash2(seed + k, x >> 1, yy, 6) - 0.5) * 0.35;
+      return PINE[Math.max(0, Math.min(PINE.length - 1, Math.floor(lit * PINE.length)))]!;
+    });
+    for (let i = 0; i < 5; i++) { const x = 24 - rx + 2 + ((i * 7 + k * 3) % Math.floor(rx * 2 - 3)); put(ctx, x, y + 3 + (i % 2), C.g0, 2, 1); }   // needle shadows
+    for (let i = 0; i < 3; i++) put(ctx, 24 - rx * 0.55 + i * 2, y - 2 + i, C.g4);                                                        // lit needle tips
+    if (season === 3) poly(ctx, [[24 - rx * 0.8, y + 1], [24, y - 7], [24 + rx * 0.6, y], [24, y - 2]], (x) => (x < 24 ? C.white : C.pale));
+  });
 }
 
 export function buildTrees(season: SeasonIdx): ObjSprite[] {
@@ -101,9 +135,8 @@ export function buildQTree(season: SeasonIdx): ObjSprite[] {
   const CRY: Ramp = [C.q0, C.q1, C.q2, C.q3, C.q4, C.q6, C.q7];
   const oak = makeCanvas(48, 64), pine = makeCanvas(48, 64);
   drawBroadleaf(oak.ctx, 77, season === 3 ? 1 : season);
-  // tint the oak's canopy toward teal/violet: redraw the leaf blobs in the crystal ramp at low noise
   drawPine(pine.ctx, 91, 1);
-  const recolor = (ctx: Ctx, map: (i: number, x: number, y: number) => number) => {
+  const recolor = (ctx: Ctx, map: (i: number) => number) => {
     const img = ctx.getImageData(0, 0, 48, 64);
     const d = img.data;
     for (let y = 0; y < 64; y++) for (let x = 0; x < 48; x++) {
@@ -111,10 +144,10 @@ export function buildQTree(season: SeasonIdx): ObjSprite[] {
       if (!d[i + 3]) continue;
       const hex = '#' + [d[i]!, d[i + 1]!, d[i + 2]!].map((v) => v.toString(16).padStart(2, '0')).join('');
       const idx = PALETTE.indexOf(hex as (typeof PALETTE)[number]);
-      if (idx >= 8 && idx < 16) put(ctx, x, y, map(idx, x, y));
+      if (idx >= 8 && idx < 16) put(ctx, x, y, map(idx));
     }
   };
-  const TEAL = [C.q0, C.w1, C.w2, C.w3, C.w4, C.w5, C.w6, C.q7];
+  const TEAL = [C.q0, C.w0, C.w0, C.w1, C.w2, C.w3, C.w5, C.q7];
   recolor(oak.ctx, (i) => TEAL[i - 8]!);
   recolor(pine.ctx, (i) => CRY[Math.min(6, Math.max(0, i - 8))]!);
   const a = oak.ctx.getImageData(0, 0, 48, 64).data, b = pine.ctx.getImageData(0, 0, 48, 64).data;
@@ -130,119 +163,116 @@ export function buildQTree(season: SeasonIdx): ObjSprite[] {
       for (let k = 0; k < 4; k++) img.data[i + k] = src[i + k]!;
     }
     ctx.putImageData(img, 0, 0);
-    return toSprite(canvas, 24, 61, { fringe: true });
+    return toSprite(canvas, 24, 61);
   };
   out.push(mix(0), mix(1), mix(2), mix(3));
   return out;
 }
 
-/** Faceted boulder: a low-poly fan around the centre, each facet lit by its own normal. */
+/** Rounded boulder pile (kept for callers): `rx`/`ry` bound the pile; a few stones of decreasing size. */
 export function facetRock(ctx: Ctx, cx: number, cy: number, rx: number, ry: number, seed: number, snow: boolean): void {
   const rng = mulberry32(seed);
-  const n = 6 + Math.floor(rng() * 3);
-  const pts: Array<[number, number]> = [];
+  const stones: Array<[number, number, number, number]> = [[cx - rx * 0.12, cy - ry * 0.1, rx * 0.72, ry * 0.88]];
+  const n = 1 + Math.floor(rng() * 3);
   for (let i = 0; i < n; i++) {
-    const a = (i / n) * Math.PI * 2 + (rng() - 0.5) * 0.5;
-    const k = 0.78 + rng() * 0.25;
-    pts.push([cx + Math.cos(a) * rx * k, cy + Math.sin(a) * ry * k * 0.95]);
+    const side = i % 2 ? 1 : -1;
+    stones.push([cx + side * rx * (0.35 + rng() * 0.25), cy + ry * (0.15 + rng() * 0.3), rx * (0.35 + rng() * 0.2), ry * (0.42 + rng() * 0.2)]);
   }
-  for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) {
-    for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
-      const px = x + 0.5, py = y + 0.5;
-      for (let i = 0; i < n; i++) {
-        const [ax, ay] = pts[i]!, [bx, by] = pts[(i + 1) % n]!;
-        // point inside triangle (centre, a, b)?
-        const d1 = (px - bx) * (ay - by) - (ax - bx) * (py - by);
-        const d2 = (px - cx) * (by - cy) - (bx - cx) * (py - cy);
-        const d3 = (px - ax) * (cy - ay) - (cx - ax) * (py - ay);
-        if ((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0)) continue;
-        const mid = Math.atan2((ay + by) / 2 - cy, (ax + bx) / 2 - cx);
-        const nx = Math.cos(mid) * 0.8, ny = Math.sin(mid) * 0.8, nz = 0.6 + 0.2 * Math.sin(i * 1.7 + seed);
-        const lam = nx * -0.55 + ny * -0.7 + nz * 0.45;
-        const topness = Math.max(0, (cy - py) / ry);
-        const t = 0.45 + 0.5 * lam + 0.18 * topness + (hash2(seed, x, y, 4) - 0.5) * 0.18;
-        put(ctx, x, y, R.stone[Math.max(0, Math.min(R.stone.length - 1, Math.floor(t * (R.stone.length - 1) + bayer(x, y))))]!);
-        break;
-      }
-    }
-  }
-  // moss on the lit shoulder (or snow in winter)
-  if (snow) blob(ctx, cx + 1, cy - ry * 0.55, rx * 0.7, ry * 0.32, R.snow, { seed, noise: 0.15, edgeDark: 0.05 });
-  else if (hash2(seed, 1, 1, 8) > 0.35) blob(ctx, cx - rx * 0.25, cy - ry * 0.5, rx * 0.5, ry * 0.3, R.moss, { seed, noise: 0.5, edgeDark: 0.1 });
+  stonePile(ctx, stones, STONE, { seed, rough: 0.14, edge: 0.22, flat: 0.25 });
+  // weathering: a darker base course where the stone meets the ground, a few chips
+  for (let i = 0; i < 4; i++) put(ctx, Math.round(cx - rx * 0.4 + rng() * rx * 0.8), Math.round(cy + ry * 0.2 + rng() * ry * 0.4), C.steel, 2, 1);
+  if (snow) lump(ctx, cx - rx * 0.1, cy - ry * 0.6, rx * 0.6, ry * 0.32, SNOW, { seed, edge: 0, flat: 0.6 });
+  else if (hash2(seed, 1, 1, 8) > 0.4) lump(ctx, cx - rx * 0.32, cy - ry * 0.62, rx * 0.36, ry * 0.24, MOSS, { seed, leafy: 0.5, bright: 0.1, edge: 0 });
 }
 
 export function buildRocks(season: SeasonIdx): ObjSprite[] {
   const out: ObjSprite[] = [];
+  const snow = season === 3;
   for (let v = 0; v < 6; v++) {
-    const { canvas, ctx } = makeCanvas(40, 32);
-    const big = v % 3 === 0;
-    facetRock(ctx, big ? 20 : 17, big ? 19 : 21, big ? 16 : 11.5, big ? 11.5 : 8.5, 40 + v * 13, season === 3);
-    if (v % 3 === 1) facetRock(ctx, 27, 23, 8.5, 6.4, 90 + v * 7, season === 3);
-    if (v % 3 === 2) { facetRock(ctx, 9, 25, 5, 3.6, 70 + v, season === 3); facetRock(ctx, 30, 26, 4, 3, 75 + v, season === 3); }
-    outlineSoft(ctx, 40, 32);
-    out.push(toSprite(canvas, 20, 28));
+    const { canvas, ctx } = makeCanvas(40, 34);
+    const rng = mulberry32(400 + v * 37);
+    const piles: Array<Array<[number, number, number, number]>> = [
+      [[18, 17, 10, 11], [27, 22, 7, 7], [11, 24, 6, 5]],                       // tall boulder with companions
+      [[15, 22, 8, 7], [25, 22, 8, 7.5], [20, 26, 6, 4.5]],                      // low pair
+      [[20, 15, 8, 12], [12, 24, 6, 5.5], [28, 25, 5, 4]],                       // standing stone
+      [[20, 20, 12, 9.5]],                                                         // big round boulder
+      [[13, 23, 6, 5], [22, 21, 7, 6.5], [29, 25, 4.5, 3.6], [17, 27, 5, 3.4]], // scattered pile
+      [[20, 21, 13, 7], [14, 18, 6, 5]],                                         // flat slab
+    ];
+    stonePile(ctx, piles[v]!, STONE, { seed: 60 + v * 11, rough: 0.14, edge: 0.2, flat: v === 5 ? 0.7 : 0.25 });
+    const top = piles[v]![0]!;
+    if (snow) lump(ctx, top[0] - 1, top[1] - top[3] * 0.55, top[2] * 0.75, top[3] * 0.35, SNOW, { seed: v, edge: 0, flat: 0.7 });
+    else if (v % 2 === 0) lump(ctx, top[0] - top[2] * 0.3, top[1] - top[3] * 0.6, top[2] * 0.45, top[3] * 0.28, MOSS, { seed: v + 3, leafy: 0.6, bright: 0.12, edge: 0 });
+    // grass tufts at the base (summer) so the rock sits in the turf
+    if (!snow) for (let i = 0; i < 3; i++) { const x = 8 + Math.floor(rng() * 24); put(ctx, x, 29, C.g3); put(ctx, x - 1, 28, C.g4); put(ctx, x + 1, 28, C.g2); }
+    out.push(toSprite(canvas, 20, 29));
   }
   return out;
 }
 
-/** dark outline around opaque pixels (keeps translucent AO out of it) */
-function outlineSoft(ctx: Ctx, w: number, h: number): void {
-  const d = ctx.getImageData(0, 0, w, h).data;
-  const solid = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && d[(y * w + x) * 4 + 3]! > 200;
-  const mark: Array<[number, number]> = [];
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!solid(x, y) && (solid(x - 1, y) || solid(x + 1, y) || solid(x, y - 1) || solid(x, y + 1))) mark.push([x, y]);
-  for (const [x, y] of mark) put(ctx, x, y, C.night);
-}
+const PETALS: Array<[number, number]> = [[C.r3, C.r6], [C.r5, C.r7], [C.q5, C.q6], [C.white, C.r6], [C.r2, C.r4], [C.q3, C.q4]];
 
-const PETALS: number[][] = [[C.r5, C.r6], [C.e6, C.e7], [C.q4, C.q5], [C.w5, C.w6], [C.r3, C.r4], [C.q6, C.white]];
-
+/** Flower clumps: a leafy tuft with a few saturated blossoms (lit petal, darker petal, bright centre). */
 export function buildFlowers(season: SeasonIdx): ObjSprite[] {
   const out: ObjSprite[] = [];
   for (let v = 0; v < 6; v++) {
-    const { canvas, ctx } = makeCanvas(16, 16);
+    const { canvas, ctx } = makeCanvas(20, 16);
     const rng = mulberry32(v * 313 + 11);
-    const n = 4 + Math.floor(rng() * 3);
-    for (let i = 0; i < n; i++) {
-      const x = 2 + Math.floor(rng() * 12), y = 7 + Math.floor(rng() * 7), h = 3 + Math.floor(rng() * 3);
-      const pal = PETALS[(v + i) % PETALS.length]!;
-      line(ctx, x, y, x + (rng() > 0.5 ? 1 : 0), y - h, season === 3 ? C.fog : season === 2 ? C.e3 : C.g3);
-      if (season === 3) { put(ctx, x, y - h - 1, C.white); continue; }
-      if (season === 2 && rng() > 0.3) { put(ctx, x, y - h - 1, C.e4); continue; }
-      const px = x, py = y - h - 1;
-      put(ctx, px - 1, py, pal[0]!); put(ctx, px + 1, py, pal[0]!); put(ctx, px, py - 1, pal[1]!); put(ctx, px, py + 1, pal[0]!);
-      put(ctx, px, py, C.e7);
+    const leaf: Ramp = season === 3 ? [C.mist, C.fog, C.pale] : season === 2 ? [C.e1, C.e2, C.e3, C.r1] : [C.g1, C.g2, C.g3, C.g4, C.g5];
+    // leaves: little pointed blades fanning out of the clump
+    for (let i = 0; i < 9; i++) {
+      const x = 4 + Math.floor(rng() * 12), y = 11 + Math.floor(rng() * 4), h = 2 + Math.floor(rng() * 3), lean = rng() > 0.5 ? 1 : -1;
+      for (let j = 0; j < h; j++) put(ctx, x + (j > 1 ? lean : 0), y - j, leaf[Math.min(leaf.length - 1, 1 + j)]!);
+      put(ctx, x, y + 1, leaf[0]!);
     }
-    out.push(toSprite(canvas, 8, 15, { ao: false, rim: false }));
+    if (season === 3) { for (let i = 0; i < 3; i++) put(ctx, 6 + i * 4, 9 + (i % 2), C.white, 2, 1); out.push(toSprite(canvas, 10, 15, { ao: false, rim: false })); continue; }
+    const n = 3 + Math.floor(rng() * 2);
+    for (let i = 0; i < n; i++) {
+      const x = 4 + Math.floor(rng() * 12), y = 5 + Math.floor(rng() * 5);
+      const [p0, p1] = PETALS[(v + i) % PETALS.length]!;
+      line(ctx, x, y + 2, x + (rng() > 0.5 ? 1 : 0), y + 6, leaf[2]!);
+      if (season === 2 && rng() > 0.4) { put(ctx, x, y, C.r1, 2, 2); put(ctx, x, y, C.r4); continue; }
+      // five-pixel blossom + lit top petal
+      put(ctx, x - 1, y, p0); put(ctx, x + 1, y, p0); put(ctx, x, y + 1, p0); put(ctx, x, y - 1, p1); put(ctx, x - 1, y - 1, p1);
+      put(ctx, x, y, p0 === C.white ? C.r6 : C.r7);
+    }
+    out.push(toSprite(canvas, 10, 15, { ao: false, rim: false }));
   }
   return out;
 }
 
+/** Tall grass: a dense clump of blades, dark at the root, sun-caught tips (like a leafy turf block's top). */
 export function buildTallGrass(season: SeasonIdx): ObjSprite[] {
   const out: ObjSprite[] = [];
-  const ramp = season === 3 ? [C.mist, C.fog, C.pale] : season === 2 ? [C.e3, C.e4, C.e5, C.e6] : season === 0 ? [C.g3, C.g4, C.g5, C.g6] : [C.g2, C.g3, C.g4, C.g5];
+  const ramp: Ramp = season === 3 ? [C.steel, C.mist, C.fog, C.pale, C.white] : season === 2 ? [C.g1, C.g3, C.r1, C.r5, C.r6] : season === 0 ? [C.g1, C.g3, C.g4, C.g5, C.g6] : [C.g0, C.g1, C.g3, C.g5, C.g6];
   for (let v = 0; v < 4; v++) {
-    const { canvas, ctx } = makeCanvas(16, 16);
+    const { canvas, ctx } = makeCanvas(20, 18);
     const rng = mulberry32(v * 457 + 3);
-    for (let i = 0; i < 9; i++) {
-      const x = 2 + Math.floor(rng() * 12), h = 4 + Math.floor(rng() * 6), lean = (rng() - 0.5) * 4;
+    for (let i = 0; i < 16; i++) {
+      const x = 3 + Math.floor(rng() * 14), h = 5 + Math.floor(rng() * 8), lean = (rng() - 0.5) * 5;
+      const back = i < 8;
       for (let j = 0; j < h; j++) {
         const t = j / h;
-        put(ctx, x + Math.round(lean * t * t), 15 - j, ramp[Math.min(ramp.length - 1, Math.floor(t * ramp.length))]!);
+        const k = Math.min(ramp.length - 1, Math.floor((back ? 0 : 1) + t * (ramp.length - (back ? 1.5 : 1))));
+        put(ctx, x + Math.round(lean * t * t), 17 - j, ramp[k]!);
       }
     }
-    out.push(toSprite(canvas, 8, 15, { ao: false, rim: false }));
+    for (let x = 4; x < 16; x++) put(ctx, x, 17, ramp[0]!);
+    out.push(toSprite(canvas, 10, 17, { ao: false, rim: false }));
   }
   return out;
 }
 
+/** Phase bloom: a leafy rosette holding a softly glowing cyan bulb ringed by magenta petals. */
 export function buildBloom(): ObjSprite[] {
   const out: ObjSprite[] = [];
   for (let f = 0; f < 2; f++) {
     const { canvas, ctx } = makeCanvas(16, 16);
-    line(ctx, 8, 15, 8, 8, C.g3);
-    put(ctx, 5, 12, C.g4, 3, 1); put(ctx, 9, 11, C.g4, 3, 1);
-    blob(ctx, 8, 6.5, 4.5, 4, R.crystal, { seed: f + 1, noise: 0.15, bright: 0.2 + f * 0.08, edgeDark: 0.12 });
-    put(ctx, 8, 6, C.white); put(ctx, 7, 5, C.q7); put(ctx, 9, 7, C.q7);
+    line(ctx, 8, 15, 8, 9, C.g2);
+    put(ctx, 4, 13, C.g3, 3, 1); put(ctx, 5, 12, C.g4, 2, 1); put(ctx, 9, 12, C.g3, 3, 1); put(ctx, 10, 11, C.g4, 2, 1);
+    for (const [dx, dy] of [[-3, 0], [3, 0], [0, -3], [-2, 2], [2, 2]] as const) put(ctx, 8 + dx, 7 + dy, f ? C.q6 : C.q5, 2, 1);
+    lump(ctx, 8.5, 7, 3, 2.8, [C.w3, C.w5, C.q7, C.w7], { seed: f + 1, edge: 0, bright: 0.15 + f * 0.1 });
+    put(ctx, 7, 6, C.white);
     out.push(toSprite(canvas, 8, 15, { fringe: true }));
   }
   return out;
@@ -253,104 +283,135 @@ export function buildTorch(): ObjSprite[] {
   for (let f = 0; f < 2; f++) {
     const { canvas, ctx } = makeCanvas(18, 34);
     // standing torch: wrapped pole, iron basket, living flame
-    slab(ctx, 8, 14, 3, 18, R.bark, 4, 0.2);
+    for (let y = 14; y < 32; y++) { put(ctx, 8, y, C.e3); put(ctx, 9, y, C.e2); put(ctx, 10, y, C.e1); }
     for (let y = 17; y < 31; y += 4) put(ctx, 8, y, C.e1, 3, 1);
-    put(ctx, 5, 12, C.night, 9, 3); put(ctx, 6, 12, C.slate, 7, 1); put(ctx, 5, 10, C.night, 1, 3); put(ctx, 13, 10, C.night, 1, 3);
-    blob(ctx, 9.5, 7 - f * 0.5, 4.2, 5.4 + f * 0.6, [C.r2, C.r3, C.r4, C.r5, C.r6], { seed: f + 3, noise: 0.2, bright: 0.15, edgeDark: 0.05 });
-    blob(ctx, 9.5, 8.5, 2.2, 3, [C.r6, C.r7, C.white], { seed: 9, noise: 0.05, bright: 0.2, edgeDark: 0 });
-    put(ctx, 9 + (f ? 2 : -2), 1 + f, C.r6); put(ctx, 10 - (f ? 3 : -1), 0, C.r5);
+    put(ctx, 5, 12, C.slate, 9, 3); put(ctx, 6, 12, C.steel, 7, 1); put(ctx, 5, 10, C.slate, 1, 3); put(ctx, 13, 10, C.slate, 1, 3);
+    lump(ctx, 9.5, 7.5 - f * 0.5, 4, 5 + f * 0.6, [C.r2, C.r3, C.r4, C.r5, C.r6], { seed: f + 3, leafy: 0.4, bright: 0.12, edge: 0.05 });
+    lump(ctx, 9.5, 9, 2, 2.6, [C.r6, C.r7, C.r7], { seed: 9, edge: 0, bright: 0.2 });
+    put(ctx, 9 + (f ? 2 : -2), 1 + f, C.r5); put(ctx, 10 - (f ? 3 : -1), 0, C.r4);
     out.push(toSprite(canvas, 9, 31));
   }
   return out;
 }
 
+/** Stumps and fallen logs: warm tan wood, ring-cut tops, moss and grass at the foot. Three variants. */
 export function buildStump(season: SeasonIdx): ObjSprite[] {
-  const { canvas, ctx } = makeCanvas(16, 16);
-  slab(ctx, 4, 8, 8, 6, R.bark, 2, 0.4);
-  blob(ctx, 8, 8, 4.5, 2.4, [C.e4, C.e5, C.e6, C.e7], { seed: 8, noise: 0.1, edgeDark: 0.2 });
-  put(ctx, 6, 8, C.e3); put(ctx, 9, 8, C.e3); put(ctx, 8, 7, C.e3);
-  if (season === 3) blob(ctx, 8, 7.2, 4.2, 1.6, R.snow, { seed: 2, noise: 0.1, edgeDark: 0 });
-  else { put(ctx, 4, 12, C.g3, 2, 1); put(ctx, 11, 13, C.g4, 2, 1); }
-  return [toSprite(canvas, 8, 14)];
+  const out: ObjSprite[] = [];
+  const snow = season === 3;
+  for (let v = 0; v < 3; v++) {
+    const { canvas, ctx } = makeCanvas(26, 20);
+    const rng = mulberry32(700 + v * 31);
+    if (v < 2) {
+      // stump: a short cylinder with roots, cut top with growth rings
+      const cx = 13, top = 9, h = 6, rx = 5.5;
+      for (let x = Math.floor(cx - rx); x < Math.ceil(cx + rx); x++) {
+        const u = (x + 0.5 - (cx - rx)) / (2 * rx);
+        for (let y = top; y < top + h + 2; y++) {
+          let c = u < 0.25 ? C.e4 : u < 0.6 ? C.e3 : u < 0.85 ? C.e2 : C.e1;
+          if ((x * 3 + (y >> 1)) % 5 === 0 && u > 0.15) c = C.e2;
+          put(ctx, x, y, c);
+        }
+      }
+      for (const [x, dir] of [[cx - rx - 1, -1], [cx + rx, 1]] as const) { put(ctx, x, top + h, dir < 0 ? C.e3 : C.e1, 1, 2); put(ctx, x + dir, top + h + 1, dir < 0 ? C.e2 : C.e0); }
+      lump(ctx, cx, top, rx, 2.4, [C.e4, C.e5, C.e6, C.e6], { seed: v, edge: 0.1, flat: 0.9 });
+      for (let a = 0; a < 20; a++) { const t = (a / 20) * 6.283; put(ctx, Math.round(cx + Math.cos(t) * 2.6), Math.round(top + Math.sin(t) * 1.1), C.e4); }
+      put(ctx, cx, top, C.e3);
+      if (v === 1) lump(ctx, cx + 3, top + 4, 3, 2.5, MOSS, { seed: 7, leafy: 0.6, bright: 0.05, edge: 0 });
+      if (snow) lump(ctx, cx, top - 0.5, rx - 0.5, 1.8, SNOW, { seed: 2, edge: 0, flat: 1 });
+    } else {
+      // fallen log lying along the iso x axis, cut end facing the camera
+      poly(ctx, [[3, 9], [17, 3], [22, 7], [8, 14]], (x, y) => { const d = ((x - 3) * 0.37 + (y - 9)) ; return d < -1.4 ? C.e4 : d < 1 ? C.e3 : d < 2.6 ? C.e2 : C.e1; });
+      for (let i = 0; i < 4; i++) { const x = 6 + i * 3; line(ctx, x, 10 - Math.round(i * 1.2), x + 3, 9 - Math.round(i * 1.2), C.e2); }
+      lump(ctx, 6, 11.5, 2.6, 2.8, [C.e3, C.e4, C.e5, C.e6], { seed: 3, edge: 0.2 });
+      put(ctx, 6, 11, C.e3); put(ctx, 6, 12, C.e4);
+      lump(ctx, 15, 5.5, 3, 1.6, MOSS, { seed: 5, leafy: 0.7, edge: 0 });
+      if (snow) poly(ctx, [[5, 8], [17, 3], [20, 4], [8, 9]], C.white);
+    }
+    if (!snow) for (let i = 0; i < 5; i++) { const x = 3 + Math.floor(rng() * 20), y = 14 + Math.floor(rng() * 3); put(ctx, x, y, C.g3); put(ctx, x, y - 1, C.g4); if (i % 2) put(ctx, x + 1, y - 2, C.g5); }
+    out.push(toSprite(canvas, 13, 16));
+  }
+  return out;
 }
 
-// ───────── Phase 2 tile objects ─────────
-const ORE_STYLE: Record<string, { ramp: number[]; seed: number; glint?: boolean; host?: number }> = {
-  ore_copper: { ramp: [C.r1, C.r3, C.r4, C.r5, C.r6], seed: 210 },
-  ore_iron: { ramp: [C.e0, C.e1, C.e2, C.r2, C.mist], seed: 230 },
-  ore_silver: { ramp: [C.steel, C.fog, C.pale, C.w7, C.white], seed: 250, glint: true },
-  ore_gold: { ramp: [C.e3, C.r5, C.r6, C.r7, C.white], seed: 270, glint: true },
+// ───────── ore outcrops: stone piles with glowing mineral nodules ─────────
+const ORE_STYLE: Record<string, { ramp: number[]; seed: number; glint?: boolean }> = {
+  ore_copper: { ramp: [C.r0, C.r1, C.r4, C.r5, C.r6], seed: 210 },
+  ore_iron: { ramp: [C.e0, C.r0, C.r1, C.e4, C.e5], seed: 230 },
+  ore_silver: { ramp: [C.mist, C.fog, C.pale, C.w7, C.white], seed: 250, glint: true },
+  ore_gold: { ramp: [C.r1, C.r4, C.r5, C.r6, C.r7], seed: 270, glint: true },
 };
 
-/** Boulder shot through with a readable metal seam and chunky shiny nuggets; silver and gold glint. */
+/** Boulder shot through with a readable vein and chunky nuggets; silver and gold glint. */
 export function buildOre(kind: keyof typeof ORE_STYLE, season: SeasonIdx): ObjSprite[] {
   const st = ORE_STYLE[kind]!;
   const out: ObjSprite[] = [];
-  const R5 = st.ramp as unknown as Ramp;
+  const M = st.ramp as unknown as Ramp;
   for (let v = 0; v < 3; v++) {
     for (let f = 0; f < (st.glint ? 2 : 1); f++) {
-      const { canvas, ctx } = makeCanvas(40, 32);
+      const { canvas, ctx } = makeCanvas(40, 34);
       const rng = mulberry32(st.seed + v * 17);
-      facetRock(ctx, 20, 19, v === 1 ? 13 : 15.5, 11, st.seed + v, season === 3);
-      if (v === 2) facetRock(ctx, 31, 24, 6, 4.5, st.seed + 9, season === 3);
-      const img = ctx.getImageData(0, 0, 40, 32).data;
-      const onRock = (x: number, y: number) => x >= 0 && y >= 0 && x < 40 && y < 32 && img[(y * 40 + x) * 4 + 3]! > 0;
-      // a diagonal seam
-      let x = 9 + Math.floor(rng() * 4), y = 14 + Math.floor(rng() * 3);
-      for (let j = 0; j < 22; j++) {
-        if (onRock(x, y) && onRock(x, y + 1)) { put(ctx, x, y, R5[1]!); put(ctx, x, y + 1, R5[0]!); if (j % 3 === 0) put(ctx, x, y - 1, R5[2]!); }
-        x += 1; y += rng() > 0.55 ? 1 : rng() > 0.75 ? -1 : 0;
+      const piles: Array<Array<[number, number, number, number]>> = [
+        [[19, 18, 11, 10], [28, 24, 6.5, 6], [11, 25, 5.5, 4.5]],
+        [[16, 21, 9, 8], [26, 20, 8, 9]],
+        [[20, 20, 12, 10], [9, 26, 4.5, 3.6]],
+      ];
+      stonePile(ctx, piles[v]!, STONE, { seed: st.seed + v, rough: 0.14, edge: 0.2, flat: 0.25 });
+      if (season === 3) { const t = piles[v]![0]!; lump(ctx, t[0] - 1, t[1] - t[3] * 0.55, t[2] * 0.7, t[3] * 0.3, SNOW, { seed: v, edge: 0, flat: 0.7 }); }
+      const img = ctx.getImageData(0, 0, 40, 34).data;
+      const onRock = (x: number, y: number) => x >= 0 && y >= 0 && x < 40 && y < 34 && img[(y * 40 + x) * 4 + 3]! > 0;
+      // a vein crack, then nuggets: lumps of mineral lit top-left with a bright glint
+      let x = 10 + Math.floor(rng() * 4), y = 15 + Math.floor(rng() * 3);
+      for (let j = 0; j < 20; j++) {
+        if (onRock(x, y) && onRock(x, y + 1)) { put(ctx, x, y, M[1]!); put(ctx, x, y + 1, C.steel); }
+        x += 1; y += rng() > 0.6 ? 1 : rng() > 0.8 ? -1 : 0;
       }
-      // nuggets: lit top-left, dark rim bottom-right
-      for (let i = 0; i < 6; i++) {
-        const nx = 9 + Math.floor(rng() * 21), ny = 11 + Math.floor(rng() * 12);
-        if (!onRock(nx, ny) || !onRock(nx + 2, ny + 2)) continue;
-        const w = 2 + (i % 2), h = 2;
-        put(ctx, nx, ny, R5[2]!, w, h); put(ctx, nx, ny, R5[3]!, w - 1, 1); put(ctx, nx, ny, R5[4]!);
-        put(ctx, nx + w, ny + 1, C.night, 1, h); put(ctx, nx + 1, ny + h, C.night, w, 1);
+      for (let i = 0; i < 5; i++) {
+        const nx = 10 + Math.floor(rng() * 20), ny = 12 + Math.floor(rng() * 12);
+        if (!onRock(nx - 2, ny) || !onRock(nx + 2, ny + 2)) continue;
+        lump(ctx, nx, ny, 1.9 + (i % 2) * 0.6, 1.6, M, { seed: i + v, edge: 0.15, bright: 0.05 });
+        put(ctx, nx - 1, ny - 1, M[4]!);
       }
       if (st.glint) {
-        const gx = 12 + ((v * 7 + f * 9) % 15), gy = 12 + ((v * 3 + f * 5) % 8);
-        put(ctx, gx, gy, C.white); for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]] as const) put(ctx, gx + dx, gy + dy, R5[3]!);
-        put(ctx, gx - 2, gy, R5[2]!); put(ctx, gx + 2, gy, R5[2]!);
+        const gx = 13 + ((v * 7 + f * 9) % 14), gy = 13 + ((v * 3 + f * 5) % 8);
+        if (onRock(gx, gy)) { put(ctx, gx, gy, C.white); for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]] as const) put(ctx, gx + dx, gy + dy, M[3]!); }
       }
-      outlineSoft(ctx, 40, 32);
-      out.push(toSprite(canvas, 20, 28, { fringe: kind === 'ore_silver' }));
+      out.push(toSprite(canvas, 20, 29));
     }
   }
   return out;
 }
 
-const CRYSTAL = [C.q0, C.q1, C.q2, C.q3, C.q4, C.pale, C.white] as const;
-
-/** Faceted violet crystal cluster with an inner glow; three shimmer frames. */
+/** Qubit crystal: faceted glass shards growing from a stone, glowing from within (cyan or magenta); three shimmer frames. */
 export function buildCrystal(): ObjSprite[] {
   const out: ObjSprite[] = [];
   for (let v = 0; v < 2; v++) {
+    // faces: [shaded, mid, lit, top facet], core glow [outer, inner]
+    const face = v ? [C.q1, C.q2, C.q5, C.q6] : [C.w1, C.w2, C.w3, C.w5];
+    const core = v ? [C.q6, C.white] : [C.q7, C.w7];
     for (let f = 0; f < 3; f++) {
       const { canvas, ctx } = makeCanvas(34, 40);
-      const prism = (cx: number, base: number, w: number, h: number, lean: number) => {
+      stonePile(ctx, [[17, 34, 11, 4.5], [8, 35, 5, 3], [27, 35, 5, 3]], STONE, { seed: 30 + v, edge: 0.2, flat: 0.5 });
+      const shard = (cx: number, base: number, w: number, h: number, lean: number) => {
         const top = base - h;
-        const pts: Array<[number, number]> = [[cx - w / 2, base], [cx - w / 2 + lean, top + w * 0.7], [cx + lean, top], [cx + w / 2 + lean, top + w * 0.7], [cx + w / 2, base]];
+        const pts: Array<[number, number]> = [[cx - w / 2, base], [cx - w / 2 + lean, top + w * 0.6], [cx + lean, top], [cx + w / 2 + lean, top + w * 0.6], [cx + w / 2, base]];
         poly(ctx, pts, (x, y) => {
-          const t = (x - (cx - w / 2)) / w;
-          const glow = Math.max(0, 1 - Math.hypot(x - cx, y - (base - h * 0.45)) / (h * 0.55));
-          let i = t < 0.34 ? 4 : t < 0.7 ? 5 : 2;
-          i += glow > 0.55 ? 1 : 0;
-          if (y < top + w * 0.7 && t > 0.45) i = 6;
-          if (((x + y + f) % 7) === 0 && glow > 0.2) i = Math.min(6, i + 1);
-          return CRYSTAL[Math.max(0, Math.min(6, i))]!;
+          const k = Math.max(0, Math.min(1, (y - top) / h));
+          const mid = cx + lean * (1 - k);
+          const u = (x + 0.5 - (mid - w / 2)) / w;
+          if (y < top + w * 0.6 && u < 0.6) return face[3]!;                                // lit top facet
+          let c = u < 0.5 ? face[2]! : u < 0.8 ? face[1]! : face[0]!;                        // lit / shaded faces
+          const g = Math.abs(x + 0.5 - mid) < w * 0.18 && k > 0.3 && k < 0.85 - f * 0.05;      // glowing heart along the axis
+          if (g) c = (k > 0.45 && k < 0.7 - f * 0.04) ? core[1]! : core[0]!;
+          return c;
         });
-        line(ctx, Math.round(cx + lean), top, Math.round(cx + lean), base - 1, C.q1);
-        line(ctx, Math.round(cx - w / 2 + lean * 0.5), top + Math.round(w * 0.7), Math.round(cx - w / 2), base - 1, C.q3);
       };
-      prism(8, 36, 9, 15, -1); prism(25, 36, 9, 18, 1); prism(16, 38, 12, 28, 0);
-      if (v) prism(30, 36, 6, 11, 1);
-      for (let i = 0; i < 5; i++) {
-        const sx = 7 + ((i * 7 + f * 5 + v * 3) % 20), sy = 8 + ((i * 5 + f * 9) % 24);
-        if ((i + f) % 3 === 0) { put(ctx, sx, sy, C.white); put(ctx, sx - 1, sy, C.q7); put(ctx, sx + 1, sy, C.q7); put(ctx, sx, sy - 1, C.q7); put(ctx, sx, sy + 1, C.q7); }
+      shard(9, 34, 7, 12, -2); shard(25, 34, 7, 15, 2); shard(17, 35, 10, 26, 0);
+      if (v) shard(29, 35, 5, 9, 1);
+      for (let i = 0; i < 2; i++) {
+        const sx = 8 + ((i * 11 + f * 5 + v * 3) % 18), sy = 5 + ((i * 7 + f * 9) % 20);
+        if ((i + f) % 2 === 0) { put(ctx, sx, sy, C.white); put(ctx, sx - 1, sy, core[0]!); put(ctx, sx + 1, sy, core[0]!); put(ctx, sx, sy - 1, core[0]!); put(ctx, sx, sy + 1, core[0]!); }
       }
-      out.push(toSprite(canvas, 17, 37, { fringe: true }));
+      out.push(toSprite(canvas, 17, 37));
     }
   }
   return out;
@@ -364,22 +425,22 @@ export function buildForage(season: SeasonIdx): ObjSprite[] {
     const rng = mulberry32(900 + v * 23 + season * 5);
     if (season === 0) {
       for (let i = 0; i < 4; i++) { const x = 3 + i * 3 + Math.floor(rng() * 2); for (let j = 0; j < 7; j++) put(ctx, x + (j > 4 ? (i % 2 ? 1 : -1) : 0), 14 - j, j < 3 ? C.pale : j < 5 ? C.g5 : C.g4); put(ctx, x, 14, C.fog); }
-      const fx = 4 + v * 3; line(ctx, fx, 14, fx, 8, C.g3); put(ctx, fx - 1, 7, C.e6); put(ctx, fx + 1, 7, C.e6); put(ctx, fx, 6, C.e6); put(ctx, fx, 8, C.e6); put(ctx, fx, 7, C.e4);
+      const fx = 4 + v * 3; line(ctx, fx, 14, fx, 8, C.g3); put(ctx, fx - 1, 7, C.r6); put(ctx, fx + 1, 7, C.r6); put(ctx, fx, 6, C.r7); put(ctx, fx, 8, C.r6); put(ctx, fx, 7, C.r4);
     } else if (season === 1) {
-      blob(ctx, 8, 10, 6.5, 5, R.leaf, { seed: 40 + v, noise: 0.5 });
-      blob(ctx, 7, 8, 4, 3, R.leafSpring, { seed: 44 + v, noise: 0.4, bright: 0.1 });
-      for (let i = 0; i < 7; i++) { const bx = 4 + Math.floor(rng() * 9), by = 7 + Math.floor(rng() * 6); put(ctx, bx, by, C.q2, 2, 2); put(ctx, bx, by, C.q4); }
+      lump(ctx, 8, 10, 6.5, 5, LEAF, { seed: 40 + v, leafy: 0.6 });
+      lump(ctx, 7, 8, 4, 3, LEAF_SPRING, { seed: 44 + v, leafy: 0.5, bright: 0.12 });
+      for (let i = 0; i < 6; i++) { const bx = 4 + Math.floor(rng() * 9), by = 7 + Math.floor(rng() * 6); put(ctx, bx, by, C.q2, 2, 2); put(ctx, bx, by, C.q4); }
     } else if (season === 2) {
       for (let i = 0; i < 3; i++) {
         const x = 4 + i * 4 + (v % 2), h = 4 + ((i + v) % 3);
-        put(ctx, x, 14 - h, C.pale, 2, h); put(ctx, x, 14 - h, C.mist);
-        blob(ctx, x + 1, 14 - h, 3.2 - (i % 2) * 0.6, 2.2, [C.e2, C.e3, C.e4, C.e5, C.e6], { seed: 55 + i + v, noise: 0.25, edgeDark: 0.2 });
-        put(ctx, x, 13 - h, C.e7); put(ctx, x + 2, 14 - h, C.e7);
+        put(ctx, x, 14 - h, C.e6, 2, h); put(ctx, x + 1, 14 - h, C.e5, 1, h);
+        lump(ctx, x + 1, 14 - h, 3.2 - (i % 2) * 0.6, 2.2, [C.r0, C.r1, C.r4, C.r5], { seed: 55 + i + v, edge: 0.2 });
+        put(ctx, x, 13 - h, C.e7);
       }
-      for (let i = 0; i < 2; i++) { const nx = 2 + Math.floor(rng() * 11); put(ctx, nx, 14, C.e3, 2, 2); put(ctx, nx, 14, C.e5); }
+      for (let i = 0; i < 2; i++) { const nx = 2 + Math.floor(rng() * 11); put(ctx, nx, 14, C.e3, 2, 2); put(ctx, nx, 14, C.e4); }
     } else {
-      blob(ctx, 8, 13, 6.5, 2.6, R.snow, { seed: 70 + v, noise: 0.2, edgeDark: 0.05 });
-      for (let i = 0; i < 3; i++) { const x = 4 + i * 4 + (v % 2); line(ctx, x, 13, x, 9, C.g2); put(ctx, x - 1, 8, C.q5); put(ctx, x + 1, 8, C.q5); put(ctx, x, 8, C.q6); put(ctx, x, 7, C.q4); }
+      lump(ctx, 8, 13, 6.5, 2.6, SNOW, { seed: 70 + v, edge: 0.05, flat: 0.8 });
+      for (let i = 0; i < 3; i++) { const x = 4 + i * 4 + (v % 2); line(ctx, x, 13, x, 9, C.g2); put(ctx, x - 1, 8, C.q3); put(ctx, x + 1, 8, C.q3); put(ctx, x, 8, C.q4); put(ctx, x, 7, C.q4); }
       put(ctx, 12, 12, C.e3, 2, 1);
     }
     out.push(toSprite(canvas, 8, 15, { rim: false }));
@@ -404,9 +465,8 @@ export function buildFence(): ObjSprite[] {
     // rails behind the post first (N, W), then the post, then the rails in front (E, S)
     if (m & 1) rail(1, -1, false);
     if (m & 8) rail(-1, -1, true);
-    slab(ctx, PX - 2, PY - 15, 4, 16, R.bark, 3, 0.25);
-    put(ctx, PX - 2, PY - 16, C.e5, 4, 1); put(ctx, PX - 1, PY - 17, C.e4, 2, 1);
-    put(ctx, PX - 2, PY - 15, C.e4, 1, 15);
+    for (let y = PY - 15; y < PY + 1; y++) { put(ctx, PX - 2, y, C.e4); put(ctx, PX - 1, y, C.e3); put(ctx, PX, y, C.e2); put(ctx, PX + 1, y, C.e1); }
+    put(ctx, PX - 2, PY - 16, C.e5, 4, 1); put(ctx, PX - 1, PY - 17, C.e5, 2, 1);
     if (m & 2) rail(1, 1, false);
     if (m & 4) rail(-1, 1, true);
     out.push(toSprite(canvas, PX, PY + 1));
