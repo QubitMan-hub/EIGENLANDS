@@ -31,7 +31,7 @@ const ready = () => page.waitForFunction(() => window.__eigen?.state().ready, nu
 
 // ── first visit: guest login ──
 await page.goto(url);
-await page.waitForSelector('#btn-guest');
+await page.waitForSelector('#g-off:not([hidden])');
 const note = await page.textContent('#g-off');
 console.log('login note:', note?.trim());
 if (!/Single-player preview/.test(note ?? '') || !(await page.isVisible('#g-off'))) fail('solo note not shown');

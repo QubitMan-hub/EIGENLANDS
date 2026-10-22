@@ -147,9 +147,9 @@ Tones grassTones(int s, bool lush) {
     else { T.base = G2; T.body = G4; T.hi = R5; T.sh = G1; T.dk = G1; }
     return T;
   }
-  if (lush) { T.base = G6; T.body = G6; T.hi = G7; T.sh = G5; T.dk = G4; }
-  else { T.base = G3; T.body = G5; T.hi = G6; T.sh = G2; T.dk = G2; }
-  if (s == 0 && !lush) { T.base = G4; T.body = G5; T.hi = G6; T.sh = G3; T.dk = G3; }
+  if (lush) { T.base = G4; T.body = G5; T.hi = G6; T.sh = G3; T.dk = G2; }
+  else { T.base = G3; T.body = G4; T.hi = G5; T.sh = G2; T.dk = G1; }
+  if (s == 0 && !lush) { T.base = G4; T.body = G4; T.hi = G6; T.sh = G3; T.dk = G2; }
   return T;
 }
 
@@ -248,8 +248,9 @@ int grassTop(ivec2 ip, vec2 tf, int s, float flux, float t, int b) {
   Tones T = biomeTones(b, s, lush);
   int c = T.base;
   float dn = fbm(tf * 0.5 + 50.0);
-  float dens = lush ? 0.12 + 0.25 * smoothstep(0.4, 0.8, dn) : 0.8 + 0.2 * dn;
-  float big = lush ? 0.0 : 0.35 + 0.65 * smoothstep(0.3, 0.75, fbm(tf * 0.35 + 70.0));
+  // Resting ground planes between planted clusters keep actors and loot legible.
+  float dens = lush ? 0.08 + 0.16 * smoothstep(0.4, 0.8, dn) : 0.22 + 0.24 * dn;
+  float big = lush ? 0.0 : 0.15 + 0.35 * smoothstep(0.3, 0.75, fbm(tf * 0.35 + 70.0));
   if (s == 3) { dens *= 0.35; big = 0.0; }
   bool hit;
   int cl = clumpPix(ip, dens, big, T, hit);
@@ -264,7 +265,7 @@ int grassTop(ivec2 ip, vec2 tf, int s, float flux, float t, int b) {
   ivec2 tc = cellOf(ip, TC);
   for (int j = 0; j <= 1; j++) for (int i = -1; i <= 1; i++) {
     ivec2 cc = tc + ivec2(i, j);
-    if (hashk(cc, 6) > (lush ? 0.2 : 0.25)) continue;
+    if (hashk(cc, 6) > (lush ? 0.08 : 0.13)) continue;
     ivec2 b = cc * TC + ivec2(int(hashk(cc, 7) * 5.0), int(hashk(cc, 8) * 3.0));
     int r = tuftPix(ip, b, lush ? T.sh : T.body, lush ? T.dk : T.hi);
     if (r >= 0) return r;
@@ -381,13 +382,13 @@ int cobbleTop(ivec2 ip, vec2 tf) {
     if (dist < f1) { f2 = f1; f1 = dist; id1 = cell; p1 = pt; } else if (dist < f2) f2 = dist;
   }
   float edge = (f2 - f1) * 6.0;
-  if (edge < 0.55) return STEEL;
+  if (edge < 0.4) return hashk(id1, 72) > 0.86 ? G2 : STEEL;
   vec2 rel = g - p1;
   float lit = -(rel.x + rel.y);                // tile -x/-y = screen up: lit from the top-left
-  bool warm = hashi(id1 + ivec2(2, 3)) < 0.1;
-  float v = 0.45 + lit * 1.1 + (hashi(id1 + ivec2(5, 9)) - 0.5) * 0.35;
-  if (edge < 1.3) v -= 0.4;
-  if (warm) return v > 0.75 ? E5 : v > 0.3 ? E4 : E3;
+  bool warm = hashi(id1 + ivec2(2, 3)) < 0.28;
+  float v = 0.5 + lit * 0.65 + (hashi(id1 + ivec2(5, 9)) - 0.5) * 0.22;
+  if (edge < 0.95) v -= 0.2;
+  if (warm) return v > 0.75 ? E7 : v > 0.3 ? E6 : E5;
   return v > 0.8 ? PALE : v > 0.3 ? FOG : MIST;
 }
 
@@ -436,10 +437,14 @@ int floorTop(vec2 tf) {
   int row = int(floor(rowF));
   float off = float(int(hashi(ivec2(0, row)) * 24.0));
   float px = mod(wp.x + off, 24.0);
-  if (fract(rowF) * 5.0 < 1.0 || px < 1.0) return E2;
+  float across = fract(rowF) * 5.0;
+  if (across < 0.65 || px < 0.7) return E2;
   float sh = hashi(ivec2(int(floor((wp.x + off) / 24.0)), row));
-  if (fract(rowF) * 5.0 < 2.0) return sh > 0.5 ? E5 : E4;
-  return sh > 0.7 ? E4 : E3;
+  if (across < 1.5) return sh > 0.5 ? E6 : E5;
+  // Two iron nailheads per board and sparse, long woodgrain marks.
+  if ((px < 2.0 || px > 22.0) && across > 3.0 && across < 3.8) return E1;
+  if (across > 2.6 && across < 3.2 && px > 6.0 && px < 15.0 && sh > 0.6) return E3;
+  return sh > 0.7 ? E5 : E4;
 }
 
 // ───────── water ─────────
@@ -455,7 +460,10 @@ int waterTop(ivec2 ip, vec2 tf, float sdf, bool deep, float t, int s, int b) {
   if (sky > 0.68 && c <= W3 && c > W0) c += 1;
   // lapping foam along the bank
   float lap = 0.32 + 0.12 * sin(tt * 1.6 + wp.x * 0.15 + wp.y * 0.3);
-  if (sdf < lap && !deep) c = ((ip.x + ip.y) & 1) == 0 || sdf < lap - 0.12 ? W6 : W5;
+  if (sdf < lap && !deep) c = sdf < lap - 0.12 ? W6 : W5;
+  // Quiet submerged caustics in the shallows, broken into short pixel clusters.
+  float caustic = sin(tf.x * 7.0 + tt * 0.6) + sin(tf.y * 9.0 - tt * 0.45);
+  if (sdf > lap && depth < 1.8 && caustic > 1.65) c = W5;
   // ripple lines: long, gently slanted streaks (along the iso axes) on a jittered grid; they drift and fade
   ivec2 RC = ivec2(18, 7);
   int drift = int(floor(tt * 1.5));
@@ -464,7 +472,7 @@ int waterTop(ivec2 ip, vec2 tf, float sdf, bool deep, float t, int s, int b) {
   for (int j = 0; j <= 1; j++) for (int i = -1; i <= 0; i++) {
     ivec2 cc = rc0 + ivec2(i, j);
     float h = hashk(cc, 40);
-    if (h > 0.6) continue;
+    if (h > 0.38) continue;
     float ph = fract(h * 7.0 + tt * 0.2);
     if (ph > 0.8) continue;
     ivec2 b = cc * RC + ivec2(int(hashk(cc, 41) * 8.0), int(hashk(cc, 42) * 5.0));

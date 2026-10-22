@@ -1,3 +1,4 @@
+import { CALM, type WindField } from './windfield';
 import { Sprite, Texture, type Container } from 'pixi.js';
 import { townFor, type Building } from '@eigenlands/shared';
 import { buildBuildingArt, type BuildingArt } from '../art/buildings';
@@ -104,7 +105,7 @@ export class BuildingViews {
     return tx >= b.x - 3 && ty >= b.y - 3 && tx < b.x + b.w && ty < b.y + b.h && (tx < b.x + 1 || ty < b.y + 1) && tx + ty < b.x + b.y + b.w + b.h - 2;
   }
 
-  update(now: number, playerTx: number, playerTy: number, reduced: boolean, sun: Sun, minX: number, minY: number, maxX: number, maxY: number): void {
+  update(now: number, playerTx: number, playerTy: number, reduced: boolean, sun: Sun, minX: number, minY: number, maxX: number, maxY: number, wind: WindField = CALM): void {
     const dt = this.last ? Math.min(0.1, (now - this.last) / 1000) : 0.016;
     this.last = now;
     this.builtThisFrame = 0;
@@ -143,6 +144,8 @@ export class BuildingViews {
       const roof = v.roof!;
       roof.visible = v.roofA > 0.02;
       roof.alpha = v.roofA;
+      const roofTex = night && v.art!.roof.night ? v.art!.roof.night : v.art!.roof.tex;
+      if (roof.texture !== roofTex) roof.texture = roofTex;
       if (v.sign) { v.sign.visible = !cut; v.sign.alpha = v.wallA; }
       v.shadow!.visible = sun.alpha > 0.02;
       v.shadow!.alpha = Math.min(0.42, sun.alpha * 1.1);
@@ -152,9 +155,9 @@ export class BuildingViews {
         if (!ch || reduced) { p.s.visible = false; return; }
         p.t = (p.t + dt * 0.22) % 1;
         p.s.visible = v.roofA > 0.5;
-        p.s.x = Math.round(ch.x + p.t * 10 + Math.sin(now / 700 + i * 2) * 1.5);
+        p.s.x = Math.round(ch.x + p.t * (wind.w.dx - wind.w.dy) * (10 + wind.gust(b.x, b.y) * 14) + Math.sin(now / 700 + i * 2) * 1.5);
         p.s.y = Math.round(ch.y - 3 - p.t * 26);
-        p.s.scale.set(0.7 + p.t * 1.3);
+        p.s.scale.set(p.t < 0.55 ? 1 : 2);
         p.s.alpha = (1 - p.t) * 0.75 * v.roofA;
       });
     }

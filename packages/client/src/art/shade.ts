@@ -78,6 +78,9 @@ export function slab(ctx: Ctx, x: number, y: number, w: number, h: number, ramp:
 }
 
 export function line(ctx: Ctx, x0: number, y0: number, x1: number, y1: number, c: number): void {
+  // Art callers use fractional model coordinates. Bresenham must step between
+  // integer endpoints or it can run past the target and draw a stray streak.
+  x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
   let dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), err = dx + dy;
   const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
   for (let guard = 0; guard < 200; guard++) {
@@ -377,12 +380,12 @@ export function lump(ctx: Ctx, cx: number, cy: number, rx: number, ry: number, r
       if (x < 0 || y < 0 || x >= W || y >= H) continue;
       const nx = (x + 0.5 - cx) / rx, ny = (y + 0.5 - cy) / ry;
       const dd = nx * nx + ny * ny;
-      const rim = leafy ? (hash2(seed, x, y, 3) - 0.5) * leafy * 0.9 + (hash2(seed, x >> 1, y >> 1, 4) - 0.5) * leafy * 0.6 : 0;
+      const rim = leafy ? (hash2(seed, x >> 1, y >> 1, 3) - 0.5) * leafy * 0.5 + (hash2(seed, x >> 2, y >> 2, 4) - 0.5) * leafy * 0.7 : 0;
       if (dd > 1 + rim) continue;
       const nz = Math.sqrt(Math.max(0, 1 - Math.min(1, dd)));
       let lam = nx * L[0] + ny * L[1] + nz * L[2];
       if (flat && ny < -0.2) lam = lam * (1 - flat) + flat * 0.75;
-      const cl = (hash2(seed, (x + (y & 1)) >> 1, y >> 1, 5) - 0.5) * (leafy ? 0.38 : rough);
+      const cl = (hash2(seed, x >> 1, y >> 1, 5) - 0.5) * (leafy ? 0.18 : rough);
       const t = 0.42 + 0.62 * lam + bright - edge * dd * dd + cl;
       const i = Math.max(0, Math.min(ramp.length - 1, Math.floor(t * ramp.length)));
       put(ctx, x, y, ramp[i]!);

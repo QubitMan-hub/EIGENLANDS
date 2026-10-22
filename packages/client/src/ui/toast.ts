@@ -12,9 +12,10 @@ export class Toasts {
     if (kind === 'item' && item) {
       const key = item.id + JSON.stringify(item.p ?? {});
       const r = this.recent.get(key);
-      if (r && performance.now() - r.at < 1500) {
+      if (r && r.el.isConnected && performance.now() - r.at < 1500) {
         r.n += item.n; r.at = performance.now();
         r.el.querySelector('.tn')!.textContent = `+${r.n}`;
+        this.root.append(r.el); // a merged pickup is the newest notification
         this.keep(r.el);
         return;
       }

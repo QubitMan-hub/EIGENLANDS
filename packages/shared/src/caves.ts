@@ -1,3 +1,4 @@
+import { mineralDeposit } from './distribution';
 import { CHUNK_SIZE } from './constants';
 import type { WorldObj } from './objects';
 import { hash2 } from './rng';
@@ -5,7 +6,7 @@ import { ruinOfCell } from './ruins';
 import { Simplex2D } from './simplex';
 import { T, isSolid } from './tiles';
 import { townFor } from './town';
-import { HOME_VALE, biomeAt, tileAt, type Biome } from './worldgen';
+import { HOME_VALE, biomeAt, landmarkTileAt, type Biome } from './worldgen';
 
 /**
  * The Undercroft: a cave layer under the whole world. It lives on its own plane far south (y + CAVE_OY), so every
@@ -35,7 +36,7 @@ export function caveOfCell(seed: number, gx: number, gy: number): CaveMouth | nu
       const y = gy * CELL + 8 + Math.floor(hash2(seed, gx, gy * 17 + k, 963) * (CELL - 16));
       if (Math.hypot(x, y) < HOME_VALE * 0.55 || (x > t.x0 - 8 && x < t.x1 + 8 && y > t.y0 - 8 && y < t.y1 + 8)) continue;
       let clear = true;
-      for (let j = -1; j <= 2 && clear; j++) for (let i = -1; i <= 1 && clear; i++) if (isSolid(tileAt(seed, x + i, y + j))) clear = false;
+      for (let j = -1; j <= 2 && clear; j++) for (let i = -1; i <= 1 && clear; i++) if (isSolid(landmarkTileAt(seed, x + i, y + j))) clear = false;
       if (!clear) continue;
       const r = ruinOfCell(seed, Math.floor(x / 96), Math.floor(y / 96));
       if (r && Math.hypot(r.x - x, r.y - y) < 9) continue;
@@ -66,7 +67,7 @@ function caveNoise(seed: number): [Simplex2D, Simplex2D, Simplex2D] {
 }
 
 /** Generated tile of the cave plane at world (x, y) (y already on the cave plane). */
-export function caveTileAt(seed: number, x: number, y: number): number {
+export function caveTileAt(seed: number, x: number, y: number, legacy = false): number {
   const ly = y - CAVE_OY;
   const [a, b, c] = caveNoise(seed);
   // landing chambers under every mouth: always open, always dry, kept clear of clutter
@@ -77,16 +78,22 @@ export function caveTileAt(seed: number, x: number, y: number): number {
   const worm = Math.min(Math.abs(a.fbm(x / 34, ly / 34, 2)), Math.abs(c.fbm(x / 41 + 60, ly / 41, 2)) * 1.1);
   const hall = b.fbm(x / 46 + 100, ly / 46, 3);
   const open = worm < 0.085 || hall > 0.32 || landing < 5.5 + 1.5 * c.noise(x / 6, ly / 6);
-  if (!open) return T.CAVE_WALL;
+  if (!open) {
+    // Mineable seams replace already-solid wall margins, preserving every open route and landing.
+    if (legacy) return T.CAVE_WALL;
+    const deposit = mineralDeposit(seed, x, ly);
+    return deposit !== null && (worm < 0.17 || hall > 0.24) ? deposit : T.CAVE_WALL;
+  }
   if (hall > 0.46 && c.fbm(x / 14, ly / 14 + 40, 2) > 0.2 && landing > 7) return c.fbm(x / 14, ly / 14 + 40, 2) > 0.38 ? T.DEEP_WATER : T.WATER;
   if (landing < 6) return T.CAVE_FLOOR;
   const h = hash2(seed, x, y, 977);
-  if (h < 0.032) {
+  if (h < 0.032 && legacy) {
     const o = hash2(seed, x, y, 978);
     return o < 0.3 ? T.ORE_IRON : o < 0.55 ? T.ORE_COPPER : o < 0.8 ? T.ORE_SILVER : T.ORE_GOLD;
   }
+  if (h < 0.032) return T.CAVE_FLOOR; // keep walking space clear; minerals belong to the rock strata
   if (h < 0.042) return T.CRYSTAL;
-  if (h < 0.065) return T.ROCK;
+  if (h < 0.065) return legacy || worm > 0.055 ? T.ROCK : T.CAVE_FLOOR;
   if (h < 0.082) return T.SHIMMER;                                    // glowcaps
   if (h < 0.085) return T.TORCH;                                    // an old miner's torch, still burning
   return T.CAVE_FLOOR;
@@ -116,7 +123,7 @@ function cacheSpot(seed: number, m: CaveMouth): { x: number; y: number } | null 
   for (let k = 0; k < 24; k++) {
     const a = hash2(seed, m.x + k, m.y, 981) * Math.PI * 2, d = 9 + hash2(seed, m.x, m.y + k, 982) * 14;
     const x = Math.round(m.x + Math.cos(a) * d), y = Math.round(m.y + Math.sin(a) * d) + CAVE_OY;
-    if (tileAt(seed, x, y) === T.CAVE_FLOOR && tileAt(seed, x, y + 1) === T.CAVE_FLOOR && tileAt(seed, x - 1, y) === T.CAVE_FLOOR) return { x, y };
+    if (caveTileAt(seed, x, y, true) === T.CAVE_FLOOR && caveTileAt(seed, x, y + 1, true) === T.CAVE_FLOOR && caveTileAt(seed, x - 1, y, true) === T.CAVE_FLOOR) return { x, y };
   }
   return null;
 }

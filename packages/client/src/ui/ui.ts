@@ -96,6 +96,11 @@ export const HTML = `
     <button data-a="interact" aria-label="Use">${iconSvg('hand', 22)}</button>
   </div>
 </div>
+<div id="rotate-device" role="region" aria-label="Landscape play">
+  <div class="panel"><h2>A wider world awaits</h2><p>Turn your phone sideways to explore EIGENLANDS with room for both hands.</p>
+  <button id="btn-landscape" class="primary">Enter landscape</button>
+  <button id="btn-portrait">Continue in portrait</button><p id="rotate-note" class="small" role="status"></p></div>
+</div>
 <div id="login" class="overlay title">
   <div class="stars" aria-hidden="true"></div><div class="traces" aria-hidden="true"></div>
   <div class="title-card">

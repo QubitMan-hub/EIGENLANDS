@@ -207,6 +207,14 @@ describe('world: nodes, ores and the town', () => {
     const forge = town.objects.find((o) => o.sub === 'forge')!;
     expect(store.solidAt(forge.x, forge.y)).toBe(true);
   });
+  it('keeps hall, inn and farmhouse dining furniture outside their entrance aisles', () => {
+    for (const [id, minimum] of [['hall', 2], ['inn', 2], ['farmhouse', 1]] as const) {
+      const b = town.buildings.find((b) => b.id === id)!;
+      const tables = town.objects.filter((o) => o.sub === 'table' && o.x > b.x && o.x < b.x + b.w - 1 && o.y > b.y && o.y < b.y + b.h - 1);
+      expect(tables.length, `${id} has usable dining space`).toBeGreaterThanOrEqual(minimum);
+      for (const table of tables) expect(Math.abs(table.x - b.doorX) > 1 || table.y < b.doorY - 2, `${id} entrance remains clear`).toBe(true);
+    }
+  });
   it('there is a walkable route between the plaza and every front door', () => {
     const store = new ChunkStore(SEED);
     const from = town.spots.plaza_c!;

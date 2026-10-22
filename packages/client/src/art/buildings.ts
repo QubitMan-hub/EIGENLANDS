@@ -14,6 +14,7 @@
  *  - a soft ground shadow cast to the lower right, and a hanging shop sign
  */
 import { Texture } from 'pixi.js';
+import { Iso } from './isokit';
 import type { Building } from '@eigenlands/shared';
 import { hash2 } from '@eigenlands/shared';
 import { bigTextC, bigTextWidth, C, makeCanvas, put, rampAt, undithered, type Ctx, type Ramp } from './shade';
@@ -32,7 +33,7 @@ export interface WallPiece {
 }
 export interface BuildingArt {
   walls: WallPiece[];
-  roof: { tex: Texture; x: number; y: number };
+  roof: { tex: Texture; night: Texture | null; x: number; y: number };
   shadow: { tex: Texture; x: number; y: number };
   sign: { tex: Texture; x: number; y: number; tx: number; ty: number } | null;
   /** chimney top in iso art pixels (smoke origin) */
@@ -47,7 +48,7 @@ interface Style { wall: Ramp; timber: Ramp | null; kind: 'plaster' | 'stone' | '
 const STYLES: Style[] = [
   { wall: [C.e4, C.e5, C.e6, C.e7, C.white], timber: [C.e0, C.e1, C.e2, C.e3], kind: 'plaster', shutter: [C.g1, C.g2, C.g3, C.g4], roof: [C.e1, C.e2, C.e3, C.e4, C.e5, C.e6], roofKind: 'thatch', trim: C.e1 },
   { wall: [C.slate, C.steel, C.mist, C.fog, C.pale], timber: null, kind: 'stone', shutter: null, roof: [C.night, C.slate, C.steel, C.mist, C.fog], roofKind: 'slate', trim: C.slate },
-  { wall: [C.w0, C.slate, C.w1, C.steel, C.mist], timber: null, kind: 'siding', shutter: [C.fog, C.pale, C.white, C.white], roof: [C.e0, C.r0, C.r2, C.r1, C.r3, C.e4], roofKind: 'tile', trim: C.pale },
+  { wall: [C.w0, C.slate, C.w1, C.steel, C.mist], timber: null, kind: 'siding', shutter: [C.fog, C.pale, C.white, C.white], roof: [C.e0, C.r0, C.r1, C.r2, C.r3, C.r4], roofKind: 'tile', trim: C.pale },
   { wall: [C.mist, C.fog, C.pale, C.white, C.white], timber: [C.e0, C.e1, C.e2, C.e3], kind: 'plaster', shutter: [C.g1, C.g2, C.g3, C.g4], roof: [C.e0, C.e1, C.e2, C.e3, C.e4], roofKind: 'shingle', trim: C.e1 },
 ];
 const GRANITE: Ramp = [C.slate, C.steel, C.mist, C.fog, C.pale];
@@ -103,6 +104,8 @@ function wallMat(b: Building, st: Style, seed: number, interior: boolean, capC: 
     const fu = u - Math.floor(u);
     const upx = u * 16;                               // along the face, px
     const ix = Math.floor(upx), iz = Math.floor(z);
+    // Dark timber jambs make the open entrance readable against pale plaster.
+    if (face === 'south' && Math.floor(x) === b.doorX && z > 1.5 && z < 34 && (fu < 0.15 || fu > 0.85)) return fu < 0.15 ? C.e3 : C.e1;
     // foundation course
     if (z < 6) {
       const brick = Math.floor((upx + (iz < 3 ? 0 : 5)) / 10);
@@ -115,7 +118,7 @@ function wallMat(b: Building, st: Style, seed: number, interior: boolean, capC: 
       if (inU && inZ) {
         const frame = fu < 0.34 || fu > 0.66 || z < 18 || z >= 30 || Math.abs(fu - 0.5) < 0.03 || Math.abs(z - 24) < 0.6;
         if (frame) return st.kind === 'siding' ? C.pale : (st.timber ? st.timber[1]! : C.slate);
-        const refl = ((ix + iz) % 9) < 2;
+        const refl = ix % 8 < 2 && iz > 22;
         const gi = refl ? 4 : z > 25 ? 3 : z > 21 ? 2 : 1;
         return GLASS + Math.max(0, Math.min(4, gi + (face === 'east' ? -1 : 0)));
       }
@@ -152,7 +155,7 @@ function wallMat(b: Building, st: Style, seed: number, interior: boolean, capC: 
 }
 
 /** Roof surfaces: height field of a gabled roof with overhangs, plus a chimney. */
-function buildRoof(b: Building, st: Style, seed: number): { canvas: HTMLCanvasElement; left: number; top: number; chimney: { x: number; y: number } | null; windows: Array<{ x: number; y: number }> } {
+function buildRoof(b: Building, st: Style, seed: number): { canvas: HTMLCanvasElement; left: number; top: number; chimney: { x: number; y: number } | null; windows: Array<{ x: number; y: number }>; night: HTMLCanvasElement | null } {
   const o = 0.4;
   const X0 = b.x - o, X1 = b.x + b.w + o, Y0 = b.y - o, Y1 = b.y + b.h + o;
   const alongX = b.w >= b.h;
@@ -167,11 +170,23 @@ function buildRoof(b: Building, st: Style, seed: number): { canvas: HTMLCanvasEl
   const ch = big ? { x0: alongX ? b.x + b.w * 0.7 : mid + 0.2, y0: alongX ? mid - 0.9 : b.y + b.h * 0.3, s: 0.75 } : null;
   const chTop = zR + 8;
   const L = Math.floor((X0 - Y1) * 16) - 2, R = Math.ceil((X1 - Y0) * 16) + 2;
-  const top = Math.floor((X0 + Y0) * 8 - chTop) - 3, bot = Math.ceil((X1 + Y1) * 8 - zE) + 6;
+  const hasCanopy = b.kind === 'hall' || b.kind === 'inn' || b.kind === 'store' || b.id === 'bakery';
+  const top = Math.floor((X0 + Y0) * 8 - chTop) - 3, bot = Math.ceil((X1 + Y1) * 8 - zE) + (hasCanopy ? 28 : 6);
+  // Small cross-gables emerge from the camera-facing slope. Their volume is
+  // intersected by the same world-space rays as the main roof, so valleys and
+  // chimney occlusion remain correct in both ridge orientations.
+  const count = b.kind === 'inn' || b.kind === 'hall' ? 2 : b.kind === 'farmhouse' || b.id === 'library' ? 1 : 0;
+  const dormers = Array.from({ length: count }, (_, i) => {
+    const a = (alongX ? b.x : b.y) + (alongX ? b.w : b.h) * ((i + 1) / (count + 1));
+    const n = mid + span * 0.63;
+    const x = alongX ? a : n, y = alongX ? n : a;
+    return { a, n0: n - 1.05, n1: n, half: 0.72, eave: roofZ(x, y) + 11 };
+  });
   const w = R - L, h = bot - top;
   const { canvas, ctx } = makeCanvas(w, h);
   const R0 = st.roof;
   const windows: Array<{ x: number; y: number }> = [];
+  const glass: Array<[number, number, number]> = [];
   for (let py = 0; py < h; py++) for (let px = 0; px < w; px++) {
     const P = (px + 0.5 + L) / 16, sy = py + 0.5 + top;
     for (let z = chTop; z >= zE - 4; z -= 0.5) {
@@ -191,6 +206,34 @@ function buildRoof(b: Building, st: Style, seed: number): { canvas: HTMLCanvasEl
         put(ctx, px, py, c);
         break;
       }
+      let dormerHit = false;
+      for (const d of dormers) {
+        const a = alongX ? x : y, n = alongX ? y : x;
+        const da = Math.abs(a - d.a), cap = d.eave + 9 * (1 - da / d.half);
+        if (da > d.half || n < d.n0 || n > d.n1 || z > cap || z < roofZ(x, y) - 0.5) continue;
+        let c: number;
+        if (z > cap - 1.3) {
+          const lit = (a < d.a) === alongX;
+          c = rampAt(R0, lit ? 0.78 : 0.38, px, py);
+          if (Math.floor((n - d.n0) * 16) % 5 === 0) c = R0[1]!;
+        } else {
+          const front = n > d.n1 - 0.08;
+          const u = (a - d.a) * 16, wz = z - (d.eave - 6);
+          const pane = front && Math.abs(u) < 5 && wz > -4 && wz < 4.5;
+          const frame = Math.abs(u) > 3.7 || Math.abs(u) < 0.6 || wz < -3 || wz > 3.4 || Math.abs(wz) < 0.5;
+          if (pane && !frame) {
+            const gi = wz > 1 ? 3 : 1;
+            glass.push([px, py, gi]);
+            c = GLASS_DAY[gi]!;
+          } else if (pane || (front && z < d.eave - 9)) c = st.trim;
+          else c = rampAt(st.wall, front ? 0.78 : 0.4, px, py);
+          if (front && Math.abs(u) > 9) c = st.trim;
+        }
+        put(ctx, px, py, c);
+        dormerHit = true;
+        break;
+      }
+      if (dormerHit) break;
       if (!inFoot(x, y)) continue;
       const rz = roofZ(x, y);
       if (z > rz) continue;
@@ -207,19 +250,19 @@ function buildRoof(b: Building, st: Style, seed: number): { canvas: HTMLCanvasEl
         let c: number;
         if (Math.abs(down) < 0.12) { c = rampAt(R0, 0.85 + lit, px, py); put(ctx, px, py, c); break; }   // ridge cap
         if (st.roofKind === 'thatch') {
-          const strand = hash2(seed, Math.floor(apx), Math.floor(dpx / 2), 9);
-          const course = Math.floor(dpx) % 7;
-          t += (strand - 0.5) * 0.35 + (course === 0 ? -0.3 : course < 2 ? 0.12 : 0);
+          const strand = hash2(seed, Math.floor(apx / 3), Math.floor(dpx / 4), 9);
+          const course = Math.floor(dpx) % 10;
+          t += (strand - 0.5) * 0.14 + (course === 0 ? -0.18 : course < 2 ? 0.1 : 0);
         } else {
-          const rowH = st.roofKind === 'slate' ? 4 : st.roofKind === 'tile' ? 5 : 4;
+          const rowH = st.roofKind === 'slate' ? 6 : st.roofKind === 'tile' ? 6 : 5;
           const row = Math.floor(dpx / rowH);
-          const len = st.roofKind === 'tile' ? 5 : st.roofKind === 'slate' ? 9 : 6;
+          const len = st.roofKind === 'tile' ? 7 : st.roofKind === 'slate' ? 11 : 8;
           const off = (row % 2) * (len / 2);
           const k = Math.floor((apx + off) / len);
           const fr = (apx + off) - k * len, fz = dpx - row * rowH;
-          if (fz < 1) t -= 0.35;                                 // course shadow line
-          else if (st.roofKind === 'tile') t += Math.cos((fr / len) * Math.PI * 2) * 0.22 + (fz > rowH - 1.5 ? 0.12 : 0);
-          else { if (fr < 1) t -= 0.25; t += (hash2(seed, k, row, 10) - 0.5) * 0.3 + (fz > rowH - 1.5 ? 0.1 : 0); }
+          if (fz < 0.7) t -= 0.18;                                 // course shadow line
+          else if (st.roofKind === 'tile') t += Math.cos((fr / len) * Math.PI * 2) * 0.06 + (fz > rowH - 1 ? 0.04 : 0);
+          else { if (fr < 0.7) t -= 0.14; t += (hash2(seed, k, row, 10) - 0.5) * 0.16 + (fz > rowH - 1.5 ? 0.1 : 0); }
           if (st.roofKind === 'shingle' && hash2(seed, k, row, 11) > 0.93) t -= 0.25;   // the odd mossy shingle
         }
         // eave darkening: the lowest course reads as an overhang
@@ -250,12 +293,32 @@ function buildRoof(b: Building, st: Style, seed: number): { canvas: HTMLCanvasEl
       }
     }
   }
-  if (ch) windows.push();
+  if (hasCanopy) {
+    const iso = new Iso(ctx, -L, -top);
+    const u = b.doorX * 16 - 4, v = (b.y + b.h) * 16 - 1;
+    // Cantilevered entry cover: a sloping plane with actual fascia and brackets.
+    for (const x of [u + 1, u + 23]) iso.line3(x, v, 24, x, v + 11, 31, C.e1);
+    iso.para(iso.X(u, v), iso.Y(u, v, 36), 24, 12, -12, 10, (s, t) => {
+      if (b.kind === 'inn' || b.id === 'bakery') return Math.floor(s * 6) % 2 ? (t > 0.8 ? C.e5 : C.e7) : (t > 0.8 ? C.r1 : C.r2);
+      return Math.floor(t * 12) % 4 === 0 ? R0[1]! : R0[3]!;
+    });
+    iso.left(u, v + 12, 30, 24, 2, st.trim);
+  }
+  for (const d of dormers) windows.push({ x: alongX ? d.a : d.n1, y: alongX ? d.n1 : d.a });
+  const night = glass.length ? makeCanvas(w, h) : null;
+  if (night) {
+    night.ctx.drawImage(canvas, 0, 0);
+    for (const [x, y, gi] of glass) put(night.ctx, x, y, GLASS_NIGHT[gi]!);
+  }
   const chimney = ch ? { x: (ch.x0 + ch.s / 2 - (ch.y0 + ch.s / 2)) * 16, y: (ch.x0 + ch.y0 + ch.s) * 8 - chTop } : null;
-  return { canvas, left: L, top, chimney, windows };
+  return { canvas, left: L, top, chimney, windows, night: night?.canvas ?? null };
 }
 
 const SIGN: Record<string, { text: string; icon: (ctx: Ctx, x: number, y: number) => void; board: Ramp }> = {
+  bakery: { text: 'BAKER', board: [C.e0, C.e1, C.e2, C.e3], icon: (c, x, y) => { put(c, x + 1, y + 3, C.e4, 8, 4); put(c, x + 2, y + 2, C.e6, 6, 3); for (const dx of [3, 6]) put(c, x + dx, y + 2, C.e3, 1, 2); } },
+  library: { text: 'BOOKS', board: [C.w0, C.w1, C.w2, C.w3], icon: (c, x, y) => { put(c, x, y + 1, C.e2, 9, 7); put(c, x + 1, y + 1, C.pale, 7, 5); put(c, x + 4, y + 1, C.e4, 1, 6); } },
+  herbalist: { text: 'HERBS', board: [C.g0, C.g1, C.g2, C.g3], icon: (c, x, y) => { put(c, x + 4, y, C.g5, 1, 6); put(c, x + 2, y + 1, C.g4, 2, 2); put(c, x + 5, y + 2, C.g6, 2, 2); put(c, x + 2, y + 5, C.r3, 5, 3); } },
+  tailor: { text: 'CLOTH', board: [C.r0, C.r1, C.r2, C.r3], icon: (c, x, y) => { put(c, x + 1, y + 2, C.w4, 7, 3); put(c, x + 3, y + 1, C.w5, 3, 7); put(c, x + 4, y + 1, C.pale, 1, 2); } },
   smithy: { text: 'SMITH', board: [C.e0, C.e1, C.e2, C.e3], icon: (c, x, y) => { put(c, x, y + 2, C.fog, 9, 2); put(c, x + 2, y + 4, C.mist, 4, 2); put(c, x + 1, y + 6, C.mist, 6, 1); put(c, x - 1, y + 2, C.fog, 2, 1); } },
   store: { text: 'SHOP', board: [C.g0, C.g1, C.g2, C.g3], icon: (c, x, y) => { put(c, x + 1, y + 2, C.e5, 7, 5); put(c, x + 2, y + 1, C.e4, 5, 1); put(c, x + 3, y, C.e2, 3, 1); put(c, x + 3, y + 4, C.e7, 3, 1); } },
   inn: { text: 'INN', board: [C.r0, C.r1, C.r2, C.r3], icon: (c, x, y) => { put(c, x + 1, y + 1, C.r6, 6, 6); put(c, x + 1, y, C.white, 6, 2); put(c, x + 7, y + 2, C.r5, 2, 1); put(c, x + 8, y + 3, C.r5, 1, 2); put(c, x + 7, y + 5, C.r5, 2, 1); } },
@@ -317,10 +380,17 @@ function buildBuildingArtInner(b: Building): BuildingArt {
         } else out.push({ x0: tx, x1: east ? tx + 1 - T : tx + 1, y0: ty + 1 - T, y1: ty + 1, z0: 0, z1: zTop, mat });
         if (east) out.push({ x0: tx + 1 - T, x1: tx + 1, y0: ty + 1 - T, y1: ty + 1, z0: 0, z1: zTop, mat });
       }
+      // Window boxes are real projected volumes, attached below the sill.
+      if (south && !east && !door && zTop > CUT_H && (tx - b.x) % 2 === 1) {
+        out.push({ x0: tx + 0.2, x1: tx + 0.8, y0: ty + 0.93, y1: ty + 1.18, z0: 11, z1: 15,
+          mat: (f, x, y, z) => f === 'top'
+            ? (hash2(seed, Math.floor(x * 16), Math.floor(y * 16), 17) > 0.7 ? C.r6 : C.g3)
+            : z < 12 ? C.e1 : f === 'south' ? C.e4 : C.e2 });
+      }
       return out;
     };
-    const left = (tx - ty - 1) * 16, top = (tx + ty) * 8 - WALL_H - 2;
-    const W = 32, H = 16 + WALL_H + 3;
+    const left = (tx - ty - 1) * 16 - 4, top = (tx + ty) * 8 - WALL_H - 2;
+    const W = 40, H = 16 + WALL_H + 7;
     const render = (zTop: number, mat: Mat, night: boolean) => {
       const { canvas, ctx } = makeCanvas(W, H);
       const glass: Array<[number, number, number]> = [];
@@ -339,6 +409,7 @@ function buildBuildingArtInner(b: Building): BuildingArt {
   // roof
   const rf = buildRoof(b, st, seed);
   const chimney = rf.chimney;
+  windows.push(...rf.windows);
 
   // ground shadow: footprint smeared to the lower right (light from the top-left)
   const sx0 = (b.x - y1) * 16 - 2, sx1 = (x1 + 2.2 - b.y) * 16 + 2, sy0 = (b.x + b.y) * 8 - 2, sy1 = (x1 + 2.2 + y1 + 0.6) * 8 + 2;
@@ -352,10 +423,10 @@ function buildBuildingArtInner(b: Building): BuildingArt {
     for (let k = 0; k <= 1 && !hit; k += 0.1) { const dx = 2.2 * k, dy = 0.6 * k; if (x >= b.x + dx && x <= x1 + dx && y >= b.y + dy && y <= y1 + dy) hit = true; }
     if (hit && !(x >= b.x && x <= x1 && y >= b.y && y <= y1)) put(sc.ctx, px, py, C.q0);
   }
-  const sign = signTexture(b.kind);
+  const sign = signTexture(SIGN[b.id] ? b.id : b.kind);
   return {
     walls,
-    roof: { tex: tex(rf.canvas), x: rf.left, y: rf.top },
+    roof: { tex: tex(rf.canvas), night: rf.night ? tex(rf.night) : null, x: rf.left, y: rf.top },
     shadow: { tex: tex(sc.canvas), x: sx0, y: sy0 },
     sign: sign ? { tex: tex(sign), x: (b.doorX + 1.35 - (y1 + 0.15)) * 16 - 2, y: (b.doorX + 1.35 + y1 + 0.15) * 8 - 38, tx: b.doorX + 1.4, ty: y1 + 0.2 } : null,
     chimney,

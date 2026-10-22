@@ -1,4 +1,4 @@
-import { critterDir, type Critters, type CritterId } from '../art/critters';
+import { type Critters, type CritterId } from '../art/critters';
 import { Sprite, type Container, type Graphics } from 'pixi.js';
 import { SHIP_AX, SHIP_AY, headingOf, type Ships } from '../art/ships';
 import {
@@ -81,11 +81,11 @@ const TIPS: Record<string, string> = {
  * Purely visual: the shared sim and the server decide everything.
  */
 export class CombatView {
-  /** extra delay (ms) applied to remote-entity render time: hit-stop freezes, phase slip slows */
+  /** Extra render delay for the deliberate phase-slip slowdown; light-hit feedback never freezes mobs. */
   warp = 0;
   private stopT = 0;
   private slipT = 0;
-  private predicted = new Map<string, number>();
+  private predicted = new Map<string, number[]>();
   private bombs: Array<{ x: number; y: number; r: number; t0: number; dur: number }> = [];
   private heartT = 0;
   private hurtT = 0;
@@ -95,6 +95,19 @@ export class CombatView {
   private wasCharging = false;
   /** last D4 facing per drawn creature (hysteresis) */
   private dirs = new WeakMap<CombatActor, number>();
+  private swings = new WeakMap<CombatActor, { at: number; duration: number }>();
+  private states = new WeakMap<CombatActor, { st: number; at: number }>();
+
+  /** Local prediction and remote authoritative events use the same pose timeline. */
+  attackFrame(v: CombatActor, now: number, reduced: boolean): number {
+    const swing = this.swings.get(v);
+    if (!swing || now - swing.at >= swing.duration) return -1;
+    return reduced ? 2 : Math.min(3, Math.floor(Math.max(0, now - swing.at) / swing.duration * 4));
+  }
+
+  private strike(v: CombatActor | undefined, duration: number): void {
+    if (v) this.swings.set(v, { at: performance.now(), duration });
+  }
   killedBy = '';
 
   constructor(private d: CombatDeps, private decal: Graphics) {
@@ -110,11 +123,14 @@ export class CombatView {
   /** Advance time effects; returns the dt scale for world effects this frame. */
   frame(dt: number): number {
     let scale = 1;
-    if (this.stopT > 0) { this.stopT -= dt; this.warp += dt * 1000; scale = 0.05; }
+    if (this.stopT > 0) { this.stopT -= dt; scale = 0.05; }
     else if (this.slipT > 0) { this.slipT -= dt; this.warp += dt * 1000 * 0.65; scale = 0.4; }
     else this.warp = Math.max(0, this.warp - dt * 1000 * 0.45);
     this.warp = Math.min(this.warp, 220);
-    for (const [k, t] of this.predicted) if (performance.now() - t > 600) this.predicted.delete(k);
+    for (const [id, hits] of this.predicted) {
+      while (hits.length && performance.now() - hits[0]! > 600) hits.shift();
+      if (!hits.length) this.predicted.delete(id);
+    }
     this.hurtT = Math.max(0, this.hurtT - dt);
     return scale;
   }
@@ -125,6 +141,7 @@ export class CombatView {
   onLocalStep(ev: StepEvents, sim: PlayerSim, me: CombatActor | undefined): void {
     const fx = this.d.fx();
     if (ev.dashed) {
+      if (me) this.swings.delete(me);
       fx.dash(sim.x, sim.y, sim.faceX, sim.faceY); this.d.sound('dash');
       if (++this.dashesUsed === 3) this.showTip('charges');
     }
@@ -134,6 +151,7 @@ export class CombatView {
     if (charging && !this.wasCharging) this.d.sound('charge');
     this.wasCharging = charging;
     if (!ev.attacked) return;
+    this.strike(me, ev.heavy ? 320 : ev.combo === 2 ? 300 : 220);
     const wp = this.d.weapon();
     if (wp.ranged) {
       // a shot: muzzle flash toward the aim, a recoil kick; the server fires and resolves it
@@ -156,7 +174,9 @@ export class CombatView {
       const def = ENEMY_BY_KIND[v.kind];
       if (!def || !inArc(sim.x, sim.y, sim.faceX, sim.faceY, hit, { x: v.lx, y: v.ly, r: def.radius })) continue;
       any = true;
-      this.predicted.set(v.id, performance.now());
+      const hits = this.predicted.get(v.id) ?? [];
+      hits.push(performance.now()); this.predicted.set(v.id, hits);
+      this.states.delete(v);
       v.flash = 1; v.punch = 1;
       fx.impact(v.lx, v.ly, hit.weight, ev.counter, sim.faceX, sim.faceY);
     }
@@ -175,19 +195,26 @@ export class CombatView {
     const mine = f.by !== undefined && f.by === this.d.myId();
     const near = (r = 14) => { const m = this.d.me(); return !m || Math.hypot(m.x - f.x, m.y - f.y) < r; };
     switch (f.kind) {
-      case 'swing': fx.swing(f.x, f.y, f.dx ?? 0, f.dy ?? 1, f.v ?? 0); this.d.sound(f.v === 2 ? 'finisher' : 'swing', f.x, f.y); return true;
-      case 'heavy': fx.heavy(f.x, f.y, f.dx ?? 0, f.dy ?? 1, f.v ?? 0); this.d.sound('heavy', f.x, f.y); return true;
+      case 'shot':
+        if (f.id && !mine) this.strike(view(f.id), 260);
+        return false; // ordinary shot particles/audio remain in Game
+      case 'swing': this.strike(f.id ? view(f.id) : undefined, f.v === 2 ? 300 : 220); fx.swing(f.x, f.y, f.dx ?? 0, f.dy ?? 1, f.v ?? 0); this.d.sound(f.v === 2 ? 'finisher' : 'swing', f.x, f.y); return true;
+      case 'heavy': this.strike(f.id ? view(f.id) : undefined, 320); fx.heavy(f.x, f.y, f.dx ?? 0, f.dy ?? 1, f.v ?? 0); this.d.sound('heavy', f.x, f.y); return true;
       case 'hit': {
         const w = f.w ?? 0, crit = f.c === 1;
         const v = f.id ? view(f.id) : undefined;
-        if (v) { v.flash = 1; v.punch = Math.max(v.punch, 0.6 + w * 0.15); }
-        const wasPredicted = mine && f.id !== undefined && this.predicted.has(f.id);
+        const hits = mine && f.id ? this.predicted.get(f.id) : undefined;
+        const wasPredicted = !!hits?.length;
+        if (v && !wasPredicted) { this.states.delete(v); v.flash = 1; v.punch = Math.max(v.punch, 0.6 + w * 0.15); }
         if (!wasPredicted) {
           fx.impact(f.x, f.y, w, crit, f.dx ?? 0, f.dy ?? 0);
           if (mine || w >= 2) { this.hitStop(hitStopMs(w, crit, false)); fx.kick(shakeFor(w, crit, this.d.reduced())); }
           this.d.sound(w >= 2 ? 'hitHeavy' : w === 1 ? 'hit' : 'hitLight', f.x, f.y);
         } else if (crit) this.hitStop(35);
-        if (f.id) this.predicted.delete(f.id);
+        if (wasPredicted && f.id) {
+          hits!.shift();
+          if (!hits!.length) this.predicted.delete(f.id);
+        }
         if (crit) { this.d.sound('crit', f.x, f.y); fx.burst(f.x, f.y, [38, 39, 7], 8); }
         if (f.v !== undefined) fx.damage(f.x, f.y, f.v, { crit, weight: w, stagger: f.s === 1 });
         return true;
@@ -305,26 +332,29 @@ export class CombatView {
   private speeds = new WeakMap<CombatActor, { t: number; v: number }>();
 
   /** Wildlife sprite: picks the animation from what the animal is doing (moving, resting, winding up, charging...) and its iso facing. */
-  private critter(v: CombatActor, kind: number, s: CombatSnap | null, st: number, moved: boolean, t: number, dt: number): void {
+  private critter(v: CombatActor, kind: number, s: CombatSnap | null, st: number, moved: boolean, t: number, dt: number, elapsed: number): void {
     const id: CritterId = kind === 3 ? 'stag' : kind === 7 || kind === 11 ? 'boar' : kind === 8 ? 'wolf' : 'badger';
     const c = this.d.critters();
     // ground speed (tiles/s), smoothed, tells walking from running without a synced flag
     const rec = this.speeds.get(v) ?? { t: v.travel, v: 0 };
-    rec.v += ((dt > 0 ? (v.travel - rec.t) / dt : 0) - rec.v) * Math.min(1, dt * 8);
+    rec.v += ((dt > 0 ? (v.travel - rec.t) / dt : 0) - rec.v) * (1 - Math.exp(-dt * 8));
     rec.t = v.travel;
     this.speeds.set(v, rec);
     const spd = rec.v;
-    const dir = critterDir(s?.faceX ?? 0, s?.faceY ?? 1);
+    const sd = screenDir(s?.faceX ?? 0, s?.faceY ?? 1);
+    const facing = dir4(sd.x, sd.y, this.dirs.get(v) ?? D4_SE);
+    this.dirs.set(v, facing);
+    const dir = (['SE', 'SW', 'NE', 'NW'] as const)[facing]!;
     let anim = 'idle', frame = t * c.fps(id, 'idle') + v.outfit * 3;
     const run = (a: string, k = 1) => { anim = a; frame = (v.travel * 2.4 + v.outfit) * k; };
-    if (id === 'stag') { if (moved && spd > 0.9) { if (spd > 3.4) { anim = 'run'; frame = t * 14 + v.outfit; } else { anim = 'walk'; frame = t * 10 + v.outfit; } } }
-    else if (id === 'boar') { if (st === 3 || (moved && spd > 1.4)) { anim = 'run'; frame = t * (st === 3 ? 16 : 11) + v.outfit; } else if (moved && spd > 0.4) run('run', 0.6); }
-    else if (id === 'badger') { if (moved && spd > 0.3) { anim = 'walk'; frame = t * Math.min(16, 6 + spd * 2.5) + v.outfit; } }
+    if (id === 'stag') { if (moved && spd > 0.9) { if (spd > 3.4) run('run', 1.3); else run('walk'); } }
+    else if (id === 'boar') { if (st === 3 || (moved && spd > 1.4)) { run('run', st === 3 ? 1.5 : 1.1); } else if (moved && spd > 0.4) run('run', 0.6); }
+    else if (id === 'badger') { if (moved && spd > 0.3) { run('walk'); } }
     else { // wolf
       if (st === 2) { anim = 'howl'; frame = ((s?.tele ?? 0) / 100) * (c.length(id, 'howl') - 1); }
-      else if (st === 3) { anim = 'bite'; frame = t * 24; }
+      else if (st === 3) { anim = 'bite'; frame = Math.min(c.length(id, 'bite') - 1, elapsed * 24); }
       else if (st === 5) { anim = 'idle'; frame = 0; }
-      else if (moved && spd > 0.3) { anim = 'run'; frame = t * Math.min(18, 8 + spd * 2) + v.outfit; }
+      else if (moved && spd > 0.3) { run('run', 1.2); }
     }
     v.sprite.texture = c.frame(id, anim, dir, frame);
     const a = c.anchor(id);
@@ -404,6 +434,9 @@ export class CombatView {
     v.kind = kind;
     const st = s?.st ?? 0;
     const t = now / 1000;
+    let state = this.states.get(v);
+    if (!state || state.st !== st) { state = { st, at: now }; this.states.set(v, state); }
+    const elapsed = Math.max(0, (now - state.at) / 1000);
     const foes = this.d.foes();
     const def = ENEMY_BY_KIND[kind];
     const fsx = screenDir(fx, s?.faceY ?? 1).x;
@@ -421,14 +454,14 @@ export class CombatView {
       const tele0 = Math.min(1, (s?.tele ?? 0) / 100);
       let anim: Anim = 'idle', f = 0;
       const n = (a: Anim) => foes.frames(model, a);
-      if (st === 5 || v.flash > 0.55) anim = 'hurt';
+      if (st === 5 || v.flash > 0.55) { anim = 'hurt'; f = Math.min(n('hurt') - 1, Math.floor(elapsed * 12)); }
       else if (st === 2) { anim = 'windup'; f = Math.min(n('windup') - 1, Math.floor(tele0 * n('windup'))); }
-      else if (st === 3) { anim = 'attack'; f = Math.floor(t * 9) % n('attack'); }
+      else if (st === 3) { anim = 'attack'; f = Math.min(n('attack') - 1, Math.floor(elapsed * 12)); }
       else if (moved) { anim = 'move'; const stride = MOVE_STRIDE[model]; f = stride ? Math.floor(v.travel / stride) : Math.floor(t * (model === 6 ? 14 : 8) + v.outfit); }
       else f = Math.floor(t * (model === 6 ? 6 : 5) + v.outfit * 1.7);
       v.sprite.texture = foes.frame(model, night || kind === 12, dir, anim, f);
     } else switch (kind) {
-      case 3: case 7: case 8: case 9: case 11: this.critter(v, kind, s, st, moved, t, dt); break;
+      case 3: case 7: case 8: case 9: case 11: this.critter(v, kind, s, st, moved, t, dt, elapsed); break;
       case 13: this.sailer(v, s, fx, t); break;
       case 14: this.serpent(v, s, st, fx, t); break;
     }

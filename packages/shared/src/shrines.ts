@@ -1,5 +1,5 @@
 import { hash2 } from './rng';
-import { tileAt, sampleClimate } from './worldgen';
+import { landmarkTileAt, sampleClimate } from './worldgen';
 import { isSolid } from './tiles';
 import type { WorldObj } from './objects';
 import { townFor } from './town';
@@ -27,7 +27,7 @@ const cache = new Map<string, Shrine | null>();
 
 function clear(seed: number, x: number, y: number): boolean {
   for (let j = -4; j <= 4; j++) for (let i = -4; i <= 4; i++) {
-    const t = tileAt(seed, x + i, y + j);
+    const t = landmarkTileAt(seed, x + i, y + j);
     if (isSolid(t)) return false;
   }
   return sampleClimate(seed, x, y).height > -0.05;

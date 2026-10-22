@@ -22,6 +22,8 @@ declare global {
 
 async function boot(): Promise<void> {
   $('app').innerHTML = HTML;
+  $('btn-landscape').addEventListener('click', () => { void requestLandscape(true); });
+  $('btn-portrait').addEventListener('click', () => document.documentElement.classList.add('portrait-allowed'));
   const settings = loadSettings();
   const canvas = $<HTMLCanvasElement>('game');
   const keys = loadKeys();
@@ -83,6 +85,7 @@ async function boot(): Promise<void> {
 
   $('btn-guest').addEventListener('click', async () => {
     game.audio.unlock();
+    void requestLandscape();
     try {
       const g = await guestLogin();
       await enter(g, ($<HTMLInputElement>('name').value || '').trim() || undefined);
@@ -113,6 +116,18 @@ function setupGoogle(clientId: string | null, onCredential: (idToken: string) =>
   document.head.append(s);
 }
 
+async function requestLandscape(explicit = false): Promise<void> {
+  if (!matchMedia('(pointer: coarse)').matches) return;
+  if (!explicit && document.documentElement.classList.contains('portrait-allowed')) return;
+  if (explicit) document.documentElement.classList.remove('portrait-allowed');
+  try {
+    if (!document.fullscreenElement && document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
+    const orientation = screen.orientation as ScreenOrientation & { lock?: (mode: string) => Promise<void> };
+    if (orientation?.lock) await orientation.lock('landscape');
+  } catch { /* iOS and embedded browsers require physical rotation. */ }
+  $('rotate-note').textContent = 'If the screen has not turned, rotate your phone and check its rotation lock.';
+}
+
 function setupTouch(input: Input): void {
   if (!matchMedia('(pointer: coarse)').matches) return;
   $('touch').hidden = false;
@@ -125,17 +140,21 @@ function setupTouch(input: Input): void {
     if (l > 1) { dx /= l; dy /= l; }
     const dead = Math.hypot(dx, dy) < 0.15;
     input.setStick(dead ? 0 : dx, dead ? 0 : dy);
-    knob.style.transform = `translate(${dx * 40}px, ${dy * 40}px)`;
+    knob.style.transform = `translate(${dx * (r.width * 0.3)}px, ${dy * (r.height * 0.3)}px)`;
   };
   stick.addEventListener('pointerdown', (e) => { active = e.pointerId; stick.setPointerCapture(e.pointerId); move(e); });
   stick.addEventListener('pointermove', (e) => { if (e.pointerId === active) move(e); });
   const end = (e: PointerEvent) => { if (e.pointerId === active) { active = null; input.setStick(0, 0); knob.style.transform = ''; } };
-  stick.addEventListener('pointerup', end); stick.addEventListener('pointercancel', end);
+  stick.addEventListener('pointerup', end); stick.addEventListener('pointercancel', end); stick.addEventListener('lostpointercapture', end);
+  const reset = () => { active = null; knob.style.transform = ''; input.reset(); };
+  window.addEventListener('resize', reset);
+  window.addEventListener('blur', reset);
+  document.addEventListener('visibilitychange', reset);
   document.querySelectorAll<HTMLButtonElement>('#tbtns button').forEach((b) => {
     const a = b.dataset.a as 'attack' | 'skill' | 'dash' | 'interact';
     b.addEventListener('pointerdown', (e) => { e.preventDefault(); b.setPointerCapture(e.pointerId); input.touch(a, true); });
     const up = () => input.touch(a, false);
-    b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up);
+    b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('lostpointercapture', up);
   });
 }
 

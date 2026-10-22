@@ -1,10 +1,10 @@
 import { Rectangle, Texture } from 'pixi.js';
 import { NPCS } from '@eigenlands/shared';
-import { blob, C, limb, makeCanvas, outline, PixBuf, polish, poly, put, rampAt, type Ctx, type Ramp } from './shade';
+import { blob, C, limb, makeCanvas, outline, PixBuf, polish, poly, put, rampAt, undithered, type Ctx, type Ramp } from './shade';
 
 /**
  * Characters, enemies and fauna. People are 24x32 frames in 8 iso directions with an idle pair (breathing) and an
- * 8-frame walk. Every direction is drawn (never mirrored) so the key light always comes from the top-left.
+ * 8-frame walk, four strike/recovery poses and eight run poses. Every direction is drawn (never mirrored) so the key light always comes from the top-left.
  */
 export const DIR_DOWN = 0, DIR_UP = 1, DIR_LEFT = 2, DIR_RIGHT = 3;
 export const DIR_DOWN_LEFT = 4, DIR_DOWN_RIGHT = 5, DIR_UP_LEFT = 6, DIR_UP_RIGHT = 7;
@@ -12,7 +12,10 @@ export const DIR_DOWN_LEFT = 4, DIR_DOWN_RIGHT = 5, DIR_UP_LEFT = 6, DIR_UP_RIGH
 export const WALK_FRAMES = 9;
 export const PERSON_W = 24;
 export const PERSON_H = 32;
-const COLS = WALK_FRAMES + 1;          // + a second idle (breathing) frame
+export const ATTACK_FRAME = 10, ATTACK_FRAMES = 4;
+export const RUN_FRAME = 14, RUN_FRAMES = 8;
+export const SHOT_FRAME = 22, CAST_FRAME = 26;
+const COLS = CAST_FRAME + ATTACK_FRAMES;
 
 /** Screen-space facing vector -> one of 8 directions. */
 export function dirOf(fx: number, fy: number): number {
@@ -102,8 +105,35 @@ const VIEWS: View[] = [
   { turn: 1.5, s: 1 },   // UP_RIGHT
 ];
 
+/** Shared near-hand anchor for the body and held equipment; coordinates in the 24×32 frame. */
+export function personGrip(dir: number, frame: number): { x: number; y: number; angle: number } {
+  const { s, turn } = VIEWS[dir]!;
+  const profile = turn === 1, three = turn === 0.5 || turn === 1.5, back = turn > 1.2, front = turn < 0.8;
+  const nearK = (back ? s : -s) > 0 ? 1 : 0;
+  const running = frame >= RUN_FRAME && frame < SHOT_FRAME;
+  const moving = (frame >= 1 && frame <= 8) || running;
+  const action = frame >= CAST_FRAME ? frame - CAST_FRAME : frame >= SHOT_FRAME ? frame - SHOT_FRAME : frame >= ATTACK_FRAME && frame < RUN_FRAME ? frame - ATTACK_FRAME : -1;
+  const reach = action >= 0 ? [0.35, 1, 0.65, 0][action]! : 0;
+  const aim = [[0, 1], [0, -1], [-1, 0], [1, 0], [-0.894, 0.447], [0.894, 0.447], [-0.894, -0.447], [0.894, -0.447]][dir]!;
+  const sw = moving ? Math.sin(((running ? frame - RUN_FRAME : frame - 1) / 8) * Math.PI * 2) * (running ? 1.3 : 1) : 0;
+  const sk = nearK ? sw : -sw;
+  const top = moving ? Math.abs(sw) < 0.5 ? -1 : 0 : action >= 0 ? -reach * 0.7 : frame === 9 ? 0.6 : 0;
+  const sy = 14.3 + top;
+  const lean = (profile ? 0.6 : three ? 0.3 : 0) * s * (running ? 2 : moving ? 1 : 0.5) + aim[0]! * reach;
+  const sx = profile ? 12.5 + lean * 0.8 : 12.5 + (nearK ? 1 : -1) * ((three ? 4 : 4.5) - 0.7) + lean;
+  let x = profile ? sx + (sk * 2.8 + Math.max(0, sk) * 0.8) * s : sx + (nearK ? 0.9 : -0.9) + (three ? sk * 1.6 * s : 0);
+  let y = profile ? sy + 7 - Math.abs(sk) * 0.9 - Math.max(0, sk) * 0.6 : sy + 7 + (front ? sk : back ? -sk : sk * 0.7) * 1.1;
+  if (action >= 0) { x = sx + aim[0]! * (2 + reach * 5); y = sy + 3 + aim[1]! * reach * 4; }
+  const aimAngle = Math.atan2(aim[1]!, aim[0]!);
+  // Crossbow points along aim; a blade cuts across it, a staff returns upright after release.
+  let angle = action >= 0 ? aimAngle + [-0.8, -0.1, 0.45, -0.7][action]! : -1.1 + sw * 0.15;
+  if (frame >= CAST_FRAME) angle = action === 1 ? aimAngle - 0.35 : -1.35;
+  else if (frame >= SHOT_FRAME) { angle = aimAngle; x -= aim[0]! * (action === 2 ? 1.2 : 0); y -= aim[1]! * (action === 2 ? 1.2 : 0); }
+  return { x, y, angle };
+}
+
 /**
- * Draw one 24x32 person frame (frame 0 idle, 1..8 walk, 9 idle-breath). Natural proportions, about four heads tall:
+ * Draw one 24x32 person frame (frame 0 idle, 1..8 walk, 9 idle-breath, 10..13 strike, 14..21 run, 22..25 crossbow, 26..29 cast). Natural proportions, about four heads tall:
  * a tapered torso over the hips, jointed arms that hang clear of the waist, knees that bend as each foot lifts, and
  * heeled boots. Limbs swing in opposition and the body rises twice per stride.
  */
@@ -111,11 +141,15 @@ function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, seed: numbe
   const v = VIEWS[dir]!;
   const s = v.s, turn = v.turn;
   const back = turn > 1.2, front = turn < 0.8, profile = turn === 1, three = turn === 0.5 || turn === 1.5;
-  const moving = frame >= 1 && frame <= 8;
-  const p = moving ? ((frame - 1) / 8) * Math.PI * 2 : 0;
-  const sw = moving ? Math.sin(p) : 0;
+  const running = frame >= RUN_FRAME && frame < SHOT_FRAME;
+  const action = frame >= CAST_FRAME ? frame - CAST_FRAME : frame >= SHOT_FRAME ? frame - SHOT_FRAME : frame >= ATTACK_FRAME && frame < RUN_FRAME ? frame - ATTACK_FRAME : -1;
+  const reach = action >= 0 ? [0.35, 1, 0.65, 0][action]! : 0;
+  const aim = [[0, 1], [0, -1], [-1, 0], [1, 0], [-0.894, 0.447], [0.894, 0.447], [-0.894, -0.447], [0.894, -0.447]][dir]!;
+  const moving = (frame >= 1 && frame <= 8) || running;
+  const p = moving ? ((running ? frame - RUN_FRAME : frame - 1) / 8) * Math.PI * 2 : 0;
+  const sw = moving ? Math.sin(p) * (running ? 1.3 : 1) : 0;
   const cosp = moving ? Math.cos(p) : 0;
-  const top = moving ? (Math.abs(sw) < 0.5 ? -1 : 0) : frame === 9 ? 0.6 : 0;
+  const top = moving ? (Math.abs(sw) < 0.5 ? -1 : 0) : action >= 0 ? -reach * 0.7 : frame === 9 ? 0.6 : 0;
   const sh = o.shorten ?? 0;
   const cx = 12.5;
   const foot = 30;
@@ -123,7 +157,7 @@ function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, seed: numbe
   const y0 = 13.0 + sh * 0.6 + top;                                  // shoulder line
   const waistY = y0 + 4.2;
   const shW = profile ? 2.9 : three ? 4.0 : 4.5, waW = profile ? 2.4 : three ? 3.0 : 3.3, hiW = profile ? 2.6 : three ? 3.2 : 3.5;
-  const lean = (profile ? 0.6 : three ? 0.3 : 0) * s * (moving ? 1 : 0.5);   // the chest leads the hips a little
+  const lean = (profile ? 0.6 : three ? 0.3 : 0) * s * (running ? 2 : moving ? 1 : 0.5) + aim[0]! * reach;   // the chest leads the hips a little
   const edge = (r: Ramp) => [r[0]!, r[0]!] as Ramp;                  // selective outline for limbs crossing the body
   // three-quarter views: the shoulder turned toward the camera is screen-left when facing down-right (and mirrored)
   const nearK = (back ? s : -s) > 0 ? 1 : 0, farK = 1 - nearK;
@@ -157,6 +191,27 @@ function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, seed: numbe
       const side = k ? 1 : -1;
       sx = cx + side * (shW - (three && k === farK ? 1.5 : 0.7)) + lean; ex = sx + side * 0.7 + (three ? sk * 0.7 * s : 0); ey = sy + 3.7 + (front ? sk * 0.4 : back ? -sk * 0.4 : 0);
       hx = sx + side * 0.9 + (three ? sk * 1.6 * s : 0); hy = sy + 7 + (front ? sk : back ? -sk : sk * 0.7) * 1.1;
+    }
+    if (action >= 0) {
+      if (k === nearK) {
+        hx = sx + aim[0]! * (2 + reach * 5);
+        hy = sy + 3 + aim[1]! * reach * 4;
+        ex = sx + (hx - sx) * 0.55;
+        ey = sy + 2.3 + aim[1]! * reach;
+      } else {
+        hx = sx + (profile ? s : k ? -1 : 1) * 1.5;
+        hy = sy + 4;
+        ey = sy + 2.8;
+      }
+    }
+    if (k === nearK && !sh) {
+      const grip = personGrip(dir, frame); hx = grip.x; hy = grip.y;
+      if (action >= 0) { ex = sx + (hx - sx) * 0.55; ey = sy + 2.3 + aim[1]! * reach; }
+    }
+    // The support hand meets the stock while shooting, rather than guarding the chest.
+    if (frame >= SHOT_FRAME && frame < CAST_FRAME && k !== nearK) {
+      const grip = personGrip(dir, frame); hx = grip.x + aim[0]! * 3; hy = grip.y + aim[1]! * 3;
+      ex = (sx + hx) / 2; ey = sy + 3;
     }
     if (near) { limb(ctx, sx, sy, ex, ey, 1.8, 1.7, edge(o.shirt)); limb(ctx, ex, ey, hx, hy - 0.8, 1.7, 1.6, edge(o.shirt)); }
     limb(ctx, sx, sy, ex, ey, 1.3, 1.1, o.shirt, seed + 10 + k, k ? -0.08 : 0.06);
@@ -223,7 +278,7 @@ function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, seed: numbe
   put(ctx, Math.round(hx - 1), Math.round(hy + 2.8), o.skin[1]!, 2, 2);
   if (o.scarf) { blob(ctx, tcx, y0 + 0.3, shW - 1, 1.5, o.scarf, { seed: seed + 30, noise: 0.1, edgeDark: 0.15 }); if (!back) put(ctx, Math.round(cx + (profile ? -1.5 * s : 1.5)), Math.round(y0 + 0.8), o.scarf[1]!, 1, 4); }
   // head: soft, mostly mid-tone skin (faces read better flat), lit along the upper-left, jaw shaded
-  { const rx = profile ? 3.9 : 4.2, ry = 4.4;
+  { const rx = profile ? 3.2 : 3.5, ry = 4.0;
     for (let y = Math.floor(hy - ry); y <= Math.ceil(hy + ry); y++) for (let x = Math.floor(hx - rx); x <= Math.ceil(hx + rx); x++) {
       const nx = (x + 0.5 - hx) / rx, ny = (y + 0.5 - hy) / ry;
       const jaw = ny > 0.35 ? (ny - 0.35) * 0.9 : 0;                 // the chin narrows
@@ -232,14 +287,14 @@ function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, seed: numbe
       put(ctx, x, y, rampAt(o.skin, t, x, y));
     } }
   if (!front || turn === 0.5) if (!back || turn === 1.5) put(ctx, Math.round(hx - 1.6 * s), Math.round(hy + 0.6), o.skin[1]!, 1, 2);
-  // hair: a big, chunky mass (the reference style): jagged bangs, side locks framing the face, a shine band and strands
+  // hair: sculpted masses with a restrained highlight and directional side locks
   const style: HairStyle = o.hairStyle ?? (o.longHair ? 'long' : 'short');
   const H = o.hair;
   const hr = (y: number, x: number, t: number) => rampAt(H, t, x, y);
   if (style !== 'bald') {
     const big = style === 'curly' ? 1 : 0;
     for (let y = Math.floor(hy - 6 - big); y <= Math.ceil(hy + 4.6); y++) for (let x = Math.floor(hx - 6 - big); x <= Math.ceil(hx + 6 + big); x++) {
-      const nx = (x + 0.5 - hx) / (4.9 + big * 0.9), ny = (y + 0.5 - (hy - 0.6)) / (5.0 + big * 0.9);
+      const nx = (x + 0.5 - hx) / (4.1 + big * 0.6), ny = (y + 0.5 - (hy - 0.6)) / (4.5 + big * 0.6);
       if (nx * nx + ny * ny > 1) continue;
       const fringe = hy - 1.6 + ((x * 5 + seed) % 3 === 0 ? 1.2 : (x * 5 + seed) % 3 === 1 ? 0.4 : 0);   // spiky bangs
       let cover: boolean;
@@ -252,7 +307,7 @@ function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, seed: numbe
       const n = ((x * 7 + y * 13 + seed) % 5) / 5;
       const shine = ny > -0.66 && ny < -0.4 && nx > -0.7 && nx < 0.25 && !back ? 0.3 : back && ny > -0.5 && ny < -0.25 && nx < 0.2 ? 0.25 : 0;
       const strand = (x + Math.floor(y * 0.5)) % 3 === 0 && ny > -0.3 ? -0.14 : 0;
-      put(ctx, x, y, hr(y, x, 0.5 + lam * 0.5 + shine + strand + (big ? (n - 0.5) * 0.5 : (n - 0.5) * 0.12)));
+      put(ctx, x, y, hr(y, x, 0.5 + lam * 0.5 + shine + strand + (big ? (n - 0.5) * 0.16 : 0)));
     }
     const longLen = style === 'long' ? 9 : style === 'braids' ? 10 : 0;
     if (longLen) {
@@ -271,9 +326,9 @@ function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, seed: numbe
   }
   if (o.headband !== undefined) put(ctx, Math.round(hx - 4.5), Math.round(hy - 2), o.headband, 9, 1);
 
-  // face: big readable eyes with a catch-light, a hint of mouth
+  // Faces: one-pixel eyes, brows and a quiet jaw shadow.
   const ey = Math.round(hy + 0.6);
-  const eye = (x: number) => { put(ctx, x, ey, C.ink, 1, 2); put(ctx, x, ey, C.night, 1, 1); };
+  const eye = (x: number) => { put(ctx, x, ey, C.ink, 1, 1); put(ctx, x, ey - 1, o.hair[1]!, 1, 1); };
   if (front) {
     for (const ex of [-2, 1]) eye(Math.round(hx) + ex);
     put(ctx, Math.round(hx) - 3, ey + 2, C.r5); put(ctx, Math.round(hx) + 2, ey + 2, C.r5);   // cheeks
@@ -307,12 +362,12 @@ function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, seed: numbe
       put(ctx, Math.round(hx - 4), Math.round(hy - 4.4), C.r3, 8, 1);
     } else if (hs === 'helm') {
       // domed iron helm with a visor slit, cheek guards and a crest
-      blob(ctx, hx, hy - 1.8, 5.2, 5.0, hh, { seed: seed + 65, noise: 0.08, bright: 0.1, edgeDark: 0.2 });
+      blob(ctx, hx, hy - 1.8, 4.5, 4.6, hh, { seed: seed + 65, noise: 0.08, bright: 0.1, edgeDark: 0.2 });
       if (!back) put(ctx, Math.round(hx) - (profile ? 0 : 3), Math.round(hy + 0.6), C.ink, profile ? 4 : 6, 1);
       if (front) for (const sx of [-4, 3]) put(ctx, Math.round(hx) + sx, Math.round(hy + 1), hh[1]!, 1, 3);
       limb(ctx, hx, hy - 7.2, hx - 1.5 * s, hy - 5.5, 1.3, 0.9, o.cape ?? [C.r2, C.r3, C.r4, C.r5], seed + 67);
     } else if (hs === 'hood') {
-      blob(ctx, hx, hy - 3, 5.4, 3.6, hh, { seed: seed + 66, noise: 0.12, bright: 0.05, edgeDark: 0.2 });
+      blob(ctx, hx, hy - 3, 4.7, 3.3, hh, { seed: seed + 66, noise: 0.12, bright: 0.05, edgeDark: 0.2 });
       for (const sx of [-1, 1]) put(ctx, Math.round(hx + sx * 5 - (sx < 0 ? 1 : 0)), Math.round(hy - 1.5), hh[1]!, 1, 6);
       if (!back) put(ctx, Math.round(hx - 3), Math.round(hy - 1.2), hh[0]!, 7, 1);
     } else if (hs === 'circlet') {
@@ -451,12 +506,12 @@ function polished(buf: PixBuf, ax: number, ay: number, rx: number): void {
   polish(buf.ctx, buf.width, buf.height, { rim: true, ao: { ax, ay, rx } });
 }
 
-function personSheet(looks: Outfit[], seedBase: number): HTMLCanvasElement {
-  const { canvas, ctx } = makeCanvas(PERSON_W * COLS, looks.length * 8 * PERSON_H);
+function personSheet(looks: Outfit[], seedBase: number, cols = COLS): HTMLCanvasElement {
+  const { canvas, ctx } = makeCanvas(PERSON_W * cols, looks.length * 8 * PERSON_H);
   looks.forEach((o, i) => {
-    for (let d = 0; d < 8; d++) for (let f = 0; f < COLS; f++) {
+    for (let d = 0; d < 8; d++) for (let f = 0; f < cols; f++) {
       const buf = new PixBuf(PERSON_W, PERSON_H);
-      drawPerson(buf.ctx, d, f, o, seedBase + i * 37 + d * 13);
+      undithered(() => drawPerson(buf.ctx, d, f, o, seedBase + i * 37 + d * 13));
       polished(buf, 12, 31, 6);
       buf.blit(ctx, f * PERSON_W, (i * 8 + d) * PERSON_H);
     }
@@ -467,7 +522,7 @@ function personSheet(looks: Outfit[], seedBase: number): HTMLCanvasElement {
 export function buildActorSheets(): Sheets {
   const base = Texture.from(personSheet(OUTFITS, 1)); base.source.scaleMode = 'nearest';
   const npcIds = NPCS.map((n) => n.id);
-  const npcBase = Texture.from(personSheet(npcIds.map((id, i) => NPC_LOOKS[id] ?? OUTFITS[i % COSMETIC_OUTFITS]!), 700)); npcBase.source.scaleMode = 'nearest';
+  const npcBase = Texture.from(personSheet(npcIds.map((id, i) => NPC_LOOKS[id] ?? OUTFITS[i % COSMETIC_OUTFITS]!), 700, WALK_FRAMES + 1)); npcBase.source.scaleMode = 'nearest';
 
   // creatures: slime 24x20 (day/night x4), hopper 22x22 (x4 x2), orb 16x16 x2, rabbit 20x18 x4, deer 34x34 x4
   const cw = 34 * 4, ch = 20 * 2 + 22 * 2 + 16 + 18 + 34;
@@ -501,12 +556,12 @@ export function buildActorSheets(): Sheets {
     return t;
   };
   // idle frames alternate with a breathing frame on their own clock (phase-offset per look/direction)
-  const idleCol = (k: number) => ((performance.now() / 700 + k * 0.37) % 2 < 1.15 ? 0 : COLS - 1);
-  const col = (f: number, k: number) => (f <= 0 ? idleCol(k) : Math.min(WALK_FRAMES - 1, f));
+  const idleCol = (k: number) => ((performance.now() / 700 + k * 0.37) % 2 < 1.15 ? 0 : 9);
+  const col = (f: number, k: number, max = COLS - 1) => (f === -1 ? 0 : f <= 0 ? idleCol(k) : Math.min(max, f));
   const dd = (d: number) => ((d % 8) + 8) % 8;
   return {
     person: (o, d, f) => { const c = col(f, o * 3 + d); return sub(base, `p${o}.${dd(d)}.${c}`, c * PERSON_W, (o * 8 + dd(d)) * PERSON_H, PERSON_W, PERSON_H); },
-    npc: (id, d, f) => { const i = Math.max(0, npcIds.indexOf(id)); const c = col(f, i * 5 + d); return sub(npcBase, `n${i}.${dd(d)}.${c}`, c * PERSON_W, (i * 8 + dd(d)) * PERSON_H, PERSON_W, PERSON_H); },
+    npc: (id, d, f) => { const i = Math.max(0, npcIds.indexOf(id)); const c = col(f, i * 5 + d, WALK_FRAMES - 1); return sub(npcBase, `n${i}.${dd(d)}.${c}`, c * PERSON_W, (i * 8 + dd(d)) * PERSON_H, PERSON_W, PERSON_H); },
     rabbit: (f) => sub(cBase, `r${f % 4}`, (f % 4) * 20, Y.rabbit, 20, 18),
     deer: (f) => sub(cBase, `d${f % 4}`, (f % 4) * 34, Y.deer, 34, 34),
     slime: (n, f) => (n ? sub(nBase, `sn${f % 4}`, (f % 4) * 24, 0, 24, 20) : sub(cBase, `s${f % 4}`, (f % 4) * 24, Y.slime, 24, 20)),

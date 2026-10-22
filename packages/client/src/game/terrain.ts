@@ -25,12 +25,15 @@ export class Terrain {
   private winCx = 1e9;
   private winCy = 1e9;
   private winDirty = true;
+  private painted: { x: number; y: number; season: number; motion: boolean } | null = null;
   private w = 16;
   private h = 16;
   private plaza: { x: number; y: number; r: number; x0: number; y0: number; x1: number; y1: number };
 
   constructor(private renderer: Renderer, private store: ChunkStore) {
     this.rt = RenderTexture.create({ width: 16, height: 16, scaleMode: 'nearest' });
+    // Pixi must invalidate the submitted sprite quad when this render target resizes.
+    this.rt.dynamic = true;
     this.sprite = new Sprite(this.rt);
     this.geometry = new MeshGeometry({
       positions: new Float32Array([0, 0, 16, 0, 16, 16, 0, 16]),
@@ -62,6 +65,7 @@ export class Terrain {
     if (wPx === this.w && hPx === this.h) return;
     this.w = wPx; this.h = hPx;
     this.rt.resize(wPx, hPx);
+    this.painted = null;
     this.rt.source.scaleMode = 'nearest';
     this.geometry.positions = new Float32Array([0, 0, wPx, 0, wPx, hPx, 0, hPx]);
     this.common.uniforms.uRes = new Float32Array([wPx, hPx]);
@@ -177,12 +181,15 @@ export class Terrain {
 
   /** Draw the terrain for the view whose top-left iso art-pixel is (isoX, isoY); (pcx,pcy) = the player's chunk. */
   render(isoX: number, isoY: number, pcx: number, pcy: number, time: number, season: number, motion: boolean, wind?: { dx: number; dy: number; strength: number }): void {
-    if (this.winDirty || pcx !== this.winCx || pcy !== this.winCy) this.assemble(pcx, pcy);
-    this.common.uniforms.uTime = time;
+    const changed = this.winDirty || pcx !== this.winCx || pcy !== this.winCy;
+    if (changed) this.assemble(pcx, pcy);
+    if (!motion && !changed && this.painted && !this.painted.motion && this.painted.x === isoX && this.painted.y === isoY && this.painted.season === season) return;
+    this.common.uniforms.uTime = motion ? time : 0;
     this.common.uniforms.uSeason = season;
     this.common.uniforms.uMotion = motion ? 1 : 0;
     if (wind) this.common.uniforms.uWind = new Float32Array([wind.dx, wind.dy, wind.strength]);
     this.common.uniforms.uIso = new Float32Array([isoX, isoY]);
     this.renderer.render({ container: this.scene, target: this.rt, clear: true });
+    this.painted = { x: isoX, y: isoY, season, motion };
   }
 }

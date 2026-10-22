@@ -77,7 +77,7 @@ describe('interpolation and server clock', () => {
     expect(i.sample('a', 900)!.x).toBe(0);
     expect(i.sample('a', 1130)!.x).toBeGreaterThan(2);
     expect(i.sample('a', 1130)!.x).toBeLessThan(2.7);
-    expect(i.sample('a', 5000)!.x).toBe(2);
+    expect(i.sample('a', 5000)!.x).toBe(3); // hold the bounded prediction, never snap backward
     expect(i.sample('missing', 1)).toBeNull();
   });
   it('does not slide across the map on teleports and ignores out-of-order snapshots', () => {

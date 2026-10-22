@@ -44,11 +44,18 @@ export class Input {
   firstGesture: (() => void) | null = null;
   capturing: ((code: string) => void) | null = null;
 
+  /** Drop held and queued gestures when focus or orientation changes. */
+  reset(): void {
+    this.down.clear(); this.buffered.clear(); this.touchHeld.clear();
+    this.setStick(0, 0); this.mouse.left = this.mouse.right = false;
+    this.interactDown = false; this.setArmed(null);
+  }
+
   constructor(private el: HTMLElement, keys: KeyMap) {
     this.keys = keys;
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
-    window.addEventListener('blur', () => { this.down.clear(); this.mouse.left = this.mouse.right = false; this.setArmed(null); });
+    window.addEventListener('blur', () => this.reset());
     el.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') { this.mouse.x = e.clientX; this.mouse.y = e.clientY; this.mouse.lastMove = performance.now(); } });
     el.addEventListener('pointerdown', (e) => {
       this.firstGesture?.();
