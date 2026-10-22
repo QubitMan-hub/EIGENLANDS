@@ -30,7 +30,7 @@ export function newPlayerData(season: number): PlayerData {
   addStack(inv, { id: 'fiber', n: 5 });
   return {
     inv, coins: 100, skills: validSkills(null), recipes: new Set(startRecipes()),
-    equip: emptyEquip(), friends: {}, buffs: {}, quests: {}, deeds: {}, events: [], prog: { hearts: 0, bosses: [], shrines: [] },
+    equip: emptyEquip(), friends: {}, buffs: {}, quests: {}, deeds: {}, events: [], prog: { hearts: 0, bosses: [], shrines: [], ruins: [] },
   };
 }
 
@@ -110,7 +110,7 @@ export function loadPlayerData(raw: unknown, season: number, nowMs: number): Pla
 export function validProg(raw: unknown): PlayerData['prog'] {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const ids = (v: unknown): string[] => (Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === 'string' && x.length <= 40))].slice(0, 400) : []);
-  return { hearts: typeof r.hearts === 'number' && Number.isFinite(r.hearts) ? Math.max(0, Math.min(40, Math.floor(r.hearts))) : 0, bosses: ids(r.bosses), shrines: ids(r.shrines) };
+  return { hearts: typeof r.hearts === 'number' && Number.isFinite(r.hearts) ? Math.max(0, Math.min(40, Math.floor(r.hearts))) : 0, bosses: ids(r.bosses), shrines: ids(r.shrines), ruins: ids(r.ruins) };
 }
 
 export function serializePlayerData(d: PlayerData): Record<string, unknown> {

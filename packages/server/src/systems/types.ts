@@ -31,7 +31,7 @@ export interface PlayerData {
   /** heart events already seen ("npc:index") */
   events: string[];
   /** adventure progress: Heart Crystals used, bosses defeated, shrines solved */
-  prog: { hearts: number; bosses: string[]; shrines: string[] };
+  prog: { hearts: number; bosses: string[]; shrines: string[]; ruins: string[] };
 }
 
 export type DirtyPart = 'inv' | 'coins' | 'skills' | 'recipes' | 'equip' | 'friends' | 'buffs' | 'stats' | 'quests';

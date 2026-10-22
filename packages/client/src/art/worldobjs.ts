@@ -750,12 +750,100 @@ const TOWN_DECO: Record<string, () => ObjSpriteDef> = { shrine_altar: shrineAlta
 const objCache = new Map<string, ObjSpriteDef>();
 
 /** Sprite definition for a world object. Crops depend on growth stage / dead / superposition. */
+// ───────────────────────── ruins (one style per biome) ─────────────────────────
+/** Stone of a ruin: weathered fieldstone, snow-capped granite, fen-black basalt, sandstone, glade crystal, void glass. */
+function ruinStone(biome: string): { ramp: Ramp; cap: Ramp | null; moss: Ramp | null; glow: number | null } {
+  switch (biome) {
+    case 'taiga': return { ramp: [C.steel, C.mist, C.fog, C.pale], cap: [C.fog, C.pale, C.white, C.white], moss: null, glow: null };
+    case 'swamp': return { ramp: [C.night, C.slate, C.steel, C.mist], cap: null, moss: [C.g0, C.g1, C.g2, C.g3], glow: null };
+    case 'desert': return { ramp: [C.e3, C.e4, C.e5, C.e6, C.e7], cap: null, moss: null, glow: null };
+    case 'enchanted': return { ramp: [C.w1, C.w2, C.w3, C.w5, C.q7], cap: null, moss: [C.g2, C.w3, C.w5], glow: C.q7 };
+    case 'corrupted': return { ramp: [C.ink, C.q0, C.q1, C.q2, C.q3], cap: null, moss: null, glow: C.q5 };
+    case 'autumn': return { ramp: R.stone, cap: null, moss: [C.r0, C.r1, C.r4], glow: null };
+    default: return { ramp: R.stone, cap: null, moss: [C.g1, C.g2, C.g3, C.g4], glow: null };
+  }
+}
+
+function ruinDef(sub: string, biome: string): ObjSpriteDef {
+  const st = ruinStone(biome);
+  const topping = (ctx: Ctx, cx: number, y: number, w: number) => {
+    if (st.cap) blob(ctx, cx, y, w, 2.2, st.cap, { seed: 3, noise: 0.1, edgeDark: 0 });
+    else if (st.moss) blob(ctx, cx - w * 0.2, y, w * 0.6, 1.8, st.moss, { seed: 5, noise: 0.4, edgeDark: 0 });
+  };
+  const column = (ctx: Ctx, x: number, top: number, bot: number, w: number) => {
+    slab(ctx, x, top, w, bot - top, st.ramp, x + top, 0.25);
+    for (let y = top + 3; y < bot; y += 4) put(ctx, x, y, st.ramp[0]!, w, 1);       // drum joints
+    put(ctx, x, top, st.ramp[st.ramp.length - 1]!, w, 1);
+  };
+  switch (sub) {
+    case 'ruin_pillar': return still(sprite(14, 34, 7, 32, (ctx) => {
+      column(ctx, 3, 8 + (biome.length % 3) * 3, 31, 8); put(ctx, 1, 30, st.ramp[1]!, 12, 3);
+      put(ctx, 9, 10, st.ramp[0]!, 2, 1); topping(ctx, 7, 9 + (biome.length % 3) * 3, 4);
+    }));
+    case 'ruin_wall': return still(sprite(26, 26, 13, 24, (ctx) => {
+      for (let r = 0; r < 4; r++) for (let i = 0; i < 4 - (r === 3 ? 2 : r === 2 ? 1 : 0); i++) {
+        const x = 1 + i * 6 + (r % 2) * 3, y = 20 - r * 5;
+        slab(ctx, x, y, 6, 5, st.ramp, r * 7 + i, 0.3); put(ctx, x, y + 4, st.ramp[0]!, 6, 1); put(ctx, x + 5, y, st.ramp[0]!, 1, 5);
+      }
+      topping(ctx, 9, 6, 6);
+    }));
+    case 'ruin_rubble': return still(sprite(20, 12, 10, 10, (ctx) => {
+      for (const [x, y, r] of [[6, 7, 3], [12, 8, 2.4], [15, 5, 2], [9, 4, 1.8]] as const) blob(ctx, x, y, r, r * 0.75, st.ramp, { seed: x, noise: 0.25 });
+    }, { flat: true }));
+    case 'ruin_cache': return anim(frames(2, (f) => sprite(18, 18, 9, 16, (ctx) => {
+      slab(ctx, 2, 6, 14, 10, WOODL, 4, 0.3); put(ctx, 2, 6, C.e7, 14, 1);
+      slab(ctx, 2, 2, 14, 5, WOOD, 6, 0.25); put(ctx, 2, 6, C.e1, 14, 1);
+      for (const x of [2, 15]) put(ctx, x, 2, C.e6, 1, 14);                            // brass corners
+      put(ctx, 8, 7, C.e6, 2, 3); put(ctx, 8, 8, C.ink);                               // lock
+      if (st.moss) blob(ctx, 5, 3, 3, 1.3, st.moss, { seed: 2, noise: 0.5, edgeDark: 0 });
+      put(ctx, 4 + f * 9, 1 - f, C.white); put(ctx, 13 - f * 8, 5 + f, C.e7);          // a glint that calls you over
+    })), 2);
+    default: {
+      // the monument: arch, cairn, idol, obelisk, crystal arch, monolith
+      const h = sub === 'ruin_cairn' ? 30 : sub === 'ruin_idol' ? 34 : 46;
+      return anim(frames(st.glow !== null ? 3 : 1, (f) => sprite(40, h + 4, 20, h + 2, (ctx) => {
+        if (sub === 'ruin_arch' || sub === 'ruin_crystal') {
+          column(ctx, 5, 12, h + 1, 7); column(ctx, 28, 16, h + 1, 7);
+          poly(ctx, [[4, 14], [20, 4], [36, 14], [35, 18], [20, 9], [5, 18]], (x) => (x < 20 ? st.ramp[st.ramp.length - 2]! : st.ramp[1]!));
+          for (let i = 0; i < 6; i++) put(ctx, 8 + i * 4, 7 + Math.abs(i - 2.5) * 1.6, st.ramp[0]!, 1, 3);   // voussoirs
+          blob(ctx, 31, h, 5, 2, st.ramp, { seed: 4, noise: 0.3 });                      // a fallen block
+          topping(ctx, 20, 5, 7);
+        } else if (sub === 'ruin_cairn') {
+          for (const [x, y, r] of [[20, 27, 9], [15, 22, 6], [25, 21, 6], [20, 15, 6], [19, 9, 4.5], [21, 4.5, 3]] as const) blob(ctx, x, y, r, r * 0.72, st.ramp, { seed: x + y, noise: 0.2, edgeDark: 0.3 });
+          topping(ctx, 20, 3, 4); topping(ctx, 15, 18, 4);
+          put(ctx, 18, 12, C.r3, 4, 1);                                                   // a faded prayer cloth
+        } else if (sub === 'ruin_idol') {
+          blob(ctx, 20, 24, 10, 9, st.ramp, { seed: 7, noise: 0.2, edgeDark: 0.25 });     // body
+          blob(ctx, 20, 11, 7, 7, st.ramp, { seed: 9, noise: 0.15, edgeDark: 0.25 });     // head
+          put(ctx, 16, 10, C.ink, 2, 2); put(ctx, 22, 10, C.ink, 2, 2); put(ctx, 17, 15, st.ramp[0]!, 6, 1);
+          put(ctx, 16 + f, 10, C.g4); put(ctx, 22 + f, 10, C.g4);                         // eyes catch the fen-light
+          for (let i = 0; i < 9; i++) put(ctx, 9 + i * 3, h - 2 - (i % 3), C.g2, 2, 3);     // half-sunk in reeds
+          topping(ctx, 18, 5, 5);
+        } else {
+          // obelisk / monolith: a tall tapering block with carved bands
+          poly(ctx, [[13, h + 1], [15, 6], [20, 1], [25, 6], [27, h + 1]], (x, y) => (x < 20 ? st.ramp[Math.min(st.ramp.length - 1, 3 - (y > h / 2 ? 1 : 0))]! : st.ramp[1]!));
+          for (let y = 10; y < h; y += 7) put(ctx, 15, y, st.ramp[0]!, 11, 1);
+          if (sub === 'ruin_obelisk') { put(ctx, 9, h, C.e5, 22, 2); put(ctx, 6, h + 1, C.e4, 28, 1); }  // drifting sand
+          if (sub === 'ruin_monolith') for (let i = 0; i < 4; i++) { const x = 8 + i * 8, y = h - 3 - (i % 2) * 4; poly(ctx, [[x, y + 4], [x + 2, y - 4], [x + 4, y + 4]], (px) => (px < x + 2 ? C.q4 : C.q2)); }
+        }
+        if (st.glow !== null) {
+          const g = st.glow;
+          for (let i = 0; i < 5; i++) put(ctx, 12 + ((i * 7 + f * 5) % 18), 8 + ((i * 11 + f * 3) % (h - 10)), i % 2 ? g : C.white);
+          put(ctx, 19, Math.round(h * 0.45), g, 3, 3); put(ctx, 20, Math.round(h * 0.45) + 1, C.white);
+        }
+      }, { fringe: st.glow !== null })), 2);
+    }
+  }
+}
+
 export function worldObjDef(o: WorldObj): ObjSpriteDef {
   if (o.kind === 'crop') return cropDef(o.data as unknown as CropData | undefined, o.sub);
-  const key = o.kind === 'sprinkler' ? `sprinkler:${o.sub}:${(o.data as { watering?: boolean } | undefined)?.watering ? 1 : 0}` : `${o.kind}:${o.sub}`;
+  const ruinBiome = o.sub.startsWith('ruin_') ? String((o.data as { biome?: string } | undefined)?.biome ?? 'meadow') : '';
+  const key = o.kind === 'sprinkler' ? `sprinkler:${o.sub}:${(o.data as { watering?: boolean } | undefined)?.watering ? 1 : 0}` : ruinBiome ? `ruin:${o.sub}:${ruinBiome}` : `${o.kind}:${o.sub}`;
   let d = objCache.get(key);
   if (!d) {
-    if ((o.kind === 'deco' || o.kind === 'sign' || o.kind === 'furniture') && TOWN_DECO[o.sub]) d = TOWN_DECO[o.sub]!();
+    if (ruinBiome) d = ruinDef(o.sub, ruinBiome);
+    else if ((o.kind === 'deco' || o.kind === 'sign' || o.kind === 'furniture') && TOWN_DECO[o.sub]) d = TOWN_DECO[o.sub]!();
     else if (o.kind === 'station') d = (STATIONS[o.sub] ?? DECO.crate!)();
     else if (o.kind === 'sprinkler') d = sprinkler(o.sub === 'sprinkler2', !!(o.data as { watering?: boolean } | undefined)?.watering);
     else if (o.kind === 'shelter') d = o.sub === 'barn' ? barn() : coop();

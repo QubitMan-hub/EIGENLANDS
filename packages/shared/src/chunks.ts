@@ -4,6 +4,7 @@ import { T, isSolid } from './tiles';
 import type { SolidQuery } from './sim';
 import { objSolid, type WorldObj } from './objects';
 import { townFor } from './town';
+import { ruinObjectsIn } from './ruins';
 import { shrineObjectsIn } from './shrines';
 
 export type ChunkDiff = Map<number, number>;
@@ -118,8 +119,8 @@ export class ChunkStore {
       }
     }
     const town = this.townByChunk.get(chunkKey(cx, cy)) ?? [];
-    const shrine = shrineObjectsIn(this.seed, cx, cy);
-    return shrine.length ? [...town, ...shrine] : town;
+    const wild = [...shrineObjectsIn(this.seed, cx, cy), ...ruinObjectsIn(this.seed, cx, cy)];
+    return wild.length ? [...town, ...wild] : town;
   }
 
   putObject(o: WorldObj): void {

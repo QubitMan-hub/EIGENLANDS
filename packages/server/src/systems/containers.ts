@@ -1,5 +1,5 @@
 import {
-  FARM_ANIMALS, ITEMS, MSG, QUBITMAN, STATUE_REMARKS, STATION_SUBS, addStack, chunkOf, cloneStack, countItem, isRipe, removeItem, validInventory,
+  BIOMES, BIOME_NAMES, FARM_ANIMALS, ITEMS, MSG, QUBITMAN, RUIN_LORE, RUIN_NAMES, ruinLoot, type Biome, STATUE_REMARKS, STATION_SUBS, addStack, chunkOf, cloneStack, countItem, isRipe, removeItem, validInventory,
   type ChestMsg, type Inventory, type OpenMsg, type PanelMsg, type ShelterMsg, type WorldObj,
 } from '@eigenlands/shared';
 import type { ServerPlayer } from '../rooms/player';
@@ -65,6 +65,12 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
     if (!p.data.deeds.statue) recordDeed(p, 'statue', 'the plaque', room.wclock.day());
     return;
   }
+  if (o.static && o.sub === 'ruin_cache') { openRuinCache(room, p, o); return; }
+  if (o.static && RUIN_LORE[o.sub]) {
+    const l = RUIN_LORE[o.sub]!;
+    p.client.send(MSG.PANEL, { kind: 'lore', tx: o.x, ty: o.y, sub: o.sub, lore: { title: RUIN_NAMES[o.sub] ?? 'Ruin', plaque: l.plaque, epitaph: l.epitaph, pages: [...l.pages] } });
+    return;
+  }
   if (o.static && o.sub === 'board') { p.client.send(MSG.PANEL, boardPanel(p, room.wclock.day(), room.seed, { x: o.x, y: o.y })); return; }
   sendPanel(p, o);
 }
@@ -128,3 +134,17 @@ export function handleShelter(room: RoomApi, p: ServerPlayer, msg: ShelterMsg): 
   sendPanel(p, o);
 }
 
+
+/** A ruin's treasure cache: every traveller may open each one once. */
+function openRuinCache(room: RoomApi, p: ServerPlayer, o: WorldObj): void {
+  const d = (o.data ?? {}) as { ruin?: string; biome?: string };
+  const id = typeof d.ruin === 'string' ? d.ruin : `${o.x},${o.y}`;
+  if (p.data.prog.ruins.includes(id)) { p.toast('Only dust and old wax left. You have already searched this cache.'); return; }
+  const biome = (BIOMES as readonly string[]).includes(d.biome ?? '') ? (d.biome as Biome) : 'meadow';
+  const loot = ruinLoot(room.seed, id, biome, room.rand);
+  if (!giveStacks(p, loot)) { p.toast('Your pack is too full to carry the cache\'s contents.', 'bad'); return; }
+  p.data.prog.ruins.push(id);
+  p.dirty('inv');
+  p.toast(`You found a forgotten cache in the ${BIOME_NAMES[biome]}!`, 'good');
+  room.fx({ kind: 'craft', x: o.x + 0.5, y: o.y + 0.5 });
+}

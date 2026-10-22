@@ -1,5 +1,6 @@
 import {
   CROPS, ITEMS, NODES, TILE_DEFS, T, TIER_NAMES, cropStage, STATION_NAMES, STATION_SUBS, isRipe, type CropData, type Stack, type WorldObj,
+  RUIN_NAMES,
 } from '@eigenlands/shared';
 
 export type UseKind = 'talk' | 'open' | 'harvest' | 'tool' | 'plant' | 'water' | 'till' | 'cast' | 'net' | 'forage' | 'place' | 'eat' | 'fertilize' | 'none';
@@ -24,6 +25,8 @@ export function describeUse(sel: Stack | null, tile: number, obj: WorldObj | und
     if (obj.kind === 'shelter') return { kind: 'open', label: obj.sub === 'coop' ? 'Visit the coop' : 'Visit the barn', ok: true };
     if (obj.sub === 'statue' || obj.sub === 'plaque') return { kind: 'open', label: 'Read the Statue of QubitMan', ok: true };
     if (obj.sub === 'board') return { kind: 'open', label: 'Check the request board', ok: true };
+    if (obj.sub === 'ruin_cache') return { kind: 'open', label: 'Search the forgotten cache', ok: true };
+    if (RUIN_NAMES[obj.sub]) return { kind: 'open', label: `Read the ${RUIN_NAMES[obj.sub]!.toLowerCase()}`, ok: true };
     if (obj.kind === 'sign') return { kind: 'open', label: 'Read sign', ok: true };
     return null;
   }

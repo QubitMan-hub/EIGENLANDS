@@ -41,3 +41,4 @@ export * from './shadows';
 export * from './equipment';
 export * from './bosses';
 export * from './shrines';
+export * from './ruins';
