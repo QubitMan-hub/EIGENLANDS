@@ -14,7 +14,7 @@ export class PlayerState extends Schema {
   @type('uint32') xp = 0;
   /** outfit index (wardrobe) */
   @type('uint8') look = 0;
-  /** bit0 dashing, bit1 swinging, bit2 dead */
+  /** bit0 dashing, bit1 swinging, bit2 dead, bit3 charging, bit4 heavy ready, bit5 phase slip, bit6 i-frames */
   @type('uint8') flags = 0;
   /** last processed input sequence, for reconciliation */
   @type('uint32') ack = 0;
@@ -36,6 +36,18 @@ export class EnemyState extends Schema {
   /** telegraph progress 0..100 (0 = not winding up) */
   @type('uint8') tele = 0;
   @type('boolean') night = false;
+  // ── combat 2.0
+  /** animation state: 0 idle, 1 move, 2 windup, 3 active (leap/charge/cast), 4 recover, 5 stagger */
+  @type('uint8') st = 0;
+  /** attack being telegraphed (ATK.*), drives the ground decal */
+  @type('uint8') atk = 0;
+  /** telegraph target point (leap landing, charge end, aim end) */
+  @type('float32') tx = 0;
+  @type('float32') ty = 0;
+  /** poise left 0..100 (armour bar for armoured enemies) */
+  @type('uint8') poise = 100;
+  /** elite modifier bits (ELITE.*) */
+  @type('uint8') elite = 0;
 }
 
 /** Village NPCs: public, synced to everyone in range. */
@@ -55,6 +67,8 @@ export class ProjectileState extends Schema {
   @type('float32') x = 0;
   @type('float32') y = 0;
   @type('string') owner = '';
+  /** 0 player bolt, 1 enemy orb, 2 reflected orb */
+  @type('uint8') kind = 0;
 }
 
 export class WorldState extends Schema {

@@ -61,8 +61,28 @@ export interface ChunkMsg { cx: number; cy: number; diff: Uint8Array; objs?: Wor
 export interface TileMsg { tx: number; ty: number; tile: number }
 
 export type FxKind = 'hit' | 'swing' | 'shot' | 'dash' | 'die' | 'levelup' | 'telegraph' | 'hurt' | 'break'
-  | 'chop' | 'mine' | 'till' | 'plant' | 'water' | 'harvest' | 'splash' | 'cast' | 'catch' | 'heal' | 'craft' | 'place' | 'dust' | 'poof';
-export interface FxMsg { kind: FxKind; x: number; y: number; v?: number; dx?: number; dy?: number; id?: string }
+  | 'chop' | 'mine' | 'till' | 'plant' | 'water' | 'harvest' | 'splash' | 'cast' | 'catch' | 'heal' | 'craft' | 'place' | 'dust' | 'poof'
+  // combat 2.0
+  | 'heavy'     // charged heavy strike (v = charge level 0..1, dx/dy facing)
+  | 'perfect'   // perfect dodge / phase slip (id = player)
+  | 'stagger'   // poise broken (id = enemy)
+  | 'slam'      // wall slam (id = enemy, v = bonus damage)
+  | 'orb'       // an enemy fired an orb (id = enemy, dx/dy direction)
+  | 'reflect'   // a player batted an orb back (id = player)
+  | 'blast'     // an area attack went off (v = radius)
+  | 'bomb'      // a volatile elite is about to burst (v = fuse s, w = radius)
+  | 'crash';    // a charging brute hit a wall (id = enemy)
+export interface FxMsg {
+  kind: FxKind; x: number; y: number; v?: number; dx?: number; dy?: number; id?: string;
+  /** hit weight: 0 light, 1 finisher, 2 heavy, 3 full heavy (hit-stop, shake, sound) */
+  w?: number;
+  /** 1 = critical hit */
+  c?: number;
+  /** 1 = this hit broke poise (stagger) */
+  s?: number;
+  /** attacker session id (hit), or enemy kind that dealt a killing blow (die of a player) */
+  by?: string;
+}
 
 export interface WelcomeMsg {
   seed: number;
@@ -189,8 +209,15 @@ export interface ToastMsg { text: string; kind: 'info' | 'good' | 'bad' | 'item'
 
 export const JOIN_ROOM = 'world';
 
-/** Compact binary ack: u32 seq, u32 tick, then 12 float32 of PlayerSim (56 bytes). Sent to the owner every tick. */
-export const ACK_BYTES = 56;
+/**
+ * Compact binary ack: u32 seq, u32 tick, then ACK_FIELDS.length float32 of PlayerSim (80 bytes). Sent to the owner every tick.
+ * Every PlayerSim field must be listed here or prediction cannot replay exactly.
+ */
+export const ACK_FIELDS = [
+  'x', 'y', 'faceX', 'faceY', 'dashT', 'dashCd', 'dashDx', 'dashDy', 'atkCd', 'combo', 'comboT', 'skillCd',
+  'dashN', 'ifrT', 'hold', 'charge', 'atkBuf', 'slipT',
+] as const satisfies ReadonlyArray<keyof PlayerSim>;
+export const ACK_BYTES = 8 + ACK_FIELDS.length * 4;
 export interface Ack { seq: number; tick: number; sim: PlayerSim }
 
 export function encodeAck(a: Ack): Uint8Array {
@@ -198,24 +225,19 @@ export function encodeAck(a: Ack): Uint8Array {
   const dv = new DataView(out.buffer);
   dv.setUint32(0, a.seq >>> 0, true);
   dv.setUint32(4, a.tick >>> 0, true);
-  const s = a.sim;
-  const f = [s.x, s.y, s.faceX, s.faceY, s.dashT, s.dashCd, s.dashDx, s.dashDy, s.atkCd, s.combo, s.comboT, s.skillCd];
-  for (let i = 0; i < 12; i++) dv.setFloat32(8 + i * 4, f[i]!, true);
+  ACK_FIELDS.forEach((k, i) => dv.setFloat32(8 + i * 4, a.sim[k], true));
   return out;
 }
 
 export function decodeAck(buf: Uint8Array): Ack {
   if (buf.byteLength !== ACK_BYTES) throw new Error('bad ack size');
   const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-  const f = (i: number) => dv.getFloat32(8 + i * 4, true);
-  return {
-    seq: dv.getUint32(0, true),
-    tick: dv.getUint32(4, true),
-    sim: {
-      x: f(0), y: f(1), faceX: f(2), faceY: f(3), dashT: f(4), dashCd: f(5), dashDx: f(6), dashDy: f(7),
-      atkCd: f(8), combo: Math.round(f(9)), comboT: f(10), skillCd: f(11),
-    },
-  };
+  const sim = {} as PlayerSim;
+  ACK_FIELDS.forEach((k, i) => { sim[k] = dv.getFloat32(8 + i * 4, true); });
+  sim.combo = Math.round(sim.combo);
+  sim.dashN = Math.round(sim.dashN);
+  sim.hold = Math.round(sim.hold);
+  return { seq: dv.getUint32(0, true), tick: dv.getUint32(4, true), sim };
 }
 
 /** Dev/e2e commands. Silently ignored unless `config.devCommands` (env DEV_COMMANDS=1, never in production). */
@@ -226,4 +248,6 @@ export type DevMsg =
   | { cmd: 'time'; offsetMs: number }      // ADDS offsetMs to the world clock offset (one day = 1_440_000)
   | { cmd: 'learn'; recipe: string }       // recipe id, or '*' for every recipe
   | { cmd: 'friend'; npc: string; pts: number }  // sets friendship points
-  | { cmd: 'level'; level: number };
+  | { cmd: 'level'; level: number }
+  /** combat testing: spawn n enemies of `kind` around the player (d tiles away), optionally elite / night variants */
+  | { cmd: 'spawn'; kind: string; n?: number; elite?: number; night?: boolean; d?: number };
