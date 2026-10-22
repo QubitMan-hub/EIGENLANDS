@@ -15,8 +15,8 @@ export interface FoeSheets {
 
 const WISP: Ramp = [C.q0, C.q1, C.q2, C.q3, C.q4, C.q5, C.q7];
 const WISP_N: Ramp = [C.r0, C.q0, C.q1, C.q5, C.q6, C.r5, C.r7];
-const BRUTE: Ramp = [C.night, C.slate, C.steel, C.mist, C.fog];
-const BRUTE_N: Ramp = [C.ink, C.night, C.slate, C.steel, C.mist];
+const BRUTE: Ramp = [C.slate, C.steel, C.mist, C.fog, C.pale];
+const BRUTE_N: Ramp = [C.night, C.q0, C.steel, C.mist, C.fog];
 const MITE: Ramp = [C.e2, C.e4, C.e6, C.r6, C.r7];
 const MITE_N: Ramp = [C.r1, C.r3, C.r5, C.q5, C.q6];
 

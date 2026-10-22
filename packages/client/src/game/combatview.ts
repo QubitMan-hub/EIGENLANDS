@@ -300,7 +300,7 @@ export class CombatView {
     v.flash *= Math.exp(-dt * 22);
     const reduced = this.d.reduced();
     const tele = st === 2 ? Math.min(1, (s?.tele ?? 0) / 100) : 0;
-    const big = s && (s.elite & ELITE.HARDENED) ? 1.2 : 1;
+    const big = (kind === 5 ? 1.25 : 1) * (s && (s.elite & ELITE.HARDENED) ? 1.2 : 1);
     let sx = 1 + 0.28 * v.punch - 0.06 * tele, sy = 1 - 0.22 * v.punch + 0.12 * tele;
     if (reduced) { sx = 1; sy = 1; }
     v.sprite.scale.set(sx * big * (flip ? -1 : 1), sy * big);
