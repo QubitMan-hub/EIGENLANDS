@@ -5,6 +5,8 @@ import {
 
 export interface LocalInput {
   dx: number; dy: number; dash: boolean; attack: boolean; skill: boolean; aimX: number; aimY: number;
+  /** attack button held (charge); older callers may omit it */
+  hold?: boolean;
 }
 
 /**

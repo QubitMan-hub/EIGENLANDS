@@ -44,7 +44,13 @@ export function buildJournal(profile: Profile, portrait: (npcId: string) => stri
     } else {
       const rows: Array<[string, string]> = [
         ['Move', 'WASD / arrows · left stick · touch stick'], ['Attack', 'J / Z · left click · A / RT'], ['Skill shot', 'K / X · right click (aims at cursor)'],
-        ['Dash (dodge)', 'Space / Shift · B'], ['Use item / talk / open', 'E · Y — acts on the tile you face (or the cursor if close)'],
+        ['Dash (dodge)', 'Space / Shift · B'],
+        // combat 2.0
+        ['Combo', 'tap Attack: slash, slash, lunging finisher (presses are buffered; dash cancels recovery)'],
+        ['Heavy strike', 'hold Attack to charge (ring fills), release to cleave — breaks armour'],
+        ['Phase Slip', 'dash through a red warning just before it fills: slow-mo + guaranteed critical counter'],
+        ['Dash charges', '2 charges (pips under your feet), refill one at a time'],
+        ['Reflect', 'swing at a Phase Wisp orb to bat it back'], ['Use item / talk / open', 'E · Y — acts on the tile you face (or the cursor if close)'],
         ['Quick-bar', '1–0 · mouse wheel · [ ] · tap'], ['Inventory', 'I'], ['Journal (skills, friends, recipes)', 'L'], ['Field crafting', 'C'], ['Settings', 'gear icon · F3 debug'],
       ];
       for (const [a, b] of rows) body.append(h('div', { class: 'keyrow' }, h('span', { text: a }), h('span', { class: 'dim', text: b })));
