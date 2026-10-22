@@ -102,98 +102,131 @@ const VIEWS: View[] = [
   { turn: 1.5, s: 1 },   // UP_RIGHT
 ];
 
-/** Draw one 24x32 person frame. frame 0 idle, 1..8 walk, 9 idle-breath. */
+/**
+ * Draw one 24x32 person frame (frame 0 idle, 1..8 walk, 9 idle-breath). Natural proportions, about four heads tall:
+ * a tapered torso over the hips, jointed arms that hang clear of the waist, knees that bend as each foot lifts, and
+ * heeled boots. Limbs swing in opposition and the body rises twice per stride.
+ */
 function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, seed: number): void {
   const v = VIEWS[dir]!;
   const s = v.s, turn = v.turn;
-  const back = turn > 1.2, front = turn < 0.8, profile = turn === 1;
+  const back = turn > 1.2, front = turn < 0.8, profile = turn === 1, three = turn === 0.5 || turn === 1.5;
   const moving = frame >= 1 && frame <= 8;
   const p = moving ? ((frame - 1) / 8) * Math.PI * 2 : 0;
   const sw = moving ? Math.sin(p) : 0;
   const cosp = moving ? Math.cos(p) : 0;
-  const bob = moving ? (Math.abs(sw) < 0.6 ? -1 : 0) : frame === 9 ? 1 : 0;
+  const top = moving ? (Math.abs(sw) < 0.5 ? -1 : 0) : frame === 9 ? 0.6 : 0;
   const sh = o.shorten ?? 0;
-  const cx = 12;
+  const cx = 12.5;
   const foot = 30;
-  const hip = 18.5 + sh;
-  const top = bob;                       // vertical shift of the upper body
-  const tw = profile ? 3.1 : front || back ? 4.1 : 3.7;     // torso half width
-  // depth ordering helpers: "near" side is the one toward the camera (screen down); for side views the s side leads
-  const legX = (k: number) => (profile ? cx + (k ? 0.5 : -0.5) * s : cx + (k ? 1.7 : -1.7) + (turn === 0.5 || turn === 1.5 ? 0.5 * s : 0));
-  const legSwing = (k: number) => (k ? -sw : sw);
-  const drawLeg = (k: number) => {
-    const sk = legSwing(k);
-    const lift = moving ? Math.max(0, (k ? -cosp : cosp)) * 2.2 : 0;
-    const dx = profile ? sk * 3.2 * s : turn === 0.5 || turn === 1.5 ? sk * 1.8 * s : 0;
-    const dy = profile ? 0 : front ? sk * 0.9 : back ? -sk * 0.9 : sk * 0.6;
-    const x0 = legX(k), ax = x0 + dx, ay = foot - 2 - lift + dy;
-    limb(ctx, x0, hip + top * 0.5, ax, ay, 2.0, 1.7, o.pants, seed + k, k ? -0.08 : 0);
-    const toe = profile ? 1.3 * s : turn === 0.5 || turn === 1.5 ? 0.7 * s : 0;
-    blob(ctx, ax + toe, ay + 1.2, profile ? 2.5 : 2.0, 1.5, o.boots, { seed: seed + 5 + k, noise: 0.04, edgeDark: 0.2, bright: 0.05 });
+  const hipY = 18.6 + sh * 0.7 + top * 0.6;
+  const y0 = 11.2 + sh * 0.6 + top;                                  // shoulder line
+  const waistY = y0 + 4.8;
+  const shW = profile ? 2.7 : three ? 3.8 : 4.3, waW = profile ? 2.2 : three ? 2.7 : 3.0, hiW = profile ? 2.5 : three ? 3.0 : 3.3;
+  const lean = (profile ? 0.6 : three ? 0.3 : 0) * s * (moving ? 1 : 0.5);   // the chest leads the hips a little
+  const edge = (r: Ramp) => [r[0]!, r[0]!] as Ramp;                  // selective outline for limbs crossing the body
+  // three-quarter views: the shoulder turned toward the camera is screen-left when facing down-right (and mirrored)
+  const nearK = (back ? s : -s) > 0 ? 1 : 0, farK = 1 - nearK;
+
+  const drawLeg = (k: number, near: boolean) => {
+    const sk = k ? -sw : sw;                                          // + = forward
+    const lift = moving ? Math.max(0, k ? -cosp : cosp) * 2.4 : 0;    // the recovering leg lifts its foot
+    const hx0 = profile ? cx - 0.3 * s : cx + (k ? 2 : -2) + (three ? 0.4 * s : 0);
+    const fx = hx0 + (profile ? sk * 3.4 * s : three ? sk * 1.9 * s : 0);
+    const fy = foot - 1.6 - lift + (profile ? 0 : front ? sk * 0.8 : back ? -sk * 0.8 : sk * 0.5);
+    const hy0 = hipY + 1;
+    const bend = lift * 0.7 + 0.3;
+    const kx = (hx0 + fx) / 2 + (profile ? bend * s : three ? bend * 0.6 * s : 0);
+    const ky = (hy0 + fy) / 2 - (front || back ? lift * 0.3 : 0);
+    if (near) { limb(ctx, hx0, hy0, kx, ky, 2.1, 1.9, edge(o.pants)); limb(ctx, kx, ky, fx, fy, 1.9, 1.8, edge(o.pants)); }
+    limb(ctx, hx0, hy0, kx, ky, 1.45, 1.25, o.pants, seed + k, k ? -0.1 : 0.04);
+    limb(ctx, kx, ky, fx, fy - 0.6, 1.2, 1.05, o.pants, seed + 3 + k, k ? -0.12 : 0.02);
+    const toe = profile ? 1.3 * s : three ? 0.8 * s : 0;
+    limb(ctx, fx, fy - 1.3, fx, fy + 0.2, 1.15, 1.2, o.boots, seed + 5 + k, 0.05);
+    blob(ctx, fx + toe, fy + 0.9, profile ? 2.2 : 1.6, 1.15, o.boots, { seed: seed + 6 + k, noise: 0, edgeDark: 0.15, bright: 0.05 });
+    put(ctx, Math.floor(fx - 0.5), Math.round(fy - 1.5), o.boots[2] ?? o.boots[1]!, 2, 1);   // turned-down cuff
   };
-  const armSwing = (k: number) => (k ? sw : -sw);
-  const drawArm = (k: number) => {
-    // k: 0 = left side of the screen, 1 = right side (front/back views); for profile, 1 = near arm
-    const sk = armSwing(k);
-    let sx: number, hx: number, hy: number;
-    if (profile) { sx = cx + (k ? -0.6 : 0.6) * s; hx = sx + sk * 2.6 * s; hy = 19.4 + Math.abs(sk) * -0.8; }
-    else { sx = cx + (k ? tw + 0.4 : -tw - 0.4); hx = sx + (k ? 0.7 : -0.7) + (turn === 0.5 || turn === 1.5 ? sk * 1.2 * s : 0); hy = 19.4 + (front ? sk : back ? -sk : sk * 0.8) * 1.5; }
-    limb(ctx, sx, 12.4 + top + sh * 0.6, hx, hy - 1 + top + sh * 0.6, 1.5, 1.25, o.shirt, seed + 10 + k, k ? -0.06 : 0.04);
-    blob(ctx, hx, hy + top + sh * 0.6, 1.2, 1.2, o.skin, { seed: seed + 12 + k, noise: 0, edgeDark: 0.2 });
+  const drawArm = (k: number, near: boolean) => {
+    const sk = k ? sw : -sw;                                          // arms swing against the legs; + = forward
+    const sy = y0 + 1.3;
+    let sx: number, ex: number, ey: number, hx: number, hy: number;
+    if (profile) {
+      sx = cx + lean * 0.8; ex = sx + (sk * 1.3 - 0.3) * s; ey = sy + 3.7;
+      hx = sx + (sk * 2.8 + Math.max(0, sk) * 0.8) * s; hy = sy + 7 - Math.abs(sk) * 0.9 - Math.max(0, sk) * 0.6;
+    } else {
+      const side = k ? 1 : -1;
+      sx = cx + side * (shW - (three && k === farK ? 1.5 : 0.7)) + lean; ex = sx + side * 0.7 + (three ? sk * 0.7 * s : 0); ey = sy + 3.7 + (front ? sk * 0.4 : back ? -sk * 0.4 : 0);
+      hx = sx + side * 0.9 + (three ? sk * 1.6 * s : 0); hy = sy + 7 + (front ? sk : back ? -sk : sk * 0.7) * 1.1;
+    }
+    if (near) { limb(ctx, sx, sy, ex, ey, 1.8, 1.7, edge(o.shirt)); limb(ctx, ex, ey, hx, hy - 0.8, 1.7, 1.6, edge(o.shirt)); }
+    limb(ctx, sx, sy, ex, ey, 1.3, 1.1, o.shirt, seed + 10 + k, k ? -0.08 : 0.06);
+    limb(ctx, ex, ey, hx, hy - 0.8, 1.1, 0.95, o.shirt, seed + 12 + k, k ? -0.1 : 0.03);
+    put(ctx, Math.round(hx - 0.5), Math.round(hy - 1.2), o.shirt[0]!, 1, 1);                // cuff shadow
+    blob(ctx, hx, hy + 0.2, 1.1, 1.15, o.skin, { seed: seed + 14 + k, noise: 0, edgeDark: 0.2, bright: 0.05 });
   };
 
   // cape behind everything (front views) / over the back (back views)
   const capeDraw = () => {
     if (!o.cape) return;
     const flutter = moving ? Math.sin(p * 2) * 0.8 : 0;
-    if (back) poly(ctx, [[cx - tw - 0.5, 11.5 + top], [cx + tw + 0.5, 11.5 + top], [cx + tw + 1.8, 25 + flutter], [cx - tw - 1.8, 25 - flutter]], (x, y) => rampAt(o.cape!, 0.75 - (x - cx + tw) / 14 - (y - 11.5) / 40 + ((x + y) % 4 === 0 ? -0.15 : 0), x, y));
-    else if (!front) poly(ctx, [[cx - 1.5 * s, 11.5 + top], [cx - 3.5 * s, 12.5 + top], [cx - 6 * s + flutter * s, 24], [cx - 2 * s, 25]], (x, y) => rampAt(o.cape!, 0.5 - (y - 11.5) / 40, x, y));
-    else { put(ctx, Math.round(cx - tw - 1.5), 12 + top, o.cape[1]!, 1, 9); put(ctx, Math.round(cx + tw + 0.5), 12 + top, o.cape[0]!, 1, 9); }
+    if (back) poly(ctx, [[cx - shW + 0.2, y0 + 0.3], [cx + shW - 0.2, y0 + 0.3], [cx + shW + 1.4, 25 + flutter], [cx - shW - 1.4, 25 - flutter]], (x, y) => rampAt(o.cape!, 0.75 - (x - cx + shW) / 14 - (y - y0) / 40 + ((x + y) % 4 === 0 ? -0.15 : 0), x, y));
+    else if (!front) poly(ctx, [[cx - 1.2 * s, y0 + 0.4], [cx - 3.2 * s, y0 + 1.2], [cx - (5.6 + (moving ? 1 : 0)) * s + flutter * s, 25], [cx - 1.6 * s, 25.5]], (x, y) => rampAt(o.cape!, 0.5 - (y - y0) / 40, x, y));
+    else { poly(ctx, [[cx - shW - 0.4, y0 + 0.8], [cx - shW + 0.6, y0 + 0.8], [cx - shW - 0.6, 24 - flutter], [cx - shW - 1.8, 24 - flutter]], o.cape[1]!); poly(ctx, [[cx + shW - 0.6, y0 + 0.8], [cx + shW + 0.4, y0 + 0.8], [cx + shW + 1.8, 24 + flutter], [cx + shW + 0.6, 24 + flutter]], o.cape[0]!); }
   };
   if (!back) capeDraw();
 
-  // far limbs first
-  if (profile) { drawArm(0); drawLeg(s > 0 ? 0 : 1); drawLeg(s > 0 ? 1 : 0); }
-  else { drawLeg(0); drawLeg(1); }
+  // far limbs, then the near leg over the far one
+  if (profile) { drawArm(0, false); drawLeg(s > 0 ? 0 : 1, false); drawLeg(s > 0 ? 1 : 0, true); }
+  else if (three) { drawArm(farK, false); drawLeg(farK, false); drawLeg(nearK, true); }
+  else { drawLeg(0, false); drawLeg(1, false); }
 
-  // torso (slightly tapered tunic), belt
-  const ty0 = 11 + top + sh * 0.6, ty1 = hip + 1 + top * 0.5;
-  poly(ctx, [[cx - tw, ty0], [cx + tw, ty0], [cx + tw - 0.6, ty1], [cx - tw + 0.6, ty1]], (x, y) => {
-    const u = (x + 0.5 - (cx - tw)) / (2 * tw);
-    const lit = 0.9 - u * 0.65 - (y - ty0) / 28 + (front || back ? 0 : 0);
-    return rampAt(o.shirt, lit, x, y);
+  // hips (trousers seat) and the tapered tunic over them
+  poly(ctx, [[cx - hiW, hipY - 1], [cx + hiW, hipY - 1], [cx + hiW + 0.3, hipY + 2.4], [cx - hiW - 0.3, hipY + 2.4]], (x, y) => rampAt(o.pants, 0.75 - (x - cx + hiW) / 10, x, y));
+  if (!profile && !three) put(ctx, Math.round(cx - 0.5), Math.round(hipY + 1.4), o.pants[0]!, 1, 1);
+  const tcx = cx + lean;
+  poly(ctx, [[tcx - shW + 0.9, y0 - 0.5], [tcx + shW - 0.9, y0 - 0.5], [tcx + shW, y0 + 1.1], [cx + waW + lean * 0.4, waistY], [cx + hiW, hipY + 1], [cx - hiW, hipY + 1], [cx - waW + lean * 0.4, waistY], [tcx - shW, y0 + 1.1]], (x, y) => {
+    const u = (x + 0.5 - (cx - shW)) / (2 * shW);
+    const seam = (front || three) && Math.abs(x + 0.5 - (cx + lean * 0.7 + (three ? 0.8 * s : 0))) < 0.55 && y > y0 + 1.5 ? -0.14 : 0;
+    const hem = y >= hipY ? -0.12 : 0;
+    const flank = three && (x + 0.5 - cx) * (back ? -s : s) > shW - 1.8 ? -0.22 : 0;      // the side plane turning away
+    return rampAt(o.shirt, 0.95 - u * 0.7 - (y - y0) / 26 + (y < y0 + 1.2 ? 0.14 : 0) + seam + hem + flank, x, y);
   });
-  // shoulders rounded
-  blob(ctx, cx - tw + 0.9, ty0 + 0.8, 1.7, 1.3, o.shirt, { seed: seed + 20, noise: 0, bright: 0.12, edgeDark: 0.1 });
-  blob(ctx, cx + tw - 0.9, ty0 + 0.8, 1.7, 1.3, o.shirt, { seed: seed + 21, noise: 0, bright: -0.1, edgeDark: 0.1 });
-  if (o.vest && !back) poly(ctx, [[cx - tw, ty0 + 1], [cx - 1, ty0 + 1], [cx - 1.5, ty1 - 1], [cx - tw + 0.6, ty1 - 1]], (x, y) => rampAt(o.vest!, 0.7 - (y - ty0) / 30, x, y));
-  if (o.vest && !back && !profile) poly(ctx, [[cx + 1, ty0 + 1], [cx + tw, ty0 + 1], [cx + tw - 0.6, ty1 - 1], [cx + 1.5, ty1 - 1]], (x, y) => rampAt(o.vest!, 0.35 - (y - ty0) / 30, x, y));
-  const beltY = Math.round(ty1 - 1.5);
-  put(ctx, Math.round(cx - tw + 0.6), beltY, C.e0, Math.round(2 * tw - 1.2), 1);
-  if (!back) put(ctx, Math.round(cx + (profile ? 1 * s : 0)) - (profile ? 0 : 0), beltY, C.r6, 1, 1);
-  // quantum trim: a glowing seam down the tunic
-  if (o.glow !== undefined && !back) { const gx = Math.round(cx + (profile ? 1.6 * s : turn === 0.5 ? 1.2 * s : 0)); for (let y = Math.round(ty0) + 2; y < beltY; y += 2) put(ctx, gx, y, o.glow); }
-  // apron
+  if (front || three) { put(ctx, Math.round(tcx - 1 + (three ? 0.6 * s : 0)), Math.round(y0 - 0.5), o.skin[2]!, 2, 1); put(ctx, Math.round(tcx - 0.5 + (three ? 0.6 * s : 0)), Math.round(y0 + 0.5), o.skin[1]!, 1, 1); }
+  if (o.vest && !back) {
+    poly(ctx, [[cx - shW + 0.6, y0 + 0.2], [cx - 0.9 + lean, y0 + 0.6], [cx - 1.2, hipY], [cx - hiW, hipY]], (x, y) => rampAt(o.vest!, 0.72 - (y - y0) / 30, x, y));
+    if (!profile) poly(ctx, [[cx + 0.9 + lean, y0 + 0.6], [cx + shW - 0.6, y0 + 0.2], [cx + hiW, hipY], [cx + 1.2, hipY]], (x, y) => rampAt(o.vest!, 0.38 - (y - y0) / 30, x, y));
+  }
+  const beltY = Math.round(hipY - 0.3);
+  poly(ctx, [[cx - waW - 0.4, beltY], [cx + waW + 0.4, beltY], [cx + waW + 0.4, beltY + 1], [cx - waW - 0.4, beltY + 1]], C.e0);
+  if (!back) put(ctx, Math.round(cx - 0.5 + (profile ? 1.2 * s : three ? 0.8 * s : 0)), beltY, C.e6, 1, 1);
+  if (o.glow !== undefined && !back) { const gx = Math.round(cx - 0.5 + lean + (profile ? 1.4 * s : three ? 1.2 * s : 0)); for (let y = Math.round(y0) + 2; y < beltY; y += 2) put(ctx, gx, y, o.glow); }
   if (o.apron) {
-    if (front || turn === 0.5) poly(ctx, [[cx - tw + 1.2 + (turn === 0.5 ? s : 0), ty0 + 3], [cx + tw - 1.2 + (turn === 0.5 ? s : 0), ty0 + 3], [cx + tw - 0.6, hip + 5], [cx - tw + 0.6, hip + 5]], (x, y) => rampAt(o.apron!, 0.85 - (x - cx + tw) / 12 - (y - ty0) / 40, x, y));
-    else if (profile) poly(ctx, [[cx + 1 * s, ty0 + 3], [cx + 2.6 * s, ty0 + 3], [cx + 3.4 * s, hip + 5], [cx + 1.2 * s, hip + 5]], o.apron[2]!);
-    else { put(ctx, Math.round(cx - 1), Math.round(ty1 - 3), o.apron[1]!, 3, 2); put(ctx, Math.round(cx - tw + 1), Math.round(ty0), o.apron[1]!, 1, 4); put(ctx, Math.round(cx + tw - 2), Math.round(ty0), o.apron[1]!, 1, 4); }
+    if (front || turn === 0.5) poly(ctx, [[cx - waW + 0.4 + (three ? 0.6 * s : 0), y0 + 3], [cx + waW - 0.4 + (three ? 0.6 * s : 0), y0 + 3], [cx + hiW - 0.2, hipY + 5], [cx - hiW + 0.2, hipY + 5]], (x, y) => rampAt(o.apron!, 0.85 - (x - cx + waW) / 12 - (y - y0) / 40, x, y));
+    else if (profile) poly(ctx, [[cx + 1 * s, y0 + 3], [cx + 2.4 * s, y0 + 3], [cx + 3.2 * s, hipY + 5], [cx + 1.2 * s, hipY + 5]], o.apron[2]!);
+    else { put(ctx, Math.round(cx - 1.5), beltY, o.apron[1]!, 3, 1); put(ctx, Math.round(cx - shW + 1), Math.round(y0), o.apron[1]!, 1, 4); put(ctx, Math.round(cx + shW - 2), Math.round(y0), o.apron[1]!, 1, 4); }
   }
   if (back) capeDraw();
 
-  // near limbs
-  if (profile) drawArm(1);
-  else { drawArm(0); drawArm(1); }
+  // near limbs over the body
+  if (profile) drawArm(1, true);
+  else if (three) drawArm(nearK, true);
+  else { drawArm(0, true); drawArm(1, true); }
 
   // neck + head
-  const hx = cx + (profile ? 0.8 * s : turn === 0.5 || turn === 1.5 ? 0.4 * s : 0);
-  const hy = 6.3 + top + sh * 0.5;
-  put(ctx, Math.round(hx) - 1, Math.round(hy + 3), o.skin[1]!, 2, 2);
-  if (o.scarf) { blob(ctx, cx, ty0 + 0.6, tw - 0.6, 1.6, o.scarf, { seed: seed + 30, noise: 0.1, edgeDark: 0.15 }); if (!back) put(ctx, Math.round(cx + (profile ? -1.5 * s : 1.5)), Math.round(ty0 + 1), o.scarf[1]!, 1, 4); }
-  blob(ctx, hx, hy, profile ? 3.3 : 3.5, 3.9, o.skin, { seed: seed + 31, noise: 0.02, edgeDark: 0.16, bright: 0.04 });
-  // ear (profile / three-quarter)
+  const hx = cx + (profile ? 0.7 * s : three ? 0.4 * s : 0) + lean * 0.6;
+  const hy = 6.2 + top + sh * 0.5;
+  put(ctx, Math.round(hx - 1), Math.round(hy + 2.8), o.skin[1]!, 2, 2);
+  if (o.scarf) { blob(ctx, tcx, y0 + 0.3, shW - 1, 1.5, o.scarf, { seed: seed + 30, noise: 0.1, edgeDark: 0.15 }); if (!back) put(ctx, Math.round(cx + (profile ? -1.5 * s : 1.5)), Math.round(y0 + 0.8), o.scarf[1]!, 1, 4); }
+  // head: soft, mostly mid-tone skin (faces read better flat), lit along the upper-left, jaw shaded
+  { const rx = profile ? 3.0 : 3.2, ry = 3.5;
+    for (let y = Math.floor(hy - ry); y <= Math.ceil(hy + ry); y++) for (let x = Math.floor(hx - rx); x <= Math.ceil(hx + rx); x++) {
+      const nx = (x + 0.5 - hx) / rx, ny = (y + 0.5 - hy) / ry;
+      const jaw = ny > 0.35 ? (ny - 0.35) * 0.9 : 0;                 // the chin narrows
+      if (nx * nx + ny * ny > 1 || Math.abs(nx) > 1 - jaw) continue;
+      const t = 0.74 - nx * 0.22 - ny * 0.14 - (nx * nx + ny * ny > 0.7 && nx > 0 ? 0.14 : 0);
+      put(ctx, x, y, rampAt(o.skin, t, x, y));
+    } }
   if (!front || turn === 0.5) if (!back || turn === 1.5) put(ctx, Math.round(hx - 1.2 * s), Math.round(hy + 0.3), o.skin[1]!, 1, 2);
-
   // hair
   const style: HairStyle = o.hairStyle ?? (o.longHair ? 'long' : 'short');
   const H = o.hair;
@@ -201,9 +234,9 @@ function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, seed: numbe
     const big = style === 'curly' ? 1 : 0;
     // cap of hair: covers the top of the head; front views leave the face clear below the fringe
     for (let y = Math.floor(hy - 4.6 - big); y <= Math.ceil(hy + 3.8); y++) for (let x = Math.floor(hx - 4.8 - big); x <= Math.ceil(hx + 4.8 + big); x++) {
-      const nx = (x + 0.5 - hx) / (3.9 + big * 0.9), ny = (y + 0.5 - (hy - 0.4)) / (4.1 + big * 0.9);
+      const nx = (x + 0.5 - hx) / (3.6 + big * 0.9), ny = (y + 0.5 - (hy - 0.4)) / (3.8 + big * 0.9);
       if (nx * nx + ny * ny > 1) continue;
-      const fringe = hy - 1.0 + Math.sin(x * 1.7) * 0.5;
+      const fringe = hy - 1.5 + Math.sin(x * 1.7) * 0.5;
       let cover: boolean;
       if (back) cover = y < hy + 2.8;
       else if (front) cover = y < fringe || (Math.abs(nx) > 0.8 && y < hy + 1.4);
@@ -235,12 +268,10 @@ function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, seed: numbe
   const ey = Math.round(hy + 0.5);
   if (front) {
     for (const ex of [-2, 1]) { put(ctx, Math.round(hx) + ex, ey, C.ink, 1, 2); put(ctx, Math.round(hx) + ex, ey, C.night, 1, 1); }
-    put(ctx, Math.round(hx - 3), ey + 2, C.r4); put(ctx, Math.round(hx + 2), ey + 2, C.r4);
-    put(ctx, Math.round(hx) - 1, ey + 2, o.skin[0]!, 2, 1);
+    put(ctx, Math.round(hx) - 1, ey + 2, o.skin[1]!, 2, 1);
   } else if (turn === 0.5) {
     const e1 = Math.round(hx + 0.0 * s), e2 = Math.round(hx + 2.4 * s);
     put(ctx, e1 - (s < 0 ? 1 : 0), ey, C.ink, 1, 2); put(ctx, e2 - (s < 0 ? 1 : 0), ey, C.ink, 1, 2);
-    put(ctx, Math.round(hx - 1.8 * s), ey + 2, C.r4);
     put(ctx, Math.round(hx + 1.5 * s), ey + 2, o.skin[0]!, 1, 1);
   } else if (profile) {
     put(ctx, Math.round(hx + 1.9 * s) - (s < 0 ? 1 : 0), ey, C.ink, 1, 2);
