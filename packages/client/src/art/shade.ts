@@ -306,5 +306,33 @@ export function bigTextC(ctx: Ctx, text: string, cx: number, y: number, c: numbe
   }
 }
 
+// ───────── fast off-screen pixel buffer that quacks like a 2D context (put/outline/polish only) ─────────
+const RGBA = new Map<string, number>();
+function rgbaOf(style: string): number {
+  let v = RGBA.get(style);
+  if (v === undefined) { const n = parseInt(style.slice(1), 16); v = (255 << 24) | ((n & 255) << 16) | (n & 0xff00) | ((n >> 16) & 255); RGBA.set(style, v); }
+  return v;
+}
+export class PixBuf {
+  fillStyle = '#000000';
+  readonly px: Uint32Array;
+  constructor(readonly width: number, readonly height: number) { this.px = new Uint32Array(width * height); }
+  fillRect(x: number, y: number, w: number, h: number): void {
+    const c = rgbaOf(this.fillStyle as string);
+    const x0 = Math.max(0, Math.round(x)), y0 = Math.max(0, Math.round(y)), x1 = Math.min(this.width, Math.round(x + w)), y1 = Math.min(this.height, Math.round(y + h));
+    for (let j = y0; j < y1; j++) this.px.fill(c, j * this.width + x0, j * this.width + x1);
+  }
+  clearRect(x: number, y: number, w: number, h: number): void { const s = this.fillStyle; this.fillStyle = '#000000'; const c = this.px; const x0 = Math.max(0, x), y0 = Math.max(0, y); for (let j = y0; j < Math.min(this.height, y + h); j++) c.fill(0, j * this.width + x0, j * this.width + Math.min(this.width, x + w)); this.fillStyle = s; }
+  getImageData(_x: number, _y: number, w: number, h: number): ImageData {
+    return { data: new Uint8ClampedArray(this.px.buffer, 0, w * h * 4), width: w, height: h, colorSpace: 'srgb' } as ImageData;
+  }
+  putImageData(img: ImageData, dx: number, dy: number): void { if (img.data.buffer !== this.px.buffer) new Uint8ClampedArray(this.px.buffer).set(img.data); void dx; void dy; }
+  get ctx(): Ctx { return this as unknown as Ctx; }
+  /** copy into a real canvas context at (dx, dy) */
+  blit(target: CanvasRenderingContext2D, dx: number, dy: number): void {
+    const img = target.createImageData(this.width, this.height); img.data.set(new Uint8Array(this.px.buffer)); target.putImageData(img, dx, dy);
+  }
+}
+
 /** Pick a ramp entry for t in [0,1] with ordered dithering at (x,y). */
 export function rampAt(ramp: Ramp, t: number, x: number, y: number): number { return pick(ramp, t, bayer(x, y)); }
