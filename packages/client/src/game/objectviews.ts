@@ -1,10 +1,14 @@
 import { Container, Sprite } from 'pixi.js';
 import { CHUNK_SIZE, T, TILE_DEFS, chunkKey, darkness, hash2, sampleClimate, type ChunkStore } from '@eigenlands/shared';
 import { depth, isoX, isoY } from './iso';
+import { WindField, CALM } from './windfield';
 import { FRAMES_PER_VARIANT, type ObjectArt, type ObjSprite } from '../art/objects';
 
 /** kinds that get the quantum echo ghost when standing in flux-rich ground */
 const ECHO_KINDS = new Set(['tree', 'rock', 'flowers', 'forage', 'ore_copper', 'ore_iron', 'ore_silver', 'ore_gold', 'crystal', 'bloom', 'stump']);
+
+/** how far each kind bends in the wind (skew at full gale); trunks and rocks stay put */
+const SWAY: Record<string, number> = { tallgrass: 0.2, flowers: 0.14, forage: 0.1, bloom: 0.06, tree: 0.045, qtree: 0.05, crystal: 0, rock: 0 };
 
 /** dx/len/alpha drive cast shadows; `dark` (0 day .. 1 night) and `hour` let views light windows, fireflies... */
 export interface Sun { dx: number; len: number; alpha: number; dark?: number; hour?: number }
@@ -15,6 +19,7 @@ interface Obj {
   /** quantum echo: faint offset ghost double (flux-rich ground, qubit things) */
   echo: Sprite | null;
   kind: string;
+  tx: number; ty: number;
   phase: number;
   variant: number;
   frames: number;
@@ -101,7 +106,7 @@ export class ObjectViews {
       echo.zIndex = root.zIndex - 0.5;
       this.layer.addChild(echo);
     }
-    return { root, shadow, echo, kind, phase: hash2(this.store.seed, tx, ty, 98) * 6.28, variant: p.variant, frames: p.frames, base: p.s, artKey: p.key };
+    return { root, shadow, echo, kind, tx, ty, phase: hash2(this.store.seed, tx, ty, 98) * 6.28, variant: p.variant, frames: p.frames, base: p.s, artKey: p.key };
   }
 
   buildChunk(cx: number, cy: number): void {
@@ -150,7 +155,7 @@ export class ObjectViews {
   has(cx: number, cy: number): boolean { return this.chunks.has(chunkKey(cx, cy)); }
 
   /** Per-frame: wind sway, torch flicker, and sun-driven shadows for objects near the camera. */
-  update(now: number, sun: Sun, reduced: boolean, minX: number, minY: number, maxX: number, maxY: number): void {
+  update(now: number, sun: Sun, reduced: boolean, minX: number, minY: number, maxX: number, maxY: number, wind: WindField = CALM): void {
     const t = now / 1000;
     const c0x = Math.floor(minX / CHUNK_SIZE), c1x = Math.floor(maxX / CHUNK_SIZE);
     const c0y = Math.floor(minY / CHUNK_SIZE), c1y = Math.floor(maxY / CHUNK_SIZE);
@@ -159,7 +164,8 @@ export class ObjectViews {
         const m = this.chunks.get(chunkKey(cx, cy));
         if (!m) continue;
         for (const o of m.values()) {
-          const sway = reduced ? 0 : Math.sin(t * 1.6 + o.phase + o.root.x * 0.01) * (o.kind === 'tallgrass' || o.kind === 'flowers' ? 0.09 : o.kind === 'tree' ? 0.012 : 0);
+          const amp = SWAY[o.kind] ?? 0;
+          const sway = reduced || !amp ? 0 : wind.sway(o.tx, o.ty, o.phase, amp);
           o.root.skew.x = sway;
           if (o.echo) {
             o.echo.texture = o.root.texture; o.echo.skew.x = sway;

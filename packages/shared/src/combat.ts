@@ -162,11 +162,13 @@ export function maxHpForLevel(level: number, base: number): number {
 // ───────────────────────── enemies ─────────────────────────
 
 export interface DropDef { item: string; min: number; max: number; chance: number }
-export type EnemyAi = 'melee' | 'leap' | 'caster' | 'brute' | 'swarm' | 'passive';
+export type EnemyAi = 'melee' | 'leap' | 'caster' | 'brute' | 'swarm' | 'passive' | 'boar';
 export interface EnemyDef {
   kind: number;
   /** passive fauna flees instead of fighting */
   passive?: boolean;
+  /** wildlife that ignores you until it is hurt (then fights back); never counts against the hostile spawn budget */
+  neutral?: boolean;
   drops?: DropDef[];
   name: string;
   hp: number;
@@ -215,7 +217,7 @@ export const REFLECT_SPEED_MULT = 1.7;
 export const REFLECT_DAMAGE = 18;
 
 const melee = { ai: 'melee' as const };
-export const ENEMY_DEFS: Record<'slime' | 'hopper' | 'rabbit' | 'deer' | 'wisp' | 'brute' | 'mite', EnemyDef> = {
+export const ENEMY_DEFS: Record<'slime' | 'hopper' | 'rabbit' | 'deer' | 'wisp' | 'brute' | 'mite' | 'boar' | 'wolf' | 'badger', EnemyDef> = {
   slime: { kind: 0, name: 'Wisp Slime', hp: 30, speed: 2.1, radius: 0.4, damage: 7, sight: 7, windup: 0.55, strikeRange: 1.1, xp: 10, ...melee, poise: 8, staggerTime: 0.7, cooldown: 0.5, budget: 1, drops: [{ item: 'slime_gel', min: 1, max: 2, chance: 0.7 }] },
   hopper: { kind: 1, name: 'Glint Hopper', hp: 22, speed: 3.0, radius: 0.35, damage: 9, sight: 9, windup: 0.7, strikeRange: 3.0, xp: 14, ai: 'leap', poise: 6, staggerTime: 0.7, cooldown: 0.6, budget: 1, drops: [{ item: 'hopper_tooth', min: 1, max: 1, chance: 0.45 }, { item: 'hide', min: 1, max: 1, chance: 0.25 }] },
   rabbit: { kind: 2, name: 'Meadow Rabbit', passive: true, ai: 'passive', hp: 8, speed: 4.6, radius: 0.3, damage: 0, sight: 6, windup: 0, strikeRange: 0, xp: 3, drops: [{ item: 'raw_meat', min: 1, max: 1, chance: 0.9 }, { item: 'hide', min: 1, max: 1, chance: 0.5 }] },
@@ -226,8 +228,14 @@ export const ENEMY_DEFS: Record<'slime' | 'hopper' | 'rabbit' | 'deer' | 'wisp' 
   brute: { kind: 5, name: 'Decoherent Brute', hp: 95, speed: 1.7, radius: 0.55, damage: 16, sight: 9, windup: 0.95, strikeRange: 7, xp: 45, ai: 'brute', poise: 40, staggerTime: 1.4, armor: true, resist: 0.25, cooldown: 1.4, budget: 3, drops: [{ item: 'iron_ore', min: 1, max: 2, chance: 0.7 }, { item: 'coal', min: 1, max: 2, chance: 0.5 }, { item: 'hide', min: 1, max: 1, chance: 0.35 }] },
   /** swarm: tiny, fast, fragile, come in packs */
   mite: { kind: 6, name: 'Static Mite', hp: 6, speed: 4.3, radius: 0.22, damage: 3, sight: 8, windup: 0.32, strikeRange: 0.75, xp: 3, ai: 'swarm', poise: 0, staggerTime: 0.35, cooldown: 0.6, budget: 0.34, drops: [{ item: 'copper_ore', min: 1, max: 1, chance: 0.12 }] },
+  /** wild boar: roots around peacefully; hurt it or crowd it and it lowers its head and charges (long telegraph, dodge sideways) */
+  boar: { kind: 7, name: 'Wild Boar', neutral: true, ai: 'boar', hp: 58, speed: 2.4, radius: 0.5, damage: 13, sight: 7, windup: 0.75, strikeRange: 6, xp: 24, poise: 22, staggerTime: 1.0, resist: 0.5, cooldown: 1.6, budget: 0, drops: [{ item: 'raw_meat', min: 2, max: 3, chance: 1 }, { item: 'hide', min: 1, max: 2, chance: 0.7 }, { item: 'boar_tusk', min: 1, max: 1, chance: 0.35 }] },
+  /** wolf: pack hunter of forests and snowfields; circles, then lunges with a short, readable windup */
+  wolf: { kind: 8, name: 'Dire Wolf', hp: 44, speed: 4.2, radius: 0.45, damage: 10, sight: 12, windup: 0.6, strikeRange: 3.6, xp: 30, ai: 'leap', poise: 10, staggerTime: 0.8, cooldown: 0.9, budget: 1.5, drops: [{ item: 'hide', min: 1, max: 2, chance: 0.8 }, { item: 'wolf_fang', min: 1, max: 1, chance: 0.4 }, { item: 'raw_meat', min: 1, max: 2, chance: 0.8 }] },
+  /** badger: small, stubborn and fast to bite; leave it alone and it digs for grubs */
+  badger: { kind: 9, name: 'Badger', neutral: true, ai: 'melee', hp: 30, speed: 3.2, radius: 0.35, damage: 8, sight: 6, windup: 0.4, strikeRange: 1.1, xp: 14, poise: 6, staggerTime: 0.6, cooldown: 0.7, budget: 0, drops: [{ item: 'hide', min: 1, max: 1, chance: 0.6 }, { item: 'raw_meat', min: 1, max: 1, chance: 0.7 }] },
 };
-export const ENEMY_BY_KIND: EnemyDef[] = [ENEMY_DEFS.slime, ENEMY_DEFS.hopper, ENEMY_DEFS.rabbit, ENEMY_DEFS.deer, ENEMY_DEFS.wisp, ENEMY_DEFS.brute, ENEMY_DEFS.mite];
+export const ENEMY_BY_KIND: EnemyDef[] = [ENEMY_DEFS.slime, ENEMY_DEFS.hopper, ENEMY_DEFS.rabbit, ENEMY_DEFS.deer, ENEMY_DEFS.wisp, ENEMY_DEFS.brute, ENEMY_DEFS.mite, ENEMY_DEFS.boar, ENEMY_DEFS.wolf, ENEMY_DEFS.badger];
 export type EnemyKindName = keyof typeof ENEMY_DEFS;
 
 export const NIGHT_HP_MULT = 1.6;

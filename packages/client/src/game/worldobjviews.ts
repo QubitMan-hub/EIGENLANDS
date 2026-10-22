@@ -1,5 +1,6 @@
 import { Sprite, type Container } from 'pixi.js';
 import { CHUNK_SIZE, chunkKey, hash2, objLight, sampleClimate, type ChunkStore, type WorldObj } from '@eigenlands/shared';
+import { WindField, CALM } from './windfield';
 import { depth, isoX, isoY } from './iso';
 import type { SeasonIdx } from '../art/objects';
 import { worldObjDef, type ObjSpriteDef } from '../art/worldobjs';
@@ -140,7 +141,7 @@ export class WorldObjViews {
     }
   }
 
-  update(now: number, sun: Sun, reduced: boolean, minX: number, minY: number, maxX: number, maxY: number): void {
+  update(now: number, sun: Sun, reduced: boolean, minX: number, minY: number, maxX: number, maxY: number, wind: WindField = CALM): void {
     const t = now / 1000;
     this.forVisible(minX, minY, maxX, maxY, (v) => {
       const d = v.def;
@@ -149,7 +150,7 @@ export class WorldObjViews {
         const tex = d.frames[f]!.tex;
         if (v.root.texture !== tex) { v.root.texture = tex; v.shadow.texture = tex; if (v.echo) v.echo.texture = tex; }
       }
-      const sway = reduced || !d.sway ? 0 : Math.sin(t * 1.5 + v.phase + v.root.x * 0.02) * d.sway;
+      const sway = reduced || !d.sway ? 0 : wind.sway(v.obj.x, v.obj.y, v.phase, d.sway * 4);
       v.root.skew.x = sway;
       if (v.echo) { v.echo.skew.x = sway; v.echo.alpha = reduced ? 0.2 : 0.15 + 0.1 * Math.sin(t * 1.9 + v.phase); }
       const show = !d.noShadow && sun.alpha > 0.02;

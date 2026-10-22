@@ -59,6 +59,8 @@ export interface Enemy {
   chargeHits: Set<string>;
   /** counts attacks; a strike is identified by `${id}:${attackSeq}` */
   attackSeq: number;
+  /** neutral wildlife fights back once it has been hurt */
+  provoked: boolean;
 }
 
 let seq = 0;
@@ -86,7 +88,7 @@ export function createEnemy(kind: EnemyKind, x: number, y: number, night: boolea
     lockX: 0, lockY: 0, resist: (def.resist ?? 1) * (elite & ELITE.HARDENED ? 0.5 : 1), lastHitBy: null, history: [],
     poise: maxPoise, maxPoise, poiseT: 0, flinchT: 0, cd: 0, atk: ATK.NONE, aimX: 0, aimY: 1, targetId: null,
     elite, level, dmgMult: sc.dmg, speedMult: elite & ELITE.SWIFT ? 1.35 : 1, windMult: elite & ELITE.SWIFT ? 0.85 : 1,
-    orbit, slowT: 0, chargeHits: new Set(), attackSeq: 0,
+    orbit, slowT: 0, chargeHits: new Set(), attackSeq: 0, provoked: false,
   };
 }
 
@@ -195,7 +197,7 @@ const WINDUP_TIME = (e: Enemy): number => (e.atk === ATK.SLAM ? BRUTE_SLAM_WINDU
 export function stepEnemy(
   e: Enemy, dt: number, tick: number, targets: Target[], solid: SolidQuery, rand: () => number, hooks: EnemyHooks, ctx?: AiContext,
 ): void {
-  if (e.def.passive) { stepPassive(e, dt, tick, targets, solid, rand); return; }
+  if (e.def.passive || (e.def.neutral && !e.provoked)) { stepPassive(e, dt, tick, targets, solid, rand); return; }
   knockback(e, dt, solid, hooks);
   e.flinchT = Math.max(0, e.flinchT - dt);
   e.cd = Math.max(0, e.cd - dt);
@@ -245,6 +247,10 @@ export function stepEnemy(
       if (e.cd <= 0 && e.flinchT <= 0) {
         if (ai === 'melee' && token && d <= e.def.strikeRange * 0.8) { startWindup(e, ATK.SELF, e.def.windup, target, hooks); break; }
         if (ai === 'leap' && token && d <= e.def.strikeRange * 0.85) { startWindup(e, ATK.LEAP, e.def.windup, target, hooks); break; }
+        if (ai === 'boar' && token) {
+          if (d <= 1.3) { startWindup(e, ATK.SELF, 0.5, target, hooks); break; }
+          if (d >= 2.6 && d <= e.def.strikeRange && lineOfSight(solid, e.x, e.y, target.x, target.y)) { startWindup(e, ATK.CHARGE, e.def.windup, target, hooks); break; }
+        }
         if (ai === 'swarm' && d <= e.def.strikeRange + 0.25) { startWindup(e, ATK.SELF, e.def.windup, target, hooks); break; }
         if (ai === 'brute' && token) {
           if (d <= BRUTE_SLAM_RADIUS * 0.85) { startWindup(e, ATK.SLAM, BRUTE_SLAM_WINDUP, target, hooks); break; }
@@ -386,6 +392,13 @@ function stepPassive(e: Enemy, dt: number, tick: number, targets: Target[], soli
     if (d < best) { best = d; threat = p; }
   }
   e.t -= dt;
+  // neutral wildlife never flees: it keeps an eye on anyone close and otherwise goes about its business
+  if (threat && e.def.neutral) {
+    const dx = threat.x - e.x, dy = threat.y - e.y, d = Math.hypot(dx, dy) || 1;
+    if (d < 2.2) e.provoked = true; // crowded: it will charge
+    else if (d < 5) { e.state.faceX = dx / d; e.state.faceY = dy / d; threat = null; e.mode = 'idle'; e.t = Math.max(e.t, 0.4); }
+    else threat = null;
+  }
   if (threat) {
     // flee directly away, with a little zig-zag so they are huntable but not trivial
     const dx = e.x - threat.x, dy = e.y - threat.y, d = Math.hypot(dx, dy) || 1;

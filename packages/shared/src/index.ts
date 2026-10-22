@@ -36,3 +36,4 @@ export * from './protocol34';
 export * from './shards';
 export * from './chatfilter';
 export * from './schema34';
+export * from './wind';

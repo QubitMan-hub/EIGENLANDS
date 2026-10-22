@@ -26,6 +26,8 @@ import { Fx } from './fx';
 import { Lighting, type Light } from './lighting';
 import { buildFoeSheets, type FoeSheets } from '../art/foes';
 import { CombatView } from './combatview';
+import { WindField } from './windfield';
+import { Critters } from '../art/critters';
 import { TargetFrame } from '../ui/targetframe';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -66,6 +68,7 @@ export class Game {
   private app!: Application;
   private sheets!: Sheets;
   private foes!: FoeSheets;
+  private critters!: Critters;
   private combat!: CombatView;
   private decalLayer = new Graphics();
   private deadAt = 0;
@@ -109,6 +112,7 @@ export class Game {
   private weatherLayer = new Container();
   private cursor = new Graphics();
   private aimGfx = new Graphics();
+  readonly wind = new WindField();
   private targetId: string | null = null;
   private targetFrame = new TargetFrame();
   /** smoothed right-mouse look offset in iso world px */
@@ -137,6 +141,7 @@ export class Game {
     });
     this.sheets = buildActorSheets();
     this.foes = buildFoeSheets();
+    this.critters = await Critters.load();
     this.entityLayer.sortableChildren = true;
     this.world.addChild(this.shadowLayer, this.decalLayer, this.entityLayer, this.roofLayer, this.cursor, this.aimGfx, this.bobber, this.fxLayer);
     this.lighting = new Lighting(this.app.renderer);
@@ -153,7 +158,7 @@ export class Game {
     this.fx = new Fx(this.fxLayer, () => this.settings().reducedMotion);
     this.combat = new CombatView({
       fx: () => this.fx, sound: (s, x, y) => this.sound(s, x, y), rawSound: (s) => this.audio.play(s),
-      reduced: () => this.settings().reducedMotion, sheets: () => this.sheets, foes: () => this.foes, myId: () => this.myId,
+      reduced: () => this.settings().reducedMotion, sheets: () => this.sheets, foes: () => this.foes, critters: () => this.critters, myId: () => this.myId,
       me: () => (this.predictor ? { x: this.predictor.sim.x, y: this.predictor.sim.y } : null), views: () => this.views.values(),
     }, this.decalLayer);
     this.ext = new P34Client({
@@ -470,6 +475,8 @@ export class Game {
     const hour = this.hourOverride ?? gameHour(this.clock.serverNow(now));
     const sun = sunFor(hour);
     const wall = this.clock.serverNow(now);
+    const weather = weatherForDay(this.seed, dayNumber(wall));
+    this.wind.update(this.seed, wall / 1000, now / 1000, weather);
     this.setSeason(this.seasonOverride ?? ((SEASONS.indexOf(season(wall)) as SeasonIdx)));
 
     const me = this.predictor.visual(alpha);
@@ -497,7 +504,7 @@ export class Game {
     this.world.y = Math.round(H / 2 - camY * S) + oy;
     {
       const ow = Math.floor(camX - W / 2 / S), oh = Math.floor(camY - H / 2 / S);
-      this.terrain.render(ow, oh, chunkOf(Math.floor(me.x)), chunkOf(Math.floor(me.y)), now / 1000, this.seasonIdx, !reduced);
+      this.terrain.render(ow, oh, chunkOf(Math.floor(me.x)), chunkOf(Math.floor(me.y)), now / 1000, this.seasonIdx, !reduced, this.wind.w);
       this.terrain.sprite.x = this.world.x + ow * S;
       this.terrain.sprite.y = this.world.y + oh * S;
       // visible tile bounds = bounding box of the four unprojected screen corners
@@ -505,8 +512,8 @@ export class Game {
       const vx0 = Math.floor(Math.min(...c.map((p) => p.x))) - 4, vx1 = Math.ceil(Math.max(...c.map((p) => p.x))) + 4;
       const vy0 = Math.floor(Math.min(...c.map((p) => p.y))) - 4, vy1 = Math.ceil(Math.max(...c.map((p) => p.y))) + 4;
       this.vis = { x0: vx0, y0: vy0, x1: vx1, y1: vy1 };
-      this.objects.update(now, sun, reduced, vx0, vy0, vx1, vy1);
-      this.worldObjs.update(now, sun, reduced, vx0, vy0, vx1, vy1);
+      this.objects.update(now, sun, reduced, vx0, vy0, vx1, vy1, this.wind);
+      this.worldObjs.update(now, sun, reduced, vx0, vy0, vx1, vy1, this.wind);
       this.buildings.update(now, Math.floor(me.x), Math.floor(me.y), reduced, sun, vx0, vy0, vx1, vy1);
       const m = this.input.mouseXY;
       const u = unproject((m.x - this.world.x) / S, (m.y - this.world.y) / S);
@@ -527,8 +534,7 @@ export class Game {
 
     // lighting
     const topLeftIso = { x: camX - W / 2 / S, y: camY - H / 2 / S };
-    const weather = weatherForDay(this.seed, dayNumber(wall));
-    this.weatherFx.update(dt, weather, W, H, reduced, hour);
+    this.weatherFx.update(dt, weather, W, H, reduced, hour, this.wind.w, this.seasonIdx);
     const wa = this.weatherFx.ambient(weather), amb = ambientColor(hour);
     this.lighting.render([amb[0] * wa[0], amb[1] * wa[1], amb[2] * wa[2]], this.collectLights(topLeftIso.x, topLeftIso.y, hour, now, reduced));
     this.updateTarget(now);

@@ -677,6 +677,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     const res = staggered ? Math.min(1, e.resist * 2.5) : e.resist;
     e.kx += dx * r.knockback * res; e.ky += dy * r.knockback * res;
     if (by) e.lastHitBy = by.client.sessionId;
+    if (e.def.neutral) e.provoked = true;
     let broke = false;
     if (!e.def.passive && r.poise > 0) {
       e.poise -= r.poise; e.poiseT = 0;
@@ -720,7 +721,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
           if (!giveStacks(killer, [stack])) killer.toast('Your pack is full.', 'bad');
         }
       }
-      if (e.def.passive) addSkillXp(killer, 'foraging', e.def.xp);
+      if (e.def.passive || e.def.neutral) addSkillXp(killer, 'foraging', e.def.xp);
       onKill(killer, e.def, this.wclock.day()); // Phase 2 quests: kill objectives
     }
     // night slimes decohere into a pair of Static Mites
@@ -866,7 +867,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
 
   /** Meadow spawner: a per-player budget of enemy "points", a spawn table by level and time of day, mite packs and elites. */
   private ambientSpawn(now: number): void {
-    if ([...this.enemies.values()].filter((e) => !e.def.passive).length >= MAX_ENEMIES) return;
+    if ([...this.enemies.values()].filter((e) => !e.def.passive && !e.def.neutral).length >= MAX_ENEMIES) return;
     const night = isNight(now);
     for (const p of this.players.values()) {
       if (p.deadT > 0) continue;
@@ -883,6 +884,19 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
         if (TILE_DEFS[t]?.solid || t === T.TORCH) continue;
         let kind = pickSpawn(p.level, night, this.rand());
         if (kind === 'brute' && used + 3 > budget + 0.5) kind = 'slime';
+        // wolf packs prowl woodland at night (and any snowy ground)
+        if (night && p.level >= 3 && this.rand() < 0.22 && used + 3 <= budget + 1) {
+          let trees = 0;
+          for (let dy = -5; dy <= 5; dy++) for (let dx = -5; dx <= 5; dx++) if (this.store.getTile(x + dx, y + dy) === T.TREE) trees++;
+          if (trees >= 5) {
+            const n = 2 + Math.floor(this.rand() * 2);
+            for (let i = 0; i < n; i++) {
+              const wx = x + 0.5 + Math.cos(i * 2.3) * 1.5, wy = y + 0.5 + Math.sin(i * 2.3) * 1.5;
+              if (!this.store.solidAt(Math.floor(wx), Math.floor(wy))) this.spawnEnemy('wolf', wx, wy, night, { level: p.level });
+            }
+            break;
+          }
+        }
         const elite = this.rand() < eliteChance(p.level, night) ? [ELITE.HARDENED, ELITE.SWIFT, ELITE.VOLATILE][Math.floor(this.rand() * 3)]! : 0;
         if (kind === 'mite') {
           const n = 4 + Math.floor(this.rand() * 3);
@@ -900,12 +914,12 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   private ambientFauna(now: number): void {
     if (isNight(now)) return;
     let total = 0;
-    for (const e of this.enemies.values()) if (e.def.passive) total++;
+    for (const e of this.enemies.values()) if (e.def.passive || e.def.neutral) total++;
     if (total >= MAX_FAUNA) return;
     for (const p of this.players.values()) {
       if (p.deadT > 0) continue;
       let near = 0;
-      for (const e of this.enemies.values()) if (e.def.passive && Math.hypot(e.x - p.sim.x, e.y - p.sim.y) < 40) near++;
+      for (const e of this.enemies.values()) if ((e.def.passive || e.def.neutral) && Math.hypot(e.x - p.sim.x, e.y - p.sim.y) < 40) near++;
       if (near >= 3) continue;
       for (let tries = 0; tries < 6; tries++) {
         const a = this.rand() * Math.PI * 2, d = 16 + this.rand() * 10;
@@ -915,7 +929,14 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
         if (t !== T.GRASS && t !== T.GRASS_TALL && t !== T.FLOWERS) continue;
         let trees = 0;
         for (let dy = -5; dy <= 5; dy++) for (let dx = -5; dx <= 5; dx++) if (this.store.getTile(x + dx, y + dy) === T.TREE) trees++;
-        this.spawnEnemy(trees >= 6 && this.rand() < 0.5 ? 'deer' : 'rabbit', x + 0.5, y + 0.5, false);
+        // forests hold deer herds and boar sounders; open turf has rabbits and the odd badger
+        const r = this.rand();
+        const kind: EnemyKind = trees >= 6 ? (r < 0.5 ? 'deer' : r < 0.75 ? 'boar' : 'rabbit') : (r < 0.2 ? 'badger' : 'rabbit');
+        const n = kind === 'deer' ? 2 + Math.floor(this.rand() * 3) : kind === 'boar' ? 1 + Math.floor(this.rand() * 3) : 1;
+        for (let i = 0; i < n; i++) {
+          const hx = x + 0.5 + Math.cos(i * 2.1) * 1.2, hy = y + 0.5 + Math.sin(i * 2.1) * 1.2;
+          if (!this.store.solidAt(Math.floor(hx), Math.floor(hy))) this.spawnEnemy(kind, hx, hy, false);
+        }
         break;
       }
     }

@@ -86,6 +86,8 @@ def('gold_ore', 'Gold Ore', 'resource', 40, 'ore', C.e5, C.e7, 'Soft, heavy and 
 def('qubit_crystal', 'Qubit Crystal', 'resource', 90, 'gem', C.q3, C.q7, 'A crystal that hums in two states at once. Phase: violet.', { phase: 6 });
 def('slime_gel', 'Slime Gel', 'resource', 10, 'gel', C.w4, C.w7, 'Wobbles between solid and liquid. Phase: cyan.', { phase: 4 });
 def('hopper_tooth', 'Hopper Tooth', 'resource', 16, 'tooth', C.pale, C.r4, 'A tooth that glints red when tilted. Phase: red.', { phase: 0 });
+def('boar_tusk', 'Boar Tusk', 'resource', 22, 'tooth', C.pale, C.e4, 'Curved ivory, still warm with stubbornness. Phase: orange.', { phase: 1 });
+def('wolf_fang', 'Wolf Fang', 'resource', 26, 'tooth', C.pale, C.w6, 'A fang that rings like a bell when struck. Phase: blue.', { phase: 5 });
 def('heartwood', 'Heartwood', 'resource', 30, 'log', C.g3, C.g6, 'Dense green wood from the oldest trees. Phase: green.', { phase: 3 });
 def('raw_meat', 'Raw Meat', 'resource', 14, 'meat', C.r3, C.r5, 'Fresh from the hunt. Cook it.');
 def('hide', 'Hide', 'resource', 10, 'hide', C.e3, C.e5, 'A supple animal hide.');

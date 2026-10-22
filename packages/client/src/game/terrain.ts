@@ -43,6 +43,7 @@ export class Terrain {
       uWin: { value: new Float32Array([0, 0]), type: 'vec2<f32>' }, uWinSize: { value: WIN, type: 'f32' },
       uIso: { value: new Float32Array([0, 0]), type: 'vec2<f32>' }, uRes: { value: new Float32Array([16, 16]), type: 'vec2<f32>' },
       uPlaza: { value: new Float32Array([0, 0, 0, 0]), type: 'vec4<f32>' }, uShrine: { value: new Float32Array([0.5, 0.5, 3.05, 0]), type: 'vec4<f32>' },
+      uWind: { value: new Float32Array([1, 0, 0.3]), type: 'vec3<f32>' },
     });
     const town = townFor(store.seed);
     this.plaza = { x: town.cx + 0.5, y: town.cy + 4.5, r: 5.9, x0: town.x0, y0: town.y0, x1: town.x1, y1: town.y1 };
@@ -169,11 +170,12 @@ export class Terrain {
   }
 
   /** Draw the terrain for the view whose top-left iso art-pixel is (isoX, isoY); (pcx,pcy) = the player's chunk. */
-  render(isoX: number, isoY: number, pcx: number, pcy: number, time: number, season: number, motion: boolean): void {
+  render(isoX: number, isoY: number, pcx: number, pcy: number, time: number, season: number, motion: boolean, wind?: { dx: number; dy: number; strength: number }): void {
     if (this.winDirty || pcx !== this.winCx || pcy !== this.winCy) this.assemble(pcx, pcy);
     this.common.uniforms.uTime = time;
     this.common.uniforms.uSeason = season;
     this.common.uniforms.uMotion = motion ? 1 : 0;
+    if (wind) this.common.uniforms.uWind = new Float32Array([wind.dx, wind.dy, wind.strength]);
     this.common.uniforms.uIso = new Float32Array([isoX, isoY]);
     this.renderer.render({ container: this.scene, target: this.rt, clear: true });
   }

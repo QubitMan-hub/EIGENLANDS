@@ -1,3 +1,4 @@
+import { critterDir, type Critters, type CritterId } from '../art/critters';
 import type { Container, Graphics, Sprite } from 'pixi.js';
 import {
   ATK, BRUTE_SLAM_RADIUS, CHARGE_FULL, CHARGE_MIN, CHARGE_WIDTH, COMBO, DASH_CHARGES, DASH_COOLDOWN, ELITE, ENEMY_BY_KIND, LEAP_RADIUS,
@@ -46,6 +47,7 @@ export interface CombatDeps {
   reduced: () => boolean;
   sheets: () => Sheets;
   foes: () => FoeSheets;
+  critters: () => Critters;
   myId: () => string;
   me: () => { x: number; y: number } | null;
   views: () => Iterable<CombatActor>;
@@ -276,6 +278,36 @@ export class CombatView {
     }
   }
 
+  private speeds = new WeakMap<CombatActor, { t: number; v: number }>();
+
+  /** Wildlife sprite: picks the animation from what the animal is doing (moving, resting, winding up, charging...) and its iso facing. */
+  private critter(v: CombatActor, kind: number, s: CombatSnap | null, st: number, moved: boolean, t: number, dt: number): void {
+    const id: CritterId = kind === 3 ? 'stag' : kind === 7 ? 'boar' : kind === 8 ? 'wolf' : 'badger';
+    const c = this.d.critters();
+    // ground speed (tiles/s), smoothed, tells walking from running without a synced flag
+    const rec = this.speeds.get(v) ?? { t: v.travel, v: 0 };
+    rec.v += ((dt > 0 ? (v.travel - rec.t) / dt : 0) - rec.v) * Math.min(1, dt * 8);
+    rec.t = v.travel;
+    this.speeds.set(v, rec);
+    const spd = rec.v;
+    const dir = critterDir(s?.faceX ?? 0, s?.faceY ?? 1);
+    let anim = 'idle', frame = t * c.fps(id, 'idle') + v.outfit * 3;
+    const run = (a: string, k = 1) => { anim = a; frame = (v.travel * 2.4 + v.outfit) * k; };
+    if (id === 'stag') { if (moved && spd > 0.9) { if (spd > 3.4) { anim = 'run'; frame = t * 14 + v.outfit; } else { anim = 'walk'; frame = t * 10 + v.outfit; } } }
+    else if (id === 'boar') { if (st === 3 || (moved && spd > 1.4)) { anim = 'run'; frame = t * (st === 3 ? 16 : 11) + v.outfit; } else if (moved && spd > 0.4) run('run', 0.6); }
+    else if (id === 'badger') { if (moved && spd > 0.3) { anim = 'walk'; frame = t * Math.min(16, 6 + spd * 2.5) + v.outfit; } }
+    else { // wolf
+      if (st === 2) { anim = 'howl'; frame = ((s?.tele ?? 0) / 100) * (c.length(id, 'howl') - 1); }
+      else if (st === 3) { anim = 'bite'; frame = t * 24; }
+      else if (st === 5) { anim = 'idle'; frame = 0; }
+      else if (moved && spd > 0.3) { anim = 'run'; frame = t * Math.min(18, 8 + spd * 2) + v.outfit; }
+    }
+    v.sprite.texture = c.frame(id, anim, dir, frame);
+    const a = c.anchor(id);
+    v.sprite.anchor.set(a.x, a.y);
+    v.fl.anchor.set(a.x, a.y);
+  }
+
   /** Enemy sprite, animation, flash, squash/stretch, stagger, elite aura, bars and its telegraph. */
   drawEnemy(v: CombatActor, s: CombatSnap | null, x: number, y: number, fx: number, now: number, dt: number, moved: boolean): void {
     const kind = s?.kind ?? v.kind, night = !!s?.night;
@@ -286,11 +318,13 @@ export class CombatView {
     const def = ENEMY_BY_KIND[kind];
     const fsx = screenDir(fx, s?.faceY ?? 1).x;
     let flip = false;
+    const isCritter = kind === 3 || kind >= 7;
+    if (!isCritter && v.sprite.anchor.y !== 1) { v.sprite.anchor.set(0.5, 1); v.fl.anchor.set(0.5, 1); }
     switch (kind) {
       case 0: v.sprite.texture = sheets.slime(night, st === 2 ? 2 : Math.floor(t * 4 + v.outfit) % 4); break;
       case 1: v.sprite.texture = sheets.hopper(night, st === 2 ? 1 : st === 3 ? 2 : Math.floor(t * 3) % 2 === 0 ? 0 : 3); break;
       case 2: v.sprite.texture = sheets.rabbit(moved ? 1 + (Math.floor(v.travel / 0.25) % 3) : 0, fsx < 0 ? DIR_LEFT : 3); break;
-      case 3: v.sprite.texture = sheets.deer(moved ? 1 + (Math.floor(v.travel / 0.25) % 3) : 0, fsx < 0 ? DIR_LEFT : 3); break;
+      case 3: case 7: case 8: case 9: this.critter(v, kind, s, st, moved, t, dt); break;
       case 4: v.sprite.texture = foes.wisp(night, st === 2 ? 2 : st === 3 || st === 4 ? 3 : Math.floor(t * 5 + v.outfit) % 2); flip = fsx < 0; break;
       case 5: v.sprite.texture = foes.brute(night, st === 2 ? 2 : st === 3 ? 3 : moved ? Math.floor(v.travel / 0.4) % 2 : Math.floor(t * 1.5) % 2); flip = fsx < 0; break;
       case 6: v.sprite.texture = foes.mite(night, st === 2 ? 2 : [0, 1, 3, 1][Math.floor(t * 12 + v.outfit) % 4]!); flip = fsx < 0; break;
@@ -316,7 +350,7 @@ export class CombatView {
     v.fl.y = v.sprite.y;
 
     const g = v.gfx;
-    g.ellipse(0, 0, 7 * (kind === 5 ? 1.5 : kind === 6 ? 0.6 : 1), 3).fill({ color: 0x2a1060, alpha: 0.28 });
+    if (kind !== 3) g.ellipse(0, 0, 7 * (kind === 5 ? 1.5 : kind === 6 ? 0.6 : kind === 7 ? 1.3 : kind === 8 ? 1.1 : kind === 9 ? 0.8 : 1), 3).fill({ color: 0x2a1060, alpha: 0.28 });
     if (s && s.elite) {
       const col = s.elite & ELITE.VOLATILE ? 36 : s.elite & ELITE.SWIFT ? 29 : 6;
       const pulse = 0.5 + 0.3 * Math.sin(t * 6);
@@ -329,7 +363,7 @@ export class CombatView {
         g.rect(Math.round(Math.cos(a) * 6) - 1, Math.round(-20 * big + Math.sin(a) * 2) - 1, 2, 2).fill(pc(38));
       }
     }
-    const top = kind === 5 ? -27 : -18;
+    const top = kind === 5 ? -27 : kind === 3 ? -30 : kind === 8 ? -26 : -18;
     if (s && def && !def.passive && (s.hp < s.maxHp || s.elite)) {
       g.rect(-8, top, 16, 3).fill(pc(1));
       g.rect(-7, top + 1, Math.max(0, 14 * (s.hp / s.maxHp)), 1).fill(pc(s.elite ? 37 : 35));

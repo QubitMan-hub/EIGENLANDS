@@ -44,6 +44,7 @@ uniform float uTime;
 uniform float uSeason;      // 0 spring, 1 summer, 2 autumn, 3 winter
 uniform float uMotion;      // 1 = animate, 0 = reduced motion
 uniform vec4 uPlaza;        // town plaza centre (tiles) + radius
+uniform vec3 uWind;         // wind direction (tile axes) + strength; mirrors shared/wind.ts gust
 uniform vec4 uShrine;       // spawn shrine centre (tiles) + radius
 
 const vec3 PAL[48] = vec3[48](${pal});
@@ -492,6 +493,13 @@ void main() {
     }
   } else if (g.best == GRASS) {
     c = grassPixel(ip, wpf, s, g.flux, t, d, edgePx);
+    // wind gusts ripple across the meadow as travelling lighter bands (same field the swaying plants follow)
+    if (uMotion > 0.5 && s != 3 && edgePx > 3.0 && c >= G3 && c < G6) {
+      vec2 wd = normalize(uWind.xy + 1e-4);
+      float ph = dot(tf, wd) * 0.72 - t * (0.6 + 1.6 * uWind.z) + 1.7 * sin(dot(tf, vec2(-wd.y, wd.x)) * 0.32);
+      float band = smoothstep(0.78, 0.97, 0.5 + 0.5 * sin(ph)) * smoothstep(0.08, 0.5, uWind.z);
+      if (d < band * 0.85) c += 1;
+    }
     if (g.other != GRASS && edgePx < 2.6) {
       // a lit lip and a dark outline where turf meets anything else
       if (edgePx < 1.1) c = s == 3 ? FOG : (isWater(g.other) ? G2 : G2);
