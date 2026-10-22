@@ -39,7 +39,9 @@ export function put(ctx: Ctx, x: number, y: number, c: number, w = 1, h = 1): vo
 function pick(ramp: Ramp, t: number, d: number): number {
   const x = Math.min(1, Math.max(0, t)) * (ramp.length - 1);
   const lo = Math.floor(x);
-  return ramp[Math.min(ramp.length - 1, lo + (x - lo > d ? 1 : 0))]!;
+  const fr = x - lo;
+  const k = fr <= 0.3 ? 0 : fr >= 0.7 ? 1 : (fr - 0.3) / 0.4;   // clean flat bands, ordered dither only in a narrow seam
+  return ramp[Math.min(ramp.length - 1, lo + (k > d ? 1 : 0))]!;
 }
 
 export interface BlobOpts { seed?: number; noise?: number; bright?: number; edgeDark?: number; shape?: number }
@@ -187,3 +189,122 @@ export function pixelText(ctx: Ctx, text: string, x: number, y: number, c: numbe
   }
   return cx - x - 1;
 }
+
+// ───────── isometric primitives (2:1, lit from the top-left) ─────────
+/** Face callback: u in [0,1] along the face (from the front corner outward), v = pixels above the base (0 = bottom). */
+export type FaceFn = (u: number, v: number, x: number, y: number) => number;
+/** Top callback: s along the -x edge, t along the -y edge, both 0..1 from the front corner. */
+export type TopFn = (s: number, t: number, x: number, y: number) => number;
+
+/**
+ * Iso box whose FRONT (nearest) bottom corner is at (cx, by). `a` = screen half-span of the left (x-extent) side,
+ * `b` = of the right side, `h` = height in px. Left face is the lit one, right face the shaded one.
+ */
+export function isoBox(ctx: Ctx, cx: number, by: number, a: number, b: number, h: number, left: FaceFn | number, right: FaceFn | number, top: TopFn | number | null): void {
+  const F = (f: FaceFn | number, u: number, v: number, x: number, y: number) => (typeof f === 'number' ? f : f(u, v, x, y));
+  for (let x = Math.floor(cx - a); x < Math.ceil(cx + b); x++) {
+    const px = x + 0.5;
+    const isL = px <= cx;
+    const u = isL ? (cx - px) / a : (px - cx) / b;
+    const base = by - Math.abs(cx - px) * 0.5;
+    for (let y = Math.floor(base - h); y < base; y++) {
+      const v = base - (y + 0.5);
+      if (v >= 0 && v <= h) put(ctx, x, y, F(isL ? left : right, u, v, x, y));
+    }
+  }
+  if (top === null) return;
+  const ty = by - h;
+  for (let y = Math.floor(ty - (a + b) * 0.5 - 1); y <= Math.ceil(ty); y++) for (let x = Math.floor(cx - a); x < Math.ceil(cx + b); x++) {
+    const px = x + 0.5 - cx, py = y + 0.5 - ty;
+    const t = (px - 2 * py) / 2, s = (-2 * py - px) / 2;
+    if (s < 0 || t < 0 || s > a || t > b) continue;
+    put(ctx, x, y, typeof top === 'number' ? top : top(s / a, t / b, x, y));
+  }
+}
+
+/** Upright cylinder (ellipse top, lit from the left). `ramp` dark->light. */
+export function cyl(ctx: Ctx, cx: number, topY: number, rx: number, ry: number, h: number, ramp: Ramp, topRamp?: Ramp, seed = 1): void {
+  for (let x = Math.floor(cx - rx); x < Math.ceil(cx + rx); x++) {
+    const nx = (x + 0.5 - cx) / rx;
+    if (Math.abs(nx) > 1) continue;
+    const ey = Math.sqrt(1 - nx * nx) * ry;
+    const lam = 0.62 - 0.5 * nx - 0.22 * nx * nx;
+    for (let y = Math.floor(topY); y < topY + h + ey; y++) {
+      const t = lam + (hash2(seed, x, y, 5) - 0.5) * 0.08 - 0.12 * ((y - topY) / Math.max(1, h));
+      put(ctx, x, y, pick(ramp, t, bayer(x, y)));
+    }
+  }
+  const tr = topRamp ?? ramp;
+  for (let y = Math.floor(topY - ry); y <= Math.ceil(topY + ry); y++) for (let x = Math.floor(cx - rx); x < Math.ceil(cx + rx); x++) {
+    const nx = (x + 0.5 - cx) / rx, ny = (y + 0.5 - topY) / ry;
+    const dd = nx * nx + ny * ny;
+    if (dd > 1) continue;
+    const t = 0.78 - 0.22 * nx - 0.2 * ny - (dd > 0.75 ? 0.22 : 0);
+    put(ctx, x, y, pick(tr, t, bayer(x, y)));
+  }
+}
+
+/** Thick limb: a Lambert-shaded capsule from (x0,y0) to (x1,y1) with radii r0 -> r1 (lit from the top-left). */
+export function limb(ctx: Ctx, x0: number, y0: number, x1: number, y1: number, r0: number, r1: number, ramp: Ramp, seed = 1, bright = 0): void {
+  const dx = x1 - x0, dy = y1 - y0, len2 = Math.max(1e-6, dx * dx + dy * dy), len = Math.sqrt(len2);
+  const px = -dy / len, py = dx / len;            // perpendicular (unit)
+  const R = Math.max(r0, r1);
+  for (let y = Math.floor(Math.min(y0, y1) - R); y <= Math.ceil(Math.max(y0, y1) + R); y++) {
+    for (let x = Math.floor(Math.min(x0, x1) - R); x <= Math.ceil(Math.max(x0, x1) + R); x++) {
+      const qx = x + 0.5 - x0, qy = y + 0.5 - y0;
+      const t = Math.max(0, Math.min(1, (qx * dx + qy * dy) / len2));
+      const r = r0 + (r1 - r0) * t;
+      const cx = qx - dx * t, cy = qy - dy * t;
+      const dist = Math.hypot(cx, cy);
+      if (dist > r) continue;
+      // surface normal: across the limb plus bulge at the caps
+      const side = (cx * px + cy * py) / r;
+      const nx = (cx / r), ny = (cy / r);
+      const nz = Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny));
+      const lam = nx * L[0] + ny * L[1] + nz * L[2];
+      const tt = 0.5 + 0.6 * lam + bright - 0.18 * Math.pow(Math.abs(side), 4) + (hash2(seed, x, y, 9) - 0.5) * 0.05;
+      put(ctx, x, y, pick(ramp, tt, bayer(x, y)));
+    }
+  }
+}
+
+/** Centre `text` at cx in the 3x5 pixel font, with an optional 1px drop-shadow colour. */
+export function pixelTextC(ctx: Ctx, text: string, cx: number, y: number, c: number, shadow?: number): void {
+  const x = Math.round(cx - fontWidth(text) / 2);
+  if (shadow !== undefined) pixelText(ctx, text, x + 1, y + 1, shadow);
+  pixelText(ctx, text, x, y, c);
+}
+
+// ───────── 5x7 engraving font (plaques, shop signs) ─────────
+const BIG: Record<string, string[]> = {
+  A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'], B: ['11110', '10001', '10001', '11110', '10001', '10001', '11110'],
+  C: ['01110', '10001', '10000', '10000', '10000', '10001', '01110'], D: ['11110', '10001', '10001', '10001', '10001', '10001', '11110'],
+  E: ['11111', '10000', '10000', '11110', '10000', '10000', '11111'], F: ['11111', '10000', '10000', '11110', '10000', '10000', '10000'],
+  G: ['01110', '10001', '10000', '10111', '10001', '10001', '01111'], H: ['10001', '10001', '10001', '11111', '10001', '10001', '10001'],
+  I: ['11111', '00100', '00100', '00100', '00100', '00100', '11111'], J: ['00111', '00010', '00010', '00010', '00010', '10010', '01100'],
+  K: ['10001', '10010', '10100', '11000', '10100', '10010', '10001'], L: ['10000', '10000', '10000', '10000', '10000', '10000', '11111'],
+  M: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'], N: ['10001', '11001', '10101', '10011', '10001', '10001', '10001'],
+  O: ['01110', '10001', '10001', '10001', '10001', '10001', '01110'], P: ['11110', '10001', '10001', '11110', '10000', '10000', '10000'],
+  Q: ['01110', '10001', '10001', '10001', '10101', '10010', '01101'], R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'],
+  S: ['01111', '10000', '10000', '01110', '00001', '00001', '11110'], T: ['11111', '00100', '00100', '00100', '00100', '00100', '00100'],
+  U: ['10001', '10001', '10001', '10001', '10001', '10001', '01110'], V: ['10001', '10001', '10001', '10001', '10001', '01010', '00100'],
+  W: ['10001', '10001', '10001', '10101', '10101', '10101', '01010'], X: ['10001', '10001', '01010', '00100', '01010', '10001', '10001'],
+  Y: ['10001', '10001', '01010', '00100', '00100', '00100', '00100'], Z: ['11111', '00001', '00010', '00100', '01000', '10000', '11111'],
+  ' ': ['00000', '00000', '00000', '00000', '00000', '00000', '00000'],
+};
+export const bigTextWidth = (text: string): number => text.length * 6 - 1;
+/** 5x7 capitals centred at cx (top at y). `hi` paints a 1px highlight under each stroke (engraved look). */
+export function bigTextC(ctx: Ctx, text: string, cx: number, y: number, c: number, hi?: number): void {
+  let x = Math.round(cx - bigTextWidth(text) / 2);
+  for (const ch of text.toUpperCase()) {
+    const g = BIG[ch] ?? BIG[' ']!;
+    for (let j = 0; j < 7; j++) for (let i = 0; i < 5; i++) if (g[j]![i] === '1') {
+      put(ctx, x + i, y + j, c);
+      if (hi !== undefined && (j === 6 || g[j + 1]![i] !== '1')) put(ctx, x + i, y + j + 1, hi);
+    }
+    x += 6;
+  }
+}
+
+/** Pick a ramp entry for t in [0,1] with ordered dithering at (x,y). */
+export function rampAt(ramp: Ramp, t: number, x: number, y: number): number { return pick(ramp, t, bayer(x, y)); }

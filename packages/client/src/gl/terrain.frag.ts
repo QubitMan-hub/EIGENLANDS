@@ -347,7 +347,7 @@ int ringPixel(ivec2 ip, vec2 tf, vec4 C, float d, float t, bool shrine) {
     float lv = (r - (R - 0.45)) / 0.45;
     return lv < 0.3 ? FOG : lv < 0.75 ? MIST : STEEL;
   }
-  float rw = shrine ? 0.36 : 0.42;
+  float rw = shrine ? 0.36 : 0.52;
   float ri = floor(r / rw);
   float rf = fract(r / rw);
   float circ = 6.2831 * max(r, 0.25);
@@ -371,8 +371,8 @@ int ringPixel(ivec2 ip, vec2 tf, vec4 C, float d, float t, bool shrine) {
   float sh = hashi(ivec2(ring * 131 + int(floor(sa)), ring));
   float lit = (rpx < 2.0 || spx < 2.0) ? 0.18 : 0.0;
   // decorative bands: cream rings, grey rings and one inlaid quantum ring
-  if (!shrine && ring == 5) { int q[5] = int[5](Q1, Q2, Q3, Q4, Q4); return ramp(q, 4, 0.35 + 0.4 * sh + lit, d); }
-  bool cream = shrine ? (ring % 2 == 0) : (ring % 3 != 1);
+  if (!shrine && ring == 4 && rpx < rw * 16.0 * 0.62) { int q[5] = int[5](Q1, Q2, Q3, Q4, Q4); return ramp(q, 4, 0.35 + 0.4 * sh + lit, d); }
+  bool cream = shrine ? (ring % 2 == 0) : (ring % 4 != 2 && ring != 4);
   int warm[5] = int[5](E4, E5, E6, E7, E7);
   int cool[5] = int[5](MIST, FOG, PALE, WHITE, WHITE);
   float v = 0.3 + 0.35 * sh + lit;

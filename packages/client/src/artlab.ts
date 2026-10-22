@@ -47,6 +47,20 @@ if (mode === 'icons') {
   }
   document.body.append(grid);
   (window as unknown as { __lab: unknown }).__lab = { ready: true, icons: Object.keys(ITEMS).length };
+} else if (mode === 'sprite') {
+  // one world object (or a row of them) blown up: ?lab=sprite&kind=deco&subs=statue,bench&scale=4
+  const bg = new Graphics().rect(0, 0, 4000, 4000).fill(0x4f9a3f);
+  const root = new Container();
+  app.stage.addChild(bg, root);
+  root.scale.set(num('scale', 4));
+  let x = 8;
+  for (const sub of (q.get('subs') ?? 'statue').split(',')) {
+    const d = worldObjDef({ x: 0, y: 0, kind: (q.get('kind') ?? 'deco') as WorldObj['kind'], sub, data: { watering: true } });
+    for (const sp of d.frames.slice(0, num('frames', 1))) {
+      const s = new Sprite(sp.tex); s.x = x; s.y = 4; root.addChild(s); x += sp.tex.width + 4;
+    }
+  }
+  (window as unknown as { __lab: unknown }).__lab = { ready: true };
 } else if (mode === 'objects' || mode === 'actors') {
   const bg = new Graphics().rect(0, 0, 4000, 4000).fill(0x3b6a3a);
   const root = new Container();
