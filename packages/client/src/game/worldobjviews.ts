@@ -1,5 +1,5 @@
 import { Sprite, type Container } from 'pixi.js';
-import { C, CHUNK_SIZE, PALETTE, chunkKey, hash2, objLight, sampleClimate, type ChunkStore, type WorldObj } from '@eigenlands/shared';
+import { C, CHUNK_SIZE, PALETTE, T, chunkKey, hash2, objLight, sampleClimate, type ChunkStore, type WorldObj } from '@eigenlands/shared';
 import { WindField, CALM } from './windfield';
 import { depth, isoX, isoY } from './iso';
 import { GROUND_Z } from '../gl/terrain.frag';
@@ -9,6 +9,7 @@ const hexOf = (i: number) => parseInt(PALETTE[i]!.slice(1), 16);
 /** cast shadows are deep navy, quantum echoes pink (qubit things) or cyan (flux ground) */
 const SHADOW = hexOf(C.night), ECHO_Q = hexOf(C.q6), ECHO_FLUX = hexOf(C.q7);
 import { worldObjDef, type ObjSpriteDef } from '../art/worldobjs';
+import type { Facing } from '../art/isokit';
 import type { Sun } from './objectviews';
 
 export interface TileLight { x: number; y: number; radius: number; color: number; intensity: number }
@@ -54,8 +55,16 @@ export class WorldObjViews {
   get count(): number { return this.views.size; }
   setSeason(season: SeasonIdx): void { this.season = season; }
 
+  /** Props stand with their back to a wall: a wall behind (north-east) faces them south-west, one to the north-west faces them south-east. */
+  private facing(o: WorldObj): Facing {
+    const wall = (x: number, y: number) => { const t = this.store.getTile(x, y); return t === T.WALL || t === T.FACE; };
+    if (wall(o.x, o.y - 1)) return 'sw';
+    if (wall(o.x - 1, o.y)) return 'se';
+    return 'sw';
+  }
+
   private make(o: WorldObj): View {
-    const def = worldObjDef(o);
+    const def = worldObjDef(o, this.facing(o));
     const f = def.frames[0]!;
     const root = new Sprite(f.tex);
     root.anchor.set(f.ax / f.tex.width, f.ay / f.tex.height);

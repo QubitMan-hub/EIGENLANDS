@@ -14,6 +14,7 @@ import { buildActorSheets, OUTFITS, WALK_FRAMES, DIR_LEFT, DIR_RIGHT } from '../
 import { itemIconUrl } from '../art/icons';
 import { Ships, HEADINGS, SHIP_AX, SHIP_AY } from '../art/ships';
 import { GALLERY_OBJECTS, worldObjDef } from '../art/worldobjs';
+import { PROPS } from '../art/props';
 import { ObjectViews, sunFor } from '../game/objectviews';
 import { WorldObjViews } from '../game/worldobjviews';
 import { BuildingViews } from '../game/buildingviews';
@@ -84,7 +85,21 @@ if (mode === 'icons') {
   root.scale.set(SC);
   root.y = -num('shift', 0) * SC;
   const place = (tex: Sprite['texture'], ax: number, ay: number, x: number, y: number) => { const s = new Sprite(tex); s.anchor.set(ax / tex.width, ay / tex.height); s.x = x; s.y = y; root.addChild(s); return s; };
-  if (mode === 'person') {
+  if (q.has('props')) {
+    // every isometric prop on a floor diamond with a wall behind it, both orientations
+    const keys = Object.keys(PROPS).filter((k) => !q.get('props') || q.get('props')!.split(',').includes(k));
+    keys.forEach((k, i) => {
+      for (const [j, face] of [[0, 'sw'], [1, 'se']] as const) {
+        const x = 30 + (i % 6) * 84 + j * 40, y = 60 + Math.floor(i / 6) * 70;
+        const g = new Graphics().poly([x, y - 8, x + 16, y, x, y + 8, x - 16, y]).fill(0x8a5a3a).stroke({ color: 0x5a3a2a, width: 0.5 });
+        if (face === 'sw') g.poly([x, y - 8, x + 16, y, x + 16, y - 40, x, y - 48]).fill(0x4a5a6a); else g.poly([x, y - 8, x - 16, y, x - 16, y - 40, x, y - 48]).fill(0x5a6a7a);
+        root.addChild(g);
+        const d = PROPS[k]!(face); const sp = d.frames[0]!;
+        place(sp.tex, sp.ax, sp.ay, x, y);
+      }
+      label(k, 20 + (i % 6) * 84, 66 + Math.floor(i / 6) * 70);
+    });
+  } else if (mode === 'person') {
     const sheets = buildActorSheets();
     label('8 directions (idle) for 4 looks, then a walk cycle facing down / right / up-left', 4, 2);
     for (let o = 0; o < Math.min(4, OUTFITS.length); o++) {
