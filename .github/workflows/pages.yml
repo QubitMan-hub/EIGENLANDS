@@ -1,3 +1,9 @@
+# Single-player build on GitHub Pages: no game server, the real server room runs in the browser (packages/client/src/local)
+# and the world is saved in the visitor's browser (IndexedDB).
+#
+# One-time setup: Settings → Pages → Source: "GitHub Actions". The configure step below also tries to enable Pages
+# itself; that needs a token with admin rights on the repo, so store one as the PAGES_ADMIN_TOKEN secret if you want
+# the workflow to do it (the default GITHUB_TOKEN works once Pages is enabled).
 name: Deploy to GitHub Pages
 on:
   push:
@@ -9,9 +15,10 @@ permissions:
   pages: write
   id-token: write
 
+# one deployment at a time; never cancel a deployment that is already running
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -21,13 +28,23 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
-      - name: Build (solo mode, base path = repository name)
+      - id: pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+          token: ${{ secrets.PAGES_ADMIN_TOKEN || github.token }}
+      - name: Build (solo mode, served under the Pages base path)
         run: npm run build:pages
         env:
-          VITE_BASE: /${{ github.event.repository.name }}/
+          # "/<repo>" for project sites, "" for <user>.github.io sites and custom domains
+          VITE_BASE: ${{ steps.pages.outputs.base_path }}/
           VITE_SOLO: '1'
-      - uses: actions/configure-pages@v5
-        with: { enablement: true }
+      - name: Check the bundle has no server-only code
+        run: |
+          test -f packages/client/dist/index.html
+          if grep -lE "pg-pool|ioredis/built|express/lib|google-auth-library" packages/client/dist/assets/*.js; then
+            echo "server-only modules leaked into the Pages bundle"; exit 1
+          fi
       - uses: actions/upload-pages-artifact@v3
         with: { path: packages/client/dist }
 

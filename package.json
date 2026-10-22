@@ -13,6 +13,8 @@
     "build": "npm run build -w @eigenlands/client",
     "e2e": "node packages/client/e2e/smoke.mjs",
     "loadtest": "npm run loadtest -w @eigenlands/server --",
-    "build:pages": "npm run build -w @eigenlands/client"
+    "build:pages": "VITE_SOLO=1 npm run build -w @eigenlands/client",
+    "preview:pages": "npm run build:pages && cd packages/client && vite preview --base ${VITE_BASE:-/} --port 5240",
+    "e2e:solo": "node packages/client/e2e/solo.mjs"
   }
 }
