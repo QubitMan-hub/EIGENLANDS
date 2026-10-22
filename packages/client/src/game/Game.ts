@@ -823,11 +823,19 @@ export class Game {
       $('hud-level').textContent = `Lv ${s.level}`;
       $('hp-fill').style.width = `${Math.max(0, (s.hp / Math.max(1, s.maxHp)) * 100)}%`;
       $('hp-text').textContent = `${s.hp} / ${s.maxHp}`;
+      const orb = $('orb'), pct = Math.max(0, Math.min(100, (s.hp / Math.max(1, s.maxHp)) * 100));
+      orb.style.setProperty('--hp', `${pct}%`);
+      orb.classList.toggle('low', pct < 30);
+      if (orb.dataset.v !== `${s.hp}`) { orb.dataset.v = `${s.hp}`; orb.textContent = `${s.hp}`; }
+      $('xp-orb').style.width = `${Math.min(100, (this.selfXp / (30 + 20 * (s.level - 1))) * 100)}%`;
       const need = 30 + 20 * (s.level - 1);
       $('xp-fill').style.width = `${Math.min(100, (this.selfXp / need) * 100)}%`;
     }
     const sn = this.clock.serverNow(now);
     $('clock').textContent = `${hour >= 6 && hour < 18 ? '☀' : '☾'} ${formatClock(hour)}`;
+    $('dial-time').textContent = formatClock(hour);
+    $('dial').style.setProperty('--t', `${(hour / 24) * 360}deg`);
+    $('dial').classList.toggle('night', !(hour >= 6 && hour < 18));
     $('dayinfo').textContent = `${dayPhase(hour)} · day ${dayNumber(sn) + 1} · ${season(sn)}`;
     if (this.dead) {
       const left = Math.max(0, Math.ceil(3 - (now - this.deadAt) / 1000));

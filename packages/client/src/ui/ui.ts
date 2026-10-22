@@ -1,4 +1,5 @@
 import './fonts';
+import './hud.css';
 import { iconSvg } from './icons';
 import { ACTIONS, ACTION_LABELS, keyLabel, rebind, saveKeys, type Action, type KeyMap } from '../input/keymap';
 
@@ -63,10 +64,11 @@ export const HTML = `
     <div id="orb" class="orbwrap" role="img" aria-label="Health"></div>
     <div class="orbinfo">
       <b id="hud-name" class="pname">-</b>
+      <div class="xpbar" aria-hidden="true"><i id="xp-orb"></i></div>
       <div class="statrow"><span class="gate" id="hud-level">Lv 1</span><span class="coinrow">${iconSvg('coin', 16)}<span id="coins">0 coins</span></span></div>
-      <div id="buff-chips"></div>
+      <div id="buffs"></div>
     </div>
-    <div class="legacy" aria-hidden="true"><i id="hp-fill"></i><span id="hp-text"></span><i id="xp-fill"></i><span id="clock"></span><div id="buffs"></div></div>
+    <div class="legacy" aria-hidden="true"><i id="hp-fill"></i><span id="hp-text"></span><i id="xp-fill"></i><span id="clock"></span></div>
   </div>
   <div id="hud-right">
     <div id="dial" class="dialwrap" role="img" aria-label="Time of day"><div id="dial-time" class="dialtime">--:--</div></div>
