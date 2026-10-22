@@ -1,7 +1,7 @@
 import {
   BufferImageSource, Container, Mesh, MeshGeometry, RenderTexture, Shader, Sprite, UniformGroup, type Renderer,
 } from 'pixi.js';
-import { CHUNK_SIZE, T, TILE_DEFS, chunkKey, sampleClimate, townFor, type ChunkStore } from '@eigenlands/shared';
+import { BIOMES, CHUNK_SIZE, G, T, TILE_DEFS, biomeAt, chunkKey, sampleClimate, townFor, type ChunkStore } from '@eigenlands/shared';
 import { TERRAIN_FRAG, TERRAIN_VERT } from '../gl/terrain.frag';
 
 const WIN_CHUNKS = 5;                         // window = 5x5 chunks around the player (160x160 tiles)
@@ -87,9 +87,13 @@ export class Terrain {
         const o = (y * CHUNK_SIZE + x) * 4;
         const tx = cx * CHUNK_SIZE + x, ty = cy * CHUNK_SIZE + y;
         const tile = chunk.tiles[y * CHUNK_SIZE + x]!;
-        out[o] = TILE_DEFS[tile]?.ground ?? 3;
+        const biome = biomeAt(seed, tx, ty);
+        let ground = TILE_DEFS[tile]?.ground ?? 3;
+        if (biome === 'desert' && ground === G.GRASS) ground = G.SAND;     // scrub and cacti stand on the dunes
+        out[o] = ground;
         const flux = sampleClimate(seed, tx, ty).flux;
-        out[o + 1] = flux > 0.4 ? Math.min(255, Math.round(((flux - 0.4) / 0.4) * 255)) : 0; // iridescent meadow intensity
+        const fl = flux > 0.4 ? Math.min(31, Math.round(((flux - 0.4) / 0.4) * 31)) : 0;   // iridescent meadow intensity
+        out[o + 1] = BIOMES.indexOf(biome) * 32 + fl;
         out[o + 2] = tile === T.PATH ? this.paving(tx, ty) : 0;
         out[o + 3] = 128;
       }

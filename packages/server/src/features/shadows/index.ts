@@ -90,7 +90,11 @@ export class ShadowModule implements Module {
     if (!L.loaded || (!L.dirty && !force)) return;
     L.dirty = false;
     L.data.active = [...L.units.keys()];
-    try { await runtime34().repo34.saveShadows(L.p.accountId, L.data); } catch (e) { L.dirty = true; if (!String(e).includes('pool')) console.error('saveShadows failed', e); }
+    try { await runtime34().repo34.saveShadows(L.p.accountId, L.data); } catch (e) {
+      // the account was deleted (FK gone): nothing left to save
+      if (String(e).includes('foreign key')) return;
+      L.dirty = true; if (!String(e).includes('pool')) console.error('saveShadows failed', e);
+    }
   }
 
   private clearUnits(L: Live): void {

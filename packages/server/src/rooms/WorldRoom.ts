@@ -13,6 +13,7 @@ import {
   type DevMsg, type UseMsg, type OpenMsg, type InvMoveMsg, type InvTrashMsg, type EquipMsg, type CraftMsg, type ExperimentMsg,
   type ForgePreviewMsg, type ForgeStartMsg, type RhythmDoneMsg, type FishHookMsg, type ChestMsg, type ShelterMsg, type NpcState,
   type SpellState,
+  biomeAt,
   CANNON, ITEMS, MORPH_FORMS, WEAPONS, isRangedWeapon, type WeaponDef, type WeaponShot,
 } from '@eigenlands/shared';
 import { verifyToken } from '../auth/token';
@@ -930,9 +931,15 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
         const t = this.store.getTile(x, y);
         if (TILE_DEFS[t]?.solid || t === T.TORCH) continue;
         let kind = pickSpawn(p.level, night, this.rand());
+        // the land shapes its monsters: wisps haunt the glades, mites and brutes swarm the wastes, slimes breed in the fen
+        const biome = biomeAt(this.seed, x, y);
+        const br = this.rand();
+        if (biome === 'enchanted' && br < 0.5) kind = 'wisp';
+        else if (biome === 'corrupted' && br < 0.6) kind = br < 0.2 && p.level >= 3 ? 'brute' : 'mite';
+        else if (biome === 'swamp' && br < 0.5) kind = 'slime';
         if (kind === 'brute' && used + 3 > budget + 0.5) kind = 'slime';
         // wolf packs prowl woodland at night (and any snowy ground)
-        if (night && p.level >= 3 && this.rand() < 0.22 && used + 3 <= budget + 1) {
+        if ((night || biome === 'taiga') && p.level >= 3 && this.rand() < (biome === 'taiga' ? 0.35 : 0.22) && used + 3 <= budget + 1) {
           let trees = 0;
           for (let dy = -5; dy <= 5; dy++) for (let dx = -5; dx <= 5; dx++) if (this.store.getTile(x + dx, y + dy) === T.TREE) trees++;
           if (trees >= 5) {
@@ -973,12 +980,19 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
         const x = Math.floor(p.sim.x + Math.cos(a) * d), y = Math.floor(p.sim.y + Math.sin(a) * d);
         if (Math.hypot(x, y) < 12 || buildingAt(this.seed, x, y)) continue;
         const t = this.store.getTile(x, y);
-        if (t !== T.GRASS && t !== T.GRASS_TALL && t !== T.FLOWERS) continue;
+        const biome = biomeAt(this.seed, x, y);
+        if (biome === 'corrupted') continue;                       // nothing gentle lives in the wastes
+        if (t !== T.GRASS && t !== T.GRASS_TALL && t !== T.FLOWERS && !(biome === 'desert' && t === T.SAND)) continue;
         let trees = 0;
         for (let dy = -5; dy <= 5; dy++) for (let dx = -5; dx <= 5; dx++) if (this.store.getTile(x + dx, y + dy) === T.TREE) trees++;
-        // forests hold deer herds and boar sounders; open turf has rabbits and the odd badger
+        // each biome keeps its own creatures: stag herds in the woods and tundra, boar sounders in Amberwood and the fen,
+        // hares on the dunes, badgers on open ground
         const r = this.rand();
-        const kind: EnemyKind = trees >= 6 ? (r < 0.5 ? 'deer' : r < 0.75 ? 'boar' : 'rabbit') : (r < 0.2 ? 'badger' : 'rabbit');
+        const kind: EnemyKind = biome === 'desert' ? 'rabbit'
+          : biome === 'taiga' ? (r < 0.65 ? 'deer' : 'badger')
+          : biome === 'swamp' ? (r < 0.6 ? 'boar' : 'badger')
+          : biome === 'autumn' ? (r < 0.5 ? 'boar' : r < 0.85 ? 'deer' : 'rabbit')
+          : trees >= 6 ? (r < 0.5 ? 'deer' : r < 0.75 ? 'boar' : 'rabbit') : (r < 0.2 ? 'badger' : 'rabbit');
         const n = kind === 'deer' ? 2 + Math.floor(this.rand() * 3) : kind === 'boar' ? 1 + Math.floor(this.rand() * 3) : 1;
         for (let i = 0; i < n; i++) {
           const hx = x + 0.5 + Math.cos(i * 2.1) * 1.2, hy = y + 0.5 + Math.sin(i * 2.1) * 1.2;

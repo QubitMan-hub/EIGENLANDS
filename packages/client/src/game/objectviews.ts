@@ -1,5 +1,5 @@
 import { Container, Sprite } from 'pixi.js';
-import { C, CHUNK_SIZE, PALETTE, T, TILE_DEFS, chunkKey, darkness, hash2, sampleClimate, type ChunkStore } from '@eigenlands/shared';
+import { C, CHUNK_SIZE, PALETTE, T, TILE_DEFS, biomeAt, chunkKey, darkness, hash2, sampleClimate, type ChunkStore } from '@eigenlands/shared';
 import { depth, isoX, isoY } from './iso';
 import { WindField, CALM } from './windfield';
 import { FRAMES_PER_VARIANT, type ObjectArt, type ObjSprite } from '../art/objects';
@@ -68,8 +68,12 @@ export class ObjectViews {
 
   private pickSprite(kind0: string, tx: number, ty: number): { s: ObjSprite; variant: number; frames: number; key: string } | null {
     // trees in flux-rich ground are quantum superposition trees
-    const kind = kind0 === 'tree' && sampleClimate(this.store.seed, tx, ty).flux > 0.5 && hash2(this.store.seed, tx, ty, 97) < 0.6 ? 'qtree' : kind0;
-    const list = (this.art as unknown as Record<string, ObjSprite[]>)[kind];
+    const biome = biomeAt(this.store.seed, tx, ty);
+    const qok = biome === 'meadow' || biome === 'forest';
+    const kind = qok && kind0 === 'tree' && sampleClimate(this.store.seed, tx, ty).flux > 0.5 && hash2(this.store.seed, tx, ty, 97) < 0.6 ? 'qtree' : kind0;
+    // each biome dresses the shared tile kinds in its own flora (pines and snow, cacti, willows, glowcaps...)
+    const own = (this.art.biome[biome] as Record<string, ObjSprite[]> | undefined)?.[kind];
+    const list = own ?? (this.art as unknown as Record<string, ObjSprite[]>)[kind];
     if (!list || !list.length) return null;
     if (kind === 'fence') {
       // connect to neighbouring fences: N=1 E=2 S=4 W=8
@@ -80,7 +84,7 @@ export class ObjectViews {
     const frames = FRAMES_PER_VARIANT[kind] ?? 1;
     const nvar = Math.max(1, Math.floor(list.length / frames));
     const variant = Math.floor(hash2(this.store.seed, tx, ty, 99) * nvar);
-    return { s: list[variant * frames]!, variant, frames, key: kind };
+    return { s: list[variant * frames]!, variant, frames, key: own ? `${biome}:${kind}` : kind };
   }
 
   private makeObj(tx: number, ty: number, kind: string): Obj | null {

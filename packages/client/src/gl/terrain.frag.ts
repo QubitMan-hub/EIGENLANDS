@@ -31,7 +31,7 @@ void main() {
  * the ring-laid plaza, furrows, planks, layered water with ripple lines); sides show soil / sand strata / stone
  * courses under an overhanging grass lip, and a cyan foam line where a bank meets the water.
  *
- * Tile texel: r = ground class, g = quantum flux (0..1), b = paving style (1 road, 2 plaza, 3 shrine),
+ * Tile texel: r = ground class, g = biome * 32 + quantum flux (0..31), b = paving style (1 road, 2 plaza, 3 shrine),
  *             a = signed distance to the shoreline in tiles (128 + 12*d; + inside water, - on land).
  */
 export const TERRAIN_FRAG = /* glsl */ `#version 300 es
@@ -54,6 +54,7 @@ uniform vec3 uWind;         // world wind: direction xy + strength 0..1 (same fi
 
 const vec3 PAL[48] = vec3[48](${pal});
 
+const int B_MEADOW = 0, B_FOREST = 1, B_AUTUMN = 2, B_TAIGA = 3, B_SWAMP = 4, B_DESERT = 5, B_ENCHANTED = 6, B_CORRUPT = 7;
 const int DEEP = 0, WATER = 1, SAND = 2, GRASS = 3, PATH = 4, SOIL = 5, SOILWET = 6, FLOOR = 7, WALLC = 8;
 const int INK=0, NIGHT=1, SLATE=2, STEEL=3, MIST=4, FOG=5, PALE=6, WHITE=7;
 const int G0=8, G1=9, G2=10, G3=11, G4=12, G5=13, G6=14, G7=15;
@@ -110,12 +111,21 @@ float sdfAt(vec2 tf) {
   float a = sdfOf(tileAt(b)), c = sdfOf(tileAt(b + ivec2(1, 0))), d = sdfOf(tileAt(b + ivec2(0, 1))), e = sdfOf(tileAt(b + ivec2(1, 1)));
   return mix(mix(a, c, f.x), mix(d, e, f.x), f.y);
 }
+int biomeOf(vec4 t) { return int(t.g * 255.0 + 0.5) / 32; }
+float fluxOf(vec4 t) { return float(int(t.g * 255.0 + 0.5) % 32) / 31.0; }
 float fluxAt(vec2 tf) {
   vec2 u = tf - 0.5;
   ivec2 b = ivec2(floor(u));
   vec2 f = u - floor(u);
-  return mix(mix(tileAt(b).g, tileAt(b + ivec2(1, 0)).g, f.x), mix(tileAt(b + ivec2(0, 1)).g, tileAt(b + ivec2(1, 1)).g, f.x), f.y);
+  return mix(mix(fluxOf(tileAt(b)), fluxOf(tileAt(b + ivec2(1, 0))), f.x), mix(fluxOf(tileAt(b + ivec2(0, 1))), fluxOf(tileAt(b + ivec2(1, 1))), f.x), f.y);
 }
+// biome under a pixel, sampled with a little jitter so borders interlock like real ecotones
+int biomeAtPx(vec2 tf, ivec2 ip) {
+  vec2 j = (vec2(vnoise(tf * 0.7), vnoise(tf * 0.7 + 9.0)) - 0.5) * 1.3 + (vec2(vnoise(tf * 2.3 + 4.0), vnoise(tf * 2.3 - 4.0)) - 0.5) * 0.5;
+  return biomeOf(tileAt(ivec2(floor(tf + j))));
+}
+// effective season of a biome: the tundra is always snowed in, Amberwood always in autumn colour
+int seasonOf(int b, int s) { return b == B_TAIGA ? 3 : b == B_AUTUMN ? 2 : s; }
 
 // quantum phase colour for rare glints: cyan -> lilac -> pink
 int phaseCol(float h, float t) {
@@ -192,12 +202,45 @@ int flowerPix(ivec2 p, ivec2 b, float kind) {
   return -1;
 }
 
-int grassTop(ivec2 ip, vec2 tf, int s, float flux, float t) {
+Tones biomeTones(int b, int s, bool lush) {
+  Tones T = grassTones(s, lush);
+  if (b == B_SWAMP) {          // fen: deep moss with peaty hollows
+    if (lush) { T.base = G2; T.body = G2; T.hi = G4; T.sh = G1; T.dk = G0; }
+    else { T.base = G1; T.body = G2; T.hi = G3; T.sh = G0; T.dk = NIGHT; }
+  } else if (b == B_ENCHANTED) {   // glade: cool teal turf with luminous tips
+    if (lush) { T.base = G3; T.body = W3; T.hi = Q7; T.sh = G2; T.dk = Q1; }
+    else { T.base = G2; T.body = W2; T.hi = W5; T.sh = G1; T.dk = Q0; }
+  } else if (b == B_CORRUPT) {     // wastes: ashen slate earth bruised violet, with sickly tufts
+    if (lush) { T.base = Q0; T.body = Q1; T.hi = Q2; T.sh = NIGHT; T.dk = INK; }
+    else { T.base = SLATE; T.body = Q0; T.hi = STEEL; T.sh = NIGHT; T.dk = INK; }
+  } else if (b == B_FOREST && !lush && s != 3) { T.base = G2; T.body = G3; T.hi = G5; T.sh = G1; T.dk = G1; }  // shaded woodland floor
+  else if (b == B_DESERT) { T.base = E5; T.body = G5; T.hi = G6; T.sh = E4; T.dk = E3; }   // oasis scrub
+  return T;
+}
+
+// snowfield: soft drifts (bone white with cool blue-grey hollows), wind-sculpted ridges, dead grass poking through
+int snowTop(ivec2 ip, vec2 tf, float t) {
   vec2 wp = vec2(ip);
+  float n = vnoise(wp * 0.035) * 0.65 + vnoise(wp * 0.11 + 7.0) * 0.35;
+  int c = n > 0.56 ? WHITE : n > 0.3 ? PALE : FOG;
+  float ridge = sin(wp.x * 0.16 + wp.y * 0.34 + vnoise(wp * 0.05) * 5.0);
+  if (ridge > 0.93 && n > 0.35) c = WHITE; else if (ridge < -0.96 && n < 0.6) c = c == WHITE ? PALE : FOG;
+  ivec2 cc = cellOf(ip, ivec2(9, 6));
+  if (hashk(cc, 61) < 0.18) {
+    ivec2 q = ip - (cc * ivec2(9, 6) + ivec2(int(hashk(cc, 62) * 7.0), int(hashk(cc, 63) * 4.0)));
+    if ((q.x == 0 && q.y >= -2 && q.y <= 0) || (q.x == 2 && q.y >= -1 && q.y <= 0)) return q.y == -2 ? E4 : MIST;
+  }
+  if (hashi(ip + ivec2(3, 1)) > 0.996 && fract(hashi(ip) * 7.0 + t * 0.35 * uMotion) < 0.35) return W7;   // ice glitter
+  return c;
+}
+
+int grassTop(ivec2 ip, vec2 tf, int s, float flux, float t, int b) {
+  vec2 wp = vec2(ip);
+  if (s == 3) return snowTop(ip, tf, t);
   // large soft regions of sunlit lime meadow vs. deeper leafy turf
   float lushN = fbm(tf * 0.2 + 3.0);
   bool lush = lushN > (s == 0 ? 0.46 : 0.55);
-  Tones T = grassTones(s, lush);
+  Tones T = biomeTones(b, s, lush);
   int c = T.base;
   float dn = fbm(tf * 0.5 + 50.0);
   float dens = lush ? 0.12 + 0.25 * smoothstep(0.4, 0.8, dn) : 0.8 + 0.2 * dn;
@@ -222,8 +265,8 @@ int grassTop(ivec2 ip, vec2 tf, int s, float flux, float t) {
     if (r >= 0) return r;
   }
   // flowers (spring/summer), fallen leaves (autumn), glitter (winter)
-  if (s <= 1) {
-    float fd = smoothstep(0.6, 0.85, vnoise(tf * 0.4 + 90.0)) * (s == 0 ? 0.6 : 0.35);
+  if (s <= 1 && b != B_CORRUPT && b != B_SWAMP) {
+    float fd = smoothstep(0.6, 0.85, vnoise(tf * 0.4 + 90.0)) * (s == 0 ? 0.6 : 0.35) * (b == B_ENCHANTED ? 1.6 : 1.0);
     ivec2 FC = ivec2(11, 7);
     ivec2 f0 = cellOf(ip, FC);
     for (int j = 1; j >= 0; j--) for (int i = -1; i <= 1; i++) {
@@ -244,10 +287,18 @@ int grassTop(ivec2 ip, vec2 tf, int s, float flux, float t) {
     }
   } else if (hashi(ip + ivec2(3, 1)) > 0.994 && fract(hashi(ip) * 7.0 + t * 0.35 * uMotion) < 0.35) return WHITE;
   // quantum meadow: rare phase glints
-  if (flux > 0.2) {
+  float glint = b == B_ENCHANTED ? 0.02 : b == B_CORRUPT ? 0.01 : 0.005 * flux;
+  if (flux > 0.2 || b >= B_ENCHANTED) {
     float tw = fract(hashk(ip, 17) * 5.0 + t * 0.3 * uMotion);
-    if (hashk(ip, 18) > 1.0 - 0.005 * flux && tw < 0.4) return phaseCol(hashk(ip, 19), t);
+    if (hashk(ip, 18) > 1.0 - glint && tw < 0.4) return b == B_CORRUPT ? (hashk(ip, 19) < 0.5 ? Q5 : Q3) : phaseCol(hashk(ip, 19), t);
   }
+  // fen: still puddles of black water among the moss
+  if (b == B_SWAMP) {
+    float pd = vnoise(wp * 0.045 + 13.0);
+    if (pd > 0.7) return pd > 0.76 ? W0 : (hashi(ip) > 0.5 ? G0 : W1);
+  }
+  // wastes: cracked ground
+  if (b == B_CORRUPT && abs(vnoise(wp * 0.07 + 5.0) - 0.5) < 0.018) return NIGHT;
   return c;
 }
 
@@ -384,7 +435,7 @@ int floorTop(vec2 tf) {
 }
 
 // ───────── water ─────────
-int waterTop(ivec2 ip, vec2 tf, float sdf, bool deep, float t, int s) {
+int waterTop(ivec2 ip, vec2 tf, float sdf, bool deep, float t, int s, int b) {
   float tt = t * uMotion;
   vec2 wp = vec2(ip);
   // layered depth bands with soft, wobbling contours (deep navy far out, slate-blue shelves near the banks)
@@ -410,6 +461,9 @@ int waterTop(ivec2 ip, vec2 tf, float sdf, bool deep, float t, int s) {
     else if (q.x >= 1 && q.x < len - 1 && q.y == yy + 1) c = depth < 0.55 ? W2 : max(c - 1, W0);
   }
   if (hashk(ip, 43) > 0.9975 && fract(hashk(ip, 44) * 3.0 + tt * 0.5) < 0.2) c = W6;   // sparkles
+  if (b == B_SWAMP) c = c >= W4 ? G3 : c == W3 ? G1 : c == W2 ? G0 : NIGHT;           // tannin-dark fen water
+  else if (b == B_CORRUPT) c = c >= W4 ? Q3 : c == W3 ? Q1 : c == W2 ? Q0 : INK;     // ink-black, violet glints
+  else if (b == B_ENCHANTED && c >= W3) c = c >= W4 ? Q7 : W4;                       // glowing glade pools
   if (s == 3 && sdf < 1.3 + 0.5 * vnoise(wp * 0.05)) {
     // frozen shallows with cracks
     float cr = abs(vnoise(wp * 0.09 + 40.0) - 0.5);
@@ -491,28 +545,30 @@ void main() {
   vec2 fr = fract(tfHit);
   int c;
 
+  int bio = biomeAtPx(tfHit, ip);
+  int sb = seasonOf(bio, s);
   if (face == 0) {
     float sdf = sdfAt(tfHit);
     if (isWater(cls)) {
-      c = waterTop(ip, tfHit, sdf, cls == DEEP, t, s);
+      c = waterTop(ip, tfHit, sdf, cls == DEEP, t, sb, bio);
     } else if (cls == GRASS) {
-      c = grassTop(ip, tfHit, s, fluxAt(tfHit), t);
+      c = grassTop(ip, tfHit, sb, fluxAt(tfHit), t, bio);
       // wind gusts ripple across the meadow as travelling lighter bands
-      if (uMotion > 0.5 && s != 3 && c >= G3 && c < G7) {
+      if (uMotion > 0.5 && sb != 3 && c >= G3 && c < G7) {
         vec2 wd = normalize(uWind.xy + 1e-4);
         float ph = dot(tfHit, wd) * 0.72 - t * (0.6 + 1.6 * uWind.z) + 1.7 * sin(dot(tfHit, vec2(-wd.y, wd.x)) * 0.32);
         float band = smoothstep(0.78, 0.97, 0.5 + 0.5 * sin(ph)) * smoothstep(0.08, 0.5, uWind.z);
         if (hashi(ip) < band * 0.85) c += 1;
       }
     } else if (cls == SAND) {
-      c = sandTop(ip, sdf, s);
+      c = sandTop(ip, sdf, sb);
     } else if (cls == PATH) {
       if (style == 2 && distance(tfHit, uPlaza.xy) < uPlaza.z) c = ringTop(ip, tfHit, uPlaza, t, false);
       else if (style == 3 && distance(tfHit, uShrine.xy) < uShrine.z) c = ringTop(ip, tfHit, uShrine, t, true);
       else if (style >= 1) c = cobbleTop(ip, tfHit);
-      else c = dirtTop(ip, s);
+      else c = dirtTop(ip, sb);
     } else if (cls == SOIL || cls == SOILWET) {
-      c = soilTop(ip, tfHit, cls == SOILWET, s);
+      c = soilTop(ip, tfHit, cls == SOILWET, sb);
     } else if (cls == FLOOR) {
       c = floorTop(tfHit);
     } else {
@@ -527,12 +583,12 @@ void main() {
         // foam where the bank meets the water: bright cyan line that breaks up and breathes
         float br = vnoise(vec2(ip) * 0.35 + vec2(t * 0.6 * uMotion, 0.0));
         c = br > 0.3 ? W6 : W5;
-        if (s == 3) c = W7;
-      } else c = (cls == GRASS) ? (s == 3 ? FOG : G2) : (cls == SAND ? E4 : (cls == PATH && style >= 1 ? STEEL : E2));
+        if (sb == 3) c = W7;
+      } else c = (cls == GRASS) ? (sb == 3 ? FOG : G2) : (cls == SAND ? E4 : (cls == PATH && style >= 1 ? STEEL : E2));
     } else if (water && ((hxm > hHit + 0.5 && ex < 2.5) || (hym > hHit + 0.5 && ey < 2.5))) {
-      c = s == 3 ? W6 : W4;                          // glow halo just off the foam
+      c = sb == 3 ? W6 : W4;                          // glow halo just off the foam
     } else if (!water && ((hxm < hHit - 0.5 && ex < 1.0) || (hym < hHit - 0.5 && ey < 1.0))) {
-      if (cls == GRASS) c = s == 3 ? WHITE : (s == 2 ? G5 : G6);
+      if (cls == GRASS) c = sb == 3 ? WHITE : (sb == 2 ? G5 : G6);
       else if (cls == SAND) c = E7;
       else if (cls == PATH && style == 0) c = E5;
     }
@@ -555,8 +611,11 @@ void main() {
       float hang = hashi(ivec2(col, T0.x * 7 + T0.y * 13));
       int lip = 1 + (hang > 0.45 ? 1 : 0) + (hang > 0.85 ? 1 : 0);
       if (dPx <= lip) {
-        if (s == 3) c = dPx == 1 ? WHITE : PALE;
-        else if (s == 2) c = dPx == 1 ? (left ? G4 : G3) : (left ? G3 : G2);
+        if (sb == 3) c = dPx == 1 ? WHITE : PALE;
+        else if (sb == 2) c = dPx == 1 ? (left ? G4 : G3) : (left ? G3 : G2);
+        else if (bio == B_CORRUPT) c = dPx == 1 ? (left ? Q1 : Q0) : (left ? Q0 : NIGHT);
+        else if (bio == B_SWAMP) c = dPx == 1 ? (left ? G2 : G1) : (left ? G1 : G0);
+        else if (bio == B_ENCHANTED) c = dPx == 1 ? (left ? W3 : W2) : (left ? G2 : G1);
         else c = dPx == 1 ? (left ? G4 : G3) : (left ? G3 : G2);
         if (dPx == lip && dPx > 1) c = left ? G2 : G1;
       }
@@ -567,8 +626,8 @@ void main() {
     if (toWater) {
       float br = vnoise(vec2(ip) * 0.4 + vec2(t * 0.7 * uMotion, 3.0));
       float rise = 0.5 + 0.5 * sin(t * 1.4 * uMotion + u * 9.0);
-      if (dPx >= H) c = s == 3 ? W7 : (br > 0.35 ? W6 : W5);
-      else if (dPx == H - 1 && (br > 0.55 || rise > 0.8)) c = s == 3 ? W6 : W5;
+      if (dPx >= H) c = sb == 3 ? W7 : (br > 0.35 ? W6 : W5);
+      else if (dPx == H - 1 && (br > 0.55 || rise > 0.8)) c = sb == 3 ? W6 : W5;
       else if (dPx == H - 2 && H > 3) c = k == 1 ? (left ? E3 : E2) : (k == 2 ? (left ? STEEL : SLATE) : (left ? E0 : NIGHT));  // wet, darker band
     } else if (dPx >= H && H > 1) {
       c = k == 1 ? (left ? E3 : E2) : (k == 2 ? (left ? STEEL : SLATE) : (left ? E1 : E0));   // contact shadow at the foot

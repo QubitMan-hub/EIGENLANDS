@@ -1,5 +1,6 @@
 import { Rectangle, Texture } from 'pixi.js';
 import { PALETTE, hash2, mulberry32 } from '@eigenlands/shared';
+import { buildBiomeArt, destroyBiomeArt, type BiomeArt } from './biomeart';
 import { C, line, lump, makeCanvas, poly, polish, put, stonePile, type Ctx, type Ramp } from './shade';
 
 /**
@@ -9,7 +10,7 @@ import { C, line, lump, makeCanvas, poly, polish, put, stonePile, type Ctx, type
 export interface ObjSprite { tex: Texture; ax: number; ay: number }
 export type SeasonIdx = 0 | 1 | 2 | 3;
 
-function toSprite(canvas: HTMLCanvasElement, ax: number, ay: number, o: { ao?: boolean; rim?: boolean; fringe?: boolean } = {}): ObjSprite {
+export function toSprite(canvas: HTMLCanvasElement, ax: number, ay: number, o: { ao?: boolean; rim?: boolean; fringe?: boolean } = {}): ObjSprite {
   const ctx = canvas.getContext('2d')!;
   polish(ctx, canvas.width, canvas.height, { rim: o.rim ?? true, fringe: o.fringe, ao: o.ao === false ? null : { ax, ay, rx: Math.min(14, canvas.width * 0.34) } });
   const tex = Texture.from(canvas);
@@ -30,7 +31,7 @@ const WOOD: Ramp = [C.e1, C.e2, C.e3, C.e4, C.e5];
 const STONE: Ramp = [C.steel, C.mist, C.fog, C.fog, C.pale];
 const MOSS: Ramp = [C.g1, C.g2, C.g3, C.g4, C.g5];
 
-function trunk(ctx: Ctx, cx: number, top: number, bot: number, w: number, seed: number): void {
+export function trunk(ctx: Ctx, cx: number, top: number, bot: number, w: number, seed: number): void {
   const x0 = cx - Math.floor(w / 2);
   for (let y = top; y < bot; y++) for (let i = 0; i < w; i++) {
     const u = i / Math.max(1, w - 1);
@@ -45,7 +46,7 @@ function trunk(ctx: Ctx, cx: number, top: number, bot: number, w: number, seed: 
   put(ctx, x0 + Math.floor(w / 2), top + Math.floor((bot - top) * 0.5), C.e0, 2, 2);          // knot
 }
 
-function branches(ctx: Ctx, rng: () => number, x: number, y: number, ang: number, len: number, depth: number, snow: boolean): void {
+export function branches(ctx: Ctx, rng: () => number, x: number, y: number, ang: number, len: number, depth: number, snow: boolean): void {
   if (depth === 0 || len < 2) return;
   const x2 = Math.round(x + Math.cos(ang) * len), y2 = Math.round(y - Math.sin(ang) * len);
   line(ctx, Math.round(x), Math.round(y), x2, y2, depth > 3 ? C.e2 : depth > 1 ? C.e1 : C.e2);
@@ -56,7 +57,7 @@ function branches(ctx: Ctx, rng: () => number, x: number, y: number, ang: number
 }
 
 /** A rounded crown of leaf clusters, back to front; lower clusters sit in the crown's own shade. */
-function crown(ctx: Ctx, rng: () => number, cx: number, cy: number, rx: number, ry: number, n: number, rampOf: (i: number) => Ramp, seed: number): void {
+export function crown(ctx: Ctx, rng: () => number, cx: number, cy: number, rx: number, ry: number, n: number, rampOf: (i: number) => Ramp, seed: number): void {
   const cl: Array<[number, number, number]> = [];
   for (let i = 0; i < n; i++) {
     const a = rng() * Math.PI * 2, r = Math.sqrt(rng());
@@ -77,7 +78,7 @@ function crown(ctx: Ctx, rng: () => number, cx: number, cy: number, rx: number, 
 }
 
 /** 48x64 broadleaf tree (anchor: trunk base). Seasonal: blossom, lush, autumn colours, bare + snow. */
-function drawBroadleaf(ctx: Ctx, seed: number, season: SeasonIdx): void {
+export function drawBroadleaf(ctx: Ctx, seed: number, season: SeasonIdx): void {
   const rng = mulberry32(seed * 7919 + 13);
   trunk(ctx, 24, season === 3 ? 26 : 34, 59, 6, seed);
   if (season === 3) {
@@ -100,7 +101,7 @@ function drawBroadleaf(ctx: Ctx, seed: number, season: SeasonIdx): void {
 }
 
 /** Layered conifer (48x64); keeps its needles in winter and gains snow. */
-function drawPine(ctx: Ctx, seed: number, season: SeasonIdx): void {
+export function drawPine(ctx: Ctx, seed: number, season: SeasonIdx): void {
   trunk(ctx, 24, 48, 62, 4, seed);
   const tiers: Array<[number, number]> = [[46, 15], [37, 12.5], [28.5, 10.5], [20.5, 8], [13, 5.5]];
   tiers.forEach(([y, rx], k) => {
@@ -482,6 +483,8 @@ export interface ObjectArt {
   crystal: ObjSprite[]; forage: ObjSprite[]; fence: ObjSprite[];
   /** superposition trees (flux-rich groves); 4 frames per variant */
   qtree: ObjSprite[];
+  /** per-biome replacements for tree / rock / tallgrass / flowers / stump */
+  biome: BiomeArt;
 }
 /** Kinds whose sprite list is [variant][frame] flattened with this many frames per variant (animated). */
 export const FRAMES_PER_VARIANT: Record<string, number> = { qtree: 4, crystal: 3, ore_silver: 2, ore_gold: 2, torch: 2, bloom: 2 };
@@ -493,11 +496,14 @@ export function buildObjectArt(season: SeasonIdx): ObjectArt {
     ore_copper: buildOre('ore_copper', season), ore_iron: buildOre('ore_iron', season),
     ore_silver: buildOre('ore_silver', season), ore_gold: buildOre('ore_gold', season),
     crystal: buildCrystal(), forage: buildForage(season), fence: buildFence(), qtree: buildQTree(season),
+    biome: buildBiomeArt(season),
   };
 }
 
 export function destroyObjectArt(a: ObjectArt): void {
-  for (const list of Object.values(a)) for (const s of list) s.tex.destroy(true);
+  const { biome, ...lists } = a;
+  for (const list of Object.values(lists)) for (const s of list) s.tex.destroy(true);
+  destroyBiomeArt(biome);
 }
 
 export { Rectangle };
