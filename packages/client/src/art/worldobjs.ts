@@ -575,7 +575,89 @@ function crate(): ObjSpriteDef {
   }));
 }
 
-const TOWN_DECO: Record<string, () => ObjSpriteDef> = { statue, stall, bench, banner, planter, hay, signpost, plaque, crate };
+// ───────────────────────── village life props ─────────────────────────
+
+function cart(): ObjSpriteDef {
+  return still(sprite(36, 26, 18, 23, (ctx) => {
+    slab(ctx, 5, 9, 24, 9, WOODL, 41, 0.35); put(ctx, 5, 9, C.e7, 24, 1);
+    for (const x of [9, 15, 21, 27]) put(ctx, x, 9, C.e1, 1, 9);
+    blob(ctx, 17, 8, 10, 3.2, [C.e3, C.e4, C.e5, C.e6, C.e7], { seed: 43, noise: 0.5, edgeDark: 0.2 });      // a heap of hay on the bed
+    put(ctx, 29, 12, C.e1, 6, 2); put(ctx, 33, 11, C.e2, 2, 3);                                              // the handles
+    for (const wx of [9, 24]) { blob(ctx, wx, 19, 4.2, 4.2, WOOD, { seed: wx, noise: 0.1, edgeDark: 0.4 }); blob(ctx, wx, 19, 1.4, 1.4, IRON, { seed: 3, noise: 0 }); for (let a = 0; a < 4; a++) line(ctx, wx, 19, Math.round(wx + Math.cos(a * 0.8) * 3.6), Math.round(19 + Math.sin(a * 0.8) * 3.6), C.e1); }
+  }));
+}
+
+function woodpile(): ObjSpriteDef {
+  return still(sprite(28, 22, 14, 19, (ctx) => {
+    for (let row = 0; row < 3; row++) for (let i = 0; i < 4 - row; i++) {
+      const x = 4 + i * 5 + row * 2.5, y = 15 - row * 4;
+      blob(ctx, x + 2, y, 2.8, 2.4, WOOD, { seed: row * 9 + i, noise: 0.15, edgeDark: 0.3 });
+      blob(ctx, x + 2, y, 1.1, 1, [C.e5, C.e6, C.e7], { seed: 7, noise: 0 });                                  // the cut end
+    }
+    put(ctx, 3, 18, C.night, 22, 1);
+  }));
+}
+
+function scarecrow(): ObjSpriteDef {
+  return still(sprite(30, 40, 15, 37, (ctx) => {
+    slab(ctx, 14, 10, 2, 27, WOOD, 5, 0.3); put(ctx, 4, 15, C.e3, 22, 2); put(ctx, 4, 15, C.e5, 22, 1);       // post and arms
+    poly(ctx, [[9, 16], [21, 16], [19, 27], [11, 27]], (x, y) => (y < 20 ? C.r3 : y < 24 ? C.r2 : C.r1));      // ragged shirt
+    for (const [x, y] of [[8, 18], [22, 18], [10, 28], [19, 28]] as const) put(ctx, x, y, C.e6, 2, 3);          // straw cuffs
+    blob(ctx, 15, 9, 4.4, 4.4, [C.e4, C.e5, C.e6, C.e7], { seed: 8, noise: 0.3, edgeDark: 0.2 });
+    put(ctx, 13, 8, C.ink, 1, 2); put(ctx, 17, 8, C.ink, 1, 2); put(ctx, 14, 12, C.ink, 3, 1);
+    blob(ctx, 15, 4, 7, 2, [C.e1, C.e2, C.e3, C.e4], { seed: 9, noise: 0.2 }); blob(ctx, 15, 2, 3.6, 2.4, [C.e1, C.e2, C.e3, C.e4], { seed: 10, noise: 0.2 });
+    put(ctx, 9, 27, C.q5, 1, 1);
+  }), { sway: 0.05 });
+}
+
+function laundry(): ObjSpriteDef {
+  const mk = (f: number) => sprite(36, 34, 18, 31, (ctx) => {
+    for (const x of [3, 31]) slab(ctx, x, 8, 2, 23, WOOD, x, 0.3);
+    const sag = [0, 1, 0, -1][f % 4]!;
+    for (let x = 4; x < 32; x++) put(ctx, x, 9 + Math.round(Math.sin(((x - 4) / 28) * Math.PI) * 2.5), C.slate);
+    const cloths: Array<[number, number, number[]]> = [[8, 5, [C.r3, C.r4, C.r5]], [14, 6, [C.w3, C.w4, C.w5]], [20, 5, [C.pale, C.fog, C.white]], [25, 6, [C.g3, C.g4, C.g5]]];
+    cloths.forEach(([x, w, pal], i) => {
+      const hang = 6 + (i % 2) * 2 + sag * (i % 2 ? 1 : -1) * 0;
+      for (let y = 0; y < hang + 4; y++) { const wob = Math.round(Math.sin((y + f * 1.3 + i) * 0.9) * 0.8 * (1 + y / 6)); put(ctx, x + wob, 12 + y, pal[y < 3 ? 2 : y < hang ? 1 : 0]!, w, 1); }
+    });
+  }, { fringe: false });
+  return anim(frames(4, mk), 3);
+}
+
+function beehive(): ObjSpriteDef {
+  return still(sprite(20, 26, 10, 23, (ctx) => {
+    for (let i = 0; i < 4; i++) blob(ctx, 10, 18 - i * 3.6, 7 - (i === 3 ? 2 : 0), 2.6, [C.e3, C.e4, C.e5, C.e6, C.e7], { seed: 20 + i, noise: 0.3, edgeDark: 0.3 });
+    put(ctx, 8, 19, C.ink, 4, 2); put(ctx, 7, 20, C.night, 1, 1);
+    slab(ctx, 5, 21, 10, 2, WOOD, 6, 0.3);
+    for (const [x, y] of [[4, 6], [15, 10], [6, 14]] as const) put(ctx, x, y, C.e7, 1, 1);                    // a few bees
+  }));
+}
+
+function trough(): ObjSpriteDef {
+  return still(sprite(30, 18, 15, 15, (ctx) => {
+    slab(ctx, 3, 6, 24, 8, WOOD, 11, 0.35); put(ctx, 3, 6, C.e6, 24, 1);
+    blob(ctx, 15, 8, 10, 1.8, [C.w2, C.w3, C.w4, C.w5], { seed: 12, noise: 0.2, edgeDark: 0 });                // water
+    put(ctx, 5, 14, C.e0, 3, 2); put(ctx, 22, 14, C.e0, 3, 2);
+  }));
+}
+
+function hedge(): ObjSpriteDef {
+  return still(sprite(32, 24, 16, 21, (ctx) => {
+    blob(ctx, 16, 13, 14, 7, R.leaf, { seed: 51, noise: 0.5, shape: 2.4, edgeDark: 0.3 });
+    for (let i = 0; i < 9; i++) { const x = 5 + (i * 7) % 23, y = 7 + (i * 5) % 9; put(ctx, x, y, i % 3 ? C.g6 : C.g7, 2, 1); }
+    for (const [x, y] of [[8, 12], [20, 9], [24, 14]] as const) put(ctx, x, y, C.r5, 2, 2);                     // berries
+  }), { sway: 0.03 });
+}
+
+function mailbox(): ObjSpriteDef {
+  return still(sprite(14, 24, 7, 21, (ctx) => {
+    slab(ctx, 6, 9, 2, 12, WOOD, 3, 0.3);
+    slab(ctx, 2, 3, 10, 7, [C.w1, C.w2, C.w3, C.w4, C.w5], 14, 0.3); put(ctx, 2, 3, C.w6, 10, 1);
+    put(ctx, 10, 0, C.r4, 1, 5); put(ctx, 10, 0, C.r5, 3, 2);
+  }));
+}
+
+const TOWN_DECO: Record<string, () => ObjSpriteDef> = { statue, stall, bench, banner, planter, hay, signpost, plaque, crate, cart, woodpile, scarecrow, laundry, beehive, trough, hedge, mailbox };
 
 const objCache = new Map<string, ObjSpriteDef>();
 
@@ -603,7 +685,7 @@ export const GALLERY_OBJECTS: Array<{ kind: WorldObj['kind']; sub: string }> = [
   { kind: 'sprinkler', sub: 'sprinkler1' }, { kind: 'sprinkler', sub: 'sprinkler2' },
   { kind: 'shelter', sub: 'coop' }, { kind: 'shelter', sub: 'barn' }, { kind: 'chest', sub: 'chest' }, { kind: 'sign', sub: 'sign' },
   ...Object.keys(SEATS).map((sub) => ({ kind: 'furniture' as const, sub })),
-  ...['well', 'board', 'counter', 'desk', 'barrel', 'stove', 'trophy', 'crate', 'statue', 'stall', 'bench', 'banner', 'planter', 'hay', 'signpost'].map((sub) => ({ kind: 'deco' as const, sub })),
+  ...['well', 'board', 'counter', 'desk', 'barrel', 'stove', 'trophy', 'crate', 'statue', 'stall', 'bench', 'banner', 'planter', 'hay', 'signpost', 'cart', 'woodpile', 'scarecrow', 'laundry', 'beehive', 'trough', 'hedge', 'mailbox'].map((sub) => ({ kind: 'deco' as const, sub })),
   { kind: 'sign', sub: 'plaque' },
 ];
 

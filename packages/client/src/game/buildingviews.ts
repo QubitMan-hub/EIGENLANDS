@@ -115,6 +115,8 @@ export class BuildingViews {
     for (const v of this.views) {
       const b = v.b;
       const vis = b.x + b.w + 4 >= minX && b.x - 4 <= maxX && b.y + b.h + 4 >= minY && b.y - 4 <= maxY;
+      // pre-build one building per frame while it is still off screen (within ~40 tiles), so walking into town never hitches
+      if (!v.art && !vis && this.builtThisFrame === 0 && b.x + b.w + 40 >= minX && b.x - 40 <= maxX && b.y + b.h + 40 >= minY && b.y - 40 <= maxY) { this.build(v); this.builtThisFrame++; }
       if (!vis) {
         if (v.art) { v.walls.forEach((w) => (w.s.visible = false)); v.roof!.visible = false; v.shadow!.visible = false; if (v.sign) v.sign.visible = false; v.puffs.forEach((p) => (p.s.visible = false)); }
         continue;

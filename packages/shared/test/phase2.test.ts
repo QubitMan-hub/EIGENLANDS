@@ -187,8 +187,9 @@ describe('world: nodes, ores and the town', () => {
     expect(seen.has(T.CRYSTAL)).toBe(true);
   });
   const town = townFor(SEED);
-  it('Hadamere exists with 10 buildings, walkable doors and furnished interiors', () => {
-    expect(town.buildings.length).toBe(10);
+  it('Hadamere exists with its 10 original buildings plus the wider village, walkable doors and furnished interiors', () => {
+    expect(town.buildings.length).toBe(27);
+    for (const id of ['smithy', 'hall', 'inn', 'store', 'farmhouse', 'herbalist', 'fisher', 'tailor', 'carpenter', 'scout']) expect(town.buildings.some((b) => b.id === id), id).toBe(true);
     const store = new ChunkStore(SEED);
     for (const b of town.buildings) {
       expect(tileAt(SEED, b.doorX, b.doorY)).toBe(T.DOOR);

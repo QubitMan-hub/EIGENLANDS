@@ -1,0 +1,11 @@
+import { chromium } from 'playwright-core';
+const q = process.argv[2] ?? 'lab=town&hour=12&season=1&scale=3'; const out = process.argv[3] ?? '/tmp/town.png';
+const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-angle=swiftshader','--use-gl=angle','--enable-unsafe-swiftshader','--no-sandbox'] });
+const p = await b.newPage({ viewport: { width: 1400, height: 860 } });
+const logs = []; p.on('console', (m) => logs.push(m.type() + ': ' + m.text())); p.on('pageerror', (e) => logs.push('pageerror ' + e.message));
+await p.goto('http://127.0.0.1:5299/labs/artlab.html?' + q + '&motion=0');
+await p.waitForFunction(() => window.__lab?.ready, null, { timeout: 60000 });
+await new Promise((r) => setTimeout(r, 7000));
+await p.screenshot({ path: out });
+console.log(logs.filter((l) => /error/i.test(l)).slice(0, 4).join('\n') || 'ok');
+await b.close();
