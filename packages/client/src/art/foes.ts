@@ -1,3 +1,4 @@
+import { wildDef } from './fauna';
 import type { Texture } from 'pixi.js';
 import {
   D4_YAW, Scene, Sheet, add, lerp3, ramp, rampOf, rotX, rotY, rotZ, type Mat, type Ramp, type V3,
@@ -11,10 +12,10 @@ import {
  */
 export type Anim = 'idle' | 'move' | 'windup' | 'attack' | 'hurt' | 'death';
 export const ANIMS: Anim[] = ['idle', 'move', 'windup', 'attack', 'hurt', 'death'];
-export type CritterKind = 'slime' | 'hopper' | 'rabbit' | 'deer' | 'wisp' | 'brute' | 'mite';
+export type CritterKind = 'slime' | 'hopper' | 'rabbit' | 'deer' | 'wisp' | 'brute' | 'mite' | 'fox' | 'otter' | 'tortoise' | 'owl' | 'thornling' | 'glasscrawler';
 
 interface Def {
-  w: number; h: number;
+  w: number; h: number; ay?: number;
   /** frames per animation */
   n: Record<Anim, number>;
   /** draw one frame: k = frame index, t = k / n (0..1) */
@@ -438,6 +439,7 @@ const miteDef: Def = {
 };
 
 const DEFS: Record<CritterKind, Def> = {
+  fox: wildDef('fox'), otter: wildDef('otter'), tortoise: wildDef('tortoise'), owl: wildDef('owl'), thornling: wildDef('thornling'), glasscrawler: wildDef('glasscrawler'),
   deer: deerDef, rabbit: rabbitDef, slime: slimeDef, hopper: hopperDef, wisp: wispDef, brute: bruteDef, mite: miteDef,
 };
 
@@ -481,7 +483,7 @@ function bake(kind: CritterKind, night: boolean): Baked {
   for (let d = 0; d < 4; d++) {
     for (const a of ANIMS) {
       for (let k = 0; k < def.n[a]; k++) {
-        const s = new Scene(def.w, def.h, def.w / 2, def.h - 2, D4_YAW[d]!);
+        const s = new Scene(def.w, def.h, def.w / 2, (def.ay ?? def.h - 2), D4_YAW[d]!);
         def.draw(s, a, k, k / def.n[a], night);
         sheet.put(col0[a] + k, d, s.resolve());
       }
@@ -509,6 +511,7 @@ export const critterSheetCanvas = (kind: CritterKind, night: boolean): HTMLCanva
 export const KIND_NAMES: CritterKind[] = ['slime', 'hopper', 'rabbit', 'deer', 'wisp', 'brute', 'mite'];
 
 export interface FoeSheets {
+  anchor(kind: number): number;
   /** any creature frame: kind index (ENEMY_BY_KIND), night variant, D4 facing, animation, frame */
   frame(kind: number, night: boolean, dir: number, anim: Anim, frame: number): Texture;
   frames(kind: number, anim: Anim): number;
@@ -519,8 +522,9 @@ export interface FoeSheets {
 }
 
 export function buildFoeSheets(): FoeSheets {
-  const name = (k: number) => KIND_NAMES[k] ?? 'slime';
+  const name = (k: number) => (['fox', 'otter', 'tortoise', 'owl', 'thornling', 'glasscrawler'] as const)[k - 15] ?? KIND_NAMES[k] ?? 'slime';
   return {
+    anchor: k => (DEFS[name(k)].ay ?? DEFS[name(k)].h - 2) / DEFS[name(k)].h,
     frame: (k, n, d, a, f) => critter(name(k), n, d, a, f),
     frames: (k, a) => critterFrames(name(k), a),
     shadow: (k) => critterShadow(name(k)),

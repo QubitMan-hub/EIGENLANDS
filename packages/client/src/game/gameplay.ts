@@ -76,7 +76,7 @@ export class Gameplay {
     document.body.append(this.hotbar.el, this.hotbarName, this.targetHint);
     try { JSON.parse(localStorage.getItem('eigen.tutorial2') ?? '[]').forEach((i: string) => this.done.add(i)); } catch { /* fresh */ }
 
-    this.hotbar.onSelect = () => { this.acts.selected = true; this.showHotbarName(); };
+    this.hotbar.onSelect = () => { try { this.d.net().send(MSG.HOLD, { slot: this.hotbar.selected }); } catch { /* not connected yet */ } this.acts.selected = true; this.showHotbarName(); };
     this.hotbar.onMove = (from, to) => this.d.net().invMove({ from, to });
     d.input.onHotbar = (i) => this.hotbar.select(i);
     d.input.onCycle = (dir) => { if (!this.blocking) this.hotbar.cycle(dir); };

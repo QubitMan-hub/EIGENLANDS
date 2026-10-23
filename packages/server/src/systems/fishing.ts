@@ -34,7 +34,7 @@ export function startCast(room: RoomApi, p: ServerPlayer, tx: number, ty: number
   const delay = biteDelaySec(room.rand, skillLv(p, 'fishing')) * 1000 * tuning.pace;
   const now = Date.now();
   p.rhythm = null;
-  p.cast = { id: `f${++seq}`, tx, ty, deep, state: 'wait', biteAt: now + delay, deadline: 0 };
+  p.cast = { id: `f${++seq}`, tx, ty, deep, ocean: deep && deepCount >= 18 && Math.hypot(tx, ty) > 230, state: 'wait', biteAt: now + delay, deadline: 0 };
   p.client.send(MSG.FISH_CAST, { tx, ty, id: p.cast.id });
   room.fx({ kind: 'cast', x: tx + 0.5, y: ty + 0.5 });
   p.toast('You cast your line…');
@@ -72,10 +72,10 @@ export function handleHook(room: RoomApi, p: ServerPlayer, msg: FishHookMsg): vo
   if (now > c.deadline) { p.cast = null; return; }
   p.cast = null;
   const level = skillLv(p, 'fishing');
-  const fish = rollFish(room.rand, { season: room.wclock.season(), hour: room.wclock.hour(), deep: c.deep, weather: room.wclock.weather(), level, luck: p.stats.luck });
+  const fish = rollFish(room.rand, { season: room.wclock.season(), hour: room.wclock.hour(), deep: c.deep, ocean: c.ocean, weather: room.wclock.weather(), level, luck: p.stats.luck });
   const plan = fishPlan(room, Math.max(0, fish.difficulty - level * 0.03));
   p.rhythm = { id: c.id, kind: 'fish', plan, expires: Date.now() + 20_000, fish: { id: fish.id, difficulty: fish.difficulty } };
-  p.client.send(MSG.RHYTHM_START, { id: c.id, kind: 'fish', plan, label: 'Something big is on the line! Pull on the tugs.' });
+  p.client.send(MSG.RHYTHM_START, { id: c.id, kind: 'fish', plan, label: c.ocean ? 'A deep-sea catch! Pull with the tugs.' : 'A fish is on the line. Pull with the tugs.' });
 }
 
 export function finishFish(room: RoomApi, p: ServerPlayer, msg: RhythmDoneMsg): void {

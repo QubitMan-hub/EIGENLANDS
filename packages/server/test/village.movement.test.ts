@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { NPCS, buildingAt, isSolid, scheduleAt, tileAt, townFor } from '@eigenlands/shared';
+import { NPCS, buildingAt, isSolid, scheduleAt, tileAt, townFor, townsFor } from '@eigenlands/shared';
 import { SEED, makeVillage, run } from './village.helpers';
 
-const town = townFor(SEED);
+const town = { ...townFor(SEED), spots: Object.assign({}, ...townsFor(SEED).map(t => t.spots)) };
 
 describe('village movement', () => {
-  it('creates all 10 NPCs at their scheduled spots', async () => {
+  it('creates all scheduled NPCs at their scheduled spots', async () => {
     const { village, state, clock } = await makeVillage();
-    expect(state.npcs.size).toBe(10);
+    expect(state.npcs.size).toBe(NPCS.length);
     for (const def of NPCS) {
       const n = village.npc(def.id)!;
       const sp = town.spots[scheduleAt(def, clock.hour(), clock.weather()).spot]!;

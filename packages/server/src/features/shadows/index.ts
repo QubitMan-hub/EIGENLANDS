@@ -4,7 +4,7 @@
  * players), earn XP, evolve through five ranks, and re-form after falling. See docs/design/shadow-army.md.
  */
 import {
-  ENEMY_DEFS, ENEMY_BY_KIND, EXTRACT_LEVEL, EXTRACT_RANGE, EXTRACT_SECS, MSG34, RESIDUE_SECS, ROSTER_MAX, SHADOW_REFORM_SECS, SPELL,
+  ENEMY_DEFS, ENEMY_BY_KIND, NPC_BY_ID, giftTaste, EXTRACT_LEVEL, EXTRACT_RANGE, EXTRACT_SECS, MSG34, RESIDUE_SECS, ROSTER_MAX, SHADOW_REFORM_SECS, SPELL,
   STANCES, SpellState, ShadowState, addShadowXp, canExtract, extractChance, newShadow, rankName, rankOf, shadowSlots, shadowStats,
   shadowXpFrom, shapeHits, type ShadowCmd, type ShadowEvent, type ShadowRec, type ShadowRosterMsg, type Stance, type StrikeShape,
 } from '@eigenlands/shared';
@@ -39,8 +39,9 @@ const clean = (raw: unknown): Saved => {
   if (!r || typeof r !== 'object') return out;
   for (const x of Array.isArray(r.roster) ? r.roster.slice(0, ROSTER_MAX) : []) {
     const k = Number((x as ShadowRec)?.kind);
-    if (!x || typeof x !== 'object' || !Number.isInteger(k) || !canExtract(k) || typeof x.id !== 'string' || x.id.length > 24) continue;
-    out.roster.push({ id: x.id, kind: k, name: String(x.name ?? '').slice(0, 20) || newShadow(x.id, k, 1).name, level: Math.max(1, Math.min(50, Math.floor(Number(x.level) || 1))), xp: Math.max(0, Math.floor(Number(x.xp) || 0)) });
+    if (!x || typeof x !== 'object' || !Number.isInteger(k) || (!canExtract(k) && k !== 21) || typeof x.id !== 'string' || x.id.length > 24) continue;
+    if (k === 21 && (!Number.isFinite(x.contractUntil) || x.contractUntil! <= Date.now())) continue;
+    out.roster.push({ ...(k === 21 ? { contractUntil: Math.min(x.contractUntil!, Date.now() + 30 * 60_000) } : {}), id: x.id, kind: k, name: String(x.name ?? '').slice(0, 20) || newShadow(x.id, k, 1).name, level: Math.max(1, Math.min(50, Math.floor(Number(x.level) || 1))), xp: Math.max(0, Math.floor(Number(x.xp) || 0)) });
   }
   const ids = new Set(out.roster.map((x) => x.id));
   out.active = (Array.isArray(r.active) ? r.active : []).filter((i): i is string => typeof i === 'string' && ids.has(i));
@@ -167,6 +168,25 @@ export class ShadowModule implements Module {
 
   // ───────────────────────── roster commands ─────────────────────────
 
+  /** A friend at the harbour guild can arrange one paid escort; all authority stays server-side. */
+  hire(p: ServerPlayer, npcId: string): string {
+    const L = this.live.get(p.id), npc = NPC_BY_ID[npcId], friend = p.data.friends[npcId];
+    if (!L || !npc?.settlement || !npc.shop) return 'The harbour guild is unavailable here.';
+    if (p.deadT > 0 || p.sim.boat) return 'Arrange an escort while safely ashore.';
+    if (p.level < 5) return 'The guild requires an adventurer of level 5.';
+    if (!friend || friend.pts < 160) return 'Become better friends with me first. The guild needs a personal recommendation.';
+    if (friend.gifted === this.room.wclock.day() && friend.lastGift && giftTaste(npc, friend.lastGift) === 'hate') return 'I am still upset about that gift. Let us make things right before discussing the guild.';
+    if (L.data.roster.some(r => r.kind === 21 && (r.contractUntil ?? 0) > Date.now())) return 'You already have an escort under contract.';
+    if (L.data.roster.length >= ROSTER_MAX || L.units.size >= shadowSlots(p.level)) return 'Dismiss a companion and make room in the roster first.';
+    if (p.data.coins < 250) return 'A thirty-minute escort costs 250 coins.';
+    const rec = newShadow(`h${p.id.slice(0, 4)}${Date.now().toString(36)}${++L.data.seq}`, 21, Math.min(8, Math.max(1, p.level - 2)));
+    rec.name = 'Harbour Guild Escort'; rec.contractUntil = Date.now() + 30 * 60_000;
+    p.data.coins -= 250; p.dirty('coins');
+    L.data.roster.push(rec); L.dirty = true;
+    this.summon(L, rec.id, false); this.sendRoster(L);
+    return 'Your guild escort is ready: thirty minutes of service for 250 coins. Use Companions & Echoes to set a stance or dismiss them. The contract clock continues while you are away.';
+  }
+
   private command(p: ServerPlayer, m: ShadowCmd): void {
     const L = this.live.get(p.id);
     if (!L || p.deadT > 0) return;
@@ -249,6 +269,10 @@ export class ShadowModule implements Module {
     const tick = this.room.state.tick;
     for (const L of this.live.values()) {
       const p = L.p;
+      for (const rec of [...L.data.roster]) if (rec.contractUntil && rec.contractUntil <= Date.now()) {
+        this.dismiss(L, rec.id); L.data.roster = L.data.roster.filter(r => r.id !== rec.id); L.dirty = true;
+        p.toast('Your guild escort’s contract has ended.'); this.sendRoster(L);
+      }
       if (L.channel) {
         if (p.deadT > 0 || Math.hypot(p.sim.x - L.channel.x, p.sim.y - L.channel.y) > 0.9) { L.channel = null; this.ev(p, { kind: 'failed', reason: 'moved' }); }
         else if (this.t >= L.channel.until) this.finishExtract(L);

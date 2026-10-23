@@ -24,6 +24,8 @@ export class PlayerState extends Schema {
   @type('string') party = '';
   /** Held equipment appearance; appended for schema field compatibility. Empty means unarmed. */
   @type('string') weapon = '';
+  /** Selected tool appearance, derived from the actual hotbar slot on the server. */
+  @type('string') held = '';
 }
 
 export class EnemyState extends Schema {

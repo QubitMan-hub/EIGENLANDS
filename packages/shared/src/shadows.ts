@@ -36,6 +36,8 @@ export interface ShadowRec {
   name: string;
   level: number;
   xp: number;
+  /** Guild escorts use the same follow/combat slots, but their paid contract expires. */
+  contractUntil?: number;
 }
 
 export interface ShadowRosterMsg {
@@ -70,7 +72,7 @@ export const shadowSlots = (playerLevel: number): number => (playerLevel < EXTRA
 export const shadowXpNeeded = (level: number): number => 18 + level * 12;
 
 const base = (kind: number): EnemyDef => ENEMY_BY_KIND[kind]!;
-export const canExtract = (kind: number): boolean => { const d = ENEMY_BY_KIND[kind]; return !!d && !d.passive && !d.sea; };
+export const canExtract = (kind: number): boolean => { const d = ENEMY_BY_KIND[kind]; return !!d && kind !== 21 && !d.passive && !d.sea; };
 
 /** Shadow stats from the source creature, its level and rank. */
 export function shadowStats(kind: number, level: number): { hp: number; dmg: number; speed: number } {

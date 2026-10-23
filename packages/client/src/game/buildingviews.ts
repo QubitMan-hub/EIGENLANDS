@@ -1,6 +1,6 @@
 import { CALM, type WindField } from './windfield';
 import { Sprite, Texture, type Container } from 'pixi.js';
-import { townFor, type Building } from '@eigenlands/shared';
+import { townsFor, type Building } from '@eigenlands/shared';
 import { buildBuildingArt, type BuildingArt } from '../art/buildings';
 import { makeCanvas, put, C } from '../art/shade';
 import { depth } from './iso';
@@ -49,7 +49,7 @@ export class BuildingViews {
   private builtThisFrame = 0;
 
   constructor(seed: number, private shadowLayer: Container, private entityLayer: Container, private roofLayer: Container) {
-    for (const b of townFor(seed).buildings) {
+    for (const b of townsFor(seed).flatMap(t => t.buildings)) {
       this.views.push({ b, art: null, walls: [], roof: null, shadow: null, sign: null, puffs: [], roofA: 1, wallA: 1, cut: false, night: false });
     }
     setBuildingLights((a, b2, c, d) => this.lights(a, b2, c, d));

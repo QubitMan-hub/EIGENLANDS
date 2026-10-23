@@ -40,3 +40,19 @@ describe('wildlife', () => {
     expect(w.mode).not.toBe('idle');
   });
 });
+
+it('lets unthreatened wildlife rest for most of a quiet observation', () => {
+  const e = createEnemy('deer', 0, 0, false);
+  let moving = 0;
+  for (let tick = 0; tick < 600; tick++) {
+    stepEnemy(e, 0.05, tick, [], open, () => 0.5, hooks);
+    if (e.mode === 'wander') moving++;
+  }
+  expect(moving / 600).toBeLessThan(0.3);
+});
+
+it('does not panic at a distant visible traveller', () => {
+  const e = createEnemy('deer', 0, 0, false);
+  run(e, { x: 7, y: 0 }, 1);
+  expect(e.mode).not.toBe('chase');
+});

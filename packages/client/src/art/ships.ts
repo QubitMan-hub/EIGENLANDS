@@ -46,13 +46,27 @@ function drawShip(kind: ShipKind, h: number, frame: number): Texture {
     return pts;
   };
   // is the viewer looking at the hull's port side or starboard? (depth cue for planks)
-  const side = (x: number, y: number) => ((x + y) & 1) === 0;
+  const side = (x: number, _y: number) => x < OX;
   // wake foam under the hull
   const foam = lens(-1, 1.18);
   poly(ctx, foam, (x, y) => ((x * 3 + y * 5 + frame) % 4 === 0 ? C.w7 : C.w6));
   // hull sides: the lens dropped by 5px, then the deck on top
   for (let d = 5; d >= 1; d--) poly(ctx, lens(d - 1, 1), (x, y) => hull[(d > 3 ? 0 : d > 1 ? 1 : 2) + (side(x, y + d) && d === 1 ? 1 : 0)]!);
-  poly(ctx, lens(5, 0.86), (x, y) => (((x + y * 2) % 7 === 0) ? DECK[1]! : DECK[1 + ((x + y) % 5 === 0 ? 1 : 0)]!));
+  poly(ctx, lens(5, 0.86), (x, y) => {
+    const sx = (x - OX) / 16, sy = (y - OY + 5) / 8;
+    const wx = (sx + sy) / 2, wy = (sy - sx) / 2;
+    const across = wx * px + wy * py;
+    return Math.floor((across + 0.4) * 30) % 4 === 0 ? DECK[0]! : DECK[2]!;
+  });
+  // Raised gunwales, brass corners and rigging follow the actual heading, never a rotated billboard.
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < 5; i++) {
+      const al = -0.75 + i * 0.35, ac = side * 0.32 * Math.sqrt(1 - (al / 0.98) ** 2);
+      line(ctx, ...P(al, ac, 5), ...P(al, ac, 8), i % 2 ? C.e3 : C.e5);
+      if (i < 4) line(ctx, ...P(al, ac, 8), ...P(al + 0.3, side * 0.31 * Math.sqrt(1 - ((al + 0.3) / 0.98) ** 2), 8), C.e4);
+    }
+    line(ctx, ...P(-0.65, side * 0.27, 7), ...P(0, 0, 34), C.e2);
+  }
   // bow: a bowsprit and a figurehead nub
   const bow = P(0.95, 0, 5), tip = P(1.25, 0, 8);
   line(ctx, bow[0], bow[1], tip[0], tip[1], hull[3]!);

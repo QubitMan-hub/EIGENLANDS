@@ -21,6 +21,7 @@ export const MSG = {
   NOTICE: 'notice',
   ACK: 'ack',
   // ── Phase 2 (client -> server)
+  HOLD: 'hold',               // {slot}: select the tool held from the hotbar
   USE: 'use',                 // UseMsg: use hotbar item on a tile (tools, seeds, food, placeables...)
   OPEN: 'open',               // OpenMsg: open a station / chest / shelter / sign at a tile
   INV_MOVE: 'inv_move',       // InvMoveMsg

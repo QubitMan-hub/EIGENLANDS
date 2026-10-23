@@ -306,11 +306,33 @@ const G: Record<Glyph, Draw> = {
 const cache = new Map<string, string>();
 const canvasCache = new Map<string, HTMLCanvasElement>();
 
+/** Discoveries get their own silhouettes rather than recoloured generic fish. */
+const SEA_ICONS: Record<string, Draw> = {
+  sailfin: (c, a, b) => {
+    G.fish(c, a, b);
+    poly(c, [[5, 5], [6, 1], [8, 2], [11, 5]], a);
+    for (const x of [6, 8, 10]) line(c, x, 4, x - 1, 2, b);
+    line(c, 2, 8, 0, 8, C.pale);
+  },
+  moonray: (c, a, b) => {
+    poly(c, [[8, 3], [13, 4], [15, 8], [10, 10], [8, 12], [6, 10], [1, 8], [3, 4]], (x, y) => x < 8 ? lt(a) : y < 7 ? a : dk(a));
+    poly(c, [[8, 4], [10, 8], [8, 11], [6, 8]], b);
+    line(c, 8, 10, 9, 14, a); put(c, 6, 5, C.ink); put(c, 10, 5, C.ink);
+  },
+  prism_nautilus: (c, a, b) => {
+    blob(c, 8, 7, 5, 5, ramp4(a), { seed: 81, noise: 0, edgeDark: .2 });
+    line(c, 5, 4, 10, 3, b); line(c, 10, 3, 12, 7, b); line(c, 12, 7, 8, 10, b);
+    line(c, 8, 10, 5, 7, b); line(c, 5, 7, 8, 5, b); line(c, 8, 5, 9, 7, b);
+    for (const x of [5, 8, 11]) line(c, 8, 11, x, 14, C.q5);
+    put(c, 5, 4, C.white); put(c, 9, 12, C.ink);
+  },
+};
+
 function paint(id: string, size: number): HTMLCanvasElement {
   const { canvas, ctx } = makeCanvas(16, 16);
   const d = ITEMS[id];
   if (!d) { put(ctx, 2, 2, C.slate, 12, 12); put(ctx, 3, 3, C.mist, 10, 10); put(ctx, 7, 5, C.ink, 2, 4); put(ctx, 7, 11, C.ink, 2, 1); outline(ctx, 16, 16); }
-  else { G[d.icon.g](ctx, d.icon.a, d.icon.b); outline(ctx, 16, 16); }
+  else { (SEA_ICONS[id] ?? G[d.icon.g])(ctx, d.icon.a, d.icon.b); outline(ctx, 16, 16); }
   if (size === 16) return canvas;
   const out = makeCanvas(size, size);
   out.ctx.imageSmoothingEnabled = false;

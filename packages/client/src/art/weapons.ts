@@ -1,14 +1,17 @@
 import { Rectangle, Texture } from 'pixi.js';
-import { HUE_PALETTE, WEAPONS, type WeaponId } from '@eigenlands/shared';
+import { HUE_PALETTE, WEAPONS, isWeaponId, type WeaponId, type ToolSpec } from '@eigenlands/shared';
 import { CAST_FRAME, personGrip } from './actors';
 import { C, line, makeCanvas, outline, poly, put, undithered } from './shade';
 
+export type HeldId = WeaponId | ToolSpec['type'];
+export const isHeldId = (id: unknown): id is HeldId => isWeaponId(id) || ['axe', 'pickaxe', 'hoe', 'can', 'rod', 'net'].includes(String(id));
+
 /** Held geometry is rasterized at each facing, never rotated as a finished frontal sprite. */
 export class HeldWeapons {
-  private sheets = new Map<WeaponId, Texture>();
+  private sheets = new Map<HeldId, Texture>();
   private frames = new Map<string, Texture>();
 
-  texture(id: WeaponId, dir: number, frame: number): Texture {
+  texture(id: HeldId, dir: number, frame: number): Texture {
     const f = Math.max(0, frame), key = `${id}:${dir}:${f}`;
     const old = this.frames.get(key);
     if (old) return old;
@@ -17,13 +20,25 @@ export class HeldWeapons {
       const { canvas, ctx } = makeCanvas(56 * 30, 64 * 8);
       for (let d = 0; d < 8; d++) for (let n = 0; n < 30; n++) {
         const b = makeCanvas(56, 64), g = personGrip(d, n), x = g.x + 16, y = g.y + 16;
-        const bow = WEAPONS[id].cls === 'crossbow', staff = WEAPONS[id].cls === 'staff';
+        const w = isWeaponId(id) ? WEAPONS[id] : null, bow = w?.cls === 'crossbow', staff = w?.cls === 'staff', tool = !w;
         const angle = bow && n < 22 ? (d === 2 || d === 4 || d === 6 ? -2.6 : -0.55) : g.angle;
         const ux = Math.cos(angle), uy = Math.sin(angle), vx = -uy, vy = ux;
         const pt = (along: number, across = 0): [number, number] => [x + ux * along + vx * across, y + uy * along + vy * across];
         const stroke = (a: number, z: number, c: number, offset = 0) => { const p = pt(a, offset), q = pt(z, offset); line(b.ctx, p[0], p[1], q[0], q[1], c); };
         undithered(() => {
-          if (bow) {
+          if (tool) {
+            stroke(-4, id === 'rod' ? 13 : 8, C.e1, 0.8); stroke(-4, id === 'rod' ? 13 : 8, C.e4);
+            if (id === 'axe') { poly(b.ctx, [pt(6, -1), pt(10, -6), pt(7, -7), pt(3, -4), pt(3, -1)], C.steel); poly(b.ctx, [pt(10, -6), pt(7, -7), pt(4, -5), pt(4, -3)], C.pale); }
+            else if (id === 'pickaxe') { poly(b.ctx, [pt(8, -7), pt(10, -3), pt(9, 1), pt(7, 6), pt(7, 1), pt(8, -3)], C.mist); stroke(7, 9, C.pale); }
+            else if (id === 'hoe') { poly(b.ctx, [pt(7, -1), pt(8, -5), pt(5, -6), pt(5, -2)], C.steel); const a = pt(5, -6), q = pt(8, -5); line(b.ctx, ...a, ...q, C.pale); }
+            else if (id === 'can') { poly(b.ctx, [pt(-1, -3), pt(5, -3), pt(5, 2), pt(-1, 2)], C.w3); poly(b.ctx, [pt(-1, -3), pt(5, -3), pt(4, -5), pt(0, -5)], C.w5); const a = pt(5, 0), q = pt(9, -3); line(b.ctx, ...a, ...q, C.w4); stroke(0, 4, C.w6, -5); }
+            else if (id === 'rod') { const a = pt(13), q = pt(8, 7); line(b.ctx, ...a, ...q, C.fog); const p = pt(8, 8); put(b.ctx, p[0], p[1], C.r4); }
+            else if (id === 'net') {
+              const ring = Array.from({ length: 13 }, (_, i) => pt(10 + Math.cos(i / 12 * Math.PI * 2) * 3, Math.sin(i / 12 * Math.PI * 2) * 4));
+              for (let i = 1; i < ring.length; i++) line(b.ctx, ...ring[i - 1]!, ...ring[i]!, i < 7 ? C.e5 : C.e2);
+              for (const k of [-1, 1]) { const a = pt(8, k * 2), q = pt(12, -k * 2); line(b.ctx, ...a, ...q, C.fog); }
+            }
+          } else if (bow) {
             poly(b.ctx, [pt(-3, -1), pt(6, -1), pt(7, 1), pt(-3, 1)], C.e2);
             stroke(-3, 6, C.e4, -0.7);
             // Swept limbs have thickness and separate upper-lit and lower-shaded edges.
@@ -36,7 +51,7 @@ export class HeldWeapons {
             stroke(0, 8, C.fog); const tip = pt(9); put(b.ctx, Math.round(tip[0]), Math.round(tip[1]), C.pale);
           } else if (staff) {
             stroke(-7, 8, C.e1, 0.8); stroke(-7, 8, C.e4);
-            const hue = HUE_PALETTE[WEAPONS[id].hue] ?? C.q7;
+            const hue = HUE_PALETTE[w!.hue] ?? C.q7;
             poly(b.ctx, [pt(7, -3), pt(12), pt(7, 3), pt(5)], hue);
             poly(b.ctx, [pt(7, -3), pt(12), pt(7)], C.pale);
             for (const z of [-4, 1, 5]) { const a = pt(z, -1), q = pt(z, 1); line(b.ctx, a[0], a[1], q[0], q[1], C.e6); }

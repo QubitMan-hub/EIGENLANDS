@@ -1,6 +1,6 @@
 import {
   DAY_MS, GIFT_EXTRA, GIFT_POINTS, ITEMS, NPCS, NpcState, RECIPES, SEASONS, TALK_POINTS, addStack, buildingAt, buyPrice, canAdd, composeTalk, decaySupply,
-  fill, findPath, giftTaste, hearts, isWorking, objectiveText, offerable, pendingEvent, questComplete, questDef, scheduleAt, sellPrice, shopOpen, tierOf, townFor, voiceOf,
+  fill, findPath, giftTaste, hearts, isWorking, objectiveText, offerable, pendingEvent, questComplete, questDef, scheduleAt, sellPrice, shopOpen, tierOf, townsFor, voiceOf,
   type DeedKind, type DialogueChatMsg, type DialogueChoice, type DialogueMsg, type NpcDef, type QuestMsg, type ShopMsg, type ShopViewMsg, type Supply,
 } from '@eigenlands/shared';
 import type { FriendRec, PlayerRef, VillageHost, VillageSystem } from '../types';
@@ -30,7 +30,7 @@ interface Runner {
   flags: number;
 }
 
-export interface VillageOptions extends AiOptions { }
+export interface VillageOptions extends AiOptions { npcIds?: string[] }
 
 export class Village implements VillageSystem {
   private runners = new Map<string, Runner>();
@@ -41,11 +41,13 @@ export class Village implements VillageSystem {
   private marketDirty = false;
   private rumorDirty = false;
   private lastSave = 0;
+  private defs: NpcDef[];
   private spots: Record<string, { x: number; y: number }>;
 
   constructor(private host: VillageHost, opts: VillageOptions = {}) {
     this.ai = new AiDialogue(opts);
-    this.spots = townFor(host.seed).spots;
+    this.spots = Object.assign({}, ...townsFor(host.seed).map(t => t.spots));
+    this.defs = opts.npcIds ? NPCS.filter(n => opts.npcIds!.includes(n.id)) : NPCS;
   }
 
   get aiEnabled(): boolean { return this.ai.enabled; }
@@ -61,7 +63,7 @@ export class Village implements VillageSystem {
     if (m && typeof m === 'object') this.market = Object.fromEntries(Object.entries(m).filter(([, v]) => typeof v === 'number' && v > 0)) as Supply;
     this.rumors.load(await this.host.loadBlob<unknown>('rumors'));
     const hour = this.host.clock.hour(), weather = this.host.clock.weather();
-    for (const def of NPCS) {
+    for (const def of this.defs) {
       const block = scheduleAt(def, hour, weather);
       const sp = this.spots[block.spot] ?? this.spots[def.home]!;
       const st = new NpcState();
@@ -241,6 +243,7 @@ export class Village implements VillageSystem {
       id: `quest:${q.id}`, kind: q.state === 'ready' ? 'ready' : 'quest',
       text: q.state === 'ready' ? `★ ${q.title} (done!)` : q.state === 'offer' ? `! ${q.title}` : `… ${q.title}`,
     }));
+    if (def.settlement && def.shop && this.host.hire) ch.push({ id: 'hire', text: 'Guild escort · 250 coins / 30 min · companion slot', kind: 'ask' });
     ch.push({ id: 'ask', text: 'Ask about…', kind: 'ask' });
     return ch;
   }
@@ -311,6 +314,7 @@ export class Village implements VillageSystem {
     const t = typeof topic === 'string' ? topic.slice(0, 48) : '';
     const rand = this.host.rand;
 
+    if (t === 'hire') return this.message(p, r, rec, this.host.hire?.(p, npcId) ?? 'The guild is unavailable.');
     if (t === 'bye') return this.message(p, r, rec, v ? pickOne(v.bye, rand) : 'Goodbye.', { end: true, choices: [] });
     if (t === 'ask' || t.startsWith('ask:')) return this.ask(p, r, rec, t.slice(4));
     if (t.startsWith('quest:')) return this.questTopic(p, r, rec, t.slice(6));
@@ -345,7 +349,7 @@ export class Village implements VillageSystem {
     const rand = this.host.rand;
     const menu: DialogueChoice[] = [
       { id: 'ask:about', text: 'Tell me about yourself.', kind: 'ask' },
-      { id: 'ask:town', text: 'What\'s Hadamere like?', kind: 'ask' },
+      { id: 'ask:town', text: 'Tell me about this settlement.', kind: 'ask' },
       { id: 'ask:qubitman', text: 'Who is QubitMan?', kind: 'ask' },
       { id: 'ask:rumor', text: 'Heard any rumors?', kind: 'ask' },
       { id: 'back', text: 'That\'s all.', kind: 'back' },

@@ -145,6 +145,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       });
     };
     on<DevMsg>(MSG.DEV, 'invBucket', (p, m) => (m?.cmd === 'spawn' ? this.devSpawn(p, m) : m?.cmd === 'kill' ? this.devKill(p, m) : handleDev(this, p, m)));
+    on<{ slot: number }>(MSG.HOLD, 'invBucket', (p, m) => { if (Number.isInteger(m?.slot) && m.slot >= 0 && m.slot < 10) p.heldSlot = m.slot; });
     on<UseMsg>(MSG.USE, 'useBucket', (p, m) => handleUse(this, p, m));
     on<OpenMsg>(MSG.OPEN, 'openBucket', (p, m) => handleOpen(this, p, m));
     on<InvMoveMsg>(MSG.INV_MOVE, 'invBucket', (p, m) => handleInvMove(p, m));
@@ -539,6 +540,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     s.x = p.sim.x; s.y = p.sim.y; s.faceX = p.sim.faceX; s.faceY = p.sim.faceY;
     s.hp = p.hp; s.maxHp = p.maxHp; s.level = p.level; s.xp = p.xp; s.ack = p.lastSeq; s.look = lookOf(p);
     s.weapon = this.weaponOf(p)?.id ?? '';
+    s.held = ITEMS[p.data.inv[p.heldSlot]?.id ?? '']?.tool?.type ?? '';
     p.client.send(MSG.ACK, encodeAck({ seq: p.lastSeq, tick, sim: p.sim }));
     const sim = p.sim;
     s.flags = (sim.dashT > 0 ? 1 : 0) | (sim.atkCd > 0.12 ? 2 : 0) | (p.deadT > 0 ? 4 : 0)
@@ -937,7 +939,9 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
         const br = this.rand();
         // (newcomers only ever meet the gentle level-1 table, wherever they wander)
         if (p.level < 2) { /* keep the table's pick */ }
-        else if (isCaveY(y)) kind = br < 0.45 ? 'slime' : br < 0.8 || p.level < 3 ? 'mite' : 'brute';   // the Undercroft never sleeps
+        else if (isCaveY(y)) kind = br < 0.2 && p.level >= 3 ? 'glasscrawler' : br < 0.45 ? 'slime' : br < 0.8 || p.level < 3 ? 'mite' : 'brute';   // the Undercroft never sleeps
+        else if (biome === 'enchanted' && br < 0.25) kind = 'glasscrawler';
+        else if ((biome === 'forest' || biome === 'autumn') && br < 0.2 && p.level >= 3) kind = 'thornling';
         else if (biome === 'enchanted' && br < 0.5) kind = 'wisp';
         else if (biome === 'corrupted' && br < 0.6) kind = br < 0.2 && p.level >= 3 ? 'brute' : 'mite';
         else if (biome === 'swamp' && br < 0.5) kind = 'slime';
@@ -992,7 +996,11 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
         // each biome keeps its own creatures: stag herds in the woods and tundra, boar sounders in Amberwood and the fen,
         // hares on the dunes, badgers on open ground
         const r = this.rand();
-        const kind: EnemyKind = biome === 'desert' ? 'rabbit'
+        const waterBank = [[3, 0], [-3, 0], [0, 3], [0, -3]].some(([dx, dy]) => { const t = this.store.getTile(x + dx!, y + dy!); return t === T.WATER; });
+        const kind: EnemyKind = waterBank && r < 0.5 ? 'otter'
+          : biome === 'desert' ? (r < 0.35 ? 'tortoise' : 'rabbit')
+          : trees >= 4 && r > 0.85 ? 'owl'
+          : biome === 'forest' && r < 0.25 ? 'fox'
           : biome === 'taiga' ? (r < 0.65 ? 'deer' : 'badger')
           : biome === 'swamp' ? (r < 0.6 ? 'boar' : 'badger')
           : biome === 'autumn' ? (r < 0.5 ? 'boar' : r < 0.85 ? 'deer' : 'rabbit')

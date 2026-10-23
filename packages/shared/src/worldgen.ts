@@ -1,3 +1,4 @@
+import { portElevation, portChannel } from './settlements';
 import { spacedTree } from './distribution';
 import { CHUNK_SIZE } from './constants';
 import { hash2 } from './rng';
@@ -75,6 +76,8 @@ export function sampleClimate(seed: number, x: number, y: number): ClimateSample
     const isles = l.sea.fbm(x / 58 + 700, y / 58 - 700, 4) + 0.35 * l.sea.fbm(x / 21 - 300, y / 21 + 300, 2);
     height = height * (1 - ring) + ring * (isles * 1.15 - 0.52);
   }
+  height += portElevation(x, y);
+  if (portChannel(x, y)) height = Math.min(height, -0.36);
   return {
     height,
     moisture: l.moisture.fbm(x / 64 + 100, y / 64 - 100, 3),

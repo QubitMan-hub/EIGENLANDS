@@ -1,3 +1,4 @@
+import type { HeldWeapons } from '../art/weapons';
 import { type Critters, type CritterId } from '../art/critters';
 import { Sprite, type Container, type Graphics } from 'pixi.js';
 import { SHIP_AX, SHIP_AY, headingOf, type Ships } from '../art/ships';
@@ -13,7 +14,7 @@ import { D4_SE, dir4 } from '../art/sprite';
 /** tiles of travel per walk frame for each drawn model (0 = animate by time) */
 const MOVE_STRIDE: number[] = [0, 0.25, 0.18, 0, 0, 0.42, 0];
 import type { Sheets } from '../art/actors';
-import { DIR_LEFT } from '../art/actors';
+import { DIR_LEFT, dirOf, ATTACK_FRAME, WALK_FRAMES } from '../art/actors';
 import type { Fx } from './fx';
 import { ISO_HH, ISO_HW, isoX, isoY, screenDir } from './iso';
 
@@ -36,6 +37,7 @@ export interface CombatActor {
   flash: number;
   punch: number;
   ghostT: number;
+  held?: Sprite;
   /** hull sprite under a sailing player */
   ship?: Sprite;
 }
@@ -57,6 +59,7 @@ export interface CombatDeps {
   sheets: () => Sheets;
   foes: () => FoeSheets;
   critters: () => Critters;
+  heldWeapons?: () => HeldWeapons;
   ships: () => Ships;
   /** the wielded weapon: ranged = shoots instead of swinging; hue = its element (-1 physical) */
   weapon: () => { ranged: boolean; hue: number };
@@ -345,17 +348,21 @@ export class CombatView {
     const facing = dir4(sd.x, sd.y, this.dirs.get(v) ?? D4_SE);
     this.dirs.set(v, facing);
     const dir = (['SE', 'SW', 'NE', 'NW'] as const)[facing]!;
-    let anim = 'idle', frame = t * c.fps(id, 'idle') + v.outfit * 3;
-    const run = (a: string, k = 1) => { anim = a; frame = (v.travel * 2.4 + v.outfit) * k; };
-    if (id === 'stag') { if (moved && spd > 0.9) { if (spd > 3.4) run('run', 1.3); else run('walk'); } }
-    else if (id === 'boar') { if (st === 3 || (moved && spd > 1.4)) { run('run', st === 3 ? 1.5 : 1.1); } else if (moved && spd > 0.4) run('run', 0.6); }
+    let anim = 'idle';
+    const span = c.length(id, 'idle') / c.fps(id, 'idle');
+    const rest = (t + v.outfit * 0.73) % (span + 7);
+    let frame = rest < span ? rest * c.fps(id, 'idle') : 0;
+    const run = (a: string, stride = 2.4) => { anim = a; frame = v.travel / stride * c.length(id, a) + v.outfit; };
+    if (id === 'stag') { if (moved && spd > 0.9) { if (spd > 3.4) run('run', 4.4); else run('walk'); } }
+    else if (id === 'boar') { if (st === 3 || (moved && spd > 1.4)) { run('run', st === 3 ? 3.8 : 2.6); } else if (moved && spd > 0.4) run('run', 2); }
     else if (id === 'badger') { if (moved && spd > 0.3) { run('walk'); } }
     else { // wolf
       if (st === 2) { anim = 'howl'; frame = ((s?.tele ?? 0) / 100) * (c.length(id, 'howl') - 1); }
       else if (st === 3) { anim = 'bite'; frame = Math.min(c.length(id, 'bite') - 1, elapsed * 24); }
       else if (st === 5) { anim = 'idle'; frame = 0; }
-      else if (moved && spd > 0.3) { run('run', 1.2); }
+      else if (moved && spd > 0.3) { run('run', 3.2); }
     }
+    if (this.d.reduced()) frame = 0;
     v.sprite.texture = c.frame(id, anim, dir, frame);
     const a = c.anchor(id);
     v.sprite.anchor.set(a.x, a.y);
@@ -446,8 +453,19 @@ export class CombatView {
     // the drawn creatures (slime, hopper, rabbit, wisp, brute, mite; slime king and colossus reuse their models):
     // four iso facings with hysteresis, never mirrored, so the key light stays top-left
     const model = kind === 10 ? 0 : kind === 12 ? 5 : kind;
-    const drawn = model <= 6 && model !== 3;
-    if (drawn) {
+    const drawn = (model <= 6 && model !== 3) || model >= 15;
+    const hired = isShadow && kind === 21;
+    if (hired) {
+      const sd = screenDir(fx, s?.faceY ?? 1), dir = dirOf(sd.x, sd.y);
+      const pose = st === 3 ? ATTACK_FRAME + Math.min(3, Math.floor(elapsed * 12)) : moved ? 1 + Math.floor(v.travel / 0.17) % (WALK_FRAMES - 1) : this.d.reduced() ? -1 : 0;
+      v.sprite.texture = this.d.sheets().person(8, dir, pose);
+      if (this.d.heldWeapons) {
+        if (!v.held) { v.held = new Sprite(); v.held.anchor.set(0.5, 0.75); v.root.addChild(v.held); }
+        v.held.texture = this.d.heldWeapons().texture('sword', dir, Math.max(0, pose));
+        v.held.visible = st !== 6; v.held.y = 1;
+        v.root.setChildIndex(v.held, dir === 1 || dir >= 6 ? 1 : v.root.children.length - 1);
+      }
+    } else if (drawn) {
       const sd = screenDir(fx, s?.faceY ?? 1);
       const dir = dir4(sd.x, sd.y, this.dirs.get(v) ?? D4_SE);
       this.dirs.set(v, dir);
@@ -457,9 +475,11 @@ export class CombatView {
       if (st === 5 || v.flash > 0.55) { anim = 'hurt'; f = Math.min(n('hurt') - 1, Math.floor(elapsed * 12)); }
       else if (st === 2) { anim = 'windup'; f = Math.min(n('windup') - 1, Math.floor(tele0 * n('windup'))); }
       else if (st === 3) { anim = 'attack'; f = Math.min(n('attack') - 1, Math.floor(elapsed * 12)); }
-      else if (moved) { anim = 'move'; const stride = MOVE_STRIDE[model]; f = stride ? Math.floor(v.travel / stride) : Math.floor(t * (model === 6 ? 14 : 8) + v.outfit); }
+      else if (moved) { anim = 'move'; const stride = model >= 15 ? 0.18 : MOVE_STRIDE[model]; f = stride ? Math.floor(v.travel / stride) : Math.floor(t * (model === 6 ? 14 : 8) + v.outfit); }
       else f = Math.floor(t * (model === 6 ? 6 : 5) + v.outfit * 1.7);
+      if (this.d.reduced()) f = anim === 'move' || anim === 'idle' ? 0 : Math.min(f, 1);
       v.sprite.texture = foes.frame(model, night || kind === 12, dir, anim, f);
+      if (model >= 15) { v.sprite.anchor.set(0.5, foes.anchor(model)); v.fl.anchor.copyFrom(v.sprite.anchor); }
     } else switch (kind) {
       case 3: case 7: case 8: case 9: case 11: this.critter(v, kind, s, st, moved, t, dt, elapsed); break;
       case 13: this.sailer(v, s, fx, t); break;
@@ -481,7 +501,7 @@ export class CombatView {
     v.fl.scale.copyFrom(v.sprite.scale);
     v.fl.rotation = v.sprite.rotation;
     v.fl.x = v.sprite.x;
-    if (isShadow) {
+    if (isShadow && !hired) {
       // a bound shadow: dark silhouette with a pulsing violet aura (down = a faint ghost until it re-forms)
       const down = st === 6;
       v.sprite.tint = 0x3a2c66;
@@ -491,10 +511,12 @@ export class CombatView {
     } else {
       v.sprite.tint = kind === 10 ? 0xb8ffc8 : kind === 12 ? 0xb8a0ff : kind === 11 ? 0xe0b090 : 0xffffff; v.sprite.alpha = 1; v.fl.tint = 0xffffff;
       v.fl.alpha = Math.min(1, v.flash * 1.4);
+      if (hired && st === 6) v.sprite.alpha = 0.3;
     }
     if (kind === 4) v.sprite.y = 1 - 3 - Math.round(Math.sin(t * 3 + v.outfit) * 1.5); // floats
     else v.sprite.y = 1;
     v.fl.y = v.sprite.y;
+    if (hired && v.held) { v.held.scale.copyFrom(v.sprite.scale); v.held.rotation = v.sprite.rotation; }
 
     const g = v.gfx;
     if (kind !== 3) g.ellipse(0, 0, 7 * (kind === 5 ? 1.5 : kind === 6 ? 0.6 : kind === 7 ? 1.3 : kind === 8 ? 1.1 : kind === 9 ? 0.8 : 1) * (big > 1.4 ? big * 0.75 : 1), 3 * (big > 1.4 ? big * 0.6 : 1)).fill({ color: 0x2a1060, alpha: 0.28 });

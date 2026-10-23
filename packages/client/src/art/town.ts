@@ -7,7 +7,7 @@ import { mulberry32 } from '@eigenlands/shared';
 import type { ObjSprite } from './objects';
 import type { ObjSpriteDef } from './worldobjs';
 import { blob, C, line, makeCanvas, outline, pixelText, poly, polish, put, undithered, type Ctx, type Ramp } from './shade';
-import { Iso } from './isokit';
+import { Iso, mat } from './isokit';
 import { PLINTH, statueInscription, statuePlinth } from './props';
 
 const BRONZE: Ramp = [C.e1, C.r0, C.r1, C.r4, C.r5, C.r6];
@@ -167,5 +167,16 @@ const frames = (n: number, mk: (f: number) => ObjSprite): ObjSprite[] => Array.f
 
 /** Town pieces by `sub` (deco/sign/furniture). Each call builds fresh textures; callers cache. */
 export const TOWN_DECO: Record<string, () => ObjSpriteDef> = {
+  sea_cache: () => ({ frames: [make(40, 40, 20, 32, ctx => {
+    const I = new Iso(ctx, 20, 24), wood: Ramp = [C.e0, C.e1, C.e2, C.e3, C.e5];
+    I.box(1, 4, 0, 15, 7, 2, mat(wood));
+    I.box(4, 4, 2, 9, 8, 5, mat(wood));
+    I.box(3.5, 3.5, 7, 10, 9, 1.5, mat([C.e2, C.e3, C.e4, C.e5, C.e6]));
+    for (const u of [5, 11]) I.box(u, 3.5, 7.9, 0.8, 9, 0.7, mat([C.steel, C.mist, C.fog, C.pale]));
+    I.dot(8, 12.3, 5, C.e6, 2);
+    const p = [I.X(1, 7), I.Y(1, 7, 3)];
+    line(ctx, p[0], p[1], p[0], p[1] - 11, C.e4);
+    poly(ctx, [[p[0], p[1] - 11], [p[0] + 5, p[1] - 10], [p[0] + 4, p[1] - 7], [p[0], p[1] - 8]], C.w6);
+  }, undefined, { ao: false })], fps: 0 }),
   statue: () => ({ frames: frames(4, statueFrame), fps: 4 }),
 };

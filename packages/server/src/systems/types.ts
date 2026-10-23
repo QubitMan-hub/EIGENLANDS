@@ -62,6 +62,7 @@ export interface WorldClock {
 }
 
 export interface VillageHost {
+  hire?: (player: PlayerRef, npcId: string) => string;
   seed: number;
   store: ChunkStore;
   state: WorldState;

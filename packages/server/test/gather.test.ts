@@ -104,7 +104,8 @@ describe('forage, bugs, fauna', () => {
   });
 
   it('rabbits flee from players, can be hunted, and every enemy drops loot', async () => {
-    const rab = p.room.spawnEnemy('rabbit', X + 4.5, Y + 0.5, false);
+    // Calm wildlife ignores distant walkers but still flees a close approach.
+    const rab = p.room.spawnEnemy('rabbit', X + 2.5, Y + 0.5, false);
     const d0 = Math.hypot(rab.x - p.sp.sim.x, rab.y - p.sp.sim.y);
     await sleep(900);
     expect(Math.hypot(rab.x - p.sp.sim.x, rab.y - p.sp.sim.y)).toBeGreaterThan(d0 + 1);

@@ -43,3 +43,6 @@ export * from './bosses';
 export * from './shrines';
 export * from './ruins';
 export * from './caves';
+
+export * from './ocean';
+export * from './settlements';

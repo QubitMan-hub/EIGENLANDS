@@ -1,3 +1,4 @@
+import { PORT_RESIDENTS } from './settlements';
 import { ITEMS, type Stack } from './items';
 import { CROPS } from './crops';
 import { FORAGE_BY_SEASON } from './nodes';
@@ -118,6 +119,12 @@ export const QUESTS: QuestDef[] = [
     rewards: { coins: 40, items: [{ id: 'hay', n: 8 }], friend: 20, recipe: 'barn' },
     lines: { offer: 'You\'re ready for animals, I reckon. But animals are a promise, same as crops. Bring me a little something, so I know you\'re the giving kind. A corn, a potato, an egg. Whatever you can spare.', progress: 'A little gift. Choose "Give a gift" when we talk. Nothing fancy.', done: 'That settles it. I\'ll show you how a barn goes up. Here\'s hay for your first chickens. Coops are at my farm supply. Feed them hay every day.' } }),
 ];
+
+QUESTS.push(...PORT_RESIDENTS.map((n): QuestDef => {
+  const item = ['cloth', 'plank', 'healing_herb', 'copper_ingot', 'carp', 'stone'][n.index % 6]!;
+  const amount = item === 'stone' ? 8 : item === 'copper_ingot' ? 2 : 3;
+  return { id: `port_${n.id}`, giver: n.id, title: `${n.name.split(' ')[0]}'s ${['Sail Repairs', 'Quay Timber', 'Medicine Chest', 'Lantern Fittings', 'Harbour Supper', 'Storm Wall'][n.index % 6]}`, summary: `Bring ${amount} ${ITEMS[item]!.name.toLowerCase()} to ${n.name}.`, where: `${n.name}, ${n.port} harbour`, objectives: [{ type: 'deliver', target: item, n: amount, label: `Bring ${amount} ${ITEMS[item]!.name}` }], rewards: { coins: Math.round(ITEMS[item]!.value * amount * 0.85) + 20, friend: 25, xp: 25 }, lines: { offer: `The crossing was rough on our supplies. Could you bring ${amount} ${ITEMS[item]!.name.toLowerCase()}? I will pay a fair share and remember the kindness.`, progress: `I still need ${amount} ${ITEMS[item]!.name.toLowerCase()}. You will find me near the quay or market.`, done: `That is exactly what we needed. The harbour is safer for your help, ${n.title.toLowerCase()} or no.` } };
+}));
 
 export const QUEST_BY_ID: Record<string, QuestDef> = Object.fromEntries(QUESTS.map((x) => [x.id, x]));
 export type QuestState = { state: 'active' | 'done'; progress: number[] };

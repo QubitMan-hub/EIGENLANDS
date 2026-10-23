@@ -1,14 +1,14 @@
 import { Application, Container, Graphics, Sprite, Text } from 'pixi.js';
 import {
-  CAVE_OY, isCaveY,
+  CAVE_OY, isCaveY, MSG,
   ChunkStore, ELITE_NAMES, ENEMY_BY_KIND, INTEREST_RADIUS, NPC_BY_ID, TILE_DEFS, TILE_SIZE, ambientColor, SEASONS, chunkOf,
-  darkness, decodeDiff, dayNumber, formatClock, gameHour, dayPhase, season, PALETTE, townFor, weatherForDay, biomeWeather, biomeAt, type Ack, type ChunkMsg,
+  darkness, decodeDiff, dayNumber, formatClock, gameHour, dayPhase, season, PALETTE, townFor, townsFor, weatherForDay, biomeWeather, biomeAt, type Ack, type ChunkMsg,
   type DialogueMsg, type FishBiteMsg, type FxMsg, type ObjMsg, type PanelMsg, type ProfileMsg, type RhythmResultMsg, type RhythmStartMsg,
   type ShopViewMsg, type TileMsg, type ToastMsg, type WelcomeMsg, type ForgePreviewReply,
 } from '@eigenlands/shared';
 import { buildActorSheets, dirOf, COSMETIC_OUTFITS, OUTFITS, WALK_FRAMES, ATTACK_FRAME, SHOT_FRAME, CAST_FRAME, RUN_FRAME, RUN_FRAMES, DIR_DOWN, DIR_LEFT, type Sheets } from '../art/actors';
 import { buildObjectArt, destroyObjectArt, type ObjectArt, type SeasonIdx } from '../art/objects';
-import { HeldWeapons } from '../art/weapons';
+import { HeldWeapons, isHeldId } from '../art/weapons';
 import { Audio, SFX_CAPTIONS, type Sfx } from '../audio';
 import type { Input } from '../input/input';
 import { Interpolator, ServerClock, type Pose } from '../net/interp';
@@ -42,7 +42,7 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const pc = (i: number) => parseInt(PALETTE[i]!.slice(1), 16);
 
 interface Snap extends Pose {
-  hp: number; maxHp: number; flags: number; tele: number; kind: number; night: boolean; name: string; level: number; look: number; weapon: string;
+  hp: number; maxHp: number; flags: number; tele: number; kind: number; night: boolean; name: string; level: number; look: number; weapon: string; held: string;
   /** combat 2.0 (enemies) */
   st: number; atk: number; tx: number; ty: number; poise: number; elite: number;
   /** Shadow Army rank (shadows only) */
@@ -180,11 +180,12 @@ export class Game {
     });
     this.combat = new CombatView({
       fx: () => this.fx, sound: (s, x, y) => this.sound(s, x, y), rawSound: (s) => this.audio.play(s),
-      reduced: () => this.settings().reducedMotion, sheets: () => this.sheets, foes: () => this.foes, critters: () => this.critters, ships: () => this.ships, weapon: () => this.weaponInfo(), myId: () => this.myId,
+      reduced: () => this.settings().reducedMotion, sheets: () => this.sheets, foes: () => this.foes, critters: () => this.critters, heldWeapons: () => this.heldWeapons, ships: () => this.ships, weapon: () => this.weaponInfo(), myId: () => this.myId,
       me: () => (this.predictor ? { x: this.predictor.sim.x, y: this.predictor.sim.y } : null), views: () => this.views.values(),
     }, this.decalLayer);
     this.ext = new P34Client({
       net: () => this.net, clock: this.clock, audio: this.audio, sfx: (s) => this.sound(s), input: this.input, keys: this.keys,
+      shrineProgress: (ids) => this.worldObjs?.setSolvedShrines(ids),
       settings: this.settings, store: () => this.store, sheets: () => this.sheets, entityLayer: () => this.entityLayer,
       fxLayer: () => this.fxLayer, labelLayer: () => this.labelLayer, fx: () => this.fx,
       me: () => (this.predictor ? { x: this.predictor.visual(0).x, y: this.predictor.visual(0).y, fx: this.predictor.sim.faceX, fy: this.predictor.sim.faceY } : null),
@@ -270,6 +271,7 @@ export class Game {
     // a shard handoff re-sends WELCOME: keep the drawn world, only restart it for a new seed
     if (!this.terrain || w.seed !== this.seed) this.startWorld(w.seed);
     this.ext.onWelcome();
+    this.net.send(MSG.HOLD, { slot: this.gameplay.hotbar.selected });
   }
 
   private ack(a: Ack): void {
@@ -289,7 +291,7 @@ export class Game {
       this.interp.push(id, t, {
         x: e.x, y: e.y, faceX: e.faceX ?? 0, faceY: e.faceY ?? 1,
         hp: e.hp ?? 0, maxHp: e.maxHp ?? 0, flags: e.flags ?? 0, tele: e.tele ?? 0, kind: e.kind ?? 0,
-        night: !!e.night, name: e.name ?? '', level: e.level ?? 1, look: e.look ?? 0, weapon: e.weapon ?? '',
+        night: !!e.night, name: e.name ?? '', level: e.level ?? 1, look: e.look ?? 0, weapon: e.weapon ?? '', held: e.held ?? '',
         st: e.st ?? 0, atk: e.atk ?? 0, tx: e.tx ?? 0, ty: e.ty ?? 0, poise: e.poise ?? 100, elite: e.elite ?? 0, rank: e.rank ?? 0,
       });
       if (!this.views.has(id)) this.makeView(id, type, e);
@@ -752,6 +754,8 @@ export class Game {
         const running = dash || moved / Math.max(0.001, dtMs / 1000) > 5.6;
         const weaponId = isMe ? (this.gameplay.profile.equip.weapon ? ITEMS[this.gameplay.profile.equip.weapon.id]?.weapon : undefined) : s?.weapon;
         const weapon = isWeaponId(weaponId) ? weaponId : null;
+        const tool = isMe ? ITEMS[this.gameplay.selected()?.id ?? '']?.tool?.type : s?.held;
+        const heldItem = strike < 0 && isHeldId(tool) ? tool : weapon;
         const family = weapon && WEAPONS[weapon].cls === 'crossbow' ? SHOT_FRAME : weapon && WEAPONS[weapon].cls === 'staff' ? CAST_FRAME : ATTACK_FRAME;
         const frame = deadP ? -1 : strike >= 0 ? family + strike : walking
           ? running ? RUN_FRAME + (Math.floor(v.travel / 0.21) % RUN_FRAMES) : 1 + (Math.floor(v.travel / 0.17) % (WALK_FRAMES - 1))
@@ -764,12 +768,12 @@ export class Game {
         v.sprite.scale.set(1);
         const boat = isMe ? this.predictor.sim.boat > 0 : ((s?.flags ?? 0) & 128) !== 0;
         this.combat.rig(v, boat, fx, fy, now / 1000);
-        if (weapon && !boat && !deadP) {
+        if (heldItem && !boat && !deadP) {
           if (!v.held) { v.held = new Sprite(); v.held.anchor.set(0.5, 0.75); v.held.y = 1; v.root.addChild(v.held); }
           const direction = dirOf(sd.x, sd.y);
           // Stable idle uses the body's resolved breath column, so the hand never drifts off the grip.
           const pose = v.sprite.texture.frame.x / 24;
-          v.held.texture = this.heldWeapons.texture(weapon, direction, pose);
+          v.held.texture = this.heldWeapons.texture(heldItem, direction, pose);
           v.held.visible = true; v.held.alpha = v.sprite.alpha;
           v.root.setChildIndex(v.held, direction === 1 || direction >= 6 ? 1 : v.root.children.length - 1);
         } else if (v.held) v.held.visible = false;
@@ -804,7 +808,7 @@ export class Game {
         this.combat.drawEnemy(v, s, x, y, fx, now, dtMs / 1000, walking);
         if (v.type === 'shadow' && v.label) {
           v.label.visible = v.root.visible;
-          const txt = `${s?.name ?? ''} · ${SHADOW_RANKS[s?.rank ?? 0]}`;
+          const txt = s?.kind === 21 ? s.name : `${s?.name ?? ''} · ${SHADOW_RANKS[s?.rank ?? 0]}`;
           if (v.label.text !== txt) v.label.text = txt;
           v.label.x = Math.round(this.world.x + v.root.x * this.scale);
           v.label.y = Math.round(this.world.y + (v.root.y - 34) * this.scale);
@@ -959,8 +963,9 @@ export class Game {
     const bb = $('buffs');
     bb.textContent = '';
     for (const [k, b] of buffs) { const el = document.createElement('span'); el.className = 'buff'; el.textContent = `${k} ${Math.ceil((b.until - sn) / 1000)}s`; bb.append(el); }
-    const town = townFor(this.seed);
     const me = this.predictor.sim;
+    const surfaceY = isCaveY(me.y) ? me.y - CAVE_OY : me.y;
+    const town = townsFor(this.seed).reduce((best, t) => Math.hypot(t.cx - me.x, t.cy - surfaceY) < Math.hypot(best.cx - me.x, best.cy - surfaceY) ? t : best);
     const under = isCaveY(me.y);
     const tdx = town.cx - me.x, tdy = town.cy - (under ? me.y - CAVE_OY : me.y), td = Math.hypot(tdx, tdy);
     $('townhint').textContent = (under ? 'Undercroft · ' : '') + (td > 30 ? `${town.name} ${['→', '↘', '↓', '↙', '←', '↖', '↑', '↗'][Math.round(((Math.atan2(tdy, tdx) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8]} ${Math.round(td)} tiles` : `${town.name}`);

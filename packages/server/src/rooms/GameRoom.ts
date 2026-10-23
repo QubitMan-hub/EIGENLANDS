@@ -1,7 +1,7 @@
 import { matchMaker, type Client } from 'colyseus';
 import type { Schema } from '@colyseus/schema';
 import {
-  CLASS_INDEX, MSG, MSG34, chunkOf, encodeDiff, inRegion, parseShard, regionBounds, shardAt, shardId, townFor,
+  CLASS_INDEX, MSG, MSG34, NPCS, PORTS, chunkOf, encodeDiff, inRegion, parseShard, regionBounds, shardAt, shardId, townFor,
   type ChunkReq, type HandoffMsg, type Region, type ShardInfoMsg, type SpellState, type StrikeShape, type WeaponShot, type WorldObj,
 } from '@eigenlands/shared';
 import type { Enemy } from '../game/enemies';
@@ -171,7 +171,13 @@ export class GameRoom extends WorldRoom {
 
   protected makeVillage(host: VillageHost): VillageSystem {
     const t = townFor(host.seed);
-    return this.unsharded || shardAt(t.cx, t.cy) === this.shard ? createVillage(host) : nullVillage();
+    const ids = NPCS.filter(n => {
+      const port = PORTS.find(p => p.id === n.settlement);
+      return this.unsharded || shardAt(port?.cx ?? t.cx, port?.cy ?? t.cy) === this.shard;
+    }).map(n => n.id);
+    if (!ids.length) return nullVillage();
+    const prefix = this.unsharded || shardAt(t.cx, t.cy) === this.shard ? '' : `${this.shard}:`;
+    return createVillage({ ...host, hire: (player, id) => { const p = this.players.get(player.id); return p ? this.shadows.hire(p, id) : 'The guild is unavailable.'; }, loadBlob: key => host.loadBlob(prefix + key), saveBlob: (key, value) => host.saveBlob(prefix + key, value) }, { npcIds: ids });
   }
 
   /** World edits (anything aimed at a tile) are only accepted for this shard's own tiles. */
