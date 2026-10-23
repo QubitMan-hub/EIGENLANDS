@@ -21,3 +21,17 @@ it('clears held touch actions and queued presses when the viewport loses focus',
   expect(input.interactHeld).toBe(false);
   expect(input.armed).toBe(null);
 });
+
+it('lets dialog buttons use Space and Enter without issuing gameplay actions', () => {
+  const listeners = new Map<string, (e: unknown) => void>();
+  vi.stubGlobal('window', {addEventListener:(name:string,fn:(e:unknown)=>void)=>listeners.set(name,fn)});
+  vi.stubGlobal('navigator', {getGamepads:()=>[]});
+  const input = new Input({addEventListener:()=>{}} as unknown as HTMLElement, DEFAULT_KEYS), action=vi.fn();
+  input.onAction=action;
+  for(const code of ['Space','Enter']){
+    const preventDefault=vi.fn();
+    listeners.get('keydown')!({code,target:{tagName:'BUTTON',closest:()=>({})},preventDefault});
+    expect(preventDefault).not.toHaveBeenCalled();
+  }
+  expect(input.read().dash).toBe(false); expect(action).not.toHaveBeenCalled();
+});

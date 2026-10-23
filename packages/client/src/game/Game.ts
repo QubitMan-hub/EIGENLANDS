@@ -109,6 +109,7 @@ export class Game {
   private shown = new Set<string>();
   private myId = '';
   private seed = 0;
+  accountId = '';
   private selfReady: ((v: void) => void) | null = null;
   private self: Snap | null = null;
   private selfXp = 0;
@@ -186,7 +187,8 @@ export class Game {
     }, this.decalLayer);
     this.ext = new P34Client({
       net: () => this.net, clock: this.clock, audio: this.audio, sfx: (s) => this.sound(s), input: this.input, keys: this.keys,
-      shrineProgress: (ids) => this.worldObjs?.setSolvedShrines(ids),
+      shrineProgress: (ids) => { this.worldObjs?.setSolvedShrines(ids); this.ext?.atlas.setSolved(ids); },
+      identity: () => this.accountId,
       settings: this.settings, store: () => this.store, sheets: () => this.sheets, entityLayer: () => this.entityLayer,
       fxLayer: () => this.fxLayer, labelLayer: () => this.labelLayer, fx: () => this.fx,
       me: () => (this.predictor ? { x: this.predictor.visual(0).x, y: this.predictor.visual(0).y, fx: this.predictor.sim.faceX, fy: this.predictor.sim.faceY } : null),
