@@ -29,3 +29,5 @@ Model regressions first failed (missing changed-cell notifications and merge), t
 Inline review: checked transaction ordering, write acknowledgements, asynchronous reads versus new observations, pending/cache bounds, deletion races, namespace ranges, map projection/culling and quiet mobile layout. Corrected replay of stale migrated snapshots, recovery acknowledgement cleanup and viewport scanning cost during implementation. No subagents used; push/merge authorization was already supplied by the user.
 
 Local implementation and review are complete at b7ac334; publication/CI/merge remain the only unfinished steps for this slice. No PR was created.
+
+Publication recovered in the next continuation: PR #10 merged at 965bd5b7f6bfcdd03134620caff259cab35aadb7 after both CI runs (39980656295, 39980708775) passed. The initial publication blocker above is resolved.

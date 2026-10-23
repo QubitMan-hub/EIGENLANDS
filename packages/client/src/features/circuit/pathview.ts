@@ -1,5 +1,5 @@
 import {
-  ABILITIES, CLASSES, MULTICLASS_LEVEL, PLAYABLE_CLASSES, SPEC_LEVEL,
+  ABILITIES, CLASSES, MULTICLASS_LEVEL, PLAYABLE_CLASSES, SPEC_LEVEL, QUBIT_UNLOCK_LEVELS,
   type ChooseMsg, type ClassDef, type ClassId,
 } from '@eigenlands/shared';
 import { h } from './el';
@@ -10,6 +10,7 @@ export interface PathState {
   spec: string | null;
   second: ClassId | null;
   level: number;
+  qubits?: number;
   /** a card the player has picked and must confirm */
   pending: { what: 'class' | 'second'; cls: ClassId } | { what: 'spec'; spec: string } | null;
   tutorialChoose: boolean;
@@ -53,6 +54,16 @@ export function classCard(c: ClassDef, opts: { button?: HTMLElement; compact?: b
 
 export function buildPath(s: PathState, act: PathActions): HTMLElement {
   const root = h('div', { class: 'cb-path' });
+  const next = QUBIT_UNLOCK_LEVELS.find(level => level > s.level);
+  const roadmap = h('ol', { class: 'cb-roadmap' });
+  for (const [name, state] of [
+    ['Your path', s.cls === 'wanderer' ? 'Choose below' : CLASSES[s.cls].name],
+    ['Specialization', s.spec ? CLASSES[s.cls].specs.find(sp => sp.id === s.spec)?.name ?? s.spec : s.level >= SPEC_LEVEL && s.cls !== 'wanderer' ? 'Ready to choose' : `Level ${SPEC_LEVEL}`],
+    ['Second path', s.second ? CLASSES[s.second].name : s.level >= MULTICLASS_LEVEL && s.cls !== 'wanderer' ? 'Ready to choose' : `Level ${MULTICLASS_LEVEL}`],
+    ['Orb growth', `${s.qubits ?? 1} awakened · ${next ? `next level milestone ${next}` : 'all level milestones reached'}`],
+  ]) roadmap.append(h('li', {}, h('b', { text: name }), h('span', { text: state })));
+  root.append(h('h3', { class: 'cb-path-h', text: `Your path · Level ${s.level}` }), roadmap);
+
   if (s.cls === 'wanderer') {
     root.append(
       h('h3', { class: 'cb-path-h', text: 'Choose your path' }),
@@ -76,7 +87,7 @@ export function buildPath(s: PathState, act: PathActions): HTMLElement {
   }
 
   const c = CLASSES[s.cls];
-  root.append(classCard(c, { compact: true, chosen: true }));
+  root.append(classCard(c, { compact: true, chosen: true }), h('details', { class: 'cb-class-details' }, h('summary', { text: `${c.name} abilities, passive and ultimate` }), classCard(c)));
 
   // specialization
   root.append(h('h3', { class: 'cb-path-h', text: 'Specialization' }));

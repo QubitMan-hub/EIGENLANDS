@@ -5,7 +5,7 @@
  */
 import {
   ABILITIES, ACTIVE_LINES, BOARD_COLS, CLASSES, GATES, GATE_IDS, MAX_RUNES_PER_LINE, QUBIT_UNLOCK_LEVELS, RUNE_PRICE,
-  boardPreview, checkBoard, cloneBoard, ketString, qubitsForLevel, MAX_QUBITS,
+  boardPreview, checkBoard, cloneBoard, ketString, qubitsForLevel, MAX_QUBITS, SPEC_LEVEL, MULTICLASS_LEVEL,
   type AbilityId, type Board, type ChooseMsg, type GateId, type Preview, type LinePreview,
 } from '@eigenlands/shared';
 import type { Tooltip } from '../../ui/dom';
@@ -18,11 +18,13 @@ import {
   available, azimuthDeg, boardsEqual, isAttuned, isFree, linkTargets, moveGate, occupant, pct, placeGate, railStates,
   removeAt, runesLeft, setAbility, setRunes, type EditResult, type RailSeg, type Spot,
 } from './model';
+import { buildGuides } from './guides';
+import { applyPattern } from './patterns';
 import { buildPath, type PathState } from './pathview';
 import type { Progress } from './state';
 import { formName, orbName, stabilityWord } from './text';
 
-export type BoardTab = 'board' | 'codex' | 'path';
+export type BoardTab = 'board' | 'codex' | 'path' | 'guides';
 
 export interface BoardHost {
   progress: Progress;
@@ -70,6 +72,7 @@ export class BoardView {
   private sent: Board | null = null;
   private sentAt = 0;
   private armed: Armed = null;
+  private guide = { q: 0, id: 'split', review: false };
   private codexSel: string | null = null;
   private pathPending: PathState['pending'] = null;
   private status: { text: string; kind: 'info' | 'bad' } | null = null;
@@ -342,7 +345,7 @@ export class BoardView {
     if (edge(1)) { if (this.armed) { this.armed = null; this.render(); } else close(); }
     if (edge(2) && inside) { const c = f!.closest<HTMLElement>('.cb-cell'); if (c) this.removeSpot({ q: Number(c.dataset.q), c: Number(c.dataset.c) }); }
     if (edge(3) && this.tab === 'board') this.attune();
-    if (edge(4) || edge(5)) { const tabs: BoardTab[] = ['board', 'codex', 'path']; this.openTab(tabs[(tabs.indexOf(this.tab) + (edge(5) ? 1 : 2)) % 3]!); this.focusFirst(); }
+    if (edge(4) || edge(5)) { const tabs: BoardTab[] = ['board', 'guides', 'codex', 'path']; this.openTab(tabs[(tabs.indexOf(this.tab) + (edge(5) ? 1 : tabs.length - 1)) % tabs.length]!); this.focusFirst(); }
     this.padPrev = pad.buttons.map((x) => x.pressed);
   }
 
@@ -385,6 +388,7 @@ export class BoardView {
     this.el.append(slot);
     this.host.dock(slot);
     if (this.tab === 'board') this.el.append(this.boardTab());
+    else if (this.tab === 'guides') this.el.append(this.guidesTab());
     else if (this.tab === 'codex') this.el.append(buildCodex(this.host.progress.codex, this.codexSel, this.expert, (id) => { this.codexSel = id; this.render(); }));
     else this.el.append(this.pathTab());
     if (scroller) scroller.scrollTop = top;
@@ -397,12 +401,13 @@ export class BoardView {
     const p = this.host.progress;
     const tabs = h('div', { class: 'cb-tabs', data: { focusgroup: 'tabs' } });
     tabs.setAttribute('role', 'tablist');
-    const pathBadge = (p.cls === 'wanderer' && p.loaded) || (p.cls !== 'wanderer' && !p.spec && this.host.level() >= 10) || (p.cls !== 'wanderer' && !p.second && this.host.level() >= 30);
-    const items: Array<[BoardTab, string, string]> = [['board', '◈', 'Board'], ['codex', '❖', 'Qubitpedia'], ['path', '✧', p.cls === 'wanderer' ? 'Choose path' : CLASSES[p.cls].name]];
+    const pathBadge = (p.cls === 'wanderer' && p.loaded) || (p.cls !== 'wanderer' && !p.spec && this.host.level() >= SPEC_LEVEL) || (p.cls !== 'wanderer' && !p.second && this.host.level() >= MULTICLASS_LEVEL);
+    const items: Array<[BoardTab, string, string]> = [['board', '◈', 'Board'], ['guides', '', 'Guides'], ['codex', '❖', 'Qubitpedia'], ['path', '✧', p.cls === 'wanderer' ? 'Choose path' : CLASSES[p.cls].name]];
     for (const [id, glyph, label] of items) {
       const b = h('button', { class: `cb-tab${this.tab === id ? ' on' : ''}`, data: { focus: `tab:${id}` }, on: { click: () => this.openTab(id) } },
         h('span', { class: 'cb-tab-g', text: glyph }), label, id === 'path' && pathBadge ? h('span', { class: 'cb-dot', title: 'Something to choose here' }) : null);
       b.setAttribute('role', 'tab');
+      b.setAttribute('aria-label', label);
       b.setAttribute('aria-selected', String(this.tab === id));
       tabs.append(b);
     }
@@ -414,10 +419,30 @@ export class BoardView {
     return h('div', { class: 'cb-head' }, tabs, h('div', { class: 'cb-head-r' }, h('span', { class: 'cb-coins', text: `${this.host.coins()} coins` }), exp));
   }
 
+  private guidesTab(): HTMLElement {
+    this.guide.q = Math.min(this.guide.q, Math.min(ACTIVE_LINES, this.qubits) - 1);
+    return buildGuides({ ...this.guide, board: this.draft, rules: this.rules(), loaded: this.host.progress.loaded,
+      pending: !!this.sent, locks: this.dirty ? null : this.host.progress.locks }, {
+      orb: q => { this.guide.q = q; this.guide.review = false; this.render(); },
+      pattern: id => { this.guide.id = id; this.guide.review = false; this.render(); },
+      review: () => { this.guide.review = true; this.render(); this.el.querySelector<HTMLElement>('[data-focus="guide-use"]')?.focus(); },
+      use: () => {
+        if (!this.host.progress.loaded || this.sent) return;
+        const result = applyPattern(this.draft, this.guide.id, this.guide.q, this.rules());
+        if (!result.ok) { this.say(result.why, 'bad'); this.render(); return; }
+        this.tab = 'board'; this.armed = null;
+        this.apply(result);
+        this.say('Pattern in your draft. Review the outcomes, then Attune to save it.');
+        this.el.querySelector<HTMLElement>('[data-focus="attune"]')?.focus();
+      },
+      board: () => this.openTab('board'),
+    });
+  }
+
   private pathTab(): HTMLElement {
     const p = this.host.progress;
     return buildPath({
-      cls: p.cls, spec: p.spec, second: p.second, level: this.host.level(), pending: this.pathPending,
+      cls: p.cls, spec: p.spec, second: p.second, level: this.host.level(), qubits: this.qubits, pending: this.pathPending,
       tutorialChoose: this.host.tutorialActive(),
     }, {
       pick: (x) => { this.pathPending = x; this.render(); },
@@ -433,6 +458,7 @@ export class BoardView {
     const hint = this.host.hint();
     if (hint) root.append(h('div', { class: 'cb-hint' }, h('span', { class: 'cb-hint-l', text: 'Lumen' }), hint));
     if (!p.loaded) root.append(h('div', { class: 'cb-wait', text: 'Your orbs are still waking up: the world has not answered yet. You can plan your board meanwhile.' }));
+    root.append(h('div', { class: 'cb-draft-guide' }, h('span', { text: 'Gates change the form your ability takes. Changes stay in this draft until you Attune.' }), h('button', { text: 'Learn a pattern', data: { focus: 'guide-open' }, on: { click: () => this.openTab('guides') } })));
     root.append(this.palette());
     root.append(this.lines());
     const joints = this.joints();
