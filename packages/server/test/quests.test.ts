@@ -97,7 +97,8 @@ describe('story quests through dialogue', () => {
     dev(p, { cmd: 'quest', id: 'supper', action: 'start' });
     dev(p, { cmd: 'quest', id: 'homestead', action: 'start' });
     await until(() => !!p.sp.data.quests.slimes && !!p.sp.data.quests.supper && !!p.sp.data.quests.homestead);
-    // kill
+    // Combat objectives occur beyond settlement wards; town remains a sanctuary.
+    await tp(p, 250.5, 250.5);
     const e = p.room.spawnEnemy('slime', p.sp.sim.x + 1, p.sp.sim.y);
     (p.room as any).damageEnemy(e, 999, p.sp, 1, 0, 0);
     expect(p.sp.data.quests.slimes!.progress[0]).toBe(1);

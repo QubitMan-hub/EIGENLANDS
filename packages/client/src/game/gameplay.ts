@@ -7,6 +7,8 @@ import type { Audio, Sfx } from '../audio';
 import type { Input } from '../input/input';
 import type { ServerClock } from '../net/interp';
 import type { Net } from '../net/session';
+import { sanctuaryAt } from '@eigenlands/shared';
+import { FIRST_STEPS, buildFirstSteps, controlText, binding } from '../ui/first-steps';
 import { TUTORIAL, freshActs, type Acts } from '../ui/ui';
 import { buildChest, buildShelter, buildSign } from '../ui/containers';
 import { buildDialogue } from '../ui/dialogue';
@@ -44,6 +46,8 @@ export interface GameplayDeps {
   guidance?: () => string | null;
   journey?: () => JourneyInfo | null;
   openBoard?: () => void;
+  trackQuest?: (id: string | null, map?: boolean) => void;
+  trackedQuest?: () => string | null;
   seed?: () => number;
   npcScreens?: () => NpcScreen[];
   reduced?: () => boolean;
@@ -74,13 +78,15 @@ export class Gameplay {
   private hotbarNameTimer = 0;
   private journey: ReturnType<typeof buildJourney> | null = null;
   private journeyAt = 0;
+  private tutorialKey = '';
+  private firstSteps: ReturnType<typeof buildFirstSteps>;
 
   constructor(private d: GameplayDeps) {
     this.hotbar = new Hotbar(this.profile, this.tip);
     this.village = new VillageOverlay(this.profile);
     this.rhythm = new RhythmOverlay(() => d.clock, d.audio, (id, hits) => d.net().rhythmDone(id, hits));
     document.body.append(this.hotbar.el, this.hotbarName, this.targetHint);
-    try { JSON.parse(localStorage.getItem('eigen.tutorial2') ?? '[]').forEach((i: string) => this.done.add(i)); } catch { /* fresh */ }
+    this.firstSteps = buildFirstSteps(() => ({ done: this.done, keys: this.d.input.keys }), () => { this.d.trackQuest?.('@arrival', true); });
 
     this.hotbar.onSelect = () => { try { this.d.net().send(MSG.HOLD, { slot: this.hotbar.selected }); } catch { /* not connected yet */ } this.acts.selected = true; this.showHotbarName(); };
     this.hotbar.onMove = (from, to) => this.d.net().invMove({ from, to });
@@ -88,6 +94,13 @@ export class Gameplay {
     d.input.onCycle = (dir) => { if (!this.blocking) this.hotbar.cycle(dir); };
     d.input.onPanel = (a) => { if (this.rhythm.open) return; if (a === 'inventory') this.toggleInventory(); else if (a === 'journal') this.toggleJournal(); else this.toggleFieldCraft(); };
     this.profile.onChange((c) => { if (c.has('inv')) this.showHotbarNameSoft(); });
+  }
+
+  onWelcome(identity: string, seed: number): void {
+    const key = `eigen.onboarding:${identity}:${seed}`;
+    if (key === this.tutorialKey) return;
+    this.tutorialKey = key; this.done = new Set(); this.acts = freshActs();
+    try { const raw = localStorage.getItem(key); if (!raw) this.toasts.add('New here? Journal → Quests has First steps to Hadamere, with controls and a route to town.', 'info'); const saved = JSON.parse(raw ?? '[]'); if (Array.isArray(saved)) for (const id of saved) if (typeof id === 'string' && [...FIRST_STEPS, ...TUTORIAL].some(s => s.id === id)) this.done.add(id); } catch { /* usable without storage */ }
   }
 
   get blocking(): boolean { return this.wins.open || this.rhythm.open; }
@@ -113,7 +126,7 @@ export class Gameplay {
     if (this.wins.name === 'journal') { this.wins.close(); return; }
     this.acts.journal = true;
     this.journey = this.d.journey ? buildJourney(this.d.journey, () => { this.wins.close(); this.d.openBoard?.(); }) : null;
-    this.wins.show('journal', 'Journal', buildJournal(this.profile, this.d.portrait, 'quests', this.d.seed?.() ?? 0, () => [this.tutorialHint(), this.d.guidance?.()].filter(Boolean).join("\n\n") || null, this.journey?.el), { wide: true });
+    this.wins.show('journal', 'Journal', buildJournal(this.profile, this.d.portrait, 'quests', this.d.seed?.() ?? 0, () => [FIRST_STEPS.every(s => this.done.has(s.id)) ? this.tutorialHint() : null, this.d.guidance?.()].filter(Boolean).join("\n\n") || null, this.journey?.el, { keys: () => this.d.input.keys, firstSteps: this.firstSteps.el, track: (id, map) => this.d.trackQuest?.(id, map), tracked: () => this.d.trackedQuest?.() ?? null }), { wide: true });
   }
   toggleFieldCraft(): void {
     if (this.wins.name === 'hand') { this.wins.close(); return; }
@@ -130,6 +143,7 @@ export class Gameplay {
     for (const s of this.profile.inv) if (s) before.set(s.id, (before.get(s.id) ?? 0) + s.n);
     const coins0 = this.profile.coins, recipes0 = this.profile.recipes.size, loaded = this.profile.loaded;
     this.profile.apply(m);
+    if (Object.keys(this.profile.quests).length) this.acts.quest = true;
     if (!loaded) return;
     const gained = (id: string) => this.profile.count(id) > (before.get(id) ?? 0);
     for (const s of this.profile.inv) {
@@ -142,7 +156,6 @@ export class Gameplay {
     }
     if (this.profile.coins > coins0) this.d.sfx('coin');
     if (this.profile.recipes.size > recipes0) this.acts.crafted = true;
-    if (Object.keys(this.profile.quests).length) this.acts.quest = true;
     if (this.profile.coins > coins0 && this.wins.name === 'shop') this.acts.sold = true;
   }
 
@@ -190,13 +203,13 @@ export class Gameplay {
     const net = this.d.net();
     const el = buildDialogue({ ...m, canChat: m.canChat && this.d.features().aiDialogue }, this.d.portrait(m.npcId), this.profile, this.tip, {
       talk: (id, topic) => net.send(MSG.TALK, { npcId: id, topic }),
-      quest: (id, quest, action) => { if (action === 'accept') this.acts.quest = true; net.send(MSG.QUEST, { npcId: id, quest, action }); },
+      quest: (id, quest, action) => net.send(MSG.QUEST, { npcId: id, quest, action }),
       shop: (id) => net.shop({ npcId: id, action: 'open' }),
       gift: (id, slot) => net.gift(id, slot),
       learn: (id, recipe) => net.shop({ npcId: id, action: 'learn', item: recipe }),
       chat: (id, text) => net.chat({ npcId: id, text }),
       close: () => this.wins.close(),
-    }, { reduced: this.d.reduced?.() ?? false });
+    }, { reduced: this.d.reduced?.() ?? false, interactKeys: this.d.input.keys.interact, text: text => text.replace(/\bE\b/g, binding(this.d.input.keys, 'interact')) });
     if (this.wins.name === `dialogue:${m.npcId}`) this.wins.update(`dialogue:${m.npcId}`, el);
     else this.wins.show(`dialogue:${m.npcId}`, NPC_BY_ID[m.npcId]?.name ?? 'Villager', el);
   }
@@ -222,7 +235,7 @@ export class Gameplay {
   onFishCast(m: { id: string; tx: number; ty: number }): void {
     this.fishing = { id: m.id, tx: m.tx, ty: m.ty, bite: false, until: 0 };
     this.d.sfx('splash');
-    this.toasts.add('Line cast… wait for a bite, then press E!', 'info');
+    this.toasts.add(`Line cast… wait for a bite, then press ${binding(this.d.input.keys, 'interact')}!`, 'info');
   }
   onFishBite(m: FishBiteMsg): void {
     if (!this.fishing || this.fishing.id !== m.id) this.fishing = { id: m.id, tx: 0, ty: 0, bite: true, until: 0 };
@@ -292,10 +305,10 @@ export class Gameplay {
     const npc = this.d.npcNear(p.x + p.fx * 0.8, p.y + p.fy * 0.8, 1.9) ?? this.d.npcNear(p.x, p.y, 1.3);
     const mouse = this.d.input.mouseActive ? this.d.input.mouseTile : null;
     const t = targetTile(p.x, p.y, p.fx, p.fy, mouse);
-    if (this.fishing?.bite) return { info: null, ...t, label: 'Press E now!' };
-    if (npc) return { info: { kind: 'talk', label: `Talk to ${NPC_BY_ID[npc.id]?.name ?? 'villager'}`, ok: true }, tx: Math.floor(npc.x), ty: Math.floor(npc.y), label: `E: Talk to ${NPC_BY_ID[npc.id]?.name ?? 'villager'}` };
+    if (this.fishing?.bite) return { info: null, ...t, label: `Press ${binding(this.d.input.keys, 'interact')} now!` };
+    if (npc) return { info: { kind: 'talk', label: `Talk to ${NPC_BY_ID[npc.id]?.name ?? 'villager'}`, ok: true }, tx: Math.floor(npc.x), ty: Math.floor(npc.y), label: `${binding(this.d.input.keys, 'interact')}: Talk to ${NPC_BY_ID[npc.id]?.name ?? 'villager'}` };
     const info = describeUse(this.selected(), store.getTile(t.tx, t.ty), store.objectAt(t.tx, t.ty), this.d.season());
-    return { info, ...t, label: info ? `E: ${info.label}` : null };
+    return { info, ...t, label: info ? `${binding(this.d.input.keys, 'interact')}: ${info.label}` : null };
   }
 
   setHint(text: string | null, ok = true): void {
@@ -313,16 +326,13 @@ export class Gameplay {
 
   /** Next tutorial hint, or null when done. */
   tutorialHint(): string | null {
-    for (const step of TUTORIAL) {
-      if (this.done.has(step.id)) continue;
-      if (this.acts[step.id]) {
-        this.done.add(step.id);
-        try { localStorage.setItem('eigen.tutorial2', JSON.stringify([...this.done])); } catch { /* ignore */ }
-        continue;
-      }
-      return step.text;
-    }
-    return null;
+    let changed = false;
+    const town = sanctuaryAt(this.d.seed?.() ?? 0, this.d.player().x, this.d.player().y);
+    if (town?.name === 'Hadamere') this.acts.arrived = true;
+    for (const step of [...FIRST_STEPS, ...TUTORIAL]) if (this.acts[step.id] && !this.done.has(step.id)) { this.done.add(step.id); changed = true; }
+    if (changed && this.tutorialKey) try { localStorage.setItem(this.tutorialKey, JSON.stringify([...this.done])); } catch { /* progress stays usable in memory */ }
+    const step = [...FIRST_STEPS, ...TUTORIAL].find(step => !this.done.has(step.id));
+    return step ? controlText(step.text, this.d.input.keys) : null;
   }
 
   describeCrop(id: string): string { return CROPS[id]?.name ?? id; }
@@ -332,6 +342,7 @@ export class Gameplay {
     if (this.wins.name === 'journal' && this.journey?.el.isConnected && now - this.journeyAt > 200) {
       this.journeyAt = now; this.journey.refresh();
     }
+    if (this.wins.name === 'journal') this.firstSteps.refresh();
     const seed = this.d.seed?.() ?? 0;
     const sn = this.d.clock.serverNow(now);
     const p = this.d.player();

@@ -25,20 +25,20 @@ export function heartsRow(hearts: number): HTMLElement {
 }
 
 /**
- * The conversation window: portrait + name plate, a typewriter text box (click / E / Space / Enter to skip, then to
+ * The conversation window: portrait + name plate, a typewriter text box (click / Use / Space / Enter to skip, then to
  * turn the page), then response buttons (number keys pick them). Pages come from `msg.text` + `msg.pages`.
  */
-export function buildDialogue(msg: DialogueMsg, portraitUrl: string, profile: Profile, tip: Tooltip, act: DialogueActions, opts: { reduced?: boolean } = {}): HTMLElement {
+export function buildDialogue(msg: DialogueMsg, portraitUrl: string, profile: Profile, tip: Tooltip, act: DialogueActions, opts: { reduced?: boolean; interactKeys?: string[]; text?: (text: string) => string } = {}): HTMLElement {
   ensureP2Styles();
   const root = h('div', { class: 'dialogue', data: { npc: msg.npcId } });
-  const pages = [msg.text, ...(msg.pages ?? [])].filter((p) => p && p.length);
+  const pages = [msg.text, ...(msg.pages ?? [])].filter((p) => p && p.length).map(p => opts.text?.(p) ?? p);
   let page = 0;
   let shown = 0;
   let timer = 0;
   let mode: 'talk' | 'gift' | 'chat' = 'talk';
   let giftNote: HTMLElement | null = msg.gift && msg.gift.delta !== 0 ? h('div', { class: `gift-note ${msg.gift.taste}`, text: `${TASTE_TEXT[msg.gift.taste]} (${msg.gift.delta >= 0 ? '+' : ''}${msg.gift.delta} friendship)` }) : null;
   const npc = NPC_BY_ID[msg.npcId];
-  const box = h('div', { class: 'dlg-box', title: 'Click, E or Space: skip / next' });
+  const box = h('div', { class: 'dlg-box', title: 'Click, Use or Space: skip / next' });
   const textEl = h('span');
   const more = h('span', { class: 'more' });
   const pageNo = h('span', { class: 'pageno' });
@@ -123,7 +123,7 @@ export function buildDialogue(msg: DialogueMsg, portraitUrl: string, profile: Pr
     for (const rid of msg.teaches) { const r = recipeById(rid); if (r) acts.append(h('button', { text: `📖 Learn: ${ITEMS[r.out.id]?.name ?? r.id}`, on: { click: () => act.learn(msg.npcId, rid) } })); }
     if (msg.canChat) acts.append(h('button', { text: '💬 Chat', on: { click: () => { mode = 'chat'; renderBelow(); } } }));
     acts.append(h('button', { text: 'Goodbye', on: { click: () => act.talk(msg.npcId, 'bye') } }));
-    below.append(acts, h('div', { class: 'dlg-hint', text: 'Click / E / Space: skip · 1–9: answer · Esc: leave' }));
+    below.append(acts, h('div', { class: 'dlg-hint', text: `Click / ${opts.interactKeys?.map(k => k.replace(/^Key/, '')).join(' / ') || 'Use'} / Space: skip · 1–9: answer · Esc: leave` }));
   };
 
   const portrait = h('div', { class: `dlg-portrait ${msg.mood ?? ''}` }, h('img', { src: portraitUrl, alt: msg.name }), h('span', { class: 'dlg-mood', text: MOOD_ICON[msg.mood ?? 'neutral'] }));
@@ -139,7 +139,7 @@ export function buildDialogue(msg: DialogueMsg, portraitUrl: string, profile: Pr
   const onKey = (e: KeyboardEvent) => {
     if (!root.isConnected) { window.removeEventListener('keydown', onKey, true); clearInterval(timer); return; }
     if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
-    if (e.code === 'Space' || e.code === 'Enter' || e.code === 'KeyE') { if (advance()) e.preventDefault(); return; }
+    if (e.code === 'Space' || e.code === 'Enter' || (opts.interactKeys ?? ['KeyX']).includes(e.code)) { if (advance()) e.preventDefault(); return; }
     const m = /^Digit([1-9])$/.exec(e.code);
     if (m && !below.hidden && mode === 'talk') {
       const c = (msg.choices ?? [])[Number(m[1]) - 1];

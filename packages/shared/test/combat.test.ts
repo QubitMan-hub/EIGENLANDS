@@ -210,7 +210,8 @@ describe('enemies and spawning', () => {
 
   it('level 1 only meets slimes and hoppers by day; brutes appear from level 4', () => {
     expect(spawnTable(1, false).map((e) => e.kind).sort()).toEqual(['hopper', 'slime']);
-    expect(spawnTable(4, false).some((e) => e.kind === 'brute')).toBe(true);
+    expect(spawnTable(4, false, 'desert').some((e) => e.kind === 'brute')).toBe(true);
+    expect(spawnTable(4, false, 'meadow').some((e) => e.kind === 'brute')).toBe(false);
     expect(spawnTable(2, true).some((e) => e.kind === 'brute')).toBe(false);
     for (let r = 0; r < 1; r += 0.05) expect(spawnTable(10, true).map((e) => e.kind)).toContain(pickSpawn(10, true, r));
     expect(eliteChance(1, true)).toBe(0);

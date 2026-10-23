@@ -48,3 +48,5 @@ export * from './ocean';
 export * from './settlements';
 export * from './floors';
 export * from './sanctuaries';
+
+export * from './sanctuary';

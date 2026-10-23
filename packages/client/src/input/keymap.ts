@@ -15,9 +15,9 @@ export const ACTION_LABELS: Record<Action, string> = {
 
 export const DEFAULT_KEYS: KeyMap = {
   up: ['KeyW', 'ArrowUp'], down: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
-  attack: ['KeyJ', 'KeyZ'], skill: ['KeyK', 'KeyX'], dash: ['Space', 'ShiftLeft'], interact: ['KeyE'],
+  attack: ['KeyJ', 'KeyZ'], skill: ['KeyK'], dash: ['Space', 'ShiftLeft'], interact: ['KeyX'],
   inventory: ['KeyI', 'Tab'], journal: ['KeyL'], craft: ['KeyC'], prev: ['BracketLeft'], next: ['BracketRight'],
-  ability1: ['KeyQ'], ability2: ['KeyR'], ability3: ['KeyF'], ability4: ['KeyG'], ultimate: ['KeyV'], board: ['KeyB'], chat: ['Enter'], party: ['KeyP'], extract: ['KeyT'], shadows: ['KeyY'], sail: ['KeyH'], voice: ['KeyN'], map: ['KeyM'],
+  ability1: ['KeyQ'], ability2: ['KeyE'], ability3: ['KeyR'], ability4: ['KeyF'], ultimate: ['KeyV'], board: ['KeyB'], chat: ['Enter'], party: ['KeyP'], extract: ['KeyT'], shadows: ['KeyY'], sail: ['KeyH'], voice: ['KeyN'], map: ['KeyM'],
 };
 
 const STORE_KEY = 'eigen.keys';
@@ -32,9 +32,17 @@ export function loadKeys(storage: Pick<Storage, 'getItem'> | null = safeStorage(
         const v = parsed[a];
         if (Array.isArray(v) && v.every((k) => typeof k === 'string')) out[a] = v.slice(0, 3);
       }
+      const legacy = { ability1: ['KeyQ'], ability2: ['KeyR'], ability3: ['KeyF'], ability4: ['KeyG'], interact: ['KeyE'], skill: ['KeyK', 'KeyX'] };
+      const group = Object.keys(legacy) as (keyof typeof legacy)[];
+      const unchanged = group.every(a => JSON.stringify(parsed[a]) === JSON.stringify(legacy[a]));
+      const reserved = new Set(['KeyQ', 'KeyE', 'KeyR', 'KeyF', 'KeyX', 'KeyK']);
+      if (unchanged && !ACTIONS.some(a => !group.includes(a as keyof typeof legacy) && out[a].some(k => reserved.has(k))))
+        for (const a of group) out[a] = [...DEFAULT_KEYS[a]];
       // Old default M belonged to voice. Move only that default, never a custom binding.
       if (!('map' in parsed) && out.voice.length === 1 && out.voice[0] === 'KeyM' && !ACTIONS.some(a => a !== 'voice' && a !== 'map' && out[a].includes('KeyN'))) out.voice = ['KeyN'];
       if (!('map' in parsed) && ACTIONS.some(a => a !== 'map' && out[a].includes('KeyM'))) out.map = [];
+      // An explicit custom binding wins over a newly introduced default, after default migrations.
+      for (const a of ACTIONS) if (!(a in parsed)) out[a] = out[a].filter(k => !ACTIONS.some(other => other !== a && Array.isArray(parsed[other]) && out[other].includes(k)));
       return out;
     }
   } catch { /* corrupt storage falls back to defaults */ }

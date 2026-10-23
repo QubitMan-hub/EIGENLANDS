@@ -247,26 +247,26 @@ export function applySettings(s: Settings, audio: { muted: boolean; volume: numb
 export interface Acts {
   moved: boolean; attacked: boolean; dashed: boolean; selected: boolean; chopped: boolean; mined: boolean; tilled: boolean;
   planted: boolean; watered: boolean; crafted: boolean; talked: boolean; fished: boolean; forged: boolean; harvested: boolean; openedPack: boolean;
-  quest: boolean; journal: boolean; statue: boolean; board: boolean; sold: boolean;
+  quest: boolean; journal: boolean; statue: boolean; board: boolean; sold: boolean; openedMap: boolean; arrived: boolean; openedCircuit: boolean; orbCast: boolean; skillShot: boolean;
 }
-export const freshActs = (): Acts => ({ moved: false, attacked: false, dashed: false, selected: false, chopped: false, mined: false, tilled: false, planted: false, watered: false, crafted: false, talked: false, fished: false, forged: false, harvested: false, openedPack: false, quest: false, journal: false, statue: false, board: false, sold: false });
+export const freshActs = (): Acts => ({ moved: false, attacked: false, dashed: false, selected: false, chopped: false, mined: false, tilled: false, planted: false, watered: false, crafted: false, talked: false, fished: false, forged: false, harvested: false, openedPack: false, quest: false, journal: false, statue: false, board: false, sold: false, openedMap: false, arrived: false, openedCircuit: false, orbCast: false, skillShot: false });
 
 /** One hint at a time, in order. Steps already done (and persisted) are skipped. */
 export const TUTORIAL: ReadonlyArray<{ id: keyof Acts; text: string }> = [
   { id: 'moved', text: 'Move with WASD or the arrow keys (touch: left stick).' },
-  { id: 'attacked', text: 'Attack with J, or click. Chain three hits for a heavy finisher.' },
-  { id: 'dashed', text: 'Dash with Space. You cannot be hurt while dashing — dodge red warnings.' },
+  { id: 'attacked', text: 'Attack with {attack}, or click. Chain three hits for a heavy finisher.' },
+  { id: 'dashed', text: 'Dash with {dash}. You cannot be hurt while dashing — dodge red warnings.' },
   { id: 'selected', text: 'Pick a tool: press 1–0, scroll the wheel, or tap the quick-bar. Slot 1 is your axe.' },
-  { id: 'chopped', text: 'Face a tree and hold E with the axe selected to chop it. Wood is the start of everything.' },
-  { id: 'mined', text: 'Select the pickaxe (slot 2) and hold E on a grey boulder to mine stone. Ore outcrops need better pickaxes.' },
-  { id: 'crafted', text: 'Press C for field crafting. A Workbench needs 10 wood and 4 stone — then place it with E.' },
-  { id: 'tilled', text: 'Select the hoe (slot 3) and press E on grass to till soil.' },
-  { id: 'planted', text: 'Select seeds and press E on tilled soil to plant. Mind the season!' },
+  { id: 'chopped', text: 'Face a tree and hold {interact} with the axe selected to chop it. Wood is the start of everything.' },
+  { id: 'mined', text: 'Select the pickaxe (slot 2) and hold {interact} on a grey boulder to mine stone. Ore outcrops need better pickaxes.' },
+  { id: 'crafted', text: 'Press {craft} for field crafting. A Workbench needs 10 wood and 4 stone — then place it with {interact}.' },
+  { id: 'tilled', text: 'Select the hoe (slot 3) and press {interact} on grass to till soil.' },
+  { id: 'planted', text: 'Select seeds and press {interact} on tilled soil to plant. Mind the season!' },
   { id: 'watered', text: 'Select the watering can and water your crop every day (rain does it for you).' },
-  { id: 'talked', text: 'The village of Hadamere is nearby: follow the arrow next to the clock (top right). Walk up to a villager and press E to talk. Mayor Orla welcomes newcomers.' },
+  { id: 'talked', text: 'The village of Hadamere is nearby: follow the arrow next to the clock (top right). Walk up to a villager and press {interact} to talk. Mayor Orla welcomes newcomers.' },
   { id: 'quest', text: 'Villagers with a yellow ! have tasks. In a conversation, pick the quest and choose "I\'ll do it!". Your objectives and progress are in the Journal (Quests tab).' },
-  { id: 'openedPack', text: 'Press I to open your pack (equip rings and outfits there).' },
-  { id: 'journal', text: 'Press L for your Journal: quests, skills, friends, recipes, and a "How to…" guide for every system.' },
-  { id: 'statue', text: 'The statue in the middle of the plaza is QubitMan, Hadamere\'s legendary founder. Walk up to it and press E to read his plaque.' },
-  { id: 'board', text: 'The notice board on the plaza is the request board: three new paid jobs every morning. Press E at it.' },
+  { id: 'openedPack', text: 'Press {inventory} to open your pack (equip rings and outfits there).' },
+  { id: 'journal', text: 'Press {journal} for your Journal: quests, skills, friends, recipes, and a "How to…" guide for every system.' },
+  { id: 'statue', text: 'The statue in the middle of the plaza is QubitMan, Hadamere\'s legendary founder. Walk up to it and press {interact} to read his plaque.' },
+  { id: 'board', text: 'The notice board on the plaza is the request board: three new paid jobs every morning. Press {interact} at it.' },
 ];

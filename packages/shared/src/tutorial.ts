@@ -39,7 +39,9 @@ export const TUTORIAL: TutorialStep[] = [
     lines: [
       'Oh! You can see me? Wonderful. I\'m Lumen.',
       'That flicker in your chest is an orb. Everyone here carries one, but yours has never been woken up.',
-      'Let\'s look at it together. Open your Board with {board}.',
+      'New to these lands? Your Journal ({journal}) has First steps to Hadamere: a practical quest covering the controls and a route to town.',
+      'Move with WASD or the arrows, left-click to attack, and use {dash} to dodge. The atlas ({map}) shows your route. Village wards keep monsters out of the streets and homes.',
+      'When you want to try your orb, open your Board with {board}.',
     ],
     hint: 'Open your Board ({board}).', goal: { kind: 'open_board' }, done: 'There it is. One orb, one line of light. Each orb powers one ability.',
   },

@@ -418,3 +418,6 @@ svg.cb-links { position: absolute; left: 0; top: 0; pointer-events: none; overfl
 #p3-lumen.docked { position: static; transform: none; width: auto; margin-bottom: 8px; animation: none; }
 @media (max-width: 640px) { #p3-lumen { bottom: 270px; } .p3-lumen-port { width: 52px; height: 52px; } .p3-lumen-face { width: 48px; height: 48px; } }
 @media (prefers-reduced-motion: reduce) { #p3-lumen { animation: none; } }
+
+/* Story pages belong in the Board; free play keeps aiming and thumb space clear. */
+#p3-lumen:not(.docked) { display: none; }

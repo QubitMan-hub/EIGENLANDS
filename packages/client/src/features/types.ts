@@ -24,6 +24,7 @@ export interface P34Deps {
   settings: () => Settings;
   store: () => ChunkStore;
   identity?: () => string;
+  learn?: (action: 'openedMap' | 'openedCircuit' | 'orbCast') => void;
   shrineProgress?: (solved: string[]) => void;
   sheets: () => Sheets;
   /** world-space layers (iso pixels): depth-sorted entities, effects above entities, shadows */

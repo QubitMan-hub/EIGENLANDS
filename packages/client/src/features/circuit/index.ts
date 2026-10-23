@@ -196,8 +196,8 @@ export class CircuitClient implements ClientModule {
 
   private fill(text: string): string {
     return fillPlaceholders(text, this.touch
-      ? { board: 'the ◈ button', cast: 'your first orb button' }
-      : { board: this.keyName('board'), cast: this.keyName('ability1') });
+      ? { board: 'the Board button', cast: 'your first orb button', journal: 'the Journal button', map: 'the Atlas button', dash: 'Dodge' }
+      : { board: this.keyName('board'), cast: this.keyName('ability1'), journal: this.d.keys().journal.map(keyLabel).join(' / ') || 'the Journal button', map: this.keyName('map'), dash: this.d.keys().dash.map(keyLabel).join(' / ') || 'the Dodge button' });
   }
 
   private keyName(a: ExtAction): string { const k = this.d.keys()[a]?.[0]; return k ? keyLabel(k) : '?'; }
@@ -218,13 +218,14 @@ export class CircuitClient implements ClientModule {
   }
 
   private dialogKey(e: KeyboardEvent): void {
-    if (!this.dialog.open || e.repeat) return;
+    if (!this.dialog.open || !this.dialog.el.getClientRects().length || e.repeat) return;
+    if (this.d.wins.open && this.d.wins.name !== 'circuit') return;
     const tag = (e.target as HTMLElement | null)?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
     // when docked in the Board, Enter/Space belong to the focused button
     if (this.dialog.docked && (tag === 'BUTTON' || tag === 'SUMMARY')) return;
     const k = this.d.keys();
-    if (e.code === 'Enter' || e.code === 'Space' || e.code === 'NumpadEnter' || k.interact.includes(e.code)) {
+    if (e.code === 'Enter' || e.code === 'NumpadEnter' || this.dialog.docked && (e.code === 'Space' || k.interact.includes(e.code))) {
       e.preventDefault(); e.stopImmediatePropagation();
       this.dialog.advance();
     }
@@ -233,6 +234,7 @@ export class CircuitClient implements ClientModule {
   // ───────────────────────── board window ─────────────────────────
 
   private openBoard(tab?: BoardTab): void {
+    this.d.learn?.('openedCircuit');
     if (tab) this.board.tab = tab;
     if (this.d.wins.name !== 'circuit') {
       this.d.wins.show('circuit', 'Circuit Board', this.board.el, { wide: true, onClose: () => { this.board.isOpen = false; this.dialog.dock(null); } });
@@ -331,6 +333,7 @@ export class CircuitClient implements ClientModule {
       if (m.error) this.d.toasts.add(m.error, 'bad');
       return;
     }
+    this.d.learn?.('orbCast');
     if (!me) return;
     if (m.ult) this.labels.add(me.x, me.y, `${CLASSES[p.cls].ultimate.name}!`, 0xfcd45a, { size: 18 });
     let echo = 0;
@@ -353,7 +356,7 @@ export class CircuitClient implements ClientModule {
   // ───────────────────────── hooks ─────────────────────────
 
   action(a: ExtAction): boolean {
-    if (this.dialog.open && !this.dialog.docked && a === 'chat') { this.dialog.advance(); return true; }
+    if (this.dialog.open && !this.dialog.docked && !this.d.wins.open && this.dialog.el.getClientRects().length && a === 'chat') { this.dialog.advance(); return true; }
     if (a === 'board') { this.toggleBoard(); return true; }
     if (a in ABILITY_ACTIONS) {
       if (this.d.wins.open) return true;
@@ -378,7 +381,7 @@ export class CircuitClient implements ClientModule {
     else if (a === 'ultimate') this.ult();
   }
 
-  // Lumen talks while you walk: the story panel never freezes movement (Enter/Space/E or a click turns its pages)
+  // Story pages stay in the Board; gameplay keeps dodge, interaction and chat outside it.
   blocking(): boolean { return false; }
 
   frame(now: number, dt: number): void {

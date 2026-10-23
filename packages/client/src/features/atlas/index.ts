@@ -1,5 +1,5 @@
 import './atlas.css';
-import { ENEMY_BY_KIND, NPC_BY_ID, G, PALETTE, TILE_DEFS, townsFor, type PartyStateMsg } from '@eigenlands/shared';
+import { ENEMY_BY_KIND, NPC_BY_ID, G, PALETTE, TILE_DEFS, townsFor, townFor, type PartyStateMsg } from '@eigenlands/shared';
 import { isoX, isoY, unproject } from '../../game/iso';
 import { keyLabel } from '../../input/keymap';
 import { h } from '../../ui/dom';
@@ -24,6 +24,7 @@ const point = (v: unknown): v is Point => !!v && typeof v === 'object' && ['x', 
 export class AtlasClient implements ClientModule {
   journal = new Exploration();
   private key = '';
+  private tracked: string | null = '@arrival';
   private archive?: ChartArchive;
   private last = -Infinity;
   private saved = -1;
@@ -95,11 +96,13 @@ export class AtlasClient implements ClientModule {
     this.cache.clear();
     this.landmarks.clear();
     this.waypoints = [];
+    this.tracked = '@arrival';
     this.centres.clear();
     let recovery: string | null = null;
     try {
       const v = JSON.parse(localStorage.getItem(key) ?? 'null');
       if (v?.v === 1) {
+        if (v.tracked === null || typeof v.tracked === 'string' && v.tracked.length < 128) this.tracked = v.tracked;
         if (v.archiveVersion === 1) recovery = typeof v.recovery === 'string' ? v.recovery : '';
         if (typeof v.chart === 'string')
           this.journal.restore(v.chart);
@@ -130,7 +133,7 @@ export class AtlasClient implements ClientModule {
     const prefix = `eigen.atlas:${this.d.identity?.() ?? 'local'}:`;
     this.key = ''; // stop frame and unload saves before awaiting disk work
     try {
-      for (const key of Object.keys(localStorage)) if (key.startsWith(prefix)) localStorage.removeItem(key);
+      for (const key of Object.keys(localStorage)) if (key.startsWith(prefix) || key.startsWith(`eigen.onboarding:${this.d.identity?.() ?? 'local'}:`)) localStorage.removeItem(key);
     } catch { /* localStorage may be unavailable */ }
     await this.archive?.erase(prefix);
     this.archive = undefined;
@@ -144,6 +147,22 @@ export class AtlasClient implements ClientModule {
   private seen(x: number, y: number): boolean {
     return this.journal.tile(x, y) !== undefined || !!this.archive?.seen(x, y);
   }
+  trackedQuest(): string | null { return this.tracked; }
+  navigation(): Destination | null {
+    if (this.tracked === '@arrival') { const town = townFor(this.d.store().seed); return { id: '@arrival', title: town.name, detail: 'Known settlement · follow the roads; wards protect its streets and homes', point: { x: town.cx, y: town.cy } }; }
+    if (!this.tracked) return null;
+    return questDestinations(this.d.store().seed, this.d.profile.quests, id => this.d.profile.count(id), this.state?.npcs ?? new Map(), (x, y) => this.seen(x, y), true).find(p => p.questId === this.tracked) ?? null;
+  }
+  trackQuest(id: string | null, showMap = false): void {
+    if (id && id !== '@arrival' && this.d.profile.quests[id]?.state !== 'active') return;
+    this.tracked = id; this.changed = true; this.save();
+    if (!showMap) return;
+    const route = this.navigation();
+    if (!route?.point) { this.d.toasts.add(route?.detail ?? 'This quest has no fixed destination. Read its objectives in the Journal.', 'info'); return; }
+    this.d.wins.close(); this.toggle();
+    this.centre = { ...route.point, name: route.title }; this.plane = planeOf(route.point.y);
+    const layer = document.querySelector<HTMLSelectElement>('[aria-label="Map layer"]'); if (layer) layer.value = this.plane;
+  }
   setSolved(ids: string[]): void { this.solved = new Set(ids); }
   onState(s: any): void { this.state = s; }
   action(a: string): boolean { if (a !== 'map')
@@ -153,7 +172,7 @@ export class AtlasClient implements ClientModule {
     if (!this.key || !this.changed && this.saved === this.journal.revision && this.savedArchive === this.archive?.revision)
       return;
     try {
-      localStorage.setItem(this.key, JSON.stringify({ v: 1, archiveVersion: 1, recovery: this.archive?.recovery(), chart: this.journal.serialize(), waypoints: this.waypoints, landmarks: [...this.landmarks.values()], centres: [...this.centres.values()], showMini: this.showMini, size: this.size, filters: this.filters }));
+      localStorage.setItem(this.key, JSON.stringify({ v: 1, tracked: this.tracked, archiveVersion: 1, recovery: this.archive?.recovery(), chart: this.journal.serialize(), waypoints: this.waypoints, landmarks: [...this.landmarks.values()], centres: [...this.centres.values()], showMini: this.showMini, size: this.size, filters: this.filters }));
       this.changed = false;
       this.saved = this.journal.revision;
       this.savedArchive = this.archive?.revision ?? -1;
@@ -168,6 +187,11 @@ export class AtlasClient implements ClientModule {
     const me = this.d.me();
     if (!me)
       return;
+    if (this.d.profile.loaded) {
+      const status = this.tracked ? this.d.profile.quests[this.tracked]?.state : undefined;
+      if (this.tracked === '@arrival' && this.d.profile.quests.welcome) { this.tracked = this.d.profile.quests.welcome.state === 'active' ? 'welcome' : null; this.changed = true; }
+      else if (this.tracked && this.tracked !== '@arrival' && status !== 'active') { this.tracked = null; this.changed = true; }
+    }
     const plane = planeOf(me.y);
     this.journal.visit(this.d.store(), me.x, me.y);
     this.centres.set(plane, { x: me.x, y: me.y, name: plane });
@@ -207,6 +231,7 @@ export class AtlasClient implements ClientModule {
     const me = this.d.me();
     if (!me)
       return;
+    this.d.learn?.('openedMap');
     this.plane = planeOf(me.y);
     this.centre = { ...me, name: '' };
     const root = h('div', { class: 'atlas' }), tools = h('div', { class: 'atlas-tools' }), nav = h('div', { class: 'atlas-nav' });
@@ -455,6 +480,8 @@ export class AtlasClient implements ClientModule {
       if (this.filters.party) for (const p of this.destinations.party)
         if (p.point) mark({ ...p.point, name: p.title }, '#bba4ef', false, 'ring', false);
     }
+    const route = this.navigation();
+    if (route?.point && this.filters.quests) mark({ ...route.point, name: route.title }, '#f6c568', canvas !== this.small, 'triangle', false);
     const me = this.d.me();
     if (me && planeOf(me.y) === plane) {
       const p = pos(me.x, me.y), dx = isoX(me.fx, me.fy), dy = isoY(me.fx, me.fy), len = Math.hypot(dx, dy) || 1;
@@ -479,5 +506,5 @@ export class AtlasClient implements ClientModule {
     ctx.lineTo(29, 17);
     ctx.stroke();
   }
-  debug(): Record<string, unknown> { return { chartPages: this.journal.chunks.size, archivedPages: this.archive?.discovery.size ?? 0, chartStorage: this.archive?.status, chartWaypoints: this.waypoints.length, chartLandmarks: this.landmarks.size, chartPlane: this.plane, minimap: this.showMini }; }
+  debug(): Record<string, unknown> { return { trackedQuest: this.tracked, chartPages: this.journal.chunks.size, archivedPages: this.archive?.discovery.size ?? 0, chartStorage: this.archive?.status, chartWaypoints: this.waypoints.length, chartLandmarks: this.landmarks.size, chartPlane: this.plane, minimap: this.showMini }; }
 }

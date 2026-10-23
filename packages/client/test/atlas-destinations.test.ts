@@ -40,3 +40,10 @@ it('never offers offline or invalid party coordinates', () => {
   for (const change of [{ online: false }, { x: NaN }, { y: Infinity }, { shard: '' }])
     expect(partyDestinations({ id: 'p', members: [{ ...member, ...change }] }, 'me', 'self')[0]?.point).toBeUndefined();
 });
+it('explicit tracking can use quest-described homes over fog without exposing unseen live NPCs',()=>{
+ const home=townFor(1337).spots[NPC_BY_ID.odo!.home]!, live={x:home.x+20,y:home.y+20};
+ const routes=questDestinations(1337,{welcome:active},()=>0,new Map([['odo',live]]),()=>false,true);
+ expect(routes[0]?.point).toEqual(home);expect(routes[0]?.point).not.toEqual(live);expect(routes[0]?.questId).toBe('welcome');
+ expect(routes[0]?.detail).toContain('may be elsewhere');
+ expect(questDestinations(1337,{timber:active},()=>0,new Map(),()=>false,true)[0]?.point).toBeUndefined();
+});
