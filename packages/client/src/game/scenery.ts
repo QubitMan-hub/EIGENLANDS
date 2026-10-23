@@ -1,4 +1,4 @@
-import { CHUNK_SIZE, T, biomeAt, chunkOf, hash2, vegetationCover, townFor, type ChunkStore } from '@eigenlands/shared';
+import { CHUNK_SIZE, T, biomeAt, chunkOf, hash2, vegetationCover, townFor, townAt, type ChunkStore } from '@eigenlands/shared';
 
 export type SceneryKind = 'wild_ferns' | 'wild_reeds' | 'wild_clover' | 'wild_leaves' | 'wild_bough' | 'wild_driftwood' | 'wild_scree' | 'wild_stalagmite' | 'wild_glowcap';
 
@@ -7,6 +7,7 @@ export function sceneryAt(store: ChunkStore, x: number, y: number): SceneryKind 
   const { seed } = store, gx = Math.floor(x / 8), gy = Math.floor(y / 8);
   if (x !== gx * 8 + Math.floor(hash2(seed, gx, gy, 1201) * 8) || y !== gy * 8 + Math.floor(hash2(seed, gx, gy, 1202) * 8)) return null;
   if (hash2(seed, gx, gy, 1203) > 0.3 + 0.45 * vegetationCover(seed, x, y) || Math.hypot(x, y) < 12) return null;
+  if (townAt(seed, x, y)) return null;
   const t = townFor(seed);
   if (x >= t.x0 - 2 && x <= t.x1 + 2 && y >= t.y0 - 2 && y <= t.y1 + 2) return null;
   const c = store.get(chunkOf(x), chunkOf(y));

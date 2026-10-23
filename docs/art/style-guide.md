@@ -11,7 +11,7 @@ EIGENLANDS is a medieval world with extraordinary quantum magic: warm plaster an
 
 ## Palette and materials
 
-The shared palette remains 48 colours in six rows of eight: neutrals, greens, earth, water, warm and quantum. Shader indices depend on that layout. The first five ramps now favour muted greens, warm limestone, weathered wood and teal water; the quantum row retains its existing colours and indices.
+The shared palette remains 48 colours in six rows of eight: neutrals, greens, earth, water, warm and quantum. Shader indices depend on that layout. The first five ramps favour muted greens, warm limestone, weathered wood and teal water; the quantum row retains its existing colours and indices. The `Scene` creature renderer additionally uses material-specific RGB ramps for fur, shell and crystal, shaded within the same muted value range. These ramps do not alter terrain palette indices.
 
 Use palette indices (`C.g4`, etc.) in generated artwork. Runtime lighting can multiply/add light colours. Choose a clear shadow, body and highlight before adding detail. Use larger leaf clusters with shared shaded cores, not single-pixel noise. Autumn cores must use autumn ramps. Grass is quieter than characters and interactable objects; dense patches remain distinct from paths and clearing ground.
 
@@ -37,7 +37,7 @@ Use landscape on phones: safe-area-aware thumb controls, a horizontal HUD action
 
 Review `/labs/artlab.html`, `/labs/spritelab.html`, `/labs/uilab.html`, plus playable day/night streets, water and interiors. Test solo and multiplayer separately. See [overhaul notes](overhaul-notes.md) for validation and remaining scope.
 
-All art changes in this pass are original procedural artwork. No new third-party assets were imported, purchased or relicensed. Existing critter asset provenance remains unchanged.
+All new artwork is original procedural artwork. No new third-party assets were imported, purchased or relicensed. Existing critter asset provenance remains unchanged. The supplied ZIP/7z packs contain no license text; matching repository sheets remain in use and other pack images serve as references only. See the [world upgrade audit](../design/world-upgrade.md).
 
 
 Sparse wilderness details use one deterministic candidate per 8×8 cell: clover, fallen leaves, small boughs, shore driftwood, scree, cave formations and glowcaps. These are cosmetic ground details, drawn by the existing tile-object views. They do not create collision, loot or saved objects. Edited tiles and occupied ground suppress them; town and spawn stay clear. Keep silhouettes low so walkable terrain remains believable.
@@ -55,3 +55,15 @@ The Qubitman figure is an authored pixel sculpture: weathered green stone, a tur
 Broadleaf crowns use asymmetric intersecting masses shaded together, so their branches read as one canopy rather than separately lit balls. Autumn uses one dominant foliage ramp per tree. Conifer tiers vary in width and tip position. Bare winter recursion must fit the existing 48×64 cell; `/labs/artlab.html?lab=foliage&scale=3&motion=0` displays all 24 seasonal variants.
 
 The continuous `vegetationCover` field shapes grass, flowers and cosmetic scenery. Ferns favour nearby trunks, reeds grow on sandy water banks, and plain boulders favour the existing rocky ridges. New plant silhouettes use the shared wind field and freeze under reduced motion. Preserve coastline topology, town layouts, original landmark siting and persisted player edits when tuning these distributions. Water foam is broken into patches, caustics are warped, and ripples are short and sparse.
+
+## Coastal residents, creatures and exploration
+
+Lumenport, Reedhaven, Brinewick and Amberquay extend the existing settlement interfaces. Each has authored dry streets, furnished buildings and a dredged harbour connection; their local island shelves deliberately change generation around these four new sites. Hadamere retains its original layout. New residents use individual lazily generated 240×256 atlases, ten body frames and eight facings, with distinct clothing, hair, hats and accessories. Use `/labs/artlab.html?lab=portfolks` to review all forty.
+
+Original fox, otter, tortoise, owl, Briar Warden and Prism Crawler rigs use the existing `Scene` projection and 56×52 frames, anchored at (28,44). They have four facings and idle/move/windup/attack/hurt/death sets. Use readable ear, tail, shell, facial-disc and spine silhouettes. Existing boar/stag/badger/wolf sheets remain authoritative for those species. Gaits follow travel distance; idle actions play once with a resting interval, and reduced motion holds frame zero. View all ten models at `/labs/artlab.html?lab=fauna&scale=3`.
+
+Six held tools join the seven existing weapon designs in cached directional atlases. Align them with `personGrip`; use the equipped weapon during attacks and the selected tool while travelling. Remote held-tool metadata comes from the server's actual inventory selection. Hide equipment while dead or sailing. Ocean sailfin, moonray and prism nautilus icons have distinct fin, ray and spiral-shell silhouettes. Ship gunwales, deckboards and rigging are drawn for each heading rather than rotating a finished sprite.
+
+Completed shrines disappear for the solver, including their shadows and light sources; reloads retain that state. Lantern puzzles show the authoritative lit mask, and rune trails mark the next seal and remaining time. Keep effects sparse enough to read combat telegraphs. Sea salvage uses a small projected floating crate, brass bands and pennant at the existing water elevation.
+
+Run `node e2e/world-upgrade.mjs` for frame bounds, caching, resident uniqueness, shrine disappearance and rendered coastal scenes. These checks supplement playable solo/multiplayer tests and do not establish completion of the broader backlog.

@@ -1,3 +1,4 @@
+import { extraTowns } from './settlements';
 import { hash2 } from './rng';
 import { T } from './tiles';
 import { sampleClimate } from './worldgen';
@@ -231,7 +232,7 @@ type SpotAdd = (name: string, x: number, y: number) => void;
  * work happens, a hearth and bed for whoever lives there, storage along the walls, rugs, plants and lamps. Furniture
  * hugs the walls (back wall first, then the side walls) and the entrance corridor stays clear.
  */
-function furnish(b: Building, rawObj: ObjAdd, spot: SpotAdd): void {
+export function furnish(b: Building, rawObj: ObjAdd, spot: SpotAdd): void {
   const ix = b.x + 1, iy = b.y + 1, iw = b.w - 2, ih = b.h - 2;
   const right = ix + iw - 1, bottom = iy + ih - 1;
   const used = new Set<string>();
@@ -307,18 +308,25 @@ function furnish(b: Building, rawObj: ObjAdd, spot: SpotAdd): void {
   }
 }
 
-/** Town tile override at (x,y), or null outside the town footprint. */
-export function townTileAt(seed: number, x: number, y: number): number | null {
-  // cheap reject: the site is within ~90 tiles of the origin
-  if (x < -120 || x > 120 || y < -120 || y > 120) return null;
-  const t = townFor(seed);
-  if (x < t.x0 || x > t.x1 || y < t.y0 || y > t.y1) return null;
-  return t.tiles.get((x - t.x0) + (y - t.y0) * W) ?? null;
+const allCache = new Map<number, Town[]>();
+export function townsFor(seed: number): Town[] {
+  let towns = allCache.get(seed);
+  if (!towns) { towns = [townFor(seed), ...extraTowns(seed)]; if (allCache.size > 8) allCache.clear(); allCache.set(seed, towns); }
+  return towns;
 }
 
+export function townAt(seed: number, x: number, y: number): Town | null {
+  if (Math.abs(x) <= 120 && Math.abs(y) <= 120) {
+    const t = townFor(seed); return x >= t.x0 && x <= t.x1 && y >= t.y0 && y <= t.y1 ? t : null;
+  }
+  if (Math.abs(x) > 650 || Math.abs(y) > 650) return null;
+  return townsFor(seed).find(t => x >= t.x0 && x <= t.x1 && y >= t.y0 && y <= t.y1) ?? null;
+}
+/** Town tile override at (x,y), or null outside a settlement's authored footprint. */
+export function townTileAt(seed: number, x: number, y: number): number | null {
+  const t = townAt(seed, x, y);
+  return t?.tiles.get((x - t.x0) + (y - t.y0) * (t.x1 - t.x0 + 1)) ?? null;
+}
 export function buildingAt(seed: number, x: number, y: number): Building | null {
-  const t = townFor(seed);
-  if (x < t.x0 || x > t.x1 || y < t.y0 || y > t.y1) return null;
-  for (const b of t.buildings) if (x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h) return b;
-  return null;
+  return townAt(seed, x, y)?.buildings.find(b => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h) ?? null;
 }

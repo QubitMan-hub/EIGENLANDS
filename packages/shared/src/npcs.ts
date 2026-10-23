@@ -1,3 +1,4 @@
+import { PORT_RESIDENTS, PORTS } from './settlements';
 import type { Weather } from './weather';
 import { ITEMS, type ItemKind } from './items';
 
@@ -11,6 +12,7 @@ export interface NpcDef {
   /** index into the client outfit table (look) */
   look: number;
   home: string;
+  settlement?: string;
   schedule: ScheduleBlock[];
   loves: string[];
   likes: string[];
@@ -189,6 +191,28 @@ export const NPCS: NpcDef[] = [
     },
   },
 ];
+
+// Original coastal residents use the same schedules, friendship, gifts, shops and persistence as Hadamere.
+NPCS.push(...PORT_RESIDENTS.map((n): NpcDef => {
+  const port = PORTS.find(p => p.id === n.port)!;
+  const keepsake = ['daffodil', 'fish_fry', 'healing_herb', 'cloth', 'qubit_crystal', 'fruit_pie'][n.index % 6]!;
+  const habits = ['collects old sea charts', 'repairs things rather than replacing them', 'writes letters by lantern light', 'keeps a rooftop herb garden', 'knows every local bird call', 'brews very strong tea', 'carves tiny wooden boats', 'keeps the harbour weather log'][n.index % 8]!;
+  const greet = `I'm ${n.name}. I work as ${n.title.toLowerCase()} here in ${port.name}.`;
+  return {
+    id: n.id, name: n.name, title: n.title, look: n.index % 8, settlement: port.id,
+    bio: `${n.name}, ${port.name}'s ${n.title.toLowerCase()}, ${habits}.`, home: `${n.id}.home`,
+    schedule: [B(0, 7, `${n.id}.home`, 'asleep'), B(7, 9, `${n.id}.quay`, 'watching the harbour'), B(9, 18, `${n.id}.work`, `working as ${n.title.toLowerCase()}`), B(18, 21, `${n.id}.quay`, 'sharing harbour stories'), B(21, 24, `${n.id}.home`, 'asleep')],
+    loves: [keepsake], likes: ['fish_fry', 'cloth', 'blueberry'], hates: ['slime_gel', 'raw_meat'],
+    ...(n.local % 3 === 0 ? { shop: { name: `${n.name.split(' ')[0]}'s Harbour Goods`, hours: [9, 18] as [number, number], buyBonus: 1, buys: ['fish', 'forage', 'resource'] as ItemKind[], stock: [{ item: 'cloth', markup: 1.25 }, { item: 'healing_potion', markup: 1.4 }, { item: 'plank', markup: 1.2 }, { item: n.local % 2 ? 'rod' : 'hay', markup: 1.1 }] } } : {}),
+    lines: {
+      greet: [[greet], [`Good to see you again. ${port.name} is starting to know your footsteps.`], [`There you are, my friend. Stay for a cup before you sail.`]],
+      work: [`A ${n.title.toLowerCase()}'s work is never quite done.`, `When the work is finished, I ${habits.replace(/^(\w+)s /, '$1 ')}.`],
+      season: [[`Spring brings fresh sails to ${port.name}.`], ['The long light makes the sea look endless.'], ['We mend the quay before the autumn storms.'], ['Ice on the ropes this morning. Watch your step.']],
+      rain: ['The harbour smells different before a storm.'], snow: ['Keep your hands warm. Cold knots are stubborn knots.'], night: ['Lanterns mark the safe way home.'],
+      gift: { love: [`${keepsake.replaceAll('_', ' ')}! You remembered. Thank you.`], like: ['A thoughtful gift. You have a place at my table.'], neutral: ['Thank you for thinking of me.'], hate: ['Please keep this away from the clean nets.'], again: ['One gift is plenty for today, friend.'] },
+    },
+  };
+}));
 
 export const NPC_BY_ID: Record<string, NpcDef> = Object.fromEntries(NPCS.map((n) => [n.id, n]));
 

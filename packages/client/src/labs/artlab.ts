@@ -1,3 +1,5 @@
+import { Critters } from '../art/critters';
+import { buildFoeSheets } from '../art/foes';
 // Dev-only art lab (no server). Modes via ?lab=:
 //   (none)   world at ?x=&y=&season=&hour=&scale= with an actor line-up (+ &weather=rain|storm|snow|fog)
 //   icons    grid of every item icon
@@ -7,7 +9,7 @@
 //   ships    sloop and corsair hulls at every heading, the Brine Serpent
 import { Application, Container, Graphics, Sprite, Text } from 'pixi.js';
 import {
-  CROPS, ChunkStore, ITEMS, NPCS, PALETTE, T, TILE_DEFS, TILE_SIZE, ambientColor, darkness, chunkOf, townFor, type WorldObj, type Weather,
+  CROPS, ChunkStore, ITEMS, NPCS, PALETTE, T, TILE_DEFS, TILE_SIZE, ambientColor, darkness, chunkOf, townFor, townsFor, scheduleAt, type WorldObj, type Weather,
 } from '@eigenlands/shared';
 import { buildObjectArt, buildTrees, FRAMES_PER_VARIANT, type SeasonIdx } from '../art/objects';
 import { buildActorSheets, OUTFITS, WALK_FRAMES, DIR_LEFT, DIR_RIGHT, ATTACK_FRAME, ATTACK_FRAMES, RUN_FRAME, RUN_FRAMES } from '../art/actors';
@@ -79,7 +81,7 @@ if (mode === 'icons') {
   }
   for (let i = 0; i < 2; i++) place(ships.serpent('head', i), 0.5, 0.95, 60 + i * 50, 370);
   (window as unknown as { __lab: unknown }).__lab = { ready: true };
-} else if (mode === 'objects' || mode === 'actors' || mode === 'person' || mode === 'actions' || mode === 'equipment' || mode === 'wilderness' || mode === 'resources' || mode === 'foliage') {
+} else if (mode === 'objects' || mode === 'actors' || mode === 'person' || mode === 'actions' || mode === 'equipment' || mode === 'wilderness' || mode === 'resources' || mode === 'foliage' || mode === 'fauna' || mode === 'portfolks') {
   const bg = new Graphics().rect(0, 0, 4000, 4000).fill(0x3b6a3a);
   const root = new Container();
   app.stage.addChild(bg, root);
@@ -88,7 +90,36 @@ if (mode === 'icons') {
   root.scale.set(SC);
   root.y = -num('shift', 0) * SC;
   const place = (tex: Sprite['texture'], ax: number, ay: number, x: number, y: number) => { const s = new Sprite(tex); s.anchor.set(ax / tex.width, ay / tex.height); s.x = x; s.y = y; root.addChild(s); return s; };
-  if (mode === 'foliage') {
+  if (mode === 'portfolks') {
+    const sheets = buildActorSheets();
+    NPCS.filter(n => n.settlement).forEach((n, i) => {
+      const x = 28 + i % 8 * 56, y = 42 + Math.floor(i / 8) * 60;
+      place(sheets.npc(n.id, 0, -1), 12, 32, x, y);
+      label(n.name.split(' ')[0]!, x - 20, y + 3);
+      label(n.settlement!, x - 20, y + 14);
+    });
+  } else if (mode === 'fauna') {
+    const pack = await Critters.load(), native = buildFoeSheets();
+    const records: Array<() => void> = [];
+    ['stag', 'boar', 'badger', 'wolf', 'fox', 'otter', 'tortoise', 'owl', 'thornling', 'glasscrawler'].forEach((kind, i) => {
+      const x0 = 8 + Math.floor(i / 5) * 270, y = 70 + i % 5 * 76;
+      label(kind, x0, y - 46);
+      for (let dir = 0; dir < 4; dir++) {
+        const x = x0 + 30 + dir * 54;
+        if (i < 4) {
+          const id = kind as 'stag' | 'boar' | 'badger' | 'wolf', d = (['SE', 'SW', 'NE', 'NW'] as const)[dir]!, a = pack.anchor(id);
+          const anim = id === 'stag' || id === 'badger' ? 'walk' : 'run';
+          const sp = place(pack.frame(id, anim, d, 0), a.x * pack.frame(id, anim, d, 0).width, a.y * pack.frame(id, anim, d, 0).height, x, y);
+          records.push(() => { sp.texture = pack.frame(id, anim, d, noMotion ? 0 : performance.now() / 1000 * pack.fps(id, anim)); });
+        } else {
+          const idx = 15 + i - 4, tex = native.frame(idx, false, dir, 'move', 0);
+          const sp = place(tex, tex.width / 2, native.anchor(idx) * tex.height, x, y);
+          records.push(() => { sp.texture = native.frame(idx, false, dir, 'move', noMotion ? 0 : Math.floor(performance.now() / 130) % 8); });
+        }
+      }
+    });
+    app.ticker.add(() => records.forEach(f => f()));
+  } else if (mode === 'foliage') {
     for (let s = 0; s < 4; s++) {
       label(['spring', 'summer', 'autumn', 'winter'][s]!, 4, 8 + s * 72);
       buildTrees(s as SeasonIdx).forEach((sp, v) => place(sp.tex, sp.ax, sp.ay, 65 + v * 58, 70 + s * 72));
@@ -223,10 +254,13 @@ if (mode === 'icons') {
     });
     label('players', 4, 120);
     OUTFITS.forEach((_, i) => { for (let f = 0; f < WALK_FRAMES; f++) if (f % 2 === 0) place(sheets.person(i, 3, f), 8, 24, 14 + (i % 4) * 70 + (f / 2) * 14, 150 + Math.floor(i / 4) * 30); });
-    label('fauna: rabbit + deer, 4 frames, both directions', 4, 222);
+    const pack = await Critters.load();
+    label('fauna: rabbit + stag (game sheets)', 4, 222);
     for (let f = 0; f < 4; f++) for (const [d, ox] of [[DIR_RIGHT, 0], [DIR_LEFT, 120]] as const) {
       const r = sheets.rabbit(f, d), de = sheets.deer(f, d);
-      place(r, r.width / 2, r.height, 20 + ox + f * 20, 252); place(de, de.width / 2, de.height, 20 + ox + f * 28, 290);
+      place(r, r.width / 2, r.height, 20 + ox + f * 20, 252);
+      const facing = d === DIR_RIGHT ? 'SE' : 'SW', tex = pack.frame('stag', 'walk', facing, f), a = pack.anchor('stag');
+      place(tex, a.x * tex.width, a.y * tex.height, 20 + ox + f * 28, 290); void de;
     }
   }
   (window as unknown as { __lab: unknown }).__lab = { ready: true };
@@ -251,12 +285,12 @@ if (mode === 'icons') {
   const vw = Math.ceil(W / S) + 2, vh = Math.ceil(H / S) + 2;
   terrain.resize(vw, vh); lighting.resize(vw, vh);
 
-  const town = townFor(seed);
+  const town = townsFor(seed).find(t => t.name.toLowerCase() === q.get('port')) ?? townFor(seed);
   const camTx = mode === 'town' ? town.cx + num('dx', 0) : cx, camTy = mode === 'town' ? town.cy + num('dy', 0) : cy;
   const c0x = chunkOf(Math.floor(camTx)), c0y = chunkOf(Math.floor(camTy));
   for (let yy = c0y - 2; yy <= c0y + 2; yy++) for (let xx = c0x - 2; xx <= c0x + 2; xx++) { store.get(xx, yy); terrain.build(xx, yy); objects.buildChunk(xx, yy); wobjs.buildChunk(xx, yy); }
 
-  if (mode === 'town') {
+  if (mode === 'town' && town.spots.field) {
     const f = town.spots.field!;
     const defs = Object.values(CROPS);
     const mk = (x: number, y: number, crop: string, growth: number, extra: Record<string, unknown> = {}) => {
@@ -266,18 +300,23 @@ if (mode === 'icons') {
     for (let j = 0; j < 8; j++) for (let i = 0; i < 6; i++) { const c = defs[(i + j) % defs.length]!; mk(f.x - 2 + i, f.y - 3 + j, c.id, j % 4 === 0 ? 0 : j % 4 === 1 ? Math.ceil(c.days * 0.4) : j % 4 === 2 ? Math.ceil(c.days * 0.75) : 20, i === 5 && j === 7 ? { alt: 'potato' } : {}); }
   }
 
-  const sheets = buildActorSheets();
-  const line: Sprite[] = [];
+  const sheets = buildActorSheets(), pack = await Critters.load();
+  const line: Sprite[] = [], lineIds: string[] = [];
   const at = (s: Sprite, tx: number, ty: number) => { s.anchor.set(0.5, 1); s.x = isoX(tx, ty); s.y = isoY(tx, ty) + 1; s.zIndex = depth(tx, ty); ents.addChild(s); };
   const shadowOf = new Map<Sprite, Sprite>();
   const withShadow = (s: Sprite) => { const sh = new Sprite(s.texture); sh.anchor.set(0.5, 1); sh.tint = 0x2a1060; shadows.addChild(sh); shadowOf.set(s, sh); };
   if (mode === 'town') {
-    if (!q.has('nonpc')) NPCS.forEach((n, i) => { const sp = town.spots.plaza_a!; const s = new Sprite(sheets.npc(n.id, i % 4, 0)); at(s, sp.x + (i % 5) * 1.3 - 2.5, sp.y + 2.5 + Math.floor(i / 5) * 1.6); line.push(s); withShadow(s); });
+    if (!q.has('nonpc')) NPCS.filter(n => q.has('port') ? n.settlement === q.get('port') : !n.settlement).forEach((n, i) => {
+      const sp = q.has('port') ? town.spots[scheduleAt(n, hour, weather).spot]! : town.spots.plaza_a!;
+      const s = new Sprite(sheets.npc(n.id, i % 4, 0));
+      at(s, q.has('port') ? sp.x + 0.5 : sp.x + i % 5 * 1.3 - 2.5, q.has('port') ? sp.y + 0.5 : sp.y + 2.5 + Math.floor(i / 5) * 1.6);
+      line.push(s); lineIds.push(n.id); withShadow(s);
+    });
   } else if (!q.has('nonpc')) {
     OUTFITS.forEach((_, i) => { const s = new Sprite(sheets.person(i, i % 4, 0)); at(s, cx - 3 + i * 0.9, cy + 2 + (i % 2)); line.push(s); withShadow(s); });
     for (let i = 0; i < 6; i++) {
-      const k = new Sprite(i < 2 ? sheets.slime(i === 1, 0) : i < 4 ? sheets.hopper(i === 3, 0) : i === 4 ? sheets.rabbit(0, DIR_RIGHT) : sheets.deer(0, DIR_RIGHT));
-      at(k, cx - 3 + i * 1.5, cy + 4.5); withShadow(k);
+      const k = new Sprite(i < 2 ? sheets.slime(i === 1, 0) : i < 4 ? sheets.hopper(i === 3, 0) : i === 4 ? sheets.rabbit(0, DIR_RIGHT) : pack.frame('stag', 'idle', 'SE', 0));
+      at(k, cx - 3 + i * 1.5, cy + 4.5); if (i === 5) { const a = pack.anchor('stag'); k.anchor.set(a.x, a.y); } withShadow(k);
     }
   }
   // the "player" used for inside/behind tests (?px=&py=)
@@ -301,7 +340,7 @@ if (mode === 'icons') {
     wobjs.update(now, sun, noMotion, ...b);
     buildings.setDarkness(dark);
     buildings.update(performance.now(), Math.floor(playerTx), Math.floor(playerTy), noMotion, sun, ...b);
-    line.forEach((s, i) => { const f = q.has('idle') ? 0 : 1 + (Math.floor(now / 100) % (WALK_FRAMES - 1)); const d = Math.floor(now / 1500 + i) % 8; s.texture = mode === 'town' ? sheets.npc(NPCS[i]!.id, d, f) : sheets.person(i, d, f); });
+    line.forEach((s, i) => { const f = q.has('idle') ? 0 : 1 + (Math.floor(now / 100) % (WALK_FRAMES - 1)); const d = Math.floor(now / 1500 + i) % 8; s.texture = mode === 'town' ? sheets.npc(lineIds[i]!, d, f) : sheets.person(i, d, f); });
     for (const [s, sh] of shadowOf) { sh.texture = s.texture; sh.position.set(s.x, s.y); sh.alpha = sun.alpha; sh.scale.y = -(0.26 + 0.18 * sun.len); sh.skew.x = sun.dx * sun.len * 0.55; }
     wfx.update(dt, weather, W, H, noMotion, hour);
     const amb = ambientColor(hour), wa = wfx.ambient(weather);

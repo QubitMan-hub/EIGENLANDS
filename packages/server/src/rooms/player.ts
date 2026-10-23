@@ -24,6 +24,7 @@ export interface CastSession {
   tx: number;
   ty: number;
   deep: boolean;
+  ocean?: boolean;
   state: 'wait' | 'bite';
   /** real-time (Date.now) */
   biteAt: number;
@@ -45,6 +46,7 @@ export class ServerPlayer implements PlayerRef {
   lastViewTick = 0;
   /** wall-clock ms the equipped Focus/crossbow may fire again */
   weaponReadyAt = 0;
+  heldSlot = 0;
   /** tick the current dash started, and the dash that already earned a phase slip (one per dash) */
   dashTick = -1;
   slipTick = -2;

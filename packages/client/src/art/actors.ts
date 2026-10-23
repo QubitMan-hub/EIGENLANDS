@@ -372,7 +372,7 @@ function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, seed: numbe
       if (!back) put(ctx, Math.round(hx - 3), Math.round(hy - 1.2), hh[0]!, 7, 1);
     } else if (hs === 'circlet') {
       put(ctx, Math.round(hx - 4.5), Math.round(hy - 3.2), hh[2]!, 9, 1);
-      if (!back) { put(ctx, Math.round(hx) - 1, Math.round(hy - 4.2), C.white, 2, 2); put(ctx, Math.round(hx), Math.round(hy - 3.8), hh[4]!, 1, 1); }
+      if (!back) { put(ctx, Math.round(hx) - 1, Math.round(hy - 4.2), C.white, 2, 2); put(ctx, Math.round(hx), Math.round(hy - 3.8), (hh[4] ?? hh[hh.length - 1])!, 1, 1); }
     } else if (hs === 'beret') {
       blob(ctx, hx - 0.8 * s, hy - 4.6, 5.2, 2.4, hh, { seed: seed + 62, noise: 0.15, edgeDark: 0.15 });
       put(ctx, Math.round(hx - 0.6 * s), Math.round(hy - 7.1), hh[0]!, 1, 1);
@@ -522,7 +522,28 @@ function personSheet(looks: Outfit[], seedBase: number, cols = COLS): HTMLCanvas
 export function buildActorSheets(): Sheets {
   const base = Texture.from(personSheet(OUTFITS, 1)); base.source.scaleMode = 'nearest';
   const npcIds = NPCS.map((n) => n.id);
-  const npcBase = Texture.from(personSheet(npcIds.map((id, i) => NPC_LOOKS[id] ?? OUTFITS[i % COSMETIC_OUTFITS]!), 700, WALK_FRAMES + 1)); npcBase.source.scaleMode = 'nearest';
+  // One small atlas per visible NPC, instead of a tall all-resident texture that exceeds mobile limits.
+  const npcBases = new Map<string, Texture>();
+  const npcBaseFor = (id: string): Texture => {
+    let tex = npcBases.get(id);
+    if (!tex) {
+      const i = Math.max(0, npcIds.indexOf(id)), n = NPCS[i]!;
+      const cloth: Ramp[] = [[C.g0, C.g1, C.g2, C.g3, C.g5], [C.w2, C.w3, C.w4, C.w5], [C.e1, C.e2, C.e3, C.e4, C.e5], [C.r0, C.r1, C.r2, C.r3, C.r4], [C.slate, C.steel, C.mist, C.fog], [C.q0, C.q1, C.q2, C.q3], [C.e3, C.e4, C.e5, C.e6], [C.g1, C.g2, C.g3, C.g4]];
+      const skin = [SKIN_LIGHT, SKIN_MID, SKIN_DARK][i % 3]!;
+      const hairStyles: HairStyle[] = ['short', 'long', 'bun', 'braids', 'curly', 'bald', 'ponytail'];
+      const hatStyles: HatStyle[] = ['cap', 'brim', 'beret', 'hood', 'circlet', 'helm'];
+      const look: Outfit = NPC_LOOKS[id] ?? (n.settlement ? {
+        shirt: cloth[i % 8]!, pants: cloth[(i + 4 + Math.floor(i / 8)) % 8]!, hair: Object.values(HAIR)[i % Object.values(HAIR).length]!, skin,
+        boots: [C.e0, C.e1, C.e2, C.e3], hairStyle: hairStyles[i % 7]!,
+        ...(i % 3 !== 0 ? { hat: cloth[(i + 2 + Math.floor(i / 6)) % 8]!, hatStyle: hatStyles[(i + Math.floor(i / 8)) % 6]! } : { scarf: cloth[(i + 3) % 8]! }),
+        ...(i % 4 === 0 ? { apron: cloth[(i + 5) % 8]! } : {}),
+        ...(i % 5 === 0 ? { glasses: true } : {}),
+        ...(['Oren', 'Bram', 'Garrick', 'Harlan', 'Toren'].includes(n.name.split(' ')[0]!) ? { beard: Object.values(HAIR)[i % Object.values(HAIR).length]! } : {}),
+      } : OUTFITS[i % COSMETIC_OUTFITS]!);
+      tex = Texture.from(personSheet([look], 700 + i * 37, WALK_FRAMES + 1)); tex.source.scaleMode = 'nearest'; npcBases.set(id, tex);
+    }
+    return tex;
+  };
 
   // creatures: slime 24x20 (day/night x4), hopper 22x22 (x4 x2), orb 16x16 x2, rabbit 20x18 x4, deer 34x34 x4
   const cw = 34 * 4, ch = 20 * 2 + 22 * 2 + 16 + 18 + 34;
@@ -561,7 +582,7 @@ export function buildActorSheets(): Sheets {
   const dd = (d: number) => ((d % 8) + 8) % 8;
   return {
     person: (o, d, f) => { const c = col(f, o * 3 + d); return sub(base, `p${o}.${dd(d)}.${c}`, c * PERSON_W, (o * 8 + dd(d)) * PERSON_H, PERSON_W, PERSON_H); },
-    npc: (id, d, f) => { const i = Math.max(0, npcIds.indexOf(id)); const c = col(f, i * 5 + d, WALK_FRAMES - 1); return sub(npcBase, `n${i}.${dd(d)}.${c}`, c * PERSON_W, (i * 8 + dd(d)) * PERSON_H, PERSON_W, PERSON_H); },
+    npc: (id, d, f) => { const i = Math.max(0, npcIds.indexOf(id)); const c = col(f, i * 5 + d, WALK_FRAMES - 1); return sub(npcBaseFor(id), `n${i}.${dd(d)}.${c}`, c * PERSON_W, dd(d) * PERSON_H, PERSON_W, PERSON_H); },
     rabbit: (f) => sub(cBase, `r${f % 4}`, (f % 4) * 20, Y.rabbit, 20, 18),
     deer: (f) => sub(cBase, `d${f % 4}`, (f % 4) * 34, Y.deer, 34, 34),
     slime: (n, f) => (n ? sub(nBase, `sn${f % 4}`, (f % 4) * 24, 0, 24, 20) : sub(cBase, `s${f % 4}`, (f % 4) * 24, Y.slime, 24, 20)),

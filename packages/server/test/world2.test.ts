@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { ITEMS, MSG, T, beatTimes, townFor, type RhythmStartMsg } from '@eigenlands/shared';
+import { ITEMS, MSG, NPCS, T, beatTimes, townFor, type RhythmStartMsg } from '@eigenlands/shared';
 import type { App } from '../src/app';
 import { boot, count, flatten, give, hasToast, nextDay, setDay, sleep, slotOf, spawn, tp, until, use, type Probe } from './p2';
 
@@ -200,8 +200,8 @@ describe('inventory operations', () => {
 });
 
 describe('village wiring', () => {
-  it('ten NPCs exist, sync to nearby clients, and TALK/SHOP are routed (only when near)', async () => {
-    expect(p.room.state.npcs.size).toBe(10);
+  it('all settlement NPCs exist, sync to nearby clients, and TALK/SHOP are routed (only when near)', async () => {
+    expect(p.room.state.npcs.size).toBe(NPCS.length);
     // far from town: ignored
     p.r.send(MSG.TALK, { npcId: 'tobin' });
     await sleep(150);

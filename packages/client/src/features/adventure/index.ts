@@ -40,6 +40,8 @@ export class AdventureClient implements ClientModule {
   private bannerT = 0;
   private boss: { id: string; kind: number; hp: number; maxHp: number; x: number; y: number } | null = null;
   private solved = new Set<string>();
+  private lanterns = new Map<string, number>();
+  private trails = new Map<string, { pattern: number[]; stage: number; until: number }>();
   private gfx = new Graphics();
   private flashes = new Map<string, Flash[]>();
   private barrier = new Map<string, { until: number; wave: number; waves: number }>();
@@ -112,6 +114,8 @@ export class AdventureClient implements ClientModule {
     const now = performance.now();
     switch (m.kind) {
       case 'state': this.solved = new Set(m.solved); break;
+      case 'balance': this.lanterns.set(m.shrine, m.mask); break;
+      case 'trail': this.trails.set(m.shrine, { pattern: m.pattern, stage: m.stage, until: now + m.seconds * 1000 }); break;
       case 'show': {
         const list: Flash[] = [];
         m.pattern.forEach((idx, i) => list.push({ idx, at: now + 700 + i * m.stepMs, until: now + 700 + i * m.stepMs + m.stepMs * 0.8 }));
@@ -127,7 +131,7 @@ export class AdventureClient implements ClientModule {
       }
       case 'fail': this.d.fx().shake = Math.max(this.d.fx().shake, 0.7); break;
       case 'barrier':
-        if (m.on) this.barrier.set(m.shrine, { until: now + 1e9, wave: m.wave ?? 1, waves: m.waves ?? 3 }); else this.barrier.delete(m.shrine);
+        if (m.on) this.barrier.set(m.shrine, { until: now + 1e9, wave: m.wave ?? 1, waves: m.waves ?? 3 }); else { this.barrier.delete(m.shrine); this.lanterns.delete(m.shrine); this.trails.delete(m.shrine); }
         if (m.on && m.wave) this.say(`WAVE ${m.wave} / ${m.waves}`, 'Hold the seal.', 1800);
         break;
       case 'solved': this.say('RESONANCE', m.text, 3600); this.d.sfx('levelup'); break;
@@ -151,13 +155,14 @@ export class AdventureClient implements ClientModule {
     } else if (this.ticks.childElementCount) this.ticks.replaceChildren();
     if (!me) return;
     // nearby shrines (recomputed twice a second)
-    if (now - this.nearAt > 500) { this.nearAt = now; this.near = shrinesNear(this.d.store().seed, me.x, me.y, 160); }
+    if (now - this.nearAt > 500) { this.d.shrineProgress?.([...this.solved]); this.nearAt = now; this.near = shrinesNear(this.d.store().seed, me.x, me.y, 160); }
     const g = this.gfx;
     g.clear();
     const reduced = this.d.settings().reducedMotion;
     this.prompt = null;
     for (const sh of this.near) {
       const done = this.solved.has(sh.id);
+      if (done) continue; // completed projections disappear for their solver
       const dist = Math.hypot(sh.x - me.x, sh.y - me.y);
       const c = this.shrineScreen(sh, 0, 0);
       // a faint beam of light marks every shrine you can still solve (and a calm ring on solved ones)
@@ -173,7 +178,8 @@ export class AdventureClient implements ClientModule {
       sh.pillars.forEach(([dx, dy], i) => {
         const p = this.shrineScreen(sh, dx, dy);
         const col = PILLAR_COLORS[i]!;
-        let lit = done ? 0.35 : 0;
+        const lantern = this.lanterns.get(sh.id), trail = this.trails.get(sh.id);
+        let lit = lantern !== undefined && (lantern & (1 << i)) ? 0.8 : trail?.pattern[trail.stage] === i ? 1 : 0;
         for (const f of fl) if (f.idx === i && now >= f.at && now < f.until) lit = 1;
         const okFlash = fl.find((f) => f.idx === i && f.ok !== undefined && now < f.until);
         if (okFlash) { g.ellipse(p.x, p.y + 1, 14, 7).stroke({ color: okFlash.ok ? 0x7dffa0 : 0xff5a5a, width: 2, alpha: 0.9 }); }
@@ -189,6 +195,8 @@ export class AdventureClient implements ClientModule {
       }
       if (dist < SHRINE_REACH + 1.5) this.prompt = done ? 'The shrine is quiet. Its shard is yours.' : sh.type === 'sequence'
         ? `${this.key()}: touch the altar. Watch the pillars, then strike them in order (${this.key()} on each).`
+        : sh.type === 'balance' ? `${this.key()}: wake the altar, then light all four lanterns. Each toggles its clockwise neighbour.`
+        : sh.type === 'trail' ? this.trails.has(sh.id) ? `Rune trail: ${this.trails.get(sh.id)!.stage} / 4 seals · ${Math.max(0, Math.ceil((this.trails.get(sh.id)!.until - now) / 1000))}s. Step onto the bright seal.` : `${this.key()}: wake the altar for a timed rune trail.`
         : `${this.key()}: touch the altar to begin the gauntlet (three waves).`;
     }
   }

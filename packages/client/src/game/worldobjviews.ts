@@ -49,6 +49,10 @@ export class WorldObjViews {
   private views = new Map<string, View>();
   private byChunk = new Map<string, Set<string>>();
   private season: SeasonIdx = 1;
+  private solvedShrines = new Set<string>();
+
+  setSolvedShrines(ids: string[]): void { this.solvedShrines = new Set(ids); }
+  private hidden(v: View): boolean { return this.solvedShrines.has(String(v.obj.data?.shrine ?? "")); }
 
   constructor(private store: ChunkStore, private shadowLayer: Container, private layer: Container) {}
 
@@ -71,7 +75,7 @@ export class WorldObjViews {
     // iso billboard: feet on the tile's ground centre
     root.x = Math.round(isoX(o.x + 0.5, o.y + 0.5));
     // crops stand in tilled soil, which the terrain draws a little below the turf
-    root.y = Math.round(isoY(o.x + 0.5, o.y + 0.5)) - (o.kind === 'crop' ? GROUND_Z.soil : 0);
+    root.y = Math.round(isoY(o.x + 0.5, o.y + 0.5)) - (o.kind === 'crop' ? GROUND_Z.soil : o.sub === 'sea_cache' ? GROUND_Z.water : 0);
     // rugs sit on the ground: behind anything standing on the tile; crops just under entities of the same tile
     const dz = depth(o.x + 0.5, o.y + 0.5);
     root.zIndex = o.kind === 'furniture' && o.sub === 'rug' ? dz - 1e6 : o.kind === 'crop' ? dz - 6 : dz;
@@ -159,6 +163,10 @@ export class WorldObjViews {
   update(now: number, sun: Sun, reduced: boolean, minX: number, minY: number, maxX: number, maxY: number, wind: WindField = CALM): void {
     const t = now / 1000;
     this.forVisible(minX, minY, maxX, maxY, (v) => {
+      const hidden = this.hidden(v);
+      v.root.visible = !hidden;
+      if (v.echo) v.echo.visible = !hidden;
+      if (hidden) { v.shadow.visible = false; return; }
       const d = v.def;
       if (d.frames.length > 1) {
         const f = reduced ? 0 : Math.floor(t * d.fps + v.phase) % d.frames.length;
@@ -182,6 +190,7 @@ export class WorldObjViews {
   lights(minX: number, minY: number, maxX: number, maxY: number): TileLight[] {
     const out: TileLight[] = [];
     this.forVisible(minX, minY, maxX, maxY, (v) => {
+      if (this.hidden(v)) return;
       const o = v.obj;
       const sub = o.kind === 'crop' && (o.data as { alt?: string } | undefined)?.alt ? `*${o.sub}` : o.sub;
       const l = objLight(o.kind, sub);

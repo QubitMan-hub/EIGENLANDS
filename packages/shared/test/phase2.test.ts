@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ChunkStore, CROPS, ITEMS, MATERIALS, NPCS, RECIPES, T, afterHarvest, addStack, advanceDay, beatTimes, buyPrice, canAdd, catchUp,
   collapseCrop, cropSeasonOk, cropStage, decaySupply, emptyInventory, findPath, forge, gameHour, hearts, interference, isRipe, matchExperiment,
-  moveSlot, preview, removeItem, countItem, rollFish, sanitizeHits, scheduleAt, scoreHits, sellPrice, skillLevel, townFor, weatherForDay,
+  moveSlot, preview, removeItem, countItem, rollFish, sanitizeHits, scheduleAt, scoreHits, sellPrice, skillLevel, townFor, townsFor, weatherForDay,
   tileAt, isSolid, FISH_TABLE, NODES, TILE_DEFS, FORAGE_BY_SEASON, validInventory, mulberry32, tierOf, giftTaste, SHOP_NPCS, buildingAt,
   type CropData, DAY_MS, QUESTS, QUEST_BY_ID, offerable, startQuest, applyQuestEvent, questComplete, type QuestLog,
   syncDeliveries, dailyRequests, questDef, pruneRequests, VOICES, composeTalk, pendingEvent, barkFor, QUBITMAN, NPC_BY_ID, shopOpen, STATION_SUBS,
@@ -231,9 +231,9 @@ describe('world: nodes, ores and the town', () => {
 });
 
 describe('NPCs', () => {
-  const town = townFor(SEED);
-  it('ten villagers with complete 24h schedules whose spots all exist', () => {
-    expect(NPCS.length).toBe(10);
+  const town = { ...townFor(SEED), spots: Object.assign({}, ...townsFor(SEED).map(t => t.spots)) };
+  it('all villagers with complete 24h schedules whose spots all exist', () => {
+    expect(NPCS.length).toBe(50);
     for (const n of NPCS) {
       let h = 0;
       for (const b of [...n.schedule].sort((a, c) => a.h0 - c.h0)) { expect(b.h0, n.id).toBe(h); h = b.h1; expect(town.spots[b.spot], `${n.id}:${b.spot}`).toBeTruthy(); }
@@ -374,7 +374,7 @@ describe('dialogue', () => {
   it('QubitMan has a plaque, a legend, and villagers who talk about him', () => {
     expect(QUBITMAN.plaque).toBe('ALL HAIL QUBITMAN');
     expect(QUBITMAN.legend.length).toBeGreaterThanOrEqual(4);
-    expect(NPCS.filter((n) => VOICES[n.id]!.qubitman.length > 0).length).toBe(10);
+    expect(NPCS.filter((n) => VOICES[n.id]!.qubitman.length > 0).length).toBe(NPCS.length);
     expect(barkFor('brannoch', 'asleep', 'clear', rand)).toBe('Zzz…');
     expect(typeof barkFor('brannoch', 'working the forge', 'clear', rand)).toBe('string');
   });

@@ -19,7 +19,7 @@ export interface WorldObj {
 /** Objects that block movement. Crops, rugs and sprinklers can be walked over. */
 export function objSolid(kind: WorldObjKind, sub: string): boolean {
   if (kind === 'crop' || kind === 'sprinkler') return false;
-  if (sub === 'rug') return false;
+  if (sub === 'sea_cache' || sub === 'rug' || sub === 'shrine_altar' || sub === 'shrine_pillar') return false; // resonance projections leave no invisible collision after completion
   return true;
 }
 

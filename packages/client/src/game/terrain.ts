@@ -1,7 +1,7 @@
 import {
   BufferImageSource, Container, Mesh, MeshGeometry, RenderTexture, Shader, Sprite, UniformGroup, type Renderer,
 } from 'pixi.js';
-import { BIOMES, CHUNK_SIZE, G, T, TILE_DEFS, biomeAt, chunkKey, isCaveY, sampleClimate, townFor, type ChunkStore } from '@eigenlands/shared';
+import { BIOMES, CHUNK_SIZE, G, T, TILE_DEFS, biomeAt, chunkKey, isCaveY, sampleClimate, townFor, townAt, type ChunkStore } from '@eigenlands/shared';
 import { TERRAIN_FRAG, TERRAIN_VERT } from '../gl/terrain.frag';
 
 const WIN_CHUNKS = 5;                         // window = 5x5 chunks around the player (160x160 tiles)
@@ -74,6 +74,8 @@ export class Terrain {
   /** Paving style of a PATH tile: 0 worn dirt, 1 cobbled road, 2 ring-laid plaza, 3 the spawn shrine. */
   private paving(tx: number, ty: number): number {
     if (Math.hypot(tx, ty) <= 3) return 3;
+    const town = townAt(this.store.seed, tx, ty);
+    if (town && town.name !== "Hadamere") return 1;
     const p = this.plaza;
     if (tx < p.x0 || tx > p.x1 || ty < p.y0 || ty > p.y1) return 0;
     if (Math.hypot(tx + 0.5 - p.x, ty + 0.5 - p.y) < p.r + 0.6) return 2;

@@ -1,5 +1,5 @@
 import {
-  BIOMES, BIOME_NAMES, caveLanding, isCaveY, FARM_ANIMALS, ITEMS, MSG, QUBITMAN, RUIN_LORE, RUIN_NAMES, ruinLoot, type Biome, STATUE_REMARKS, STATION_SUBS, addStack, chunkOf, cloneStack, countItem, isRipe, removeItem, validInventory,
+  BIOMES, BIOME_NAMES, hash2, caveLanding, isCaveY, FARM_ANIMALS, ITEMS, MSG, QUBITMAN, RUIN_LORE, RUIN_NAMES, ruinLoot, type Biome, STATUE_REMARKS, STATION_SUBS, addStack, chunkOf, cloneStack, countItem, isRipe, removeItem, validInventory,
   type ChestMsg, type Inventory, type OpenMsg, type PanelMsg, type ShelterMsg, type WorldObj,
 } from '@eigenlands/shared';
 import type { ServerPlayer } from '../rooms/player';
@@ -65,7 +65,7 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
     if (!p.data.deeds.statue) recordDeed(p, 'statue', 'the plaque', room.wclock.day());
     return;
   }
-  if (o.static && o.sub === 'ruin_cache') { openRuinCache(room, p, o); return; }
+  if (o.static && (o.sub === 'ruin_cache' || o.sub === 'sea_cache')) { openRuinCache(room, p, o); return; }
   if (o.static && (o.sub === 'cave_mouth' || o.sub === 'cave_ladder')) { await climb(room, p, o); return; }
   if (o.static && RUIN_LORE[o.sub]) {
     const l = RUIN_LORE[o.sub]!;
@@ -142,11 +142,12 @@ function openRuinCache(room: RoomApi, p: ServerPlayer, o: WorldObj): void {
   const id = typeof d.ruin === 'string' ? d.ruin : `${o.x},${o.y}`;
   if (p.data.prog.ruins.includes(id)) { p.toast('Only dust and old wax left. You have already searched this cache.'); return; }
   const biome = (BIOMES as readonly string[]).includes(d.biome ?? '') ? (d.biome as Biome) : 'meadow';
-  const loot = ruinLoot(room.seed, id, biome, room.rand);
+  const ocean = o.sub === 'sea_cache';
+  const loot = ocean ? [{ id: 'doubloon', n: 2 + Math.floor(hash2(room.seed, o.x, o.y, 1703) * 4) }, { id: 'cloth', n: 2 }, { id: hash2(room.seed, o.x, o.y, 1704) < 0.15 ? 'qubit_crystal' : 'plank', n: 1 }] : ruinLoot(room.seed, id, biome, room.rand);
   if (!giveStacks(p, loot)) { p.toast('Your pack is too full to carry the cache\'s contents.', 'bad'); return; }
   p.data.prog.ruins.push(id);
   p.dirty('inv');
-  p.toast(isCaveY(o.y) ? 'You found a forgotten miner\'s cache in the Undercroft!' : `You found a forgotten cache in the ${BIOME_NAMES[biome]}!`, 'good');
+  p.toast(ocean ? 'You recovered a sealed voyager’s cache from the deep sea!' : isCaveY(o.y) ? 'You found a forgotten miner\'s cache in the Undercroft!' : `You found a forgotten cache in the ${BIOME_NAMES[biome]}!`, 'good');
   room.fx({ kind: 'craft', x: o.x + 0.5, y: o.y + 0.5 });
 }
 

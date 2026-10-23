@@ -5,7 +5,7 @@ import { hash2 } from './rng';
 import { ruinOfCell } from './ruins';
 import { Simplex2D } from './simplex';
 import { T, isSolid } from './tiles';
-import { townFor } from './town';
+import { townFor, townAt } from './town';
 import { HOME_VALE, biomeAt, landmarkTileAt, type Biome } from './worldgen';
 
 /**
@@ -35,6 +35,7 @@ export function caveOfCell(seed: number, gx: number, gy: number): CaveMouth | nu
       const x = gx * CELL + 8 + Math.floor(hash2(seed, gx * 17 + k, gy, 962) * (CELL - 16));
       const y = gy * CELL + 8 + Math.floor(hash2(seed, gx, gy * 17 + k, 963) * (CELL - 16));
       if (Math.hypot(x, y) < HOME_VALE * 0.55 || (x > t.x0 - 8 && x < t.x1 + 8 && y > t.y0 - 8 && y < t.y1 + 8)) continue;
+      if (townAt(seed, x, y)) continue;
       let clear = true;
       for (let j = -1; j <= 2 && clear; j++) for (let i = -1; i <= 1 && clear; i++) if (isSolid(landmarkTileAt(seed, x + i, y + j))) clear = false;
       if (!clear) continue;

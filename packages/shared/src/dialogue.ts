@@ -3,7 +3,7 @@
  * Pure data + a pure line composer, used by the server (dialogue) and the client (ambient chatter, statue lore).
  */
 import type { Weather } from './weather';
-import { NPC_BY_ID, tierOf, hearts, type NpcDef } from './npcs';
+import { NPCS, NPC_BY_ID, tierOf, hearts, type NpcDef } from './npcs';
 
 /** Things the player did recently that villagers can remember and comment on. */
 export type DeedKind = 'harvest' | 'fish' | 'rare_fish' | 'forge' | 'perfect_forge' | 'smelt' | 'cook' | 'discover' | 'bug' | 'kill' | 'quest' | 'statue' | 'sell' | 'plant' | 'gift_love';
@@ -746,6 +746,27 @@ const V: Record<string, Voice> = {
     ],
   },
 };
+
+for (const n of NPCS.filter(n => n.settlement)) {
+  const first = n.name.split(' ')[0]!, home = n.settlement!;
+  V[n.id] = {
+    greet: { morning: [`Morning. ${first}, at your service. The harbour is waking.`], day: [`Welcome back. How was the crossing to ${home}?`], evening: ['Come watch the last boats tie up.'], night: ['Keep to the lanterns tonight.'] },
+    again: ['A little more time together? Gladly.'], chat: [[n.bio, `My work as ${n.title.toLowerCase()} takes patience. The sea teaches that.`], ['You have learned the quay by heart now.', 'Tell me something you found beyond the home coast.'], ['There is always room for you at my table.', `You helped ${home} feel like home. I remember that.`]],
+    bye: ['Fair winds. Come home safely.'], accept: ['I knew I could trust you with this.'], decline: ['Another day, then. No hard feelings.'], thanks: ['You kept your word. Thank you.'],
+    about: [n.bio, `${n.bio} My first crossing was terrifying. I counted the lanterns until dawn.`, 'I used to think belonging meant never leaving. You taught me that coming back matters just as much.'],
+    town: `${home} lives by its harbour. Houses open onto the market streets; the boardwalk leads to the quay. Hadamere lies across the sea.`,
+    qubitman: ['They say QubitMan raised a light that could be seen from both shores at once. A comforting thought on a dark crossing.'],
+    rumorIn: ['Word from the quay: {rumor}'], noRumor: 'Only weather talk today.', memory: ['I still remember the {item} you brought me.'],
+    deeds: { fish: ['A catch of {what}? The harbour will hear of that.'], quest: ['People remember a promise kept.'], rare_fish: ['{what}! That is a story for a long winter night.'] },
+    barks: { work: [`Another day as ${n.title.toLowerCase()}.`, 'Mind the ropes.', 'These hands know their work.'], free: ['Salt in the air.', 'The tide is turning.', 'A cup before the next boat.'] },
+    closed: 'The counter opens at nine. Come find me then.',
+    events: [2, 4, 7].map((hearts, i) => ({
+      hearts, title: `${first}: ${['A lantern kept', 'The first crossing', 'A place at the table'][i]}`,
+      pages: [n.bio, [`${first} sets a small lantern on the quay. “My family left this light burning for every returning boat.”`, `“On my first crossing I was certain the water would swallow us. Someone shared their coat and told me stories until morning.”`, `A spare cup waits beside ${first}'s own. “I set this out before I knew you were coming. I hoped.”`][i]!, ['“Will you help me keep it lit?”', '“What do you carry with you when you are afraid?”', '“Stay a little. The sea will still be there tomorrow.”'][i]!],
+      choices: [{ text: 'I will make time for this.', reply: 'Then let us start with a cup together.', pts: 20 }, { text: 'Tell me more.', reply: 'There is a long story behind that light. Walk with me.', pts: 10 }, { text: 'I should keep moving.', reply: 'Of course. Take a little light for the road.', pts: 0 }],
+    })),
+  };
+}
 
 export const VOICES: Readonly<Record<string, Voice>> = V;
 export const voiceOf = (npcId: string): Voice | undefined => V[npcId];

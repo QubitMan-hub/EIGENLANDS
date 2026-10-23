@@ -392,6 +392,9 @@ function stepPassive(e: Enemy, dt: number, tick: number, targets: Target[], soli
     if (d < best) { best = d; threat = p; }
   }
   e.t -= dt;
+  // Notice at a distance, flee only inside a comfort radius; remain wary until the pursuer is farther away.
+  if (threat && e.def.passive && best > (e.mode === 'chase' ? 6.5 : 3.5) && e.hp >= e.maxHp) threat = null;
+  if (!threat && e.mode === 'chase') { e.mode = 'idle'; e.t = 4 + rand() * 4; }
   // neutral wildlife never flees: it keeps an eye on anyone close and otherwise goes about its business
   if (threat && e.def.neutral) {
     const dx = threat.x - e.x, dy = threat.y - e.y, d = Math.hypot(dx, dy) || 1;
@@ -402,7 +405,7 @@ function stepPassive(e: Enemy, dt: number, tick: number, targets: Target[], soli
   if (threat) {
     // flee directly away, with a little zig-zag so they are huntable but not trivial
     const dx = e.x - threat.x, dy = e.y - threat.y, d = Math.hypot(dx, dy) || 1;
-    const jitter = Math.sin(tick * 0.6 + e.maxHp) * 0.5;
+    const jitter = Math.sin(tick * 0.045 + e.maxHp) * 0.12;
     const ux = dx / d, uy = dy / d;
     const vx = ux - uy * jitter, vy = uy + ux * jitter, vl = Math.hypot(vx, vy) || 1;
     moveBody(e, (vx / vl) * e.def.speed * dt, (vy / vl) * e.def.speed * dt, e.def.radius, solid);
@@ -410,11 +413,11 @@ function stepPassive(e: Enemy, dt: number, tick: number, targets: Target[], soli
     e.state.faceX = vx / vl; e.state.faceY = vy / vl;
   } else {
     if (e.t <= 0) {
-      if (e.mode !== 'wander') { const a = rand() * Math.PI * 2; e.wx = Math.cos(a); e.wy = Math.sin(a); e.mode = 'wander'; e.t = 0.8 + rand() * 1.6; }
-      else { e.mode = 'idle'; e.t = 1.5 + rand() * 3; }
+      if (e.mode !== 'wander') { const a = rand() * Math.PI * 2; e.wx = Math.cos(a); e.wy = Math.sin(a); e.mode = 'wander'; e.t = 0.7 + rand() * 1.1; }
+      else { e.mode = 'idle'; e.t = 4.5 + rand() * 5; }
     }
     if (e.mode === 'wander') {
-      moveBody(e, e.wx * e.def.speed * 0.25 * dt, e.wy * e.def.speed * 0.25 * dt, e.def.radius, solid);
+      moveBody(e, e.wx * e.def.speed * 0.18 * dt, e.wy * e.def.speed * 0.18 * dt, e.def.radius, solid);
       e.state.faceX = e.wx; e.state.faceY = e.wy;
     }
   }

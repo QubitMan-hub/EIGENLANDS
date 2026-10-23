@@ -2,7 +2,7 @@ import { hash2, mulberry32 } from './rng';
 import type { Stack } from './items';
 import type { WorldObj } from './objects';
 import { isSolid } from './tiles';
-import { townFor } from './town';
+import { townFor, townAt } from './town';
 import { HOME_VALE, biomeAt, sampleClimate, landmarkTileAt, type Biome } from './worldgen';
 
 /**
@@ -17,6 +17,7 @@ const CELL = 96;
 const cache = new Map<string, RuinSite | null>();
 
 function clearAround(seed: number, x: number, y: number): boolean {
+  if (townAt(seed, x, y)) return false;
   // the heart of the site must be dry, open ground; walls that would land on trees or rocks simply fell long ago
   for (let j = -1; j <= 2; j++) for (let i = -1; i <= 1; i++) if (isSolid(landmarkTileAt(seed, x + i, y + j))) return false;
   return sampleClimate(seed, x, y).height > -0.15;

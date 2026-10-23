@@ -143,6 +143,7 @@ for (const [id, name, v, g, a, b] of FORAGE) def(id, name, 'forage', v, g, a, b,
 const FISH: Array<[string, string, number, number, number]> = [
   ['minnow', 'Minnow', 12, C.w5, C.w7], ['carp', 'Carp', 30, C.e4, C.e6], ['perch', 'Perch', 36, C.g4, C.e6], ['trout', 'Trout', 54, C.r4, C.w6],
   ['catfish', 'Catfish', 70, C.steel, C.pale], ['pike', 'Pike', 90, C.g3, C.e7], ['eel', 'Eel', 110, C.q2, C.q5],
+  ['sailfin', 'Ocean Sailfin', 85, C.w3, C.e6], ['moonray', 'Moonray', 190, C.w3, C.pale], ['prism_nautilus', 'Prism Nautilus', 320, C.q3, C.q7],
   ['koi', 'Koi', 220, C.r4, C.white], ['glowfin', 'Glowfin', 180, C.q6, C.q7],
 ];
 for (const [id, name, v, a, b] of FISH) def(id, name, 'fish', v, 'fish', a, b, `A ${name.toLowerCase()} from the water.`, { heal: 6 });

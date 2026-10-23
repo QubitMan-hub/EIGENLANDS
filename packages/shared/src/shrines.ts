@@ -2,14 +2,14 @@ import { hash2 } from './rng';
 import { landmarkTileAt, sampleClimate } from './worldgen';
 import { isSolid } from './tiles';
 import type { WorldObj } from './objects';
-import { townFor } from './town';
+import { townFor, townAt } from './town';
 
 /**
  * Resonance Shrines, Zelda style: small ruins scattered across the wild, each a self-contained challenge. Placement is a
  * pure function of the seed (every client and server agrees, and nothing is stored). Solving one grants a Shrine
  * Shard; four shards make a Heart Crystal.
  */
-export type ShrineType = 'sequence' | 'gauntlet';
+export type ShrineType = 'sequence' | 'gauntlet' | 'balance' | 'trail';
 export interface Shrine {
   id: string;
   x: number; y: number;
@@ -26,6 +26,7 @@ const PILLARS: Array<[number, number]> = [[-3, 0], [0, -3], [3, 0], [0, 3]];
 const cache = new Map<string, Shrine | null>();
 
 function clear(seed: number, x: number, y: number): boolean {
+  if (townAt(seed, x, y)) return false;
   for (let j = -4; j <= 4; j++) for (let i = -4; i <= 4; i++) {
     const t = landmarkTileAt(seed, x + i, y + j);
     if (isSolid(t)) return false;
@@ -45,7 +46,7 @@ export function shrineOfRegion(seed: number, rx: number, ry: number): Shrine | n
     const y = ry * REGION * 32 + 16 + Math.floor(hash2(seed, rx, ry * 31 + k, 902) * (REGION * 32 - 32));
     if (Math.hypot(x, y) < SAFE || (x > t.x0 - 12 && x < t.x1 + 12 && y > t.y0 - 12 && y < t.y1 + 12)) continue;
     if (!clear(seed, x, y)) continue;
-    out = { id: `sh${rx}_${ry}`, x, y, type: hash2(seed, rx, ry, 903) < 0.5 ? 'sequence' : 'gauntlet', pillars: PILLARS };
+    out = { id: `sh${rx}_${ry}`, x, y, type: hash2(seed, rx, ry, 903) < 0.5 ? 'sequence' : (['gauntlet', 'balance', 'trail'] as const)[Math.floor(hash2(seed, rx, ry, 904) * 3)]!, pillars: PILLARS };
   }
   cache.set(key, out);
   return out;
@@ -83,4 +84,9 @@ export type ShrineEvent =
   | { kind: 'fail'; shrine: string }
   | { kind: 'barrier'; shrine: string; on: boolean; wave?: number; waves?: number }
   | { kind: 'solved'; shrine: string; text: string }
-  | { kind: 'state'; solved: string[] };
+  | { kind: 'state'; solved: string[] }
+  | { kind: 'balance'; shrine: string; mask: number }
+  | { kind: 'trail'; shrine: string; pattern: number[]; stage: number; seconds: number };
+
+/** Pressing a lantern toggles it and its clockwise neighbour. */
+export const toggleShrineLantern = (mask: number, idx: number): number => mask ^ (1 << idx) ^ (1 << ((idx + 1) % 4));

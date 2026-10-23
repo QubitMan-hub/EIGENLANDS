@@ -136,7 +136,7 @@ export class ShadowClient implements ClientModule {
   private openWindow(update: boolean): void {
     const el = this.buildWindow();
     if (update) this.d.wins.update('shadows', el);
-    else this.d.wins.show('shadows', 'Shadow Army', el, { wide: true });
+    else this.d.wins.show('shadows', 'Companions & Echoes', el, { wide: true });
   }
 
   private buildWindow(): HTMLElement {
@@ -165,7 +165,7 @@ export class ShadowClient implements ClientModule {
     const rename = () => { const n = window.prompt('Name this shadow', rec.name); if (n) this.send({ act: 'rename', id: rec.id, name: n }); };
     return h('div', { class: `sh-card${active ? ' active' : ''}` }, crest,
       h('div', {},
-        h('div', { class: 'sh-name', style: `--c:${col}` }, h('span', { text: rec.name, title: 'Click to rename', on: { click: rename } }), h('span', { class: 'sh-rank', text: `${SHADOW_RANKS[rank]} · Lv ${rec.level}` })),
+        h('div', { class: 'sh-name', style: `--c:${col}` }, h('span', { text: rec.name, title: 'Click to rename', on: { click: rename } }), h('span', { class: 'sh-rank', text: rec.contractUntil ? `Guild contract · ${Math.max(0, Math.ceil((rec.contractUntil - Date.now()) / 60000))} min` : `${SHADOW_RANKS[rank]} · Lv ${rec.level}` })),
         h('div', { class: 'sh-meta', text: `${def?.name ?? 'Creature'}${next ? ` · evolves at Lv ${next}` : ' · fully evolved'}` }),
         xp),
       h('div', { class: 'sh-btns' },

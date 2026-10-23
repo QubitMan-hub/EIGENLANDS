@@ -1,9 +1,10 @@
+import { oceanObjectsIn } from './ocean';
 import { CHUNK_SIZE } from './constants';
 import { generateChunk } from './worldgen';
 import { T, isSolid } from './tiles';
 import type { SolidQuery } from './sim';
 import { objSolid, type WorldObj } from './objects';
-import { townFor } from './town';
+import { townsFor } from './town';
 import { ruinObjectsIn } from './ruins';
 import { caveObjectsIn, isCaveY } from './caves';
 import { shrineObjectsIn } from './shrines';
@@ -112,7 +113,7 @@ export class ChunkStore {
   townObjectsIn(cx: number, cy: number): WorldObj[] {
     if (!this.townByChunk) {
       this.townByChunk = new Map();
-      for (const o of townFor(this.seed).objects) {
+      for (const o of townsFor(this.seed).flatMap(t => t.objects)) {
         const k = chunkKey(chunkOf(o.x), chunkOf(o.y));
         const list = this.townByChunk.get(k) ?? [];
         list.push({ x: o.x, y: o.y, kind: o.kind, sub: o.sub, static: true, ...(o.data ? { data: o.data } : {}) });
@@ -121,7 +122,7 @@ export class ChunkStore {
     }
     const town = this.townByChunk.get(chunkKey(cx, cy)) ?? [];
     const wild = isCaveY(cy * CHUNK_SIZE) ? caveObjectsIn(this.seed, cx, cy)
-      : [...shrineObjectsIn(this.seed, cx, cy), ...ruinObjectsIn(this.seed, cx, cy), ...caveObjectsIn(this.seed, cx, cy)];
+      : [...oceanObjectsIn(this.seed, cx, cy), ...shrineObjectsIn(this.seed, cx, cy), ...ruinObjectsIn(this.seed, cx, cy), ...caveObjectsIn(this.seed, cx, cy)];
     return wild.length ? [...town, ...wild] : town;
   }
 
