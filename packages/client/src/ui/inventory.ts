@@ -1,6 +1,7 @@
 import { HOTBAR, INV_SIZE, ITEMS, SET_BY_ID, WEAPONS, armorTotals, type EquipMsg, type EquipSlotKey, type Stack } from '@eigenlands/shared';
 import type { Profile } from '../game/profile';
 import { clear, h, iconCell, tooltipFor, type Tooltip } from './dom';
+import { equipmentPreview } from './equipment-preview';
 import { inventorySlots, type InventoryCategory, type InventorySort } from './inventory-query';
 
 export interface InvActions {
@@ -31,8 +32,36 @@ export function buildInventory(profile: Profile, tip: Tooltip, act: InvActions, 
     if (!st) { details.append(h('p', { class: 'small', text: 'Select an item to inspect it. Your quick-bar stays in slot order.' })); return; }
     const d = ITEMS[st.id]!;
     details.append(tooltipFor(st));
-    const equippable = ['weapon', 'armor', 'ring', 'outfit'].includes(d.kind);
-    if (equippable || d.heal || d.buff || d.kind === 'potion') details.append(h('button', { class: 'primary', text: equippable ? 'Equip item' : 'Use item', on: { click: () => quick(selected, st) } }));
+    let destination: EquipSlotKey | null = d.kind === 'ring' ? (!profile.equip.ring1 ? 'ring1' : !profile.equip.ring2 ? 'ring2' : 'ring1') : d.armor?.slot ?? (d.weapon ? 'weapon' : null);
+    const comparison = h('div', { class: 'inv-comparison' });
+    const compare = () => {
+      clear(comparison);
+      if (!destination) return;
+      const old = profile.equip[destination], after = equipmentPreview(profile, selected, destination);
+      comparison.append(h('p', { class: 'small dim', text: `If equipped · replaces ${old ? ITEMS[old.id]?.name ?? old.id : 'empty slot'}. Set bonuses included.` }));
+      const table = h('table');
+      table.append(h('caption', { text: 'Equipment comparison' }), h('thead', {}, h('tr', {}, ...['Stat', 'Now', 'After', 'Change'].map(text => h('th', { text })))));
+      const rows = h('tbody');
+      for (const [key, label] of [['hpBonus', 'HP bonus'], ['atkBonus', 'Attack bonus'], ['def', 'Defence'], ['phase', 'Phase'], ['luck', 'Luck'], ['haste', 'Haste']] as const) {
+        const before = profile.stats[key], value = after[key], delta = value - before;
+        if (Math.abs(delta) < .000001) continue;
+        const percent = key === 'def' || key === 'phase' || key === 'haste';
+        const format = (v: number) => `${Number((v * (percent ? 100 : 1)).toFixed(2))}${percent ? '%' : ''}`;
+        rows.append(h('tr', {}, h('th', { text: label }), h('td', { text: format(before) }), h('td', { text: format(value) }), h('td', { class: delta > 0 ? 'gain' : 'loss', text: `${delta > 0 ? '+' : '−'}${format(Math.abs(delta))}` })));
+      }
+      if (rows.childElementCount) { table.append(rows); comparison.append(table); }
+      else comparison.append(h('p', { class: 'small', text: 'No change to passive stats. Attacks and appearance may differ.' }));
+    };
+    if (d.kind === 'ring') {
+      const ring = h('select'); ring.setAttribute('aria-label', 'Replace ring slot');
+      for (const value of ['ring1', 'ring2'] as const) ring.append(h('option', { value, text: `Ring ${value === 'ring1' ? 1 : 2} · ${profile.equip[value] ? ITEMS[profile.equip[value]!.id]?.name : 'empty'}` }));
+      ring.value = destination!;
+      ring.addEventListener('change', () => { destination = ring.value as 'ring1' | 'ring2'; compare(); });
+      details.append(ring);
+    }
+    compare(); details.append(comparison);
+    const equippable = !!destination || d.kind === 'outfit';
+    if (equippable || d.heal || d.buff || d.kind === 'potion') details.append(h('button', { class: 'primary', text: equippable ? 'Equip item' : 'Use item', on: { click: () => destination ? act.equip(selected, destination) : quick(selected, st) } }));
     const empty = profile.inv.slice(0, HOTBAR).findIndex(s => !s);
     const held = h('button', { text: empty >= 0 ? 'Place in quick-bar' : 'Swap with quick-bar slot 1', on: { click: () => act.move(selected, empty >= 0 ? empty : 0) } });
     if (selected >= HOTBAR) details.append(held);

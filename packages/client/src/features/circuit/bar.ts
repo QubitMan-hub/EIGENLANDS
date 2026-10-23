@@ -5,6 +5,7 @@
  */
 import { ABILITIES, ACTIVE_LINES, CLASSES, RESOURCE_MAX, type AbilityId, type ClassId, type LinePreview } from '@eigenlands/shared';
 import { h } from './el';
+import { iconSvg } from '../../ui/icons';
 import { elementIcon, elHex, elName, hex } from './art';
 import { cdFraction, cdLabel } from './model';
 import { formName, orbName } from './text';
@@ -47,7 +48,8 @@ export class AbilityBar {
     row.append(this.ult.el);
     this.res.append(this.resName, h('span', { class: 'p3-res-bar' }, this.resFill), this.resText);
     this.root.append(this.res, row);
-    this.boardBtn = h('button', { id: 'btn-board', class: 'icon-btn small', text: '◈', title: 'Circuit Board (B)', on: { click: () => this.act.board() } });
+    this.boardBtn = h('button', { id: 'btn-board', class: 'gatebtn', title: 'Circuit Board (B)', on: { click: () => this.act.board() } });
+    this.boardBtn.innerHTML = iconSvg('bolt', 20);
     this.boardBtn.setAttribute('aria-label', 'Circuit Board (B)');
     const hud = document.getElementById('hud');
     (hud ?? document.body).append(this.root);

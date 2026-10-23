@@ -31,7 +31,7 @@ Keep warm windows and lanterns distinct from cool outdoor shadows. Quantum langu
 
 ## Mobile
 
-Use landscape on phones: safe-area-aware thumb controls, a horizontal HUD action row and scrollable windows/hotbar. Request fullscreen/orientation lock only from a user gesture. Browsers that decline it use physical device rotation. Portrait remains available through the rotation prompt. Clear held and queued touch input on focus, visibility or viewport changes. Landscape phones use a phone-specific zoom to keep sprites readable and bound terrain fill cost. Keep interaction prompts above abilities and mobile notifications below the health area; compact-screen chat starts collapsed unless the player saved another preference.
+Use landscape on phones: safe-area-aware thumb controls, a compact Journal/Menu action row and scrollable windows/hotbar. Request fullscreen/orientation lock only from a user gesture. Browsers that decline it use physical device rotation. Portrait remains available through the rotation prompt. Clear held and queued touch input on focus, visibility or viewport changes. Landscape phones use a phone-specific zoom to keep sprites readable and bound terrain fill cost. Keep interaction prompts above abilities and mobile notifications below the health area; idle chat starts collapsed unless the player saved another preference.
 
 ## Review and provenance
 
@@ -80,3 +80,5 @@ The player HUD uses bronze rules, muted ink-green recesses and parchment text. A
 ## Exploration chart
 
 Use the existing iso.ts projection for both terrain and marker coordinates; north follows its screen-space direction. The chart is cartographic ground art, not a second world renderer: each visited tile paints a small 2:1 diamond in a cached chunk image, with nearest-neighbour scaling. World sprites and simulation remain unchanged. Unknown terrain stays ink-dark. Never reveal procedural landmarks merely because their coordinates can be computed. Only discovered locations, server-synchronized nearby actors and player-authored waypoints are eligible. Keep friendly circles and hostile triangles distinct beyond colour. The atlas and minimap share one saved journal and marker rules, including current layer and solved shrine suppression. All artwork/icons remain original; no external pack was imported.
+
+HUD refinement: quests, farming tips and Circuit training guidance live in the Journal. The top-right time/day/town strip and Journal/Menu replace the dial orb and vertical dock. Keep temporary combat and contextual-use cues. Equipment comparisons use a plain legible table with signed changes and shared set bonuses, with an explicit ring replacement selector.

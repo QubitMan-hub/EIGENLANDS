@@ -25,12 +25,6 @@ const CSS = `
 .gift-note { padding: 6px 10px; border-radius: 6px; background: #1b1d36; } .gift-note.love { color: #ff8fb8; } .gift-note.like { color: #7bc95a; } .gift-note.hate { color: #f07a4a; }
 .dlg-hint { font-size: .72em; color: var(--mute); text-align: right; }
 
-#qtrack { position: fixed; right: 12px; top: 112px; width: min(260px, 40vw); display: grid; gap: 6px; pointer-events: none; z-index: 4; }
-#qtrack .qt { background: rgba(18,19,42,.78); border: 2px solid #3a3e5e; border-left: 4px solid var(--accent); border-radius: 6px; padding: 6px 8px; font-size: .78em; }
-#qtrack .qt.ready { border-left-color: #fcd45a; }
-#qtrack .qt b { color: #f4f4ff; display: block; } #qtrack .qt .o { color: #c9cce6; } #qtrack .qt .o.done { color: #7bc95a; text-decoration: line-through; }
-#qtrack .qt .w { color: var(--mute); font-style: italic; }
-@media (max-width: 640px) { #qtrack { top: 96px; width: 46vw; font-size: .9em; } }
 
 #npcfx { position: fixed; inset: 0; pointer-events: none; z-index: 3; overflow: hidden; }
 .npc-mark { position: absolute; transform: translate(-50%, -100%); font: bold 20px ui-monospace, monospace; text-shadow: 0 2px #000, 0 0 6px #000; animation: markbob 1.2s ease-in-out infinite; }

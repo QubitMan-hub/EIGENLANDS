@@ -126,6 +126,7 @@ await ready();
 
 // ── "Delete my data": wipes the save; the next visit starts over ──
 page.once('dialog', (d) => void d.accept());
+await page.click('#btn-menu');
 await page.click('#btn-settings');
 await sleep(200);
 await Promise.all([page.waitForNavigation({ timeout: 15000 }), page.click('#btn-delete')]);

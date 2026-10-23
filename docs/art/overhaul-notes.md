@@ -163,3 +163,9 @@ Browser evidence: `e2e/realms.mjs` passed against multiplayer and the solo build
 The final full regression and CI result belong in CONTINUE_HERE.md. An existing Wavefront damage test initially failed because it retried damaging misfires on the same target; its random slip source is now controlled for that damage assertion, and all 15 circuit-casting integration tests passed on recheck. Training-dummy infinite-poise diagnostics remain incumbent test output. No dependency, DB schema migration, new asset pack or paid service was introduced.
 
 The newly supplied definitive master request is preserved verbatim in `docs/design/master-request.md` with its full checklist in `docs/EIGENLANDS_MASTER_PLAN.md`. It substantially exceeds this slice: maps, survival, full building freedom, companion recruitment, kingdoms, guilds, realms and private friend-world hosting remain explicit work, not claims of completion.
+
+## Quiet HUD and inventory continuation (2026-10-23)
+
+Removed the persistent tutorial banner and quest tracker; their information lives in Journal. Kept nearby interaction prompts, villager markers and temporary combat warnings. Replaced the top-right clock orb and vertical dock with a compact travel strip, direct Journal and native dismissible Menu. Idle chat starts compact while honoring saved preferences; recent notification bursts are limited to two visible messages. Landscape spacing keeps chat and status clear of controls.
+
+Equipment detail now previews passive stat changes for armour, rings and Foci, including set thresholds, crafted ring values and explicit replacement-ring choice. The action equips the slot being compared. No invented DPS, new combat rules or third-party art. Desktop/landscape captures are in /tmp/eigenlands-quiet-hud and /tmp/eigenlands-ui-overhaul; these are local evidence, not portable art assets. Final validation/integration state is recorded in CONTINUE_HERE.md.
