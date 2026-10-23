@@ -24,6 +24,8 @@
 
 ## Execution evidence
 
-Model regressions first failed (missing changed-cell notifications and merge), then passed. Workspace tests passed 423/423, typechecks and both builds passed. Real Chromium solo and multiplayer checked 624 discovered pages with 512 resident pages, old-page reload without generation, fog, concurrent writers, legacy/recovery replay, transaction failure/retry, identity isolation and erasure. Landscape atlas regression and general solo persistence/takeover/deletion/fresh-start passed with no console problems. Final expanded browser confirmation and CI are tracked in CONTINUE_HERE.md.
+Model regressions first failed (missing changed-cell notifications and merge), then passed. Workspace tests passed 423/423, typechecks and both builds passed. Real Chromium solo and multiplayer checked 624 discovered pages with 512 resident pages, old-page reload without generation, fog, concurrent writers, legacy/recovery replay, transaction failure/retry, identity isolation and erasure. Landscape atlas regression and general solo persistence/takeover/deletion/fresh-start passed with no console problems. Final expanded browser confirmation passed solo and multiplayer, including unavailable IndexedDB and pending bounds; desktop/landscape multiplayer quest regression passed. CI/publication is blocked by network failures, as recorded in CONTINUE_HERE.md.
 
 Inline review: checked transaction ordering, write acknowledgements, asynchronous reads versus new observations, pending/cache bounds, deletion races, namespace ranges, map projection/culling and quiet mobile layout. Corrected replay of stale migrated snapshots, recovery acknowledgement cleanup and viewport scanning cost during implementation. No subagents used; push/merge authorization was already supplied by the user.
+
+Local implementation and review are complete at b7ac334; publication/CI/merge remain the only unfinished steps for this slice. No PR was created.
