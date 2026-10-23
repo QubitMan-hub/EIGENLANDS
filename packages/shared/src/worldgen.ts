@@ -1,4 +1,6 @@
 import { portElevation, portChannel } from './settlements';
+import { isUpperY } from './floors';
+import { sanctuaryTileAt } from './sanctuaries';
 import { spacedTree } from './distribution';
 import { CHUNK_SIZE } from './constants';
 import { hash2 } from './rng';
@@ -142,9 +144,11 @@ export function landmarkTileAt(seed: number, x: number, y: number): number { ret
 export function tileAt(seed: number, x: number, y: number): number { return surfaceTileAt(seed, x, y, false); }
 
 function surfaceTileAt(seed: number, x: number, y: number, legacy: boolean): number {
+  const sanctuary = sanctuaryTileAt(seed, x, y); if (sanctuary !== null) return sanctuary;
   if (isCaveY(y)) return caveTileAt(seed, x, y, legacy);
   const tt = townTileAt(seed, x, y);
   if (tt !== null) return tt;
+  if (isUpperY(y)) return T.CAVE_WALL;
   // Spawn shrine: path disc, four torches.
   const r0 = Math.hypot(x, y);
   if (Math.abs(x) === 3 && Math.abs(y) === 3) return T.TORCH;

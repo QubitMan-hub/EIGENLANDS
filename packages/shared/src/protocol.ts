@@ -74,7 +74,7 @@ export type FxKind = 'hit' | 'swing' | 'shot' | 'dash' | 'die' | 'levelup' | 'te
   | 'bomb'      // a volatile elite is about to burst (v = fuse s, w = radius)
   | 'crash'     // a charging brute hit a wall (id = enemy)
   | 'form'      // Shapeshifter strike form (v: 0 wolf, 1 bear)
-  | 'shadow';   // Shadow Army flourish (v: 0 extracted, 1 summoned, 2 evolved, 3 dismissed, 4 failed)
+  | 'shadow' | 'jump';   // jump: x/y origin, dx/dy landing, 650ms visual arc
 export interface FxMsg {
   kind: FxKind; x: number; y: number; v?: number; dx?: number; dy?: number; id?: string;
   /** hit weight: 0 light, 1 finisher, 2 heavy, 3 full heavy (hit-stop, shake, sound) */

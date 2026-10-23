@@ -262,7 +262,7 @@ function scarecrow(): ObjSpriteDef {
 
 
 
-const TOWN_DECO: Record<string, () => ObjSpriteDef> = { statue: TOWN_ART.statue!, scarecrow };
+const TOWN_DECO: Record<string, () => ObjSpriteDef> = { ...TOWN_ART, scarecrow };
 
 const objCache = new Map<string, ObjSpriteDef>();
 

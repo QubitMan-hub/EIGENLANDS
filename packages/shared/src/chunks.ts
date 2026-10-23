@@ -1,4 +1,5 @@
 import { oceanObjectsIn } from './ocean';
+import { sanctuaryObjectsIn, isDiveY } from './sanctuaries';
 import { CHUNK_SIZE } from './constants';
 import { generateChunk } from './worldgen';
 import { T, isSolid } from './tiles';
@@ -122,7 +123,8 @@ export class ChunkStore {
     }
     const town = this.townByChunk.get(chunkKey(cx, cy)) ?? [];
     const wild = isCaveY(cy * CHUNK_SIZE) ? caveObjectsIn(this.seed, cx, cy)
-      : [...oceanObjectsIn(this.seed, cx, cy), ...shrineObjectsIn(this.seed, cx, cy), ...ruinObjectsIn(this.seed, cx, cy), ...caveObjectsIn(this.seed, cx, cy)];
+      : isDiveY(cy * CHUNK_SIZE) ? sanctuaryObjectsIn(this.seed, cx, cy)
+      : [...sanctuaryObjectsIn(this.seed, cx, cy), ...oceanObjectsIn(this.seed, cx, cy), ...shrineObjectsIn(this.seed, cx, cy), ...ruinObjectsIn(this.seed, cx, cy), ...caveObjectsIn(this.seed, cx, cy)];
     return wild.length ? [...town, ...wild] : town;
   }
 

@@ -2,7 +2,7 @@
  * Resonance Shrines: a Simon-says Resonance puzzle (watch the pillars light up, strike them in order) and a three-wave
  * Gauntlet. Solving one pays a Shrine Shard, coins and XP, once per character. Placement lives in shared/shrines.ts.
  */
-import { MSG34, SHRINE_REACH, shrineOfRegion, toggleShrineLantern, type Stack, type Shrine, type ShrineEvent, type WorldObj } from '@eigenlands/shared';
+import { MSG34, SHRINE_REACH, shrineOfId, trapSafe, toggleShrineLantern, type Stack, type Shrine, type ShrineEvent, type WorldObj } from '@eigenlands/shared';
 import type { EnemyKind } from '../../game/enemies';
 import type { GameRoom } from '../../rooms/GameRoom';
 import type { ServerPlayer } from '../../rooms/player';
@@ -23,6 +23,9 @@ interface Session {
   mask: number;
   ready: boolean;
   gift?: Stack[];
+  hopUntil?: number;
+  landing?: { x: number; y: number };
+  hitUntil?: number;
 }
 
 const STEP_MS = 650;
@@ -37,8 +40,7 @@ export class ShrineModule implements Module {
   install(_reg: Registrar): void { /* driven by OPEN on the static objects */ }
 
   private shrineById(id: string): Shrine | null {
-    const m = /^sh(-?\d+)_(-?\d+)$/.exec(id);
-    return m ? shrineOfRegion(this.room.seed, Number(m[1]), Number(m[2])) : null;
+    return shrineOfId(this.room.seed, id);
   }
 
   private send(p: ServerPlayer, ev: ShrineEvent): void { p.client.send(MSG34.SHRINE_EV, ev); }
@@ -77,11 +79,12 @@ export class ShrineModule implements Module {
       if (s.mask === 15) s.mask = toggleShrineLantern(s.mask, 0);
       p.toast('Light all four lanterns. Each pillar toggles itself and its clockwise neighbour. Touch the pillars to experiment.', 'info');
       this.send(p, { kind: 'balance', shrine: sh.id, mask: s.mask });
-    } else if (sh.type === 'trail') {
+    } else if (sh.type === 'trail' || sh.type === 'traps' || sh.type === 'platform') {
       s.pattern = [0, 1, 2, 3];
       for (let i = 3; i > 0; i--) { const j = Math.floor(this.room.rand() * (i + 1)); [s.pattern[i], s.pattern[j]] = [s.pattern[j]!, s.pattern[i]!]; }
+      if (sh.type === 'platform') { s.pattern = [3, 0, 1, 2, 3]; this.jump(p, s, 3); }
       s.until = this.t + 60;
-      p.toast('Rune trail: walk or dash onto each glowing seal in order. You have one minute.', 'info');
+      p.toast(sh.type === 'platform' ? 'Phase platforms: stand on a pad and press E to jump when the NEXT pad is green. Complete the circuit.' : sh.type === 'traps' ? 'Tide traps: visit the seals in order during their green safe phase. Red spikes hurt; three mistakes end the trial.' : 'Rune trail: walk or dash onto each glowing seal in order. You have one minute.', 'info');
       this.send(p, { kind: 'trail', shrine: sh.id, pattern: s.pattern, stage: 0, seconds: 60 });
     } else {
       p.toast('Stone seals around you. Survive three waves.', 'info');
@@ -92,6 +95,17 @@ export class ShrineModule implements Module {
 
   private touchPillar(p: ServerPlayer, sh: Shrine, idx: number): void {
     const s = this.sessions.get(sh.id);
+    if (s?.player === p.id && sh.type === 'platform') {
+      if (s.ready || (s.hopUntil ?? 0) > this.t || idx !== s.pattern[s.stage]) return;
+      const point = sh.pillars[idx];
+      if (!point || Math.hypot(p.sim.x - sh.x - point[0] - .5, p.sim.y - sh.y - point[1] - .5) > 1.2) return;
+      const next = s.pattern[s.stage + 1]; if (next === undefined) return;
+      if (!trapSafe(this.room.wclock.now(), next)) { this.trapHit(p, s); return; }
+      s.stage++; this.jump(p, s, next);
+      this.send(p, { kind: 'trail', shrine: sh.id, pattern: s.pattern, stage: s.stage, seconds: Math.max(0, Math.ceil(s.until - this.t)) });
+      if (s.stage === s.pattern.length - 1) this.solve(p, s);
+      return;
+    }
     if (!s || s.player !== p.id || (sh.type !== 'sequence' && sh.type !== 'balance')) { p.toast('The pillar is cold. Wake the altar first.'); return; }
     if (!Number.isInteger(idx) || idx < 0 || idx > 3) return;
     if (s.ready) { p.toast('Return to the altar to claim your gift.'); return; }
@@ -133,10 +147,12 @@ export class ShrineModule implements Module {
     for (const [id, s] of [...this.sessions]) {
       const p = this.room.players.get(s.player);
       if (!p || p.deadT > 0 || this.t > s.until || Math.hypot(s.shrine.x - p.sim.x, s.shrine.y - p.sim.y) > 22) { this.abort(id, s, p); continue; }
+      if ((s.hopUntil ?? 0) > this.t && s.landing) { p.sim.x = s.landing.x; p.sim.y = s.landing.y; p.queue.length = 0; continue; }
       if (s.ready) continue;
-      if (s.shrine.type === 'trail') {
+      if (s.shrine.type === 'trail' || s.shrine.type === 'traps') {
         const idx = s.pattern[s.stage], point = idx === undefined ? null : s.shrine.pillars[idx];
         if (point && Math.hypot(p.sim.x - s.shrine.x - point[0] - 0.5, p.sim.y - s.shrine.y - point[1] - 0.5) < 1) {
+          if (s.shrine.type === 'traps' && !trapSafe(this.room.wclock.now(), idx!)) { this.trapHit(p, s); continue; }
           this.send(p, { kind: 'hit', shrine: id, idx: idx!, ok: true });
           s.stage++;
           if (s.stage >= s.pattern.length) this.solve(p, s);
@@ -152,6 +168,24 @@ export class ShrineModule implements Module {
         }
       }
     }
+  }
+
+  private jump(p: ServerPlayer, s: Session, idx: number): void {
+    const [dx, dy] = s.shrine.pillars[idx]!;
+    const to = { x: s.shrine.x + dx + .5, y: s.shrine.y + dy + .5 };
+    if (this.room.store.solidAt(Math.floor(to.x), Math.floor(to.y))) return;
+    this.room.fx({ kind: 'jump', id: p.id, x: p.sim.x, y: p.sim.y, dx: to.x, dy: to.y });
+    p.sim.x = to.x; p.sim.y = to.y; p.sim.dashT = 0; p.queue.length = 0;
+    s.landing = to; s.hopUntil = this.t + .65;
+  }
+
+  private trapHit(p: ServerPlayer, s: Session): void {
+    if ((s.hitUntil ?? 0) > this.t) return;
+    s.hitUntil = this.t + 1; s.fails++;
+    p.hp = Math.max(1, p.hp - Math.max(3, Math.round(p.maxHp * .12)));
+    this.room.fx({ kind: 'hurt', id: p.id, x: p.sim.x, y: p.sim.y });
+    p.toast('The spikes surge! Wait for the green phase.', 'bad');
+    if (s.fails >= 3) this.abort(s.shrine.id, s, p);
   }
 
   private abort(id: string, s: Session, p?: ServerPlayer): void {

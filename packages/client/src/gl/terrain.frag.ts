@@ -1,4 +1,4 @@
-import { CAVE_OY, PALETTE } from '@eigenlands/shared';
+import { CAVE_OY, DIVE_OY, UPPER_OY, PALETTE } from '@eigenlands/shared';
 
 const pal = PALETTE.map((h) => {
   const n = parseInt(h.slice(1), 16);
@@ -580,7 +580,8 @@ void main() {
   float hHit = 0.0;
   int face = 0;      // 0 top, 1 left (+y) side, 2 right (+x) side
   int dPx = 0;
-  float zTop = uWin.y > ${CAVE_ROW}.0 ? ${GROUND_Z.caveWall}.0 : 0.0;
+  bool enclosed = uWin.y > ${CAVE_ROW}.0 || abs(uWin.y - ${UPPER_OY}.0) < 1000.0 || abs(uWin.y - ${DIVE_OY}.0) < 4000.0;
+  float zTop = enclosed ? ${GROUND_Z.caveWall}.0 : 0.0;
   for (int k = 0; k < STEPS; k++) {
     float z = zTop - float(k);
     vec2 tf = isoToTile(vec2(iso.x, iso.y + z));

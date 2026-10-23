@@ -3,13 +3,14 @@ import { landmarkTileAt, sampleClimate } from './worldgen';
 import { isSolid } from './tiles';
 import type { WorldObj } from './objects';
 import { townFor, townAt } from './town';
+import { oceanShrine, isDiveY, DIVE_OY } from './sanctuaries';
 
 /**
  * Resonance Shrines, Zelda style: small ruins scattered across the wild, each a self-contained challenge. Placement is a
  * pure function of the seed (every client and server agrees, and nothing is stored). Solving one grants a Shrine
  * Shard; four shards make a Heart Crystal.
  */
-export type ShrineType = 'sequence' | 'gauntlet' | 'balance' | 'trail';
+export type ShrineType = 'sequence' | 'gauntlet' | 'balance' | 'trail' | 'traps' | 'platform';
 export interface Shrine {
   id: string;
   x: number; y: number;
@@ -55,6 +56,12 @@ export function shrineOfRegion(seed: number, rx: number, ry: number): Shrine | n
 /** Every shrine within `r` tiles of (x, y). */
 export function shrinesNear(seed: number, x: number, y: number, r: number): Shrine[] {
   const out: Shrine[] = [];
+  if (isDiveY(y)) {
+    for (let gy = Math.floor((y - DIVE_OY - r) / 192); gy <= Math.floor((y - DIVE_OY + r) / 192); gy++) for (let gx = Math.floor((x - r) / 192); gx <= Math.floor((x + r) / 192); gx++) {
+      const sh = oceanShrine(seed, gx, gy); if (sh && Math.hypot(sh.x - x, sh.y - y) <= r) out.push(sh);
+    }
+    return out;
+  }
   const span = REGION * 32;
   for (let ry = Math.floor((y - r) / span); ry <= Math.floor((y + r) / span); ry++) {
     for (let rx = Math.floor((x - r) / span); rx <= Math.floor((x + r) / span); rx++) {
@@ -87,6 +94,11 @@ export type ShrineEvent =
   | { kind: 'state'; solved: string[] }
   | { kind: 'balance'; shrine: string; mask: number }
   | { kind: 'trail'; shrine: string; pattern: number[]; stage: number; seconds: number };
+
+export function shrineOfId(seed: number, id: string): Shrine | null {
+  const m = /^(sh|os)(-?\d+)_(-?\d+)$/.exec(id);
+  return m ? m[1] === 'os' ? oceanShrine(seed, Number(m[2]), Number(m[3])) : shrineOfRegion(seed, Number(m[2]), Number(m[3])) : null;
+}
 
 /** Pressing a lantern toggles it and its clockwise neighbour. */
 export const toggleShrineLantern = (mask: number, idx: number): number => mask ^ (1 << idx) ^ (1 << ((idx + 1) % 4));

@@ -12,6 +12,8 @@ const WATER_TILES: number[] = [T.WATER, T.DEEP_WATER];
 export function describeUse(sel: Stack | null, tile: number, obj: WorldObj | undefined, season: number): UseInfo | null {
   const def = sel ? ITEMS[sel.id] : undefined;
   if (obj) {
+    if (obj.sub === 'stairs_up' || obj.sub === 'stairs_down') return { kind: 'open', label: obj.sub === 'stairs_up' ? 'Climb to upper floor' : 'Return downstairs', ok: true };
+    if (obj.sub === 'dive_gate' || obj.sub === 'dive_exit') return { kind: 'open', label: obj.sub === 'dive_gate' ? 'Dive into the submerged sanctuary' : 'Return to your sloop', ok: true };
     if (obj.kind === 'crop') {
       const d = obj.data as unknown as CropData | undefined;
       if (d && isRipe(d)) return { kind: 'harvest', label: `Harvest ${CROPS[d.crop]?.name ?? 'crop'}${d.alt ? ' (collapses to one!)' : ''}`, ok: true };

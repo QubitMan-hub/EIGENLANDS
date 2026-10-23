@@ -1,4 +1,5 @@
 import { extraTowns } from './settlements';
+import { upperTowns, isUpperY } from './floors';
 import { hash2 } from './rng';
 import { T } from './tiles';
 import { sampleClimate } from './worldgen';
@@ -311,7 +312,7 @@ export function furnish(b: Building, rawObj: ObjAdd, spot: SpotAdd): void {
 const allCache = new Map<number, Town[]>();
 export function townsFor(seed: number): Town[] {
   let towns = allCache.get(seed);
-  if (!towns) { towns = [townFor(seed), ...extraTowns(seed)]; if (allCache.size > 8) allCache.clear(); allCache.set(seed, towns); }
+  if (!towns) { const base = [townFor(seed), ...extraTowns(seed)]; towns = [...base, ...upperTowns(base)]; if (allCache.size > 8) allCache.clear(); allCache.set(seed, towns); }
   return towns;
 }
 
@@ -319,7 +320,7 @@ export function townAt(seed: number, x: number, y: number): Town | null {
   if (Math.abs(x) <= 120 && Math.abs(y) <= 120) {
     const t = townFor(seed); return x >= t.x0 && x <= t.x1 && y >= t.y0 && y <= t.y1 ? t : null;
   }
-  if (Math.abs(x) > 650 || Math.abs(y) > 650) return null;
+  if (Math.abs(x) > 650 || (Math.abs(y) > 650 && !isUpperY(y))) return null;
   return townsFor(seed).find(t => x >= t.x0 && x <= t.x1 && y >= t.y0 && y <= t.y1) ?? null;
 }
 /** Town tile override at (x,y), or null outside a settlement's authored footprint. */
