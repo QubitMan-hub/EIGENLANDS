@@ -13,8 +13,16 @@
 .atlas-waypoints button { min-height:44px; }
 .atlas-note { color:#b3c1af; font-size:12px; margin:0; }
 .atlas-position { font-variant-numeric:tabular-nums; }
+.atlas-directories { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; gap:8px; }
+.atlas-directory { min-width:0; border:1px solid #786646; }
+.atlas-directory summary { padding:12px; min-height:44px; cursor:pointer; color:#f1e4c7; }
+.atlas-destinations { display:grid; gap:10px; padding:0 12px 12px; max-height:240px; overflow:auto; }
+.atlas-destination { display:grid; gap:4px; min-width:0; }
+.atlas-destination button { text-align:left; white-space:normal; overflow-wrap:anywhere; min-height:44px; }
+@media (max-width:600px) { .atlas-directories { grid-template-columns:1fr; } }
 .hc #atlas-mini,.hc .atlas-canvas { background:#000; border-color:#fff; }
 @media (pointer:coarse) and (orientation:landscape) and (max-height:600px) {
+ .atlas-directories { grid-template-columns:1fr; }
  #atlas-mini { top:62px; right:172px; padding:3px; font-size:10px; }
  #atlas-mini canvas { width:88px !important; height:88px !important; }
  .atlas-canvas { height:220px; }

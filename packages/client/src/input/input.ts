@@ -77,7 +77,7 @@ export class Input {
     const tag = (e.target as HTMLElement | null)?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
     if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', 'Space'].includes(e.code) && (e.target as HTMLElement).matches?.('[tabindex="0"][role="region"]')) return;
-    if (tag === 'BUTTON' && ['Space', 'Enter'].includes(e.code) && (e.target as HTMLElement).closest?.('[role="dialog"], #hud-menu, #hud-actions')) return;
+    if ((tag === 'BUTTON' || tag === 'SUMMARY') && ['Space', 'Enter'].includes(e.code) && (e.target as HTMLElement).closest?.('[role="dialog"], #hud-menu, #hud-actions')) return;
     this.firstGesture?.();
     if (e.repeat) { if (this.isBound(e.code)) e.preventDefault(); return; }
     this.down.add(e.code);
