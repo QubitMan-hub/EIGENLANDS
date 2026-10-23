@@ -10,6 +10,7 @@ const X = 300, Y = 300;
 beforeAll(async () => {
   app = await boot();
   p = await spawn(app, 'Smith');
+  p.room.rand = () => 0.99; // exact-cost fixtures exclude the random ingredient-saving bonus
   setDay(p.room, 1, 12);
   await tp(p, X + 0.5, Y + 0.5);
   flatten(p.room, X, Y, 8);
@@ -46,6 +47,17 @@ describe('stations and recipes', () => {
     expect(count(p, 'plank')).toBe(3);
     expect(hasToast(p, /right station/i, from2)).toBe(true);
     await tp(p, X + 0.5, Y + 0.5);
+  });
+
+  it('the skill bonus saves one ingredient without changing the crafted output', async () => {
+    await give(p, 'wood', 2);
+    const wood = count(p, 'wood'), fences = count(p, 'fence'), roll = p.room.rand;
+    p.room.rand = () => 0;
+    try {
+      await craft('hand', 'fence');
+      expect(count(p, 'wood')).toBe(wood - 1);
+      expect(count(p, 'fence')).toBe(fences + 4);
+    } finally { p.room.rand = roll; }
   });
 
   it('unknown recipes are refused until discovered by experimenting; failed experiments cost nothing', async () => {
