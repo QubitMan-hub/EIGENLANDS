@@ -14,8 +14,8 @@ Review focus: negative coordinates and plane isolation; malformed/quota-limited 
 - [x] Write failing key migration tests, then bind map M and voice N for defaults while retaining explicit/custom bindings; display actual remapped labels.
 - [x] Implement the atlas/minimap on existing P34Client hooks, discovered location and nearby actor filters, saved waypoints, accessible zoom/pan/center controls, preferences and keyboard navigation.
 - [x] Run focused tests/typecheck/builds; inspect desktop/mobile in one batch, consolidate fixes, confirm once. Exercise solo reload, no generation on map pan, plane changes and multiplayer markers.
-- [ ] Update master/design/continuation documentation, self-review, run relevant regression checks, push and merge after CI (already authorized).
+- [x] Update master/design/continuation documentation, self-review, run relevant regression checks, push and merge after CI (already authorized).
 
 Not this slice: kingdom territories, unimplemented named realms, undisclosed quest coordinates, cross-device exploration synchronization or all remaining master features.
 
-Evidence: 405 workspace tests passed; both build variants and typechecking passed. Desktop/landscape map and solo/mobile regression checks passed; two real multiplayer clients exercised charted/unexplored player markers, and a quota failure retained the live chart. Final integration requires PR CI. See CONTINUE_HERE.md for remaining scope and storage limits.
+Evidence: 405 workspace tests passed; both build variants and typechecking passed. Desktop/landscape map and solo/mobile regression checks passed; two real multiplayer clients exercised charted/unexplored player markers, and a quota failure retained the live chart. PR #6 merged to main at 55fd0af after both CI runs passed. See CONTINUE_HERE.md for remaining scope and storage limits.
