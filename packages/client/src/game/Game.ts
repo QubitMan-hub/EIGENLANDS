@@ -1,6 +1,6 @@
 import { Application, Container, Graphics, Sprite, Text } from 'pixi.js';
 import {
-  CAVE_OY, isCaveY, isDiveY, isUpperY, DIVE_OY, UPPER_OY, MSG,
+  BOSSES, xpForLevel, CAVE_OY, isCaveY, isDiveY, isUpperY, DIVE_OY, UPPER_OY, MSG,
   ChunkStore, ELITE_NAMES, ENEMY_BY_KIND, INTEREST_RADIUS, NPC_BY_ID, TILE_DEFS, TILE_SIZE, ambientColor, SEASONS, chunkOf,
   darkness, decodeDiff, dayNumber, formatClock, gameHour, season, PALETTE, townFor, townsFor, weatherForDay, biomeWeather, biomeAt, type Ack, type ChunkMsg,
   type DialogueMsg, type FishBiteMsg, type FxMsg, type ObjMsg, type PanelMsg, type ProfileMsg, type RhythmResultMsg, type RhythmStartMsg,
@@ -173,6 +173,13 @@ export class Game {
       player: () => (this.predictor ? { x: this.predictor.sim.x, y: this.predictor.sim.y, fx: this.predictor.sim.faceX, fy: this.predictor.sim.faceY } : { x: 0, y: 0, fx: 0, fy: 1 }),
       sfx: (s) => this.sound(s), features: () => this.features,
       guidance: () => this.ext?.circuit.hint() ?? null,
+      journey: () => {
+        const p = this.ext?.circuit.progress;
+        return p?.loaded ? { level:this.self?.level ?? 1, xp:this.selfXp, cls:p.cls, spec:p.spec, second:p.second, qubits:p.qubits,
+          gates:Object.values(p.gates).reduce((a,b)=>a+b,0), runes:p.runes,
+          summons:Object.fromEntries(Object.values(BOSSES).map(b=>[b.item,this.gameplay.profile.count(b.item)])) } : null;
+      },
+      openBoard: () => { this.ext.circuit.action('board'); },
       seed: () => this.seed, reduced: () => this.settings().reducedMotion,
       npcScreens: () => [...this.views.values()].filter((v) => v.type === 'npc').map((v) => ({ id: v.id, x: v.lx, y: v.ly, sx: this.world.x + v.root.x * this.scale, sy: this.world.y + (v.root.y - 32) * this.scale, visible: v.root.visible })),
     });
@@ -664,12 +671,13 @@ export class Game {
     }
     const p = smp.pose;
     const def = v.type === 'enemy' ? ENEMY_BY_KIND[p.kind] : null;
+    if (def?.boss) { this.targetFrame.update(null); return; } // The encounter bar owns boss information.
     const tags = v.type === 'enemy'
-      ? [def?.passive ? 'Passive' : 'Hostile', ...Object.entries(ELITE_NAMES).filter(([bit]) => (p.elite & Number(bit)) !== 0).map(([, n]) => n), ...(p.night ? ['Night'] : [])]
+      ? [def?.passive ? 'Passive' : def?.neutral ? 'Neutral' : 'Hostile', ...Object.entries(ELITE_NAMES).filter(([bit]) => (p.elite & Number(bit)) !== 0).map(([, n]) => n), ...(p.night ? ['Night'] : []), ...(p.st === 2 ? ['Preparing strike'] : p.st === 5 ? ['Staggered'] : p.st === 4 ? ['Recovering'] : [])]
       : ['Ally'];
     this.targetFrame.update({
-      name: v.type === 'enemy' ? def?.name ?? 'Creature' : p.name || 'Player', level: v.type === 'enemy' ? Math.max(1, Math.round((def?.hp ?? 10) / 10)) : p.level,
-      hp: p.hp, maxHp: p.maxHp, kind: v.type, tags, poise: def?.armor ? p.poise : null, dist: Math.hypot(smp.x - me.x, smp.y - me.y),
+      id: v.id, name: v.type === 'enemy' ? def?.name ?? 'Creature' : p.name || 'Player', level: v.type === 'enemy' ? null : p.level,
+      hp: p.hp, maxHp: p.maxHp, kind: v.type, tags, poise: def?.poise ? p.poise : null, dist: Math.hypot(smp.x - me.x, smp.y - me.y),
     });
   }
 
@@ -951,8 +959,8 @@ export class Game {
       orb.classList.toggle('low', pct < 30);
       const health = `${s.hp} / ${s.maxHp}`;
       if (orb.dataset.v !== health) { orb.dataset.v = health; orb.textContent = health; orb.setAttribute('aria-valuenow', String(s.hp)); orb.setAttribute('aria-valuemax', String(s.maxHp)); }
-      $('xp-orb').style.width = `${Math.min(100, (this.selfXp / (30 + 20 * (s.level - 1))) * 100)}%`;
-      const need = 30 + 20 * (s.level - 1);
+      $('xp-orb').style.width = `${Math.min(100, (this.selfXp / xpForLevel(s.level)) * 100)}%`;
+      const need = xpForLevel(s.level);
       $('xp-fill').style.width = `${Math.min(100, (this.selfXp / need) * 100)}%`;
     }
     const sn = this.clock.serverNow(now);

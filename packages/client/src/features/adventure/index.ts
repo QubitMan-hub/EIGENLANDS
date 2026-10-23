@@ -1,28 +1,16 @@
 import { Graphics } from 'pixi.js';
 import {
-  BOSSES, BOSS_BY_KIND, ENEMY_BY_KIND, MSG34, SHRINE_REACH, shrinesNear, trapSafe,
+  BOSSES, BOSS_BY_KIND, MSG34, SHRINE_REACH, shrinesNear, trapSafe,
   type BossEvent, type SeaEvent, type Shrine, type ShrineEvent,
 } from '@eigenlands/shared';
 import { keyLabel } from '../../input/keymap';
 import { isoX, isoY } from '../../game/iso';
 import { h } from '../../ui/dom';
+import { HealthMeter } from '../../ui/healthmeter';
+import { selectBoss, bossPhase, type Encounter } from '../../ui/encounter-model';
 import type { ClientModule, P34Deps } from '../types';
 
-const CSS = `
-#boss-bar{position:fixed;top:56px;left:50%;transform:translateX(-50%);width:min(520px,80vw);z-index:29;pointer-events:none;text-align:center;
-  font:700 14px system-ui,sans-serif;color:#f4e8ff;text-shadow:0 1px 0 #000,0 0 8px #7a3ad0;opacity:0;transition:opacity .25s}
-#boss-bar.on{opacity:1}
-#boss-bar .bb-track{position:relative;height:16px;margin-top:4px;background:#0b0c1acc;border:2px solid #a46aff;border-radius:4px;overflow:hidden}
-#boss-bar .bb-ghost,#boss-bar .bb-fill{position:absolute;left:0;top:0;bottom:0}
-#boss-bar .bb-ghost{background:#fff;opacity:.75;transition:width .6s ease .3s}
-#boss-bar .bb-fill{background:linear-gradient(#ff7a9a,#b02050);transition:width .15s}
-#boss-bar .bb-tick{position:absolute;top:0;bottom:0;width:2px;background:#000a}
-#boss-bar .bb-sub{font-size:11px;font-weight:500;opacity:.8;margin-top:2px}
-#adv-banner{position:fixed;top:24%;left:50%;transform:translateX(-50%);z-index:40;pointer-events:none;text-align:center;font:700 28px/1.2 'Silkscreen',system-ui,sans-serif;color:#fff;
-  text-shadow:0 2px 0 #000,0 0 18px #a46aff;opacity:0;transition:opacity .4s;letter-spacing:2px;padding:0 16px}
-#adv-banner small{display:block;font:500 14px system-ui,sans-serif;letter-spacing:0;margin-top:6px;color:#e8dcff}
-#adv-banner.on{opacity:1}
-`;
+
 
 const PILLAR_COLORS = [0x5af0d0, 0xff7ad0, 0xffd36a, 0x7ab4ff];
 
@@ -33,12 +21,15 @@ export class AdventureClient implements ClientModule {
   private bar: HTMLElement;
   private name: HTMLElement;
   private sub: HTMLElement;
-  private fill: HTMLElement;
-  private ghost: HTMLElement;
+  private health = new HealthMeter();
+  private phase = h('span', { class: 'bb-phase' });
+  private tickIdentity = '';
   private ticks: HTMLElement;
   private banner: HTMLElement;
-  private bannerT = 0;
-  private boss: { id: string; kind: number; hp: number; maxHp: number; x: number; y: number } | null = null;
+  private bannerUntil = 0;
+  private announcement: {kind:number;text:string;until:number} | null = null;
+  private boss: Encounter | null = null;
+  private bosses: Encounter[] = [];
   private solved = new Set<string>();
   private lanterns = new Map<string, number>();
   private trails = new Map<string, { pattern: number[]; stage: number; until: number }>();
@@ -52,16 +43,15 @@ export class AdventureClient implements ClientModule {
   private compassAt = -1e9;
   
   constructor(private d: P34Deps) {
-    const style = document.createElement('style');
-    style.textContent = CSS;
-    document.head.append(style);
     this.name = h('div', { class: 'bb-name' });
     this.sub = h('div', { class: 'bb-sub' });
-    this.fill = h('div', { class: 'bb-fill' });
-    this.ghost = h('div', { class: 'bb-ghost' });
-    this.ticks = h('div', {});
-    this.bar = h('div', { id: 'boss-bar' }, this.name, h('div', { class: 'bb-track' }, this.ghost, this.fill, this.ticks), this.sub);
+    this.ticks = h('div', { class: 'bb-ticks' });
+    this.health.root.append(this.ticks);
+    this.bar = h('div', { id: 'boss-bar' }, h('div', { class: 'bb-head' }, this.name, this.phase), this.health.root, this.sub);
+    this.bar.hidden = true;
     this.banner = h('div', { id: 'adv-banner' });
+    this.banner.hidden = true; this.banner.setAttribute('role', 'status');
+    this.sub.setAttribute('aria-live', 'polite');
     document.body.append(this.bar, this.banner);
     this.gfx.zIndex = 9e8;
     this.d.fxLayer().addChild(this.gfx);
@@ -87,25 +77,23 @@ export class AdventureClient implements ClientModule {
   private say(title: string, sub: string, ms = 3600): void {
     this.banner.innerHTML = '';
     this.banner.append(title, h('small', { text: sub }));
-    this.banner.classList.add('on');
-    window.clearTimeout(this.bannerT);
-    this.bannerT = window.setTimeout(() => this.banner.classList.remove('on'), ms);
+    this.bannerUntil = performance.now() + ms;
   }
 
   private onBoss(m: BossEvent): void {
     this.d.sfx('die');
-    if (m.kind === 'start') { this.say(m.name.toUpperCase(), m.intro); this.d.fx().shake = Math.max(this.d.fx().shake, 1.2); }
-    else if (m.kind === 'phase') { this.say(BOSSES[m.boss].name, m.text, 2600); this.d.sfx('heavy'); }
-    else { this.say('VICTORY', m.first ? `${m.name} falls. First victory!` : `${m.name} falls.`, 4200); this.d.sfx('levelup'); }
+    if (m.kind === 'start' || m.kind === 'phase') {
+      this.announcement = {kind:BOSSES[m.boss].kind, text:m.kind === 'start' ? m.intro : m.text, until:performance.now()+3600};
+      if (m.kind === 'start' && !this.d.settings().reducedMotion) this.d.fx().shake = Math.max(this.d.fx().shake, 1.2);
+      if (m.kind === 'phase') this.d.sfx('heavy');
+    } else { this.say('VICTORY', m.first ? `${m.name} falls. First victory!` : `${m.name} falls.`, 4200); this.d.sfx('levelup'); }
   }
 
   onState(s: any): void {
-    let best: AdventureClient['boss'] = null;
-    s?.enemies?.forEach?.((e: { kind: number; hp: number; maxHp: number; x: number; y: number }, id: string) => {
-      if (!ENEMY_BY_KIND[e.kind]?.boss || e.hp <= 0) return;
-      if (!best || e.maxHp > best.maxHp) best = { id, kind: e.kind, hp: e.hp, maxHp: e.maxHp, x: e.x, y: e.y };
+    this.bosses = [];
+    s?.enemies?.forEach?.((e: Omit<Encounter, 'id'>, id: string) => {
+      if (BOSS_BY_KIND[e.kind]) this.bosses.push({id, kind:e.kind, hp:e.hp, maxHp:e.maxHp, x:e.x, y:e.y});
     });
-    this.boss = best;
   }
 
   // ───────────────────────── shrines ─────────────────────────
@@ -143,16 +131,21 @@ export class AdventureClient implements ClientModule {
   frame(now: number): void {
     const me = this.d.me();
     // boss bar
-    const b = this.boss && me && Math.hypot(this.boss.x - me.x, this.boss.y - me.y) < 40 ? this.boss : null;
-    this.bar.classList.toggle('on', !!b);
+    const b = this.boss = selectBoss(this.bosses, me, this.d.target()?.id ?? null);
+    this.bar.hidden = !b || this.d.dead();
+    this.banner.hidden = now >= this.bannerUntil || !!b || this.d.dead();
     if (b) {
       const def = BOSS_BY_KIND[b.kind]!;
-      const pct = Math.max(0, Math.min(100, (b.hp / b.maxHp) * 100));
       this.name.textContent = def.name;
-      this.fill.style.width = `${pct}%`; this.ghost.style.width = `${pct}%`;
-      this.sub.textContent = `${Math.round(b.hp)} / ${Math.round(b.maxHp)}`;
-      if (!this.ticks.childElementCount) for (const ph of def.phases) this.ticks.append(h('i', { class: 'bb-tick', style: `left:${ph * 100}%` }));
-    } else if (this.ticks.childElementCount) this.ticks.replaceChildren();
+      this.health.update(b.id, def.name, b.hp, b.maxHp);
+      this.phase.textContent = `Phase ${bossPhase(b.kind, b.hp, b.maxHp)} / ${def.phases.length + 1}`;
+      const note = this.announcement?.kind === b.kind && this.announcement.until > now ? this.announcement.text : now < this.bannerUntil ? this.banner.textContent ?? 'Boss encounter' : 'Boss encounter';
+      if (this.sub.textContent !== note) this.sub.textContent = note;
+      if (this.tickIdentity !== `${b.id}:${b.kind}`) {
+        this.tickIdentity = `${b.id}:${b.kind}`;
+        this.ticks.replaceChildren(...def.phases.map(ph => h('i', { class:'bb-tick', style:`left:${ph * 100}%` })));
+      }
+    }
     if (!me) return;
     // nearby shrines (recomputed twice a second)
     if (now - this.nearAt > 500) { this.d.shrineProgress?.([...this.solved]); this.nearAt = now; this.near = shrinesNear(this.d.store().seed, me.x, me.y, 160); }
@@ -211,7 +204,7 @@ export class AdventureClient implements ClientModule {
   private key(): string { const k = this.d.keys().interact?.[0]; return k ? keyLabel(k) : 'E'; }
 
   hint(): string | null {
-    if (this.boss && this.bar.classList.contains('on')) return null;
+    if (this.boss && !this.bar.hidden) return null;
     if (this.prompt) return this.prompt;
     // compass: the closest unsolved shrine within reach of your senses
     const me = this.d.me();

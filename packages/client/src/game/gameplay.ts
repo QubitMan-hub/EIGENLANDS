@@ -14,6 +14,7 @@ import { Tooltip, h } from '../ui/dom';
 import { buildForge } from '../ui/forge';
 import { Hotbar } from '../ui/hotbar';
 import { buildInventory } from '../ui/inventory';
+import { buildJourney, type JourneyInfo } from '../ui/journey';
 import { buildJournal } from '../ui/journal';
 import { RhythmOverlay } from '../ui/rhythm';
 import { buildShop } from '../ui/shop';
@@ -41,6 +42,8 @@ export interface GameplayDeps {
   features: () => { aiDialogue: boolean };
   /** Phase 2 village overlay: world seed, NPC screen positions, reduced motion (optional so other hosts can omit them) */
   guidance?: () => string | null;
+  journey?: () => JourneyInfo | null;
+  openBoard?: () => void;
   seed?: () => number;
   npcScreens?: () => NpcScreen[];
   reduced?: () => boolean;
@@ -69,6 +72,8 @@ export class Gameplay {
   private hotbarName = h('div', { id: 'hotbar-name' });
   private targetHint = h('div', { id: 'target-hint' });
   private hotbarNameTimer = 0;
+  private journey: ReturnType<typeof buildJourney> | null = null;
+  private journeyAt = 0;
 
   constructor(private d: GameplayDeps) {
     this.hotbar = new Hotbar(this.profile, this.tip);
@@ -107,7 +112,8 @@ export class Gameplay {
   toggleJournal(): void {
     if (this.wins.name === 'journal') { this.wins.close(); return; }
     this.acts.journal = true;
-    this.wins.show('journal', 'Journal', buildJournal(this.profile, this.d.portrait, 'quests', this.d.seed?.() ?? 0, () => [this.tutorialHint(), this.d.guidance?.()].filter(Boolean).join("\n\n") || null), { wide: true });
+    this.journey = this.d.journey ? buildJourney(this.d.journey, () => { this.wins.close(); this.d.openBoard?.(); }) : null;
+    this.wins.show('journal', 'Journal', buildJournal(this.profile, this.d.portrait, 'quests', this.d.seed?.() ?? 0, () => [this.tutorialHint(), this.d.guidance?.()].filter(Boolean).join("\n\n") || null, this.journey?.el), { wide: true });
   }
   toggleFieldCraft(): void {
     if (this.wins.name === 'hand') { this.wins.close(); return; }
@@ -323,6 +329,9 @@ export class Gameplay {
 
   /** Per-frame screen-space village overlay (quest markers, chatter bubbles). */
   frame(now: number): void {
+    if (this.wins.name === 'journal' && this.journey?.el.isConnected && now - this.journeyAt > 200) {
+      this.journeyAt = now; this.journey.refresh();
+    }
     const seed = this.d.seed?.() ?? 0;
     const sn = this.d.clock.serverNow(now);
     const p = this.d.player();

@@ -7,7 +7,7 @@ import type { Profile } from '../game/profile';
 import { clear, h, iconCell } from './dom';
 import { heartsRow } from './dialogue';
 
-export type JournalTab = 'quests' | 'skills' | 'friends' | 'recipes' | 'guide' | 'help';
+export type JournalTab = 'journey' | 'quests' | 'skills' | 'friends' | 'recipes' | 'guide' | 'help';
 
 /** "How do I…?" pages: everything Phase 2 adds, explained in-game. */
 export const GUIDE: Array<[string, string]> = [
@@ -25,21 +25,23 @@ export const GUIDE: Array<[string, string]> = [
   ['The Statue of QubitMan', 'In the middle of the plaza stands the statue of Hadamere\'s legendary founder. Walk up to it and press E to read the plaque and his legend. ALL HAIL QUBITMAN.'],
 ];
 
-export function buildJournal(profile: Profile, portrait: (npcId: string) => string, tab0: JournalTab = 'quests', seed = 0, guidance: () => string | null = () => null): HTMLElement {
+export function buildJournal(profile: Profile, portrait: (npcId: string) => string, tab0: JournalTab = 'quests', seed = 0, guidance: () => string | null = () => null, journey?: HTMLElement): HTMLElement {
   ensureP2Styles();
   const root = h('div', { class: 'journal' });
   const body = h('div', { class: 'jbody' });
+  body.tabIndex = 0; body.setAttribute('role', 'region'); body.setAttribute('aria-label', 'Journal pages');
   let tab: JournalTab = tab0;
   const tabs = h('div', { class: 'tabs' });
 
   const render = () => {
     clear(tabs); clear(body);
-    for (const [id, label] of [['quests', 'Quests'], ['skills', 'Skills'], ['friends', 'Friends'], ['recipes', 'Recipes'], ['guide', 'How to…'], ['help', 'Controls']] as const) tabs.append(h('button', { class: id === tab ? 'primary' : '', text: label, data: { tab: id }, on: { click: () => { tab = id; render(); } } }));
+    for (const [id, label] of [['quests', 'Quests'], ['journey', 'Journey'], ['skills', 'Skills'], ['friends', 'Friends'], ['recipes', 'Recipes'], ['guide', 'How to…'], ['help', 'Controls']] as const) { if (id === 'journey' && !journey) continue; tabs.append(h('button', { class: id === tab ? 'primary' : '', text: label, data: { tab: id }, on: { click: () => { tab = id; render(); } } })); }
     if (tab === 'quests' || tab === 'guide') {
       const next = guidance();
       if (next) body.append(h('section', { class: 'journal-guidance' }, h('h3', { text: 'Next steps' }), h('p', { text: next })));
     }
-    if (tab === 'quests') {
+    if (tab === 'journey' && journey) { body.append(journey); }
+    else if (tab === 'quests') {
       const log = profile.quests;
       const active = Object.entries(log).filter(([, s]) => s.state === 'active');
       if (!active.length) body.append(h('div', { class: 'small dim', text: log.welcome ? 'No active quests. Look for villagers with a yellow ! over their heads, or check the request board on the plaza.' : 'No quests yet. Follow the town direction above the map to Hadamere and talk to Mayor Orla.' }));
