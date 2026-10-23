@@ -87,7 +87,7 @@ export class ChatPanel {
 
     let saved: string | null = null;
     try { saved = localStorage.getItem(OPEN_KEY); } catch { /* ignore */ }
-    this.open = saved !== null ? saved === '1' : !matchMedia('(pointer: coarse), (max-width: 900px), (max-height: 600px)').matches;
+    this.open = saved === '1';
     this.root.hidden = true; this.mini.hidden = true;
     document.body.append(this.root, this.mini);
     this.updatePill();

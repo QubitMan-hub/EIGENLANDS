@@ -58,6 +58,7 @@ console.log('after long walk', { y: s2.y, chunks: s2.chunks, enemies: s2.enemies
 await page.screenshot({ path: `${out}/4-walked.png` });
 
 await page.keyboard.press('F3');
+await page.click('#btn-menu');
 await page.click('#btn-settings');
 await sleep(200);
 await page.screenshot({ path: `${out}/5-settings.png` });
@@ -65,11 +66,13 @@ await page.click('#btn-close');
 
 // reload: session resumes, character persisted
 await sleep(1500);
+const checkpoint = await page.evaluate(() => { const g = window.__eigen.game; return { ...window.__eigen.state(), dead: g.dead, deadAt: g.deadAt, killedBy: g.combat.killedBy }; });
+console.log('reload checkpoint', { x: checkpoint.x, y: checkpoint.y, hp: checkpoint.hp, dead: checkpoint.dead, deadAt: checkpoint.deadAt, killedBy: checkpoint.killedBy });
 await page.reload();
 await page.waitForFunction(() => window.__eigen?.state().ready, null, { timeout: 60000 });
 const s3 = await page.evaluate(() => window.__eigen.state());
 console.log('after reload', { x: s3.x, y: s3.y });
-if (Math.hypot(s3.x - s2.x, s3.y - s2.y) > 8) fail('character position not restored after reload');
+if (Math.hypot(s3.x - checkpoint.x, s3.y - checkpoint.y) > 8) fail('character position not restored after reload');
 await sleep(800);
 await page.screenshot({ path: `${out}/6-reload.png` });
 

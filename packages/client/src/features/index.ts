@@ -40,6 +40,6 @@ export class P34Client {
   onWelcome(): void { for (const m of this.mods) m.onWelcome?.(); }
   frame(now: number, dt: number): void { for (const m of this.mods) m.frame?.(now, dt); }
   get blocking(): boolean { return this.mods.some((m) => m.blocking?.() ?? false); }
-  hint(): string | null { for (const m of this.mods) { const h = m.hint?.(); if (h) return h; } return null; }
+  hint(): string | null { for (const m of this.mods) { if (m === this.circuit) continue; const h = m.hint?.(); if (h) return h; } return null; }
   debug(): Record<string, unknown> { const o: Record<string, unknown> = {}; for (const m of this.mods) Object.assign(o, m.debug?.() ?? {}); return o; }
 }

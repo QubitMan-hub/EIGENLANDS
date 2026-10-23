@@ -33,12 +33,15 @@ try {
   const zoom = await page.evaluate(() => ({ scale: window.__eigen.game.scale, resolution: window.__eigen.game.app.renderer.resolution }));
   assert.ok(zoom.scale >= 1.5, 'Landscape phones retain readable sprites and a bounded terrain render target');
   assert.equal(zoom.scale * zoom.resolution, Math.round(zoom.scale * zoom.resolution), 'World scaling uses integer device pixels');
-  for (const selector of ['#stick', '#tbtns [data-a="attack"]', '#tbtns [data-a="skill"]', '#tbtns [data-a="dash"]', '#tbtns [data-a="interact"]', '#btn-settings', '#hotbar']) {
+  for (const selector of ['#stick', '#tbtns [data-a="attack"]', '#tbtns [data-a="skill"]', '#tbtns [data-a="dash"]', '#tbtns [data-a="interact"]', '#btn-menu', '#btn-journal', '#hotbar']) {
     const rect = await page.locator(selector).boundingBox();
     assert.ok(rect && rect.x >= 0 && rect.y >= 0 && rect.x + rect.width <= 844 && rect.y + rect.height <= 390, `${selector} fits landscape`);
   }
-  const buttons = await page.locator('#hud-btns').boundingBox();
-  assert.ok(buttons.height < 60, 'HUD buttons use a horizontal row');
+  assert.equal(await page.locator('#btn-settings').isVisible(), false, 'Utilities start folded away');
+  await page.click('#btn-menu');
+  const buttons = await page.locator('#hud-menu').boundingBox();
+  assert.ok(buttons.x >= 0 && buttons.y + buttons.height <= 390, 'Open menu fits landscape');
+  await page.keyboard.press('Escape');
   await page.locator('.p3-lumen-skip').click();
   await page.locator('.p3-lumen-skip').click();
   await page.waitForTimeout(500);

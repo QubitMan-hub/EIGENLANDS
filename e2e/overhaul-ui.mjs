@@ -26,7 +26,14 @@ try {
     await page.getByRole('combobox', { name: 'Item category' }).selectOption('equipment');
     assert.equal(await page.locator('.inv-grid .slot[data-i="10"]').count(), 0);
     await page.getByRole('combobox', { name: 'Item category' }).selectOption('all');
+    await page.locator('.slot[data-i="19"]').click();
+    await page.getByRole('combobox', { name: 'Replace ring slot' }).selectOption('ring1');
+    await page.getByRole('table', { name: 'Equipment comparison' }).waitFor();
+    assert.match(await page.locator('.inv-comparison').innerText(), /HP bonus/);
+    assert.match(await page.locator('.inv-comparison').innerText(), /−12/);
+    await page.getByRole('button', { name: 'Equip item', exact: true }).waitFor();
     const rect = await page.locator('.window').boundingBox(); assert.ok(rect.x >= 0 && rect.x + rect.width <= (mobile ? 844 : 1280));
+    await page.getByRole('table', { name: 'Equipment comparison' }).scrollIntoViewIfNeeded();
     await page.screenshot({ path: `${out}/${mobile ? 'landscape' : 'desktop'}-pack.png` });
     await page.keyboard.press('Escape'); await page.locator('#modal').waitFor({ state: 'hidden' });
     await context.close();

@@ -40,6 +40,7 @@ export interface GameplayDeps {
   sfx: (s: Sfx) => void;
   features: () => { aiDialogue: boolean };
   /** Phase 2 village overlay: world seed, NPC screen positions, reduced motion (optional so other hosts can omit them) */
+  guidance?: () => string | null;
   seed?: () => number;
   npcScreens?: () => NpcScreen[];
   reduced?: () => boolean;
@@ -106,7 +107,7 @@ export class Gameplay {
   toggleJournal(): void {
     if (this.wins.name === 'journal') { this.wins.close(); return; }
     this.acts.journal = true;
-    this.wins.show('journal', 'Journal', buildJournal(this.profile, this.d.portrait, 'quests', this.d.seed?.() ?? 0), { wide: true });
+    this.wins.show('journal', 'Journal', buildJournal(this.profile, this.d.portrait, 'quests', this.d.seed?.() ?? 0, () => [this.tutorialHint(), this.d.guidance?.()].filter(Boolean).join("\n\n") || null), { wide: true });
   }
   toggleFieldCraft(): void {
     if (this.wins.name === 'hand') { this.wins.close(); return; }
@@ -320,7 +321,7 @@ export class Gameplay {
 
   describeCrop(id: string): string { return CROPS[id]?.name ?? id; }
 
-  /** Per-frame screen-space village overlay (quest markers, chatter bubbles, quest tracker). */
+  /** Per-frame screen-space village overlay (quest markers, chatter bubbles). */
   frame(now: number): void {
     const seed = this.d.seed?.() ?? 0;
     const sn = this.d.clock.serverNow(now);

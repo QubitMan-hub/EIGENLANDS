@@ -11,8 +11,8 @@ export type JournalTab = 'quests' | 'skills' | 'friends' | 'recipes' | 'guide' |
 
 /** "How do I…?" pages: everything Phase 2 adds, explained in-game. */
 export const GUIDE: Array<[string, string]> = [
-  ['Getting started', 'Follow the arrow next to the clock (top right) to the village of Hadamere. Talk to Mayor Orla (press E next to her): she gives you your first quest. Villagers with a yellow ! above their head have a task for you; a blue ? means they are waiting for your report; a pink ♥ means they want to share something because you are friends.'],
-  ['Quests and the request board', 'Quests are tracked on the right side of the screen and in this Journal (Quests tab). "Bring" objectives count what is in your pack and are handed over when you report back. Every morning three new jobs are pinned to the request board on the plaza (press E at the notice board): accept up to three, deliver, and hand them in at the board or to whoever asked.'],
+  ['Getting started', 'Follow the town direction above the map (top right) to the village of Hadamere. Talk to Mayor Orla (press E next to her): she gives you your first quest. Villagers with a yellow ! above their head have a task for you; a blue ? means they are waiting for your report; a pink ♥ means they want to share something because you are friends.'],
+  ['Quests and the request board', 'Your quest objectives and progress live in this Journal (Quests tab). "Bring" objectives count what is in your pack and are handed over when you report back. Every morning three new jobs are pinned to the request board on the plaza (press E at the notice board): accept up to three, deliver, and hand them in at the board or to whoever asked.'],
   ['Gathering', 'Select a tool in the quick-bar (1–0 or mouse wheel) and hold E facing the target. Axe: trees (wood, fiber), and tall grass for fiber. Pickaxe: boulders (stone, coal) and ore outcrops; better ores need a higher-tier pickaxe. Bright little plants in the grass are forage: press E to pick them. Everything grows back over time.'],
   ['Farming', 'Hoe on grass tills it. Plant seeds on tilled soil, then water them with the watering can every day (rain waters for you). Crops grow one stage per watered day and only in their seasons (the seed tooltip says which). Ripe crops look full: press E to harvest. The fenced garden by the farmhouse is free to use. Fertilizer shaves off a day. Sprinklers water their neighbours every morning; a Phase Lantern keeps crops within 2 tiles alive in any season (a greenhouse).'],
   ['Animals', 'Buy a Chicken Coop and chickens from Fenwick (Barns come later). Place the coop, open it with E, add animals and feed them hay each day (hay: 3 fiber in field crafting). Fed animals give eggs or milk the next morning.'],
@@ -25,7 +25,7 @@ export const GUIDE: Array<[string, string]> = [
   ['The Statue of QubitMan', 'In the middle of the plaza stands the statue of Hadamere\'s legendary founder. Walk up to it and press E to read the plaque and his legend. ALL HAIL QUBITMAN.'],
 ];
 
-export function buildJournal(profile: Profile, portrait: (npcId: string) => string, tab0: JournalTab = 'quests', seed = 0): HTMLElement {
+export function buildJournal(profile: Profile, portrait: (npcId: string) => string, tab0: JournalTab = 'quests', seed = 0, guidance: () => string | null = () => null): HTMLElement {
   ensureP2Styles();
   const root = h('div', { class: 'journal' });
   const body = h('div', { class: 'jbody' });
@@ -35,10 +35,14 @@ export function buildJournal(profile: Profile, portrait: (npcId: string) => stri
   const render = () => {
     clear(tabs); clear(body);
     for (const [id, label] of [['quests', 'Quests'], ['skills', 'Skills'], ['friends', 'Friends'], ['recipes', 'Recipes'], ['guide', 'How to…'], ['help', 'Controls']] as const) tabs.append(h('button', { class: id === tab ? 'primary' : '', text: label, data: { tab: id }, on: { click: () => { tab = id; render(); } } }));
+    if (tab === 'quests' || tab === 'guide') {
+      const next = guidance();
+      if (next) body.append(h('section', { class: 'journal-guidance' }, h('h3', { text: 'Next steps' }), h('p', { text: next })));
+    }
     if (tab === 'quests') {
       const log = profile.quests;
       const active = Object.entries(log).filter(([, s]) => s.state === 'active');
-      if (!active.length) body.append(h('div', { class: 'small dim', text: log.welcome ? 'No active quests. Look for villagers with a yellow ! over their heads, or check the request board on the plaza.' : 'No quests yet. Go to Hadamere (follow the arrow at the top right) and talk to Mayor Orla.' }));
+      if (!active.length) body.append(h('div', { class: 'small dim', text: log.welcome ? 'No active quests. Look for villagers with a yellow ! over their heads, or check the request board on the plaza.' : 'No quests yet. Follow the town direction above the map to Hadamere and talk to Mayor Orla.' }));
       for (const [id, st] of active) {
         const d = questDef(id, seed);
         if (!d) continue;
@@ -96,10 +100,10 @@ export function buildJournal(profile: Profile, portrait: (npcId: string) => stri
         ['Dash charges', '2 charges (pips under your feet), refill one at a time'],
         ['Reflect', 'swing at a Phase Wisp orb to bat it back'], ['Use item / talk / open', 'E · Y — acts on the tile you face (or the cursor if close)'],
         ['Quick-bar', '1–0 · mouse wheel · [ ] · tap'], ['Inventory', 'I'], ['Journal (quests, skills, friends, recipes, guide)', 'L'], ['Field crafting', 'C'],
-        ['In conversations', 'click / E / Space: skip text and turn pages · 1–9: pick an answer · Esc: leave'], ['Settings', 'gear icon · F3 debug'],
+        ['In conversations', 'click / E / Space: skip text and turn pages · 1–9: pick an answer · Esc: leave'], ['Settings', 'Menu → Settings · F3 debug'],
       ];
       for (const [a, b] of rows) body.append(h('div', { class: 'keyrow' }, h('span', { text: a }), h('span', { class: 'dim', text: b })));
-      body.append(h('div', { class: 'small dim', text: 'Tip: everything is explained as you go: the hint box tells you what to try next, the quest tracker on the right what to do, and the "How to…" tab explains every system.' }));
+      body.append(h('div', { class: 'small dim', text: 'Your Quests tab keeps objectives and next steps together. The “How to…” tab explains each system. Open the Journal any time from its button or your Journal key.' }));
     }
   };
   render();

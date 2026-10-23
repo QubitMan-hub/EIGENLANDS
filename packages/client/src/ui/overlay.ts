@@ -1,13 +1,13 @@
 /**
  * Screen-space village overlay: quest markers over villagers (! offer, ? ready, ♥ heart event), ambient chatter bubbles
- * that follow what each villager is doing on their schedule, and the quest tracker under the clock.
+ * that follow what each villager is doing on their schedule, and contextual villager markers.
  */
 import {
-  NPC_BY_ID, barkFor, isRequestId, mulberry32, objectiveText, offerable, pendingEvent, questComplete, questDef, scheduleAt,
+  NPC_BY_ID, barkFor, mulberry32, offerable, pendingEvent, questComplete, questDef, scheduleAt,
   type QuestDef, type Weather,
 } from '@eigenlands/shared';
 import type { Profile } from '../game/profile';
-import { clear, h } from './dom';
+import { h } from './dom';
 import { ensureP2Styles } from './p2style';
 
 export interface NpcScreen { id: string; x: number; y: number; sx: number; sy: number; visible: boolean }
@@ -25,21 +25,17 @@ type Mark = 'offer' | 'ready' | 'event' | null;
 
 export class VillageOverlay {
   readonly layer = h('div', { id: 'npcfx' });
-  readonly tracker = h('div', { id: 'qtrack' });
   private marks = new Map<string, HTMLElement>();
   private bubbles = new Map<string, { el: HTMLElement; until: number }>();
   private markState = new Map<string, Mark>();
   private lastMarks = 0;
   private nextBark = 0;
   private rand = mulberry32(Date.now() & 0xffff);
-  private trackerKey = '';
-  private lastTracker = 0;
 
   constructor(private profile: Profile) {
     ensureP2Styles();
     this.layer.setAttribute('aria-hidden', 'true');
-    this.tracker.setAttribute('aria-live', 'polite');
-    document.body.append(this.layer, this.tracker);
+    document.body.append(this.layer);
   }
 
   /** Which marker a villager should wear for this player. */
@@ -106,37 +102,5 @@ export class VillageOverlay {
         }
       }
     }
-    if (now - this.lastTracker > 500) { this.lastTracker = now; this.renderTracker(c.seed, c.hidden); }
-  }
-
-  /** Up to three tracked quests (finished ones first), or a pointer to the mayor for brand-new players. */
-  renderTracker(seed: number, hidden: boolean): void {
-    this.tracker.hidden = hidden;
-    const log = this.profile.quests;
-    const rows: Array<{ d: QuestDef; prog: number[]; ready: boolean }> = [];
-    for (const [id, st] of Object.entries(log)) {
-      if (st.state !== 'active') continue;
-      const d = questDef(id, seed);
-      if (!d) continue;
-      const prog = d.objectives.map((o, i) => (o.type === 'deliver' ? Math.min(o.n, this.profile.count(o.target)) : st.progress[i] ?? 0));
-      rows.push({ d, prog, ready: questComplete(d, { state: 'active', progress: prog }) });
-    }
-    rows.sort((a, b) => Number(b.ready) - Number(a.ready) || Number(isRequestId(a.d.id)) - Number(isRequestId(b.d.id)));
-    const key = JSON.stringify(rows.slice(0, 3).map((r) => [r.d.id, r.prog])) + (log.welcome ? 1 : 0);
-    if (key === this.trackerKey) return;
-    this.trackerKey = key;
-    clear(this.tracker);
-    if (!log.welcome) {
-      this.tracker.append(h('div', { class: 'qt' }, h('b', { text: 'Find Mayor Orla' }), h('div', { class: 'o', text: 'Follow the Hadamere arrow (top right) to the village and talk to the mayor. Villagers with a yellow ! have tasks.' })));
-      return;
-    }
-    for (const r of rows.slice(0, 3)) {
-      const giver = NPC_BY_ID[r.d.giver]?.name.split(' ')[0] ?? '';
-      this.tracker.append(h('div', { class: `qt${r.ready ? ' ready' : ''}` },
-        h('b', { text: `${r.ready ? '★ ' : ''}${r.d.title}` }),
-        ...(r.ready ? [h('div', { class: 'w', text: `Return to ${r.d.daily ? 'the board or ' : ''}${giver}` })]
-          : r.d.objectives.map((o, i) => h('div', { class: `o${r.prog[i]! >= o.n ? ' done' : ''}`, text: objectiveText(o, r.prog[i] ?? 0) })))));
-    }
-    if (rows.length > 3) this.tracker.append(h('div', { class: 'qt' }, h('div', { class: 'w', text: `+${rows.length - 3} more in your Journal (L)` })));
   }
 }

@@ -2,7 +2,7 @@ import { Application, Container, Graphics, Sprite, Text } from 'pixi.js';
 import {
   CAVE_OY, isCaveY, isDiveY, isUpperY, DIVE_OY, UPPER_OY, MSG,
   ChunkStore, ELITE_NAMES, ENEMY_BY_KIND, INTEREST_RADIUS, NPC_BY_ID, TILE_DEFS, TILE_SIZE, ambientColor, SEASONS, chunkOf,
-  darkness, decodeDiff, dayNumber, formatClock, gameHour, dayPhase, season, PALETTE, townFor, townsFor, weatherForDay, biomeWeather, biomeAt, type Ack, type ChunkMsg,
+  darkness, decodeDiff, dayNumber, formatClock, gameHour, season, PALETTE, townFor, townsFor, weatherForDay, biomeWeather, biomeAt, type Ack, type ChunkMsg,
   type DialogueMsg, type FishBiteMsg, type FxMsg, type ObjMsg, type PanelMsg, type ProfileMsg, type RhythmResultMsg, type RhythmStartMsg,
   type ShopViewMsg, type TileMsg, type ToastMsg, type WelcomeMsg, type ForgePreviewReply,
 } from '@eigenlands/shared';
@@ -172,6 +172,7 @@ export class Game {
       npcNear: (x, y, m) => this.npcNear(x, y, m),
       player: () => (this.predictor ? { x: this.predictor.sim.x, y: this.predictor.sim.y, fx: this.predictor.sim.faceX, fy: this.predictor.sim.faceY } : { x: 0, y: 0, fx: 0, fy: 1 }),
       sfx: (s) => this.sound(s), features: () => this.features,
+      guidance: () => this.ext?.circuit.hint() ?? null,
       seed: () => this.seed, reduced: () => this.settings().reducedMotion,
       npcScreens: () => [...this.views.values()].filter((v) => v.type === 'npc').map((v) => ({ id: v.id, x: v.lx, y: v.ly, sx: this.world.x + v.root.x * this.scale, sy: this.world.y + (v.root.y - 32) * this.scale, visible: v.root.visible })),
     });
@@ -959,7 +960,7 @@ export class Game {
     $('dial-time').textContent = formatClock(hour);
     $('dial').style.setProperty('--t', `${(hour / 24) * 360}deg`);
     $('dial').classList.toggle('night', !(hour >= 6 && hour < 18));
-    $('dayinfo').textContent = `${dayPhase(hour)} · day ${dayNumber(sn) + 1} · ${season(sn)}`;
+    $('dayinfo').textContent = `Day ${dayNumber(sn) + 1} · ${season(sn)}`;
     if (this.dead) {
       const left = Math.max(0, Math.ceil(3 - (now - this.deadAt) / 1000));
       const p = $('dead').querySelector('p');
@@ -970,8 +971,9 @@ export class Game {
     for (const v of this.views.values()) if (v.type === 'enemy' && !ENEMY_BY_KIND[v.kind]?.passive) nearest = Math.min(nearest, Math.hypot(v.lx - this.predictor.sim.x, v.ly - this.predictor.sim.y));
     this.combat.noticeEnemies(nearest);
 
+    this.gameplay.tutorialHint(); // Persist tutorial progress without covering the world.
     const hintEl = $('hint');
-    const tip = this.combat.currentTip(now) ?? this.gameplay.tutorialHint() ?? this.ext.hint();
+    const tip = this.combat.currentTip(now) ?? this.ext.hint();
     hintEl.hidden = !tip || this.gameplay.blocking;
     if (tip) hintEl.textContent = tip;
     $('coins').textContent = `${this.gameplay.profile.coins} coins`;
@@ -985,6 +987,8 @@ export class Game {
     const tdx = town.cx - me.x, tdy = town.cy - surfaceY, td = Math.hypot(tdx, tdy);
     const place = isDiveY(me.y) ? 'Submerged sanctuary · ' : isUpperY(me.y) ? 'Upper floor · ' : isCaveY(me.y) ? 'Undercroft · ' : '';
     $('townhint').textContent = place + (td > 30 ? `${town.name} ${['→', '↘', '↓', '↙', '←', '↖', '↑', '↗'][Math.round(((Math.atan2(tdy, tdx) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8]} ${Math.round(td)} tiles` : `${town.name}`);
+
+    $('townhint').title = $('townhint').textContent ?? '';
 
     const dbg = $('debug');
     if (!dbg.hidden) {

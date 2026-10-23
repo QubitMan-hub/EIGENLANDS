@@ -71,16 +71,21 @@ export const HTML = `
     <div class="legacy" aria-hidden="true"><i id="hp-fill"></i><span id="hp-text"></span><i id="xp-fill"></i><span id="clock"></span></div>
   </div>
   <div id="hud-right">
-    <div id="dial" class="dialwrap" role="img" aria-label="Time of day"><div id="dial-time" class="dialtime">--:--</div></div>
+    <div id="dial" class="dialwrap"><div id="dial-time" class="dialtime">--:--</div></div>
     <div id="dayinfo" class="dayinfo"></div>
     <div id="townhint" class="townhint"></div>
     <div id="wx" class="wxrow"></div>
   </div>
+  <div id="hud-actions">
+    <button id="btn-journal" class="gatebtn journal-shortcut" aria-label="Journal (L)" title="Quests and guidance">${iconSvg('book', 20)}<span>Journal</span></button>
+    <button id="btn-menu" class="gatebtn" popovertarget="hud-menu">Menu</button>
+  </div>
+  <div id="hud-menu" popover aria-label="Game menu">
   <div id="hud-btns">
     <button id="btn-settings" class="gatebtn" aria-label="Settings" title="Settings">${iconSvg('gear', 20)}</button>
     <button id="btn-pack" class="gatebtn" aria-label="Pack (I)" title="Pack (I)">${iconSvg('pack', 20)}<kbd>I</kbd></button>
     <button id="btn-craft" class="gatebtn" aria-label="Field crafting (C)" title="Field crafting (C)">${iconSvg('hammer', 20)}<kbd>C</kbd></button>
-    <button id="btn-journal" class="gatebtn" aria-label="Journal (L)" title="Journal (L)">${iconSvg('book', 20)}<kbd>L</kbd></button>
+  </div>
   </div>
   <div id="hint" class="panel node-hint" hidden role="status"></div>
   <div id="captions" aria-live="polite"></div>
@@ -160,6 +165,18 @@ export class SettingsUI {
   ) {}
 
   bind(handlers: { signOut(): void; deleteAccount(): void; accountInfo(): string }): void {
+    // Dismiss before the chosen window records its focus-return target.
+    const dismissMenu = () => {
+      if (!$('hud-menu').matches(':popover-open')) return;
+      $('hud-menu').hidePopover();
+      $('btn-menu').focus();
+    };
+    $('hud-btns').addEventListener('click', e => {
+      if ((e.target as HTMLElement).closest('button')) dismissMenu();
+    }, { capture: true });
+    window.addEventListener('keydown', e => {
+      if ((['inventory', 'journal', 'craft', 'map', 'board'] as const).some(a => this.keys[a].includes(e.code))) dismissMenu();
+    }, { capture: true });
     const s = this.settings;
     $<HTMLInputElement>('s-motion').checked = s.reducedMotion;
     $<HTMLSelectElement>('s-text').value = String(s.textScale);
@@ -247,7 +264,7 @@ export const TUTORIAL: ReadonlyArray<{ id: keyof Acts; text: string }> = [
   { id: 'planted', text: 'Select seeds and press E on tilled soil to plant. Mind the season!' },
   { id: 'watered', text: 'Select the watering can and water your crop every day (rain does it for you).' },
   { id: 'talked', text: 'The village of Hadamere is nearby: follow the arrow next to the clock (top right). Walk up to a villager and press E to talk. Mayor Orla welcomes newcomers.' },
-  { id: 'quest', text: 'Villagers with a yellow ! have tasks. In a conversation, pick the quest and choose "I\'ll do it!". Your quests are tracked on the right.' },
+  { id: 'quest', text: 'Villagers with a yellow ! have tasks. In a conversation, pick the quest and choose "I\'ll do it!". Your objectives and progress are in the Journal (Quests tab).' },
   { id: 'openedPack', text: 'Press I to open your pack (equip rings and outfits there).' },
   { id: 'journal', text: 'Press L for your Journal: quests, skills, friends, recipes, and a "How to…" guide for every system.' },
   { id: 'statue', text: 'The statue in the middle of the plaza is QubitMan, Hadamere\'s legendary founder. Walk up to it and press E to read his plaque.' },

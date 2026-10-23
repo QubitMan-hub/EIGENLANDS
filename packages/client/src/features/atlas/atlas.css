@@ -1,6 +1,5 @@
-#atlas-mini { position:fixed; right:66px; top:112px; z-index:5; padding:5px; display:grid; gap:4px; background:#17201f; border:1px solid #bca06b; color:#f1e4c7; font-size:11px; }
+#atlas-mini { position:fixed; right:12px; top:108px; z-index:5; padding:5px; display:grid; gap:4px; background:#17201f; border:1px solid #bca06b; color:#f1e4c7; font-size:11px; }
 #atlas-mini canvas { display:block; image-rendering:pixelated; }
-body.atlas-ready #qtrack { top:340px; }
 .atlas { display:grid; gap:10px; min-width:0; }
 .atlas-tools,.atlas-filters,.atlas-nav,.atlas-legend { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
 .atlas-tools select,.atlas-tools input { min-height:44px; max-width:100%; }
@@ -16,13 +15,10 @@ body.atlas-ready #qtrack { top:340px; }
 .atlas-position { font-variant-numeric:tabular-nums; }
 .hc #atlas-mini,.hc .atlas-canvas { background:#000; border-color:#fff; }
 @media (pointer:coarse) and (orientation:landscape) and (max-height:600px) {
- #atlas-mini { top:62px; right:224px; padding:3px; font-size:10px; }
+ #atlas-mini { top:62px; right:172px; padding:3px; font-size:10px; }
  #atlas-mini canvas { width:88px !important; height:88px !important; }
- html #hud-right { right:max(342px,env(safe-area-inset-right)); max-width:170px; }
- html body.atlas-ready #qtrack { top:62px; }
  .atlas-canvas { height:220px; }
 }
-@media (max-width:600px) and (orientation:portrait) { #atlas-mini { top:150px; right:12px; } body.atlas-ready #qtrack { top:340px; } }
 /* Modal focus stays with the chart; voice remains available after dismissal. */
 body:has(#modal:not([hidden])) #voice-chip { visibility:hidden; pointer-events:none; }
 @media (pointer:coarse) and (orientation:landscape) and (max-height:600px) {
@@ -32,3 +28,5 @@ body:has(#modal:not([hidden])) #voice-chip { visibility:hidden; pointer-events:n
  .atlas-filters label { white-space:nowrap; }
  .atlas-canvas { height:164px; }
 }
+
+@media (max-width:600px) and (orientation:portrait) { #atlas-mini { top:150px; right:12px; } }
