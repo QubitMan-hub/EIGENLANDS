@@ -18,6 +18,7 @@ export interface WorldObj {
 
 /** Objects that block movement. Crops, rugs and sprinklers can be walked over. */
 export function objSolid(kind: WorldObjKind, sub: string): boolean {
+  if (['stairs_up', 'stairs_down', 'dive_gate', 'dive_exit'].includes(sub)) return false;
   if (kind === 'crop' || kind === 'sprinkler') return false;
   if (sub === 'sea_cache' || sub === 'rug' || sub === 'shrine_altar' || sub === 'shrine_pillar') return false; // resonance projections leave no invisible collision after completion
   return true;
@@ -25,6 +26,7 @@ export function objSolid(kind: WorldObjKind, sub: string): boolean {
 
 export interface ObjLight { radius: number; color: number }
 export function objLight(kind: WorldObjKind, sub: string): ObjLight | null {
+  if (['dive_gate', 'dive_exit', 'coral_column'].includes(sub)) return { radius: 4, color: C.w6 };
   if (sub === 'lamp') return { radius: 5.5, color: C.e6 };
   if (sub === 'hearth') return { radius: 5, color: C.r5 };
   if (sub === 'candles') return { radius: 3.5, color: C.e6 };

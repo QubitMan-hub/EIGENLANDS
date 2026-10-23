@@ -1,6 +1,7 @@
 import { HOTBAR, INV_SIZE, ITEMS, SET_BY_ID, WEAPONS, armorTotals, type EquipMsg, type EquipSlotKey, type Stack } from '@eigenlands/shared';
 import type { Profile } from '../game/profile';
 import { clear, h, iconCell, tooltipFor, type Tooltip } from './dom';
+import { inventorySlots, type InventoryCategory, type InventorySort } from './inventory-query';
 
 export interface InvActions {
   move(from: number, to: number): void;
@@ -13,11 +14,35 @@ export interface InvActions {
 export function buildInventory(profile: Profile, tip: Tooltip, act: InvActions, portrait: () => HTMLElement): HTMLElement {
   const root = h('div', { class: 'inv-win' });
   const grid = h('div', { class: 'inv-grid' });
+  const quickGrid = h('div', { class: 'inv-grid' });
   const side = h('div', { class: 'inv-side' });
+  const details = h('div', { class: 'inv-detail' });
+  let selected = -1;
+  const search = h('input', { type: 'search', placeholder: 'Search your pack…' });
+  search.setAttribute('aria-label', 'Search inventory');
+  const category = h('select'); category.setAttribute('aria-label', 'Item category');
+  for (const [value, text] of [['all', 'All items'], ['equipment', 'Equipment'], ['supplies', 'Supplies'], ['materials', 'Materials']]) category.append(h('option', { value, text }));
+  const sort = h('select'); sort.setAttribute('aria-label', 'Inventory order');
+  for (const [value, text] of [['slot', 'Slot order'], ['name', 'Name'], ['value', 'Stack value']]) sort.append(h('option', { value, text }));
+  const count = h('span', { class: 'small inv-count' }); count.setAttribute('aria-live', 'polite');
+  const showDetails = () => {
+    clear(details);
+    const st = profile.inv[selected];
+    if (!st) { details.append(h('p', { class: 'small', text: 'Select an item to inspect it. Your quick-bar stays in slot order.' })); return; }
+    const d = ITEMS[st.id]!;
+    details.append(tooltipFor(st));
+    const equippable = ['weapon', 'armor', 'ring', 'outfit'].includes(d.kind);
+    if (equippable || d.heal || d.buff || d.kind === 'potion') details.append(h('button', { class: 'primary', text: equippable ? 'Equip item' : 'Use item', on: { click: () => quick(selected, st) } }));
+    const empty = profile.inv.slice(0, HOTBAR).findIndex(s => !s);
+    const held = h('button', { text: empty >= 0 ? 'Place in quick-bar' : 'Swap with quick-bar slot 1', on: { click: () => act.move(selected, empty >= 0 ? empty : 0) } });
+    if (selected >= HOTBAR) details.append(held);
+  };
 
   const cellFor = (i: number): HTMLElement => {
     const st = profile.inv[i] ?? null;
-    const slot = h('div', { class: `slot${i < HOTBAR ? ' hot' : ''}`, data: { i } });
+    const slot = h('button', { class: `slot${i < HOTBAR ? ' hot' : ''}${selected === i ? ' selected' : ''}`, type: 'button', data: { i } });
+    slot.setAttribute('aria-label', `${st ? `${ITEMS[st.id]?.name ?? st.id}, ${st.n}` : 'Empty slot'} · ${i < HOTBAR ? 'quick-bar' : 'pack'} slot ${i + 1}`);
+    slot.addEventListener('click', () => { selected = i; root.querySelector('.slot.selected')?.classList.remove('selected'); slot.classList.add('selected'); showDetails(); });
     if (st) {
       const cell = iconCell(st);
       cell.draggable = true;
@@ -42,8 +67,13 @@ export function buildInventory(profile: Profile, tip: Tooltip, act: InvActions, 
   };
 
   const render = () => {
-    clear(grid); clear(side);
-    for (let i = 0; i < INV_SIZE; i++) grid.append(cellFor(i));
+    clear(grid); clear(quickGrid); clear(side);
+    const indices = inventorySlots(profile.inv, search.value, category.value as InventoryCategory, sort.value as InventorySort);
+    if (!indices.includes(selected)) selected = -1;
+    for (const i of indices) (i < HOTBAR ? quickGrid : grid).append(cellFor(i));
+    count.textContent = `${profile.inv.filter(Boolean).length} / ${INV_SIZE} slots · ${indices.filter(i => profile.inv[i]).length} shown`;
+    if (!indices.length) grid.append(h('p', { class: 'small', text: 'No items match. Try another name or category.' }));
+    showDetails();
     // equipment: a paper-doll with armour, the main-hand Focus and two rings
     const slotKind = (key: EquipSlotKey, id: string): boolean => {
       const d = ITEMS[id];
@@ -53,7 +83,8 @@ export function buildInventory(profile: Profile, tip: Tooltip, act: InvActions, 
       return d.kind === 'armor' && d.armor?.slot === key;
     };
     const eqSlot = (label: string, st: Stack | null, key: EquipSlotKey) => {
-      const slot = h('div', { class: 'slot eq', title: label }, st ? iconCell(st) : h('span', { class: 'eqlabel', text: label }));
+      const slot = h('button', { class: 'slot eq', type: 'button', title: label }, st ? iconCell(st) : h('span', { class: 'eqlabel', text: label }));
+      slot.setAttribute('aria-label', `${label}: ${st ? `${ITEMS[st.id]?.name ?? st.id}, unequip` : 'empty'}`);
       if (st) { tip.attach(slot, () => tooltipFor(st)); slot.addEventListener('click', () => act.equip(0, `unequip_${key}`)); }
       slot.addEventListener('dragover', (e) => e.preventDefault());
       slot.addEventListener('drop', (e) => { e.preventDefault(); const f = Number(e.dataTransfer?.getData('text/plain')); if (Number.isInteger(f) && slotKind(key, profile.inv[f]?.id ?? '')) act.equip(f, key); });
@@ -79,14 +110,15 @@ export function buildInventory(profile: Profile, tip: Tooltip, act: InvActions, 
     const wardrobe = h('div', { class: 'ward' });
     profile.inv.forEach((s, i) => {
       if (s && ITEMS[s.id]?.kind === 'outfit') {
-        const b = h('div', { class: `slot small${profile.equip.outfit === ITEMS[s.id]!.outfit ? ' on' : ''}`, title: ITEMS[s.id]!.name, on: { click: () => act.equip(i, 'outfit') } }, iconCell(s, { showCount: false }));
+        const b = h('button', { class: `slot small${profile.equip.outfit === ITEMS[s.id]!.outfit ? ' on' : ''}`, type: 'button', title: ITEMS[s.id]!.name, on: { click: () => act.equip(i, 'outfit') } }, iconCell(s, { showCount: false }));
+        b.setAttribute('aria-label', `Wear ${ITEMS[s.id]!.name}`);
         tip.attach(b, () => tooltipFor(s));
         wardrobe.append(b);
       }
     });
     side.append(h('div', { class: 'side-title', text: 'Wardrobe' }), wardrobe.childElementCount ? wardrobe : h('div', { class: 'small dim', text: 'Weave outfits at a loom.' }));
     // trash
-    const trash = h('div', { class: 'trash', text: '🗑 Drop here to discard' });
+    const trash = h('div', { class: 'trash', text: 'Drop here to discard' });
     trash.addEventListener('dragover', (e) => e.preventDefault());
     trash.addEventListener('drop', (e) => {
       e.preventDefault();
@@ -97,7 +129,9 @@ export function buildInventory(profile: Profile, tip: Tooltip, act: InvActions, 
     side.append(trash);
   };
   render();
-  root.append(h('div', { class: 'inv-main' }, h('div', { class: 'coins', text: `${profile.coins} coins` }), grid, h('div', { class: 'small dim', text: 'Double-click / right-click to equip or use. Drag to rearrange. Row 1 is your quick-bar (keys 1-0).' })), side);
+  const controls = h('div', { class: 'inv-controls' }, search, category, sort);
+  search.addEventListener('input', render); category.addEventListener('change', render); sort.addEventListener('change', render);
+  root.append(h('div', { class: 'inv-main' }, h('div', { class: 'inv-summary' }, h('div', { class: 'coins', text: `${profile.coins} coins` }), count), controls, h('div', { class: 'side-title', text: 'Quick-bar · 1–0' }), quickGrid, h('div', { class: 'side-title', text: 'Backpack' }), grid, details, h('div', { class: 'small dim', text: 'Select to inspect. Double-click / right-click to equip or use. Drag to rearrange.' })), side);
   const unsub = profile.onChange(() => { if (!root.isConnected) { unsub(); return; } render(); (root.querySelector('.coins') as HTMLElement).textContent = `${profile.coins} coins`; });
   return root;
 }

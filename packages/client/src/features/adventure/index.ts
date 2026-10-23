@@ -1,6 +1,6 @@
 import { Graphics } from 'pixi.js';
 import {
-  BOSSES, BOSS_BY_KIND, ENEMY_BY_KIND, MSG34, SHRINE_REACH, shrinesNear,
+  BOSSES, BOSS_BY_KIND, ENEMY_BY_KIND, MSG34, SHRINE_REACH, shrinesNear, trapSafe,
   type BossEvent, type SeaEvent, type Shrine, type ShrineEvent,
 } from '@eigenlands/shared';
 import { keyLabel } from '../../input/keymap';
@@ -177,7 +177,13 @@ export class AdventureClient implements ClientModule {
       const fl = this.flashes.get(sh.id) ?? [];
       sh.pillars.forEach(([dx, dy], i) => {
         const p = this.shrineScreen(sh, dx, dy);
-        const col = PILLAR_COLORS[i]!;
+        const course = sh.type === 'traps' || sh.type === 'platform';
+        const safe = trapSafe(this.d.clock.serverNow(now), i);
+        const col = course ? safe ? 0x71dca7 : 0xe88764 : PILLAR_COLORS[i]!;
+        if (course) {
+          g.ellipse(p.x, p.y + 1, 15, 7.5).stroke({ color: col, width: 2, alpha: .8 });
+          if (!safe) for (let k = -2; k <= 2; k++) g.moveTo(p.x + k * 4 - 2, p.y).lineTo(p.x + k * 4, p.y - 5).lineTo(p.x + k * 4 + 2, p.y).stroke({ color: col, width: 1 });
+        }
         const lantern = this.lanterns.get(sh.id), trail = this.trails.get(sh.id);
         let lit = lantern !== undefined && (lantern & (1 << i)) ? 0.8 : trail?.pattern[trail.stage] === i ? 1 : 0;
         for (const f of fl) if (f.idx === i && now >= f.at && now < f.until) lit = 1;
@@ -196,7 +202,8 @@ export class AdventureClient implements ClientModule {
       if (dist < SHRINE_REACH + 1.5) this.prompt = done ? 'The shrine is quiet. Its shard is yours.' : sh.type === 'sequence'
         ? `${this.key()}: touch the altar. Watch the pillars, then strike them in order (${this.key()} on each).`
         : sh.type === 'balance' ? `${this.key()}: wake the altar, then light all four lanterns. Each toggles its clockwise neighbour.`
-        : sh.type === 'trail' ? this.trails.has(sh.id) ? `Rune trail: ${this.trails.get(sh.id)!.stage} / 4 seals · ${Math.max(0, Math.ceil((this.trails.get(sh.id)!.until - now) / 1000))}s. Step onto the bright seal.` : `${this.key()}: wake the altar for a timed rune trail.`
+        : sh.type === 'platform' ? this.trails.has(sh.id) ? `${this.key()} on your pad: jump when the next pad is green. ${this.trails.get(sh.id)!.stage} / 4 jumps.` : `${this.key()}: begin the phase-platform circuit.`
+        : sh.type === 'trail' || sh.type === 'traps' ? this.trails.has(sh.id) ? `${sh.type === 'traps' ? 'Tide traps: green is safe, red spikes hurt.' : 'Rune trail:'} ${this.trails.get(sh.id)!.stage} / 4 seals · ${Math.max(0, Math.ceil((this.trails.get(sh.id)!.until - now) / 1000))}s.` : `${this.key()}: wake the altar for a timed ${sh.type === 'traps' ? 'trap course' : 'rune trail'}.`
         : `${this.key()}: touch the altar to begin the gauntlet (three waves).`;
     }
   }

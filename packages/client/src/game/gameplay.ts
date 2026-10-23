@@ -241,9 +241,11 @@ export class Gameplay {
     const net = this.d.net();
     const p = this.d.player();
     if (this.fishing?.bite && performance.now() < this.fishing.until + 150) { net.fishHook(this.fishing.id); this.fishing.bite = false; this.clearBang(); return true; }
+    const store = this.d.store();
+    const under = store.objectAt(Math.floor(p.x), Math.floor(p.y));
+    if (under && (['stairs_up', 'stairs_down', 'dive_exit'].includes(under.sub) || under.sub === 'shrine_pillar' && under.data?.type === 'platform')) { net.open(under.x, under.y); return true; }
     const npc = this.d.npcNear(p.x + p.fx * 0.8, p.y + p.fy * 0.8, 1.9) ?? this.d.npcNear(p.x, p.y, 1.3);
     if (npc) { net.talk(npc.id); return true; }
-    const store = this.d.store();
     const mouse = this.d.input.mouseActive ? this.d.input.mouseTile : null;
     const t = targetTile(p.x, p.y, p.fx, p.fy, mouse);
     const sel = this.selected();

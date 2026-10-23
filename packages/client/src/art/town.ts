@@ -167,6 +167,34 @@ const frames = (n: number, mk: (f: number) => ObjSprite): ObjSprite[] => Array.f
 
 /** Town pieces by `sub` (deco/sign/furniture). Each call builds fresh textures; callers cache. */
 export const TOWN_DECO: Record<string, () => ObjSpriteDef> = {
+  dive_gate: () => ({ frames: [make(48, 64, 24, 52, ctx => {
+    const I = new Iso(ctx, 24, 44), bronze = mat([C.e1, C.e2, C.e3, C.e5, C.e6]);
+    I.box(2, 2, 0, 12, 12, 3, bronze); I.box(5, 5, 3, 6, 6, 12, bronze);
+    I.box(4, 4, 15, 8, 8, 3, mat([C.w1, C.w3, C.w5, C.q7]));
+    I.dot(8, 12, 13, C.q7, 3); I.dot(8, 12, 7, C.e6, 2);
+  })], fps: 0 }),
+  dive_exit: () => ({ frames: [make(48, 48, 24, 38, ctx => {
+    const I = new Iso(ctx, 24, 30), metal = mat([C.e1, C.e2, C.e3, C.e5, C.e6]);
+    I.box(1, 1, 0, 14, 14, 2, metal); I.box(4, 4, 2, 8, 8, 1, mat([C.night, C.w1, C.w3]));
+    for (const u of [4, 12]) I.box(u, 11, 2, 1, 1, 15, metal);
+    for (let z = 3; z < 18; z += 3) I.box(4, 11, z, 9, 1, 1, metal);
+  })], fps: 0 }),
+  coral_column: () => ({ frames: [make(56, 64, 28, 52, ctx => {
+    const I = new Iso(ctx, 28, 44), stone = mat([C.w0, C.w1, C.w2, C.w3, C.w5]);
+    I.box(1, 1, 0, 14, 14, 4, stone); I.box(4, 4, 4, 8, 8, 24, stone); I.box(2, 2, 28, 12, 12, 3, stone);
+    for (const [u, v, z] of [[2, 12, 4], [11, 3, 8], [3, 5, 18]]) { I.box(u!, v!, z!, 2, 2, 7, mat([C.r1, C.r2, C.r3, C.r5])); I.dot(u! + 1, v! + 1, z! + 8, C.q7, 2); }
+  })], fps: 0 }),
+  stairs_up: () => ({ frames: [make(64, 64, 32, 48, ctx => {
+    const I = new Iso(ctx, 32, 40), wood: Ramp = [C.e0, C.e1, C.e2, C.e4, C.e5];
+    for (let i = 4; i >= 0; i--) { const v = 12 - i * 2.5, z = 3 + i * 3; I.box(2, v, 0, 12, 2.5, z, mat(wood)); I.box(2, v + 2, z, 12, .5, .5, mat([C.e3, C.e4, C.e5, C.e6])); }
+    for (const i of [4, 2, 0]) I.box(1, 12 - i * 2.5, 0, 1, 1, 10 + i * 3, mat(wood));
+    line(ctx, I.X(1, 2), I.Y(1, 2, 22), I.X(1, 12), I.Y(1, 12, 10), C.e4);
+  })], fps: 0 }),
+  stairs_down: () => ({ frames: [make(48, 40, 24, 26, ctx => {
+    const I = new Iso(ctx, 24, 18); I.box(1, 1, 0, 14, 14, 1, mat([C.e0, C.e1, C.e2, C.e4]));
+    I.box(3, 3, 1, 10, 10, .5, mat([C.ink, C.night]));
+    for (let i = 0; i < 4; i++) I.box(3, 3 + i * 2.5, 1.5, 10, 1, .5, mat([C.e0, C.e1, C.e2, C.e3]));
+  }, undefined, { ao: false })], fps: 0 }),
   sea_cache: () => ({ frames: [make(40, 40, 20, 32, ctx => {
     const I = new Iso(ctx, 20, 24), wood: Ramp = [C.e0, C.e1, C.e2, C.e3, C.e5];
     I.box(1, 4, 0, 15, 7, 2, mat(wood));

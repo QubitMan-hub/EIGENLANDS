@@ -1,6 +1,6 @@
 import { Application, Container, Graphics, Sprite, Text } from 'pixi.js';
 import {
-  CAVE_OY, isCaveY, MSG,
+  CAVE_OY, isCaveY, isDiveY, isUpperY, DIVE_OY, UPPER_OY, MSG,
   ChunkStore, ELITE_NAMES, ENEMY_BY_KIND, INTEREST_RADIUS, NPC_BY_ID, TILE_DEFS, TILE_SIZE, ambientColor, SEASONS, chunkOf,
   darkness, decodeDiff, dayNumber, formatClock, gameHour, dayPhase, season, PALETTE, townFor, townsFor, weatherForDay, biomeWeather, biomeAt, type Ack, type ChunkMsg,
   type DialogueMsg, type FishBiteMsg, type FxMsg, type ObjMsg, type PanelMsg, type ProfileMsg, type RhythmResultMsg, type RhythmStartMsg,
@@ -80,6 +80,7 @@ export class Game {
   private app!: Application;
   private sheets!: Sheets;
   private heldWeapons = new HeldWeapons();
+  private hops = new Map<string, { at: number; x: number; y: number; tx: number; ty: number }>();
   private foes!: FoeSheets;
   private critters!: Critters;
   private ships = new Ships();
@@ -376,6 +377,10 @@ export class Game {
   private toast(text: string): void { this.caption(text); }
 
   private fxFromServer(f: FxMsg): void {
+    if (f.kind === 'jump' && f.id && f.dx !== undefined && f.dy !== undefined) {
+      this.hops.set(f.id, { at: performance.now(), x: f.x, y: f.y, tx: f.dx, ty: f.dy });
+      this.sound('dash', f.x, f.y); return;
+    }
     if (this.combat.onFx(f, (id) => this.views.get(id))) { if (f.kind === 'hurt' && f.id === this.myId) this.hurtTimer = 0.25; return; }
     switch (f.kind) {
       case 'shot': this.fx.burst(f.x, f.y, f.v !== undefined ? [f.v >= 8 ? 22 : HUE_PALETTE[f.v] ?? 45, 7] : [45, 46], 4); this.sound('shot', f.x, f.y); break;
@@ -457,6 +462,7 @@ export class Game {
   }
 
   private dropView(id: string): void {
+    this.hops.delete(id);
     const v = this.views.get(id);
     if (!v) return;
     v.label?.destroy();
@@ -525,7 +531,8 @@ export class Game {
     const hour = this.hourOverride ?? gameHour(this.clock.serverNow(now));
     const sun = sunFor(hour);
     const wall = this.clock.serverNow(now);
-    const underground = isCaveY(this.predictor.sim.y);
+    const diving = isDiveY(this.predictor.sim.y), upper = isUpperY(this.predictor.sim.y);
+    const underground = isCaveY(this.predictor.sim.y) || diving || upper;
     const weather = underground ? 'clear' : biomeWeather(weatherForDay(this.seed, dayNumber(wall)), biomeAt(this.seed, Math.floor(this.predictor.sim.x), Math.floor(this.predictor.sim.y)));
     this.wind.update(this.seed, wall / 1000, now / 1000, weather);
     this.setSeason(this.seasonOverride ?? ((SEASONS.indexOf(season(wall)) as SeasonIdx)));
@@ -588,7 +595,7 @@ export class Game {
     // lighting
     const topLeftIso = { x: camX - W / 2 / S, y: camY - H / 2 / S };
     this.weatherFx.update(dt, weather, W, H, reduced, underground ? 0 : hour, underground ? undefined : this.wind.w, this.seasonIdx);
-    const wa = this.weatherFx.ambient(weather), amb = underground ? CAVE_AMBIENT : ambientColor(hour);
+    const wa = this.weatherFx.ambient(weather), amb = diving ? [0.27, 0.53, 0.61] : upper ? [0.72, 0.67, 0.59] : underground ? CAVE_AMBIENT : ambientColor(hour);
     this.lighting.render([amb[0] * wa[0], amb[1] * wa[1], amb[2] * wa[2]], this.collectLights(topLeftIso.x, topLeftIso.y, underground ? 0 : hour, now, reduced));
     this.updateTarget(now);
     this.gameplay.frame(now);
@@ -703,7 +710,7 @@ export class Game {
 
   private fixedStep(now: number): void {
     const r = this.input.read(now);
-    const frozen = this.dead || !this.connected || this.settingsOpen() || this.gameplay.blocking || this.ext.blocking || this.net.switching;
+    const frozen = this.dead || !this.connected || this.settingsOpen() || this.gameplay.blocking || this.ext.blocking || this.net.switching || now - (this.hops.get(this.myId)?.at ?? -1e9) < 650;
     if (frozen) { this.input.read(now); return; }
     const viewTick = Math.max(0, Math.floor(this.clock.tickAt(this.clock.serverNow(now) - this.clock.interpDelay - this.combat.warp)));
     this.predictor.sim.ranged = this.weaponInfo().ranged;
@@ -744,6 +751,12 @@ export class Game {
       v.lx = x; v.ly = y;
       v.root.x = Math.round(isoX(x, y) * pixels) / pixels;
       v.root.y = Math.round(isoY(x, y) * pixels) / pixels;
+      const hop = this.hops.get(v.id);
+      if (hop) {
+        const k = Math.min(1, (now - hop.at) / 650);
+        if (k >= 1) this.hops.delete(v.id);
+        else if (!reduced) { const hx = hop.x + (hop.tx - hop.x) * k, hy = hop.y + (hop.ty - hop.y) * k; v.root.x = Math.round(isoX(hx, hy) * pixels) / pixels; v.root.y = Math.round((isoY(hx, hy) - Math.sin(k * Math.PI) * 20) * pixels) / pixels; }
+      }
       v.root.zIndex = depth(x, y);
       v.gfx.clear();
 
@@ -933,7 +946,8 @@ export class Game {
       const orb = $('orb'), pct = Math.max(0, Math.min(100, (s.hp / Math.max(1, s.maxHp)) * 100));
       orb.style.setProperty('--hp', `${pct}%`);
       orb.classList.toggle('low', pct < 30);
-      if (orb.dataset.v !== `${s.hp}`) { orb.dataset.v = `${s.hp}`; orb.textContent = `${s.hp}`; }
+      const health = `${s.hp} / ${s.maxHp}`;
+      if (orb.dataset.v !== health) { orb.dataset.v = health; orb.textContent = health; orb.setAttribute('aria-valuenow', String(s.hp)); orb.setAttribute('aria-valuemax', String(s.maxHp)); }
       $('xp-orb').style.width = `${Math.min(100, (this.selfXp / (30 + 20 * (s.level - 1))) * 100)}%`;
       const need = 30 + 20 * (s.level - 1);
       $('xp-fill').style.width = `${Math.min(100, (this.selfXp / need) * 100)}%`;
@@ -964,11 +978,11 @@ export class Game {
     bb.textContent = '';
     for (const [k, b] of buffs) { const el = document.createElement('span'); el.className = 'buff'; el.textContent = `${k} ${Math.ceil((b.until - sn) / 1000)}s`; bb.append(el); }
     const me = this.predictor.sim;
-    const surfaceY = isCaveY(me.y) ? me.y - CAVE_OY : me.y;
+    const surfaceY = isDiveY(me.y) ? me.y - DIVE_OY : isUpperY(me.y) ? me.y - UPPER_OY : isCaveY(me.y) ? me.y - CAVE_OY : me.y;
     const town = townsFor(this.seed).reduce((best, t) => Math.hypot(t.cx - me.x, t.cy - surfaceY) < Math.hypot(best.cx - me.x, best.cy - surfaceY) ? t : best);
-    const under = isCaveY(me.y);
-    const tdx = town.cx - me.x, tdy = town.cy - (under ? me.y - CAVE_OY : me.y), td = Math.hypot(tdx, tdy);
-    $('townhint').textContent = (under ? 'Undercroft · ' : '') + (td > 30 ? `${town.name} ${['→', '↘', '↓', '↙', '←', '↖', '↑', '↗'][Math.round(((Math.atan2(tdy, tdx) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8]} ${Math.round(td)} tiles` : `${town.name}`);
+    const tdx = town.cx - me.x, tdy = town.cy - surfaceY, td = Math.hypot(tdx, tdy);
+    const place = isDiveY(me.y) ? 'Submerged sanctuary · ' : isUpperY(me.y) ? 'Upper floor · ' : isCaveY(me.y) ? 'Undercroft · ' : '';
+    $('townhint').textContent = place + (td > 30 ? `${town.name} ${['→', '↘', '↓', '↙', '←', '↖', '↑', '↗'][Math.round(((Math.atan2(tdy, tdx) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8]} ${Math.round(td)} tiles` : `${town.name}`);
 
     const dbg = $('debug');
     if (!dbg.hidden) {

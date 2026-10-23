@@ -51,6 +51,19 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
   await room.ensureChunk(chunkOf(msg.tx), chunkOf(msg.ty));
   const o = room.store.objectAt(msg.tx, msg.ty);
   if (!o) { forageAt(room, p, msg.tx, msg.ty); return; }
+  if (o.static && ['stairs_up', 'stairs_down', 'dive_gate', 'dive_exit'].includes(o.sub)) {
+    const to = o.data?.to as { x?: unknown; y?: unknown } | undefined;
+    if (!to || typeof to.x !== 'number' || typeof to.y !== 'number' || !Number.isFinite(to.x) || !Number.isFinite(to.y)) return;
+    await room.ensureChunk(chunkOf(to.x), chunkOf(to.y));
+    if (o.sub === 'dive_gate' && countItem(p.data.inv, 'sloop') < 1) { p.toast('Bring a Sloop Charter so you can surface safely.', 'bad'); return; }
+    if (o.sub !== 'dive_exit' && room.store.solidAt(Math.floor(to.x), Math.floor(to.y))) { p.toast('The landing is blocked. Clear it before using the stairs.', 'bad'); return; }
+    const hasShip = countItem(p.data.inv, 'sloop') > 0;
+    p.sim.x = o.sub === 'dive_exit' && !hasShip ? .5 : to.x;
+    p.sim.y = o.sub === 'dive_exit' && !hasShip ? 4.5 : to.y;
+    p.sim.boat = o.sub === 'dive_exit' && hasShip ? 1 : 0; p.sim.dashT = 0; p.queue.length = 0;
+    p.toast(o.sub === 'stairs_up' ? 'You climb to the upper floor.' : o.sub === 'stairs_down' ? 'You return downstairs.' : o.sub === 'dive_gate' ? 'You descend into a dry chamber beneath the sea.' : 'You surface beside your sloop.');
+    return;
+  }
   if (o.kind === 'crop') {
     const d = cropOf(o);
     if (!d.dead && isRipe(d)) harvestCrop(room, p, o);

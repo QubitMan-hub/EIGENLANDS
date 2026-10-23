@@ -188,8 +188,12 @@ describe('abilities hurt things authoritatively', () => {
     const f = dummy(p.room, p.sp.sim.x + 2, p.sp.sim.y);
     f.def = { ...f.def, speed: 2 };
     const base = f.def;
-    let r = await cast(p, 0);
-    while (r.results[0]!.misfire) r = await cast(p, 0);
+    // A misfire still executes a damaging form. Retrying on the same dummy can kill it
+    // before the Void assertion; isolate this damage test from random board slips.
+    const rand = p.room.rand;
+    p.room.rand = () => .99;
+    try { expect((await cast(p, 0)).results[0]!.misfire).toBe(false); }
+    finally { p.room.rand = rand; }
     await until(() => f.hp < 30, 1500);
     expect(f.hp).toBe(30 - Math.round(10 * 1.25)); // Void +25%
     expect(f.def.speed).toBeCloseTo(2 * 0.6, 6);
