@@ -589,18 +589,20 @@ The full source checklist below is a conservative acceptance list. Broad aesthet
 
 ## 15. QUANTUM PROGRESSION OVERHAUL
 
-- [ ] NOT STARTED — The existing quantum progress board is too confusing.
-- [ ] NOT STARTED — Redesign it into a beautiful, intuitive, game-like progression interface.
-- [ ] NOT STARTED — Simple everyday language.
-- [ ] NOT STARTED — Short explanations.
-- [ ] NOT STARTED — Clear icons and upgrade descriptions.
-- [ ] NOT STARTED — Obvious progression paths.
-- [ ] NOT STARTED — Interactive learning challenges.
-- [ ] NOT STARTED — Beginner-friendly onboarding.
-- [ ] NOT STARTED — Optional advanced scientific details.
+- [~] IN PROGRESS — The existing quantum progress board is too confusing.
+- [~] IN PROGRESS — Redesign it into a beautiful, intuitive, game-like progression interface.
+- [~] IN PROGRESS — Simple everyday language.
+- [~] IN PROGRESS — Short explanations.
+- [~] IN PROGRESS — Clear icons and upgrade descriptions.
+- [~] IN PROGRESS — Obvious progression paths.
+- [~] IN PROGRESS — Interactive learning challenges.
+- [~] IN PROGRESS — Beginner-friendly onboarding.
+- [~] IN PROGRESS — Optional advanced scientific details.
 - [ ] NOT STARTED — Quantum-inspired gameplay integrated with Chronoria.
-- [ ] NOT STARTED — Accurate explanations where real quantum concepts are referenced.
-- [ ] NOT STARTED — Players should understand how to progress without knowing quantum computing beforehand.
+- [~] IN PROGRESS — Accurate explanations where real quantum concepts are referenced.
+- [~] IN PROGRESS — Players should understand how to progress without knowing quantum computing beforehand.
+
+Circuit workshop continuation: five guided patterns reuse actual tokens/edit constraints and show real outcome/slip previews before explicit draft application. Class/orb milestones and expandable class details are connected to shared data. Existing tutorial/codex/expert science remain. Broader interactive challenges/rewards and additional class/kingdom systems remain open. Validation and merge status: CONTINUE_HERE.md.
 
 ## 16. LIVING WORLD, ECONOMY & CIVILIZATIONS
 
