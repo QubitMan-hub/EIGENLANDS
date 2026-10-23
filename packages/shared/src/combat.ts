@@ -1,3 +1,4 @@
+import type { Biome } from './worldgen';
 import { IFRAME_TIME, PERFECT_WINDOW, PROJECTILE_DAMAGE } from './constants';
 
 /**
@@ -282,19 +283,22 @@ export function enemyScale(level: number): { hp: number; dmg: number; xp: number
   return { hp: 1 + 0.07 * l, dmg: 1 + 0.05 * l, xp: 1 + 0.06 * l };
 }
 
-/** Ambient spawn table for the meadow: weights by player level and time of day. */
-export function spawnTable(level: number, night: boolean): Array<{ kind: EnemyKindName; w: number }> {
-  const t: Array<{ kind: EnemyKindName; w: number }> = [
-    { kind: 'slime', w: night ? 26 : 40 },
-    { kind: 'hopper', w: night ? 26 : 22 },
-  ];
-  if (level >= 2 || night) t.push({ kind: 'wisp', w: night ? 20 : 14 }, { kind: 'mite', w: night ? 16 : 10 });
-  if (level >= 4 || (night && level >= 3)) t.push({ kind: 'brute', w: night ? 12 : 7 });
-  return t;
+/** Ambient encounter weights by habitat, level and time of day. */
+export function spawnTable(level: number, night: boolean, biome: Biome = 'meadow', cave = false): Array<{ kind: EnemyKindName; w: number }> {
+  if (level < 2) return [{ kind: 'slime', w: 3 }, { kind: 'hopper', w: 1 }];
+  const table: Array<[EnemyKindName, number]> = cave ? [['mite', 5], ['slime', 3], ['glasscrawler', 2], ['brute', 1]]
+    : biome === 'enchanted' ? [['wisp', 6], ['glasscrawler', 4], ['hopper', 1]]
+    : biome === 'corrupted' ? [['mite', 5], ['brute', 3], ['glasscrawler', 2]]
+    : biome === 'swamp' ? [['slime', 7], ['mite', 2], ['wisp', night ? 2 : 0]]
+    : biome === 'desert' ? [['hopper', 6], ['mite', 3], ['brute', 1]]
+    : biome === 'taiga' ? [['wolf', 5], ['hopper', 3], ['slime', 2]]
+    : biome === 'forest' || biome === 'autumn' ? [['thornling', 4], ['hopper', 4], ['wolf', night ? 3 : 0], ['slime', 2]]
+    : [['slime', 6], ['hopper', 3], ['wisp', night ? 2 : 0]];
+  return table.filter(([kind, w]) => w > 0 && (!['brute', 'wolf', 'thornling', 'glasscrawler'].includes(kind) || level >= (kind === 'brute' ? 4 : 3))).map(([kind, w]) => ({ kind, w }));
 }
 
-export function pickSpawn(level: number, night: boolean, roll: number): EnemyKindName {
-  const t = spawnTable(level, night);
+export function pickSpawn(level: number, night: boolean, roll: number, biome: Biome = 'meadow', cave = false): EnemyKindName {
+  const t = spawnTable(level, night, biome, cave);
   const total = t.reduce((a, b) => a + b.w, 0);
   let r = roll * total;
   for (const e of t) { r -= e.w; if (r < 0) return e.kind; }
@@ -302,6 +306,6 @@ export function pickSpawn(level: number, night: boolean, roll: number): EnemyKin
 }
 
 /** Spawn budget (sum of EnemyDef.budget) kept around each player. */
-export function spawnBudget(level: number, night: boolean): number {
-  return (night ? 8 : 4.5) + Math.min(3, Math.max(0, level - 1) * 0.35);
+export function spawnBudget(level: number, night: boolean, biome: Biome = 'meadow'): number {
+  return (night ? 3 : 2) + Math.min(2, Math.max(0, level - 1) * 0.2) + (biome === 'corrupted' ? 1 : 0);
 }

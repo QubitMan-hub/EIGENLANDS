@@ -1,6 +1,7 @@
+import { planeOf } from '../features/atlas/model';
 import { Application, Container, Graphics, Sprite, Text } from 'pixi.js';
 import {
-  BOSSES, xpForLevel, CAVE_OY, isCaveY, isDiveY, isUpperY, DIVE_OY, UPPER_OY, MSG,
+  BOSSES, xpForLevel, sanctuaryAt, CAVE_OY, isCaveY, isDiveY, isUpperY, DIVE_OY, UPPER_OY, MSG,
   ChunkStore, ELITE_NAMES, ENEMY_BY_KIND, INTEREST_RADIUS, NPC_BY_ID, TILE_DEFS, TILE_SIZE, ambientColor, SEASONS, chunkOf,
   darkness, decodeDiff, dayNumber, formatClock, gameHour, season, PALETTE, townFor, townsFor, weatherForDay, biomeWeather, biomeAt, type Ack, type ChunkMsg,
   type DialogueMsg, type FishBiteMsg, type FxMsg, type ObjMsg, type PanelMsg, type ProfileMsg, type RhythmResultMsg, type RhythmStartMsg,
@@ -180,6 +181,7 @@ export class Game {
           summons:Object.fromEntries(Object.values(BOSSES).map(b=>[b.item,this.gameplay.profile.count(b.item)])) } : null;
       },
       openBoard: () => { this.ext.circuit.action('board'); },
+      trackQuest: (id, map) => this.ext.atlas.trackQuest(id, map), trackedQuest: () => this.ext.atlas.trackedQuest(),
       seed: () => this.seed, reduced: () => this.settings().reducedMotion,
       npcScreens: () => [...this.views.values()].filter((v) => v.type === 'npc').map((v) => ({ id: v.id, x: v.lx, y: v.ly, sx: this.world.x + v.root.x * this.scale, sy: this.world.y + (v.root.y - 32) * this.scale, visible: v.root.visible })),
     });
@@ -197,6 +199,7 @@ export class Game {
       net: () => this.net, clock: this.clock, audio: this.audio, sfx: (s) => this.sound(s), input: this.input, keys: this.keys,
       shrineProgress: (ids) => { this.worldObjs?.setSolvedShrines(ids); this.ext?.atlas.setSolved(ids); },
       identity: () => this.accountId,
+      learn: action => { this.gameplay.acts[action] = true; },
       settings: this.settings, store: () => this.store, sheets: () => this.sheets, entityLayer: () => this.entityLayer,
       fxLayer: () => this.fxLayer, labelLayer: () => this.labelLayer, fx: () => this.fx,
       me: () => (this.predictor ? { x: this.predictor.visual(0).x, y: this.predictor.visual(0).y, fx: this.predictor.sim.faceX, fy: this.predictor.sim.faceY } : null),
@@ -281,6 +284,7 @@ export class Game {
     this.myId = w.playerId; this.features = w.features ?? { aiDialogue: false };
     // a shard handoff re-sends WELCOME: keep the drawn world, only restart it for a new seed
     if (!this.terrain || w.seed !== this.seed) this.startWorld(w.seed);
+    this.gameplay.onWelcome(this.accountId, w.seed);
     this.ext.onWelcome();
     this.net.send(MSG.HOLD, { slot: this.gameplay.hotbar.selected });
   }
@@ -730,6 +734,7 @@ export class Game {
     const acts = this.gameplay.acts;
     if (r.dx || r.dy) acts.moved = true;
     if (ev.attacked) acts.attacked = true;
+    if (ev.skill) acts.skillShot = true;
     if (ev.dashed) acts.dashed = true;
     this.combat.onLocalStep(ev, this.predictor.sim, this.views.get(this.myId));
     if (ev.skill) { this.fx.burst(this.predictor.sim.x, this.predictor.sim.y, [45, 46], 4); this.sound('shot'); }
@@ -994,9 +999,18 @@ export class Game {
     const town = townsFor(this.seed).reduce((best, t) => Math.hypot(t.cx - me.x, t.cy - surfaceY) < Math.hypot(best.cx - me.x, best.cy - surfaceY) ? t : best);
     const tdx = town.cx - me.x, tdy = town.cy - surfaceY, td = Math.hypot(tdx, tdy);
     const place = isDiveY(me.y) ? 'Submerged sanctuary · ' : isUpperY(me.y) ? 'Upper floor · ' : isCaveY(me.y) ? 'Undercroft · ' : '';
-    $('townhint').textContent = place + (td > 30 ? `${town.name} ${['→', '↘', '↓', '↙', '←', '↖', '↑', '↗'][Math.round(((Math.atan2(tdy, tdx) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8]} ${Math.round(td)} tiles` : `${town.name}`);
-
-    $('townhint').title = $('townhint').textContent ?? '';
+    const arrow = (dx: number, dy: number) => ['→', '↘', '↓', '↙', '←', '↖', '↑', '↗'][Math.round(((Math.atan2(isoY(dx, dy), isoX(dx, dy)) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8];
+    const ward = sanctuaryAt(this.seed, me.x, me.y);
+    const route = this.ext.atlas.navigation();
+    if (route) {
+      const dest = route.point;
+      const label = dest ? planeOf(dest.y) !== planeOf(me.y) ? `${route.title} · ${planeOf(dest.y)}` : `${route.title} ${arrow(dest.x - me.x, dest.y - me.y)} ${Math.round(Math.hypot(dest.x - me.x, dest.y - me.y))} tiles` : `${route.title} · See Journal`;
+      $('townhint').textContent = label + (ward ? ' · Sanctuary' : '');
+      $('townhint').title = `${route.detail}. Tracked quest; manage it in Journal → Quests. Sanctuary wards protect towns from monsters.`;
+    } else {
+      $('townhint').textContent = place + (ward ? `${ward.name} · Sanctuary` : td > 30 ? `${town.name} ${arrow(tdx, tdy)} ${Math.round(td)} tiles` : town.name);
+      $('townhint').title = ward ? 'Sanctuary: monsters cannot harm you here. Combat resumes beyond the settlement wards.' : $('townhint').textContent ?? '';
+    }
 
     const dbg = $('debug');
     if (!dbg.hidden) {

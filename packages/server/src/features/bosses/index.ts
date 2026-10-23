@@ -1,3 +1,4 @@
+import { sanctuaryAt } from '@eigenlands/shared';
 /**
  * Bosses: called with a crafted item, scaled to the summoner's level, with phases and scripted specials on top of the
  * ordinary enemy AI (leap / charge / slam). Killing one pays out through the normal drop table (guaranteed here) and
@@ -40,7 +41,7 @@ export class BossModule implements Module {
     if (p.level < def.level) { p.toast(`The ${def.name} would crush you. (Level ${def.level} needed.)`, 'bad'); return false; }
     for (const r of this.runs.values()) if (r.def.id === def.id && Math.hypot(r.e.x - p.sim.x, r.e.y - p.sim.y) < 120) { p.toast(`The ${def.name} is already here.`, 'bad'); return false; }
     const t = townFor(this.room.seed);
-    if (Math.hypot(x, y) < def.townGap || Math.hypot(x - t.cx, y - t.cy) < def.townGap + 25) { p.toast('The summoning fizzles: too close to home. Go further out.', 'bad'); return false; }
+    if (sanctuaryAt(this.room.seed, x, y) || Math.hypot(x, y) < def.townGap || Math.hypot(x - t.cx, y - t.cy) < def.townGap + 25) { p.toast('The summoning fizzles: too close to home. Go further out.', 'bad'); return false; }
     if (this.room.store.solidAt(Math.floor(x), Math.floor(y))) { p.toast('There is no room to call it here.', 'bad'); return false; }
     const e = this.room.spawnEnemy(KEY[def.id], x, y, false, { level: Math.max(p.level, def.level) });
     this.runs.set(e.id, { def, e, phase: 0, nextSpecial: this.t + 6, rage: false, summoner: p.id, later: [], born: this.t });

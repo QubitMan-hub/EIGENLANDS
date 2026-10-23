@@ -813,3 +813,7 @@ Circuit workshop continuation: five guided patterns reuse actual tokens/edit con
 - [ ] NOT STARTED — Make multiplayer effortless.
 - [ ] NOT STARTED — Make the game unmistakably **EIGENLANDS**.
 - [ ] NOT STARTED — **Do your absolute best. Implement, integrate, test, refine, and document everything.**
+
+### Welcoming-world follow-up (2026-10-24)
+
+Friend feedback addressed through the existing Journal/atlas/input and shared room simulation: practical first-steps progress, complete controls, convenient default bindings, explicit chosen-quest guidance and settlement wards with lower, habitat-specific encounter pressure. This is an onboarding/navigation/balance slice, not completion of the remaining major-world scope. Exact proof and integration status: CONTINUE_HERE.md.

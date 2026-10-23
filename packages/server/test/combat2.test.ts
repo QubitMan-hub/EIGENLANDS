@@ -255,21 +255,23 @@ describe('new enemies', () => {
     await p.r.leave();
   });
 
-  it('ambient spawning follows the level table, respects the budget and spawns mite packs', async () => {
+  it('ambient encounters respect newcomer budgets, habitats and recovery time', async () => {
     const p = await probe('Spawner');
     clear(p.w);
     p.sp.level = 1;
-    for (let i = 0; i < 20; i++) (p.w as any).ambientSpawn(0);
+    for (let y = Math.floor(p.sp.sim.y) - 40; y <= p.sp.sim.y + 40; y++) for (let x = Math.floor(p.sp.sim.x) - 40; x <= p.sp.sim.x + 40; x++) p.w.store.setTile(x,y,T.GRASS);
+    for (let i = 0; i < 20; i++) (p.w as any).ambientSpawn(i * 60000);
     const kinds = new Set([...p.w.enemies.values()].filter((e) => !e.def.passive).map((e) => e.def.name));
+    expect(kinds.size).toBeGreaterThan(0);
     expect([...kinds].every((k) => k === 'Wisp Slime' || k === 'Glint Hopper')).toBe(true);
     let budget = 0;
-    for (const e of p.w.enemies.values()) if (Math.hypot(e.x - p.sp.sim.x, e.y - p.sp.sim.y) < 32) budget += e.def.budget ?? 1;
-    expect(budget).toBeLessThanOrEqual(6);
+    for (const e of p.w.enemies.values()) if (Math.hypot(e.x - p.sp.sim.x, e.y - p.sp.sim.y) < 40) budget += e.def.budget ?? 1;
+    expect(budget).toBeLessThanOrEqual(3);
     clear(p.w);
     p.sp.level = 8;
     const seen = new Set<string>();
-    for (let i = 0; i < 40; i++) { (p.w as any).ambientSpawn(0); for (const e of p.w.enemies.values()) seen.add(e.def.name); clear(p.w); }
-    expect(seen.has('Static Mite') || seen.has('Phase Wisp') || seen.has('Decoherent Brute')).toBe(true);
+    for (let i = 0; i < 40; i++) { (p.w as any).ambientSpawn(2000000 + i * 60000); for (const e of p.w.enemies.values()) seen.add(e.def.name); clear(p.w); }
+    expect(seen.size).toBeGreaterThan(0); // rare species depend on this arena's biome; shared habitat tests cover their tables
     await p.r.leave();
   });
 });

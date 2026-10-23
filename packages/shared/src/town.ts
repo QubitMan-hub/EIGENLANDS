@@ -112,7 +112,7 @@ export function townFor(seed: number): Town {
   obj(cx, cy + 5, 'sign', 'plaque', { text: 'ALL HAIL QUBITMAN\n\nHe measured the world, and the world chose to be.\nErected by the grateful people of Hadamere.' });
   obj(cx - 6, cy + 7, 'deco', 'well');
   // the plaza notice board doubles as the daily request board (see quests.ts dailyRequests)
-  obj(cx - 3, cy + 1, 'sign', 'board', { text: 'HADAMERE\nA friendly village on the edge of the Eigenlands.\nTraders: General Store (west) · Smithy (north-west) · The Crooked Spoon inn (north) · Town Hall (north).\nFarm plots by the farmhouse (east) are free to use. The pond is south.' });
+  obj(cx - 3, cy + 1, 'sign', 'board', { text: 'HADAMERE\nA friendly village on the edge of the Eigenlands.\nSanctuary wards keep monsters out of our streets and homes.\nTraders: General Store (west) · Smithy (north-west) · The Crooked Spoon inn (north) · Town Hall (north).\nFarm plots by the farmhouse (east) are free to use. The pond is south.' });
   for (const [dx, dy] of [[-6, 3], [6, 3], [6, 10]] as const) obj(cx + dx, cy + dy, 'deco', 'bench');
   obj(cx + 7, cy + 6, 'deco', 'planter'); obj(cx - 7, cy + 5, 'deco', 'planter');
   obj(cx - 10, cy + 1, 'deco', 'stall'); obj(cx + 10, cy + 1, 'deco', 'stall'); obj(cx + 12, cy + 5, 'deco', 'stall');

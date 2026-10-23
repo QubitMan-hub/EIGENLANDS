@@ -5,14 +5,17 @@ import {
 import { ensureP2Styles } from './p2style';
 import type { Profile } from '../game/profile';
 import { clear, h, iconCell } from './dom';
+import { ACTIONS, ACTION_LABELS, DEFAULT_KEYS, type KeyMap } from '../input/keymap';
+import { binding } from './first-steps';
 import { heartsRow } from './dialogue';
 
 export type JournalTab = 'journey' | 'quests' | 'skills' | 'friends' | 'recipes' | 'guide' | 'help';
 
 /** "How do I…?" pages: everything Phase 2 adds, explained in-game. */
 export const GUIDE: Array<[string, string]> = [
-  ['Getting started', 'Follow the town direction above the map (top right) to the village of Hadamere. Talk to Mayor Orla (press E next to her): she gives you your first quest. Villagers with a yellow ! above their head have a task for you; a blue ? means they are waiting for your report; a pink ♥ means they want to share something because you are friends.'],
-  ['Quests and the request board', 'Your quest objectives and progress live in this Journal (Quests tab). "Bring" objectives count what is in your pack and are handed over when you report back. Every morning three new jobs are pinned to the request board on the plaza (press E at the notice board): accept up to three, deliver, and hand them in at the board or to whoever asked.'],
+  ['Getting started', 'Open Quests → First steps to Hadamere, then choose Track Hadamere. Follow its direction in the travel strip or its pin on the atlas. Talk to Mayor Orla (press E next to her): she gives you your first quest. Villagers with a yellow ! above their head have a task for you; a blue ? means they are waiting for your report; a pink ♥ means they want to share something because you are friends.'],
+  ['Quests and the request board', 'Your quest objectives and progress live in this Journal (Quests tab). Track quest selects one objective for the travel strip and map; Show on map centers it. Known home markers guide you to a building, not an unseen villager’s exact position. "Bring" objectives count what is in your pack and are handed over when you report back. Every morning three new jobs are pinned to the request board on the plaza (press E at the notice board): accept up to three, deliver, and hand them in at the board or to whoever asked.'],
+  ['Sanctuaries and wilderness', 'Settlement wards disperse hostile creatures and protect streets, homes and shops. You can rest in town; attacks from inside the wards do not harm monsters outside. Look for Sanctuary in the travel strip. Beyond the wards, encounters are spaced out: woods shelter thornlings and wolves, glades draw wisps and glasscrawlers, and the wastes and caves are more dangerous. Night brings greater pressure.'],
   ['Gathering', 'Select a tool in the quick-bar (1–0 or mouse wheel) and hold E facing the target. Axe: trees (wood, fiber), and tall grass for fiber. Pickaxe: boulders (stone, coal) and ore outcrops; better ores need a higher-tier pickaxe. Bright little plants in the grass are forage: press E to pick them. Everything grows back over time.'],
   ['Farming', 'Hoe on grass tills it. Plant seeds on tilled soil, then water them with the watering can every day (rain waters for you). Crops grow one stage per watered day and only in their seasons (the seed tooltip says which). Ripe crops look full: press E to harvest. The fenced garden by the farmhouse is free to use. Fertilizer shaves off a day. Sprinklers water their neighbours every morning; a Phase Lantern keeps crops within 2 tiles alive in any season (a greenhouse).'],
   ['Animals', 'Buy a Chicken Coop and chickens from Fenwick (Barns come later). Place the coop, open it with E, add animals and feed them hay each day (hay: 3 fiber in field crafting). Fed animals give eggs or milk the next morning.'],
@@ -25,7 +28,7 @@ export const GUIDE: Array<[string, string]> = [
   ['The Statue of QubitMan', 'In the middle of the plaza stands the statue of Hadamere\'s legendary founder. Walk up to it and press E to read the plaque and his legend. ALL HAIL QUBITMAN.'],
 ];
 
-export function buildJournal(profile: Profile, portrait: (npcId: string) => string, tab0: JournalTab = 'quests', seed = 0, guidance: () => string | null = () => null, journey?: HTMLElement): HTMLElement {
+export function buildJournal(profile: Profile, portrait: (npcId: string) => string, tab0: JournalTab = 'quests', seed = 0, guidance: () => string | null = () => null, journey?: HTMLElement, options: { keys?: () => KeyMap; firstSteps?: HTMLElement; track?: (id: string | null, map?: boolean) => void; tracked?: () => string | null } = {}): HTMLElement {
   ensureP2Styles();
   const root = h('div', { class: 'journal' });
   const body = h('div', { class: 'jbody' });
@@ -34,8 +37,13 @@ export function buildJournal(profile: Profile, portrait: (npcId: string) => stri
   const tabs = h('div', { class: 'tabs' });
 
   const render = () => {
+    const focused = (document.activeElement as HTMLElement | null)?.dataset.focus;
+    const scroll = body.scrollTop;
+    const keys = options.keys?.() ?? DEFAULT_KEYS;
+    const shortcutText = (text: string) => text.replace(/\b[EJCIL]\b/g, key => binding(keys, ({ E:'interact', J:'attack', C:'craft', I:'inventory', L:'journal' } as const)[key as 'E'|'J'|'C'|'I'|'L']));
     clear(tabs); clear(body);
     for (const [id, label] of [['quests', 'Quests'], ['journey', 'Journey'], ['skills', 'Skills'], ['friends', 'Friends'], ['recipes', 'Recipes'], ['guide', 'How to…'], ['help', 'Controls']] as const) { if (id === 'journey' && !journey) continue; tabs.append(h('button', { class: id === tab ? 'primary' : '', text: label, data: { tab: id }, on: { click: () => { tab = id; render(); } } })); }
+    if ((tab === 'quests' || tab === 'guide') && options.firstSteps) body.append(options.firstSteps);
     if (tab === 'quests' || tab === 'guide') {
       const next = guidance();
       if (next) body.append(h('section', { class: 'journal-guidance' }, h('h3', { text: 'Next steps' }), h('p', { text: next })));
@@ -44,16 +52,22 @@ export function buildJournal(profile: Profile, portrait: (npcId: string) => stri
     else if (tab === 'quests') {
       const log = profile.quests;
       const active = Object.entries(log).filter(([, s]) => s.state === 'active');
-      if (!active.length) body.append(h('div', { class: 'small dim', text: log.welcome ? 'No active quests. Look for villagers with a yellow ! over their heads, or check the request board on the plaza.' : 'No quests yet. Follow the town direction above the map to Hadamere and talk to Mayor Orla.' }));
+      if (!active.length) body.append(h('div', { class: 'small dim', text: log.welcome ? 'No active quests. Look for villagers with a yellow ! over their heads, or check the request board on the plaza.' : 'No quests yet. Track Hadamere above, then talk to Mayor Orla for A Warm Welcome.' }));
       for (const [id, st] of active) {
         const d = questDef(id, seed);
         if (!d) continue;
         const prog = d.objectives.map((o, i) => (o.type === 'deliver' ? Math.min(o.n, profile.count(o.target)) : st.progress[i] ?? 0));
         const ready = questComplete(d, { state: 'active', progress: prog });
-        body.append(h('div', { class: `jq${ready ? ' ready' : ''}` },
-          h('b', { text: `${ready ? '★ ' : isRequestId(id) ? '📌 ' : ''}${d.title}` }), h('div', { class: 'small', text: d.summary }),
-          ...d.objectives.map((o, i) => h('div', { class: `o small${prog[i]! >= o.n ? ' done' : ''}`, text: `${prog[i]! >= o.n ? '✓' : '•'} ${objectiveText(o, prog[i] ?? 0)}` })),
+        body.append(h('div', { class: `jq${ready ? ' ready' : ''}`, data: { quest: id } },
+          h('b', { text: `${ready ? '★ ' : isRequestId(id) ? '📌 ' : ''}${d.title}` }), h('div', { class: 'small', text: shortcutText(d.summary) }),
+          ...d.objectives.map((o, i) => h('div', { class: `o small${prog[i]! >= o.n ? ' done' : ''}`, text: `${prog[i]! >= o.n ? '✓' : '•'} ${shortcutText(objectiveText(o, prog[i] ?? 0))}` })),
           h('div', { class: 'where', text: `${ready ? 'Ready! Hand it in to' : 'From'}: ${d.where ?? NPC_BY_ID[d.giver]?.name ?? d.giver}${d.rewards.coins ? ` · Reward ${d.rewards.coins} coins${(d.rewards.items ?? []).map((s) => `, ${s.n} ${ITEMS[s.id]?.name}`).join('')}` : ''}` })));
+      }
+      if (options.track) for (const card of body.querySelectorAll<HTMLElement>('.jq')) {
+        const id = card.dataset.quest!;
+        const tracked = options.tracked?.() === id;
+        card.append(h('button', { text: tracked ? 'Stop tracking' : 'Track quest', data:{focus:`track:${id}`}, on: { click: () => { options.track!(tracked ? null : id); render(); } } }),
+          h('button', { text: 'Show on map', data:{focus:`map:${id}`}, on: { click: () => options.track!(id, true) } }));
       }
       const done = QUESTS.filter((q) => log[q.id]?.state === 'done');
       const boardDone = Object.entries(log).filter(([id, s]) => isRequestId(id) && s.state === 'done').length;
@@ -61,7 +75,7 @@ export function buildJournal(profile: Profile, portrait: (npcId: string) => stri
       for (const q of done) body.append(h('div', { class: 'small dim', text: `✓ ${q.title} (${NPC_BY_ID[q.giver]?.name.split(' ')[0]})` }));
     } else if (tab === 'guide') {
       const box = h('div', { class: 'jhelp' });
-      for (const [title, text] of GUIDE) box.append(h('h4', { text: title }), h('p', { text }));
+      for (const [title, text] of GUIDE) box.append(h('h4', { text: title }), h('p', { text: shortcutText(text) }));
       body.append(box);
     } else if (tab === 'skills') {
       for (const s of SKILLS) {
@@ -93,20 +107,21 @@ export function buildJournal(profile: Profile, portrait: (npcId: string) => stri
       body.append(h('div', { class: 'small dim', text: `${profile.recipes.size} / ${RECIPES.length} recipes known. Experiment at stations to discover more; villagers teach some once you are friends.` }));
     } else {
       const rows: Array<[string, string]> = [
-        ['Move', 'WASD / arrows · left stick · touch stick'], ['Attack', 'J / Z · left click · A / RT'], ['Skill shot', 'K / X · right click (aims at cursor)'],
-        ['Dash (dodge)', 'Space / Shift · B'],
-        // combat 2.0
         ['Combo', 'tap Attack: slash, slash, lunging finisher (presses are buffered; dash cancels recovery)'],
         ['Heavy strike', 'hold Attack to charge (ring fills), release to cleave — breaks armour'],
         ['Phase Slip', 'dash through a red warning just before it fills: slow-mo + guaranteed critical counter'],
         ['Dash charges', '2 charges (pips under your feet), refill one at a time'],
-        ['Reflect', 'swing at a Phase Wisp orb to bat it back'], ['Use item / talk / open', 'E · Y — acts on the tile you face (or the cursor if close)'],
-        ['Quick-bar', '1–0 · mouse wheel · [ ] · tap'], ['Inventory', 'I'], ['Journal (quests, skills, friends, recipes, guide)', 'L'], ['Field crafting', 'C'],
-        ['In conversations', 'click / E / Space: skip text and turn pages · 1–9: pick an answer · Esc: leave'], ['Settings', 'Menu → Settings · F3 debug'],
+        ['Reflect', 'swing at a Phase Wisp orb to bat it back'],
+        ['Quick-bar', `1–0 · mouse wheel · ${binding(keys,'prev')} / ${binding(keys,'next')} · tap`],
+        ['In conversations', `click / ${binding(keys,'interact')} / Space: skip text and turn pages · 1–9: pick an answer · Esc: leave`], ['Settings', 'Menu → Settings · F3 debug'],
       ];
+      const devices: Record<string,string> = { up:'left stick / touch stick', down:'left stick / touch stick', left:'left stick / touch stick', right:'left stick / touch stick', attack:'left click · gamepad A / RT', skill:'right click · gamepad X', dash:'Dodge button · gamepad B', interact:'Use button · gamepad Y', prev:'mouse wheel', next:'mouse wheel' };
+      rows.unshift(...ACTIONS.map(a => [ACTION_LABELS[a], `${binding(keys, a)}${devices[a] ? ` · ${devices[a]}` : ''}`] as [string,string]));
       for (const [a, b] of rows) body.append(h('div', { class: 'keyrow' }, h('span', { text: a }), h('span', { class: 'dim', text: b })));
       body.append(h('div', { class: 'small dim', text: 'Your Quests tab keeps objectives and next steps together. The “How to…” tab explains each system. Open the Journal any time from its button or your Journal key.' }));
     }
+    body.scrollTop = scroll;
+    if (focused) root.querySelector<HTMLElement>(`[data-focus="${CSS.escape(focused)}"]`)?.focus({preventScroll:true});
   };
   render();
   const unsub = profile.onChange(() => { if (!root.isConnected) { unsub(); return; } render(); });

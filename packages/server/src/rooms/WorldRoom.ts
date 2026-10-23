@@ -13,7 +13,7 @@ import {
   type DevMsg, type UseMsg, type OpenMsg, type InvMoveMsg, type InvTrashMsg, type EquipMsg, type CraftMsg, type ExperimentMsg,
   type ForgePreviewMsg, type ForgeStartMsg, type RhythmDoneMsg, type FishHookMsg, type ChestMsg, type ShelterMsg, type NpcState,
   type SpellState,
-  biomeAt, isCaveY,
+  biomeAt, isCaveY, isUpperY, isDiveY, sanctuaryAt,
   CANNON, ITEMS, MORPH_FORMS, WEAPONS, isRangedWeapon, type WeaponDef, type WeaponShot,
 } from '@eigenlands/shared';
 import { verifyToken } from '../auth/token';
@@ -100,6 +100,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   private dirtyChunks = new Set<string>();
   protected byAccount = new Map<string, ServerPlayer>();
   private spawnTimer = 0;
+  private encounterAt = new Map<string, number>();
   private autosaveTimer = 0;
   private projSeq = 0;
   private strikes: PendingStrike[] = [];
@@ -445,7 +446,11 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     for (const p of this.players.values()) this.stepPlayerTick(p, tick, solid);
     this.resolveStrikes(tick);
 
-    const targets = [...this.players.values()].map((p) => ({ id: p.client.sessionId, x: p.sim.x, y: p.sim.y, alive: p.deadT <= 0 }), ...this.hookTargets());
+    // Wards disperse intruders without loot, XP or kill credit; they are resting places, not farming spots.
+    for (const e of this.enemies.values()) if (!e.def.passive && sanctuaryAt(this.seed, e.x, e.y)) {
+      this.enemies.delete(e.id); this.state.enemies.delete(e.id);
+    }
+    const targets = [...this.players.values()].map((p) => ({ id: p.client.sessionId, x: p.sim.x, y: p.sim.y, alive: p.deadT <= 0 && !sanctuaryAt(this.seed, p.sim.x, p.sim.y) }), ...this.hookTargets()).filter(t => !sanctuaryAt(this.seed, t.x, t.y));
     stepEnemies(this.enemies.values(), TICK_DT, tick, targets, solid, this.rand, {
       telegraph: (en) => this.fx({ kind: 'telegraph', x: en.x, y: en.y, v: en.t, w: en.atk, id: en.id }),
       strike: (en, x, y, r, mult) => this.enemyStrike(en, x, y, r, mult),
@@ -706,7 +711,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   }
 
   protected damageEnemy(e: Enemy, dmg: number, by: ServerPlayer | null, dx: number, dy: number, kb: number, o: HitOpts = {}): void {
-    if (!this.enemies.has(e.id) || e.hp <= 0) return;
+    if (!this.enemies.has(e.id) || e.hp <= 0 || sanctuaryAt(this.seed, e.x, e.y) || by && sanctuaryAt(this.seed, by.sim.x, by.sim.y)) return;
     const weight = o.weight ?? 0;
     const crit = !!o.crit;
     const staggered = e.mode === 'stagger';
@@ -857,6 +862,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
 
   /** Apply an enemy hit to a player (ward buff, Phase 3 hook, shove, death). Returns whether damage was dealt. */
   private hurtPlayer(p: ServerPlayer, raw: number, e: Enemy, weight: number, dirX: number, dirY: number): boolean {
+    if (sanctuaryAt(this.seed, p.sim.x, p.sim.y)) return false;
     // armour: a hit may pass straight through (phase), otherwise worn defence trims it
     if (p.stats.phase > 0 && this.rand() < p.stats.phase) { this.fx({ kind: 'shadow', x: p.sim.x, y: p.sim.y, v: 5, id: p.id }); return false; }
     const ward = p.data.buffs.ward;
@@ -916,57 +922,41 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     }
   }
 
-  /** Meadow spawner: a per-player budget of enemy "points", a spawn table by level and time of day, mite packs and elites. */
+  /** Sparse encounters, shared local budgets and recovery time after each group. */
   private ambientSpawn(now: number): void {
-    if ([...this.enemies.values()].filter((e) => !e.def.passive && !e.def.neutral).length >= MAX_ENEMIES) return;
+    let total = [...this.enemies.values()].filter(e => !e.def.passive && !e.def.neutral).length;
+    for (const id of this.encounterAt.keys()) if (!this.players.has(id)) this.encounterAt.delete(id);
     for (const p of this.players.values()) {
-      if (p.deadT > 0) continue;
-      const night = isNight(now) || isCaveY(p.sim.y);                // it is always night underground
-      let used = 0;
-      for (const e of this.enemies.values()) if (!e.def.passive && Math.hypot(e.x - p.sim.x, e.y - p.sim.y) < 32) used += e.def.budget ?? 1;
-      const budget = spawnBudget(p.level, night);
-      if (used >= budget) continue;
+      if (p.deadT > 0 || isUpperY(p.sim.y) || isDiveY(p.sim.y) || total >= MAX_ENEMIES) continue;
+      if (sanctuaryAt(this.seed, p.sim.x, p.sim.y)) { this.encounterAt.set(p.id, now + 12000); continue; }
+      if (!this.encounterAt.has(p.id)) this.encounterAt.set(p.id, now + 8000);
+      if (now < this.encounterAt.get(p.id)!) continue;
+      // A failed search also backs off, rather than checking six fresh positions every second.
+      this.encounterAt.set(p.id, now + 5000);
+      const night = isNight(now) || isCaveY(p.sim.y), biome = biomeAt(this.seed, p.sim.x, p.sim.y);
+      let used = 0, near = 0;
+      for (const e of this.enemies.values()) if (!e.def.passive && !e.def.neutral && Math.hypot(e.x - p.sim.x, e.y - p.sim.y) < 40) { used += e.def.budget ?? 1; near++; }
+      const headroom = Math.min(6, 3 + Math.floor(p.level / 4)) - near;
+      const budget = spawnBudget(p.level, night, biome);
+      if (used >= budget || headroom <= 0) continue;
       for (let tries = 0; tries < 6; tries++) {
-        const a = this.rand() * Math.PI * 2;
-        const d = 14 + this.rand() * 8;
-        const x = Math.floor(p.sim.x + Math.cos(a) * d), y = Math.floor(p.sim.y + Math.sin(a) * d);
-        if (Math.hypot(x, y) < 12 || buildingAt(this.seed, x, y)) continue; // safe zone around the spawn shrine; never indoors
-        const t = this.store.getTile(x, y);
-        if (TILE_DEFS[t]?.solid || t === T.TORCH) continue;
-        let kind = pickSpawn(p.level, night, this.rand());
-        // the land shapes its monsters: wisps haunt the glades, mites and brutes swarm the wastes, slimes breed in the fen
-        const biome = biomeAt(this.seed, x, y);
-        const br = this.rand();
-        // (newcomers only ever meet the gentle level-1 table, wherever they wander)
-        if (p.level < 2) { /* keep the table's pick */ }
-        else if (isCaveY(y)) kind = br < 0.2 && p.level >= 3 ? 'glasscrawler' : br < 0.45 ? 'slime' : br < 0.8 || p.level < 3 ? 'mite' : 'brute';   // the Undercroft never sleeps
-        else if (biome === 'enchanted' && br < 0.25) kind = 'glasscrawler';
-        else if ((biome === 'forest' || biome === 'autumn') && br < 0.2 && p.level >= 3) kind = 'thornling';
-        else if (biome === 'enchanted' && br < 0.5) kind = 'wisp';
-        else if (biome === 'corrupted' && br < 0.6) kind = br < 0.2 && p.level >= 3 ? 'brute' : 'mite';
-        else if (biome === 'swamp' && br < 0.5) kind = 'slime';
-        if (kind === 'brute' && used + 3 > budget + 0.5) kind = 'slime';
-        // wolf packs prowl woodland at night (and any snowy ground)
-        if (!isCaveY(y) && (night || biome === 'taiga') && p.level >= 3 && this.rand() < (biome === 'taiga' ? 0.35 : 0.22) && used + 3 <= budget + 1) {
-          let trees = 0;
-          for (let dy = -5; dy <= 5; dy++) for (let dx = -5; dx <= 5; dx++) if (this.store.getTile(x + dx, y + dy) === T.TREE) trees++;
-          if (trees >= 5) {
-            const n = 2 + Math.floor(this.rand() * 2);
-            for (let i = 0; i < n; i++) {
-              const wx = x + 0.5 + Math.cos(i * 2.3) * 1.5, wy = y + 0.5 + Math.sin(i * 2.3) * 1.5;
-              if (!this.store.solidAt(Math.floor(wx), Math.floor(wy))) this.spawnEnemy('wolf', wx, wy, night, { level: p.level });
-            }
-            break;
-          }
+        const a = this.rand() * Math.PI * 2, d = 22 + this.rand() * 12;
+        const x = Math.floor(p.sim.x + Math.cos(a) * d) + .5, y = Math.floor(p.sim.y + Math.sin(a) * d) + .5;
+        const habitat = biomeAt(this.seed, x, y);
+        const kind = pickSpawn(p.level, night, this.rand(), habitat, isCaveY(y)), def = ENEMY_DEFS[kind];
+        const cost = def.budget ?? 1;
+        if (used + cost > budget || Math.hypot(x, y) < 12 || buildingAt(this.seed, x, y) || sanctuaryAt(this.seed, x, y) || this.store.solidAt(Math.floor(x), Math.floor(y))) continue;
+        if ([...this.players.values()].some(other => other.deadT <= 0 && Math.hypot(x - other.sim.x, y - other.sim.y) < 18)) continue;
+        if ([...this.enemies.values()].some(e => !e.def.passive && Math.hypot(x - e.x, y - e.y) < 3)) continue;
+        const pack = kind === 'mite' ? 2 : kind === 'wolf' ? 2 : 1;
+        const n = Math.min(pack, headroom, Math.floor((budget - used) / cost), MAX_ENEMIES - total);
+        for (let i = 0; i < n; i++) {
+          const px = x + i * 1.1, py = y + i * .6;
+          if (sanctuaryAt(this.seed, px, py) || this.store.solidAt(Math.floor(px), Math.floor(py)) || [...this.players.values()].some(other => Math.hypot(px - other.sim.x, py - other.sim.y) < 18)) continue;
+          const elite = p.level >= 3 && n === 1 && this.rand() < eliteChance(p.level, night) ? [ELITE.HARDENED, ELITE.SWIFT, ELITE.VOLATILE][Math.floor(this.rand() * 3)]! : 0;
+          this.spawnEnemy(kind, px, py, night, { level: p.level, elite }); total++;
         }
-        const elite = this.rand() < eliteChance(p.level, night) ? [ELITE.HARDENED, ELITE.SWIFT, ELITE.VOLATILE][Math.floor(this.rand() * 3)]! : 0;
-        if (kind === 'mite') {
-          const n = 4 + Math.floor(this.rand() * 3);
-          for (let i = 0; i < n; i++) {
-            const mx = x + 0.5 + Math.cos(i * 2.4) * 0.8, my = y + 0.5 + Math.sin(i * 2.4) * 0.8;
-            if (!this.store.solidAt(Math.floor(mx), Math.floor(my))) this.spawnEnemy('mite', mx, my, night, { level: p.level });
-          }
-        } else this.spawnEnemy(kind, x + 0.5, y + 0.5, night, { level: p.level, elite });
+        this.encounterAt.set(p.id, now + (night ? 14000 : 20000) + this.rand() * 8000);
         break;
       }
     }
@@ -979,14 +969,14 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     for (const e of this.enemies.values()) if (e.def.passive || e.def.neutral) total++;
     if (total >= MAX_FAUNA) return;
     for (const p of this.players.values()) {
-      if (p.deadT > 0) continue;
+      if (p.deadT > 0 || isUpperY(p.sim.y) || isDiveY(p.sim.y)) continue;
       let near = 0;
       for (const e of this.enemies.values()) if ((e.def.passive || e.def.neutral) && Math.hypot(e.x - p.sim.x, e.y - p.sim.y) < 40) near++;
       if (near >= 3) continue;
       for (let tries = 0; tries < 6; tries++) {
         const a = this.rand() * Math.PI * 2, d = 16 + this.rand() * 10;
         const x = Math.floor(p.sim.x + Math.cos(a) * d), y = Math.floor(p.sim.y + Math.sin(a) * d);
-        if (Math.hypot(x, y) < 12 || buildingAt(this.seed, x, y)) continue;
+        if (Math.hypot(x, y) < 12 || buildingAt(this.seed, x, y) || sanctuaryAt(this.seed, x, y)) continue;
         const t = this.store.getTile(x, y);
         const biome = biomeAt(this.seed, x, y);
         if (biome === 'corrupted' || isCaveY(y)) continue;         // nothing gentle lives in the wastes or underground
@@ -1005,10 +995,10 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
           : biome === 'swamp' ? (r < 0.6 ? 'boar' : 'badger')
           : biome === 'autumn' ? (r < 0.5 ? 'boar' : r < 0.85 ? 'deer' : 'rabbit')
           : trees >= 6 ? (r < 0.5 ? 'deer' : r < 0.75 ? 'boar' : 'rabbit') : (r < 0.2 ? 'badger' : 'rabbit');
-        const n = kind === 'deer' ? 2 + Math.floor(this.rand() * 3) : kind === 'boar' ? 1 + Math.floor(this.rand() * 3) : 1;
+        const n = Math.min(MAX_FAUNA - total, 3 - near, kind === 'deer' ? 2 : 1);
         for (let i = 0; i < n; i++) {
           const hx = x + 0.5 + Math.cos(i * 2.1) * 1.2, hy = y + 0.5 + Math.sin(i * 2.1) * 1.2;
-          if (!this.store.solidAt(Math.floor(hx), Math.floor(hy))) this.spawnEnemy(kind, hx, hy, false);
+          if (!sanctuaryAt(this.seed, hx, hy) && !this.store.solidAt(Math.floor(hx), Math.floor(hy))) { this.spawnEnemy(kind, hx, hy, false); total++; }
         }
         break;
       }

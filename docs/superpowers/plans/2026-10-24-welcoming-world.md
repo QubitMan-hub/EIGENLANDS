@@ -1,0 +1,16 @@
+# Welcoming world implementation plan
+
+Implement the friend's feedback inline; no subagents. Existing authorization covers testing, publishing and merging completed work.
+
+- [x] Protect authored settlement footprints (including upper rooms) with a small ward margin. Block hostile spawn/entry damage and attacking out of sanctuary, remove intruding hostiles without rewards, ignore protected targets, and reject boss summons at every settlement. Preserve wilderness combat and shrine challenges. Starting shrine retains its existing ambient exclusion.
+- [x] Slow ambient refill with per-player recovery intervals and shared local budgets; honor strict pack/global limits and minimum distance from every player. Extend the existing spawn table by biome/caves, retaining gentle early-level choices. Separate wildlife density from hostile pressure.
+- [x] Adopt Q/E/R/F, X interaction and K skill shot for new/default users. Migrate only an entire unchanged legacy control group; preserve custom and unbound actions without adding collisions. Read real bindings in tutorial/help/interaction copy.
+- [x] Add first-steps quest checklist in Journal with actual action completion and account+seed persistence. Teach movement, attack, dodge, quick-bar, pack, map, village arrival, talking, accepting a quest, and Circuit/orb basics. Explain other controls in the complete live Controls page. Do not add persistent tutorial prose over gameplay.
+- [x] Track one chosen quest from Journal, with an isometric direction/distance in the existing travel strip and a single map pin. Quest-described homes may guide over fog without charting terrain; live NPC positions still require discovery. Refresh hand-in targets, clear completion and persist selection per account/seed. Guide newcomers to Hadamere before they accept a quest.
+- [x] Test protection (including pending/projectile hits), budget/rate/biome behavior, controls migration, action persistence, tracking/turn-in and real solo/multiplayer/mobile play. Review inline, update continuation/art/design notes, run required checks and merge after CI.
+
+Design: authored towns are reliable resting places; wilderness has encounters separated by breathing room, with stronger danger in corrupted terrain/caves. This uses the existing room simulation, shared helpers, Journal and atlas. No new economy, duplicate combat engine, omniscient NPC markers or new HUD panel. The spawn shrine's existing 12-tile spawn exclusion remains; village wards are the enforced sanctuaries.
+
+Browser investigation reproduced an outdoor Lumen conflict: its visible dialogue captured dodge/interact keys while teaching the player. An initial check labelled it hidden too broadly; the confirmed defect was competing control ownership. The mobile check also showed that floating story pages covered the aiming area. Story pages now render inside the Board; input yields completely to other modals and ignores non-rendered content. The browser regression keeps the story active rather than skipping around this behavior.
+
+Local proof: 436 tests (78 client / 218 server / 140 shared), workspace typechecks, multiplayer + solo builds, and final real solo desktop / multiplayer touch-landscape welcoming-world fixtures passed. Batched visual inspection and final quiet gameplay confirmation completed. CI/merge status is in CONTINUE_HERE.md.
