@@ -1,11 +1,12 @@
 import './atlas.css';
-import { ENEMY_BY_KIND, NPC_BY_ID, G, PALETTE, TILE_DEFS, townsFor } from '@eigenlands/shared';
+import { ENEMY_BY_KIND, NPC_BY_ID, G, PALETTE, TILE_DEFS, townsFor, type PartyStateMsg } from '@eigenlands/shared';
 import { isoX, isoY, unproject } from '../../game/iso';
 import { keyLabel } from '../../input/keymap';
 import { h } from '../../ui/dom';
 import { iconSvg } from '../../ui/icons';
 import type { ClientModule, P34Deps } from '../types';
 import { Exploration, chartY, planeOf, type ChartChunk } from './model';
+import { partyDestinations, questDestinations, type Destination } from './destinations';
 interface Point {
   x: number;
   y: number;
@@ -43,7 +44,9 @@ export class AtlasClient implements ClientModule {
   private button = h('button', { class: 'gatebtn', type: 'button', title: 'World atlas' });
   private showMini = true;
   private size = 144;
-  private filters = { locations: true, players: true, npcs: true, enemies: false };
+  private filters = { locations: true, players: true, npcs: true, enemies: false, quests: true, party: true };
+  private destinations: Record<'quests' | 'party', Destination[]> = { quests: [], party: [] };
+  private directories: { key: 'quests' | 'party'; summary: HTMLElement; list: HTMLElement; signature: string }[] = [];
   private centres = new Map<string, Point>();
   private centre: Point = { x: 0, y: 0, name: '' };
   private plane = 'Overworld';
@@ -52,7 +55,7 @@ export class AtlasClient implements ClientModule {
   private readout: HTMLElement | null = null;
   private waypointList: HTMLElement | null = null;
   private nameInput: HTMLInputElement | null = null;
-  constructor(private d: P34Deps) {
+  constructor(private d: P34Deps, private party: () => PartyStateMsg | null = () => null) {
     this.small.width = this.small.height = this.size;
     this.mini.append(this.small, this.label);
     this.mini.setAttribute('aria-label', 'Open world atlas');
@@ -160,6 +163,7 @@ export class AtlasClient implements ClientModule {
     if (this.showMini)
       this.draw(this.small, { x: me.x, y: me.y, name: '' }, 3.5, plane);
     if (this.d.wins.name === 'atlas' && this.chart) {
+      this.refreshDestinations();
       this.draw(this.chart, this.centre, this.zoom, this.plane);
       if (this.readout)
         this.readout.textContent = `${this.plane} · ${Math.floor(this.centre.x)}, ${Math.floor(chartY(this.centre.y))} · ${this.journal.chunks.size} chart pages`;
@@ -212,7 +216,7 @@ export class AtlasClient implements ClientModule {
     size.onchange = () => { this.size = Number(size.value); this.changed = true; this.save(); };
     tools.append(mini, size);
     const filters = h('div', { class: 'atlas-filters' });
-    for (const [key, text] of Object.entries({ locations: 'Locations', players: 'Travellers', npcs: 'Villagers', enemies: 'Enemies' })) {
+    for (const [key, text] of Object.entries({ locations: 'Locations', players: 'Travellers', npcs: 'Villagers', enemies: 'Enemies', quests: 'Quest markers', party: 'Party markers' })) {
       const input = h('input', { type: 'checkbox' });
       input.checked = this.filters[key as keyof typeof this.filters];
       input.onchange = () => { this.filters[key as keyof typeof this.filters] = input.checked; this.changed = true; this.save(); };
@@ -254,11 +258,50 @@ export class AtlasClient implements ClientModule {
     this.readout = h('div', { class: 'atlas-position small' });
     this.waypointList = h('div', { class: 'atlas-waypoints' });
     this.renderWaypoints();
+    this.directories = [];
+    const directories = h('div', { class: 'atlas-directories' });
+    for (const [key, title] of [['quests', 'Quest destinations'], ['party', 'Party destinations']] as const) {
+      const summary = h('summary', { text: title });
+      const list = h('div', { class: 'atlas-destinations' });
+      const directory = h('details', { class: 'atlas-directory' }, summary, list);
+      this.directories.push({ key, summary, list, signature: '' });
+      directories.append(directory);
+    }
+    this.refreshDestinations();
     const legend = h('div', { class: 'atlas-legend' });
-    for (const [name, color] of [['You', '#f5e5b9'], ['Traveller', '#7fe3d3'], ['Villager', '#eed093'], ['Enemy', '#ce7556'], ['Waypoint', '#df84a5'], ['Unexplored', '#10191d']])
+    for (const [name, color] of [['You', '#f5e5b9'], ['Traveller', '#7fe3d3'], ['Villager', '#eed093'], ['Enemy', '#ce7556'], ['Quest', '#f6c568'], ['Party', '#bba4ef'], ['Waypoint', '#df84a5'], ['Unexplored', '#10191d']])
       legend.append(h('span', {}, h('i', { class: 'atlas-key', style: `background:${color}` }), name));
-    root.append(tools, filters, this.chart, this.readout, legend, nav, h('p', { class: 'atlas-note', text: 'Drag to pan. Click explored ground to mark it. Only nearby visited terrain is charted; oldest regions are replaced when local chart history is full. Waypoints remain saved on this browser.' }), this.waypointList);
-    this.d.wins.show('atlas', 'World atlas', root, { wide: true, onClose: () => { this.chart = null; this.save(); } });
+    root.append(tools, filters, this.chart, this.readout, legend, directories, nav, h('p', { class: 'atlas-note', text: 'Drag to pan. Click explored ground to mark it. Only nearby visited terrain is charted; oldest regions are replaced when local chart history is full. Waypoints remain saved on this browser. Party markers show shared positions without charting the ground around them.' }), this.waypointList);
+    this.d.wins.show('atlas', 'World atlas', root, { wide: true, onClose: () => { this.chart = null; this.directories = []; this.destinations = { quests: [], party: [] }; this.save(); } });
+  }
+  private refreshDestinations(): void {
+    this.destinations.quests = questDestinations(this.d.store().seed, this.d.profile.quests, id => this.d.profile.count(id),
+      this.state?.npcs ?? new Map(), (x, y) => this.journal.tile(x, y) !== undefined);
+    this.destinations.party = partyDestinations(this.party(), this.d.identity?.() ?? '', this.d.myId());
+    for (const directory of this.directories) {
+      const routes = this.destinations[directory.key];
+      // Position updates keep the same focused button; clicking resolves the latest coordinates.
+      const signature = JSON.stringify(routes.map(p => [p.id, p.title, p.detail, p.point ? planeOf(p.point.y) : null]));
+      if (signature === directory.signature) continue;
+      directory.signature = signature;
+      directory.summary.textContent = `${directory.key === 'quests' ? 'Quest' : 'Party'} destinations (${routes.length})`;
+      directory.list.replaceChildren();
+      if (!routes.length) directory.list.append(h('p', { class: 'atlas-note', text: directory.key === 'quests' ? 'No active quests. Visit the Journal for your quest history.' : 'No party companions. Invite a traveller through the party window.' }));
+      for (const route of routes) {
+        const button = h('button', { type: 'button', text: route.title });
+        button.disabled = !route.point;
+        button.onclick = () => {
+          const p = this.destinations[directory.key].find(p => p.id === route.id)?.point;
+          if (!p) return;
+          this.centre = { ...p, name: route.title };
+          this.plane = planeOf(p.y);
+          const layer = document.querySelector<HTMLSelectElement>('[aria-label="Map layer"]');
+          if (layer) layer.value = this.plane;
+        };
+        const detail = h('span', { class: 'atlas-note', text: `${route.detail}${route.point ? ` · ${planeOf(route.point.y)}` : ''}` });
+        directory.list.append(h('div', { class: 'atlas-destination' }, button, detail));
+      }
+    }
   }
   private place(x: number, y: number): void { if (this.journal.tile(x, y) === undefined) {
     this.d.toasts.add('Explore this ground before charting a waypoint.', 'info');
@@ -318,7 +361,7 @@ export class AtlasClient implements ClientModule {
       ctx.font = '14px monospace';
       ctx.fillStyle = '#b3c1af';
       ctx.textAlign = 'center';
-      ctx.fillText('Uncharted ground — explore to record this region', w / 2, height / 2);
+      ctx.fillText('Uncharted ground', w / 2, height / 2 - 18);
       ctx.textAlign = 'left';
     }
     const mark = (p: Point, color: string, label = false, shape = 'square', seen = true) => { if (planeOf(p.y) !== plane || seen && this.journal.tile(p.x, p.y) === undefined)
@@ -361,6 +404,12 @@ export class AtlasClient implements ClientModule {
         this.state?.[group]?.forEach((e: any) => { if (e.id === this.d.myId() || e.hp === 0)
           return; if (group === 'enemies' && ENEMY_BY_KIND[e.kind]?.passive)
           return; mark({ x: e.x, y: e.y, name: e.name ?? (group === 'npcs' ? NPC_BY_ID[e.id]?.name : undefined) ?? ENEMY_BY_KIND[e.kind]?.name ?? 'Traveller' }, color, false, group === 'players' ? 'ring' : group === 'enemies' ? 'triangle' : 'square'); });
+    if (canvas !== this.small) {
+      if (this.filters.quests) for (const p of this.destinations.quests)
+        if (p.point) mark({ ...p.point, name: p.title }, '#f6c568', false, 'triangle');
+      if (this.filters.party) for (const p of this.destinations.party)
+        if (p.point) mark({ ...p.point, name: p.title }, '#bba4ef', false, 'ring', false);
+    }
     const me = this.d.me();
     if (me && planeOf(me.y) === plane) {
       const p = pos(me.x, me.y), dx = isoX(me.fx, me.fy), dy = isoY(me.fx, me.fy), len = Math.hypot(dx, dy) || 1;

@@ -24,7 +24,7 @@ export class Windows {
     window.addEventListener('keydown', (e) => { if (e.code === 'Escape' && this.current) { e.preventDefault(); this.close(); } });
     this.root.addEventListener('keydown', e => {
       if (e.key !== 'Tab') return;
-      const nodes = [...this.box.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), [tabindex="0"]')].filter(n => n.getClientRects().length);
+      const nodes = [...this.box.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), details > summary, [tabindex="0"]')].filter(n => n.getClientRects().length);
       const first = nodes[0], last = nodes.at(-1);
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }

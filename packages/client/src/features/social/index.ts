@@ -28,6 +28,8 @@ export class SocialClient implements ClientModule {
   private bubbles: EmoteBubbles;
   private menu: PlayerMenu;
   private party: PartyStateMsg | null = null;
+  /** The existing private party message, also used by atlas navigation. Never persisted by the atlas. */
+  get partyState(): PartyStateMsg | null { return this.party; }
   private partyWin: ReturnType<typeof buildPartyWindow> | null = null;
   private trade: TradeWindow | null = null;
   private tradeId: string | null = null;
