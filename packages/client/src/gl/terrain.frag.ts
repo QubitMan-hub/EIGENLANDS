@@ -247,10 +247,12 @@ int grassTop(ivec2 ip, vec2 tf, int s, float flux, float t, int b) {
   bool lush = lushN > (s == 0 ? 0.46 : 0.55);
   Tones T = biomeTones(b, s, lush);
   int c = T.base;
-  float dn = fbm(tf * 0.5 + 50.0);
+  // Low frequency cover with a warped edge: quiet clearings alternate with planted hummocks.
+  vec2 bent = tf + vec2(vnoise(tf * 0.12 + 17.0), vnoise(tf * 0.12 - 39.0)) * 2.5;
+  float dn = fbm(bent * 0.32 + 50.0);
   // Resting ground planes between planted clusters keep actors and loot legible.
-  float dens = lush ? 0.08 + 0.16 * smoothstep(0.4, 0.8, dn) : 0.22 + 0.24 * dn;
-  float big = lush ? 0.0 : 0.15 + 0.35 * smoothstep(0.3, 0.75, fbm(tf * 0.35 + 70.0));
+  float dens = lush ? 0.08 + 0.16 * smoothstep(0.4, 0.8, dn) : 0.08 + 0.28 * smoothstep(0.3, 0.72, dn);
+  float big = lush ? 0.0 : 0.08 + 0.25 * smoothstep(0.3, 0.75, fbm(tf * 0.35 + 70.0));
   if (s == 3) { dens *= 0.35; big = 0.0; }
   bool hit;
   int cl = clumpPix(ip, dens, big, T, hit);
@@ -460,9 +462,10 @@ int waterTop(ivec2 ip, vec2 tf, float sdf, bool deep, float t, int s, int b) {
   if (sky > 0.68 && c <= W3 && c > W0) c += 1;
   // lapping foam along the bank
   float lap = 0.32 + 0.12 * sin(tt * 1.6 + wp.x * 0.15 + wp.y * 0.3);
-  if (sdf < lap && !deep) c = sdf < lap - 0.12 ? W6 : W5;
+  float foam = vnoise(vec2(wp.x * 0.09 + tt * 0.03, wp.y * 0.14));
+  if (sdf < lap && !deep && foam > 0.38) c = sdf < lap - 0.12 && foam > 0.6 ? W6 : W5;
   // Quiet submerged caustics in the shallows, broken into short pixel clusters.
-  float caustic = sin(tf.x * 7.0 + tt * 0.6) + sin(tf.y * 9.0 - tt * 0.45);
+  float caustic = sin(tf.x * 5.0 + vnoise(tf * 0.7) * 4.0 + tt * 0.6) + sin(tf.y * 7.0 + vnoise(tf * 0.6 + 9.0) * 3.0 - tt * 0.45);
   if (sdf > lap && depth < 1.8 && caustic > 1.65) c = W5;
   // ripple lines: long, gently slanted streaks (along the iso axes) on a jittered grid; they drift and fade
   ivec2 RC = ivec2(18, 7);
@@ -472,12 +475,12 @@ int waterTop(ivec2 ip, vec2 tf, float sdf, bool deep, float t, int s, int b) {
   for (int j = 0; j <= 1; j++) for (int i = -1; i <= 0; i++) {
     ivec2 cc = rc0 + ivec2(i, j);
     float h = hashk(cc, 40);
-    if (h > 0.38) continue;
+    if (h > 0.24) continue;
     float ph = fract(h * 7.0 + tt * 0.2);
     if (ph > 0.8) continue;
     ivec2 b = cc * RC + ivec2(int(hashk(cc, 41) * 8.0), int(hashk(cc, 42) * 5.0));
     ivec2 q = ipd - b;
-    int len = 6 + int(h * 14.0);
+    int len = 4 + int(hashk(cc, 46) * 6.0);
     int dir = hashk(cc, 45) < 0.5 ? 1 : -1;
     int yy = (dir > 0 ? q.x : (len - 1 - q.x)) / 4;            // 1px rise every 4px: a flat, wavy streak
     if (q.x >= 0 && q.x < len && q.y == yy) c = depth < 1.4 ? W5 : depth < 4.5 ? W4 : W3;

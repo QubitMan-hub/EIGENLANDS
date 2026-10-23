@@ -9,7 +9,7 @@ import { Application, Container, Graphics, Sprite, Text } from 'pixi.js';
 import {
   CROPS, ChunkStore, ITEMS, NPCS, PALETTE, T, TILE_DEFS, TILE_SIZE, ambientColor, darkness, chunkOf, townFor, type WorldObj, type Weather,
 } from '@eigenlands/shared';
-import { buildObjectArt, FRAMES_PER_VARIANT, type SeasonIdx } from '../art/objects';
+import { buildObjectArt, buildTrees, FRAMES_PER_VARIANT, type SeasonIdx } from '../art/objects';
 import { buildActorSheets, OUTFITS, WALK_FRAMES, DIR_LEFT, DIR_RIGHT, ATTACK_FRAME, ATTACK_FRAMES, RUN_FRAME, RUN_FRAMES } from '../art/actors';
 import { itemIconUrl } from '../art/icons';
 import { Ships, HEADINGS, SHIP_AX, SHIP_AY } from '../art/ships';
@@ -79,7 +79,7 @@ if (mode === 'icons') {
   }
   for (let i = 0; i < 2; i++) place(ships.serpent('head', i), 0.5, 0.95, 60 + i * 50, 370);
   (window as unknown as { __lab: unknown }).__lab = { ready: true };
-} else if (mode === 'objects' || mode === 'actors' || mode === 'person' || mode === 'actions' || mode === 'equipment' || mode === 'wilderness' || mode === 'resources') {
+} else if (mode === 'objects' || mode === 'actors' || mode === 'person' || mode === 'actions' || mode === 'equipment' || mode === 'wilderness' || mode === 'resources' || mode === 'foliage') {
   const bg = new Graphics().rect(0, 0, 4000, 4000).fill(0x3b6a3a);
   const root = new Container();
   app.stage.addChild(bg, root);
@@ -88,7 +88,12 @@ if (mode === 'icons') {
   root.scale.set(SC);
   root.y = -num('shift', 0) * SC;
   const place = (tex: Sprite['texture'], ax: number, ay: number, x: number, y: number) => { const s = new Sprite(tex); s.anchor.set(ax / tex.width, ay / tex.height); s.x = x; s.y = y; root.addChild(s); return s; };
-  if (mode === 'resources') {
+  if (mode === 'foliage') {
+    for (let s = 0; s < 4; s++) {
+      label(['spring', 'summer', 'autumn', 'winter'][s]!, 4, 8 + s * 72);
+      buildTrees(s as SeasonIdx).forEach((sp, v) => place(sp.tex, sp.ax, sp.ay, 65 + v * 58, 70 + s * 72));
+    }
+  } else if (mode === 'resources') {
     const art = buildObjectArt(season);
     label('surface | underground: same mineral, no snow below ground', 4, 8);
     for (const [r, kind] of ['ore_copper', 'ore_iron', 'ore_silver', 'ore_gold', 'rock'].entries()) {

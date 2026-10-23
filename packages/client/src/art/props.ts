@@ -821,8 +821,8 @@ function barn(face: Facing): ObjSprite {
 }
 
 // ───────────────────────── the Statue of QubitMan: a grand iso plinth ─────────────────────────
-const MARB: Ramp = [C.slate, C.steel, C.mist, C.fog, C.pale, C.white];
-const GRAN: Ramp = [C.ink, C.night, C.slate, C.steel, C.mist, C.fog];
+const MARB: Ramp = [C.g0, C.g1, C.g2, C.g3, C.g5, C.fog];
+const GRAN: Ramp = [C.night, C.g0, C.g1, C.g2, C.g3, C.g4];
 const BRONZE: Ramp = [C.e1, C.r0, C.r1, C.r4, C.r5, C.r6];
 
 /** The plinth: a broad three-step base, a dado with bronze plaques (inscription on the lit face, a Bloch-sphere
@@ -836,7 +836,7 @@ export function statuePlinth(ctx: Ctx, ax: number, ay: number, f: number): void 
     const paint = (lit: boolean) => (s: number, t: number) => det?.(s, t, lit) ?? rampAt(m, (lit ? 0.62 : 0.3) + (t > 0.85 ? 0.16 : t < 0.12 ? -0.14 : 0));
     I.left(u0, u0 + du, z, du, h, paint(true));
     I.right(u0 + du, u0, z, du, h, paint(false));
-    I.top(u0, u0, z + h, du, du, (s, t) => rampAt(m, s > 0.97 || t > 0.97 ? 0.95 : (Math.round(s * r) + Math.round(t * r)) % 8 === 0 ? 0.62 : 0.78));
+    I.top(u0, u0, z + h, du, du, (s, t) => rampAt(m, s > 0.97 || t > 0.97 ? 0.95 : Math.abs(s - 0.28 - t * 0.16) < 0.008 && t > 0.45 ? 0.62 : 0.78));
   };
   const blocks = (s: number, t: number, lit: boolean) => (Math.round(s * 24) % 4 === 0 && t > 0.15 && t < 0.85 ? (lit ? C.slate : C.night) : null);
   tier(P.r0, 0, P.z1, GRAN, blocks);
@@ -845,7 +845,7 @@ export function statuePlinth(ctx: Ctx, ax: number, ay: number, f: number): void 
   const glow = [C.q4, C.q5, C.q6, C.q5][f]!;
   const W = P.dado * 2, Hd = P.z4 - P.z3;
   tier(P.dado, P.z3, Hd, MARB, (s, t, lit) => {
-    if (s < 0.05 || s > 0.95) return lit ? C.pale : C.mist;                                       // corner pilasters
+    if (s < 0.05 || s > 0.95) return lit ? C.g5 : C.g2;                                       // corner pilasters
     if (Math.abs(t - 0.08) < 0.03 || Math.abs(t - 0.92) < 0.03) return glow;                      // rune seams
     if (s > 0.12 && s < 0.88 && t > 0.2 && t < 0.8) {
       const e = Math.min((s - 0.12) * W, (0.88 - s) * W, (t - 0.2) * Hd, (0.8 - t) * Hd);

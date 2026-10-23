@@ -117,6 +117,12 @@ function computeBiome(seed: number, x: number, y: number): Biome {
   return 'meadow';
 }
 
+/** Shared coherent undergrowth field: sprites and generated plants follow the same pockets of shelter. */
+export function vegetationCover(seed: number, x: number, y: number): number {
+  if (isCaveY(y)) y -= CAVE_OY;
+  return smooth(layers(seed).forest.noise(x / 9 + 71, y / 9 - 71), -0.3, 0.45);
+}
+
 const CAMP_CELL = 48;
 function campCenter(seed: number, cellX: number, cellY: number): { x: number; y: number } | null {
   if (hash2(seed, cellX, cellY, 91) > 0.35) return null;
@@ -201,7 +207,7 @@ function surfaceTileAt(seed: number, x: number, y: number, legacy: boolean): num
     if ((r0 > 90 || biome === 'taiga') && o < 0.2) return T.ORE_SILVER;
     if (r0 > 40 && o < 0.3) return T.ORE_IRON;
     if (o < 0.4 + 0.1 * smooth(rocky, 0.5, 0.7)) return T.ORE_COPPER;
-    return T.ROCK;
+    if (legacy || rocky > 0.12 || rr < 0.0015) return T.ROCK;
   }
 
   // forageables cluster near groves (and fen hummocks)
@@ -209,10 +215,11 @@ function surfaceTileAt(seed: number, x: number, y: number, legacy: boolean): num
 
   // flower meadows and tall-grass patches
   const meadow = l.meadow.fbm(x / 20 + 300, y / 20 - 300, 2);
+  const cover = legacy ? 1 : vegetationCover(seed, x, y);
   const flowerK = biome === 'taiga' || biome === 'corrupted' ? 0.12 : biome === 'enchanted' ? 0.8 : legacy ? 0.5 : 0.28;
-  if (hash2(seed, x, y, 4) < flowerK * smooth(meadow, 0.2, 0.55) * (0.5 + 0.5 * Math.max(0, c.moisture + 0.4))) return T.FLOWERS;
+  if (hash2(seed, x, y, 4) < flowerK * (legacy ? 1 : 0.15 + 0.85 * cover) * smooth(meadow, 0.2, 0.55) * (0.5 + 0.5 * Math.max(0, c.moisture + 0.4))) return T.FLOWERS;
   const tall = l.meadow.fbm(x / 14 - 500, y / 14 + 500, 2);
-  if (hash2(seed, x, y, 5) < (legacy ? 0.04 + 0.55 * smooth(tall, 0.05, 0.5) : 0.015 + 0.28 * smooth(tall, 0.05, 0.5))) return T.GRASS_TALL;
+  if (hash2(seed, x, y, 5) < (legacy ? 0.04 + 0.55 * smooth(tall, 0.05, 0.5) : 0.006 + 0.36 * smooth(tall, 0.05, 0.5) * cover)) return T.GRASS_TALL;
   return T.GRASS;
 }
 
