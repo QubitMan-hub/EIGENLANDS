@@ -63,6 +63,8 @@ describe('fishing', () => {
     await until(() => p.bites.length > 0, 5000);
     const from = p.toasts.length;
     await until(() => p.sp.cast === null, 3000);
+    // Server state can clear before the toast arrives over the socket.
+    await until(() => hasToast(p, /got away/, from));
     expect(hasToast(p, /got away/, from)).toBe(true);
 
     // early hook
