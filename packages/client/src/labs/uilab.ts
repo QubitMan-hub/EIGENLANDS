@@ -15,6 +15,7 @@ import { buildForge } from '../ui/forge';
 import { buildDialogue } from '../ui/dialogue';
 import { buildShop } from '../ui/shop';
 import { buildChest, buildShelter } from '../ui/containers';
+import { buildJourney } from '../ui/journey';
 import { buildJournal } from '../ui/journal';
 import { RhythmOverlay } from '../ui/rhythm';
 import { Toasts } from '../ui/toast';
@@ -51,6 +52,10 @@ switch (panel) {
   case 'forge': wins.show('f', 'Anvil & Forge', buildForge(profile, tip, { start: noop }), { wide: true }); break;
   case 'dialogue': wins.show('d', NPC_BY_ID.tobin!.name, buildDialogue(dlg, portraitUrl('tobin'), profile, tip, { talk: noop, quest: noop, shop: noop, gift: noop, learn: noop, chat: noop, close: noop })); break;
   case 'shop': wins.show('s', 'Greenbough General Store', buildShop({ npcId: 'tobin', name: 'Store', coins: 482, stock: [{ item: 'turnip_seed', price: 10 }, { item: 'potato_seed', price: 14 }, { item: 'fertilizer', price: 20 }, { item: 'chest', price: 50 }], sell: { 17: 18, 18: 6, 10: 2, 12: 13 } }, profile, tip, { buy: noop, sell: noop }), { wide: true }); break;
+  case 'journey': {
+    const journey = buildJourney(() => ({level:10,xp:87,cls:'superposer',spec:null,second:null,qubits:4,gates:12,runes:2,summons:{slime_crown:1}}), noop);
+    wins.show('j', 'Journal', buildJournal(profile, portraitUrl, 'journey', 0, () => null, journey.el), {wide:true}); break;
+  }
   case 'journal': wins.show('j', 'Journal', buildJournal(profile, portraitUrl), { wide: true }); break;
   case 'friends': wins.show('j', 'Journal', buildJournal(profile, portraitUrl, 'friends'), { wide: true }); break;
   case 'chest': wins.show('c', 'Chest', buildChest(chestPanel, profile, tip, { put: noop, take: noop }).el, { wide: true }); break;

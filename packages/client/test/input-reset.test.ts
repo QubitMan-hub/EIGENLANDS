@@ -35,3 +35,16 @@ it('lets dialog buttons use Space and Enter without issuing gameplay actions', (
   }
   expect(input.read().dash).toBe(false); expect(action).not.toHaveBeenCalled();
 });
+
+it('preserves native scrolling keys in a focusable Journal region', () => {
+  const listeners = new Map<string, (e: unknown) => void>();
+  vi.stubGlobal('window', {addEventListener:(name:string,fn:(e:unknown)=>void)=>listeners.set(name,fn)});
+  vi.stubGlobal('navigator', {getGamepads:()=>[]});
+  const input = new Input({addEventListener:()=>{}} as unknown as HTMLElement, DEFAULT_KEYS);
+  for (const code of ['ArrowDown','ArrowUp','Space','End','Home']) {
+    const preventDefault=vi.fn();
+    listeners.get('keydown')!({code,target:{tagName:'DIV',matches:()=>true},preventDefault});
+    expect(preventDefault).not.toHaveBeenCalled();
+  }
+  expect(input.read().dash).toBe(false);
+});
