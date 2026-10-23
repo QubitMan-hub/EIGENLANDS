@@ -8,7 +8,7 @@ Continue inline without subagents. Preserve the quiet HUD, authoritative combat,
 - [x] Add a Journal Journey page with real level/XP, class/spec/second path, owned gates/runes/orbs, shared unlock milestones and actual boss summoning requirements. Refresh visible data through the existing game frame; no new timer or persistence.
 - [x] Exercise desktop/mobile together, consolidate fixes, confirm once; run focused and workspace checks, builds and relevant solo/multiplayer browser tests.
 - [x] Update continuation/design/master notes and self-review inline.
-- [ ] Merge after CI under existing authorization.
+- [x] Merge after CI under existing authorization: PR #8 at adf7f1ac974a3dd2ed44365d08148a0c4f3e5be2. Both CI runs passed all 415 workspace tests, typechecks and build.
 
 Not this slice: new combat rules, invented enemy threat levels, undisclosed boss victory records, survival, kingdoms or companions.
 
