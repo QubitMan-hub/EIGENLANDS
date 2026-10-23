@@ -7,12 +7,17 @@ export interface ChartChunk {
   tiles: Int16Array;
   revision: number;
 }
+export const validPage = (key: string, tiles: unknown): tiles is Int16Array => /^-?\d{1,5},-?\d{1,5}$/.test(key)
+  && tiles instanceof Int16Array && tiles.length === 1024 && tiles.every(n => n === -1 || !!TILE_DEFS[n]);
+export const encodeChart = (pages: Iterable<readonly [string, Int16Array]>): string => JSON.stringify({ v: 1,
+  chunks: [...pages].map(([key, tiles]) => [key, Array.from(tiles, n => n < 0 ? '.' : String.fromCharCode(65 + n)).join('')]) });
 /** Bounded, local chart pages. Unknown cells stay -1; reading the atlas never generates terrain. */
 export class Exploration {
   readonly chunks = new Map<string, ChartChunk>();
   revision = 0;
-  constructor(readonly limit = 512) { }
+  constructor(readonly limit = 512, private changed?: (key: string, cells: Int16Array) => void) { }
   visit(store: ChunkStore, x: number, y: number, radius = 12): void {
+    const changes = new Map<string, Int16Array>();
     const tx = Math.floor(x), ty = Math.floor(y);
     for (let j = -radius; j <= radius; j++)
       for (let i = -radius; i <= radius; i++) {
@@ -34,10 +39,33 @@ export class Exploration {
         const idx = px - cx * 32 + (py - cy * 32) * 32, tile = store.get(cx, cy).tiles[idx]!;
         if (c.tiles[idx] !== tile) {
           c.tiles[idx] = tile;
+          if (this.changed) {
+            let delta = changes.get(key);
+            if (!delta) changes.set(key, delta = new Int16Array(1024).fill(-1));
+            delta[idx] = tile;
+          }
           c.revision++;
           this.revision++;
         }
       }
+    for (const [key, cells] of changes) this.changed?.(key, cells);
+    this.trim();
+  }
+  /** Fill fog from an archive read, preserving observations made while that read was pending. */
+  merge(key: string, tiles: Int16Array): void {
+    if (!validPage(key, tiles)) return;
+    let c = this.chunks.get(key);
+    if (!c) {
+      const [cx, cy] = key.split(',').map(Number);
+      c = { cx: cx!, cy: cy!, tiles: new Int16Array(1024).fill(-1), revision: 0 };
+      this.chunks.set(key, c);
+    }
+    for (let i = 0; i < 1024; i++) if (c.tiles[i]! < 0 && tiles[i]! >= 0) {
+      c.tiles[i] = tiles[i]!; c.revision++; this.revision++;
+    }
+    this.trim();
+  }
+  private trim(): void {
     while (this.chunks.size > this.limit) {
       this.chunks.delete(this.chunks.keys().next().value!);
       this.revision++;
@@ -49,7 +77,7 @@ export class Exploration {
     const cx = Math.floor(x / 32), cy = Math.floor(y / 32), n = this.chunks.get(`${cx},${cy}`)?.tiles[x - cx * 32 + (y - cy * 32) * 32];
     return n === undefined || n < 0 ? undefined : n;
   }
-  serialize(): string { return JSON.stringify({ v: 1, chunks: [...this.chunks].map(([key, c]) => [key, Array.from(c.tiles, n => n < 0 ? '.' : String.fromCharCode(65 + n)).join('')]) }); }
+  serialize(): string { return encodeChart([...this.chunks].map(([key, c]) => [key, c.tiles] as const)); }
   restore(raw: string): void {
     try {
       const v = JSON.parse(raw);

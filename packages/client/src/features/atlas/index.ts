@@ -6,6 +6,7 @@ import { h } from '../../ui/dom';
 import { iconSvg } from '../../ui/icons';
 import type { ClientModule, P34Deps } from '../types';
 import { Exploration, chartY, planeOf, type ChartChunk } from './model';
+import { ChartArchive } from './archive';
 import { partyDestinations, questDestinations, type Destination } from './destinations';
 interface Point {
   x: number;
@@ -23,8 +24,10 @@ const point = (v: unknown): v is Point => !!v && typeof v === 'object' && ['x', 
 export class AtlasClient implements ClientModule {
   journal = new Exploration();
   private key = '';
+  private archive?: ChartArchive;
   private last = -Infinity;
   private saved = -1;
+  private savedArchive = -1;
   private savedAt = 0;
   private changed = false;
   private warned = false;
@@ -68,6 +71,12 @@ export class AtlasClient implements ClientModule {
     document.querySelector('#hud-btns')?.append(this.button);
     document.querySelector('#hud')?.append(this.mini);
     document.body.classList.add('atlas-ready');
+    window.addEventListener('storage', e => {
+      if (!this.key || e.storageArea !== localStorage || e.newValue !== null || e.key !== this.key && e.key !== null) return;
+      // Account erasure in another tab must not recreate its synchronous recovery snapshot.
+      this.key = ''; void this.archive?.close(); this.archive = undefined;
+      this.journal = new Exploration(); this.cache.clear();
+    });
     window.addEventListener('pagehide', () => this.save());
     document.addEventListener('visibilitychange', () => { if (document.hidden)
       this.save(); });
@@ -77,15 +86,21 @@ export class AtlasClient implements ClientModule {
     if (key === this.key)
       return;
     this.save();
+    void this.archive?.close();
+    this.archive = undefined;
     this.key = key;
-    this.journal = new Exploration();
+    this.warned = false;
+    this.savedArchive = -1;
+    this.journal = new Exploration(512, (key, cells) => this.archive?.record(key, cells));
     this.cache.clear();
     this.landmarks.clear();
     this.waypoints = [];
     this.centres.clear();
+    let recovery: string | null = null;
     try {
       const v = JSON.parse(localStorage.getItem(key) ?? 'null');
       if (v?.v === 1) {
+        if (v.archiveVersion === 1) recovery = typeof v.recovery === 'string' ? v.recovery : '';
         if (typeof v.chart === 'string')
           this.journal.restore(v.chart);
         if (Array.isArray(v.waypoints))
@@ -106,39 +121,50 @@ export class AtlasClient implements ClientModule {
       }
     }
     catch { /* private/corrupt storage leaves a usable empty chart */ }
+    this.archive = new ChartArchive(key, this.journal, () => this.storageWarning(), recovery);
+    void this.archive.flush();
     this.saved = this.journal.revision;
     this.last = -Infinity;
   }
-  forgetAll(): void { try {
+  async forgetAll(): Promise<void> {
     const prefix = `eigen.atlas:${this.d.identity?.() ?? 'local'}:`;
-    for (const key of Object.keys(localStorage))
-      if (key.startsWith(prefix))
-        localStorage.removeItem(key);
+    this.key = ''; // stop frame and unload saves before awaiting disk work
+    try {
+      for (const key of Object.keys(localStorage)) if (key.startsWith(prefix)) localStorage.removeItem(key);
+    } catch { /* localStorage may be unavailable */ }
+    await this.archive?.erase(prefix);
+    this.archive = undefined;
+    this.journal = new Exploration(); this.cache.clear();
   }
-  catch { /* storage may be unavailable */ } this.key = ''; }
+  private storageWarning(): void {
+    if (this.warned) return;
+    this.warned = true;
+    this.d.toasts.add('Chart storage is unavailable or full. Only recent terrain may survive; keep this tab open to retry.', 'info');
+  }
+  private seen(x: number, y: number): boolean {
+    return this.journal.tile(x, y) !== undefined || !!this.archive?.seen(x, y);
+  }
   setSolved(ids: string[]): void { this.solved = new Set(ids); }
   onState(s: any): void { this.state = s; }
   action(a: string): boolean { if (a !== 'map')
     return false; this.toggle(); return true; }
   private save(): void {
-    if (!this.key || !this.changed && this.saved === this.journal.revision)
+    if (this.key) void this.archive?.flush();
+    if (!this.key || !this.changed && this.saved === this.journal.revision && this.savedArchive === this.archive?.revision)
       return;
     try {
-      localStorage.setItem(this.key, JSON.stringify({ v: 1, chart: this.journal.serialize(), waypoints: this.waypoints, landmarks: [...this.landmarks.values()], centres: [...this.centres.values()], showMini: this.showMini, size: this.size, filters: this.filters }));
+      localStorage.setItem(this.key, JSON.stringify({ v: 1, archiveVersion: 1, recovery: this.archive?.recovery(), chart: this.journal.serialize(), waypoints: this.waypoints, landmarks: [...this.landmarks.values()], centres: [...this.centres.values()], showMini: this.showMini, size: this.size, filters: this.filters }));
       this.changed = false;
       this.saved = this.journal.revision;
+      this.savedArchive = this.archive?.revision ?? -1;
     }
-    catch {
-      if (!this.warned) {
-        this.warned = true;
-        this.d.toasts.add('Chart storage is unavailable or full. Exploration still works for this visit.', 'info');
-      }
-    }
+    catch { this.storageWarning(); }
   }
   frame(now: number): void {
     if (now - this.last < 250 || !this.key)
       return;
     this.last = now;
+    void this.archive?.flush();
     const me = this.d.me();
     if (!me)
       return;
@@ -146,7 +172,7 @@ export class AtlasClient implements ClientModule {
     this.journal.visit(this.d.store(), me.x, me.y);
     this.centres.set(plane, { x: me.x, y: me.y, name: plane });
     for (const o of this.d.store().objects.values())
-      if (known.has(o.sub) && this.journal.tile(o.x, o.y) !== undefined) {
+      if (known.has(o.sub) && this.seen(o.x, o.y)) {
         const key = `${o.x},${o.y}`;
         if (!this.landmarks.has(key)) {
           this.landmarks.set(key, { x: o.x + .5, y: o.y + .5, name: known.get(o.sub)!, sub: o.sub, shrine: typeof o.data?.shrine === 'string' ? o.data.shrine : undefined });
@@ -166,7 +192,7 @@ export class AtlasClient implements ClientModule {
       this.refreshDestinations();
       this.draw(this.chart, this.centre, this.zoom, this.plane);
       if (this.readout)
-        this.readout.textContent = `${this.plane} · ${Math.floor(this.centre.x)}, ${Math.floor(chartY(this.centre.y))} · ${this.journal.chunks.size} chart pages`;
+        this.readout.textContent = `${this.plane} · ${Math.floor(this.centre.x)}, ${Math.floor(chartY(this.centre.y))} · ${this.archive?.discovery.size ?? this.journal.chunks.size} chart pages · ${this.archive?.limited ? 'Storage limit reached · older unsaved terrain lost' : this.archive?.status === 'saved' ? 'Saved on this browser' : this.archive?.status === 'unavailable' ? 'Storage unavailable · recent snapshot only' : 'Saving chart…'}`;
     }
     if (now - this.savedAt > 5000) {
       this.savedAt = now;
@@ -199,7 +225,7 @@ export class AtlasClient implements ClientModule {
     const places = h('select');
     places.setAttribute('aria-label', 'Charted location');
     places.append(h('option', { value: '', text: 'Find a charted location' }));
-    const locations: Point[] = [...townsFor(this.d.store().seed).map(t => ({ x: t.cx, y: t.cy, name: t.name })), ...[...this.landmarks.values()].filter(p => !p.shrine || !this.solved.has(p.shrine))].filter(p => this.journal.tile(p.x, p.y) !== undefined);
+    const locations: Point[] = [...townsFor(this.d.store().seed).map(t => ({ x: t.cx, y: t.cy, name: t.name })), ...[...this.landmarks.values()].filter(p => !p.shrine || !this.solved.has(p.shrine))].filter(p => this.seen(p.x, p.y));
     locations.forEach((p, i) => places.append(h('option', { value: String(i), text: `${p.name} · ${planeOf(p.y)}` })));
     places.onchange = () => { const p = locations[Number(places.value)]; if (places.value && p) {
       this.centre = p;
@@ -271,12 +297,12 @@ export class AtlasClient implements ClientModule {
     const legend = h('div', { class: 'atlas-legend' });
     for (const [name, color] of [['You', '#f5e5b9'], ['Traveller', '#7fe3d3'], ['Villager', '#eed093'], ['Enemy', '#ce7556'], ['Quest', '#f6c568'], ['Party', '#bba4ef'], ['Waypoint', '#df84a5'], ['Unexplored', '#10191d']])
       legend.append(h('span', {}, h('i', { class: 'atlas-key', style: `background:${color}` }), name));
-    root.append(tools, filters, this.chart, this.readout, legend, directories, nav, h('p', { class: 'atlas-note', text: 'Drag to pan. Click explored ground to mark it. Only nearby visited terrain is charted; oldest regions are replaced when local chart history is full. Waypoints remain saved on this browser. Party markers show shared positions without charting the ground around them.' }), this.waypointList);
+    root.append(tools, filters, this.chart, this.readout, legend, directories, nav, h('p', { class: 'atlas-note', text: 'Drag to pan. Click explored ground to mark it. Only nearby visited terrain is charted. Earlier regions load as you pan. Charts and waypoints are saved on this browser, subject to its storage limits; clearing site data removes them. Party markers show shared positions without charting the ground around them.' }), this.waypointList);
     this.d.wins.show('atlas', 'World atlas', root, { wide: true, onClose: () => { this.chart = null; this.directories = []; this.destinations = { quests: [], party: [] }; this.save(); } });
   }
   private refreshDestinations(): void {
     this.destinations.quests = questDestinations(this.d.store().seed, this.d.profile.quests, id => this.d.profile.count(id),
-      this.state?.npcs ?? new Map(), (x, y) => this.journal.tile(x, y) !== undefined);
+      this.state?.npcs ?? new Map(), (x, y) => this.seen(x, y));
     this.destinations.party = partyDestinations(this.party(), this.d.identity?.() ?? '', this.d.myId());
     for (const directory of this.directories) {
       const routes = this.destinations[directory.key];
@@ -303,7 +329,7 @@ export class AtlasClient implements ClientModule {
       }
     }
   }
-  private place(x: number, y: number): void { if (this.journal.tile(x, y) === undefined) {
+  private place(x: number, y: number): void { if (!this.seen(x, y)) {
     this.d.toasts.add('Explore this ground before charting a waypoint.', 'info');
     return;
   } this.waypoints.push({ x: Math.floor(x) + .5, y: Math.floor(y) + .5, name: this.nameInput?.value.trim().slice(0, 32) || `Waypoint ${this.waypoints.length + 1}` }); if (this.waypoints.length > 32)
@@ -347,6 +373,25 @@ export class AtlasClient implements ClientModule {
     ctx.fillStyle = '#10191d';
     ctx.fillRect(0, 0, w, height);
     const pos = (x: number, y: number) => ({ x: w / 2 + isoX(x - centre.x, y - centre.y) / 16 * zoom, y: height / 2 + isoY(x - centre.x, y - centre.y) / 16 * zoom });
+    let archivedVisible = 0;
+    if (this.archive) {
+      const visibleKeys: { key: string; distance: number }[] = [];
+      const extent = unproject(w * 8 / zoom, height * 8 / zoom).x;
+      // Query only viewport coordinates, not the whole discovery index on every frame.
+      for (let cy = Math.floor((centre.y - extent) / 32) - 1; cy <= Math.floor((centre.y + extent) / 32); cy++) {
+        if (planeOf(cy * 32) !== plane) continue;
+        for (let cx = Math.floor((centre.x - extent) / 32) - 1; cx <= Math.floor((centre.x + extent) / 32); cx++) {
+          const key = `${cx},${cy}`;
+          if (!this.archive.discovery.has(key)) continue;
+          const p = pos(cx * 32, cy * 32);
+          if (p.x + 32 * zoom < 0 || p.x - 32 * zoom > w || p.y > height || p.y + 32 * zoom < 0) continue;
+          visibleKeys.push({ key, distance: Math.hypot(p.x - w / 2, p.y - height / 2) });
+        }
+      }
+      archivedVisible = visibleKeys.length;
+      // At extreme zoom-out prefer the nearest pages; never churn an unbounded viewport through the cache.
+      this.archive.load(visibleKeys.sort((a, b) => a.distance - b.distance).slice(0, 384).map(p => p.key));
+    }
     let visible = 0;
     for (const [key, c] of this.journal.chunks) {
       if (planeOf(c.cy * 32) !== plane)
@@ -361,10 +406,10 @@ export class AtlasClient implements ClientModule {
       ctx.font = '14px monospace';
       ctx.fillStyle = '#b3c1af';
       ctx.textAlign = 'center';
-      ctx.fillText('Uncharted ground', w / 2, height / 2 - 18);
+      ctx.fillText(archivedVisible ? this.archive?.status === 'unavailable' ? 'Chart unavailable' : 'Loading chart…' : 'Uncharted ground', w / 2, height / 2 - 18);
       ctx.textAlign = 'left';
     }
-    const mark = (p: Point, color: string, label = false, shape = 'square', seen = true) => { if (planeOf(p.y) !== plane || seen && this.journal.tile(p.x, p.y) === undefined)
+    const mark = (p: Point, color: string, label = false, shape = 'square', seen = true) => { if (planeOf(p.y) !== plane || seen && !this.seen(p.x, p.y))
       return; const at = pos(p.x, p.y); if (at.x < 0 || at.x > w || at.y < 0 || at.y > height)
       return; ctx.fillStyle = color; ctx.strokeStyle = '#10191d'; ctx.lineWidth = 2; if (shape === 'ring') {
       ctx.beginPath();
@@ -434,5 +479,5 @@ export class AtlasClient implements ClientModule {
     ctx.lineTo(29, 17);
     ctx.stroke();
   }
-  debug(): Record<string, unknown> { return { chartPages: this.journal.chunks.size, chartWaypoints: this.waypoints.length, chartLandmarks: this.landmarks.size, chartPlane: this.plane, minimap: this.showMini }; }
+  debug(): Record<string, unknown> { return { chartPages: this.journal.chunks.size, archivedPages: this.archive?.discovery.size ?? 0, chartStorage: this.archive?.status, chartWaypoints: this.waypoints.length, chartLandmarks: this.landmarks.size, chartPlane: this.plane, minimap: this.showMini }; }
 }

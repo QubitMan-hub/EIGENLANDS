@@ -35,3 +35,21 @@ it('restores visited tiles without revealing unvisited cells or loading their ch
  const revision=journal.chunks.get('0,0')!.revision;journal.visit(store,2,2,1);expect(journal.chunks.get('0,0')!.revision).toBe(revision);
  store.setTile(2,2,T.PATH);journal.visit(store,2,2,1);expect(journal.chunks.get('0,0')!.revision).toBeGreaterThan(revision);
 });
+
+it('reports only changed cells before eviction and never archives a read', () => {
+ const store=new ChunkStore(7), writes: [string, Int16Array][]=[];
+ const journal=new Exploration(1,(key,tiles)=>writes.push([key,tiles]));
+ store.get(0,0);journal.visit(store,2,2,0);
+ expect(writes).toHaveLength(1);expect(writes[0]![1][66]).toBe(store.getTile(2,2));expect(writes[0]![1][0]).toBe(-1);
+ journal.visit(store,2,2,0);expect(writes).toHaveLength(1);
+ store.setTile(2,2,T.PATH);journal.visit(store,2,2,0);expect(writes[1]![1][66]).toBe(T.PATH);
+ store.get(1,0);journal.visit(store,34,2,0);expect(writes.map(w=>w[0])).toEqual(['0,0','0,0','1,0']);expect(journal.chunks.size).toBe(1);
+ const archived=new Int16Array(1024).fill(-1);archived[0]=T.PATH;
+ journal.merge('0,0',archived);expect(journal.tile(0,0)).toBe(T.PATH);expect(writes).toHaveLength(3);expect(journal.chunks.size).toBe(1);
+});
+it('merges archived fog without overwriting newer observations and rejects corrupt pages', () => {
+ const store=new ChunkStore(7), journal=new Exploration();store.get(0,0);store.setTile(2,2,T.PATH);journal.visit(store,2,2,0);
+ const page=new Int16Array(1024).fill(-1);page[66]=T.GRASS;page[67]=T.PATH;
+ journal.merge('0,0',page);expect(journal.tile(2,2)).toBe(T.PATH);expect(journal.tile(3,2)).toBe(T.PATH);expect(journal.tile(4,2)).toBeUndefined();
+ journal.merge('1,0',new Int16Array(3));journal.merge('NaN,0',page);page[0]=32000;journal.merge('2,0',page);expect(journal.chunks.size).toBe(1);
+});

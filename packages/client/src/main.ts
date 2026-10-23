@@ -39,7 +39,7 @@ async function boot(): Promise<void> {
   const ui = new SettingsUI(settings, keys, (k) => { input.keys = k; }, (cb) => { input.capturing = cb; }, () => applySettings(settings, game.audio));
   ui.bind({
     signOut: () => { signOut(); location.reload(); },
-    deleteAccount: async () => { if (auth) { await deleteAccount(auth.token); game.ext.atlas.forgetAll(); location.reload(); } },
+    deleteAccount: async () => { if (auth) { await deleteAccount(auth.token); await game.ext.atlas.forgetAll(); location.reload(); } },
     accountInfo: () => SOLO ? SOLO_NOTE : auth ? (auth.guest ? 'Playing as a guest. Progress is saved on this device — sign in with Google to keep it safe.' : 'Signed in with Google.') : '',
   });
   game.settingsOpen = () => ui.open;
