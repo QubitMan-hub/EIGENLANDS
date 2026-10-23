@@ -13,7 +13,7 @@ const SHADOW = hexOf(C.night), ECHO_Q = hexOf(C.q6), ECHO_FLUX = hexOf(C.q7);
 const ECHO_KINDS = new Set(['tree', 'rock', 'flowers', 'forage', 'ore_copper', 'ore_iron', 'ore_silver', 'ore_gold', 'crystal', 'bloom', 'stump']);
 
 /** how far each kind bends in the wind (skew at full gale); trunks and rocks stay put */
-const SWAY: Record<string, number> = { tallgrass: 0.2, flowers: 0.14, forage: 0.1, bloom: 0.06, tree: 0.045, qtree: 0.05, crystal: 0, rock: 0 };
+const SWAY: Record<string, number> = { wild_reeds: 0.15, wild_ferns: 0.07, tallgrass: 0.2, flowers: 0.14, forage: 0.1, bloom: 0.06, tree: 0.045, qtree: 0.05, crystal: 0, rock: 0 };
 
 /** dx/len/alpha drive cast shadows; `dark` (0 day .. 1 night) and `hour` let views light windows, fireflies... */
 export interface Sun { dx: number; len: number; alpha: number; dark?: number; hour?: number }

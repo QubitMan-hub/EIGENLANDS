@@ -86,19 +86,41 @@ export function drawBroadleaf(ctx: Ctx, seed: number, season: SeasonIdx): void {
   const rng = mulberry32(seed * 7919 + 13);
   trunk(ctx, 24, season === 3 ? 26 : 34, 59, 6, seed);
   if (season === 3) {
-    for (let i = 0; i < 5; i++) branches(ctx, rng, 24, 38 - i * 3, Math.PI / 2 + (i - 2) * 0.5, 13 - i * 1.4, 5, true);
+    for (let i = 0; i < 4; i++) branches(ctx, rng, 24, 39 - i * 4, Math.PI / 2 + (i - 1.5) * 0.55, 10 - i * 0.8, 3, true);
     lump(ctx, 24, 58.5, 8, 2.2, SNOW, { seed, edge: 0 });
     return;
   }
   const rampOf = (i: number): Ramp => {
     if (season === 0) return LEAF_SPRING;
-    if (season === 2) { const h = hash2(seed, i, 0, 5); return h < 0.4 ? LEAF_AUT_O : h < 0.62 ? LEAF_AUT_R : h < 0.88 ? LEAF_AUT_Y : LEAF; }
+    if (season === 2) { const h = hash2(seed, 0, 0, 5); return h < 0.4 ? LEAF_AUT_O : h < 0.62 ? LEAF_AUT_R : h < 0.88 ? LEAF_AUT_Y : LEAF; }
     return LEAF;
   };
-  // a couple of limbs reaching into the crown
-  line(ctx, 23, 38, 16, 30, C.e2); line(ctx, 25, 37, 31, 29, C.e1);
-  crown(ctx, rng, 24, 25, 21, 18, 16, rampOf, seed);
-  if (season === 0) for (let i = 0; i < 16; i++) { const x = 8 + rng() * 32, y = 8 + rng() * 24; put(ctx, x, y, rng() > 0.4 ? C.q6 : C.white); if (rng() > 0.5) put(ctx, x + 1, y, C.q5); }
+  // Distinct, leaning scaffold and irregular crown lobes rather than one circular broccoli canopy.
+  const lean = Math.round((rng() - 0.5) * 7), cx = 24 + lean;
+  line(ctx, 23, 43, cx - 7, 28, C.e2); line(ctx, 25, 39, cx + 8, 25, C.e1);
+  const lobes: Array<[number, number, number, number]> = [
+    [cx + 5, 20, 11, 12], [cx - 8, 26, 11, 10], [cx + 8, 32, 10, 9],
+    [cx - 1, 16, 10, 10], [cx - 3, 32, 12, 10],
+  ];
+  const masses = lobes.map(([x, y, rx, ry], i) => ({ x: x + (rng() - 0.5) * 4, y: y + (rng() - 0.5) * 4, rx: rx - rng() * 2, ry, ramp: rampOf(i) }));
+  // Shade the crown as one canopy. Independent sphere lighting makes each branch look like a shiny ball.
+  for (let y = 3; y < 45; y++) for (let x = 2; x < 46; x++) {
+    let front = -1, value = 0;
+    const cluster = hash2(seed, x >> 1, y >> 1, 120);
+    for (let i = 0; i < masses.length; i++) {
+      const m = masses[i]!, nx = (x - m.x) / m.rx, ny = (y - m.y) / m.ry;
+      const d = nx * nx + ny * ny;
+      if (d > 0.95 + (cluster - 0.5) * 0.25) continue;
+      const lit = 0.68 - (x - cx) * 0.008 - (y - 15) * 0.008
+        + Math.sqrt(Math.max(0, 1 - d)) * 0.1 - nx * 0.06 - ny * 0.06;
+      if (front < 0 || lit > value) { front = i; value = lit; }
+    }
+    if (front < 0) continue;
+    const ramp = masses[front]!.ramp;
+    const shelf = cluster > 0.8 && hash2(seed, x >> 2, y >> 2, 121) > 0.55 ? 0.08 : 0;
+    put(ctx, x, y, ramp[Math.max(1, Math.min(ramp.length - 1, Math.floor((value + shelf + (hash2(seed, x >> 2, y >> 1, 122) - 0.5) * 0.13) * ramp.length)))]!);
+  }
+  if (season === 0) for (let i = 0; i < 7; i++) { const x = cx - 10 + rng() * 20, y = 15 + rng() * 16; put(ctx, x, y, rng() > 0.4 ? C.q6 : C.white); if (rng() > 0.5) put(ctx, x + 1, y, C.q5); }
   if (season === 2) for (let i = 0; i < 8; i++) put(ctx, 10 + rng() * 28, 52 + rng() * 6, rng() > 0.5 ? C.r5 : C.r4, 2, 1);
   // a shaded trunk under the crown
   for (let y = 40; y < 45; y++) for (let x = 21; x < 27; x++) put(ctx, x, y, y < 43 ? C.e0 : C.e1);
@@ -108,9 +130,12 @@ export function drawBroadleaf(ctx: Ctx, seed: number, season: SeasonIdx): void {
 export function drawPine(ctx: Ctx, seed: number, season: SeasonIdx): void {
   trunk(ctx, 24, 48, 62, 4, seed);
   const tiers: Array<[number, number]> = [[46, 15], [37, 12.5], [28.5, 10.5], [20.5, 8], [13, 5.5]];
-  tiers.forEach(([y, rx], k) => {
+  const rng = mulberry32(seed * 31);
+  tiers.forEach(([baseY, baseRx], k) => {
+    const y = baseY + Math.round((rng() - 0.5) * 2), rx = baseRx * (0.85 + rng() * 0.2);
+    const tip = 24 + Math.round((rng() - 0.5) * 4);
     // each tier: a drooping fan of needles, dark beneath, lit on the upper left
-    poly(ctx, [[24 - rx, y + 4], [24, y - 7], [24 + rx, y + 4], [24 + rx * 0.5, y + 6], [24, y + 5], [24 - rx * 0.5, y + 6]], (x, yy) => {
+    poly(ctx, [[24 - rx, y + 4], [tip, y - 7], [24 + rx, y + 4], [24 + rx * 0.5, y + 6], [24, y + 5], [24 - rx * 0.5, y + 6]], (x, yy) => {
       const u = (x - (24 - rx)) / (2 * rx), v = (yy - (y - 7)) / 13;
       const lit = 0.75 - u * 0.65 - v * 0.35 + (hash2(seed + k, x >> 1, yy, 6) - 0.5) * 0.35;
       return PINE[Math.max(0, Math.min(PINE.length - 1, Math.floor(lit * PINE.length)))]!;

@@ -6,11 +6,29 @@ import { C, line, makeCanvas, poly, put, undithered } from './shade';
 
 /** Low silhouettes leave the walkable surface readable; all bases use the same tile-centre anchor. */
 export function buildSceneryArt(): Record<SceneryKind, ObjSprite[]> {
-  const kinds: SceneryKind[] = ['wild_clover', 'wild_leaves', 'wild_bough', 'wild_driftwood', 'wild_scree', 'wild_stalagmite', 'wild_glowcap'];
+  const kinds: SceneryKind[] = ['wild_ferns', 'wild_reeds', 'wild_clover', 'wild_leaves', 'wild_bough', 'wild_driftwood', 'wild_scree', 'wild_stalagmite', 'wild_glowcap'];
   return Object.fromEntries(kinds.map(kind => [kind, Array.from({ length: 3 }, (_, v) => {
     const { canvas, ctx } = makeCanvas(40, 32), I = new Iso(ctx, 20, 16), rng = mulberry32(510 + v * 19);
     undithered(() => {
-      if (kind === 'wild_bough' || kind === 'wild_driftwood') {
+      if (kind === 'wild_reeds') {
+        for (let i = 0; i < 7; i++) {
+          const u = 5 + rng() * 6, w = 5 + rng() * 5;
+          const x = I.X(u, w), y = I.Y(u, w, 0), h = 7 + rng() * 8;
+          line(ctx, x, y, x + (i % 3 - 1), y - h, i % 2 ? C.g3 : C.g4);
+          line(ctx, x, y - 3, x + (i % 2 ? 3 : -3), y - h * 0.7, C.g2);
+          if (i % 3 === 0) line(ctx, x + i % 3 - 1, y - h - 2, x + i % 3 - 1, y - h + 1, C.e2);
+        }
+      } else if (kind === 'wild_ferns') {
+        for (let i = 0; i < 5; i++) {
+          const x = I.X(8, 8), y = I.Y(8, 8, 0), dx = (i - 2) * 3, h = 6 - Math.abs(i - 2);
+          line(ctx, x, y, x + dx, y - h, C.g2);
+          for (let j = 1; j < 4; j++) {
+            const fx = x + dx * j / 4, fy = y - h * j / 4;
+            line(ctx, fx, fy, fx - 2, fy - 2, i < 3 ? C.g4 : C.g3);
+            line(ctx, fx, fy, fx + 2, fy - 1, C.g3);
+          }
+        }
+      } else if (kind === 'wild_bough' || kind === 'wild_driftwood') {
         const wood = new Prop(ctx, 20, 24, v === 1 ? 'se' : 'sw'), length = 13 - v;
         wood.box(1, 6, 0, length, 3, 2.5, { ramp: kind === 'wild_driftwood' ? [C.e2, C.e3, C.e4, C.e5, C.e6] : WOODM, end: () => C.e5 });
         for (const u of [4, 10 - v]) wood.line(u, 7, 2, u - 2, 3 + v, 1, C.e3);

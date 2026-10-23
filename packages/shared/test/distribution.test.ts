@@ -44,3 +44,16 @@ it('keeps existing cave mouths, shrine and ruin centres stable', () => {
   expect(ruinOfCell(1337, 0, -2)).toEqual({ id: 'ru0_-2', x: 12, y: -125, biome: 'enchanted' });
   expect(shrineOfRegion(1337, 7, 0)).toEqual({ id: 'sh7_0', x: 1666, y: 91, type: 'sequence', pillars: [[-3, 0], [0, -3], [3, 0], [0, 3]] });
 });
+
+it('keeps undergrowth coherent across tile boundaries and aligned with the cave aboveground biome', async () => {
+  const { vegetationCover } = await import('../src/worldgen');
+  let near = 0, far = 0;
+  for (let y = -48; y < 48; y += 3) for (let x = -48; x < 48; x += 3) {
+    const a = vegetationCover(1337, x, y);
+    expect(a).toBeGreaterThanOrEqual(0); expect(a).toBeLessThanOrEqual(1);
+    expect(vegetationCover(1337, x, y + CAVE_OY)).toBe(a);
+    near += Math.abs(a - vegetationCover(1337, x + 1, y));
+    far += Math.abs(a - vegetationCover(1337, x + 12, y));
+  }
+  expect(near).toBeLessThan(far * 0.35);
+});
