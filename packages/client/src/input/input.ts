@@ -76,6 +76,7 @@ export class Input {
     if (this.capturing) { e.preventDefault(); const c = this.capturing; this.capturing = null; c(e.code); return; }
     const tag = (e.target as HTMLElement | null)?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if (tag === 'BUTTON' && ['Space', 'Enter'].includes(e.code) && (e.target as HTMLElement).closest?.('[role="dialog"]')) return;
     this.firstGesture?.();
     if (e.repeat) { if (this.isBound(e.code)) e.preventDefault(); return; }
     this.down.add(e.code);

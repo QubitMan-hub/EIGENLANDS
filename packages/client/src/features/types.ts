@@ -23,6 +23,7 @@ export interface P34Deps {
   keys: () => KeyMap;
   settings: () => Settings;
   store: () => ChunkStore;
+  identity?: () => string;
   shrineProgress?: (solved: string[]) => void;
   sheets: () => Sheets;
   /** world-space layers (iso pixels): depth-sorted entities, effects above entities, shadows */

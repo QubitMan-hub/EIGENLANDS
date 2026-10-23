@@ -1,3 +1,4 @@
+import { AtlasClient } from './atlas';
 import { AdventureClient } from './adventure';
 import { CircuitClient } from './circuit';
 import { ShadowClient } from './shadows';
@@ -14,6 +15,7 @@ export class P34Client {
   readonly shadows: ShadowClient;
   readonly adventure: AdventureClient;
   readonly voice: VoiceClient;
+  readonly atlas: AtlasClient;
   private mods: ClientModule[];
 
   constructor(readonly d: P34Deps) {
@@ -23,7 +25,8 @@ export class P34Client {
     this.shadows = new ShadowClient(d);
     this.adventure = new AdventureClient(d);
     this.voice = new VoiceClient(d);
-    this.mods = [this.shard, this.circuit, this.social, this.shadows, this.adventure, this.voice];
+    this.atlas = new AtlasClient(d);
+    this.mods = [this.shard, this.circuit, this.social, this.shadows, this.adventure, this.voice, this.atlas];
     d.input.onAction = (a) => { for (const m of this.mods) if (m.action?.(a)) return; };
     d.input.onFire = (a) => { for (const m of this.mods) m.fire?.(a); };
   }

@@ -39,7 +39,7 @@ async function boot(): Promise<void> {
   const ui = new SettingsUI(settings, keys, (k) => { input.keys = k; }, (cb) => { input.capturing = cb; }, () => applySettings(settings, game.audio));
   ui.bind({
     signOut: () => { signOut(); location.reload(); },
-    deleteAccount: async () => { if (auth) { await deleteAccount(auth.token); location.reload(); } },
+    deleteAccount: async () => { if (auth) { await deleteAccount(auth.token); game.ext.atlas.forgetAll(); location.reload(); } },
     accountInfo: () => SOLO ? SOLO_NOTE : auth ? (auth.guest ? 'Playing as a guest. Progress is saved on this device — sign in with Google to keep it safe.' : 'Signed in with Google.') : '',
   });
   game.settingsOpen = () => ui.open;
@@ -59,6 +59,7 @@ async function boot(): Promise<void> {
 
   const enter = async (a: AuthState, name?: string): Promise<void> => {
     auth = a;
+    game.accountId = a.accountId;
     msg('Entering the world…');
     const net = new Net(game.handlers);
     game.net = net;

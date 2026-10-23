@@ -1,3 +1,4 @@
+import { keyLabel } from '../../input/keymap';
 import { Graphics } from 'pixi.js';
 import { MSG34, VOICE_FAR, voiceGain, type VoiceIn, type VoiceSignal } from '@eigenlands/shared';
 import { h } from '../../ui/dom';
@@ -32,7 +33,7 @@ interface Peer {
 /**
  * Proximity voice chat. Audio is peer-to-peer (WebRTC); the room relays handshakes between nearby players only.
  * Each listener hears a speaker with a gain that falls with distance (`voiceGain`) and panned by their screen offset.
- * M turns voice on/off (asks for the microphone, or listens only if it is refused); click the chip to mute the mic.
+ * The bound voice key turns voice on/off (asks for the microphone, or listens only if it is refused); click the chip to mute the mic.
  */
 export class VoiceClient implements ClientModule {
   private chip: HTMLElement;
@@ -45,6 +46,7 @@ export class VoiceClient implements ClientModule {
   private players: any = null;
   private gfx = new Graphics();
   private last = 0;
+  private key = '';
   private mic: { an: AnalyserNode; buf: Uint8Array<ArrayBuffer> } | null = null;
   private talking = 0;
 
@@ -53,7 +55,7 @@ export class VoiceClient implements ClientModule {
     style.textContent = CSS;
     document.head.append(style);
     this.who = h('span', { class: 'vc-who', text: '' });
-    this.chip = h('div', { id: 'voice-chip', title: 'Proximity voice chat (M). Click to mute your microphone.' }, h('span', { class: 'vc-dot' }), h('span', { text: 'Voice off · M' }), this.who);
+    this.chip = h('div', { id: 'voice-chip', title: 'Proximity voice chat. Click to mute your microphone.' }, h('span', { class: 'vc-dot' }), h('span', { text: 'Voice off' }), this.who);
     this.chip.addEventListener('click', () => { if (this.on) this.toggleMute(); else void this.enable(); });
     document.body.append(this.chip);
     this.gfx.zIndex = 9e8;
@@ -197,6 +199,7 @@ export class VoiceClient implements ClientModule {
   }
 
   frame(now: number, _dt: number): void {
+    const key=this.d.keys().voice[0]??'';if(key!==this.key){this.key=key;this.paint();}
     if (!this.on) return;
     const me = this.d.me();
     if (!me) return;
@@ -243,7 +246,8 @@ export class VoiceClient implements ClientModule {
     this.chip.classList.toggle('on', this.on);
     this.chip.classList.toggle('muted', this.on && (this.muted || !this.stream));
     const label = this.chip.children[1] as HTMLElement;
-    label.textContent = !this.on ? 'Voice off · M' : !this.stream ? 'Listening · M' : this.muted ? 'Muted' : 'Voice on';
+    const code = this.d.keys().voice[0], key = code ? ` · ${keyLabel(code)}` : '';
+    label.textContent = (!this.on ? 'Voice off' : !this.stream ? 'Listening' : this.muted ? 'Muted' : 'Voice on') + key;
     if (!this.on) this.who.textContent = '';
   }
 

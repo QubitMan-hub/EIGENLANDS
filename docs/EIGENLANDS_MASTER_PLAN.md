@@ -8,10 +8,11 @@ Source: [complete user request](design/master-request.md). Both pasted uploads a
 - [x] IMPLEMENTED & TESTED — Functional furnished upper floors, charter-gated underwater sanctuaries, timed traps and platform circuits. Three shared and four server integration checks passed; real solo/multiplayer reload, stairs, diving, platform chamber and sloop return passed. Merged to main in PR #5 after both CI checks passed.
 - [x] IMPLEMENTED & TESTED — PR #5 merged at 404a880 after both GitHub CI checks passed; local main synchronized. Full broader overhaul remains IN PROGRESS.
 - [~] IN PROGRESS — Impeccable HUD and inventory pass: bronze material framing, numeric health, search/category/view sorting, touch item actions and keyboard focus containment. Desktop/touch-landscape interaction and prop bounds checks passed. Maps and deeper combat/progression UI remain open.
+- [~] IN PROGRESS — Exploration atlas/minimap slice: actual 2:1 terrain chart, local saved fog/waypoints, layer isolation, pan/zoom/centering, discovered locations, nearby entity filters and safe M/voice migration. All 405 tests, typechecking, both builds and desktop/landscape/MP checks passed; integration pending PR CI. History is bounded to 512 chunks; private-world identity, large-world durable history and new content remain open.
 - [!] BUG / BLOCKED — No physical low-end Android/iOS devices or cross-network hardware are attached. Browser emulation cannot verify native performance/orientation.
 - [!] BUG / BLOCKED — Uploaded external art archives have no specific reuse license. Existing matching repository sheets and new original art remain usable; do not import unverified artwork.
 
-Implementation references: `packages/client/src/art`, `game`, `ui`, `features`; `packages/shared/src`; `packages/server/src`. Dependencies: preserve shared authoritative rules, chunk/shard persistence and existing saves. Evidence: this continuation passed all 400 workspace tests (47 client, 215 server, 138 shared), typechecks and both production builds, plus solo/multiplayer and mobile browser checks. Only individually listed slices are complete; the full master overhaul remains IN PROGRESS.
+Implementation references: `packages/client/src/art`, `game`, `ui`, `features`; `packages/shared/src`; `packages/server/src`. Dependencies: preserve shared authoritative rules, chunk/shard persistence and existing saves. Evidence: the latest continuation passed all 405 workspace tests (52 client, 215 server, 138 shared), typechecks and both production builds, plus solo/multiplayer and mobile browser checks. Only individually listed slices are complete; the full master overhaul remains IN PROGRESS.
 
 ## Implementation map and remaining dependencies
 
@@ -22,7 +23,7 @@ The full source checklist below is a conservative acceptance list. Broad aesthet
 | Art, ecology, forty coastal residents, four settlements, sailing, equipment | IN PROGRESS overall; prior PRs #2–#4, client/art, shared/settlements, server sailing/village | Bespoke per-biome/room/boss pass, more creature families and weapon families | Prior 391-test baseline and art/play captures recorded in art/overhaul-notes.md |
 | Functional floors and underwater challenges | IMPLEMENTED & TESTED slice; shared/floors.ts, sanctuaries.ts; containers.ts, shrine module, Game.ts | Merged PR #5; broader authored interior variety and integrated architectural backdrops remain | Three shared tests and four authoritative integration checks; genuine collision spaces, no decorative-only stairs |
 | HUD and pack | IN PROGRESS; ui/hud.css, inventory.ts, inventory-query.ts, windows.ts | Finish inventory comparisons, actual survival data before survival bars; enemy/boss/progression/map overhaul | Two inventory rules tests; desktop/landscape search/category/sort/actions/focus and all six prop bounds passed |
-| Navigation and maps | NOT STARTED for requested atlas; existing remapping, predictor, iso camera retained | Resolve M voice vs map, C crafting vs character and J attack vs journal; explored-chunk map data, bounded cache, waypoints and minimap | Do not reveal unexplored terrain or pre-generate an infinite world |
+| Navigation and maps | IN PROGRESS; client/features/atlas, input/keymap, existing predictor and iso camera | Atlas/minimap foundation works; durable history beyond 512 chunks, permitted distant party positions, quest markers, future kingdom/realm content and other key conflicts remain | Local fog, saved waypoints/preferences, pan/zoom, layer isolation and no generation on pan checked; M defaults to map, legacy default voice moves to N, custom bindings retained |
 | Survival and meaningful progression | NOT STARTED expansion; existing food/healing, fishing, recipes, seasons retained | Persisted hunger/thirst/temperature and modes, water/bandage items, fair tuning; no invented HUD values | Existing shared/server tests cover incumbent inventory/crafting/fishing |
 | Building and farming | IN PROGRESS foundation only; existing construction, crops, farm animals, furniture | User-placeable houses/roofs/stairs, deeper livestock and crafting loops, legal collision/persistence | Existing functionality preserved; master acceptance remains open |
 | Companion and hiring expansion | NOT STARTED; existing ShadowModule follows/fights/persists | Original creature companion identities/skills, taming, NPC lease ownership and relationship gates, actual travelling merchants | No placeholder recruitment or movement-only pets added |
@@ -250,7 +251,7 @@ The full source checklist below is a conservative acceptance list. Broad aesthet
 - [ ] NOT STARTED — Dialogue interfaces.
 - [ ] NOT STARTED — Multiplayer lobby and invitations.
 - [ ] NOT STARTED — Party frames.
-- [ ] NOT STARTED — Map and minimap.
+- [~] IN PROGRESS — Map and minimap.
 - [ ] NOT STARTED — Quantum progression board.
 - [ ] NOT STARTED — Skill trees.
 - [ ] NOT STARTED — Death, respawn, victory, and level-up screens.
@@ -332,8 +333,8 @@ The full source checklist below is a conservative acceptance list. Broad aesthet
 - [ ] NOT STARTED — | Tab | Quick Menu |
 - [ ] NOT STARTED — | 1–9 | Hotbar |
 - [ ] NOT STARTED — | Esc | Pause / Back |
-- [ ] NOT STARTED — Audit existing mappings, resolve conflicts, and make controls remappable.
-- [ ] NOT STARTED — Prevent browser-specific issues such as page scrolling, lost focus, stuck keys, and accidental gameplay input while typing.
+- [~] IN PROGRESS — Audit existing mappings, resolve conflicts, and make controls remappable.
+- [~] IN PROGRESS — Prevent browser-specific issues such as page scrolling, lost focus, stuck keys, and accidental gameplay input while typing.
 - [ ] NOT STARTED — Play-test controls during combat, building, farming, swimming, mounted travel, teleportation, and multiplayer.
 
 ## 5. BEAUTIFUL MINIMAP & LARGE WORLD MAP
@@ -341,36 +342,36 @@ The full source checklist below is a conservative acceptance list. Broad aesthet
 
 ## Live minimap
 
-- [ ] NOT STARTED — Add a beautiful, performant minimap in the top-right corner.
+- [x] IMPLEMENTED & TESTED — Add a beautiful, performant minimap in the top-right corner.
 - [ ] NOT STARTED — Include:
-- [ ] NOT STARTED — Player position and direction.
-- [ ] NOT STARTED — Nearby buildings, terrain, roads, water, and landmarks.
-- [ ] NOT STARTED — Friendly players and party members.
-- [ ] NOT STARTED — Relevant NPCs and enemies.
+- [x] IMPLEMENTED & TESTED — Player position and direction.
+- [~] IN PROGRESS — Nearby buildings, terrain, roads, water, and landmarks.
+- [~] IN PROGRESS — Friendly players and party members.
+- [x] IMPLEMENTED & TESTED — Relevant NPCs and enemies.
 - [ ] NOT STARTED — Quest locations and teleporters.
-- [ ] NOT STARTED — Discovered locations.
-- [ ] NOT STARTED — Fog of war.
-- [ ] NOT STARTED — Custom waypoints.
-- [ ] NOT STARTED — Allow resizing, hiding, and display preferences.
+- [~] IN PROGRESS — Discovered locations.
+- [x] IMPLEMENTED & TESTED — Fog of war.
+- [x] IMPLEMENTED & TESTED — Custom waypoints.
+- [x] IMPLEMENTED & TESTED — Allow resizing, hiding, and display preferences.
 
 ## Full world map — M
 
-- [ ] NOT STARTED — Pressing **M** must open the full interactive world map.
-- [ ] NOT STARTED — Press M again or Esc to close it.
+- [x] IMPLEMENTED & TESTED — Pressing **M** must open the full interactive world map.
+- [x] IMPLEMENTED & TESTED — Press M again or Esc to close it.
 - [ ] NOT STARTED — The map should support:
-- [ ] NOT STARTED — Zoom and pan.
-- [ ] NOT STARTED — Exploration fog.
+- [x] IMPLEMENTED & TESTED — Zoom and pan.
+- [x] IMPLEMENTED & TESTED — Exploration fog.
 - [ ] NOT STARTED — Six kingdoms and their territories.
 - [ ] NOT STARTED — Three realm-specific maps.
-- [ ] NOT STARTED — Capital cities, villages, ports, roads, and landmarks.
-- [ ] NOT STARTED — Dungeons, guild halls, teleporters, and discovered locations.
+- [~] IN PROGRESS — Capital cities, villages, ports, roads, and landmarks.
+- [~] IN PROGRESS — Dungeons, guild halls, teleporters, and discovered locations.
 - [ ] NOT STARTED — Quest markers.
-- [ ] NOT STARTED — Custom waypoints.
-- [ ] NOT STARTED — Multiplayer party positions where permitted.
-- [ ] NOT STARTED — Filters, legends, and location information.
-- [ ] NOT STARTED — The maps must reflect procedural exploration and saved world changes.
-- [ ] NOT STARTED — Use chunk-based map generation, caching, and efficient rendering rather than trying to generate the infinite world at once.
-- [ ] NOT STARTED — Make map interfaces aesthetically exceptional and consistent with the UI overhaul.
+- [x] IMPLEMENTED & TESTED — Custom waypoints.
+- [~] IN PROGRESS — Multiplayer party positions where permitted.
+- [~] IN PROGRESS — Filters, legends, and location information.
+- [~] IN PROGRESS — The maps must reflect procedural exploration and saved world changes.
+- [x] IMPLEMENTED & TESTED — Use chunk-based map generation, caching, and efficient rendering rather than trying to generate the infinite world at once.
+- [~] IN PROGRESS — Make map interfaces aesthetically exceptional and consistent with the UI overhaul.
 
 ## 6. THE INFINITE WORLD & SIX GREAT KINGDOMS
 
@@ -741,7 +742,7 @@ The full source checklist below is a conservative acceptance list. Broad aesthet
 - [ ] NOT STARTED — Enemy and boss health bars.
 - [ ] NOT STARTED — Inventory and crafting screens.
 - [ ] NOT STARTED — Guild halls and quest boards.
-- [ ] NOT STARTED — Maps and minimap.
+- [~] IN PROGRESS — Maps and minimap.
 - [ ] NOT STARTED — Character and class interfaces.
 - [ ] NOT STARTED — Quantum progression.
 - [ ] NOT STARTED — Multiplayer lobby.
