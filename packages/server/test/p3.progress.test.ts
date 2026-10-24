@@ -123,7 +123,8 @@ describe('level rewards', () => {
     expect(p.prog.gates).toEqual(want);
     expect(st(p).pr.rewardedLevel).toBe(4);
     await setLevel(p, 5);
-    expect(p.toasts.some((t) => t.text === 'New gates: Flip, Split' || t.text === 'New gates: Link, Split')).toBe(true);
+    // Server progression changes can precede delivery of the separate toast message.
+    await until(() => p.toasts.some((t) => t.text === 'New gates: Flip, Split' || t.text === 'New gates: Link, Split'), 2000);
     await p.r.leave();
   });
 });

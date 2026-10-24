@@ -47,7 +47,7 @@ interface Snap extends Pose {
   /** combat 2.0 (enemies) */
   st: number; atk: number; tx: number; ty: number; poise: number; elite: number;
   /** Shadow Army rank (shadows only) */
-  rank: number;
+  rank: number; bonded: boolean;
 }
 
 interface ActorView {
@@ -307,7 +307,7 @@ export class Game {
         x: e.x, y: e.y, faceX: e.faceX ?? 0, faceY: e.faceY ?? 1,
         hp: e.hp ?? 0, maxHp: e.maxHp ?? 0, flags: e.flags ?? 0, tele: e.tele ?? 0, kind: e.kind ?? 0,
         night: !!e.night, name: e.name ?? '', level: e.level ?? 1, look: e.look ?? 0, weapon: e.weapon ?? '', held: e.held ?? '',
-        st: e.st ?? 0, atk: e.atk ?? 0, tx: e.tx ?? 0, ty: e.ty ?? 0, poise: e.poise ?? 100, elite: e.elite ?? 0, rank: e.rank ?? 0,
+        st: e.st ?? 0, atk: e.atk ?? 0, tx: e.tx ?? 0, ty: e.ty ?? 0, poise: e.poise ?? 100, elite: e.elite ?? 0, rank: e.rank ?? 0, bonded: !!e.bonded,
       });
       if (!this.views.has(id)) this.makeView(id, type, e);
     };
@@ -450,7 +450,7 @@ export class Game {
       this.labelLayer.addChild(label);
     }
     if (type === 'shadow') {
-      label = new Text({ text: e.name || '', style: { fontFamily: 'ui-monospace, Menlo, Consolas, monospace', fontSize: 10, fontWeight: 'bold', fill: 0xd49aff, stroke: { color: pc(0), width: 3 } } });
+      label = new Text({ text: e.name || '', style: { fontFamily: 'ui-monospace, Menlo, Consolas, monospace', fontSize: 10, fontWeight: 'bold', fill: e.bonded ? 0xe6d5a5 : 0xd49aff, stroke: { color: pc(0), width: 3 } } });
       label.resolution = this.app.renderer.resolution || 1;
       label.anchor.set(0.5, 1);
       this.labelLayer.addChild(label);
@@ -838,7 +838,7 @@ export class Game {
         this.combat.drawEnemy(v, s, x, y, fx, now, dtMs / 1000, walking);
         if (v.type === 'shadow' && v.label) {
           v.label.visible = v.root.visible;
-          const txt = s?.kind === 21 ? s.name : `${s?.name ?? ''} · ${SHADOW_RANKS[s?.rank ?? 0]}`;
+          const txt = s?.kind === 21 || s?.bonded ? s.name : `${s?.name ?? ''} · ${SHADOW_RANKS[s?.rank ?? 0]}`;
           if (v.label.text !== txt) v.label.text = txt;
           v.label.x = Math.round(this.world.x + v.root.x * this.scale);
           v.label.y = Math.round(this.world.y + (v.root.y - 34) * this.scale);

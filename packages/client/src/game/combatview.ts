@@ -48,6 +48,7 @@ export interface CombatSnap {
   st: number; atk: number; tx: number; ty: number; poise: number; elite: number;
   faceX: number; faceY: number;
   rank?: number;
+  bonded?: boolean;
 }
 
 export interface CombatDeps {
@@ -437,7 +438,8 @@ export class CombatView {
   /** Enemy sprite, animation, flash, squash/stretch, stagger, elite aura, bars and its telegraph. */
   drawEnemy(v: CombatActor, s: CombatSnap | null, x: number, y: number, fx: number, now: number, dt: number, moved: boolean): void {
     const isShadow = v.type === 'shadow';
-    const kind = s?.kind ?? v.kind, night = !!s?.night || isShadow;
+    const bonded = isShadow && !!s?.bonded;
+    const kind = s?.kind ?? v.kind, night = !!s?.night || (isShadow && !bonded);
     v.kind = kind;
     const st = s?.st ?? 0;
     const t = now / 1000;
@@ -501,7 +503,7 @@ export class CombatView {
     v.fl.scale.copyFrom(v.sprite.scale);
     v.fl.rotation = v.sprite.rotation;
     v.fl.x = v.sprite.x;
-    if (isShadow && !hired) {
+    if (isShadow && !hired && !bonded) {
       // a bound shadow: dark silhouette with a pulsing violet aura (down = a faint ghost until it re-forms)
       const down = st === 6;
       v.sprite.tint = 0x3a2c66;
@@ -511,7 +513,7 @@ export class CombatView {
     } else {
       v.sprite.tint = kind === 10 ? 0xb8ffc8 : kind === 12 ? 0xb8a0ff : kind === 11 ? 0xe0b090 : 0xffffff; v.sprite.alpha = 1; v.fl.tint = 0xffffff;
       v.fl.alpha = Math.min(1, v.flash * 1.4);
-      if (hired && st === 6) v.sprite.alpha = 0.3;
+      if ((hired || bonded) && st === 6) v.sprite.alpha = 0.3;
     }
     if (kind === 4) v.sprite.y = 1 - 3 - Math.round(Math.sin(t * 3 + v.outfit) * 1.5); // floats
     else v.sprite.y = 1;
@@ -542,10 +544,10 @@ export class CombatView {
       g.rect(-7, top + 3, Math.max(0, 14 * (s.poise / 100)), 1).fill(pc(st === 5 ? 38 : 6));
     }
     if (isShadow && s && st !== 6) {
-      const rc = [0x9a9ec0, 0x7aa8ff, 0xb07aff, 0xff7ad0, 0xffd36a][Math.min(4, s.rank ?? 0)]!;
-      g.ellipse(0, 0, 9 * big, 4.5 * big).stroke({ color: rc, width: 1.5, alpha: 0.55 + (reduced ? 0 : 0.2 * Math.sin(t * 4)) });
+      const rc = bonded ? 0xc1b17d : [0x9a9ec0, 0x7aa8ff, 0xb07aff, 0xff7ad0, 0xffd36a][Math.min(4, s.rank ?? 0)]!;
+      g.ellipse(0, 0, 9 * big, 4.5 * big).stroke({ color: rc, width: 1, alpha: bonded ? 0.35 : 0.55 + (reduced ? 0 : 0.2 * Math.sin(t * 4)) });
       g.rect(-8, top, 16, 3).fill(pc(1));
-      g.rect(-7, top + 1, Math.max(0, 14 * (s.hp / Math.max(1, s.maxHp))), 1).fill(0xa46aff);
+      g.rect(-7, top + 1, Math.max(0, 14 * (s.hp / Math.max(1, s.maxHp))), 1).fill(bonded ? 0xc1b17d : 0xa46aff);
     }
     if (s && s.atk && !isShadow && (st === 2 || st === 3)) this.telegraph(x, y, s, now);
   }

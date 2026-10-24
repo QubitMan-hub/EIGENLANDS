@@ -4,12 +4,12 @@
  * players), earn XP, evolve through five ranks, and re-form after falling. See docs/design/shadow-army.md.
  */
 import {
-  ENEMY_DEFS, ENEMY_BY_KIND, NPC_BY_ID, giftTaste, EXTRACT_LEVEL, EXTRACT_RANGE, EXTRACT_SECS, MSG34, RESIDUE_SECS, ROSTER_MAX, SHADOW_REFORM_SECS, SPELL,
+  BOND_RANGE, companionBond, ENEMY_DEFS, ENEMY_BY_KIND, NPC_BY_ID, giftTaste, EXTRACT_LEVEL, EXTRACT_RANGE, EXTRACT_SECS, MSG34, RESIDUE_SECS, ROSTER_MAX, SHADOW_REFORM_SECS, SPELL,
   STANCES, SpellState, ShadowState, addShadowXp, canExtract, extractChance, newShadow, rankName, rankOf, shadowSlots, shadowStats,
   shadowXpFrom, shapeHits, type ShadowCmd, type ShadowEvent, type ShadowRec, type ShadowRosterMsg, type Stance, type StrikeShape,
 } from '@eigenlands/shared';
 import type { Schema } from '@colyseus/schema';
-import { createEnemy, enemyDamage, stepEnemy, type Enemy, type EnemyKind, type Target } from '../../game/enemies';
+import { createEnemy, enemyDamage, lineOfSight, stepEnemy, type Enemy, type EnemyKind, type Target } from '../../game/enemies';
 import type { GameRoom } from '../../rooms/GameRoom';
 import type { ServerPlayer } from '../../rooms/player';
 import { runtime34 } from '../runtime34';
@@ -20,7 +20,7 @@ const LEASH = 14;
 const TELEPORT_DIST = 28;
 
 interface Residue { id: string; owner: string; kind: number; level: number; elite: boolean; x: number; y: number; until: number; st: SpellState }
-interface Unit { rec: ShadowRec; en: Enemy; st: ShadowState; downUntil: number; chargeHits: Set<string> }
+interface Unit { rec: ShadowRec; en: Enemy; st: ShadowState; downUntil: number; chargeHits: Set<string>; supportT: number }
 interface Saved { roster: ShadowRec[]; active: string[]; stance: Stance; seq: number }
 interface Live {
   p: ServerPlayer;
@@ -39,9 +39,10 @@ const clean = (raw: unknown): Saved => {
   if (!r || typeof r !== 'object') return out;
   for (const x of Array.isArray(r.roster) ? r.roster.slice(0, ROSTER_MAX) : []) {
     const k = Number((x as ShadowRec)?.kind);
-    if (!x || typeof x !== 'object' || !Number.isInteger(k) || (!canExtract(k) && k !== 21) || typeof x.id !== 'string' || x.id.length > 24) continue;
+    const bonded = x?.bonded === true && !!companionBond(k);
+    if (!x || typeof x !== 'object' || !Number.isInteger(k) || (x.bonded === true && !bonded) || (!bonded && !canExtract(k) && k !== 21) || typeof x.id !== 'string' || !x.id || x.id.length > 24 || out.roster.some(r => r.id === x.id || (bonded && r.bonded && r.kind === k))) continue;
     if (k === 21 && (!Number.isFinite(x.contractUntil) || x.contractUntil! <= Date.now())) continue;
-    out.roster.push({ ...(k === 21 ? { contractUntil: Math.min(x.contractUntil!, Date.now() + 30 * 60_000) } : {}), id: x.id, kind: k, name: String(x.name ?? '').slice(0, 20) || newShadow(x.id, k, 1).name, level: Math.max(1, Math.min(50, Math.floor(Number(x.level) || 1))), xp: Math.max(0, Math.floor(Number(x.xp) || 0)) });
+    out.roster.push({ ...(bonded ? { bonded: true as const } : {}), ...(k === 21 ? { contractUntil: Math.min(x.contractUntil!, Date.now() + 30 * 60_000) } : {}), id: x.id, kind: k, name: String(x.name ?? '').slice(0, 20) || (bonded ? companionBond(k)!.name : newShadow(x.id, k, 1).name), level: Math.max(1, Math.min(50, Math.floor(Number(x.level) || 1))), xp: Math.max(0, Math.floor(Number(x.xp) || 0)) });
   }
   const ids = new Set(out.roster.map((x) => x.id));
   out.active = (Array.isArray(r.active) ? r.active : []).filter((i): i is string => typeof i === 'string' && ids.has(i));
@@ -191,6 +192,7 @@ export class ShadowModule implements Module {
     const L = this.live.get(p.id);
     if (!L || p.deadT > 0) return;
     switch (m.act) {
+      case 'befriend': this.befriend(L, m.target); return;
       case 'summon': if (typeof m.id === 'string') this.summon(L, m.id, false); break;
       case 'dismiss': { if (typeof m.id === 'string') this.dismiss(L, m.id); break; }
       case 'dismiss_all': for (const id of [...L.units.keys()]) this.dismiss(L, id); break;
@@ -211,9 +213,36 @@ export class ShadowModule implements Module {
     this.sendRoster(L);
   }
 
+  /** Synchronous claim: food and wildlife commit together; no kill hooks or random rolls. */
+  private befriend(L: Live, target: unknown): void {
+    const p = L.p, e = typeof target === 'string' ? this.room.enemies.get(target) : undefined;
+    const bond = e && companionBond(e.def.kind);
+    if (!e || !bond || e.hp <= 0) { p.toast('That wildlife is no longer available.'); return; }
+    if (p.level < EXTRACT_LEVEL) { p.toast(`Wildlife bonds awaken at level ${EXTRACT_LEVEL}.`); return; }
+    if (p.sim.boat || !this.room.owns(e.x, e.y) || Math.hypot(e.x - p.sim.x, e.y - p.sim.y) > BOND_RANGE) { p.toast('Approach the animal on foot, within four tiles.'); return; }
+    if (e.hp < e.maxHp || e.provoked || e.elite || e.level > p.level || ['windup', 'charge', 'leap', 'stagger'].includes(e.mode)) { p.toast('Offer food to healthy, unprovoked wildlife no stronger than you.'); return; }
+    if (this.room.store.solidAt(Math.floor(e.x), Math.floor(e.y)) || !lineOfSight(this.room.store.solidAt, p.sim.x, p.sim.y, e.x, e.y)) { p.toast('Reach the animal without a wall between you.'); return; }
+    if (L.data.roster.some(r => r.bonded && r.kind === bond.kind)) { p.toast('You already have a bond with this species.'); return; }
+    if (L.data.roster.length >= ROSTER_MAX || L.units.size >= shadowSlots(p.level)) { p.toast('Make room in your companion roster and active slots first.'); return; }
+    if (p.data.inv.reduce((n, s) => n + (s?.id === bond.food ? s.n : 0), 0) < bond.count) { p.toast(`Bring ${bond.count} ${bond.food.replace(/_/g, ' ')} to offer.`); return; }
+    let left = bond.count;
+    for (let i = 0; i < p.data.inv.length && left; i++) {
+      const s = p.data.inv[i]; if (s?.id !== bond.food) continue;
+      const n = Math.min(left, s.n); s.n -= n; left -= n; if (!s.n) p.data.inv[i] = null;
+    }
+    const rec = newShadow(`b${p.id.slice(0, 4)}${Date.now().toString(36)}${++L.data.seq}`, bond.kind, Math.min(3, e.level));
+    rec.bonded = true; rec.name = bond.name;
+    this.room.enemies.delete(e.id); this.room.state.enemies.delete(e.id);
+    p.dirty('inv'); L.data.roster.push(rec); L.dirty = true;
+    this.summon(L, rec.id, true); this.sendRoster(L);
+    this.room.fx({ kind: 'craft', x: e.x, y: e.y });
+    p.toast(`${bond.name} bonded: ${bond.trait}.`, 'good');
+  }
+
   private summon(L: Live, id: string, quiet: boolean): void {
     const rec = L.data.roster.find((r) => r.id === id);
     if (!rec || L.units.has(id) || L.units.size >= shadowSlots(L.p.level)) return;
+    if (rec.bonded && L.p.sim.boat) { L.p.toast('Call your wildlife companion while ashore.'); return; }
     const name = KIND_NAME.get(rec.kind);
     if (!name) return;
     const p = L.p;
@@ -224,7 +253,8 @@ export class ShadowModule implements Module {
     this.applyStats(en, rec);
     const st = new ShadowState();
     st.id = `sh_${id}`; st.owner = p.id; st.name = rec.name; st.kind = rec.kind;
-    const u: Unit = { rec, en, st, downUntil: 0, chargeHits: new Set() };
+    st.bonded = !!rec.bonded;
+    const u: Unit = { rec, en, st, downUntil: 0, chargeHits: new Set(), supportT: 12 };
     this.sync(u);
     L.units.set(id, u);
     this.room.state.shadows.set(st.id, st);
@@ -294,6 +324,8 @@ export class ShadowModule implements Module {
 
   private stepUnit(L: Live, u: Unit, index: number, dt: number, tick: number): void {
     const p = L.p, en = u.en, solid = this.room.store.solidAt;
+    if (en.mode !== 'charge') u.chargeHits.clear();
+    if (u.rec.bonded && p.sim.boat) { u.supportT = 12; u.st.st = 6; return; }
     if (u.downUntil) {
       if (this.t >= u.downUntil) {
         u.downUntil = 0;
@@ -313,7 +345,13 @@ export class ShadowModule implements Module {
     const hostile = this.hostiles();
     const focus = L.focus ? hostile.find((h) => h.id === L.focus && Math.hypot(h.x - p.sim.x, h.y - p.sim.y) < 22) : undefined;
     const targets: Target[] = [];
-    if (focus) targets.push({ id: focus.id, x: focus.x, y: focus.y, alive: true });
+    if (u.rec.bonded && u.rec.kind === 3) {
+      // A haven is earned through quiet rest, never while a hostile is nearby or while catching up offline.
+      if (dOwner <= 6 && !hostile.some(h => Math.hypot(h.x - p.sim.x, h.y - p.sim.y) < 12)) {
+        u.supportT = Math.max(0, u.supportT - dt);
+        if (!u.supportT) { u.supportT = 12; if (p.hp < p.maxHp) { p.hp = Math.min(p.maxHp, p.hp + 2); this.room.fx({ kind: 'heal', x: p.sim.x, y: p.sim.y, v: 2, id: p.id }); } }
+      } else u.supportT = 12;
+    } else if (focus) targets.push({ id: focus.id, x: focus.x, y: focus.y, alive: true });
     else for (const h of hostile) {
       if (Math.hypot(h.x - p.sim.x, h.y - p.sim.y) <= reach + 3 || (L.data.stance === 'aggressive' && Math.hypot(h.x - en.x, h.y - en.y) <= reach)) targets.push({ id: h.id, x: h.x, y: h.y, alive: true });
     }
@@ -354,7 +392,8 @@ export class ShadowModule implements Module {
     const owner = L.p, en = u.en;
     const hit = (e: Enemy, dmg: number, kb: number) => {
       const dx = e.x - en.x, dy = e.y - en.y, d = Math.hypot(dx, dy) || 1;
-      this.room.hitEnemy(e, dmg, owner, dx / d, dy / d, kb);
+      this.room.hitEnemy(e, dmg, owner, dx / d, dy / d, kb + (u.rec.bonded && u.rec.kind === 7 && en.mode === 'charge' ? 2 : 0));
+      if (e.hp > 0 && u.rec.bonded && u.rec.kind === 9) e.slowT = Math.max(e.slowT, 2);
       if (e.hp > 0 && e.def.neutral) e.provoked = true;
     };
     return {
@@ -366,7 +405,6 @@ export class ShadowModule implements Module {
       lane: (_en: Enemy, ax: number, ay: number, bx: number, by: number, w: number) => {
         const shape: StrikeShape = { kind: 'lane', ax, ay, bx, by, w };
         for (const e of this.hostiles()) if (!u.chargeHits.has(e.id) && shapeHits(shape, { x: e.x, y: e.y, r: e.def.radius })) { u.chargeHits.add(e.id); hit(e, enemyDamage(en, 1.4), 9); }
-        if (en.mode !== 'charge') u.chargeHits.clear();
       },
       fire: (_en: Enemy, dx: number, dy: number) => {
         // a shadow's bolt is hitscan: the first hostile along the ray within range

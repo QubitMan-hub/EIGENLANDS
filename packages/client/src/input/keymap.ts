@@ -10,7 +10,7 @@ export const ACTION_LABELS: Record<Action, string> = {
   attack: 'Attack', skill: 'Skill shot', dash: 'Dash (dodge)', interact: 'Use item / talk / open',
   inventory: 'Pack', journal: 'Journal', craft: 'Field crafting', prev: 'Previous quick-bar slot', next: 'Next quick-bar slot',
   ability1: 'Orb ability 1', ability2: 'Orb ability 2', ability3: 'Orb ability 3', ability4: 'Orb ability 4', ultimate: 'Ultimate',
-  board: 'Circuit Board', chat: 'Chat', party: 'Party', extract: 'Extract shadow', shadows: 'Shadow Army', sail: 'Set sail / go ashore', voice: 'Proximity voice chat', map: 'World atlas',
+  board: 'Circuit Board', chat: 'Chat', party: 'Party', extract: 'Extract shadow', shadows: 'Companions & Echoes', sail: 'Set sail / go ashore', voice: 'Proximity voice chat', map: 'World atlas',
 };
 
 export const DEFAULT_KEYS: KeyMap = {
