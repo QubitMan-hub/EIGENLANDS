@@ -15,7 +15,7 @@ export type Glyph =
   | 'shelf' | 'rug' | 'sprinkler' | 'coop' | 'barn' | 'chicken' | 'cow' | 'sign' | 'fence' | 'gel' | 'tooth'
   | 'bag' | 'orb' | 'book' | 'staff' | 'crossbow' | 'helm' | 'cuirass' | 'greaves' | 'boots';
 
-import { ARMOR_SETS, ARMOR_SLOTS, ARMOR_SLOT_NAMES, WEAPONS, armorId, type ArmorSlot, type WeaponId } from './equipment';
+import { ARMOR_SETS, ARMOR_SLOTS, ARMOR_SLOT_NAMES, SET_BY_ID, WEAPONS, armorId, type ArmorSlot, type WeaponId } from './equipment';
 
 export interface ToolSpec { type: 'axe' | 'pickaxe' | 'hoe' | 'can' | 'rod' | 'net'; }
 export interface ItemDef {
@@ -351,3 +351,11 @@ export function validInventory(v: unknown): Inventory {
   }
   return out;
 }
+
+/** The authoritative level gate for an equipment item. */
+export function equipmentLevel(id: string): number {
+  const d = ITEMS[id];
+  return d?.weapon ? WEAPONS[d.weapon].level : d?.armor ? SET_BY_ID[d.armor.set]?.level ?? 1 : 1;
+}
+/** Forged swords contribute only the strongest bonus in the quick-bar, including when a Focus is equipped. */
+export const quickbarAttack = (inv: Inventory): number => inv.slice(0, HOTBAR).reduce((best, s) => s?.id === 'sword' ? Math.max(best, s.p?.atk ?? 0) : best, 0);

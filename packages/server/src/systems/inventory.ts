@@ -1,5 +1,5 @@
 import {
-  EQUIP_SLOTS, ITEMS, SET_BY_ID, WEAPONS, addStack, armorTotals, cloneStack, moveSlot, type EquipMsg, type EquipSlotKey, type InvMoveMsg, type InvTrashMsg,
+  EQUIP_SLOTS, ITEMS, equipmentLevel, addStack, armorTotals, cloneStack, moveSlot, type EquipMsg, type EquipSlotKey, type InvMoveMsg, type InvTrashMsg,
 } from '@eigenlands/shared';
 import { fitsSlot } from './profile';
 import type { ServerPlayer } from '../rooms/player';
@@ -25,14 +25,6 @@ export function lookOf(p: ServerPlayer): number {
   const a = armorTotals({ head: e.head?.id ?? null, chest: e.chest?.id ?? null, legs: e.legs?.id ?? null, feet: e.feet?.id ?? null });
   return a.look !== null ? 8 + a.look : e.outfit;
 }
-
-const levelNeeded = (id: string): number => {
-  const d = ITEMS[id];
-  if (!d) return 1;
-  if (d.weapon) return WEAPONS[d.weapon].level;
-  if (d.armor) return SET_BY_ID[d.armor.set]?.level ?? 1;
-  return 1;
-};
 
 /** Rings, armour and the main-hand Focus swap with the pack; outfits set the cosmetic look. */
 export function handleEquip(p: ServerPlayer, msg: EquipMsg): void {
@@ -62,7 +54,7 @@ export function handleEquip(p: ServerPlayer, msg: EquipMsg): void {
   }
   const slot = msg.as as EquipSlotKey;
   if (!EQUIP_SLOTS.includes(slot) || !fitsSlot(slot, s)) return;
-  const need = levelNeeded(s.id);
+  const need = equipmentLevel(s.id);
   if (p.level < need) { p.toast(`${def?.name ?? 'That'} needs level ${need}.`, 'bad'); return; }
   const old = eq[slot];
   eq[slot] = { id: s.id, n: 1, ...(s.p ? { p: s.p } : {}) };

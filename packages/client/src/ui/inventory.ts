@@ -1,7 +1,8 @@
-import { HOTBAR, INV_SIZE, ITEMS, SET_BY_ID, WEAPONS, armorTotals, type EquipMsg, type EquipSlotKey, type Stack } from '@eigenlands/shared';
+import { HOTBAR, INV_SIZE, ITEMS, SET_BY_ID, WEAPONS, armorTotals, equipmentLevel, type EquipMsg, type EquipSlotKey, type Stack } from '@eigenlands/shared';
 import type { Profile } from '../game/profile';
 import { clear, h, iconCell, tooltipFor, type Tooltip } from './dom';
-import { equipmentPreview } from './equipment-preview';
+import { buildWeaponGuide } from './weapon-guide';
+import { equipmentPreview, weaponComparison } from './equipment-preview';
 import { inventorySlots, type InventoryCategory, type InventorySort } from './inventory-query';
 
 export interface InvActions {
@@ -12,7 +13,7 @@ export interface InvActions {
 }
 
 /** 30-slot pack (row 1 = hotbar), equipment, wardrobe and trash. */
-export function buildInventory(profile: Profile, tip: Tooltip, act: InvActions, portrait: () => HTMLElement): HTMLElement {
+export function buildInventory(profile: Profile, tip: Tooltip, act: InvActions, portrait: () => HTMLElement, level: () => number = () => profile.level): HTMLElement {
   const root = h('div', { class: 'inv-win' });
   const grid = h('div', { class: 'inv-grid' });
   const quickGrid = h('div', { class: 'inv-grid' });
@@ -60,10 +61,14 @@ export function buildInventory(profile: Profile, tip: Tooltip, act: InvActions, 
       details.append(ring);
     }
     compare(); details.append(comparison);
+    const weapon = weaponComparison(profile, selected);
+    if (weapon) details.append(buildWeaponGuide(weapon));
+    const required = equipmentLevel(st.id), locked = level() < required;
+    if (d.weapon || d.armor) details.append(h('p', {class:locked ? 'equip-lock' : 'small dim', text:locked ? `Requires level ${required} · your level ${level()}.` : `Requires level ${required}.`}));
     const equippable = !!destination || d.kind === 'outfit';
-    if (equippable || d.heal || d.buff || d.kind === 'potion') details.append(h('button', { class: 'primary', text: equippable ? 'Equip item' : 'Use item', on: { click: () => destination ? act.equip(selected, destination) : quick(selected, st) } }));
+    if (equippable || d.heal || d.buff || d.kind === 'potion') details.append(h('button', { class: 'primary', text: equippable ? 'Equip item' : 'Use item', disabled: equippable && locked, data:{focus:'item-action'}, on: { click: () => destination ? act.equip(selected, destination) : quick(selected, st) } }));
     const empty = profile.inv.slice(0, HOTBAR).findIndex(s => !s);
-    const held = h('button', { text: empty >= 0 ? 'Place in quick-bar' : 'Swap with quick-bar slot 1', on: { click: () => act.move(selected, empty >= 0 ? empty : 0) } });
+    const held = h('button', { data:{focus:'quickbar-action'}, text: empty >= 0 ? 'Place in quick-bar' : 'Swap with quick-bar slot 1', on: { click: () => act.move(selected, empty >= 0 ? empty : 0) } });
     if (selected >= HOTBAR) details.append(held);
   };
 
@@ -88,6 +93,7 @@ export function buildInventory(profile: Profile, tip: Tooltip, act: InvActions, 
 
   const quick = (i: number, st: Stack) => {
     const d = ITEMS[st.id];
+    if (level() < equipmentLevel(st.id)) return;
     if (d?.kind === 'ring') act.equip(i, profile.equip.ring1 ? (profile.equip.ring2 ? 'ring1' : 'ring2') : 'ring1');
     else if (d?.kind === 'outfit') act.equip(i, 'outfit');
     else if (d?.kind === 'armor' && d.armor) act.equip(i, d.armor.slot);
@@ -96,6 +102,12 @@ export function buildInventory(profile: Profile, tip: Tooltip, act: InvActions, 
   };
 
   const render = () => {
+    const scroll = root.closest<HTMLElement>('.window');
+    const top = scroll?.scrollTop ?? 0;
+    const focused = document.activeElement as HTMLElement | null;
+    const focusKey = focused && root.contains(focused) ? focused.dataset.focus : null;
+    const timingOpen = root.querySelector<HTMLDetailsElement>('.weapon-guide details')?.open;
+    const focusLabel = focused && root.contains(focused) ? focused.getAttribute('aria-label') : null;
     clear(grid); clear(quickGrid); clear(side);
     const indices = inventorySlots(profile.inv, search.value, category.value as InventoryCategory, sort.value as InventorySort);
     if (!indices.includes(selected)) selected = -1;
@@ -116,7 +128,7 @@ export function buildInventory(profile: Profile, tip: Tooltip, act: InvActions, 
       slot.setAttribute('aria-label', `${label}: ${st ? `${ITEMS[st.id]?.name ?? st.id}, unequip` : 'empty'}`);
       if (st) { tip.attach(slot, () => tooltipFor(st)); slot.addEventListener('click', () => act.equip(0, `unequip_${key}`)); }
       slot.addEventListener('dragover', (e) => e.preventDefault());
-      slot.addEventListener('drop', (e) => { e.preventDefault(); const f = Number(e.dataTransfer?.getData('text/plain')); if (Number.isInteger(f) && slotKind(key, profile.inv[f]?.id ?? '')) act.equip(f, key); });
+      slot.addEventListener('drop', (e) => { e.preventDefault(); const f = Number(e.dataTransfer?.getData('text/plain')); if (Number.isInteger(f) && level() >= equipmentLevel(profile.inv[f]?.id ?? '') && slotKind(key, profile.inv[f]?.id ?? '')) act.equip(f, key); });
       return slot;
     };
     const E = profile.equip;
@@ -156,11 +168,16 @@ export function buildInventory(profile: Profile, tip: Tooltip, act: InvActions, 
       if (Number.isInteger(f) && stack && (ITEMS[stack.id]!.value * stack.n < 60 || confirm(`Discard ${stack.n} × ${ITEMS[stack.id]!.name}?`))) act.trash(f, stack.n);
     });
     side.append(trash);
+    const timing = root.querySelector<HTMLDetailsElement>('.weapon-guide details');
+    if (timing && timingOpen) timing.open = true;
+    if (scroll) scroll.scrollTop = top;
+    if (focusKey) root.querySelector<HTMLElement>(`[data-focus="${CSS.escape(focusKey)}"]`)?.focus({preventScroll:true});
+    if (focusLabel) root.querySelector<HTMLElement>(`[aria-label="${CSS.escape(focusLabel)}"]`)?.focus({preventScroll:true});
   };
   render();
   const controls = h('div', { class: 'inv-controls' }, search, category, sort);
   search.addEventListener('input', render); category.addEventListener('change', render); sort.addEventListener('change', render);
-  root.append(h('div', { class: 'inv-main' }, h('div', { class: 'inv-summary' }, h('div', { class: 'coins', text: `${profile.coins} coins` }), count), controls, h('div', { class: 'side-title', text: 'Quick-bar · 1–0' }), quickGrid, h('div', { class: 'side-title', text: 'Backpack' }), grid, details, h('div', { class: 'small dim', text: 'Select to inspect. Double-click / right-click to equip or use. Drag to rearrange.' })), side);
+  root.append(h('div', { class: 'inv-main' }, h('div', { class: 'inv-summary' }, h('div', { class: 'coins', text: `${profile.coins} coins` }), count), controls, h('div', { class: 'side-title', text: 'Quick-bar · 1–0' }), quickGrid, h('div', { class: 'side-title', text: 'Backpack' }), grid, h('div', { class: 'small dim', text: 'Select to inspect. Double-click / right-click to equip or use. Drag to rearrange.' })), side, details);
   const unsub = profile.onChange(() => { if (!root.isConnected) { unsub(); return; } render(); (root.querySelector('.coins') as HTMLElement).textContent = `${profile.coins} coins`; });
   return root;
 }

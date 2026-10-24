@@ -1,4 +1,4 @@
-import { ITEMS, WEAPONS, armorTotals, type EquipSlotKey, type EquipState } from '@eigenlands/shared';
+import { COMBO, HOTBAR, ITEMS, MORPH_FORMS, WEAPONS, attackDamage, armorTotals, cloneStack, equipmentLevel, heavyHit, moveSlot, quickbarAttack, weaponRecovery, weaponShotPower, type EquipSlotKey, type EquipState, type WeaponDef, type WeaponShot } from '@eigenlands/shared';
 import type { Profile } from '../game/profile';
 
 /** Preview the server's equipment swap, retaining progression and quick-bar bonuses. */
@@ -27,4 +27,56 @@ export function equipmentPreview(profile: Pick<Profile, 'equip' | 'inv' | 'stats
   for (const key of ['hpBonus', 'atkBonus', 'luck', 'haste', 'phase'] as const) next[key] += after[key] - before[key];
   next.def = Math.min(.6, after.def);
   return next;
+}
+
+export interface AttackGuide {
+  name: string; damage: number[]; healing: number[]; reach: number[];
+  recovery: number[]; cooldown: number; count: number; radius: boolean; details: string[];
+}
+interface WeaponGuide { name: string; tap: AttackGuide[]; heavy: AttackGuide }
+
+/** Field-guide values before conditional combat effects; never aggregate volleys into promised DPS. */
+function weaponGuide(w: WeaponDef, stats: Profile['stats']): WeaponGuide {
+  const melee = (form?: typeof MORPH_FORMS[number]): AttackGuide => ({
+    name: form?.name ?? 'Three-hit combo',
+    damage: COMBO.map(h => attackDamage(form ? Math.round(h.damage * form.dmg) : h.damage, stats.atkBonus)),
+    healing: [], reach: COMBO.map(h => h.range), recovery: COMBO.map(h => h.recovery), cooldown: 0, count: 1, radius: false,
+    details: form ? ['Each tap chooses one form at random; the two forms do not hit together.'] : ['Two slashes, then a lunging finisher.'],
+  });
+  const shot = (s: WeaponShot, heavy: boolean): AttackGuide => {
+    const power = (heavy ? [0, 1] : [null]).map(c => weaponShotPower(c, stats.atkBonus));
+    return { name: s.name, damage: power.map(p => s.dmg * p), healing: s.heal ? power.map(p => Math.round(s.heal! * p)) : [],
+      reach: [s.kind === 'bolt' ? s.range ?? 9 : s.radius ?? (s.kind === 'heal_pulse' ? 5 : 3)],
+      recovery: heavy ? [heavyHit(1).recovery] : COMBO.map(h => h.recovery), cooldown: weaponRecovery(w, heavy, stats.haste),
+      count: s.count ?? 1, radius: s.kind !== 'bolt', details: [
+        ...(s.pierce ? [`Each bolt can pierce ${s.pierce} extra enemies.`] : []),
+        ...(s.slow ? [`Slows by ${s.slow * 100}% for ${s.secs ?? 0}s before elemental effects.`] : []),
+        ...(s.push ? [`Push ${s.push}.`] : []),
+        ...(s.heal ? ['Heals you and nearby party members, up to missing health.'] : []),
+      ] };
+  };
+  const low = heavyHit(0), high = heavyHit(1);
+  return { name: w.name, tap: w.basic ? [shot(w.basic, false)] : w.id === 'morph_staff' ? MORPH_FORMS.map(f => melee(f)) : [melee()],
+    heavy: w.charged ? shot(w.charged, true) : { name: 'Phase cleave', damage: [attackDamage(low.damage, stats.atkBonus), attackDamage(high.damage, stats.atkBonus)], healing: [],
+      reach: [low.range, high.range], recovery: [high.recovery], cooldown: 0, count: 1, radius: false, details: ['Wide cleave; a full charge breaks more poise.'] } };
+}
+
+/** Mirrors either a Focus equip or the existing quick-bar placement action without changing the pack. */
+export function weaponComparison(profile: Pick<Profile, 'equip' | 'inv' | 'stats'>, index: number): { before: WeaponGuide; after: WeaponGuide; placement: number | null; requirement: number; note: string } | null {
+  const item = profile.inv[index], d = item && ITEMS[item.id];
+  if (!d || d.kind !== 'weapon') return null;
+  const current = profile.equip.weapon && ITEMS[profile.equip.weapon.id]?.weapon;
+  const w = current ? WEAPONS[current] : WEAPONS.sword;
+  let next = w, stats = profile.stats, placement: number | null = null;
+  let note = 'Equipping this Focus changes your attacks and passive bonuses.';
+  if (d.weapon) { next = WEAPONS[d.weapon]; stats = equipmentPreview(profile, index, 'weapon'); }
+  else if (item.id === 'sword') {
+    if (index >= HOTBAR) {
+      const empty = profile.inv.slice(0, HOTBAR).findIndex(s => !s); placement = empty >= 0 ? empty : 0;
+      const inv = profile.inv.map(s => s ? cloneStack(s) : null); moveSlot(inv, index, placement);
+      stats = { ...profile.stats, atkBonus: profile.stats.atkBonus - quickbarAttack(profile.inv) + quickbarAttack(inv) };
+    }
+    note = 'Only the strongest sword in your quick-bar adds attack bonus. An equipped Focus still controls your attacks; unequip it for blade combat.';
+  }
+  return { before: weaponGuide(w, profile.stats), after: weaponGuide(next, stats), placement, requirement: equipmentLevel(item.id), note };
 }

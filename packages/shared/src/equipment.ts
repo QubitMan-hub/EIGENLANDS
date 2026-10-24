@@ -136,7 +136,7 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     bonus: { def: 0.03 }, blurb: 'Knocking light. Hold to sanctify: burns foes and mends allies at once.', quantum: 'Radiant bias: your Circuit abilities lean toward Radiant forms.' },
   morph_staff: { id: 'morph_staff', name: 'Shapeshifter Staff', cls: 'staff', hue: 6, level: 16, cd: 0,
     basic: null, charged: { name: 'Collapse', hue: 6, kind: 'ring', dmg: 30, radius: 2.8, push: 6 },
-    bonus: { hp: 16, atk: 3 }, blurb: 'Your strikes become a wolf\'s fangs or a bear\'s fist, whichever the dice collapse to.', quantum: 'Each strike is a coin flip between Wolf (fast, light) and Bear (slow, crushing). Hold to Collapse both at once.' },
+    bonus: { hp: 16, atk: 3 }, blurb: 'Your strikes become a wolf\'s fangs or a bear\'s fist, whichever the dice collapse to.', quantum: 'Each strike is a coin flip between Wolf (light) and Bear (crushing). Hold to Collapse both at once.' },
 };
 export const isWeaponId = (v: unknown): v is WeaponId => typeof v === 'string' && Object.hasOwn(WEAPONS, v);
 /** A sloop's guns: the attack button fires cannonballs, held and released a chain-shot broadside. Hue 5 = ember. */
@@ -153,3 +153,7 @@ export const MORPH_FORMS = [
 
 /** Weapons that shoot (no melee lunge): the crossbow and every staff with a basic attack. */
 export const isRangedWeapon = (w: WeaponDef | null | undefined): boolean => !!w && (w.cls === 'crossbow' || (w.cls === 'staff' && !!w.basic));
+
+/** Weapon output and its additional shot gate; swing recovery is governed separately by the shared simulation. */
+export const weaponShotPower = (charge: number | null, attack: number): number => (charge === null ? 1 : 0.7 + 0.5 * charge) * (1 + attack * 0.02);
+export const weaponRecovery = (w: WeaponDef, heavy: boolean, haste: number): number => w.cd * (heavy ? 1.4 : 1) / (1 + haste * 0.05);

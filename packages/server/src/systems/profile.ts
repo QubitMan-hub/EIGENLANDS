@@ -1,5 +1,5 @@
 import {
-  CROPS, DEED_KINDS, ITEMS, NPC_BY_ID, QUEST_BY_ID, RECIPES, WEAPONS, addStack, armorTotals, dayNumber, emptyInventory, pruneRequests, validInventory, validSkills,
+  CROPS, DEED_KINDS, ITEMS, NPC_BY_ID, QUEST_BY_ID, RECIPES, WEAPONS, quickbarAttack, addStack, armorTotals, dayNumber, emptyInventory, pruneRequests, validInventory, validSkills,
   type EquipSlotKey, type EquipState, type Inventory, type ProfileMsg, type QuestLog, type Stack,
 } from '@eigenlands/shared';
 import type { Buff, DirtyPart, FriendRec, PlayerData } from './types';
@@ -124,9 +124,7 @@ export function deriveStats(d: PlayerData): DerivedStats {
     const v = r.p.val!;
     if (r.p.stat === 'hp') s.hpBonus += v; else if (r.p.stat === 'atk') s.atkBonus += v; else if (r.p.stat === 'luck') s.luck += v; else if (r.p.stat === 'haste') s.haste += v;
   }
-  let best = 0;
-  for (let i = 0; i < 10; i++) { const st = d.inv[i]; if (st && st.id === 'sword') best = Math.max(best, st.p?.atk ?? 0); }
-  s.atkBonus += best;
+  s.atkBonus += quickbarAttack(d.inv);
   // armor (with set bonuses) and the wielded Focus
   const a = armorTotals({ head: d.equip.head?.id ?? null, chest: d.equip.chest?.id ?? null, legs: d.equip.legs?.id ?? null, feet: d.equip.feet?.id ?? null });
   s.hpBonus += a.bonus.hp; s.atkBonus += a.bonus.atk; s.luck += a.bonus.luck; s.haste += a.bonus.haste; s.def += a.bonus.def; s.phase += a.bonus.phase;

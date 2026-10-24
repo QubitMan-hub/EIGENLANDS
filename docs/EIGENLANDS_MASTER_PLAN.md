@@ -819,3 +819,7 @@ Circuit workshop continuation: five guided patterns reuse actual tokens/edit con
 Friend feedback addressed through the existing Journal/atlas/input and shared room simulation: practical first-steps progress, complete controls, convenient default bindings, explicit chosen-quest guidance and settlement wards with lower, habitat-specific encounter pressure. This is an onboarding/navigation/balance slice, not completion of the remaining major-world scope. Exact proof and integration status: CONTINUE_HERE.md.
 
 Welcoming-world integration: merged in PR #12 at `b90a1f9` after both CI runs passed. All 436 tests, typechecks, both builds and final solo desktop / multiplayer mobile browser checks passed. This does not mark broader pending master requirements complete.
+
+### Weapon field guide continuation (2026-10-24)
+
+Pack attack comparisons now distinguish real Focus swaps from strongest-sword quick-bar bonuses, show charged/tap/heal/volley/morph behavior and shared level requirements, and preserve reading state on profile refreshes. Public level updates refresh open-pack eligibility. Numeric formulas remain shared with existing authority; no new weapon family, combat balance or survival system is implied. Proof and integration status: CONTINUE_HERE.md.
