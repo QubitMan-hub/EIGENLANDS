@@ -6,14 +6,16 @@ This is the practical remaining-work index. The full original requirements and d
 
 - Completed in PR #18: centered RMB camera, preserved mouse movement, shared clean icon shading, native compact scaling, stone/coal/ore artwork, tree and animated-object anchors, consistent actor/prop shadow projection, continuous sun/moon shadow cycle.
 - Completed in [PR #19](https://github.com/QubitMan-hub/EIGENLANDS/pull/19): successful mining/chopping uses the correct held axe/pickaxe, faces its resource and plays a harvesting pose, including with another weapon equipped. All 13 ordinary seeds use distinct crop-picture packets; strawberry artwork now differs from cranberry; quantum seeds retain their distinct icon.
+- Implemented in the utility follow-up: distinct carp, perch, trout, catfish, pike and eel inventory artwork, with species markings and corrected common-fish tail bounds.
 - Still open: individual silhouette/art review for the rest of the catalog (food, fish, equipment, furniture and rare loot); the shared painter improvement is not a bespoke redraw of every item.
-- Still open: animation review for other utility actions (watering, tilling, fishing) and visible held consumables and non-tool/non-weapon items where appropriate.
+- Implemented in the utility follow-up: held hoe, watering-can, rod-cast and net-sweep poses reuse the harvesting presentation, including with a combat weapon equipped. A net attempt animates even when it catches nothing.
+- Still open: hook/reeling and other interaction animation review, plus visible held consumables and non-tool/non-weapon items where appropriate.
 - Still open: per-material dynamic highlights. Current pixel-art highlights are authored into sprites; ambient scene lighting and cast shadows respond to time. A complete normal-map/relighting pipeline is not implemented.
 - Still open: real mobile-device GPU profiling and native orientation-lock verification. Landscape browser emulation is covered.
 
 ## Gameplay and world expansion
 
-- Resident fighter recruitment: relationship/happiness gates, real ownership/leases, payment, dismissal, persistence and multiplayer visibility. Wildlife bonds and extracted echoes already work.
+- Expand the existing single paid guild-fighter contract into resident-specific recruitment with clear ownership/lease visibility, payment/dismissal, persistence and multiplayer identity. The existing contract already checks friendship and expires; wildlife bonds and extracted echoes also work.
 - Travelling merchants: actual routes/schedules, stock/economy, discovery, interaction and persistence.
 - Further weapon families and equipment progression beyond the existing sword, spear, battle axe, warhammer, crossbow and Foci; keep displayed and authoritative attack values shared.
 - More authored biome/cave/shore/mountain discoveries and occupied interior variety. Preserve existing landmark IDs, world edits, floor transitions and collision.

@@ -42,7 +42,7 @@ export function catchBug(room: RoomApi, p: ServerPlayer, tx: number, ty: number,
     pool.push(b);
     if (b.flux && sampleClimate(room.seed, tx, ty).flux > 0.4) pool.push(b);
   }
-  room.fx({ kind: 'dust', x: tx + 0.5, y: ty + 0.5 });
+  room.fx({ kind: 'dust', x: tx + 0.5, y: ty + 0.5, id: p.id, weapon: 'net' });
   if (!pool.length) { p.toast("Nothing's flying around right now."); return; }
   if (room.rand() >= 0.35 + p.stats.haste) { p.toast('The net comes up empty.'); return; }
   const bug = pool[Math.floor(room.rand() * pool.length)]!;

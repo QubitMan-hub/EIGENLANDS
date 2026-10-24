@@ -36,7 +36,7 @@ export function startCast(room: RoomApi, p: ServerPlayer, tx: number, ty: number
   p.rhythm = null;
   p.cast = { id: `f${++seq}`, tx, ty, deep, ocean: deep && deepCount >= 18 && Math.hypot(tx, ty) > 230, state: 'wait', biteAt: now + delay, deadline: 0 };
   p.client.send(MSG.FISH_CAST, { tx, ty, id: p.cast.id });
-  room.fx({ kind: 'cast', x: tx + 0.5, y: ty + 0.5 });
+  room.fx({ kind: 'cast', x: tx + 0.5, y: ty + 0.5, id: p.id, weapon: 'rod' });
   p.toast('You cast your line…');
 }
 

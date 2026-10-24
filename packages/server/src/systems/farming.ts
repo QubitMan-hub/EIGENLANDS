@@ -124,7 +124,7 @@ export function waterCrop(room: RoomApi, p: ServerPlayer, o: WorldObj): void {
   d.watered = room.wclock.day();
   room.objects.update(o);
   wetTile(room, o.x, o.y);
-  room.fx({ kind: 'water', x: o.x + 0.5, y: o.y + 0.5 });
+  room.fx({ kind: 'water', x: o.x + 0.5, y: o.y + 0.5, id: p.id, weapon: 'can' });
   addSkillXp(p, 'farming', 1);
 }
 
