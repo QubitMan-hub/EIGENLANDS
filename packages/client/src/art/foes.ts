@@ -12,7 +12,7 @@ import {
  */
 export type Anim = 'idle' | 'move' | 'windup' | 'attack' | 'hurt' | 'death';
 export const ANIMS: Anim[] = ['idle', 'move', 'windup', 'attack', 'hurt', 'death'];
-export type CritterKind = 'slime' | 'hopper' | 'rabbit' | 'deer' | 'wisp' | 'brute' | 'mite' | 'fox' | 'otter' | 'tortoise' | 'owl' | 'thornling' | 'glasscrawler';
+export type CritterKind = 'slime' | 'hopper' | 'rabbit' | 'deer' | 'wisp' | 'brute' | 'mite' | 'fox' | 'otter' | 'tortoise' | 'owl' | 'thornling' | 'glasscrawler' | 'reed_stalker' | 'cinder_moth';
 
 interface Def {
   w: number; h: number; ay?: number;
@@ -438,7 +438,28 @@ const miteDef: Def = {
   },
 };
 
+/** Two original encounter models; the existing z-buffer rig handles all facings and occlusion. */
+function encounterDef(moth:boolean):Def{return{w:48,h:44,ay:36,shadow:moth?[6,3]:[8,4],n:{idle:4,move:6,windup:3,attack:3,hurt:2,death:5},draw(s,a,k,t,night){
+ const dying=a==='death',wind=a==='windup',moving=a==='move',phase=t*TAU;
+ const shell=M(ramp(moth?(night?0x80514d:0x9b663c):(night?0x305356:0x5f713e),3,2,{hue:8}));
+ const light=M(ramp(moth?0xe6ad66:0x9eac66,2,2)),dark=M(ramp(0x3c3438,2,2));
+ const z=(moth?9:5)+(moving?Math.sin(phase)*.5:0)-(dying?t*7:0);
+ if(moth){
+  const flap=dying?.15:wind?.12:.25+.3*Math.sin(phase);
+  for(const side of[-1,1]){s.push(rotX(side*flap),[0,side*1,z]);s.ell([-1,side*7,z],[5.5,7,.8],shell);s.ell([-3,side*4.5,z-1],[4,4,.7],light);s.ell([0,side*7,z+.9],[1.5,2,.4],dark);s.line([1,side*2,z+1],[-3,side*10,z+1],0xd9b67d,1);s.pop();}
+  s.ell([0,0,z],[4,1.6,1.8],dark);s.sph([3,0,z+1],2,light);
+  for(const side of[-1,1])s.line([3,side*.8,z+2],[5,side*2,z+4],0xdabf8a,1);
+  s.sph([1.4,0,z+1],wind?2.4:1.2,M(ramp(0xf3b46a,2,1),{glow:true}));
+ }else{
+  s.ell([0,0,z],[5,4,4],shell);s.ell([4,0,z+1],[2.5,3,2],dark);
+  for(const side of[-1,1])for(const x of[-3,3]){const step=moving?Math.sin(phase+(x*side>0?0:Math.PI))*1.4:0;s.cap([x,side*3,z-1],[x+step,side*4,1],1.2,.7,shell);}
+  for(const side of[-1,0,1])s.cap([-2,side*2,z+2],[-4,side*4,z+(wind?10:7)],1.4,.1,light);
+  for(const side of[-1,1])s.dot([6,side*1.5,z+1.7],wind?0xffd49c:0x9febe0,1,1,2);
+ }
+}};}
+
 const DEFS: Record<CritterKind, Def> = {
+  reed_stalker:encounterDef(false),cinder_moth:encounterDef(true),
   fox: wildDef('fox'), otter: wildDef('otter'), tortoise: wildDef('tortoise'), owl: wildDef('owl'), thornling: wildDef('thornling'), glasscrawler: wildDef('glasscrawler'),
   deer: deerDef, rabbit: rabbitDef, slime: slimeDef, hopper: hopperDef, wisp: wispDef, brute: bruteDef, mite: miteDef,
 };
@@ -522,7 +543,7 @@ export interface FoeSheets {
 }
 
 export function buildFoeSheets(): FoeSheets {
-  const name = (k: number) => (['fox', 'otter', 'tortoise', 'owl', 'thornling', 'glasscrawler'] as const)[k - 15] ?? KIND_NAMES[k] ?? 'slime';
+  const name = (k: number) => k===22?'reed_stalker':k===23?'cinder_moth':(['fox', 'otter', 'tortoise', 'owl', 'thornling', 'glasscrawler'] as const)[k - 15] ?? KIND_NAMES[k] ?? 'slime';
   return {
     anchor: k => (DEFS[name(k)].ay ?? DEFS[name(k)].h - 2) / DEFS[name(k)].h,
     frame: (k, n, d, a, f) => critter(name(k), n, d, a, f),

@@ -4,7 +4,13 @@ This is the practical remaining-work index. The full original requirements and d
 
 ## Comfortable controls
 
-- Implemented: selected pickaxe + left-click on rock/ore approaches and mines through the existing server rules; opaque sprite picking, bounded obstacle routes and cancellation preserve combat control. Defaults are either Shift for Dodge and Space for context interactions (including NPCs, caves and stairs); untouched older defaults migrate while custom bindings remain.
+- Implemented: selected axe/pickaxe + left-click on tree/stump/rock/ore approaches and gathers through the existing server rules; forage/ripe harvest and selected hoe/can/refill actions use the same intent; opaque sprite picking, bounded obstacle routes and cancellation preserve combat control. Defaults are either Shift for Dodge and Space for context interactions (including NPCs, caves and stairs); untouched older defaults migrate while custom bindings remain.
+
+## Gathering, combat and interiors
+
+- Implemented: two Dodge charges with four-second sequential recharge; rod + Space near water without precise cursor aim; centered statue reading; grounded isometric bed layers; held-tool grip/rest alignment; generated town stairs at back corners with clear, reachable landings.
+- Added: original Reed Stalker ambush/leap/disengage and Cinder Moth orbit/retreat/ranged encounters, inside existing biome/level/density rules. Full spawn-density and high-level encounter rebalance remains separate work.
+- Player building freedom remains: automatically generated stairs moved; player-built stairs keep their chosen placement. Higher towers/co-owners/house benefits remain below.
 
 ## Runtime performance
 

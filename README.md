@@ -24,8 +24,9 @@ in the browser or share a world with other players.
 | Select target | left click an enemy or party mate · `Esc` clears |
 | Abilities | `Q E R F`: directional abilities show an aim line, then left click confirms at the cursor; same key or `Esc` cancels. Self abilities are instant. Touch/gamepad cast directly. `V` ultimate |
 | Aim / mouse steering | Hold right mouse for the aim cone; Mouse movement mode also steers. Camera stays centered. |
-| Mine | Select a pickaxe, then left-click a rock to approach and mine; movement or Dodge cancels. |
-| Dash | `Shift` (either side) |
+| Gather | Select an axe/pickaxe, then left-click trees/rocks to approach and gather. Click ripe crops/forage to harvest, or use a hoe/can on ground. Movement or Dodge cancels. |
+| Fish | Select a rod, stand near water and press your interaction key (default Space); press again when a bite appears. |
+| Dash | `Shift` (either side): two charges, each recharges in four seconds. Save them for combat warnings. |
 | Use / talk / enter caves | `Space` · Pack `I` · Craft `C` · Journal `L` · Circuit Board `B` · Party `P` · Chat `Enter` |
 
 ## Repository layout

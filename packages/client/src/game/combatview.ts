@@ -464,7 +464,7 @@ export class CombatView {
       if (this.d.heldWeapons) {
         if (!v.held) { v.held = new Sprite(); v.held.anchor.set(0.5, 0.75); v.root.addChild(v.held); }
         v.held.texture = this.d.heldWeapons().texture('sword', dir, Math.max(0, pose));
-        v.held.visible = st !== 6; v.held.y = 1;
+        v.held.visible = st !== 6; v.held.y = 0;
         v.root.setChildIndex(v.held, dir === 1 || dir >= 6 ? 1 : v.root.children.length - 1);
       }
     } else if (drawn) {

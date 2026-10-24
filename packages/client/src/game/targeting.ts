@@ -74,3 +74,14 @@ export function targetTile(px: number, py: number, fx: number, fy: number, mouse
   const l = Math.hypot(fx, fy) || 1;
   return { tx: Math.floor(px + (fx / l) * 0.9), ty: Math.floor(py + (fy / l) * 0.9 + 0.2) };
 }
+
+/** Shore fishing works without a precise cursor tile; an intentional water aim still wins. */
+export function fishingTarget(px:number,py:number,getTile:(x:number,y:number)=>number,mouse:{tx:number;ty:number}|null):{tx:number;ty:number}|null{
+ const water=(x:number,y:number)=>WATER_TILES.includes(getTile(x,y));
+ if(mouse&&Math.hypot(mouse.tx+.5-px,mouse.ty+.5-py)<=5&&water(mouse.tx,mouse.ty))return mouse;
+ let best:{tx:number;ty:number}|null=null,dist=3.5;
+ for(let ty=Math.floor(py)-3;ty<=Math.floor(py)+3;ty++)for(let tx=Math.floor(px)-3;tx<=Math.floor(px)+3;tx++){
+  const d=Math.hypot(tx+.5-px,ty+.5-py);if(d<dist&&water(tx,ty)){best={tx,ty};dist=d;}
+ }
+ return best;
+}

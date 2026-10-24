@@ -26,7 +26,7 @@ import { buildStation } from '../ui/station';
 import { Toasts } from '../ui/toast';
 import { Windows } from '../ui/windows';
 import { Profile } from './profile';
-import { describeUse, targetTile, type UseInfo } from './targeting';
+import { describeUse, fishingTarget, targetTile, type UseInfo } from './targeting';
 
 export interface GameplayDeps {
   net: () => Net;
@@ -245,7 +245,7 @@ export class Gameplay {
   }
 
   onFishCast(m: { id: string; tx: number; ty: number }): void {
-    this.fishing = { id: m.id, tx: m.tx, ty: m.ty, bite: false, until: 0 };
+    this.fishing = { id: m.id, tx: m.tx, ty: m.ty, bite: false, until: performance.now()+30000 };
     this.d.sfx('splash');
     this.toasts.add(`Line cast… wait for a bite, then press ${binding(this.d.input.keys, 'interact')}!`, 'info');
   }
@@ -275,6 +275,11 @@ export class Gameplay {
     if (this.fishing?.bite && performance.now() < this.fishing.until + 150) { net.fishHook(this.fishing.id); this.fishing.bite = false; this.clearBang(); return true; }
     const store = this.d.store();
     const selection = this.selected();
+    if(selection&&ITEMS[selection.id]?.tool?.type==='rod'){
+      if(this.fishing){this.toasts.add('Wait for the bite, then press '+binding(this.d.input.keys,'interact')+'.','info');return true;}
+      const water=fishingTarget(p.x,p.y,(x,y)=>store.getTile(x,y),this.d.input.mouseActive?this.d.input.mouseTile:null);
+      if(water){this.lastUse=performance.now();net.use({slot:this.hotbar.selected,...water});return true;}
+    }
     const modifying = selection && (isBuildPiece(selection.id) || ITEMS[selection.id]?.tool?.type === 'pickaxe');
     const builtUnder = store.structureAt(Math.floor(p.x), Math.floor(p.y));
     if (!modifying && builtUnder?.data.stairs) { net.open(builtUnder.x, builtUnder.y); return true; }
@@ -322,6 +327,10 @@ export class Gameplay {
     const mouse = this.d.input.mouseActive ? this.d.input.mouseTile : null;
     const t = targetTile(p.x, p.y, p.fx, p.fy, mouse);
     if (this.fishing?.bite) return { info: null, ...t, label: `Press ${binding(this.d.input.keys, 'interact')} now!` };
+    if(ITEMS[this.selected()?.id??'']?.tool?.type==='rod'){
+      const water=fishingTarget(p.x,p.y,(x,y)=>store.getTile(x,y),mouse);
+      if(water)return{info:{kind:'cast',label:'Cast your line',ok:true},...water,label:`${binding(this.d.input.keys,'interact')}: ${this.fishing?'Wait for a bite':'Cast your line'}`};
+    }
     if (npc) return { info: { kind: 'talk', label: `Talk to ${NPC_BY_ID[npc.id]?.name ?? 'villager'}`, ok: true }, tx: Math.floor(npc.x), ty: Math.floor(npc.y), label: `${binding(this.d.input.keys, 'interact')}: Talk to ${NPC_BY_ID[npc.id]?.name ?? 'villager'}` };
     const info = describeUse(this.selected(), store.getTile(t.tx, t.ty), store.objectAt(t.tx, t.ty), this.d.season(), store.structureAt(t.tx, t.ty));
     return { info, ...t, label: info ? `${binding(this.d.input.keys, 'interact')}: ${info.label}` : null };
@@ -357,6 +366,8 @@ export class Gameplay {
 
   /** Per-frame screen-space village overlay (quest markers, chatter bubbles). */
   frame(now: number): void {
+    if(this.fishing){const p=this.d.player();if(Math.hypot(p.x-this.fishing.tx-.5,p.y-this.fishing.ty-.5)>6||this.fishing.until>0&&now>this.fishing.until+350){this.fishing=null;this.clearBang();}}
+
     if (this.wins.name === 'journal' && this.journey?.el.isConnected && now - this.journeyAt > 200) {
       this.journeyAt = now; this.journey.refresh();
     }

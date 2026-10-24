@@ -183,24 +183,16 @@ function stool(face: Facing): ObjSprite {
 }
 
 function bed(face: Facing): ObjSprite {
-  return iso(40, 40, face, (p) => {
-    const A0 = 2, DA = 12;
-    p.box(A0, 0.5, 0, DA, 15, 4, { ramp: DARKWOOD });                                          // frame
-    p.box(A0 + 0.5, 1, 4, DA - 1, 14, 2.5, { ramp: LINEN });                                   // mattress
-    p.box(A0 + 1.5, 1.5, 6.5, DA - 3, 3.2, 1.8, { ramp: LINEN });                              // pillow
-    const QUILT: Ramp = [C.r0, C.r1, C.r2, C.r3, C.r4, C.r5];
-    p.box(A0 + 0.2, 5.2, 4.2, DA - 0.4, 10.3, 2.8, {
-      ramp: QUILT,
-      top: (s, t, c) => {
-        if (t < 0.13) return C.pale; // turned linen sheet
-        if (s < 0.1 || s > 0.9 || t > 0.9) return C.e6; // embroidered border
-        const a = Math.floor(s * 4), b = Math.floor(t * 4);
-        return (a + b) % 2 === 0 ? c(1) : c(-1);
-      },   // patchwork, a sheet fold
-      front: (s, t, c) => (Math.round(s * 12) % 4 === 0 ? c(-1) : null),
-    });
-    p.box(A0 - 0.4, 0, 0, DA + 0.8, 1.4, 12, { ramp: DARKWOOD, front: (s, t, c) => (t > 0.45 && t < 0.85 && Math.round(s * 13) % 3 !== 0 ? c(-1) : null) });   // headboard
-    p.box(A0 - 0.4, 14.8, 0, DA + 0.8, 1.2, 6, { ramp: DARKWOOD });                                  // footboard
+  return iso(48,44,face,p=>{
+    const QUILT:Ramp=[C.r0,C.r1,C.r2,C.r3,C.r4,C.r5];
+    // Backboard and feet sit on the same floor; mattress and quilt stack above the rails.
+    p.box(1,0,0,14,1.2,13,{ramp:DARKWOOD});
+    for(const u of[1,13.5])for(const v of[1,17.5])p.box(u,v,0,1.5,1.5,5,{ramp:DARKWOOD});
+    p.box(1,1,3,14,18,2,{ramp:DARKWOOD});
+    p.box(2,1.5,5,12,16.5,2,{ramp:LINEN});
+    p.box(3,2,7,10,3.5,1.5,{ramp:LINEN});
+    p.box(1.8,6,7,12.4,12,1,{ramp:QUILT,top:(s,t,c)=>t<.13?C.pale:s<.08||s>.92||t>.92?C.e6:(Math.floor(s*4)+Math.floor(t*5))%2?c(-1):c(1)});
+    p.box(1,18.5,2,14,1,5,{ramp:DARKWOOD});
   });
 }
 

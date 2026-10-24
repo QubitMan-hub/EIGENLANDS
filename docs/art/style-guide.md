@@ -121,3 +121,9 @@ Eight original craftable pieces share the existing 32×16 tile grid and fixed pa
 ## Visual budgets
 
 Auto selects Economy on touch/limited devices; High keeps the detailed material shader. Economy uses the same biome palette ramps, rare quantum accents, water depths, shore foam, geometry and collision with quieter clusters. Native sprites stay nearest-neighbour and use integer device-pixel scaling. Background terrain is overscanned and painted at 15/24 Hz while camera presentation and actors update independently; do not couple actor or telegraph cadence to cosmetic terrain updates. Lighting is deliberately smoother at half resolution. Gentle weather is the default: short faint rain, fewer splashes/snow/leaves, lighter storm tint/fog, and no lightning in Economy or reduced motion. Full and Off are explicit preferences; simulation weather is unchanged. The existing building painter is shared by main/worker paths, with exact day/night/cutaway pixel fixtures in e2e/fixtures/building-pixels.json. No imported assets or separate world generator were introduced.
+
+### Gathering and interior polish (2026-10-24)
+
+Held tool sheets share the 24×32 body's grip at the exact same screen anchor; the equipment overlay has no extra vertical offset. Idle heads lean outward and fingers remain in front of the shaft. A watering can has a vessel, handle and spout, without a pole. Beds stack legs/rails at floor level, mattress at z5, pillow/quilt above it and a rear headboard using Prop's true wall-facing geometry; do not interpenetrate blanket and mattress volumes.
+
+Generated two-floor town buildings reserve a back-corner 2×2 stair landing before furnishing. Native enemy models now include Reed Stalker's moss/root silhouette and Cinder Moth's warm patterned wings, with idle/move/windup/attack/hurt/death in four facings and day/night variants. Windups reuse existing readable combat decals; these additions never increase population budgets.

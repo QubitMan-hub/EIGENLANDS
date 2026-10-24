@@ -200,7 +200,7 @@ export function maxHpForLevel(level: number, base: number): number {
 // ───────────────────────── enemies ─────────────────────────
 
 export interface DropDef { item: string; min: number; max: number; chance: number }
-export type EnemyAi = 'melee' | 'leap' | 'caster' | 'brute' | 'swarm' | 'passive' | 'boar';
+export type EnemyAi = 'melee' | 'leap' | 'caster' | 'brute' | 'swarm' | 'passive' | 'boar' | 'ambusher' | 'harrier';
 export interface EnemyDef {
   kind: number;
   /** passive fauna flees instead of fighting */
@@ -261,7 +261,7 @@ export const REFLECT_SPEED_MULT = 1.7;
 export const REFLECT_DAMAGE = 18;
 
 const melee = { ai: 'melee' as const };
-export const ENEMY_DEFS: Record<'slime' | 'hopper' | 'rabbit' | 'deer' | 'wisp' | 'brute' | 'mite' | 'boar' | 'wolf' | 'badger' | 'slime_king' | 'warden' | 'colossus' | 'pirate' | 'serpent' | 'fox' | 'otter' | 'tortoise' | 'owl' | 'thornling' | 'glasscrawler' | 'guild_guard', EnemyDef> = {
+export const ENEMY_DEFS: Record<'slime' | 'hopper' | 'rabbit' | 'deer' | 'wisp' | 'brute' | 'mite' | 'boar' | 'wolf' | 'badger' | 'slime_king' | 'warden' | 'colossus' | 'pirate' | 'serpent' | 'fox' | 'otter' | 'tortoise' | 'owl' | 'thornling' | 'glasscrawler' | 'guild_guard' | 'reed_stalker' | 'cinder_moth', EnemyDef> = {
   slime: { kind: 0, name: 'Wisp Slime', hp: 30, speed: 2.1, radius: 0.4, damage: 7, sight: 7, windup: 0.55, strikeRange: 1.1, xp: 10, ...melee, poise: 8, staggerTime: 0.7, cooldown: 0.5, budget: 1, drops: [{ item: 'slime_gel', min: 1, max: 2, chance: 0.7 }] },
   hopper: { kind: 1, name: 'Glint Hopper', hp: 22, speed: 3.0, radius: 0.35, damage: 9, sight: 9, windup: 0.7, strikeRange: 3.0, xp: 14, ai: 'leap', poise: 6, staggerTime: 0.7, cooldown: 0.6, budget: 1, drops: [{ item: 'hopper_tooth', min: 1, max: 1, chance: 0.45 }, { item: 'hide', min: 1, max: 1, chance: 0.25 }] },
   rabbit: { kind: 2, name: 'Meadow Rabbit', passive: true, ai: 'passive', hp: 8, speed: 4.6, radius: 0.3, damage: 0, sight: 6, windup: 0, strikeRange: 0, xp: 3, drops: [{ item: 'raw_meat', min: 1, max: 1, chance: 0.9 }, { item: 'hide', min: 1, max: 1, chance: 0.5 }] },
@@ -284,6 +284,8 @@ export const ENEMY_DEFS: Record<'slime' | 'hopper' | 'rabbit' | 'deer' | 'wisp' 
   owl: { kind: 18, name: 'Lantern Owl', passive: true, ai: 'passive', hp: 12, speed: 2.8, radius: 0.25, damage: 0, sight: 7, windup: 0, strikeRange: 0, xp: 4, drops: [{ item: 'fiber', min: 1, max: 2, chance: 0.6 }] },
   thornling: { kind: 19, name: 'Briar Warden', hp: 64, speed: 1.65, radius: 0.45, damage: 11, sight: 8, windup: 0.9, strikeRange: 1.4, xp: 27, ai: 'melee', armor: true, poise: 22, staggerTime: 1.1, resist: 0.6, cooldown: 1.5, budget: 2, drops: [{ item: 'wood', min: 2, max: 4, chance: 1 }, { item: 'healing_herb', min: 1, max: 1, chance: 0.2 }] },
   glasscrawler: { kind: 20, name: 'Prism Crawler', hp: 34, speed: 3.1, radius: 0.35, damage: 12, sight: 9, windup: 0.8, strikeRange: 3.1, xp: 26, ai: 'leap', poise: 8, staggerTime: 0.8, cooldown: 1.5, budget: 1.5, drops: [{ item: 'copper_ore', min: 1, max: 2, chance: 0.7 }, { item: 'qubit_crystal', min: 1, max: 1, chance: 0.08 }] },
+  reed_stalker: {kind:22,name:'Reed Stalker',hp:42,speed:2.7,radius:.4,damage:10,sight:8,windup:.9,strikeRange:3.4,xp:25,ai:'ambusher',poise:10,staggerTime:.9,cooldown:2.2,budget:1.5,drops:[{item:'fiber',min:2,max:4,chance:1},{item:'healing_herb',min:1,max:1,chance:.2}]},
+  cinder_moth: {kind:23,name:'Cinder Moth',hp:28,speed:2.8,radius:.3,damage:8,sight:10,windup:1,strikeRange:6.5,xp:28,ai:'harrier',poise:6,staggerTime:.8,cooldown:2.4,budget:1.5,drops:[{item:'coal',min:1,max:2,chance:1},{item:'qubit_crystal',min:1,max:1,chance:.08}]},
   guild_guard: { kind: 21, name: 'Guild Escort', hp: 60, speed: 2.6, radius: 0.35, damage: 8, sight: 8, windup: 0.65, strikeRange: 1.2, xp: 0, ai: 'melee', poise: 14, staggerTime: 0.9, cooldown: 1.1, budget: 2, drops: [] },
   // ── bosses (see bosses.ts)
   slime_king: { kind: 10, name: 'Gelatinous Sovereign', boss: true, hp: 900, speed: 1.5, radius: 1.4, damage: 16, sight: 18, windup: 1.1, strikeRange: 5, xp: 500, ai: 'leap', poise: 150, staggerTime: 1.2, armor: true, resist: 0.08, cooldown: 1.3, aoe: 3, budget: 99,
@@ -297,7 +299,7 @@ export const ENEMY_DEFS: Record<'slime' | 'hopper' | 'rabbit' | 'deer' | 'wisp' 
   colossus: { kind: 12, name: 'Decoherent Colossus', boss: true, hp: 2200, speed: 1.8, radius: 1.5, damage: 26, sight: 20, windup: 1.0, strikeRange: 9, xp: 1600, ai: 'brute', poise: 300, staggerTime: 1.4, armor: true, resist: 0.1, cooldown: 1.3, aoe: 2.2, budget: 99,
     drops: [{ item: 'void_core', min: 1, max: 1, chance: 1 }, { item: 'heart_crystal', min: 2, max: 2, chance: 1 }, { item: 'qubit_crystal', min: 4, max: 6, chance: 1 }, { item: 'iron_ore', min: 6, max: 10, chance: 1 }, { item: 'coal', min: 4, max: 8, chance: 1 }] },
 };
-export const ENEMY_BY_KIND: EnemyDef[] = [ENEMY_DEFS.slime, ENEMY_DEFS.hopper, ENEMY_DEFS.rabbit, ENEMY_DEFS.deer, ENEMY_DEFS.wisp, ENEMY_DEFS.brute, ENEMY_DEFS.mite, ENEMY_DEFS.boar, ENEMY_DEFS.wolf, ENEMY_DEFS.badger, ENEMY_DEFS.slime_king, ENEMY_DEFS.warden, ENEMY_DEFS.colossus, ENEMY_DEFS.pirate, ENEMY_DEFS.serpent, ENEMY_DEFS.fox, ENEMY_DEFS.otter, ENEMY_DEFS.tortoise, ENEMY_DEFS.owl, ENEMY_DEFS.thornling, ENEMY_DEFS.glasscrawler, ENEMY_DEFS.guild_guard];
+export const ENEMY_BY_KIND: EnemyDef[] = [ENEMY_DEFS.slime, ENEMY_DEFS.hopper, ENEMY_DEFS.rabbit, ENEMY_DEFS.deer, ENEMY_DEFS.wisp, ENEMY_DEFS.brute, ENEMY_DEFS.mite, ENEMY_DEFS.boar, ENEMY_DEFS.wolf, ENEMY_DEFS.badger, ENEMY_DEFS.slime_king, ENEMY_DEFS.warden, ENEMY_DEFS.colossus, ENEMY_DEFS.pirate, ENEMY_DEFS.serpent, ENEMY_DEFS.fox, ENEMY_DEFS.otter, ENEMY_DEFS.tortoise, ENEMY_DEFS.owl, ENEMY_DEFS.thornling, ENEMY_DEFS.glasscrawler, ENEMY_DEFS.guild_guard, ENEMY_DEFS.reed_stalker, ENEMY_DEFS.cinder_moth];
 export type EnemyKindName = keyof typeof ENEMY_DEFS;
 
 export const NIGHT_HP_MULT = 1.6;
@@ -323,15 +325,15 @@ export function enemyScale(level: number): { hp: number; dmg: number; xp: number
 /** Ambient encounter weights by habitat, level and time of day. */
 export function spawnTable(level: number, night: boolean, biome: Biome = 'meadow', cave = false): Array<{ kind: EnemyKindName; w: number }> {
   if (level < 2) return [{ kind: 'slime', w: 3 }, { kind: 'hopper', w: 1 }];
-  const table: Array<[EnemyKindName, number]> = cave ? [['mite', 5], ['slime', 3], ['glasscrawler', 2], ['brute', 1]]
+  const table: Array<[EnemyKindName, number]> = cave ? [['mite', 5], ['slime', 3], ['glasscrawler', 2], ['brute', 1], ['cinder_moth',2]]
     : biome === 'enchanted' ? [['wisp', 6], ['glasscrawler', 4], ['hopper', 1]]
     : biome === 'corrupted' ? [['mite', 5], ['brute', 3], ['glasscrawler', 2]]
-    : biome === 'swamp' ? [['slime', 7], ['mite', 2], ['wisp', night ? 2 : 0]]
-    : biome === 'desert' ? [['hopper', 6], ['mite', 3], ['brute', 1]]
+    : biome === 'swamp' ? [['slime', 6], ['mite', 2], ['wisp', night ? 2 : 0], ['reed_stalker',2]]
+    : biome === 'desert' ? [['hopper', 5], ['mite', 3], ['brute', 1], ['cinder_moth',2]]
     : biome === 'taiga' ? [['wolf', 5], ['hopper', 3], ['slime', 2]]
-    : biome === 'forest' || biome === 'autumn' ? [['thornling', 4], ['hopper', 4], ['wolf', night ? 3 : 0], ['slime', 2]]
+    : biome === 'forest' || biome === 'autumn' ? [['thornling', 3], ['hopper', 4], ['wolf', night ? 3 : 0], ['slime', 2], ['reed_stalker',2]]
     : [['slime', 6], ['hopper', 3], ['wisp', night ? 2 : 0]];
-  return table.filter(([kind, w]) => w > 0 && (!['brute', 'wolf', 'thornling', 'glasscrawler'].includes(kind) || level >= (kind === 'brute' ? 4 : 3))).map(([kind, w]) => ({ kind, w }));
+  return table.filter(([kind, w]) => w > 0 && (kind!=='reed_stalker'||level>=4) && (kind!=='cinder_moth'||level>=5) && (!['brute', 'wolf', 'thornling', 'glasscrawler'].includes(kind) || level >= (kind === 'brute' ? 4 : 3))).map(([kind, w]) => ({ kind, w }));
 }
 
 export function pickSpawn(level: number, night: boolean, roll: number, biome: Biome = 'meadow', cave = false): EnemyKindName {

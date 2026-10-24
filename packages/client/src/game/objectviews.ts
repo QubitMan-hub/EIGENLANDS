@@ -71,10 +71,10 @@ export class ObjectViews {
   get count(): number { let n = 0; for (const m of this.chunks.values()) n += m.size; return n; }
 
   /** Actual visible sprite bounds include the raised body above its ground diamond. */
-  pickMineable(x:number,y:number):{tx:number;ty:number}|null{
+  pickMineable(x:number,y:number,tool:string='pickaxe'):{tx:number;ty:number}|null{
     let best:Obj|null=null;
     for(const m of this.chunks.values())for(const o of m.values()){
-      if(!o.root.visible||NODES[this.store.getTile(o.tx,o.ty)]?.tool!=='pickaxe')continue;
+      if(!o.root.visible||NODES[this.store.getTile(o.tx,o.ty)]?.tool!==tool)continue;
       const b=o.root.getBounds();
       if(x<b.minX||x>b.maxX||y<b.minY||y>b.maxY||best&&o.root.zIndex<=best.root.zIndex)continue;
       const tex=o.root.texture,p=o.root.toLocal({x,y});

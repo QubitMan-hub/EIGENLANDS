@@ -698,7 +698,9 @@ export class Game {
     }
     if (best) { this.setTarget(best.id); return false; }
     const ground=unproject((cx-this.world.x)/S,(cy-this.world.y)/S);
-    const tile=this.objects.pickMineable(cx,cy)??{tx:Math.floor(ground.x),ty:Math.floor(ground.y)};
+    const tool=ITEMS[this.gameplay.selected()?.id??'']?.tool?.type;
+    const hit=tool==='axe'||tool==='pickaxe'?this.objects.pickMineable(cx,cy,tool):null;
+    const tile=hit??{tx:Math.floor(ground.x),ty:Math.floor(ground.y)};
     const me=this.predictor.sim;
     const mining=this.mining.start(me.x,me.y,tile.tx,tile.ty,performance.now());
     if(mining)this.setTarget(null);
@@ -849,7 +851,7 @@ export class Game {
         const boat = isMe ? this.predictor.sim.boat > 0 : ((s?.flags ?? 0) & 128) !== 0;
         this.combat.rig(v, boat, fx, fy, now / 1000);
         if (heldItem && !boat && !deadP) {
-          if (!v.held) { v.held = new Sprite(); v.held.anchor.set(0.5, 0.75); v.held.y = 1; v.root.addChild(v.held); }
+          if (!v.held) { v.held = new Sprite(); v.held.anchor.set(0.5, 0.75); v.held.y = 0; v.root.addChild(v.held); }
           const direction = dirOf(sd.x, sd.y);
           // Stable idle uses the body's resolved breath column, so the hand never drifts off the grip.
           const pose = v.sprite.texture.frame.x / 24;
