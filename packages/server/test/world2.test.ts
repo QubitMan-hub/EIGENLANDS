@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { ITEMS, MSG, NPCS, T, beatTimes, townFor, type RhythmStartMsg } from '@eigenlands/shared';
+import { ITEMS, MSG, NPCS, T, beatTimes, townFor, type FxMsg, type RhythmStartMsg } from '@eigenlands/shared';
 import type { App } from '../src/app';
 import { boot, count, flatten, give, hasToast, nextDay, setDay, sleep, slotOf, spawn, tp, until, use, type Probe } from './p2';
 
@@ -25,6 +25,7 @@ describe('fishing', () => {
 
   it('cast -> bite -> hook -> rhythm -> a fish in the pack', async () => {
     const xp0 = p.sp.data.skills.fishing;
+    const catches:FxMsg[]=[];p.r.onMessage(MSG.FX,(f:FxMsg)=>{if(f.kind==='catch')catches.push(f);});
     await use(p, 'rod', X + 3, Y);
     await until(() => p.casts.length > 0);
     await until(() => p.bites.length > 0, 5000);
@@ -39,6 +40,7 @@ describe('fishing', () => {
     await until(() => p.results.length > 0, 3000);
     const res = p.results[p.results.length - 1];
     expect(res.ok).toBe(true);
+    expect(catches.some(f=>f.id===p.sp.id&&f.weapon==='rod')).toBe(true);
     expect(ITEMS[res.item.id]!.kind).toBe('fish');
     expect(res.item.n).toBe(2); // near-perfect timing doubles the catch
     expect(p.sp.data.skills.fishing).toBeGreaterThan(xp0);

@@ -98,6 +98,6 @@ export function finishFish(room: RoomApi, p: ServerPlayer, msg: RhythmDoneMsg): 
   if (s.fish!.difficulty >= RARE) room.village.rumor('rare_fish', p.name, ITEMS[fishId]?.name ?? fishId);
   questEvent(p, { type: 'fish', target: fishId, n: 1 });
   recordDeed(p, s.fish!.difficulty >= RARE ? 'rare_fish' : 'fish', (ITEMS[fishId]?.name ?? fishId).toLowerCase(), room.wclock.day());
-  room.fx({ kind: 'catch', x: p.sim.x, y: p.sim.y, id: p.id });
+  room.fx({ kind: 'catch', x: p.sim.x, y: p.sim.y, id: p.id, weapon: 'rod' });
   p.client.send(MSG.RHYTHM_RESULT, { id: s.id, kind: 'fish', accuracy, ok: true, text: `You caught ${n > 1 ? 'two ' : 'a '}${ITEMS[fishId]?.name ?? fishId}!`, item });
 }

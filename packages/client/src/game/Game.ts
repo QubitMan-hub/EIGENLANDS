@@ -391,12 +391,16 @@ export class Game {
 
   private toast(text: string): void { this.caption(text); }
 
-  private toolSwings = new WeakMap<ActorView, { at: number; received: number; tool: 'axe' | 'pickaxe' | 'hoe' | 'can' | 'rod' | 'net'; x: number; y: number }>();
+  private toolSwings = new WeakMap<ActorView, { at: number; received: number; waitForResult?: boolean; tool: 'axe' | 'pickaxe' | 'hoe' | 'can' | 'rod' | 'net'; x: number; y: number }>();
 
   private fxFromServer(f: FxMsg): void {
-    if ((['chop','mine','till','water','cast','dust'].includes(f.kind)) && f.id && (f.weapon === 'axe' || f.weapon === 'pickaxe' || f.weapon === 'hoe' || f.weapon === 'can' || f.weapon === 'rod' || f.weapon === 'net')) {
+    if ((['chop','mine','till','water','cast','catch','dust'].includes(f.kind)) && f.id && (f.weapon === 'axe' || f.weapon === 'pickaxe' || f.weapon === 'hoe' || f.weapon === 'can' || f.weapon === 'rod' || f.weapon === 'net')) {
       const actor = this.views.get(f.id);
-      if (actor) this.toolSwings.set(actor, { at: 0, received: performance.now(), tool: f.weapon, x: f.x, y: f.y });
+      if (actor) {
+        const previous = this.toolSwings.get(actor);
+        const target = f.kind === 'catch' && previous?.tool === 'rod' ? previous : f;
+        this.toolSwings.set(actor, { at: 0, received: performance.now(), waitForResult: f.kind === 'catch' && f.id === this.myId, tool: f.weapon, x: target.x, y: target.y });
+      }
     }
     if (f.kind === 'jump' && f.id && f.dx !== undefined && f.dy !== undefined) {
       this.hops.set(f.id, { at: performance.now(), x: f.x, y: f.y, tx: f.dx, ty: f.dy });
@@ -777,8 +781,9 @@ export class Game {
         const deadP = isMe ? this.dead : ((s?.flags ?? 0) & 4) !== 0;
         const combatStrike = !deadP && !dash ? this.combat.attackFrame(v, now, reduced) : -1;
         const use = this.toolSwings.get(v);
-        if (use && use.at === 0) use.at = now;
-        const harvesting = !!use && now - use.received < 1500 && now - use.at < 300 && !deadP && !dash && combatStrike < 0;
+        if (use?.waitForResult) { if (this.gameplay.rhythm.open) use.received=now; else use.waitForResult=false; }
+        if (use && use.at === 0 && !use.waitForResult) use.at = now;
+        const harvesting = !!use && !use.waitForResult && now - use.received < 1500 && now - use.at < 300 && !deadP && !dash && combatStrike < 0;
         const strike = harvesting ? reduced ? 2 : Math.min(3, Math.floor((now-use!.at)/75)) : combatStrike;
         const running = dash || moved / Math.max(0.001, dtMs / 1000) > 5.6;
         const weaponId = isMe ? (this.gameplay.profile.equip.weapon ? ITEMS[this.gameplay.profile.equip.weapon.id]?.weapon : undefined) : s?.weapon;
@@ -790,7 +795,7 @@ export class Game {
           ? running ? RUN_FRAME + (Math.floor(v.travel / 0.21) % RUN_FRAMES) : 1 + (Math.floor(v.travel / 0.17) % (WALK_FRAMES - 1))
           : reduced ? -1 : 0;
         const look = s?.look ?? (isMe ? this.gameplay.profile.equip.outfit : v.outfit);
-        const sd = harvesting ? screenDir(use!.x-x, use!.y-y) : screenDir(fx, fy);
+        const sd = harvesting && Math.hypot(use!.x-x,use!.y-y)>.05 ? screenDir(use!.x-x, use!.y-y) : screenDir(fx, fy);
         v.sprite.texture = this.sheets.person(((look % OUTFITS.length) + OUTFITS.length) % OUTFITS.length, dirOf(sd.x, sd.y), frame);
         v.sprite.alpha = deadP ? 0.35 : dash ? 0.6 : 1;
         v.sprite.rotation = deadP ? Math.PI / 2 : 0;
