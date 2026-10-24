@@ -391,10 +391,10 @@ export class Game {
 
   private toast(text: string): void { this.caption(text); }
 
-  private toolSwings = new WeakMap<ActorView, { at: number; received: number; tool: 'axe' | 'pickaxe'; x: number; y: number }>();
+  private toolSwings = new WeakMap<ActorView, { at: number; received: number; tool: 'axe' | 'pickaxe' | 'hoe' | 'can' | 'rod' | 'net'; x: number; y: number }>();
 
   private fxFromServer(f: FxMsg): void {
-    if ((f.kind === 'chop' || f.kind === 'mine') && f.id && (f.weapon === 'axe' || f.weapon === 'pickaxe')) {
+    if ((['chop','mine','till','water','cast','dust'].includes(f.kind)) && f.id && (f.weapon === 'axe' || f.weapon === 'pickaxe' || f.weapon === 'hoe' || f.weapon === 'can' || f.weapon === 'rod' || f.weapon === 'net')) {
       const actor = this.views.get(f.id);
       if (actor) this.toolSwings.set(actor, { at: 0, received: performance.now(), tool: f.weapon, x: f.x, y: f.y });
     }
@@ -785,7 +785,7 @@ export class Game {
         const weapon = isWeaponId(weaponId) ? weaponId : null;
         const tool = isMe ? ITEMS[this.gameplay.selected()?.id ?? '']?.tool?.type : s?.held;
         const heldItem = harvesting ? use!.tool : strike < 0 && isHeldId(tool) ? tool : weapon;
-        const family = harvesting ? ATTACK_FRAME : weapon && WEAPONS[weapon].cls === 'crossbow' ? SHOT_FRAME : weapon && WEAPONS[weapon].cls === 'staff' ? CAST_FRAME : ATTACK_FRAME;
+        const family = harvesting ? (use!.tool === 'can' || use!.tool === 'rod' ? CAST_FRAME : ATTACK_FRAME) : weapon && WEAPONS[weapon].cls === 'crossbow' ? SHOT_FRAME : weapon && WEAPONS[weapon].cls === 'staff' ? CAST_FRAME : ATTACK_FRAME;
         const frame = deadP ? -1 : strike >= 0 ? family + strike : walking
           ? running ? RUN_FRAME + (Math.floor(v.travel / 0.21) % RUN_FRAMES) : 1 + (Math.floor(v.travel / 0.17) % (WALK_FRAMES - 1))
           : reduced ? -1 : 0;

@@ -13,7 +13,21 @@ const STEEL = [C.slate, C.steel, C.mist, C.fog, C.pale] as const;
 /** shaded disc helper */
 const ball = (ctx: Ctx, x: number, y: number, r: number, c: number, seed = 1) => blob(ctx, x, y, r, r, ramp4(c), { seed, noise: 0.08, edgeDark: 0.25 });
 
-const CROP_ICONS: Record<string, Draw> = {
+const ITEM_ART: Record<string, Draw> = {
+  eel: (c,a,b) => {
+    poly(c,[[2,5],[6,4],[10,7],[10,10],[13,10],[14,8],[14,12],[11,14],[7,12],[7,9],[4,8],[2,8]],dk(a));
+    line(c,3,5,6,5,a);line(c,6,5,9,8,a);line(c,8,9,8,11,b);line(c,8,11,11,12,b);line(c,11,12,13,11,a);
+    put(c,3,6,C.pale,2,1);put(c,3,6,C.ink);
+  },
+  pike: (c,a,b) => {
+    poly(c,[[1,8],[5,6],[10,6],[14,4],[13,8],[14,12],[10,10],[5,10]],a);
+    poly(c,[[5,6],[8,3],[10,6]],dk(a));line(c,3,8,10,8,b);line(c,5,10,8,12,dk(a));put(c,5,7,C.ink);put(c,6,6,C.pale);
+  },
+  perch: (c,a,b) => {G.fish(c,a,b);for(const x of [6,8,10])line(c,x,6,x,10,dk(dk(a)));},
+  trout: (c,a,b) => {G.fish(c,a,b);for(const [x,y] of [[6,7],[8,6],[10,7],[7,9],[9,9]])put(c,x,y,dk(dk(a)));},
+  catfish: (c,a,b) => {G.fish(c,a,b);line(c,3,9,1,11,C.mist);line(c,4,10,3,13,C.mist);line(c,5,10,6,12,C.mist);},
+  carp: (c,a,b) => {G.fish(c,a,b);poly(c,[[6,10],[9,10],[8,14],[6,12]],dk(a));line(c,7,11,8,12,b);},
+
   strawberry: (c,a,b) => {
     poly(c,[[4,4],[11,4],[13,7],[8,14],[3,7]],a);
     poly(c,[[4,4],[8,4],[7,10],[3,7]],lt(a));
@@ -98,7 +112,7 @@ const G: Record<Glyph, Draw> = {
   fish: (c, a, b) => {
     blob(c, 7.5, 8, 5.6, 3.6, ramp4(a), { seed: 14, noise: 0.15, shape: 2.2, edgeDark: 0.2 });
     blob(c, 7.5, 9.5, 4.4, 1.8, [b, lt(b), C.white], { seed: 5, noise: 0.05, edgeDark: 0 });
-    poly(c, [[12, 8], [15, 4], [15, 12]], (x) => (x < 14 ? a : dk(a)));
+    poly(c, [[12, 8], [14, 4], [14, 12]], (x) => (x < 13 ? a : dk(a)));
     poly(c, [[6, 5], [9, 2], [10, 5]], dk(a)); put(c, 4, 7, C.white); put(c, 4, 7, C.ink); put(c, 5, 7, C.white);
     for (let i = 0; i < 3; i++) put(c, 7 + i * 1, 6 + i, lt(a));
   },
@@ -384,10 +398,10 @@ function paint(id: string, size: number): HTMLCanvasElement {
       // A parchment packet with the actual crop picture, readable without relying on seed colour alone.
       put(ctx,3,2,C.e4,10,12); put(ctx,3,2,C.pale,9,11); put(ctx,4,3,d.icon.a,7,2);
       const picture = makeCanvas(16,16);
-      undithered(() => (CROP_ICONS[d.crop!] ?? G[crop.icon.g])(picture.ctx,crop.icon.a,crop.icon.b));
+      undithered(() => (ITEM_ART[d.crop!] ?? G[crop.icon.g])(picture.ctx,crop.icon.a,crop.icon.b));
       ctx.imageSmoothingEnabled=false; ctx.drawImage(picture.canvas,0,0,16,16,4,5,8,8);
       put(ctx,11,3,C.e6,1,9);
-    } else undithered(() => (SEA_ICONS[id] ?? CROP_ICONS[id] ?? G[d.icon.g])(ctx, d.icon.a, d.icon.b));
+    } else undithered(() => (SEA_ICONS[id] ?? ITEM_ART[id] ?? G[d.icon.g])(ctx, d.icon.a, d.icon.b));
     outline(ctx, 16, 16);
   }
   if (size === 16) return canvas;

@@ -91,7 +91,7 @@ export async function handleUse(room: RoomApi, p: ServerPlayer, msg: UseMsg): Pr
   switch (true) {
     case tool === 'hoe': return till(room, p, tx, ty, tile);
     case tool === 'can':
-      if (tile === T.TILLED || tile === T.TILLED_WET) { wetTile(room, tx, ty); room.fx({ kind: 'water', x: tx + 0.5, y: ty + 0.5 }); return; }
+      if (tile === T.TILLED || tile === T.TILLED_WET) { wetTile(room, tx, ty); room.fx({ kind: 'water', x: tx + 0.5, y: ty + 0.5, id: p.id, weapon: 'can' }); return; }
       p.toast('Nothing to water here.');
       return;
     case tool === 'rod': return startCast(room, p, tx, ty);
@@ -109,7 +109,7 @@ function till(room: RoomApi, p: ServerPlayer, tx: number, ty: number, tile: numb
   if (tile === T.TILLED || tile === T.TILLED_WET) { p.toast('Already tilled.'); return; }
   if (!TILLABLE.includes(tile)) { p.toast("You can't till that."); return; }
   room.setTile(tx, ty, T.TILLED);
-  room.fx({ kind: 'till', x: tx + 0.5, y: ty + 0.5 });
+  room.fx({ kind: 'till', x: tx + 0.5, y: ty + 0.5, id: p.id, weapon: 'hoe' });
   addSkillXp(p, 'farming', 1);
 }
 
