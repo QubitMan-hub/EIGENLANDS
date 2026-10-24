@@ -823,3 +823,5 @@ Welcoming-world integration: merged in PR #12 at `b90a1f9` after both CI runs pa
 ### Weapon field guide continuation (2026-10-24)
 
 Pack attack comparisons now distinguish real Focus swaps from strongest-sword quick-bar bonuses, show charged/tap/heal/volley/morph behavior and shared level requirements, and preserve reading state on profile refreshes. Public level updates refresh open-pack eligibility. Numeric formulas remain shared with existing authority; no new weapon family, combat balance or survival system is implied. Proof and integration status: CONTINUE_HERE.md.
+
+Weapon field guide integration: merged in PR #13 at `5fae659` after both CI runs passed all 444 tests, typechecks and build. Both final build variants and real solo desktop / multiplayer mobile pack checks passed locally. The broader master scope remains in progress.
