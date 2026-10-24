@@ -1,6 +1,6 @@
 # Current continuation: melee arsenal and forge patterns (2026-10-24)
 
-Implemented on `codex/melee-arsenal`, based on main `cb65418`; all local verification passed; CI/integration pending. Work inline, no subagents. Persistent user push/merge authorization applies.
+Merged in [PR #17](https://github.com/QubitMan-hub/EIGENLANDS/pull/17) at `692333b03aa49ec5def0778ec015293b356dc11b`. Final implementation head: `510e85190d0f6259bbf58d636190092324ed7106`, based on main `cb65418`; implementation branch deleted. Push CI `40084458752` and PR CI `40084461637` both passed all 484 tests, typechecking and build on that exact head. The merged packages/e2e tree matches the tested head. Work inline, no subagents; integration completed under the user’s persistent push/merge authorization.
 
 Three original, genuinely different main-hand weapons: Iron Spear (level 3, narrow reach), Broadhead Battle Axe (6, broad cleaves) and Iron Warhammer (10, short slow blows, armour-breaking finisher, 60-poise full heavy). Craft them through Weapon patterns at the existing Anvil & Forge, or buy from Brannoch. Patterns use starter recipes, normal resources and the authoritative craft/equip/save pipeline; old saves receive the recipes. Interference forging remains in its own native disclosure. Both headers and craft buttons have 44px targets; no HUD is added.
 
