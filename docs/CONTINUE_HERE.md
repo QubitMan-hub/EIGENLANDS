@@ -1,4 +1,18 @@
-# Current continuation: harvesting poses and seed packets (2026-10-24)
+# Current continuation: utility poses and common fish (2026-10-24)
+
+Merged [PR #20](https://github.com/QubitMan-hub/EIGENLANDS/pull/20) at `48afac77cb6543cb31c0b244edcbf4cb8478e1ce`. Tested implementation head `a3339f428332833b53e5ff067667be8f8b8bfe27`; push CI `40110016345` and PR CI `40110019603` passed. Merged packages/e2e tree matches that head. No subagents used.
+
+Accepted tilling, soil/crop watering, rod casting and net sweeps now carry actor/tool identity into the existing transient work-pose system. Hoe/net use strike poses, can/rod aimed cast poses, including with another weapon equipped. Empty valid net attempts animate; invalid actions and unrelated water/dust events do not start poses. First-render timing, stale-event expiry, combat priority and reduced motion remain. Fishing hook/reeling and held consumables remain open.
+
+Original native artwork distinguishes carp fins, perch bars, trout spots, catfish barbels, long pike and curved eel silhouettes. The common fish tail leaves room for its outline. No item identities, fishing rewards or economy rules change. Remaining-work index also clarifies the existing single guild-fighter contract rather than implying no recruitment foundation exists.
+
+Verified 486 tests (100 client / 235 server / 151 shared), typechecks, both builds; successful utility metadata plus actual tilled/wet/cast states; production solo hoe/can/net/rod poses with crossbow equipped and normal/reduced motion; six distinct fish icons and 960 utility-tool frame bounds/cache checks. Seed-packet and axe/pickaxe regression passes: thirteen distinct packets and 480 existing-tool frames. Captures reviewed. Browser teleport fixtures choose nearby targets and let terrain settle before use, preserving stale-event safeguards. Proof is in `/tmp/utility-*.log` and `/tmp/utility-fish.png` (ephemeral).
+
+Next work stays tracked in [REMAINING_WORK.md](REMAINING_WORK.md), linked to the full master plan. This is a utility/art batch, not completion of the entire overhaul. Main Pages deployment is automatic.
+
+---
+
+## Previous continuation: harvesting poses and seed packets (2026-10-24)
 
 Merged [PR #19](https://github.com/QubitMan-hub/EIGENLANDS/pull/19) at `204ae2151a0fb37c709f0a9a4f3a367182c60b57`. Implementation head `904cf45be417a2c90f8c57dec429f2dcb6e10b71`; push CI `40108548578` and PR CI `40108551633` passed. The merged packages/e2e tree matches the tested head. No subagents used.
 
