@@ -1,4 +1,14 @@
-# Current continuation: companion following/combat and catch pose (2026-10-24)
+# Current continuation: cooked food and main potion artwork (2026-10-24)
+
+Merged [PR #22](https://github.com/QubitMan-hub/EIGENLANDS/pull/22) at `e714d02b37dacadfa946d44be43a2709cf60440f`. Implementation head `2f877acc186a99aa8b2deea0667e603cafc4db8b`; push CI `40114398159` and PR CI `40114402324` passed. Merged packages/e2e tree matches that tested head. No subagents used.
+
+Sixteen original native icons now distinguish all eleven cooked foods and five main potions. Served dishes/baked roots differ from raw crops and meat, tea is a handled cup, and jam has a cloth-capped jar. Potion roles use round/tall/angular/square/diamond bodies and cross/leaf/bolt/shield/star marks. Existing palette, outline margin, native scaling and caches are preserved. No item metadata, recipes, healing, buffs, economy or nourishment rules change.
+
+Local validation: all workspace typechecks, 100 client tests and both builds; sixteen distinct cached native icons with reviewed 16/32px gallery; production solo travel-needs regression including crafting, wells, food/drink consumption, preferences and saved reload. Full final-head CI passes the existing workspace suite as well. Proof: `/tmp/food-*.log`, `/tmp/food-icons.png` (ephemeral). This is inventory artwork; held-consumable poses and the remaining catalog are still tracked in [REMAINING_WORK.md](REMAINING_WORK.md).
+
+---
+
+## Previous continuation: companion following/combat and catch pose (2026-10-24)
 
 Merged [PR #21](https://github.com/QubitMan-hub/EIGENLANDS/pull/21) at `844163324b3b9648e9b69adde2849d2525c3db74`. Implementation head `436fdc29075f0666ef4685e2c1fd49cfe4629380`; push CI `40112119853` and PR CI `40112123929` passed. Merged packages/e2e tree matches the tested head. Work completed inline, no subagents.
 
