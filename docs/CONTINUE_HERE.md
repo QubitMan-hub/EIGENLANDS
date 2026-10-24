@@ -1,4 +1,16 @@
-# Current continuation: melee arsenal and forge patterns (2026-10-24)
+# Current continuation: camera, icons and grounding (2026-10-24)
+
+Merged [PR #18](https://github.com/QubitMan-hub/EIGENLANDS/pull/18) at `e68d8b53a96e708992724e021601beb10c5a291b`. Tested implementation head `cdfbbcdd945de47c1c9f91aa20516fa2712a1bf9`; push CI `40086719355` and PR CI `40086722704` passed. Merged packages/e2e tree matches the tested head. No subagents used.
+
+Removed cursor-driven RMB camera offset/easing while preserving steering and aim. Cleaner shared icon shading, faceted stone/coal/ores and integer compact scaling improve inventory readability. Tree trunk baselines now match their anchors across base/quantum/forest/autumn/taiga variants. Animated objects refresh anchors; actor and prop shadows share projection and contact conventions. Sun/moon shadows move throughout the clock cycle and fade continuously at the horizon; existing ambient lighting uses the same time. See `docs/design/visual-grounding.md` and the updated art guide.
+
+Verified: all 484 tests, workspace typechecks, both builds; desktop and landscape personalized controls, landscape equipment UI, wilderness art checks, and final visual-grounding gameplay checks with measured RMB centering, tree shadow origins/anchors, actual morning/afternoon direction reversal, six town lighting captures and icon gallery. Evidence: `/tmp/polish-*.log` and PNGs (ephemeral). Main source is merged; Pages deployment is automatic.
+
+Remaining art scope: shared icon rendering is improved across the catalog, but bespoke new silhouettes cover stone, coal and ores rather than every item. Material highlights remain baked pixel art; dynamic shadows and ambient colours do not constitute per-pixel relighting. Broader master-plan work remains open.
+
+---
+
+## Previous continuation: melee arsenal and forge patterns (2026-10-24)
 
 Merged in [PR #17](https://github.com/QubitMan-hub/EIGENLANDS/pull/17) at `692333b03aa49ec5def0778ec015293b356dc11b`. Final implementation head: `510e85190d0f6259bbf58d636190092324ed7106`, based on main `cb65418`; implementation branch deleted. Push CI `40084458752` and PR CI `40084461637` both passed all 484 tests, typechecking and build on that exact head. The merged packages/e2e tree matches the tested head. Work inline, no subagents; integration completed under the user’s persistent push/merge authorization.
 
