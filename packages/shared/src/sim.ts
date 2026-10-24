@@ -2,11 +2,11 @@ import {
   ATTACK_BUFFER, CHARGE_FULL, CHARGE_MIN, CHARGE_MOVE_MULT, COMBO_WINDOW, DASH_CHARGES, DASH_COOLDOWN, DASH_SPEED, DASH_TIME,
   BOAT_SPEED_MULT, IFRAME_TIME, PLAYER_RADIUS, PLAYER_SPEED, SKILL_COOLDOWN, SWING_MOVE_MULT, TICK_DT,
 } from './constants';
-import { COMBO, heavyHit } from './combat';
+import { meleeFamily, meleeTap, meleeHeavy, type MeleeFamily } from './combat';
 
 /**
- * Everything the client predicts about its own player. Every field is in the ACK (see protocol.ts),
- * so the client can rewind to the server's state and replay unacknowledged inputs exactly.
+ * Everything the client predicts about its own player. Dynamic numeric fields are in the ACK (see protocol.ts),
+ * so the client can rewind and replay. Weapon metadata is derived from equipment, outside the packed ACK.
  */
 export interface PlayerSim {
   x: number;
@@ -20,6 +20,8 @@ export interface PlayerSim {
   dashDy: number;
   /** a ranged weapon is wielded: attacks do not lunge */
   ranged?: boolean;
+  /** Derived from equipped gear, not client input or packed ACK fields. */
+  melee?: MeleeFamily;
   atkCd: number;
   combo: number; // index of the NEXT hit in the 3-hit combo
   comboT: number;
@@ -77,6 +79,13 @@ export interface StepEvents {
 
 /** `sea` (when present) is the collision query of a ship: land and obstacles are solid, open water is not. */
 export type SolidQuery = ((tx: number, ty: number) => boolean) & { sea?: (tx: number, ty: number) => boolean };
+
+/** Switching families cannot carry a finisher/charge across weapons or erase recovery. */
+export function setMeleeWeapon(p: PlayerSim, id: unknown): void {
+  const next = meleeFamily(id);
+  if (next !== meleeFamily(p.melee)) { p.combo=0;p.comboT=0;p.atkBuf=0;p.charge=0;p.hold=0; }
+  p.melee = next;
+}
 
 export function newPlayerSim(x: number, y: number): PlayerSim {
   return {
@@ -222,7 +231,7 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepE
   if (!held && p.hold && p.charge >= CHARGE_MIN && p.dashT <= 0 && p.atkCd <= 0) {
     aim();
     const level = chargeLevel(p.charge);
-    const h = heavyHit(level);
+    const h = meleeHeavy(p.melee,level);
     ev.attacked = true; ev.heavy = true; ev.level = level; ev.combo = 0;
     p.atkCd = h.recovery;
     p.combo = 0; p.comboT = 0; p.charge = 0; p.atkBuf = 0;
@@ -234,7 +243,7 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepE
   if (cmd.attack) p.atkBuf = ATTACK_BUFFER;
   if (!ev.attacked && p.atkBuf > 0 && p.atkCd <= 0 && p.dashT <= 0) {
     aim();
-    const hit = COMBO[p.combo]!;
+    const hit = meleeTap(p.melee,p.combo);
     ev.attacked = true;
     ev.combo = p.combo;
     p.atkCd = hit.recovery;

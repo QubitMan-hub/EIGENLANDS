@@ -4,8 +4,8 @@ import { Sprite, type Container, type Graphics } from 'pixi.js';
 import { SHIP_AX, SHIP_AY, headingOf, type Ships } from '../art/ships';
 import {
   HUE_PALETTE,
-  ATK, BRUTE_SLAM_RADIUS, C, CHARGE_FULL, CHARGE_MIN, CHARGE_WIDTH, COMBO, DASH_CHARGES, DASH_COOLDOWN, ELITE, ENEMY_BY_KIND, LEAP_RADIUS,
-  PALETTE, PLAYER_RADIUS, heavyHit, hitStopMs, inArc, shakeFor, type FxMsg, type PlayerSim, type StepEvents,
+  ATK, BRUTE_SLAM_RADIUS, C, CHARGE_FULL, CHARGE_MIN, CHARGE_WIDTH, meleeFamily, meleeTap, meleeHeavy, DASH_CHARGES, DASH_COOLDOWN, ELITE, ENEMY_BY_KIND, LEAP_RADIUS,
+  PALETTE, PLAYER_RADIUS, hitStopMs, inArc, shakeFor, type FxMsg, type PlayerSim, type StepEvents,
 } from '@eigenlands/shared';
 import type { Sfx } from '../audio';
 import type { Anim, FoeSheets } from '../art/foes';
@@ -63,7 +63,7 @@ export interface CombatDeps {
   heldWeapons?: () => HeldWeapons;
   ships: () => Ships;
   /** the wielded weapon: ranged = shoots instead of swinging; hue = its element (-1 physical) */
-  weapon: () => { ranged: boolean; hue: number };
+  weapon: () => { ranged: boolean; hue: number; id?: string };
   myId: () => string;
   me: () => { x: number; y: number } | null;
   views: () => Iterable<CombatActor>;
@@ -155,8 +155,9 @@ export class CombatView {
     if (charging && !this.wasCharging) this.d.sound('charge');
     this.wasCharging = charging;
     if (!ev.attacked) return;
-    this.strike(me, ev.heavy ? 320 : ev.combo === 2 ? 300 : 220);
     const wp = this.d.weapon();
+    const hit = ev.heavy ? meleeHeavy(wp.id,ev.level) : meleeTap(wp.id,ev.combo);
+    this.strike(me, meleeFamily(wp.id)==='sword' ? (ev.heavy ? 320 : ev.combo === 2 ? 300 : 220) : hit.recovery*850);
     if (wp.ranged) {
       // a shot: muzzle flash toward the aim, a recoil kick; the server fires and resolves it
       const col = wp.hue < 0 ? [22, 21, 7] : [HUE_PALETTE[wp.hue]!, 7];
@@ -166,9 +167,8 @@ export class CombatView {
       if (me) me.punch = ev.heavy ? 0.6 : 0.25;
       return;
     }
-    const hit = ev.heavy ? heavyHit(ev.level) : COMBO[ev.combo]!;
-    if (ev.heavy) { fx.heavy(sim.x, sim.y, sim.faceX, sim.faceY, ev.level); this.d.sound('heavy'); }
-    else { fx.swing(sim.x, sim.y, sim.faceX, sim.faceY, ev.combo); this.d.sound(ev.combo === 2 ? 'finisher' : ev.combo === 1 ? 'swing2' : 'swing'); }
+    if (ev.heavy) { fx.heavy(sim.x, sim.y, sim.faceX, sim.faceY, ev.level,wp.id); this.d.sound('heavy'); }
+    else { fx.swing(sim.x, sim.y, sim.faceX, sim.faceY, ev.combo,wp.id); this.d.sound(ev.combo === 2 ? 'finisher' : ev.combo === 1 ? 'swing2' : 'swing'); }
     if (ev.counter) { fx.banner(sim.x, sim.y, 'COUNTER!', 47); this.d.sound('counter'); }
     if (me) me.punch = ev.heavy ? 1 : ev.combo === 2 ? 0.8 : 0.45;
     // predicted hit confirm against what we see (the server rewinds to the same view)
@@ -202,8 +202,8 @@ export class CombatView {
       case 'shot':
         if (f.id && !mine) this.strike(view(f.id), 260);
         return false; // ordinary shot particles/audio remain in Game
-      case 'swing': this.strike(f.id ? view(f.id) : undefined, f.v === 2 ? 300 : 220); fx.swing(f.x, f.y, f.dx ?? 0, f.dy ?? 1, f.v ?? 0); this.d.sound(f.v === 2 ? 'finisher' : 'swing', f.x, f.y); return true;
-      case 'heavy': this.strike(f.id ? view(f.id) : undefined, 320); fx.heavy(f.x, f.y, f.dx ?? 0, f.dy ?? 1, f.v ?? 0); this.d.sound('heavy', f.x, f.y); return true;
+      case 'swing': this.strike(f.id ? view(f.id) : undefined, meleeFamily(f.weapon)==='sword'?(f.v === 2 ? 300 : 220):meleeTap(f.weapon,f.v??0).recovery*850); fx.swing(f.x, f.y, f.dx ?? 0, f.dy ?? 1, f.v ?? 0,f.weapon); this.d.sound(f.v === 2 ? 'finisher' : 'swing', f.x, f.y); return true;
+      case 'heavy': this.strike(f.id ? view(f.id) : undefined, meleeFamily(f.weapon)==='sword'?320:meleeHeavy(f.weapon,f.v??0).recovery*850); fx.heavy(f.x, f.y, f.dx ?? 0, f.dy ?? 1, f.v ?? 0,f.weapon); this.d.sound('heavy', f.x, f.y); return true;
       case 'hit': {
         const w = f.w ?? 0, crit = f.c === 1;
         const v = f.id ? view(f.id) : undefined;

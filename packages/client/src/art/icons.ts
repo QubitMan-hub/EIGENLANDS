@@ -161,6 +161,22 @@ const G: Record<Glyph, Draw> = {
     for (let i = -3; i <= 3; i += 2) { line(c, 11 + i, 1, 11 + i, 9, b); line(c, 7, 5 + i, 15, 5 + i, b); }
     put(c, 7, 3, a, 8, 1); put(c, 7, 9, a, 8, 1);
   },
+  spear: (c, a, b) => {
+    line(c,2,14,10,5,C.e1);line(c,3,14,11,5,b);
+    poly(c,[[10,3],[13,1],[14,5],[10,8],[9,6]],C.steel);
+    poly(c,[[10,3],[13,1],[11,6],[9,6]],C.pale);line(c,7,8,9,10,C.e6);put(c,13,2,C.white);
+  },
+  battle_axe: (c, a, b) => {
+    line(c,3,14,9,3,C.e1);line(c,4,14,10,3,C.e4);line(c,4,12,6,9,b);
+    poly(c,[[8,3],[12,2],[14,5],[13,10],[10,8],[9,5]],C.steel);
+    poly(c,[[12,2],[14,5],[13,10],[12,8],[12,5],[10,3]],C.pale);put(c,9,4,C.e6,2,2);
+  },
+  warhammer: (c, a, b) => {
+    line(c,3,14,10,5,C.e1);line(c,4,14,11,5,C.e4);line(c,3,12,5,10,b);
+    poly(c,[[5,2],[10,1],[14,4],[10,7]],C.pale);
+    poly(c,[[5,2],[10,7],[10,10],[5,6]],C.steel);
+    poly(c,[[10,7],[14,4],[14,7],[10,10]],C.slate);line(c,6,2,10,2,C.white);
+  },
   sword: (c, a, b) => {
     line(c, 13, 2, 4, 11, C.pale); line(c, 12, 2, 3, 11, C.fog); line(c, 14, 3, 5, 12, C.steel); put(c, 13, 2, C.white, 2, 1);
     put(c, 2, 9, b, 5, 2); put(c, 3, 8, dk(b), 3, 1);

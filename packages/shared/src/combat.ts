@@ -37,6 +37,41 @@ export function heavyHit(level: number): ComboHit {
   };
 }
 
+export const MELEE_FAMILIES = ['sword', 'spear', 'battle_axe', 'warhammer'] as const;
+export type MeleeFamily = typeof MELEE_FAMILIES[number];
+export const meleeFamily = (id: unknown): MeleeFamily => MELEE_FAMILIES.includes(id as MeleeFamily) ? id as MeleeFamily : 'sword';
+/** Sidegrades: reach, cleave or poise instead of a straight increase to sword damage per recovery. */
+export const MELEE_COMBOS: Record<MeleeFamily, readonly ComboHit[]> = {
+  sword: COMBO,
+  spear: [
+    {damage:7,range:2.35,arc:cosDeg(22),knockback:2,poise:4,weight:0,lunge:.1,recovery:.27},
+    {damage:8,range:2.35,arc:cosDeg(22),knockback:2,poise:4,weight:0,lunge:.1,recovery:.27},
+    {damage:13,range:2.75,arc:cosDeg(25),knockback:6,poise:12,weight:1,lunge:.3,recovery:.46},
+  ],
+  battle_axe: [
+    {damage:9,range:1.35,arc:cosDeg(80),knockback:3.5,poise:6,weight:0,lunge:.1,recovery:.36},
+    {damage:10,range:1.35,arc:cosDeg(80),knockback:3.5,poise:6,weight:0,lunge:.1,recovery:.36},
+    {damage:18,range:1.65,arc:cosDeg(110),knockback:8,poise:18,weight:1,lunge:.35,recovery:.58},
+  ],
+  warhammer: [
+    {damage:12,range:1.25,arc:cosDeg(45),knockback:4,poise:10,weight:1,lunge:.08,recovery:.5},
+    {damage:13,range:1.25,arc:cosDeg(45),knockback:4,poise:10,weight:1,lunge:.08,recovery:.5},
+    {damage:22,range:1.55,arc:cosDeg(60),knockback:10,poise:30,weight:2,lunge:.2,recovery:.8},
+  ],
+};
+export function meleeTap(id: unknown, combo: number): ComboHit {
+  return MELEE_COMBOS[meleeFamily(id)][Number.isFinite(combo) ? Math.max(0,Math.min(2,Math.floor(combo))) : 0]!;
+}
+export function meleeHeavy(id: unknown, level: number): ComboHit {
+  const l = Number.isFinite(level) ? Math.max(0,Math.min(1,level)) : 0;
+  switch(meleeFamily(id)) {
+    case 'spear': return {damage:Math.round(16+14*l),range:3.1+.3*l,arc:cosDeg(25),knockback:6+3*l,poise:Math.round(18+14*l),weight:l>=1?3:2,lunge:.15+.2*l,recovery:.5};
+    case 'battle_axe': return {damage:Math.round(22+12*l),range:1.8+.3*l,arc:cosDeg(125),knockback:8+4*l,poise:Math.round(25+15*l),weight:l>=1?3:2,lunge:.25+.3*l,recovery:.62};
+    case 'warhammer': return {damage:Math.round(30+18*l),range:1.7+.3*l,arc:cosDeg(60),knockback:10+5*l,poise:Math.round(35+25*l),weight:l>=1?3:2,lunge:.15+.15*l,recovery:.85};
+    default: return heavyHit(l);
+  }
+}
+
 export const SKILL_DAMAGE = PROJECTILE_DAMAGE;
 /** Outgoing physical damage, before the target's armour/critical modifiers. */
 export const attackDamage = (base: number, attack: number, might = 0): number => Math.max(1, Math.round((base + attack) * (1 + might)));

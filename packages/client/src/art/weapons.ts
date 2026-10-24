@@ -1,6 +1,6 @@
 import { Rectangle, Texture } from 'pixi.js';
 import { HUE_PALETTE, WEAPONS, isWeaponId, type WeaponId, type ToolSpec } from '@eigenlands/shared';
-import { CAST_FRAME, personGrip } from './actors';
+import { ATTACK_FRAME, RUN_FRAME, SHOT_FRAME, CAST_FRAME, personGrip } from './actors';
 import { C, line, makeCanvas, outline, poly, put, undithered } from './shade';
 
 export type HeldId = WeaponId | ToolSpec['type'];
@@ -21,7 +21,10 @@ export class HeldWeapons {
       for (let d = 0; d < 8; d++) for (let n = 0; n < 30; n++) {
         const b = makeCanvas(56, 64), g = personGrip(d, n), x = g.x + 16, y = g.y + 16;
         const w = isWeaponId(id) ? WEAPONS[id] : null, bow = w?.cls === 'crossbow', staff = w?.cls === 'staff', tool = !w;
-        const angle = bow && n < 22 ? (d === 2 || d === 4 || d === 6 ? -2.6 : -0.55) : g.angle;
+        const thrust = id === 'spear' && n >= ATTACK_FRAME && n < ATTACK_FRAME+4;
+        // Broad heads rest outside the face; grip/arm anchors remain unchanged.
+        const resting = (id === 'spear' || id === 'battle_axe' || id === 'warhammer') && (n < ATTACK_FRAME || n >= RUN_FRAME && n < SHOT_FRAME);
+        const angle = thrust ? personGrip(d,SHOT_FRAME).angle : resting ? (g.x < 12.5 ? -2.05 : -1.1) : bow && n < 22 ? (d === 2 || d === 4 || d === 6 ? -2.6 : -0.55) : g.angle;
         const ux = Math.cos(angle), uy = Math.sin(angle), vx = -uy, vy = ux;
         const pt = (along: number, across = 0): [number, number] => [x + ux * along + vx * across, y + uy * along + vy * across];
         const stroke = (a: number, z: number, c: number, offset = 0) => { const p = pt(a, offset), q = pt(z, offset); line(b.ctx, p[0], p[1], q[0], q[1], c); };
@@ -38,6 +41,22 @@ export class HeldWeapons {
               for (let i = 1; i < ring.length; i++) line(b.ctx, ...ring[i - 1]!, ...ring[i]!, i < 7 ? C.e5 : C.e2);
               for (const k of [-1, 1]) { const a = pt(8, k * 2), q = pt(12, -k * 2); line(b.ctx, ...a, ...q, C.fog); }
             }
+          } else if (id === 'spear') {
+            stroke(-5,11,C.e1,.8);stroke(-5,11,C.e4);
+            poly(b.ctx,[pt(10,-2),pt(15),pt(10,2),pt(9)],C.steel);
+            poly(b.ctx,[pt(10,-2),pt(15),pt(10)],C.pale);
+            for(const z of [-2,0,7]){const a=pt(z,-1),q=pt(z,1);line(b.ctx,...a,...q,C.e6);}
+          } else if (id === 'battle_axe') {
+            stroke(-5,11,C.e1,.8);stroke(-5,11,C.e4);stroke(-4,0,C.r3);
+            poly(b.ctx,[pt(7,-1),pt(9,-6),pt(13,-5),pt(14,1),pt(11,5),pt(8,3)],C.steel);
+            poly(b.ctx,[pt(9,-6),pt(13,-5),pt(14,1),pt(11,5),pt(12,0),pt(11,-4)],C.pale);
+            const a=pt(8,-2),q=pt(10,2);line(b.ctx,...a,...q,C.e6);
+          } else if (id === 'warhammer') {
+            stroke(-5,9,C.e1,.8);stroke(-5,9,C.e4);stroke(-4,0,C.e2);
+            poly(b.ctx,[pt(7,-5),pt(11,-5),pt(13,-2),pt(9,-2)],C.pale);
+            poly(b.ctx,[pt(7,-5),pt(9,-2),pt(9,5),pt(7,2)],C.steel);
+            poly(b.ctx,[pt(9,-2),pt(13,-2),pt(13,5),pt(9,5)],C.slate);
+            const a=pt(10,-1),q=pt(10,4);line(b.ctx,...a,...q,C.steel);
           } else if (bow) {
             poly(b.ctx, [pt(-3, -1), pt(6, -1), pt(7, 1), pt(-3, 1)], C.e2);
             stroke(-3, 6, C.e4, -0.7);

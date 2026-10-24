@@ -126,6 +126,9 @@ for (const [set, slots] of Object.entries(ARMOR_COSTS)) {
     r(armorId(set, slot), set === 'silk' ? 'loom' : 'workbench', slots[slot]!, [armorId(set, slot), 1], 6 + ARMOR_SLOTS.indexOf(slot), set === 'leather' ? 'start' : 'discover', `Made from ${slots[slot]!.map(([i, n]) => `${n} ${i.replace('_', ' ')}`).join(', ')}.`);
   }
 }
+r('spear','forge',[['iron_ingot',2],['wood',4],['fiber',2]],['spear',1],12,'start','Iron head, ash shaft and tight bindings. Level 3 to wield.');
+r('battle_axe','forge',[['iron_ingot',4],['plank',2],['hide',2]],['battle_axe',1],18,'start','A broad iron bit and leather-wrapped haft. Level 6 to wield.');
+r('warhammer','forge',[['iron_ingot',7],['heartwood',2],['coal',3]],['warhammer',1],24,'start','A tempered iron head on resilient heartwood. Level 10 to wield.');
 r('crossbow', 'carpenter', [['plank', 6], ['iron_ingot', 2], ['fiber', 6]], ['crossbow', 1], 12, 'start', 'Planks, an iron stirrup and plenty of string.');
 r('ember_staff', 'carpenter', [['wood', 4], ['copper_ingot', 3], ['qubit_crystal', 1]], ['ember_staff', 1], 14, 'discover', 'Copper holds a crystal that remembers fire.');
 r('rime_staff', 'carpenter', [['wood', 4], ['silver_ingot', 2], ['slime_gel', 6], ['qubit_crystal', 1]], ['rime_staff', 1], 14, 'discover', 'Silver, gel and a crystal that remembers winter.');

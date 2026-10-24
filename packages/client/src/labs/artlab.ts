@@ -155,10 +155,10 @@ if (mode === 'icons') {
     crop.frames.forEach((sp, i) => place(sp.tex, sp.ax, sp.ay, 315 + i * 40, 250));
   } else if (mode === 'equipment') {
     const sheets = buildActorSheets(), weapons = new HeldWeapons();
-    Object.values(WEAPONS).forEach((w, row) => {
+    Object.values(WEAPONS).filter(w => !q.has('weapons') || q.get('weapons')!.split(',').includes(w.id)).forEach((w, row) => {
       label(w.name, 4, 18 + row * 56);
       for (let d = 0; d < 8; d++) {
-        const f = w.cls === 'crossbow' ? 23 : w.cls === 'staff' ? 27 : 11;
+        const f = num('frame', w.cls === 'crossbow' ? 23 : w.cls === 'staff' ? 27 : 11);
         const x = 140 + d * 40, y = 45 + row * 56;
         if (d === 1 || d >= 6) place(weapons.texture(w.id, d, f), 28, 48, x, y);
         place(sheets.person(num('outfit', 0), d, f), 12, 32, x, y);

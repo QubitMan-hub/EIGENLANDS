@@ -1,4 +1,4 @@
-import { COMBO, HOTBAR, ITEMS, MORPH_FORMS, WEAPONS, attackDamage, armorTotals, cloneStack, equipmentLevel, heavyHit, moveSlot, quickbarAttack, weaponRecovery, weaponShotPower, type EquipSlotKey, type EquipState, type WeaponDef, type WeaponShot } from '@eigenlands/shared';
+import { COMBO, MELEE_COMBOS, meleeFamily, meleeHeavy, HOTBAR, ITEMS, MORPH_FORMS, WEAPONS, attackDamage, armorTotals, cloneStack, equipmentLevel, heavyHit, moveSlot, quickbarAttack, weaponRecovery, weaponShotPower, type EquipSlotKey, type EquipState, type WeaponDef, type WeaponShot } from '@eigenlands/shared';
 import type { Profile } from '../game/profile';
 
 /** Preview the server's equipment swap, retaining progression and quick-bar bonuses. */
@@ -37,11 +37,12 @@ interface WeaponGuide { name: string; tap: AttackGuide[]; heavy: AttackGuide }
 
 /** Field-guide values before conditional combat effects; never aggregate volleys into promised DPS. */
 function weaponGuide(w: WeaponDef, stats: Profile['stats']): WeaponGuide {
+  const hits=MELEE_COMBOS[meleeFamily(w.id)];
   const melee = (form?: typeof MORPH_FORMS[number]): AttackGuide => ({
-    name: form?.name ?? 'Three-hit combo',
-    damage: COMBO.map(h => attackDamage(form ? Math.round(h.damage * form.dmg) : h.damage, stats.atkBonus)),
-    healing: [], reach: COMBO.map(h => h.range), recovery: COMBO.map(h => h.recovery), cooldown: 0, count: 1, radius: false,
-    details: form ? ['Each tap chooses one form at random; the two forms do not hit together.'] : ['Two slashes, then a lunging finisher.'],
+    name: form?.name ?? (w.id==='spear'?'Thrust combo':w.id==='battle_axe'?'Sweeping combo':w.id==='warhammer'?'Crushing combo':'Three-hit combo'),
+    damage: hits.map(h => attackDamage(form ? Math.round(h.damage * form.dmg) : h.damage, stats.atkBonus)),
+    healing: [], reach: hits.map(h => h.range), recovery: hits.map(h => h.recovery), cooldown: 0, count: 1, radius: false,
+    details: form ? ['Each tap chooses one form at random; the two forms do not hit together.'] : [w.id==='spear'?'Narrow thrusts: long reach, limited side coverage.':w.id==='battle_axe'?'Broad sweeps trade reach and speed for side coverage.':w.id==='warhammer'?'Slow blows; the finisher bypasses light-hit armour.':'Two slashes, then a lunging finisher.',`Tap poise: ${hits.map(h=>h.poise).join(' / ')}; arc: ${hits.map(h=>Math.round(Math.acos(h.arc)*360/Math.PI)).join(' / ')} degrees.`],
   });
   const shot = (s: WeaponShot, heavy: boolean): AttackGuide => {
     const power = (heavy ? [0, 1] : [null]).map(c => weaponShotPower(c, stats.atkBonus));
@@ -55,10 +56,10 @@ function weaponGuide(w: WeaponDef, stats: Profile['stats']): WeaponGuide {
         ...(s.heal ? ['Heals you and nearby party members, up to missing health.'] : []),
       ] };
   };
-  const low = heavyHit(0), high = heavyHit(1);
+  const low = meleeHeavy(w.id,0), high = meleeHeavy(w.id,1);
   return { name: w.name, tap: w.basic ? [shot(w.basic, false)] : w.id === 'morph_staff' ? MORPH_FORMS.map(f => melee(f)) : [melee()],
-    heavy: w.charged ? shot(w.charged, true) : { name: 'Phase cleave', damage: [attackDamage(low.damage, stats.atkBonus), attackDamage(high.damage, stats.atkBonus)], healing: [],
-      reach: [low.range, high.range], recovery: [high.recovery], cooldown: 0, count: 1, radius: false, details: ['Wide cleave; a full charge breaks more poise.'] } };
+    heavy: w.charged ? shot(w.charged, true) : { name: w.id==='spear'?'Driving thrust':w.id==='battle_axe'?'Whirling cleave':w.id==='warhammer'?'Crushing blow':'Phase cleave', damage: [attackDamage(low.damage, stats.atkBonus), attackDamage(high.damage, stats.atkBonus)], healing: [],
+      reach: [low.range, high.range], recovery: [high.recovery], cooldown: 0, count: 1, radius: false, details: [`Ready–full charge: ${low.poise}–${high.poise} poise; ${Math.round(Math.acos(high.arc)*360/Math.PI)} degree arc.`] } };
 }
 
 /** Mirrors either a Focus equip or the existing quick-bar placement action without changing the pack. */
@@ -68,7 +69,7 @@ export function weaponComparison(profile: Pick<Profile, 'equip' | 'inv' | 'stats
   const current = profile.equip.weapon && ITEMS[profile.equip.weapon.id]?.weapon;
   const w = current ? WEAPONS[current] : WEAPONS.sword;
   let next = w, stats = profile.stats, placement: number | null = null;
-  let note = 'Equipping this Focus changes your attacks and passive bonuses.';
+  let note = 'Equipping this weapon changes your attacks and passive bonuses.';
   if (d.weapon) { next = WEAPONS[d.weapon]; stats = equipmentPreview(profile, index, 'weapon'); }
   else if (item.id === 'sword') {
     if (index >= HOTBAR) {
@@ -76,7 +77,7 @@ export function weaponComparison(profile: Pick<Profile, 'equip' | 'inv' | 'stats
       const inv = profile.inv.map(s => s ? cloneStack(s) : null); moveSlot(inv, index, placement);
       stats = { ...profile.stats, atkBonus: profile.stats.atkBonus - quickbarAttack(profile.inv) + quickbarAttack(inv) };
     }
-    note = 'Only the strongest sword in your quick-bar adds attack bonus. An equipped Focus still controls your attacks; unequip it for blade combat.';
+    note = 'Only the strongest sword in your quick-bar adds attack bonus. An equipped main-hand weapon still controls your attacks; unequip it for ordinary sword combat.';
   }
   return { before: weaponGuide(w, profile.stats), after: weaponGuide(next, stats), placement, requirement: equipmentLevel(item.id), note };
 }

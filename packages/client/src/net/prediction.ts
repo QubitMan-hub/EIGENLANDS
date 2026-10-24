@@ -39,7 +39,8 @@ export class Predictor {
 
   reconcile(ack: Ack): number {
     const bx = this.sim.x, by = this.sim.y;
-    this.sim = clonePlayerSim(ack.sim);
+    const {ranged,melee}=this.sim;
+    this.sim = {...clonePlayerSim(ack.sim),ranged,melee};
     this.pending = this.pending.filter((c) => c.seq > ack.seq);
     for (const c of this.pending) stepPlayer(this.sim, c, this.solid);
     const ex = bx - this.sim.x, ey = by - this.sim.y;

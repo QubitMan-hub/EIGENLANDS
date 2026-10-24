@@ -73,7 +73,7 @@ export const NPCS: NpcDef[] = [
     home: 'smithy.in',
     schedule: [B(0, 7, 'smithy.in', 'asleep'), B(7, 12, 'smithy.work', 'working the forge'), B(12, 13, 'inn.table', 'eating lunch'), B(13, 18, 'smithy.work', 'working the forge'), B(18, 21, 'inn.table', 'with a mug at the inn'), B(21, 24, 'smithy.in', 'asleep')],
     loves: ['gold_ingot', 'grilled_meat', 'hearty_stew', 'iron_ingot'], likes: ['silver_ingot', 'copper_ingot', 'fish_fry', 'coal'], hates: ['daffodil', 'berry_jam', 'cloth'],
-    shop: { name: 'Ironhand Smithy', hours: [7, 18], buys: ['resource', 'material'], buyBonus: 1.15, stock: [{ item: 'coal', markup: 1.1 }, { item: 'copper_ingot', markup: 1.1 }, { item: 'iron_ingot', markup: 1.15 }, { item: 'forge', markup: 1 }, { item: 'furnace', markup: 1 }] },
+    shop: { name: 'Ironhand Smithy', hours: [7, 18], buys: ['resource', 'material'], buyBonus: 1.15, stock: [{item:'spear',markup:1.3},{item:'battle_axe',markup:1.3},{item:'warhammer',markup:1.3},{ item: 'coal', markup: 1.1 }, { item: 'copper_ingot', markup: 1.1 }, { item: 'iron_ingot', markup: 1.15 }, { item: 'forge', markup: 1 }, { item: 'furnace', markup: 1 }] },
     lines: {
       greet: [['Mm. You want something forged, or just warm hands?', 'Don\'t touch the anvil. It bites.'], ['Ah. The one who actually listens. Come, watch.', 'You\'re getting a feel for the rhythm. Keep at it.'], ['You\'re the only one who understands why I hum at the forge. Come here.', 'A good blade, a good friend. Both take a long time to make.']],
       work: ['Match the phases. Two metals that sing the same note make something stronger than either.', 'Opposite phases cancel each other out. Use that to quiet a flaw.', 'Hit on the beat, not near it. The metal knows.'],
