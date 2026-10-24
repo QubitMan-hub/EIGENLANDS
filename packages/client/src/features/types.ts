@@ -76,7 +76,7 @@ export interface ClientModule {
   hint?(): string | null;
   debug?(): Record<string, unknown>;
   /** a Phase 3/4 input action (ability1..4, ultimate, board, chat, party); return true when handled */
-  action?(a: ExtAction): boolean;
+  action?(a: ExtAction, direct?: boolean): boolean;
   /** an armed ability fired by a left click (aim = cursor) */
   fire?(a: ExtAction): void;
 }

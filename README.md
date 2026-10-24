@@ -11,7 +11,7 @@ in the browser or share a world with other players.
 - **Village life** – the town of Hadamere with ten NPCs on schedules, dialogue, gifts, shops with dynamic prices, a quest chain, and the QubitMan statue.
 - **Crafting** – tools, stations, discovery recipes, farming with superposition crops, fishing, and Interference Forging (a rhythm minigame).
 - **Circuit Board** – place gates on orb lines to bias which form of each ability fires; classes Wanderer, Superposer, Entangler.
-- **Combat** – WASD movement, mouse aim, armed skill shots (Q/R/F/G then left click), auto-aim at a selected target, hold right mouse to look ahead, dash, combos, telegraphed enemies.
+- **Combat** – personalized keyboard or held-RMB movement, cursor aim, directional skills (Q/E/R/F then left click), direct touch/gamepad casting, dash, combos and telegraphed enemies.
 - **Multiplayer** – authoritative 20 Hz Colyseus server with prediction, interpolation and lag compensation; parties, chat, trading, shard handoff.
 - **Accounts** – guest play upgradable to Google sign-in; Postgres persistence; Redis presence.
 - **Accessibility** – remappable keys, colour-blind modes, text size, reduced motion, high-contrast HUD, sound captions.
@@ -19,13 +19,13 @@ in the browser or share a world with other players.
 ## Controls
 | | |
 |---|---|
-| Move | `W A S D` / arrows (screen-relative) |
+| Move | `W A S D` / arrows (screen-relative), or Settings → Controls → Movement controls → Mouse: hold right button toward the cursor, release to stop. Movement keys remain available. |
 | Attack | left click (aims at the cursor) |
 | Select target | left click an enemy or party mate · `Esc` clears |
-| Abilities | `Q R F G`: quick abilities fire at once, skill shots arm an aim line, then left click fires. `V` ultimate |
-| Look ahead | hold right mouse |
+| Abilities | `Q E R F`: directional abilities show an aim line, then left click confirms at the cursor; same key or `Esc` cancels. Self abilities are instant. Touch/gamepad cast directly. `V` ultimate |
+| Look ahead | hold right mouse; Mouse movement profile also steers |
 | Dash | `Space` / `Shift` |
-| Use / talk | `E` · Pack `I` · Craft `C` · Journal `L` · Circuit Board `B` · Party `P` · Chat `Enter` |
+| Use / talk | `X` · Pack `I` · Craft `C` · Journal `L` · Circuit Board `B` · Party `P` · Chat `Enter` |
 
 ## Repository layout
 ```

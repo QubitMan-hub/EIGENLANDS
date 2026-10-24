@@ -28,6 +28,7 @@ async function boot(): Promise<void> {
   const canvas = $<HTMLCanvasElement>('game');
   const keys = loadKeys();
   const input = new Input(canvas, keys);
+  input.setMovementMode(settings.movementMode);
   const game = new Game(input, () => settings, onClosed);
   input.firstGesture = () => game.audio.unlock();
   applySettings(settings, game.audio);
@@ -36,7 +37,7 @@ async function boot(): Promise<void> {
   let auth: AuthState | null = null;
   const msg = (t: string) => { $('login-msg').textContent = t; };
 
-  const ui = new SettingsUI(settings, keys, (k) => { input.keys = k; }, (cb) => { input.capturing = cb; }, () => applySettings(settings, game.audio));
+  const ui = new SettingsUI(settings, keys, (k) => { input.keys = k; }, (cb) => { input.capturing = cb; }, () => { input.setMovementMode(settings.movementMode); applySettings(settings, game.audio); });
   ui.bind({
     signOut: () => { signOut(); location.reload(); },
     deleteAccount: async () => { if (auth) { await deleteAccount(auth.token); await game.ext.atlas.forgetAll(); location.reload(); } },

@@ -215,6 +215,8 @@ export class Game {
     });
     this.input.onWorldClick = (x, y) => this.clickWorld(x, y);
     this.input.onClearTarget = () => this.setTarget(null);
+    const menu = document.getElementById('hud-menu');
+    this.input.blocked = () => !this.connected || this.dead || this.settingsOpen() || this.gameplay.blocking || this.ext.blocking || !!this.net?.switching || !!menu?.matches(':popover-open');
     this.store = new ChunkStore(0); // replaced once the seed is known
     window.addEventListener('resize', () => this.layout());
     this.layout();
@@ -562,8 +564,12 @@ export class Game {
       const m = this.input.mouseXY, held = this.input.lookHeld && !this.dead;
       const reach = Math.min(W, H) * 0.42;
       let tx = 0, ty = 0;
-      if (held) {
-        let dx = (m.x - this.input.playerScreen.x) / S, dy = (m.y - this.input.playerScreen.y) / S;
+      const mouseMove = this.input.movementMode === 'mouse', origin = mouseMove ? this.input.feetScreen : this.input.playerScreen;
+      if (held && mouseMove && Math.hypot(m.x - origin.x, m.y - origin.y) < 8) {
+        // Holding on your feet stops movement; don't pan the feet away from that cursor.
+        tx = this.look.x; ty = this.look.y;
+      } else if (held) {
+        let dx = (m.x - origin.x) / S, dy = (m.y - origin.y) / S;
         const l = Math.hypot(dx, dy), cap = reach / S;
         if (l > cap) { dx = (dx / l) * cap; dy = (dy / l) * cap; }
         tx = dx * 0.85; ty = dy * 0.85;
@@ -593,6 +599,8 @@ export class Game {
       this.input.mouseTile = { tx: Math.floor(u.x), ty: Math.floor(u.y) };
     }
     this.input.playerScreen = { x: W / 2 + (isoX(me.x, me.y) - camX) * S, y: H / 2 + (isoY(me.x, me.y) - 10 - camY) * S };
+    this.input.feetScreen = { x: this.world.x + isoX(me.x, me.y) * S, y: this.world.y + isoY(me.x, me.y) * S };
+    this.input.worldScale = S;
 
     // hit-stop / phase slip: remote entities and effects run on a slightly delayed, dilated clock (visual only)
     const fxScale = this.combat.frame(dt);
@@ -693,7 +701,7 @@ export class Game {
     g.zIndex = 1e9;
     const tv = this.targetId ? this.views.get(this.targetId) : undefined;
     if (tv && tv.root.visible) {
-      const ally = tv.type === 'player', c = ally ? 0x7dffa0 : 0xff5a5a, pulse = 0.65 + 0.35 * Math.sin(now / 160);
+      const ally = tv.type === 'player', c = ally ? 0x7dffa0 : 0xff5a5a, pulse = this.settings().reducedMotion ? 1 : 0.65 + 0.35 * Math.sin(now / 160);
       const rx = tv.type === 'enemy' && tv.kind === 5 ? 13 : 9;
       g.ellipse(tv.root.x, tv.root.y, rx, rx / 2).stroke({ width: 1.5, color: c, alpha: pulse });
       g.ellipse(tv.root.x, tv.root.y, rx + 3, (rx + 3) / 2).stroke({ width: 1, color: c, alpha: 0.3 * pulse });
@@ -710,8 +718,8 @@ export class Game {
       g.poly(pts).fill({ color: 0xcfe8ff, alpha: 0.07 });
     }
     if (armed) {
-      const pulse = 0.6 + 0.4 * Math.sin(now / 120);
-      const range = 7;
+      const pulse = this.settings().reducedMotion ? 1 : 0.6 + 0.4 * Math.sin(now / 120);
+      const range = this.ext.circuit.aimRange() ?? 7;
       const ex = me.x + a.x * range, ey = me.y + a.y * range;
       const n = 12;
       for (let i = 1; i <= n; i++) {
@@ -988,7 +996,7 @@ export class Game {
     this.gameplay.tutorialHint(); // Persist tutorial progress without covering the world.
     const hintEl = $('hint');
     const tip = this.combat.currentTip(now) ?? this.ext.hint();
-    hintEl.hidden = !tip || this.gameplay.blocking;
+    hintEl.hidden = !tip || this.gameplay.blocking || this.settingsOpen() || this.input.armed !== null;
     if (tip) hintEl.textContent = tip;
     const needs=this.gameplay.profile.needs;
     $('needs-hud').hidden=needs.mode!=='adventure';document.body.classList.toggle('needs-enabled',needs.mode==='adventure');

@@ -10,7 +10,7 @@ import { AbilityBar, type BarSlotInfo } from './bar';
 import { BoardView, type BoardTab } from './board';
 import { FloatLabels } from './labels';
 import { LumenDialog, LumenSprite } from './lumen';
-import { fillPlaceholders, mergeReady } from './model';
+import { abilityTargeting, fillPlaceholders, mergeReady } from './model';
 import { Progress, type ProgressKey } from './state';
 import { SpellRenderer, type SpellLike } from './spells';
 import { castShout, formName, orbName } from './text';
@@ -62,7 +62,8 @@ export class CircuitClient implements ClientModule {
       tutorialActive: () => this.progress.tutorialActive,
       dock: (slot) => this.dialog.dock(slot),
     });
-    this.bar = new AbilityBar({ cast: (q) => this.cast(q), ult: () => this.ult(), board: () => this.toggleBoard() });
+    this.bar = new AbilityBar({ cast: (q, direct) => { this.action(`ability${q + 1}` as ExtAction, direct); }, ult: (direct) => { this.action('ultimate', direct); }, board: () => this.toggleBoard() });
+    d.input.onArmChange = a => this.bar.setArmed(a === 'ultimate' ? 4 : a ? ABILITY_ACTIONS[a] ?? null : null);
     this.spells = new SpellRenderer(d);
     this.labels = new FloatLabels(d);
     this.lumen = new LumenSprite(d);
@@ -269,9 +270,13 @@ export class CircuitClient implements ClientModule {
 
   /** How an ability is aimed: `quick` abilities fire at once; `skill` abilities are skill shots (arm, aim, click). */
   private style(a: AbilityId): { skill: boolean; enemy: boolean; ally: boolean } {
-    const kinds = ABILITIES[a].forms.map((f) => f.kind);
-    const has = (...k: string[]) => kinds.some((x) => k.includes(x));
-    return { skill: has('bolt', 'blink', 'blink_back', 'link_enemy', 'link_ally'), enemy: has('bolt', 'link_enemy', 'pull', 'swap'), ally: has('heal', 'link_ally', 'swap') };
+    return abilityTargeting(a);
+  }
+
+  aimRange(): number | null {
+    const q = this.d.input.armed ? ABILITY_ACTIONS[this.d.input.armed] : undefined;
+    const ability = q === undefined ? null : this.progress.board.abilities[q];
+    return ability ? abilityTargeting(ability).range : null;
   }
 
   /** The selected target if this ability can use it (enemy for attacks, party mate for heals/threads). */
@@ -283,7 +288,7 @@ export class CircuitClient implements ClientModule {
   }
 
   private cast(q: number, manual = false): void {
-    if (this.d.dead() || this.d.wins.open) return;
+    if (this.d.dead() || this.d.wins.open || this.d.input.blocked()) return;
     const p = this.progress;
     const info = this.slotInfo()[q];
     if (!info) return;
@@ -307,14 +312,14 @@ export class CircuitClient implements ClientModule {
     void p;
   }
 
-  private ult(): void {
-    if (this.d.dead() || this.d.wins.open) return;
+  private ult(manual = false): void {
+    if (this.d.dead() || this.d.wins.open || this.d.input.blocked()) return;
     const p = this.progress;
     if (p.cls === 'wanderer') { this.bar.pulse('ult', 'denied'); this.d.toasts.add('Choose a path on the Board to unlock an ultimate.', 'info'); return; }
     if (this.res.v < this.res.max) { this.bar.pulse('ult', 'denied'); this.d.toasts.add(`${CLASSES[p.cls].ultimate.name} needs a full ${CLASSES[p.cls].resource.name} bar.`, 'info'); return; }
     if ((p.cd.ult ?? 0) > this.now()) { this.bar.pulse('ult', 'denied'); return; }
     const aim = this.d.aim();
-    const t = this.d.target();
+    const t = manual ? null : this.d.target();
     this.send(MSG34.ULT, { aimX: aim.x, aimY: aim.y, ...(t && t.kind === 'enemy' && p.cls === 'superposer' ? { target: t.id } : {}) });
     this.bar.pulse('ult', 'cast');
     this.d.sfx('levelup');
@@ -355,20 +360,24 @@ export class CircuitClient implements ClientModule {
 
   // ───────────────────────── hooks ─────────────────────────
 
-  action(a: ExtAction): boolean {
+  action(a: ExtAction, direct = false): boolean {
     if (this.dialog.open && !this.dialog.docked && !this.d.wins.open && this.dialog.el.getClientRects().length && a === 'chat') { this.dialog.advance(); return true; }
     if (a === 'board') { this.toggleBoard(); return true; }
     if (a in ABILITY_ACTIONS) {
-      if (this.d.wins.open) return true;
+      if (this.d.wins.open || this.d.input.blocked()) return true;
+      if (!direct && this.d.input.armed === a) { this.d.input.arm(null); return true; }
+      this.d.input.arm(null);
       const q = ABILITY_ACTIONS[a]!, info = this.slotInfo()[q];
-      // skill shots without a usable target wait for a click; everything else fires now
-      if (info?.ability && info.unlocked && info.readyAt <= this.now() && this.style(info.ability).skill && !this.pick(info.ability) && !this.d.dead()) this.d.input.arm(a as ExtAction);
+      // Desktop directional skills always wait for confirmation, even with a selected target.
+      if (!direct && info?.ability && info.unlocked && info.readyAt <= this.now() && this.style(info.ability).skill && !this.d.dead()) this.d.input.arm(a as ExtAction);
       else this.cast(q);
       return true;
     }
     if (a === 'ultimate') {
-      if (this.d.wins.open) return true;
-      if (this.progress.cls === 'superposer' && !this.d.target() && this.res.v >= this.res.max && !this.d.dead()) this.d.input.arm('ultimate');
+      if (this.d.wins.open || this.d.input.blocked()) return true;
+      if (!direct && this.d.input.armed === a) { this.d.input.arm(null); return true; }
+      this.d.input.arm(null);
+      if (!direct && this.progress.cls === 'superposer' && this.res.v >= this.res.max && !this.d.dead()) this.d.input.arm('ultimate');
       else this.ult();
       return true;
     }
@@ -378,7 +387,7 @@ export class CircuitClient implements ClientModule {
   fire(a: ExtAction): void {
     if (this.d.wins.open) return;
     if (a in ABILITY_ACTIONS) this.cast(ABILITY_ACTIONS[a]!, true);
-    else if (a === 'ultimate') this.ult();
+    else if (a === 'ultimate') this.ult(true);
   }
 
   // Story pages stay in the Board; gameplay keeps dodge, interaction and chat outside it.

@@ -421,3 +421,5 @@ svg.cb-links { position: absolute; left: 0; top: 0; pointer-events: none; overfl
 
 /* Story pages belong in the Board; free play keeps aiming and thumb space clear. */
 #p3-lumen:not(.docked) { display: none; }
+
+.p3-slot.aiming{outline:2px solid #d8edd2;outline-offset:2px}

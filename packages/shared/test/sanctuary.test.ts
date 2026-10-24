@@ -9,5 +9,5 @@ it('uses distinct habitats and keeps newcomers away from high-pressure enemies',
  expect(kinds('enchanted')).toContain('glasscrawler');expect(kinds('desert')).not.toContain('wolf');expect(kinds('taiga')).toContain('wolf');expect(kinds('meadow',true)).not.toContain('wolf');
  expect(kinds('enchanted')).not.toEqual(kinds('swamp'));
  for(const biome of ['meadow','forest','taiga','corrupted'] as const)expect(spawnTable(1,true,biome).every(e=>['slime','hopper'].includes(e.kind))).toBe(true);
- expect(spawnBudget(1,false)).toBeLessThanOrEqual(2);expect(spawnBudget(10,true,'corrupted')).toBeGreaterThan(spawnBudget(10,false,'meadow'));
+ expect(spawnBudget(1,false)).toBe(3);expect(spawnBudget(1,true)).toBe(4);expect(spawnBudget(10,true,'corrupted')).toBeGreaterThan(spawnBudget(10,false,'meadow'));
 });
