@@ -1,7 +1,8 @@
 import { EXT_ACTIONS, type Action, type KeyMap } from './keymap';
 import type { LocalInput } from '../net/prediction';
 
-const BUFFER_MS = 160;
+export type MovementMode = 'keyboard' | 'mouse';
+export const validMovementMode = (value: unknown): MovementMode => value === 'mouse' ? 'mouse' : 'keyboard';
 
 export interface InputReading extends LocalInput {
   interact: boolean;
@@ -11,19 +12,29 @@ export interface InputReading extends LocalInput {
 /** Unifies keyboard, mouse, gamepad and on-screen touch controls into one LocalInput per tick. */
 export class Input {
   private down = new Set<string>();
-  private buffered = new Map<Action, number>();
+  // A foreground tap survives until the next simulation sample, even on a slow frame.
+  private buffered = new Set<Action>();
   private mouse = { x: 0, y: 0, lastMove: -1, left: false, right: false };
   private stick = { x: 0, y: 0 };
   private touchHeld = new Set<Action>();
   private padPrev: boolean[] = [];
   keys: KeyMap;
   enabled = true;
+  /** UI/world lifecycle guard, checked at event time as well as simulation time. */
+  blocked: () => boolean = () => false;
+  movementMode: MovementMode = 'keyboard';
+  feetScreen = { x: 0, y: 0 };
+  worldScale = 1;
+  setMovementMode(value: unknown): void {
+    const mode = validMovementMode(value);
+    if (mode !== this.movementMode) { this.reset(); this.movementMode = mode; }
+  }
   /** UI hooks (quick-bar digits, wheel, panel hotkeys) */
   onHotbar: ((i: number) => void) | null = null;
   onCycle: ((dir: number) => void) | null = null;
   onPanel: ((a: 'inventory' | 'journal' | 'craft') => void) | null = null;
   /** Phase 3/4 actions: abilities, ultimate, board, chat, party (keys, gamepad and touch) */
-  onAction: ((a: typeof EXT_ACTIONS[number]) => void) | null = null;
+  onAction: ((a: typeof EXT_ACTIONS[number], direct?: boolean) => void) | null = null;
   private interactDown = false;
   /** ability armed with its key: the next left click fires it at the cursor (Esc or the same key disarms) */
   armed: typeof EXT_ACTIONS[number] | null = null;
@@ -36,7 +47,7 @@ export class Input {
   arm(a: typeof EXT_ACTIONS[number] | null): void { this.setArmed(a); }
   private setArmed(a: typeof EXT_ACTIONS[number] | null): void { if (this.armed !== a) { this.armed = a; this.onArmChange?.(a); } }
   /** right mouse held: look ahead toward the cursor */
-  get lookHeld(): boolean { return this.mouse.right; }
+  get lookHeld(): boolean { return this.enabled && !this.blocked() && this.mouse.right; }
   /** where the player is on screen, for mouse aiming (CSS px) */
   playerScreen = { x: 0, y: 0 };
   /** optional aim assist used by touch and gamepad */
@@ -56,10 +67,12 @@ export class Input {
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
     window.addEventListener('blur', () => this.reset());
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', this.onVisibilityChange);
     el.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') { this.mouse.x = e.clientX; this.mouse.y = e.clientY; this.mouse.lastMove = performance.now(); } });
     el.addEventListener('pointerdown', (e) => {
       this.firstGesture?.();
       if (e.pointerType !== 'mouse') return;
+      if (!this.enabled || this.blocked()) { this.reset(); return; }
       this.mouse.x = e.clientX; this.mouse.y = e.clientY; this.mouse.lastMove = performance.now();
       if (e.button === 0) {
         if (this.armed) { const a = this.armed; this.setArmed(null); this.onFire?.(a); }
@@ -68,6 +81,8 @@ export class Input {
       if (e.button === 2) this.mouse.right = true;
     });
     window.addEventListener('pointerup', (e) => { if (e.button === 0) this.mouse.left = false; if (e.button === 2) this.mouse.right = false; });
+    el.addEventListener('pointercancel', () => this.reset());
+    el.addEventListener('pointerleave', () => { this.mouse.left = this.mouse.right = false; this.buffered.delete('attack'); });
     el.addEventListener('contextmenu', (e) => e.preventDefault());
     el.addEventListener('wheel', (e) => { this.onCycle?.(e.deltaY > 0 ? 1 : -1); e.preventDefault(); }, { passive: false });
   }
@@ -80,14 +95,16 @@ export class Input {
     if ((tag === 'BUTTON' || tag === 'SUMMARY') && ['Space', 'Enter'].includes(e.code) && (e.target as HTMLElement).closest?.('[role="dialog"], #hud-menu, #hud-actions')) return;
     this.firstGesture?.();
     if (e.repeat) { if (this.isBound(e.code)) e.preventDefault(); return; }
-    this.down.add(e.code);
-    for (const a of ['attack', 'skill', 'dash', 'interact'] as Action[]) if (this.keys[a].includes(e.code)) { this.buffer(a); e.preventDefault(); }
+    const playing = this.enabled && !this.blocked();
+    if (playing) this.down.add(e.code); else this.reset();
+    for (const a of ['attack', 'skill', 'dash', 'interact'] as Action[]) if (this.keys[a].includes(e.code)) { if (playing) this.buffer(a); e.preventDefault(); }
     if (/^Digit[0-9]$/.test(e.code)) { this.onHotbar?.((Number(e.code.slice(5)) + 9) % 10); e.preventDefault(); }
     if (this.keys.prev.includes(e.code)) this.onCycle?.(-1);
     if (this.keys.next.includes(e.code)) this.onCycle?.(1);
     for (const a of ['inventory', 'journal', 'craft'] as const) if (this.keys[a].includes(e.code)) { this.onPanel?.(a); e.preventDefault(); }
     if (e.code === 'Escape') { if (this.armed) this.setArmed(null); else this.onClearTarget?.(); }
     for (const a of EXT_ACTIONS) if (this.keys[a].includes(e.code)) {
+      if (!playing && (a.startsWith('ability') || a === 'ultimate')) { e.preventDefault(); continue; }
       // an armed ability's own key cancels it; otherwise the module decides: cast now (quick / auto-aimed) or arm the aim
       if (this.armed === a) this.setArmed(null);
       else { this.setArmed(null); this.onAction?.(a); }
@@ -96,8 +113,9 @@ export class Input {
     if (this.isBound(e.code)) e.preventDefault();
   };
   private onKeyUp = (e: KeyboardEvent): void => { this.down.delete(e.code); };
+  private onVisibilityChange = (): void => { if (document.hidden) this.reset(); };
   private isBound(code: string): boolean { return Object.values(this.keys).some((l) => l.includes(code)); }
-  private buffer(a: Action): void { this.buffered.set(a, performance.now() + BUFFER_MS); }
+  private buffer(a: Action): void { this.buffered.add(a); }
 
   /** Called by the on-screen touch UI. */
   setStick(x: number, y: number): void { this.stick.x = x; this.stick.y = y; }
@@ -107,14 +125,7 @@ export class Input {
 
   private isDown(a: Action): boolean { return this.keys[a].some((k) => this.down.has(k)); }
 
-  private consume(a: Action, now: number): boolean {
-    const exp = this.buffered.get(a);
-    if (exp !== undefined) {
-      this.buffered.delete(a);
-      if (exp >= now) return true;
-    }
-    return false;
-  }
+  private consume(a: Action): boolean { return this.buffered.delete(a); }
 
   /** mouse tile under the cursor (set by the game each frame), for cursor-targeted tool use */
   mouseTile: { tx: number; ty: number } | null = null;
@@ -122,9 +133,9 @@ export class Input {
   get mouseActive(): boolean { return this.mouse.lastMove > 0; }
   get interactHeld(): boolean { return this.isDown('interact') || this.touchHeld.has('interact'); }
 
-  read(now = performance.now()): InputReading {
+  read(_now?: number): InputReading {
     const r: InputReading = { dx: 0, dy: 0, dash: false, attack: false, hold: false, skill: false, aimX: 0, aimY: 0, interact: false, usedKeyboardOrPad: false };
-    if (!this.enabled) { this.buffered.clear(); return r; }
+    if (!this.enabled || this.blocked()) { this.reset(); return r; }
     let dx = (this.isDown('right') ? 1 : 0) - (this.isDown('left') ? 1 : 0);
     let dy = (this.isDown('down') ? 1 : 0) - (this.isDown('up') ? 1 : 0);
     if (dx || dy) r.usedKeyboardOrPad = true;
@@ -147,7 +158,7 @@ export class Input {
       if (edge(9)) this.onPanel?.('inventory');
       // d-pad: orb abilities 1-4; stick clicks: ultimate; select: Circuit Board
       ([[12, 'ability1'], [15, 'ability2'], [13, 'ability3'], [14, 'ability4'], [10, 'ultimate'], [11, 'ultimate'], [8, 'board']] as const)
-        .forEach(([i, a]) => { if (edge(i)) this.onAction?.(a); });
+        .forEach(([i, a]) => { if (edge(i)) this.onAction?.(a, true); });
       this.padPrev = pad.buttons.map((x) => x.pressed);
     }
 
@@ -155,16 +166,22 @@ export class Input {
     // keys/sticks are screen-relative (W = up the screen): rotate into iso world axes
     const ln = Math.hypot(dx, dy);
     if (ln > 0) { const wx = (dx + dy) * Math.SQRT1_2, wy = (dy - dx) * Math.SQRT1_2; const wl = Math.hypot(wx, wy) || 1; const m = Math.min(1, ln); dx = (wx / wl) * m; dy = (wy / wl) * m; }
+    if (!ln && this.movementMode === 'mouse' && this.mouse.right) {
+      // Cursor is a ground point, independent of actor height, zoom or camera look-ahead.
+      const sx = (this.mouse.x - this.feetScreen.x) / this.worldScale, sy = (this.mouse.y - this.feetScreen.y) / this.worldScale;
+      const wx = sy / 16 + sx / 32, wy = sy / 16 - sx / 32, d = Math.hypot(wx, wy);
+      if (d > 0.12) { const speed = Math.min(1, d / 0.8); dx = wx / d * speed; dy = wy / d * speed; }
+    }
     r.dx = dx; r.dy = dy;
 
     const attackHeld = this.isDown('attack') || this.mouse.left || this.touchHeld.has('attack') || padAttack;
     const skillHeld = this.isDown('skill') || this.touchHeld.has('skill') || padSkill;
     // attack = a press (tap: 3-hit combo, buffered by the sim); hold = still held (charges a heavy, released to strike)
-    r.attack = this.consume('attack', now) || padAttackEdge;
+    r.attack = this.consume('attack') || padAttackEdge;
     r.hold = attackHeld;
-    r.skill = skillHeld || this.consume('skill', now);
-    r.dash = this.consume('dash', now) || padDash;
-    r.interact = this.consume('interact', now) || padInteract;
+    r.skill = skillHeld || this.consume('skill');
+    r.dash = this.consume('dash') || padDash;
+    r.interact = this.consume('interact') || padInteract;
     this.buffered.delete('attack'); this.buffered.delete('skill');
 
     // aiming: recent mouse > right stick > auto-aim (touch/pad) > facing (server falls back to face)
@@ -194,5 +211,6 @@ export class Input {
   destroy(): void {
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
+    if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', this.onVisibilityChange);
   }
 }

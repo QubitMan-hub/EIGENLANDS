@@ -113,6 +113,8 @@ export function buildJournal(profile: Profile, portrait: (npcId: string) => stri
       body.append(h('div', { class: 'small dim', text: `${profile.recipes.size} / ${RECIPES.length} recipes known. Experiment at stations to discover more; villagers teach some once you are friends.` }));
     } else {
       const rows: Array<[string, string]> = [
+        ['Mouse movement', 'Settings → Controls → Movement controls: Mouse. Hold right button to move toward the ground cursor and look ahead; release to stop. Your movement keys still work. Keyboard mode keeps right button as look only.'],
+        ['Aim directional orbs', 'Press an orb key, aim the direction preview, then left click to cast. Escape or the same key cancels. Selected enemies do not bypass aiming. Touch/gamepad cast directly; self abilities remain instant.'],
         ['Combo', 'tap Attack: slash, slash, lunging finisher (presses are buffered; dash cancels recovery)'],
         ['Heavy strike', 'hold Attack to charge (ring fills), release to cleave — breaks armour'],
         ['Phase Slip', 'dash through a red warning just before it fills: slow-mo + guaranteed critical counter'],
@@ -121,7 +123,7 @@ export function buildJournal(profile: Profile, portrait: (npcId: string) => stri
         ['Quick-bar', `1–0 · mouse wheel · ${binding(keys,'prev')} / ${binding(keys,'next')} · tap`],
         ['In conversations', `click / ${binding(keys,'interact')} / Space: skip text and turn pages · 1–9: pick an answer · Esc: leave`], ['Settings', 'Menu → Settings · F3 debug'],
       ];
-      const devices: Record<string,string> = { up:'left stick / touch stick', down:'left stick / touch stick', left:'left stick / touch stick', right:'left stick / touch stick', attack:'left click · gamepad A / RT', skill:'right click · gamepad X', dash:'Dodge button · gamepad B', interact:'Use button · gamepad Y', prev:'mouse wheel', next:'mouse wheel' };
+      const devices: Record<string,string> = { up:'left stick / touch stick', down:'left stick / touch stick', left:'left stick / touch stick', right:'left stick / touch stick', attack:'left click · gamepad A / RT', skill:'gamepad X / LT', dash:'Dodge button · gamepad B', interact:'Use button · gamepad Y', prev:'mouse wheel', next:'mouse wheel' };
       rows.unshift(...ACTIONS.map(a => [ACTION_LABELS[a], `${binding(keys, a)}${devices[a] ? ` · ${devices[a]}` : ''}`] as [string,string]));
       for (const [a, b] of rows) body.append(h('div', { class: 'keyrow' }, h('span', { text: a }), h('span', { class: 'dim', text: b })));
       body.append(h('div', { class: 'small dim', text: 'Your Quests tab keeps objectives and next steps together. The “How to…” tab explains each system. Open the Journal any time from its button or your Journal key.' }));

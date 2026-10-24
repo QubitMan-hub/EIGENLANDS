@@ -75,7 +75,7 @@ export const metrics = { players: 0, enemies: 0, tickMsAvg: 0, tickMsMax: 0, tic
 const SPAWN = { x: 0.5, y: 4.5 };
 const MAX_QUEUE = 24;
 const MAX_ENEMIES = 48;
-const MAX_FAUNA = 16;
+const MAX_FAUNA = 24;
 const key = (cx: number, cy: number) => `${cx},${cy}`;
 
 export class WorldRoom extends Room<WorldState> implements RoomApi {
@@ -926,7 +926,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     }
   }
 
-  /** Sparse encounters, shared local budgets and recovery time after each group. */
+  /** Wilderness encounters with shared local budgets and recovery time after each group. */
   private ambientSpawn(now: number): void {
     let total = [...this.enemies.values()].filter(e => !e.def.passive && !e.def.neutral).length;
     for (const id of this.encounterAt.keys()) if (!this.players.has(id)) this.encounterAt.delete(id);
@@ -935,50 +935,51 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       if (sanctuaryAt(this.seed, p.sim.x, p.sim.y)) { this.encounterAt.set(p.id, now + 12000); continue; }
       if (!this.encounterAt.has(p.id)) this.encounterAt.set(p.id, now + 8000);
       if (now < this.encounterAt.get(p.id)!) continue;
-      // A failed search also backs off, rather than checking six fresh positions every second.
-      this.encounterAt.set(p.id, now + 5000);
+      // Back off failed searches while keeping placement work bounded.
+      this.encounterAt.set(p.id, now + 3000);
       const night = isNight(now) || isCaveY(p.sim.y), biome = biomeAt(this.seed, p.sim.x, p.sim.y);
       let used = 0, near = 0;
       for (const e of this.enemies.values()) if (!e.def.passive && !e.def.neutral && Math.hypot(e.x - p.sim.x, e.y - p.sim.y) < 40) { used += e.def.budget ?? 1; near++; }
-      const headroom = Math.min(6, 3 + Math.floor(p.level / 4)) - near;
+      const headroom = Math.min(6, 4 + Math.floor(p.level / 4)) - near;
       const budget = spawnBudget(p.level, night, biome);
       if (used >= budget || headroom <= 0) continue;
-      for (let tries = 0; tries < 6; tries++) {
-        const a = this.rand() * Math.PI * 2, d = 22 + this.rand() * 12;
+      for (let tries = 0; tries < 10; tries++) {
+        const a = this.rand() * Math.PI * 2, d = 16 + this.rand() * 10;
         const x = Math.floor(p.sim.x + Math.cos(a) * d) + .5, y = Math.floor(p.sim.y + Math.sin(a) * d) + .5;
         const habitat = biomeAt(this.seed, x, y);
         const kind = pickSpawn(p.level, night, this.rand(), habitat, isCaveY(y)), def = ENEMY_DEFS[kind];
         const cost = def.budget ?? 1;
         if (used + cost > budget || Math.hypot(x, y) < 12 || buildingAt(this.seed, x, y) || sanctuaryAt(this.seed, x, y) || this.store.solidAt(Math.floor(x), Math.floor(y))) continue;
-        if ([...this.players.values()].some(other => other.deadT <= 0 && Math.hypot(x - other.sim.x, y - other.sim.y) < 18)) continue;
+        if ([...this.players.values()].some(other => other.deadT <= 0 && Math.hypot(x - other.sim.x, y - other.sim.y) < 14)) continue;
         if ([...this.enemies.values()].some(e => !e.def.passive && Math.hypot(x - e.x, y - e.y) < 3)) continue;
         const pack = kind === 'mite' ? 2 : kind === 'wolf' ? 2 : 1;
         const n = Math.min(pack, headroom, Math.floor((budget - used) / cost), MAX_ENEMIES - total);
         for (let i = 0; i < n; i++) {
           const px = x + i * 1.1, py = y + i * .6;
-          if (sanctuaryAt(this.seed, px, py) || this.store.solidAt(Math.floor(px), Math.floor(py)) || [...this.players.values()].some(other => Math.hypot(px - other.sim.x, py - other.sim.y) < 18)) continue;
+          if (sanctuaryAt(this.seed, px, py) || this.store.solidAt(Math.floor(px), Math.floor(py)) || [...this.players.values()].some(other => Math.hypot(px - other.sim.x, py - other.sim.y) < 14)) continue;
           const elite = p.level >= 3 && n === 1 && this.rand() < eliteChance(p.level, night) ? [ELITE.HARDENED, ELITE.SWIFT, ELITE.VOLATILE][Math.floor(this.rand() * 3)]! : 0;
           this.spawnEnemy(kind, px, py, night, { level: p.level, elite }); total++;
         }
-        this.encounterAt.set(p.id, now + (night ? 14000 : 20000) + this.rand() * 8000);
+        this.encounterAt.set(p.id, now + (night ? 12000 : 16000) + this.rand() * 6000);
         break;
       }
     }
   }
 
-  /** Daytime rabbits (anywhere on turf) and deer (in groves) wander in near players. */
+  /** Grazing animals by day, modest nocturnal wildlife at night; both stay outside wards. */
   private ambientFauna(now: number): void {
-    if (isNight(now)) return;
+    const night = isNight(now), localMax = night ? 3 : 5;
     let total = 0;
     for (const e of this.enemies.values()) if (e.def.passive || e.def.neutral) total++;
     if (total >= MAX_FAUNA) return;
     for (const p of this.players.values()) {
+      if (total >= MAX_FAUNA) break;
       if (p.deadT > 0 || isUpperY(p.sim.y) || isDiveY(p.sim.y)) continue;
       let near = 0;
       for (const e of this.enemies.values()) if ((e.def.passive || e.def.neutral) && Math.hypot(e.x - p.sim.x, e.y - p.sim.y) < 40) near++;
-      if (near >= 3) continue;
-      for (let tries = 0; tries < 6; tries++) {
-        const a = this.rand() * Math.PI * 2, d = 16 + this.rand() * 10;
+      if (near >= localMax) continue;
+      for (let tries = 0; tries < 10; tries++) {
+        const a = this.rand() * Math.PI * 2, d = 10 + this.rand() * 8;
         const x = Math.floor(p.sim.x + Math.cos(a) * d), y = Math.floor(p.sim.y + Math.sin(a) * d);
         if (Math.hypot(x, y) < 12 || buildingAt(this.seed, x, y) || sanctuaryAt(this.seed, x, y)) continue;
         const t = this.store.getTile(x, y);
@@ -991,7 +992,10 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
         // hares on the dunes, badgers on open ground
         const r = this.rand();
         const waterBank = [[3, 0], [-3, 0], [0, 3], [0, -3]].some(([dx, dy]) => { const t = this.store.getTile(x + dx!, y + dy!); return t === T.WATER; });
-        const kind: EnemyKind = waterBank && r < 0.5 ? 'otter'
+        const kind: EnemyKind = night ? (waterBank && r < 0.5 ? 'otter'
+          : biome === 'desert' ? 'rabbit' : trees >= 4 && r > 0.8 ? 'owl'
+          : biome === 'forest' && r < 0.25 ? 'fox' : (biome === 'swamp' || biome === 'autumn') && r < 0.45 ? 'boar' : 'badger')
+          : waterBank && r < 0.5 ? 'otter'
           : biome === 'desert' ? (r < 0.35 ? 'tortoise' : 'rabbit')
           : trees >= 4 && r > 0.85 ? 'owl'
           : biome === 'forest' && r < 0.25 ? 'fox'
@@ -999,12 +1003,15 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
           : biome === 'swamp' ? (r < 0.6 ? 'boar' : 'badger')
           : biome === 'autumn' ? (r < 0.5 ? 'boar' : r < 0.85 ? 'deer' : 'rabbit')
           : trees >= 6 ? (r < 0.5 ? 'deer' : r < 0.75 ? 'boar' : 'rabbit') : (r < 0.2 ? 'badger' : 'rabbit');
-        const n = Math.min(MAX_FAUNA - total, 3 - near, kind === 'deer' ? 2 : 1);
+        const n = Math.min(MAX_FAUNA - total, localMax - near, kind === 'deer' || kind === 'boar' ? 2 : 1);
+        let added = 0;
         for (let i = 0; i < n; i++) {
           const hx = x + 0.5 + Math.cos(i * 2.1) * 1.2, hy = y + 0.5 + Math.sin(i * 2.1) * 1.2;
-          if (!sanctuaryAt(this.seed, hx, hy) && !this.store.solidAt(Math.floor(hx), Math.floor(hy))) { this.spawnEnemy(kind, hx, hy, false); total++; }
+          if (!sanctuaryAt(this.seed, hx, hy) && !this.store.solidAt(Math.floor(hx), Math.floor(hy))
+            && ![...this.players.values()].some(other => Math.hypot(hx - other.sim.x, hy - other.sim.y) < 8)
+            && ![...this.enemies.values()].some(e => Math.hypot(e.x - hx, e.y - hy) < 2)) { this.spawnEnemy(kind, hx, hy, false); total++; added++; }
         }
-        break;
+        if (added) break;
       }
     }
   }

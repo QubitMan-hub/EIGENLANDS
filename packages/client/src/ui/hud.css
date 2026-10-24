@@ -114,3 +114,6 @@ button svg.pix { display: inline-block; }
 #needs-hud progress.low { accent-color:#dc9e74; } #needs-hud progress.low::-webkit-progress-value { background:#dc9e74; } #needs-hud progress.low::-moz-progress-bar { background:#dc9e74; }
 @media(orientation:landscape) and (max-height:600px) { html body #toasts { top:calc(var(--ledger-bottom, 80px) + 32px); } }
 .travel-guide select { min-height:44px; max-width:100%; }
+
+#s-movement{min-height:44px;width:100%;max-width:100%}
+body:has(#settings:not([hidden])) #voice-chip{display:none}

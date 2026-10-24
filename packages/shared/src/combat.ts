@@ -309,5 +309,5 @@ export function pickSpawn(level: number, night: boolean, roll: number, biome: Bi
 
 /** Spawn budget (sum of EnemyDef.budget) kept around each player. */
 export function spawnBudget(level: number, night: boolean, biome: Biome = 'meadow'): number {
-  return (night ? 3 : 2) + Math.min(2, Math.max(0, level - 1) * 0.2) + (biome === 'corrupted' ? 1 : 0);
+  return (night ? 4 : 3) + Math.min(2, Math.max(0, level - 1) * 0.2) + (biome === 'corrupted' ? 1 : 0);
 }

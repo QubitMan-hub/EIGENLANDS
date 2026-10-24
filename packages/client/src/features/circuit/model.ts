@@ -10,6 +10,13 @@ import {
 } from '@eigenlands/shared';
 
 export type EditResult = { ok: true; board: Board } | { ok: false; why: string };
+/** Directional reach is the maximum possible form before the quantum outcome is measured. */
+export function abilityTargeting(a: AbilityId): { skill: boolean; enemy: boolean; ally: boolean; range: number } {
+  const forms = ABILITIES[a].forms, kinds = forms.map(f => f.kind);
+  const has = (...k: string[]) => kinds.some(x => k.includes(x));
+  const directional = forms.filter(f => ['bolt', 'blink', 'blink_back', 'link_enemy', 'link_ally'].includes(f.kind));
+  return { skill: !!directional.length, enemy: has('bolt', 'link_enemy', 'pull', 'swap'), ally: has('heal', 'link_ally', 'swap'), range: Math.max(0, ...directional.map(f => f.range ?? f.radius ?? 7)) };
+}
 const ok = (board: Board): EditResult => ({ ok: true, board });
 const no = (why: string): EditResult => ({ ok: false, why });
 

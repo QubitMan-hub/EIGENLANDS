@@ -27,7 +27,7 @@ export class P34Client {
     this.voice = new VoiceClient(d);
     this.atlas = new AtlasClient(d, () => this.social.partyState);
     this.mods = [this.shard, this.circuit, this.social, this.shadows, this.adventure, this.voice, this.atlas];
-    d.input.onAction = (a) => { for (const m of this.mods) if (m.action?.(a)) return; };
+    d.input.onAction = (a, direct) => { for (const m of this.mods) if (m.action?.(a, direct)) return; };
     d.input.onFire = (a) => { for (const m of this.mods) m.fire?.(a); };
   }
 

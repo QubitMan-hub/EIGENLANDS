@@ -34,17 +34,17 @@ export class AbilityBar {
   private sig = '';
   private touch = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
 
-  constructor(private act: { cast(line: number): void; ult(): void; board(): void }) {
+  constructor(private act: { cast(line: number, direct: boolean): void; ult(direct: boolean): void; board(): void }) {
     this.root.classList.toggle('p3-touch', this.touch);
     this.root.setAttribute('role', 'toolbar');
     this.root.setAttribute('aria-label', 'Orb abilities');
     const row = h('div', { class: 'p3-slots' });
     for (let i = 0; i < ACTIVE_LINES; i++) {
-      const s = this.makeSlot(`p3-slot`, () => this.act.cast(i));
+      const s = this.makeSlot(`p3-slot`, direct => this.act.cast(i, direct));
       this.slots.push(s);
       row.append(s.el);
     }
-    this.ult = this.makeSlot('p3-slot p3-ult', () => this.act.ult());
+    this.ult = this.makeSlot('p3-slot p3-ult', direct => this.act.ult(direct));
     row.append(this.ult.el);
     this.res.append(this.resName, h('span', { class: 'p3-res-bar' }, this.resFill), this.resText);
     this.root.append(this.res, row);
@@ -57,7 +57,11 @@ export class AbilityBar {
     if (btns) btns.append(this.boardBtn); else this.root.append(this.boardBtn);
   }
 
-  private makeSlot(cls: string, fire: () => void): SlotEl {
+  setArmed(q: number | null): void {
+    [...this.slots, this.ult].forEach((s, i) => { s.el.classList.toggle('aiming', q === i); s.el.setAttribute('aria-pressed', String(q === i)); });
+  }
+
+  private makeSlot(cls: string, fire: (direct: boolean) => void): SlotEl {
     const glyph = h('span', { class: 'p3-glyph' });
     const el2 = h('img', { class: 'p3-el', alt: '' });
     const key = h('span', { class: 'p3-key' });
@@ -65,8 +69,8 @@ export class AbilityBar {
     const num = h('span', { class: 'p3-cdn' });
     const el = h('button', { class: cls }, sweep, glyph, el2, key, num);
     // pointerdown so a tap fires at once on touch screens (no 300ms click delay, works while the stick is held)
-    el.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); fire(); });
-    el.addEventListener('click', (e) => { if (e.detail === 0) fire(); });
+    el.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); fire(e.pointerType === 'touch' || e.pointerType === 'pen'); });
+    el.addEventListener('click', (e) => { if (e.detail === 0) fire(false); });
     return { el, glyph, el2, key, sweep, num, last: '' };
   }
 

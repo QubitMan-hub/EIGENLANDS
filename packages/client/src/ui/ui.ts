@@ -1,9 +1,11 @@
 import './fonts';
 import './hud.css';
 import { iconSvg } from './icons';
+import { validMovementMode, type MovementMode } from '../input/input';
 import { ACTIONS, ACTION_LABELS, keyLabel, rebind, saveKeys, type Action, type KeyMap } from '../input/keymap';
 
 export interface Settings {
+  movementMode: MovementMode;
   reducedMotion: boolean;
   textScale: number; // 1 | 1.25 | 1.5
   colorblind: 'off' | 'protan' | 'deutan' | 'tritan';
@@ -16,10 +18,11 @@ export interface Settings {
 const KEY = 'eigen.settings';
 export function loadSettings(): Settings {
   const d: Settings = {
+    movementMode: 'keyboard',
     reducedMotion: matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false,
     textScale: 1, colorblind: 'off', muted: false, captions: false, volume: 0.5, highContrastHud: false,
   };
-  try { return { ...d, ...(JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<Settings>) }; } catch { return d; }
+  try { const s = { ...d, ...(JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<Settings>) }; return { ...s, movementMode: validMovementMode(s.movementMode) }; } catch { return d; }
 }
 export function saveSettings(s: Settings): void { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* ignore */ } }
 
@@ -135,7 +138,11 @@ export const HTML = `
     <div class="win-head"><div class="win-title">Settings</div></div>
     <div class="win-body">
     <div class="grid">
-      <section><h3>Controls</h3><div id="keys"></div><p class="small dim">Click a control, then press the new key. Mouse: left = attack, right = skill (aims at the cursor).</p></section>
+      <section><h3>Controls</h3>
+        <label for="s-movement">Movement controls</label><select id="s-movement" aria-describedby="movement-help"><option value="keyboard">WASD / keyboard</option><option value="mouse">Mouse — hold right button</option></select>
+        <p id="movement-help" class="small dim">Keyboard: your movement keys; right button looks ahead. Mouse: hold right button to move toward the cursor and look ahead; release to stop. Movement keys, touch and gamepad remain available.</p>
+        <p class="small dim">Left click attacks or shoots at the cursor. Directional orbs: press their key, aim, then left click to cast. Escape or the same key cancels. Self abilities cast immediately.</p>
+        <div id="keys"></div><p class="small dim">Click a control below, then press the new key. Your custom bindings are kept when changing movement controls.</p></section>
       <section><h3>Accessibility</h3>
         <label class="tog"><input type="checkbox" id="s-motion"> Reduce motion (no shake, fewer particles, still water)</label>
         <label>Text size <select id="s-text"><option value="1">Normal</option><option value="1.25">Large</option><option value="1.5">Extra large</option></select></label>
@@ -182,6 +189,7 @@ export class SettingsUI {
       if ((['inventory', 'journal', 'craft', 'map', 'board'] as const).some(a => this.keys[a].includes(e.code))) dismissMenu();
     }, { capture: true });
     const s = this.settings;
+    $<HTMLSelectElement>('s-movement').value = s.movementMode;
     $<HTMLInputElement>('s-motion').checked = s.reducedMotion;
     $<HTMLSelectElement>('s-text').value = String(s.textScale);
     $<HTMLSelectElement>('s-cb').value = s.colorblind;
@@ -190,6 +198,7 @@ export class SettingsUI {
     $<HTMLInputElement>('s-mute').checked = s.muted;
     $<HTMLInputElement>('s-vol').value = String(Math.round(s.volume * 100));
     const upd = () => {
+      s.movementMode = validMovementMode($<HTMLSelectElement>('s-movement').value);
       s.reducedMotion = $<HTMLInputElement>('s-motion').checked;
       s.textScale = Number($<HTMLSelectElement>('s-text').value);
       s.colorblind = $<HTMLSelectElement>('s-cb').value as Settings['colorblind'];
@@ -200,7 +209,7 @@ export class SettingsUI {
       saveSettings(s);
       this.apply();
     };
-    for (const id of ['s-motion', 's-text', 's-cb', 's-hc', 's-cap', 's-mute', 's-vol']) $(id).addEventListener('input', upd);
+    for (const id of ['s-movement', 's-motion', 's-text', 's-cb', 's-hc', 's-cap', 's-mute', 's-vol']) $(id).addEventListener('input', upd);
     $('btn-signout').addEventListener('click', handlers.signOut);
     $('btn-delete').addEventListener('click', () => {
       if (confirm('Delete your account, character and all saved data? This cannot be undone.')) handlers.deleteAccount();

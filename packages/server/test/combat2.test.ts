@@ -266,7 +266,7 @@ describe('new enemies', () => {
     expect([...kinds].every((k) => k === 'Wisp Slime' || k === 'Glint Hopper')).toBe(true);
     let budget = 0;
     for (const e of p.w.enemies.values()) if (Math.hypot(e.x - p.sp.sim.x, e.y - p.sp.sim.y) < 40) budget += e.def.budget ?? 1;
-    expect(budget).toBeLessThanOrEqual(3);
+    expect(budget).toBeLessThanOrEqual(4); // level-one night reserve; newcomer species remain restricted
     clear(p.w);
     p.sp.level = 8;
     const seen = new Set<string>();
