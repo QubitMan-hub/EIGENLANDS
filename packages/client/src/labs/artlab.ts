@@ -43,6 +43,7 @@ const app = new Application();
 await app.init({ canvas: document.getElementById('c') as HTMLCanvasElement, resizeTo: window, background: 0x0b0c1a, antialias: false, roundPixels: true, resolution: 1, preference: 'webgl' });
 
 if (mode === 'construction') {
+  document.documentElement.style.overflow='auto';document.documentElement.style.height='auto';document.body.style.height='auto';
   app.canvas.style.display = 'none'; document.body.style.overflow = 'auto';
   const gallery = document.createElement('div'); gallery.style.cssText='display:flex;flex-wrap:wrap;gap:16px;padding:24px;background:#263b35;color:#f2e4c5;font:14px sans-serif';
   for (const [id,piece] of Object.entries(BUILD_PIECES)) for (const turn of piece.layer==='floor'?[0]:[0,1,2,3]) {
@@ -344,7 +345,7 @@ if (mode === 'construction') {
     world.x = Math.round(W / 2 - camX * S); world.y = Math.round(H / 2 - camY * S);
     const ow = Math.floor(camX - W / 2 / S), oh = Math.floor(camY - H / 2 / S);
     terrain.render(ow, oh, c0x, c0y, now / 1000, season, !noMotion);
-    terrain.sprite.x = world.x + ow * S; terrain.sprite.y = world.y + oh * S;
+    terrain.sprite.x = world.x + terrain.originX * S; terrain.sprite.y = world.y + terrain.originY * S;
     const b = [camTx - 30, camTy - 30, camTx + 30, camTy + 30] as const;
     objects.update(now, sun, noMotion, ...b);
     wobjs.update(now, sun, noMotion, ...b);

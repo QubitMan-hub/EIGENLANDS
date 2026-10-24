@@ -22,6 +22,7 @@ declare global {
 
 async function boot(): Promise<void> {
   $('app').innerHTML = HTML;
+  $<HTMLButtonElement>('btn-guest').disabled = true;
   $('btn-landscape').addEventListener('click', () => { void requestLandscape(true); });
   $('btn-portrait').addEventListener('click', () => document.documentElement.classList.add('portrait-allowed'));
   const settings = loadSettings();
@@ -94,6 +95,7 @@ async function boot(): Promise<void> {
     } catch (e) { msg(`Cannot reach the game server (${(e as Error).message}).`); }
   });
 
+  $<HTMLButtonElement>('btn-guest').disabled = false;
   const resumed = await resumeSession();
   if (resumed) {
     $<HTMLInputElement>('name').value = resumed.name ?? '';

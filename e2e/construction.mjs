@@ -64,7 +64,9 @@ try{
  await p.reload();await ready();await p.evaluate(()=>window.__eigen.game.app.ticker.maxFPS=12);
  await p.waitForFunction(({x,y})=>window.__eigen.game.store.structureAt(x+1,y+1-80000)?.data.stairs==='down'&&window.__eigen.game.store.structureAt(x+3,y+3-80000)?.data.roof==='shingle_roof',site,{timeout:30000});
  await tp(site.x+1.5,site.y+1.5-80000);await p.keyboard.press('KeyX');await p.waitForFunction(({y})=>Math.abs(window.__eigen.state().y-(y+1.5))<.2,site,{timeout:30000});
- await p.evaluate(({x,y})=>window.__eigen.game.net.open(x+2,y+4),site); // outside reach: server must refuse
+ await tp(site.x+2.5,site.y-2.5);
+ await p.evaluate(({x,y})=>window.__eigen.game.net.open(x+2,y+4),site);
+ await p.waitForTimeout(300);assert(await p.evaluate(({x,y})=>window.__eigen.game.store.solidAt(x+2,y+4),site),'out-of-reach OPEN must leave the door closed');
  await tp(site.x+2.5,site.y+3.5);await p.evaluate(({x,y})=>window.__eigen.game.net.open(x+2,y+4),site);
  await p.waitForFunction(({x,y})=>!window.__eigen.game.store.solidAt(x+2,y+4),site);
  await tp(site.x+2.5,site.y+6.5);await p.waitForFunction(()=>window.__eigen.game.construction.room.size===0);await p.screenshot({path:`${out}/exterior.png`});

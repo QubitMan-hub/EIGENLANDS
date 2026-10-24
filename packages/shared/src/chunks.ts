@@ -98,7 +98,7 @@ export class ChunkStore {
   private lastChunk: Chunk | null = null;
 
   getTile(x: number, y: number): number {
-    const built = buildTile(this.structureAt(x, y));
+    const built = this.structures.size ? buildTile(this.structureAt(x, y)) : undefined;
     if (built !== undefined) return built;
     const cx = chunkOf(x), cy = chunkOf(y);
     let c = this.lastChunk;

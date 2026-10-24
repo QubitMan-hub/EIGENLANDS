@@ -1,6 +1,18 @@
-# Current continuation: owned modular player buildings (2026-10-24)
+# Current continuation: runtime and mobile performance (2026-10-24)
 
-Implementation is on `codex/player-construction`; integration is pending final-head CI. No subagents used. [Player guide, recipes and explicit limits](PLAYER_BUILDING.md).
+Implementation on `codex/runtime-performance`; final integration is pending. No subagents used. [Measurements, reproduction and explicit limits](performance/2026-10-24-runtime.md).
+
+Cold building art moves to one background worker using the existing pixel-identical painter. Exact climate/base-chunk caches and a bounded chunk worker prewarm the existing generator. Unchanged snapshots and cached terrain windows avoid repeated work; offscreen renderables are hidden. Auto/Economy/High graphics and Gentle/Full/Off weather are saved in Settings. Touch defaults are lighter, storm rain is substantially quieter, and combat telegraphs remain. Client and authority share bounded elapsed-time catch-up to preserve movement/dash pace after a slow callback.
+
+Controlled software-GPU touch trace: mean main game-frame work 134.4→10.5ms (about 13× less), median frame interval 350→100ms (about 3.5× better), storm streaks 260→26. This is not a universal 10× FPS claim. Cold spikes and physical phone/network limits remain explicit in the report.
+
+Validation: workspace typechecks, 523 workspace tests (114 client, 249 server, 160 shared), multiplayer/solo builds, both shaders and saved preferences in production solo/multiplayer, real mouse steering, centered camera, dash and attack. Six worker/main building fixtures preserve original day/night/cutaway pixels. Final construction regression passed crafting, collision, doors, stairs, roof cutaways, mobile rotation and upstairs/ground persistence. Six worker/main fixtures match original pixels; rebuilt nested solo and multiplayer controls checks both pass. CI evidence will be recorded at integration. Physical Android/iPhone, older browser and large network encounter profiles remain open.
+
+---
+
+# Previous continuation: owned modular player buildings (2026-10-24)
+
+Merged [PR #23](https://github.com/QubitMan-hub/EIGENLANDS/pull/23) at `8d6ccfac8328685da52357515ffd6dc3866da18c`; push CI `40130280508` and PR CI `40130311122` passed. No subagents used. [Player guide, recipes and explicit limits](PLAYER_BUILDING.md).
 
 Eight original craftable blocks build arbitrary furnished two-floor houses: timber/stone floors and walls, timber doors, slate/thatch roofs and paired stairs. Structural cells have their own persisted layer so furniture survives roof/floor edits. Shared collision is authoritative on server and predicted on client. Authenticated owners control edits and doors. Safe dismantling refunds pieces, checks pack capacity, protects occupied/supporting floors and stair exits, and removes the included upper landing without duplication. Connected roofs form gables and lift by room; contextual rotation, preview and Journal guidance preserve the uncluttered HUD.
 

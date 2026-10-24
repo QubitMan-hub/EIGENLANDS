@@ -5,7 +5,7 @@ import {
   NAME_MAX, ORB_RADIUS, ORB_RANGE, ORB_SPEED, ORB_SPREAD, PLAYER_RADIUS, PROJECTILE_DAMAGE, PROJECTILE_RADIUS, PROJECTILE_RANGE,
   PROJECTILE_SPEED, CHUNK_SIZE, REFLECT_DAMAGE, REFLECT_SPEED_MULT, SKILL_POISE, SLAM_POISE, SLIP_SLOW_RADIUS, SLIP_SLOW_TIME, SLIP_TIME,
   BOMB_FUSE, BOMB_RADIUS, CRIT_MULT, moveBody, TICK_DT, enemyScale, eliteChance, hasIframes, meleeTap, meleeHeavy, setMeleeWeapon, isPerfectDodge, pickSpawn, resolveHit, rollCrit,
-  shapeHits, slamDamage, spawnBudget, type ObjMsg, type StepEvents, type StrikeShape,
+  shapeHits, slamDamage, spawnBudget, simulationBudget, type ObjMsg, type StepEvents, type StrikeShape,
   TICK_MS, TILE_DEFS, PlayerState, ProjectileState, WorldState, chunkOf, encodeAck, encodeDiff, inArc, isNight,
   maxHpForLevel, newPlayerSim, rewindPosition, sanitizeCmd, segmentHitsCircle, stepPlayer, xpForLevel, T, buildingAt,
   type ChunkDiff, type FxMsg, type InputBatch, type InputCmd, type PlayerSim, type PosSample, type Stack,
@@ -119,7 +119,11 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     this.objects = new ObjectManager({ store: this.store, seed: this.seed, players: this.players, objectChanged: m => this.hookObjectChanged(m) });
     this.processedDay = this.wclock.day();
     this.setPatchRate(TICK_MS);
-    this.setSimulationInterval(() => this.tick(), TICK_MS);
+    let remainder=0;
+    this.setSimulationInterval(elapsed=>{
+      const budget=simulationBudget(remainder,elapsed);remainder=budget.remainder;
+      for(let i=0;i<budget.steps;i++)this.tick();
+    },TICK_MS);
 
     const host: VillageHost = {
       seed: this.seed, store: this.store, state: this.state, clock: this.wclock, rand: () => this.rand(),

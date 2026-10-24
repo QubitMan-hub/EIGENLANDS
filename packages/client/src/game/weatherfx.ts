@@ -1,8 +1,9 @@
+import { weatherBudget, type WeatherDetail } from './visual-budget';
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { C, PALETTE, windScreenX, type Weather, type Wind } from '@eigenlands/shared';
 import { makeCanvas } from '../art/draw';
 
-const MAX_RAIN = 260, MAX_SNOW = 170, MAX_SPLASH = 40, MAX_LEAF = 44;
+const MAX_RAIN = 144, MAX_SNOW = 96, MAX_SPLASH = 16, MAX_LEAF = 24;
 const LEAF_TINT: Record<number, number[]> = { 0: [0xffb8d8, 0xffd6e8, 0xf49ac1], 1: [0x7ccf4a, 0x5fae3a], 2: [0xe07a3a, 0xc4432a, 0xf0b040, 0x9a5a28], 3: [] };
 
 interface Drop { s: Sprite; x: number; y: number; v: number; d: number }
@@ -30,12 +31,14 @@ export class WeatherFx {
   private flashT = 0;
   private w = 0;
   private h = 0;
+  private tintKey = '';
+  private flashAlpha = 0;
 
   constructor(parent: Container) {
     parent.addChild(this.root);
     this.root.addChild(this.tint);
     const mk = (w: number, h: number, f: (ctx: CanvasRenderingContext2D) => void) => { const { canvas, ctx } = makeCanvas(w, h); f(ctx); const t = Texture.from(canvas); t.source.scaleMode = 'nearest'; return t; };
-    this.streak = mk(3, 10, (c) => { c.fillStyle = PALETTE[C.w5]!; for (let i = 0; i < 9; i++) c.fillRect(Math.floor(2 - i / 4.5), i, 1, 1); c.fillStyle = PALETTE[C.w6]!; c.fillRect(2, 0, 1, 2); });
+    this.streak = mk(2, 6, (c) => { c.fillStyle = PALETTE[C.w5]!; for (let i = 0; i < 6; i++) c.fillRect(Math.floor(1 - i / 6), i, 1, 1); c.fillStyle = PALETTE[C.w6]!; c.fillRect(1, 0, 1, 1); });
     this.flake = mk(3, 3, (c) => { c.fillStyle = PALETTE[C.white]!; c.fillRect(1, 0, 1, 3); c.fillRect(0, 1, 3, 1); });
     this.ring = mk(7, 3, (c) => { c.fillStyle = PALETTE[C.w6]!; c.fillRect(1, 0, 5, 1); c.fillRect(0, 1, 1, 1); c.fillRect(6, 1, 1, 1); c.fillRect(1, 2, 5, 1); });
     this.leafTex = mk(4, 3, (c) => { c.fillStyle = '#ffffff'; c.fillRect(0, 1, 3, 1); c.fillRect(1, 0, 2, 1); c.fillRect(2, 2, 2, 1); });
@@ -55,7 +58,7 @@ export class WeatherFx {
   }
 
   /** viewW/viewH in CSS px; hour is the in-game hour (reserved: storms are more dramatic at night) */
-  update(dt: number, weather: Weather, viewW: number, viewH: number, reduced: boolean, hour: number, wind?: Wind, season = 1): void {
+  update(dt: number, weather: Weather, viewW: number, viewH: number, reduced: boolean, hour: number, wind?: Wind, season = 1, economy=false, detail:WeatherDetail='gentle'): void {
     this.t += dt;
     const ws = wind ? windScreenX(wind) * wind.strength : 0;
     if (viewW !== this.w || viewH !== this.h) {
@@ -66,13 +69,14 @@ export class WeatherFx {
     const raining = weather === 'rain' || weather === 'storm';
     const snowing = weather === 'snow';
     const heavy = weather === 'storm';
-    const nRain = raining ? (reduced ? 14 : heavy ? MAX_RAIN : 150) : 0;
-    const nSnow = snowing ? (reduced ? 18 : MAX_SNOW) : 0;
-    const scale = Math.max(2, Math.round(viewW / 420));
-
-    this.tint.clear();
-    if (raining) this.tint.rect(0, 0, viewW, viewH).fill({ color: heavy ? 0x172038 : 0x253a5e, alpha: reduced ? 0.12 : heavy ? 0.22 : 0.12 });
-    else if (snowing) this.tint.rect(0, 0, viewW, viewH).fill({ color: 0xa8b5b2, alpha: 0.06 });
+    const budget=weatherBudget(weather,detail,economy,reduced,viewW,viewH);
+    const nRain=budget.rain,nSnow=budget.snow,scale=Math.max(1,Math.min(2,Math.round(viewW/640)));
+    const tintKey=`${weather}:${detail}:${economy}:${viewW}:${viewH}`;
+    if(tintKey!==this.tintKey){
+      this.tintKey=tintKey;this.tint.clear();
+      if(detail!=='off'&&raining)this.tint.rect(0,0,viewW,viewH).fill({color:0x253a5e,alpha:detail==='full'?.1:.045});
+      else if(detail!=='off'&&snowing)this.tint.rect(0,0,viewW,viewH).fill({color:0xa8b5b2,alpha:.035});
+    }
 
     this.rain.forEach((p, i) => {
       const on = i < nRain;
@@ -85,7 +89,7 @@ export class WeatherFx {
         if (!reduced && Math.random() < 0.18) this.spawnSplash(p.x, viewH * (0.35 + Math.random() * 0.65));
         p.x = Math.random() * (viewW + 160); p.y = -20 - Math.random() * 60;
       }
-      p.s.x = Math.round(p.x); p.s.y = Math.round(p.y); p.s.alpha = 0.3 + (i % 4) * 0.08;
+      p.s.x = Math.round(p.x); p.s.y = Math.round(p.y); p.s.alpha = (detail==='full'?.28:.15)+(i%4)*.035;
     });
     this.snow.forEach((p, i) => {
       const on = i < nSnow;
@@ -102,7 +106,7 @@ export class WeatherFx {
     // wind-blown leaves and petals (spring blossom, summer greens, autumn reds); calm weather and winter have none
     const calmish = weather === 'clear' || weather === 'cloudy';
     const tints = LEAF_TINT[season] ?? [];
-    const nLeaf = !calmish || reduced || !wind || !tints.length ? 0 : Math.min(MAX_LEAF, Math.round(wind.strength * (season === 2 ? 70 : season === 0 ? 46 : 18)));
+    const nLeaf = !calmish || reduced || !wind || !tints.length ? 0 : Math.min(budget.leaves, Math.round(wind.strength * (season === 2 ? 70 : season === 0 ? 46 : 18)));
     this.leaves.forEach((p, i) => {
       const on = i < nLeaf;
       p.s.visible = on;
@@ -127,24 +131,25 @@ export class WeatherFx {
 
     const fogOn = weather === 'fog';
     this.veil.forEach((v, i) => {
-      v.visible = fogOn;
-      if (!fogOn) return;
+      v.visible = fogOn && detail!=='off';
+      if (!v.visible) return;
       const drift = reduced ? 0 : this.t * (i ? -7 : 5);
       v.x = -((drift + i * 90) % 128) - 64; v.y = -((i ? drift * 0.3 : -drift * 0.2) % 128) - 64;
-      v.alpha = reduced ? 0.35 : 0.42 + 0.06 * Math.sin(this.t * 0.2 + i);
+      v.alpha = detail==='full'?.32:.16;
     });
 
     // lightning
-    this.flash.clear();
-    if (heavy && !reduced) {
+    let flashAlpha=0;
+    if (budget.flash) {
       this.nextFlash -= dt;
       if (this.nextFlash <= 0) { this.flashT = 0.35; this.nextFlash = 7 + Math.random() * 9 + (hour > 19 || hour < 5 ? 0 : 3); }
       if (this.flashT > 0) {
         this.flashT -= dt;
         const k = this.flashT > 0.25 ? 1 : this.flashT > 0.18 ? 0.2 : this.flashT > 0.1 ? 0.7 : this.flashT / 0.1 * 0.2;
-        this.flash.rect(0, 0, viewW, viewH).fill({ color: 0xd6f0ea, alpha: 0.32 * k });
+        flashAlpha=.12*k;
       }
     }
+    if(flashAlpha!==this.flashAlpha){this.flashAlpha=flashAlpha;this.flash.clear();if(flashAlpha>0)this.flash.rect(0,0,viewW,viewH).fill({color:0xd6f0ea,alpha:flashAlpha});}
   }
 
   private spawnSplash(x: number, y: number): void {
@@ -158,7 +163,7 @@ export class WeatherFx {
     switch (weather) {
       case 'cloudy': return [0.92, 0.93, 0.95];
       case 'rain': return [0.8, 0.83, 0.9];
-      case 'storm': return [0.62, 0.66, 0.78];
+      case 'storm': return [0.8, 0.83, 0.9];
       case 'snow': return [0.95, 0.97, 1.0];
       case 'fog': return [0.9, 0.92, 0.95];
       default: return [1, 1, 1];

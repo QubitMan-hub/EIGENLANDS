@@ -48,6 +48,7 @@ const sigOf = (o: WorldObj): string => {
 export class WorldObjViews {
   private views = new Map<string, View>();
   private byChunk = new Map<string, Set<string>>();
+  private visibleBounds='';
   private season: SeasonIdx = 1;
   private solvedShrines = new Set<string>();
 
@@ -103,6 +104,7 @@ export class WorldObjViews {
   }
 
   upsert(o: WorldObj): void {
+    this.visibleBounds='';
     const key = `${o.x},${o.y}`;
     const old = this.views.get(key);
     if (old && old.sig === sigOf(o)) { old.obj = o; return; }
@@ -161,6 +163,11 @@ export class WorldObjViews {
   }
 
   update(now: number, sun: Sun, reduced: boolean, minX: number, minY: number, maxX: number, maxY: number, wind: WindField = CALM): void {
+    const bounds=`${minX},${minY},${maxX},${maxY}`;
+    if(bounds!==this.visibleBounds){this.visibleBounds=bounds;for(const v of this.views.values()){
+      const show=v.obj.x>=minX&&v.obj.x<=maxX&&v.obj.y>=minY&&v.obj.y<=maxY&&!this.hidden(v);
+      v.root.visible=show;if(v.echo)v.echo.visible=show;if(!show)v.shadow.visible=false;
+    }}
     const t = now / 1000;
     this.forVisible(minX, minY, maxX, maxY, (v) => {
       const hidden = this.hidden(v);
