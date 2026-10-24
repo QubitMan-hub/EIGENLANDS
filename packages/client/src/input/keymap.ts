@@ -15,7 +15,7 @@ export const ACTION_LABELS: Record<Action, string> = {
 
 export const DEFAULT_KEYS: KeyMap = {
   up: ['KeyW', 'ArrowUp'], down: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
-  attack: ['KeyJ', 'KeyZ'], skill: ['KeyK'], dash: ['Space', 'ShiftLeft'], interact: ['KeyX'],
+  attack: ['KeyJ', 'KeyZ'], skill: ['KeyK'], dash: ['ShiftLeft', 'ShiftRight'], interact: ['Space'],
   inventory: ['KeyI', 'Tab'], journal: ['KeyL'], craft: ['KeyC'], prev: ['BracketLeft'], next: ['BracketRight'],
   ability1: ['KeyQ'], ability2: ['KeyE'], ability3: ['KeyR'], ability4: ['KeyF'], ultimate: ['KeyV'], board: ['KeyB'], chat: ['Enter'], party: ['KeyP'], extract: ['KeyT'], shadows: ['KeyY'], sail: ['KeyH'], voice: ['KeyN'], map: ['KeyM'],
 };
@@ -38,6 +38,12 @@ export function loadKeys(storage: Pick<Storage, 'getItem'> | null = safeStorage(
       const reserved = new Set(['KeyQ', 'KeyE', 'KeyR', 'KeyF', 'KeyX', 'KeyK']);
       if (unchanged && !ACTIONS.some(a => !group.includes(a as keyof typeof legacy) && out[a].some(k => reserved.has(k))))
         for (const a of group) out[a] = [...DEFAULT_KEYS[a]];
+      // Migrate only the old untouched dodge/use pair, never custom or unbound controls.
+      const oldDash=JSON.stringify(out.dash)===JSON.stringify(['Space','ShiftLeft']);
+      const oldUse=unchanged||!('interact' in parsed)||JSON.stringify(parsed.interact)===JSON.stringify(['KeyX']);
+      if(oldDash&&oldUse&&!ACTIONS.some(a=>a!=='dash'&&a!=='interact'&&out[a].some(k=>['Space','ShiftLeft','ShiftRight'].includes(k)))){
+        out.dash=[...DEFAULT_KEYS.dash];out.interact=[...DEFAULT_KEYS.interact];
+      }
       // Old default M belonged to voice. Move only that default, never a custom binding.
       if (!('map' in parsed) && out.voice.length === 1 && out.voice[0] === 'KeyM' && !ACTIONS.some(a => a !== 'voice' && a !== 'map' && out[a].includes('KeyN'))) out.voice = ['KeyN'];
       if (!('map' in parsed) && ACTIONS.some(a => a !== 'map' && out[a].includes('KeyM'))) out.map = [];

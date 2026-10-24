@@ -16,7 +16,7 @@ try{
  const cdp=await p.context().newCDPSession(p);await cdp.send('Profiler.enable');await cdp.send('Profiler.start');
  await p.waitForTimeout(5000);
  for(const [x,y]of [[60.5,8.5],[132.5,-4.5],[-193.5,-498.5]]){await p.evaluate(({x,y})=>{window.__bench.marks.push({at:performance.now(),x,y});window.__eigen.game.net.dev({cmd:'tp',x,y});},{x,y});await p.waitForFunction(({x,y})=>Math.hypot(window.__eigen.state().x-x,window.__eigen.state().y-y)<1,{x,y},{timeout:30000});await p.waitForTimeout(4000);}
- await p.keyboard.down('KeyD');await p.keyboard.press('Space');await p.waitForTimeout(2000);await p.keyboard.up('KeyD');await p.mouse.move(520,170);await p.mouse.down();await p.waitForTimeout(1000);await p.mouse.up();
+ await p.keyboard.down('KeyD');await p.keyboard.press('ShiftLeft');await p.waitForTimeout(2000);await p.keyboard.up('KeyD');await p.mouse.move(520,170);await p.mouse.down();await p.waitForTimeout(1000);await p.mouse.up();
  const workerReady=await p.evaluate(()=>!!window.__eigen.game.preparer?.worker);if(!workerReady&&!process.argv.includes('--legacy'))throw new Error('Prepared-chunk worker unavailable or stale build');
  const{profile}=await cdp.send('Profiler.stop');writeFileSync(`${out}/cpu.json`,JSON.stringify(profile));
  const pixels=await p.evaluate(async()=>{const g=window.__eigen.game,r=await g.app.renderer.extract.pixels({target:g.terrain.rt}),a=r.pixels;let opaque=0;for(let i=3;i<a.length;i+=4)if(a[i]===255)opaque++;return opaque/(a.length/4);});if(pixels<.99)throw new Error(`Terrain render target is not opaque: ${pixels}`);

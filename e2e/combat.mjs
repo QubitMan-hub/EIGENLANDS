@@ -72,7 +72,7 @@ let lane = false;
 for (let i = 0; i < 80 && !lane; i++) { const b = await nearestFoe(5); if (b && b.st === 2) lane = true; else await sleep(50); }
 if (!lane) fail('brute never telegraphed');
 await seq('3-brute-windup', 3, 150);
-await page.keyboard.down('KeyW'); await page.keyboard.press('Space'); await page.keyboard.up('KeyW');
+await page.keyboard.down('KeyW'); await page.keyboard.press('ShiftLeft'); await page.keyboard.up('KeyW');
 await seq('3-brute-dodge', 4, 70);
 
 // 4) Phase Wisp: aim line, orb in flight

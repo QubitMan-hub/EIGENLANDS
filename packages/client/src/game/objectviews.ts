@@ -1,6 +1,6 @@
 import { sceneryAt, type SceneryKind } from './scenery';
-import { Container, Sprite } from 'pixi.js';
-import { C, CHUNK_SIZE, PALETTE, T, TILE_DEFS, biomeAt, chunkKey, darkness, hash2, isCaveY, sampleClimate, type ChunkStore } from '@eigenlands/shared';
+import { Container, Sprite, type Texture } from 'pixi.js';
+import { C, NODES, CHUNK_SIZE, PALETTE, T, TILE_DEFS, biomeAt, chunkKey, darkness, hash2, isCaveY, sampleClimate, type ChunkStore } from '@eigenlands/shared';
 import { depth, isoX, isoY } from './iso';
 import { WindField, CALM } from './windfield';
 import { FRAMES_PER_VARIANT, type ObjectArt, type ObjSprite } from '../art/objects';
@@ -49,6 +49,7 @@ export class ObjectViews {
   private chunks = new Map<string, Map<number, Obj>>();
   private art!: ObjectArt;
   private visibleBounds='';
+  private hitPixels=new WeakMap<Texture,{data:Uint8ClampedArray;width:number}>();
 
   constructor(
     private store: ChunkStore,
@@ -68,6 +69,22 @@ export class ObjectViews {
   }
 
   get count(): number { let n = 0; for (const m of this.chunks.values()) n += m.size; return n; }
+
+  /** Actual visible sprite bounds include the raised body above its ground diamond. */
+  pickMineable(x:number,y:number):{tx:number;ty:number}|null{
+    let best:Obj|null=null;
+    for(const m of this.chunks.values())for(const o of m.values()){
+      if(!o.root.visible||NODES[this.store.getTile(o.tx,o.ty)]?.tool!=='pickaxe')continue;
+      const b=o.root.getBounds();
+      if(x<b.minX||x>b.maxX||y<b.minY||y>b.maxY||best&&o.root.zIndex<=best.root.zIndex)continue;
+      const tex=o.root.texture,p=o.root.toLocal({x,y});
+      const px=Math.floor(p.x+o.root.anchor.x*tex.orig.width)+tex.frame.x,py=Math.floor(p.y+o.root.anchor.y*tex.orig.height)+tex.frame.y;
+      let pixels=this.hitPixels.get(tex);
+      if(!pixels){const canvas=tex.source.resource as HTMLCanvasElement,ctx=canvas.getContext('2d')!;pixels={data:ctx.getImageData(0,0,canvas.width,canvas.height).data,width:canvas.width};this.hitPixels.set(tex,pixels);}
+      if(px>=0&&py>=0&&px<pixels.width&&pixels.data[(py*pixels.width+px)*4+3]!>0)best=o;
+    }
+    return best?{tx:best.tx,ty:best.ty}:null;
+  }
 
   private pickSprite(kind0: string, tx: number, ty: number): { s: ObjSprite; variant: number; frames: number; key: string } | null {
     // trees in flux-rich ground are quantum superposition trees

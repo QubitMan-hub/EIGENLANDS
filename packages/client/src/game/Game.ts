@@ -1,3 +1,4 @@
+import { ClickMining } from './click-mining';
 import { WorldPreparer } from './world-preparer';
 import { applyChunkSnapshot } from './chunk-updates';
 import { economyGraphics, pixelResolution } from './visual-budget';
@@ -111,6 +112,7 @@ export class Game {
   private interp = new Interpolator<Snap>();
   private views = new Map<string, ActorView>();
   private requested = new Set<string>();
+  private mining = new ClickMining(()=>this.store,()=>({slot:this.gameplay.hotbar.selected,item:this.gameplay.selected()}),(slot,tx,ty)=>this.net.use({slot,tx,ty}),text=>this.gameplay.toasts.add(text,'info'));
   private preparer = new WorldPreparer();
   private pendingBuild: Array<[number, number]> = [];
   /** chunks whose objects (trees, rocks, furniture) are built; the terrain builds its own texture independently */
@@ -226,6 +228,7 @@ export class Game {
       level: () => this.self?.level ?? 1, dead: () => this.dead,
     });
     this.input.onWorldClick = (x, y) => this.clickWorld(x, y);
+    this.input.onCancelIntent = () => this.mining.cancel();
     this.input.onClearTarget = () => this.setTarget(null);
     const menu = document.getElementById('hud-menu');
     this.input.blocked = () => !this.connected || this.dead || this.settingsOpen() || this.gameplay.blocking || this.ext.blocking || !!this.net?.switching || !!menu?.matches(':popover-open');
@@ -680,7 +683,8 @@ export class Game {
   }
 
   /** Left click on an enemy selects it (the click still swings). Players are picked by the social layer. */
-  private clickWorld(cx: number, cy: number): void {
+  private clickWorld(cx: number, cy: number): boolean {
+    this.mining.cancel();
     const S = this.scale;
     let best: ActorView | null = null, bd = Infinity;
     for (const v of this.views.values()) {
@@ -692,7 +696,13 @@ export class Game {
       const d = dx * dx + dy * dy;
       if (d < bd) { bd = d; best = v; }
     }
-    if (best) this.setTarget(best.id);
+    if (best) { this.setTarget(best.id); return false; }
+    const ground=unproject((cx-this.world.x)/S,(cy-this.world.y)/S);
+    const tile=this.objects.pickMineable(cx,cy)??{tx:Math.floor(ground.x),ty:Math.floor(ground.y)};
+    const me=this.predictor.sim;
+    const mining=this.mining.start(me.x,me.y,tile.tx,tile.ty,performance.now());
+    if(mining)this.setTarget(null);
+    return mining;
   }
 
   private updateTarget34(renderT: number, me: { x: number; y: number }): void {
@@ -757,7 +767,10 @@ export class Game {
   private fixedStep(now: number): void {
     const r = this.input.read(now);
     const frozen = this.dead || !this.connected || this.settingsOpen() || this.gameplay.blocking || this.ext.blocking || this.net.switching || now - (this.hops.get(this.myId)?.at ?? -1e9) < 650;
-    if (frozen) { this.input.read(now); return; }
+    if (frozen) { this.mining.cancel(); this.input.read(now); return; }
+    if(r.dx||r.dy||r.attack||r.hold||r.skill||r.dash||r.interact||this.input.armed||this.input.lookHeld)this.mining.cancel();
+    const mining=this.mining.step(now,this.predictor.sim.x,this.predictor.sim.y);
+    if(mining)Object.assign(r,mining);
     const viewTick = Math.max(0, Math.floor(this.clock.tickAt(this.clock.serverNow(now) - this.clock.interpDelay - this.combat.warp)));
     const weapon = this.weaponInfo();
     this.predictor.sim.ranged = weapon.ranged;

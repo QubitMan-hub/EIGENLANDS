@@ -1,6 +1,6 @@
 # Building your own home
 
-Open **Field crafting** (default **C**) and craft building pieces from wood, stone and fiber. No recipe discovery or town station is required. Clear trees and rocks on wilderness land, select a piece in the quick-bar, aim at a nearby tile and **Use** (default **X**, or the touch Use button). Your personalized bindings also work.
+Open **Field crafting** (default **C**) and craft building pieces from wood, stone and fiber. No recipe discovery or town station is required. Clear trees and rocks on wilderness land, select a piece in the quick-bar, aim at a nearby tile and **Use** (default **Space**, or the touch Use button). Your personalized bindings also work.
 
 | Piece | Cost | Purpose |
 |---|---|---|

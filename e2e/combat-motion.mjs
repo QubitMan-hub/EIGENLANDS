@@ -45,7 +45,7 @@ try {
   await page.screenshot({ path: `${out}/strike.png` });
   await page.waitForTimeout(500);
   await page.evaluate(() => { window.__eigen.game.settings().reducedMotion = false; });
-  await page.keyboard.down('KeyD'); await page.keyboard.press('Space');
+  await page.keyboard.down('KeyD'); await page.keyboard.press('ShiftLeft');
   await page.waitForFunction(() => { const g = window.__eigen.game; return g.views.get(g.myId).sprite.texture.frame.x >= 14 * 24; });
   await page.screenshot({ path: `${out}/run.png` });
   await page.keyboard.up('KeyD');

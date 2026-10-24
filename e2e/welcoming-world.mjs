@@ -26,7 +26,7 @@ try{
  assert.equal(await page.evaluate(()=>{let reached=false;const seen=()=>{reached=true;};window.addEventListener('keydown',seen);window.dispatchEvent(new KeyboardEvent('keydown',{code:'Space',bubbles:true,cancelable:true}));window.removeEventListener('keydown',seen);window.dispatchEvent(new KeyboardEvent('keyup',{code:'Space',bubbles:true}));return reached;}),true,'Outdoor story must not consume dodge input');
  await page.keyboard.down('KeyD');await page.waitForFunction(()=>window.__eigen.game.gameplay.acts.moved);await page.keyboard.up('KeyD');
  await page.keyboard.down('KeyJ');await page.waitForFunction(()=>window.__eigen.game.gameplay.acts.attacked||window.__eigen.game.predictor.sim.charge>=.3);await page.keyboard.up('KeyJ');await page.waitForFunction(()=>window.__eigen.game.gameplay.acts.attacked);
- await action('Space','dashed');
+ await action('ShiftLeft','dashed');
  await press('Digit2');await page.keyboard.down('KeyK');await page.waitForFunction(()=>window.__eigen.game.gameplay.acts.skillShot);await page.keyboard.up('KeyK');console.log('basic controls passed');
  await press('KeyI');await page.getByRole('dialog',{name:'Pack',exact:true}).waitFor();await press('Escape');
  await press('KeyB');await page.getByRole('dialog',{name:'Circuit Board',exact:true}).waitFor();await press('Escape');
@@ -38,7 +38,7 @@ try{
  const orla=await page.evaluate(()=>{const p=window.__eigen.game.ext.atlas.state.npcs.get('orla');return {x:p.x,y:p.y};});
  await page.evaluate(p=>window.__eigen.game.net.dev({cmd:'tp',x:p.x+.7,y:p.y}),orla);
  await page.waitForFunction(p=>Math.hypot(window.__eigen.state().x-p.x,window.__eigen.state().y-p.y)<2,orla);
- await page.waitForTimeout(250);await action('KeyX','talked');await page.locator('.dialogue[data-npc="orla"]').waitFor();console.log('Orla dialogue opened');
+ await page.waitForTimeout(250);await action('Space','talked');await page.locator('.dialogue[data-npc="orla"]').waitFor();console.log('Orla dialogue opened');
  await page.locator('.dlg-box').click();await page.getByRole('button',{name:/A Warm Welcome/}).first().click();
  for(let i=0;i<5&&!await page.getByRole('button',{name:/do it/i}).isVisible();i++)await page.locator('.dlg-box').click();
  await page.getByRole('button',{name:/do it/i}).click();

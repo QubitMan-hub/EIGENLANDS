@@ -2,6 +2,10 @@
 
 This is the practical remaining-work index. The full original requirements and detailed checklist remain in [master request](design/master-request.md) and [master plan](EIGENLANDS_MASTER_PLAN.md). Completed implementation and verification history: [continuation notes](CONTINUE_HERE.md).
 
+## Comfortable controls
+
+- Implemented: selected pickaxe + left-click on rock/ore approaches and mines through the existing server rules; opaque sprite picking, bounded obstacle routes and cancellation preserve combat control. Defaults are either Shift for Dodge and Space for context interactions (including NPCs, caves and stairs); untouched older defaults migrate while custom bindings remain.
+
 ## Runtime performance
 
 - Implemented: background chunk/building preparation, bounded exact caches, unchanged-snapshot fast paths, visible-only rendering, cached overscanned terrain, lighter Auto graphics, gentle/off/full weather and shared real-time catch-up for movement/dash/combat. [Measurements, scope and reproduction](performance/2026-10-24-runtime.md).

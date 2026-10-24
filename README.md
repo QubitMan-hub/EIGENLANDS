@@ -23,9 +23,10 @@ in the browser or share a world with other players.
 | Attack | left click (aims at the cursor) |
 | Select target | left click an enemy or party mate · `Esc` clears |
 | Abilities | `Q E R F`: directional abilities show an aim line, then left click confirms at the cursor; same key or `Esc` cancels. Self abilities are instant. Touch/gamepad cast directly. `V` ultimate |
-| Look ahead | hold right mouse; Mouse movement profile also steers |
-| Dash | `Space` / `Shift` |
-| Use / talk | `X` · Pack `I` · Craft `C` · Journal `L` · Circuit Board `B` · Party `P` · Chat `Enter` |
+| Aim / mouse steering | Hold right mouse for the aim cone; Mouse movement mode also steers. Camera stays centered. |
+| Mine | Select a pickaxe, then left-click a rock to approach and mine; movement or Dodge cancels. |
+| Dash | `Shift` (either side) |
+| Use / talk / enter caves | `Space` · Pack `I` · Craft `C` · Journal `L` · Circuit Board `B` · Party `P` · Chat `Enter` |
 
 ## Repository layout
 ```

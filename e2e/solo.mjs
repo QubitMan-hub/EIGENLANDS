@@ -69,7 +69,7 @@ if (s1.pending > 6) fail(`inputs not acknowledged by the in-page server (pending
 await page.mouse.move(800, 300);
 await page.mouse.down(); await sleep(300); await page.mouse.up();
 await page.keyboard.press('KeyK');
-await page.keyboard.press('Space');
+await page.keyboard.press('ShiftLeft');
 await sleep(600);
 await page.screenshot({ path: `${out}/3-combat.png` });
 

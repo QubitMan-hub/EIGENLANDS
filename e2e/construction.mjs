@@ -52,7 +52,7 @@ try{
  await tp(site.x+2.5,site.y+1.5);await p.keyboard.down('KeyW');await p.keyboard.down('KeyD');await p.waitForTimeout(1200);await p.keyboard.up('KeyW');await p.keyboard.up('KeyD');
  assert((await p.evaluate(()=>window.__eigen.state().y))>=site.y+1.15,'real movement stops at the constructed north wall');
  await tp(site.x+1.5,site.y+1.5);
- await p.keyboard.press('KeyX');await p.waitForFunction(({y})=>Math.abs(window.__eigen.state().y-(y+1.5-80000))<.2,site,{timeout:30000});
+ await p.keyboard.press('Space');await p.waitForFunction(({y})=>Math.abs(window.__eigen.state().y-(y+1.5-80000))<.2,site,{timeout:30000});
  for(let dy=1;dy<=3;dy++)for(let dx=1;dx<=3;dx++){
   if(dx===1&&dy===1)continue;
   await tp(site.x+Math.max(1,Math.min(2,dx))+.5,site.y+Math.max(1,Math.min(2,dy-1))+.5-80000);
@@ -63,7 +63,7 @@ try{
  await p.screenshot({path:`${out}/upper-floor.png`});
  await p.reload();await ready();await p.evaluate(()=>window.__eigen.game.app.ticker.maxFPS=12);
  await p.waitForFunction(({x,y})=>window.__eigen.game.store.structureAt(x+1,y+1-80000)?.data.stairs==='down'&&window.__eigen.game.store.structureAt(x+3,y+3-80000)?.data.roof==='shingle_roof',site,{timeout:30000});
- await tp(site.x+1.5,site.y+1.5-80000);await p.keyboard.press('KeyX');await p.waitForFunction(({y})=>Math.abs(window.__eigen.state().y-(y+1.5))<.2,site,{timeout:30000});
+ await tp(site.x+1.5,site.y+1.5-80000);await p.keyboard.press('Space');await p.waitForFunction(({y})=>Math.abs(window.__eigen.state().y-(y+1.5))<.2,site,{timeout:30000});
  await tp(site.x+2.5,site.y-2.5);
  await p.evaluate(({x,y})=>window.__eigen.game.net.open(x+2,y+4),site);
  await p.waitForTimeout(300);assert(await p.evaluate(({x,y})=>window.__eigen.game.store.solidAt(x+2,y+4),site),'out-of-reach OPEN must leave the door closed');

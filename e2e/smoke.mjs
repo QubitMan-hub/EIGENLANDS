@@ -41,7 +41,7 @@ console.log('after moving right', { x: s1.x, y: s1.y, screenRight: screenRight.t
 if (!(screenRight > 3)) fail('player did not move right (screen space)');
 if (!(s1.x > s0.x + 1.5 && s1.y < s0.y - 1.5)) fail('screen-right should move along +x/-y in the world');
 
-await page.keyboard.press('Space');
+await page.keyboard.press('ShiftLeft');
 await sleep(100);
 await page.mouse.move(800, 300);
 await page.mouse.down(); await sleep(400); await page.mouse.up();
