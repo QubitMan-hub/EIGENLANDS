@@ -391,7 +391,13 @@ export class Game {
 
   private toast(text: string): void { this.caption(text); }
 
+  private toolSwings = new WeakMap<ActorView, { at: number; received: number; tool: 'axe' | 'pickaxe'; x: number; y: number }>();
+
   private fxFromServer(f: FxMsg): void {
+    if ((f.kind === 'chop' || f.kind === 'mine') && f.id && (f.weapon === 'axe' || f.weapon === 'pickaxe')) {
+      const actor = this.views.get(f.id);
+      if (actor) this.toolSwings.set(actor, { at: 0, received: performance.now(), tool: f.weapon, x: f.x, y: f.y });
+    }
     if (f.kind === 'jump' && f.id && f.dx !== undefined && f.dy !== undefined) {
       this.hops.set(f.id, { at: performance.now(), x: f.x, y: f.y, tx: f.dx, ty: f.dy });
       this.sound('dash', f.x, f.y); return;
@@ -769,18 +775,22 @@ export class Game {
       if (v.type === 'player') {
         const dash = isMe ? this.predictor.sim.dashT > 0 : ((s?.flags ?? 0) & 1) !== 0;
         const deadP = isMe ? this.dead : ((s?.flags ?? 0) & 4) !== 0;
-        const strike = !deadP && !dash ? this.combat.attackFrame(v, now, reduced) : -1;
+        const combatStrike = !deadP && !dash ? this.combat.attackFrame(v, now, reduced) : -1;
+        const use = this.toolSwings.get(v);
+        if (use && use.at === 0) use.at = now;
+        const harvesting = !!use && now - use.received < 1500 && now - use.at < 300 && !deadP && !dash && combatStrike < 0;
+        const strike = harvesting ? reduced ? 2 : Math.min(3, Math.floor((now-use!.at)/75)) : combatStrike;
         const running = dash || moved / Math.max(0.001, dtMs / 1000) > 5.6;
         const weaponId = isMe ? (this.gameplay.profile.equip.weapon ? ITEMS[this.gameplay.profile.equip.weapon.id]?.weapon : undefined) : s?.weapon;
         const weapon = isWeaponId(weaponId) ? weaponId : null;
         const tool = isMe ? ITEMS[this.gameplay.selected()?.id ?? '']?.tool?.type : s?.held;
-        const heldItem = strike < 0 && isHeldId(tool) ? tool : weapon;
-        const family = weapon && WEAPONS[weapon].cls === 'crossbow' ? SHOT_FRAME : weapon && WEAPONS[weapon].cls === 'staff' ? CAST_FRAME : ATTACK_FRAME;
+        const heldItem = harvesting ? use!.tool : strike < 0 && isHeldId(tool) ? tool : weapon;
+        const family = harvesting ? ATTACK_FRAME : weapon && WEAPONS[weapon].cls === 'crossbow' ? SHOT_FRAME : weapon && WEAPONS[weapon].cls === 'staff' ? CAST_FRAME : ATTACK_FRAME;
         const frame = deadP ? -1 : strike >= 0 ? family + strike : walking
           ? running ? RUN_FRAME + (Math.floor(v.travel / 0.21) % RUN_FRAMES) : 1 + (Math.floor(v.travel / 0.17) % (WALK_FRAMES - 1))
           : reduced ? -1 : 0;
         const look = s?.look ?? (isMe ? this.gameplay.profile.equip.outfit : v.outfit);
-        const sd = screenDir(fx, fy);
+        const sd = harvesting ? screenDir(use!.x-x, use!.y-y) : screenDir(fx, fy);
         v.sprite.texture = this.sheets.person(((look % OUTFITS.length) + OUTFITS.length) % OUTFITS.length, dirOf(sd.x, sd.y), frame);
         v.sprite.alpha = deadP ? 0.35 : dash ? 0.6 : 1;
         v.sprite.rotation = deadP ? Math.PI / 2 : 0;
