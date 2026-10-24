@@ -46,4 +46,6 @@ export class ShadowState extends Schema {
   @type('uint8') atk = 0;
   @type('float32') tx = 0;
   @type('float32') ty = 0;
+  /** Append fields to preserve existing wire field indices. */
+  @type('boolean') bonded = false;
 }

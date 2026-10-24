@@ -199,6 +199,7 @@ export const LOCAL_CHAT_RANGE = 24;
 
 import type { Stance } from './shadows';
 export type ShadowCmd =
+  | { act: 'befriend'; target: string }
   | { act: 'summon'; id: string }
   | { act: 'dismiss'; id: string }
   | { act: 'dismiss_all' }

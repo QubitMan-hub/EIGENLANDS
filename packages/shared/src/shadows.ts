@@ -38,6 +38,8 @@ export interface ShadowRec {
   xp: number;
   /** Guild escorts use the same follow/combat slots, but their paid contract expires. */
   contractUntil?: number;
+  /** A living wildlife bond, rather than an extracted echo. Valid only for companionBond kinds. */
+  bonded?: true;
 }
 
 export interface ShadowRosterMsg {

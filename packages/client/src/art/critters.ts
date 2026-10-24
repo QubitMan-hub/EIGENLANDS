@@ -24,6 +24,12 @@ const DIRS: CritterDir[] = ['NE', 'NW', 'SE', 'SW'];
 const URLS = import.meta.glob('../assets/critters/*.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 const urlOf = (name: string): string => URLS[`../assets/critters/${name}.png`]!;
 
+/** First idle frame, cropped at native pixels for roster portraits; no duplicate image assets. */
+export function companionPortrait(kind: number): { url: string; width: number; height: number } | null {
+  const id = kind === 7 ? 'boar' : kind === 9 ? 'badger' : kind === 3 ? 'stag' : null;
+  return id ? { url: urlOf(`${id}_SE_idle`), width: SPECS[id].fw, height: SPECS[id].fh } : null;
+}
+
 export class Critters {
   private strips = new Map<string, Strip>();
 
