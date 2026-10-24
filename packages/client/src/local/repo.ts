@@ -96,13 +96,14 @@ export class LocalRepo implements RepoApi {
 
   async loadObjects(seed: number, cx: number, cy: number): Promise<WorldObj[]> {
     const rec = this.db.get<Record<string, WorldObj>>(`objs:${chunkKey(seed, cx, cy)}`) ?? {};
-    return Object.values(rec).map((o) => ({ x: o.x, y: o.y, kind: o.kind, sub: o.sub, ...(o.owner ? { owner: o.owner } : {}), data: o.data ?? {} }));
+    const built = this.db.get<Record<string, WorldObj>>(`structures:${chunkKey(seed, cx, cy)}`) ?? {};
+    return [...Object.values(rec), ...Object.values(built)].map((o) => ({ x: o.x, y: o.y, kind: o.kind, sub: o.sub, ...(o.owner ? { owner: o.owner } : {}), data: o.data ?? {} }));
   }
 
-  async saveObjects(seed: number, upserts: WorldObj[], deletes: Array<{ x: number; y: number }>): Promise<void> {
-    this.editByChunk<WorldObj>('objs', seed, [
-      ...upserts.map((o) => ({ x: o.x, y: o.y, v: { x: o.x, y: o.y, kind: o.kind, sub: o.sub, ...(o.owner ? { owner: o.owner } : {}), data: o.data ?? {} } })),
-      ...deletes.map((d) => ({ x: d.x, y: d.y, v: null })),
+  async saveObjects(seed: number, upserts: WorldObj[], deletes: Array<{ x: number; y: number; structure?: boolean }>): Promise<void> {
+    for (const structure of [false, true]) this.editByChunk<WorldObj>(structure ? 'structures' : 'objs', seed, [
+      ...upserts.filter(o => (o.kind === 'structure') === structure).map(o => ({ x: o.x, y: o.y, v: o })),
+      ...deletes.filter(d => !!d.structure === structure).map(d => ({ x: d.x, y: d.y, v: null })),
     ]);
   }
 

@@ -1,6 +1,6 @@
 import type { EquipMsg } from '@eigenlands/shared';
 import {
-  CROPS, ITEMS, MSG, NPC_BY_ID, STATION_NAMES, dayNumber, gameHour, weatherForDay, type ChunkStore, type DialogueMsg, type FishBiteMsg, type PanelMsg, type ProfileMsg, type RhythmResultMsg,
+  BUILD_PIECES, isBuildPiece, CROPS, ITEMS, MSG, NPC_BY_ID, STATION_NAMES, dayNumber, gameHour, weatherForDay, type ChunkStore, type DialogueMsg, type FishBiteMsg, type PanelMsg, type ProfileMsg, type RhythmResultMsg,
   type RhythmStartMsg, type ShopViewMsg, type StationId, type Stack, type ToastMsg, type Template,
 } from '@eigenlands/shared';
 import type { Audio, Sfx } from '../audio';
@@ -75,6 +75,8 @@ export class Gameplay {
   private bang: HTMLElement | null = null;
   private hotbarName = h('div', { id: 'hotbar-name' });
   private targetHint = h('div', { id: 'target-hint' });
+  buildRotation = 0;
+  private rotateBuild = h('button', {id:'build-rotate', text:'Rotate · 1', on:{click:()=>{this.buildRotation=(this.buildRotation+1)%4;this.rotateBuild.textContent=`Rotate · ${this.buildRotation+1}`;}}});
   private hotbarNameTimer = 0;
   private journey: ReturnType<typeof buildJourney> | null = null;
   private journeyAt = 0;
@@ -82,10 +84,12 @@ export class Gameplay {
   private firstSteps: ReturnType<typeof buildFirstSteps>;
 
   constructor(private d: GameplayDeps) {
+    this.rotateBuild.hidden = true;
+    for (const type of ['keydown', 'keyup']) this.rotateBuild.addEventListener(type, e => { if ([' ', 'Enter'].includes((e as KeyboardEvent).key)) e.stopPropagation(); });
     this.hotbar = new Hotbar(this.profile, this.tip);
     this.village = new VillageOverlay(this.profile);
     this.rhythm = new RhythmOverlay(() => d.clock, d.audio, (id, hits) => d.net().rhythmDone(id, hits));
-    document.body.append(this.hotbar.el, this.hotbarName, this.targetHint);
+    document.body.append(this.hotbar.el, this.hotbarName, this.targetHint, this.rotateBuild);
     this.firstSteps = buildFirstSteps(() => ({ done: this.done, keys: this.d.input.keys }), () => { this.d.trackQuest?.('@arrival', true); });
 
     this.hotbar.onSelect = () => { try { this.d.net().send(MSG.HOLD, { slot: this.hotbar.selected }); } catch { /* not connected yet */ } this.acts.selected = true; this.showHotbarName(); };
@@ -270,6 +274,10 @@ export class Gameplay {
     const p = this.d.player();
     if (this.fishing?.bite && performance.now() < this.fishing.until + 150) { net.fishHook(this.fishing.id); this.fishing.bite = false; this.clearBang(); return true; }
     const store = this.d.store();
+    const selection = this.selected();
+    const modifying = selection && (isBuildPiece(selection.id) || ITEMS[selection.id]?.tool?.type === 'pickaxe');
+    const builtUnder = store.structureAt(Math.floor(p.x), Math.floor(p.y));
+    if (!modifying && builtUnder?.data.stairs) { net.open(builtUnder.x, builtUnder.y); return true; }
     const under = store.objectAt(Math.floor(p.x), Math.floor(p.y));
     if (under && (['stairs_up', 'stairs_down', 'dive_exit'].includes(under.sub) || under.sub === 'shrine_pillar' && under.data?.type === 'platform')) { net.open(under.x, under.y); return true; }
     const npc = this.d.npcNear(p.x + p.fx * 0.8, p.y + p.fy * 0.8, 1.9) ?? this.d.npcNear(p.x, p.y, 1.3);
@@ -277,7 +285,7 @@ export class Gameplay {
     const mouse = this.d.input.mouseActive ? this.d.input.mouseTile : null;
     const t = targetTile(p.x, p.y, p.fx, p.fy, mouse);
     const sel = this.selected();
-    const info = describeUse(sel, store.getTile(t.tx, t.ty), store.objectAt(t.tx, t.ty), this.d.season());
+    const info = describeUse(sel, store.getTile(t.tx, t.ty), store.objectAt(t.tx, t.ty), this.d.season(), store.structureAt(t.tx, t.ty));
     if (info?.kind === 'open') { net.open(t.tx, t.ty); return true; }
     if (!info || info.kind === 'none') {
       // nothing to do at the target: open a station / chest right next to us if there is one
@@ -288,7 +296,7 @@ export class Gameplay {
       }
     }
     this.lastUse = performance.now();
-    net.use({ slot: this.hotbar.selected, tx: t.tx, ty: t.ty });
+    net.use({ slot: this.hotbar.selected, tx: t.tx, ty: t.ty, turn: this.buildRotation });
     if (info?.kind === 'till') this.acts.tilled = true;
     if (info?.kind === 'plant') this.acts.planted = true;
     if (info?.kind === 'water') this.acts.watered = true;
@@ -302,7 +310,7 @@ export class Gameplay {
     const store = this.d.store();
     const mouse = this.d.input.mouseActive ? this.d.input.mouseTile : null;
     const t = targetTile(p.x, p.y, p.fx, p.fy, mouse);
-    const info = describeUse(this.selected(), store.getTile(t.tx, t.ty), store.objectAt(t.tx, t.ty), this.d.season());
+    const info = describeUse(this.selected(), store.getTile(t.tx, t.ty), store.objectAt(t.tx, t.ty), this.d.season(), store.structureAt(t.tx, t.ty));
     if (info && REPEATABLE.has(info.kind) && info.ok) this.interact();
   }
 
@@ -315,11 +323,13 @@ export class Gameplay {
     const t = targetTile(p.x, p.y, p.fx, p.fy, mouse);
     if (this.fishing?.bite) return { info: null, ...t, label: `Press ${binding(this.d.input.keys, 'interact')} now!` };
     if (npc) return { info: { kind: 'talk', label: `Talk to ${NPC_BY_ID[npc.id]?.name ?? 'villager'}`, ok: true }, tx: Math.floor(npc.x), ty: Math.floor(npc.y), label: `${binding(this.d.input.keys, 'interact')}: Talk to ${NPC_BY_ID[npc.id]?.name ?? 'villager'}` };
-    const info = describeUse(this.selected(), store.getTile(t.tx, t.ty), store.objectAt(t.tx, t.ty), this.d.season());
+    const info = describeUse(this.selected(), store.getTile(t.tx, t.ty), store.objectAt(t.tx, t.ty), this.d.season(), store.structureAt(t.tx, t.ty));
     return { info, ...t, label: info ? `${binding(this.d.input.keys, 'interact')}: ${info.label}` : null };
   }
 
   setHint(text: string | null, ok = true): void {
+    const selected = this.selected();
+    this.rotateBuild.hidden = this.blocking || !selected || !isBuildPiece(selected.id) || BUILD_PIECES[selected.id].layer === 'floor';
     this.targetHint.textContent = text ?? '';
     this.targetHint.style.color = ok ? '#f4f4ff' : '#f07a4a';
   }

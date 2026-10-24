@@ -15,6 +15,7 @@ export type Glyph =
   | 'shelf' | 'rug' | 'sprinkler' | 'coop' | 'barn' | 'chicken' | 'cow' | 'sign' | 'fence' | 'gel' | 'tooth'
   | 'waterskin' | 'bag' | 'orb' | 'book' | 'staff' | 'crossbow' | 'spear' | 'battle_axe' | 'warhammer' | 'helm' | 'cuirass' | 'greaves' | 'boots';
 
+import { BUILD_PIECES } from './construction';
 import { ARMOR_SETS, ARMOR_SLOTS, ARMOR_SLOT_NAMES, SET_BY_ID, WEAPONS, armorId, type ArmorSlot, type WeaponId } from './equipment';
 
 export interface ToolSpec { type: 'axe' | 'pickaxe' | 'hoe' | 'can' | 'rod' | 'net'; }
@@ -35,7 +36,7 @@ export interface ItemDef {
   nourishment?: number;
   buff?: { kind: 'regen' | 'might' | 'ward' | 'lantern'; secs: number; power: number };
   /** placeable: world object subtype created */
-  place?: { kind: 'station' | 'sprinkler' | 'shelter' | 'chest' | 'furniture' | 'sign' | 'fence'; sub: string };
+  place?: { kind: 'station' | 'sprinkler' | 'shelter' | 'chest' | 'furniture' | 'sign' | 'fence' | 'structure'; sub: string };
   /** seed: crop id planted */
   crop?: string;
   /** outfit index into the client outfit table */
@@ -85,6 +86,12 @@ const C = COL;
 
 def('waterskin_empty', 'Empty Waterskin', 'misc', 10, 'waterskin', C.e3, C.e5, 'Select in the quick-bar, face a town well, then Use to fill with clean water.', {stack:1,tags:['supplies']});
 def('waterskin_full', 'Filled Waterskin', 'misc', 10, 'waterskin', C.e3, C.w5, 'Drink to restore 35 water. Keeps the empty skin; refill it at a reachable town well.', {stack:1,tags:['supplies']});
+
+// Reusable construction blocks: original art is shared by inventory and world previews.
+for (const [id, piece] of Object.entries(BUILD_PIECES)) {
+  def(id, piece.name, 'placeable', 0, 'box', piece.material === 'stone' || piece.material === 'slate' ? C.steel : C.e3, C.e6,
+    `Craft and place on your own foundation. ${piece.layer === 'stairs' ? 'Links two floors; includes an upper landing.' : 'Pickaxe + Use returns the piece.'}`, { place: { kind: 'structure', sub: id }, tags: ['building'] });
+}
 
 // ── raw resources
 def('wood', 'Wood', 'resource', 4, 'log', C.e3, C.e5, 'Rough timber from a felled tree.');

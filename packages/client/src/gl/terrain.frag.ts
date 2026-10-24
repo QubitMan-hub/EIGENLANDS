@@ -57,7 +57,7 @@ uniform vec3 uWind;         // world wind: direction xy + strength 0..1 (same fi
 const vec3 PAL[48] = vec3[48](${pal});
 
 const int B_MEADOW = 0, B_FOREST = 1, B_AUTUMN = 2, B_TAIGA = 3, B_SWAMP = 4, B_DESERT = 5, B_ENCHANTED = 6, B_CORRUPT = 7;
-const int DEEP = 0, WATER = 1, SAND = 2, GRASS = 3, PATH = 4, SOIL = 5, SOILWET = 6, FLOOR = 7, WALLC = 8, CAVE = 9, CAVEWALL = 10;
+const int DEEP = 0, WATER = 1, SAND = 2, GRASS = 3, PATH = 4, SOIL = 5, SOILWET = 6, FLOOR = 7, WALLC = 8, CAVE = 9, CAVEWALL = 10, VOID = 11;
 const int INK=0, NIGHT=1, SLATE=2, STEEL=3, MIST=4, FOG=5, PALE=6, WHITE=7;
 const int G0=8, G1=9, G2=10, G3=11, G4=12, G5=13, G6=14, G7=15;
 const int E0=16, E1=17, E2=18, E3=19, E4=20, E5=21, E6=22, E7=23;
@@ -613,7 +613,9 @@ void main() {
   int sb = seasonOf(bio, s);
   if (face == 0) {
     float sdf = sdfAt(tfHit);
-    if (isWater(cls)) {
+    if (cls == VOID) {
+      c = NIGHT;
+    } else if (isWater(cls)) {
       c = waterTop(ip, tfHit, sdf, cls == DEEP, t, sb, bio);
     } else if (cls == GRASS) {
       c = grassTop(ip, tfHit, sb, fluxAt(tfHit), t, bio);

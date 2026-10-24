@@ -6,6 +6,7 @@ import type { ServerPlayer } from '../rooms/player';
 import type { RoomApi } from './api';
 import { cropOf, harvestCrop } from './farming';
 import { addSkillXp, distToTile, giveStacks, isInt, validSlot } from './helpers';
+import { openConstruction } from './construction';
 import { forageAt } from './tools';
 import { boardPanel, questEvent, recordDeed } from './quests';
 
@@ -49,6 +50,8 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
   if (!msg || !isInt(msg.tx, -1e6, 1e6) || !isInt(msg.ty, -1e6, 1e6) || p.deadT > 0) return;
   if (distToTile(p, msg.tx, msg.ty) > OPEN_REACH) { p.toast('Too far away.'); return; }
   await room.ensureChunk(chunkOf(msg.tx), chunkOf(msg.ty));
+  if (p.deadT > 0 || distToTile(p, msg.tx, msg.ty) > OPEN_REACH) return;
+  if (await openConstruction(room, p, msg.tx, msg.ty)) return;
   const o = room.store.objectAt(msg.tx, msg.ty);
   if (!o) { forageAt(room, p, msg.tx, msg.ty); return; }
   if (o.static && ['stairs_up', 'stairs_down', 'dive_gate', 'dive_exit'].includes(o.sub)) {

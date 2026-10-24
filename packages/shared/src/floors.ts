@@ -3,7 +3,7 @@ import type { Town, Building } from './town';
 
 /** Separate, persistent upper-floor coordinates reuse chunk collision, interest and shard handoff. */
 export const UPPER_OY = -80000;
-export const isUpperY = (y: number): boolean => y > UPPER_OY - 700 && y < UPPER_OY + 700;
+export const isUpperY = (y: number): boolean => y > UPPER_OY - 12000 && y < UPPER_OY + 12000;
 
 export function upperTowns(base: Town[]): Town[] {
   return base.flatMap(t => t.buildings.filter(b => ['hall', 'inn', 'farmhouse'].includes(b.kind)).map(b => {

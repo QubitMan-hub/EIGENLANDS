@@ -1,6 +1,6 @@
 import {
-  CROPS, ITEMS, NODES, TILE_DEFS, T, TIER_NAMES, cropStage, STATION_NAMES, STATION_SUBS, isRipe, type CropData, type Stack, type WorldObj,
-  RUIN_NAMES,
+  CROPS, ITEMS, NODES, TILE_DEFS, T, TIER_NAMES, cropStage, isSolid, STATION_NAMES, STATION_SUBS, isRipe, type CropData, type Stack, type WorldObj,
+  RUIN_NAMES, BUILD_PIECES, isBuildPiece, type BuildCell,
 } from '@eigenlands/shared';
 
 export type UseKind = 'talk' | 'open' | 'harvest' | 'tool' | 'plant' | 'water' | 'till' | 'cast' | 'net' | 'forage' | 'place' | 'eat' | 'refill' | 'fertilize' | 'none';
@@ -9,10 +9,17 @@ export interface UseInfo { kind: UseKind; label: string; ok: boolean }
 const WATER_TILES: number[] = [T.WATER, T.DEEP_WATER];
 
 /** What would "Use" do on this tile with the selected item? Drives the on-screen prompt and client-side routing. */
-export function describeUse(sel: Stack | null, tile: number, obj: WorldObj | undefined, season: number): UseInfo | null {
+export function describeUse(sel: Stack | null, tile: number, obj: WorldObj | undefined, season: number, cell?: BuildCell): UseInfo | null {
   const def = sel ? ITEMS[sel.id] : undefined;
   if(sel?.id==='waterskin_full')return {kind:'eat',label:'Drink clean water (+35 water)',ok:true};
   if(sel?.id==='waterskin_empty')return {kind:obj?.sub==='well'?'refill':'none',label:obj?.sub==='well'?'Fill waterskin with clean water':'Fill at a town well',ok:obj?.sub==='well'};
+  if (cell && def?.tool?.type === 'pickaxe') return {kind:'tool',label:`Reclaim ${cell.data.roof ? BUILD_PIECES[cell.data.roof].name : cell.data.wall ? BUILD_PIECES[cell.data.wall].name : cell.data.stairs ? 'stairs (return downstairs first)' : 'foundation (clear it first)'}`,ok:true};
+  if (sel && isBuildPiece(sel.id)) {
+    const piece=BUILD_PIECES[sel.id],used=cell?.data[piece.layer];
+    return {kind:'place',label:used?'Reclaim the existing piece first':piece.layer!=='floor'&&!cell?.data.floor?'Lay your own floor first':`Build ${piece.name}`,ok:!used&&(piece.layer==='floor'?(!isSolid(tile)||tile===T.UPPER_VOID):!!cell?.data.floor)};
+  }
+  if (cell?.data.stairs) return {kind:'open',label:cell.data.stairs==='up'?'Climb to upper floor':'Return downstairs',ok:true};
+  if (cell?.data.wall==='timber_door') return {kind:'open',label:cell.data.open?'Close door (owner only)':'Open door (owner only)',ok:true};
   if (obj) {
     if (obj.sub === 'stairs_up' || obj.sub === 'stairs_down') return { kind: 'open', label: obj.sub === 'stairs_up' ? 'Climb to upper floor' : 'Return downstairs', ok: true };
     if (obj.sub === 'dive_gate' || obj.sub === 'dive_exit') return { kind: 'open', label: obj.sub === 'dive_gate' ? 'Dive into the submerged sanctuary' : 'Return to your sloop', ok: true };

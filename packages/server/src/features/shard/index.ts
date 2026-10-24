@@ -1,6 +1,6 @@
 import {
-  CHUNK_SIZE, GHOST_MARGIN, MSG, MSG34, handoffTarget, nearbyShards, regionBounds,
-  type Ghost, type GhostsMsg, type HandoffMsg,
+  CHUNK_SIZE, GHOST_MARGIN, MSG, MSG34, handoffTarget, nearbyShards, regionBounds, shardY,
+  type Ghost, type GhostsMsg, type HandoffMsg, type ObjMsg,
 } from '@eigenlands/shared';
 import type { GameRoom } from '../../rooms/GameRoom';
 import type { ServerPlayer } from '../../rooms/player';
@@ -18,6 +18,7 @@ const GHOST_VIEW = 80;
 
 type ShardBusMsg =
   | { t: 'ghosts'; from: string; at: number; list: Ghost[] }
+  | { t: 'object'; m: ObjMsg }
   | { t: 'tile'; x: number; y: number; tile: number };
 
 /**
@@ -106,7 +107,7 @@ export class ShardModule implements Module {
     for (const p of this.room.players.values()) {
       if (this.handing.has(p.id)) continue;
       const x = p.sim.x, y = p.sim.y;
-      if (x - b.x0 > GHOST_MARGIN && b.x1 - x > GHOST_MARGIN && y - b.y0 > GHOST_MARGIN && b.y1 - y > GHOST_MARGIN) continue;
+      if (x - b.x0 > GHOST_MARGIN && b.x1 - x > GHOST_MARGIN && shardY(y) - b.y0 > GHOST_MARGIN && b.y1 - shardY(y) > GHOST_MARGIN) continue;
       const s = p.state;
       const g: Ghost = { id: `g:${p.accountId}`, name: s.name, x, y, faceX: s.faceX, faceY: s.faceY, look: s.look, level: s.level, cls: s.cls, hp: s.hp, maxHp: s.maxHp, flags: s.flags };
       for (const n of nearbyShards(this.room.region, x, y)) { let l = out.get(n); if (!l) { l = []; out.set(n, l); } l.push(g); }
@@ -132,13 +133,19 @@ export class ShardModule implements Module {
   tileChanged(x: number, y: number, tile: number): void {
     if (this.room.unsharded || !this.room.owns(x, y)) return;
     const b = regionBounds(this.room.region);
-    if (x - b.x0 > RELAY_MARGIN && b.x1 - x > RELAY_MARGIN && y - b.y0 > RELAY_MARGIN && b.y1 - y > RELAY_MARGIN) return;
+    if (x - b.x0 > RELAY_MARGIN && b.x1 - x > RELAY_MARGIN && shardY(y) - b.y0 > RELAY_MARGIN && b.y1 - shardY(y) > RELAY_MARGIN) return;
     for (const n of nearbyShards(this.room.region, x, y, RELAY_MARGIN)) runtime34().bus.publish(`shard:${n}`, { t: 'tile', x, y, tile });
+  }
+
+  objectChanged(m:ObjMsg):void {
+    if(this.room.unsharded||!this.room.owns(m.x,m.y))return;
+    for(const n of nearbyShards(this.room.region,m.x,m.y,RELAY_MARGIN)) runtime34().bus.publish(`shard:${n}`,{t:'object',m});
   }
 
   private onBus(m: ShardBusMsg): void {
     if (!m || typeof m !== 'object') return;
     if (m.t === 'ghosts' && typeof m.from === 'string' && Array.isArray(m.list)) this.ghosts.set(m.from, { at: Date.now(), list: m.list });
+    else if(m.t==='object'&&Number.isInteger(m.m?.x)&&Number.isInteger(m.m?.y))this.room.applyForeignObject(m.m);
     else if (m.t === 'tile' && Number.isInteger(m.x) && Number.isInteger(m.y) && Number.isInteger(m.tile)) this.room.applyForeignTile(m.x, m.y, m.tile);
   }
 

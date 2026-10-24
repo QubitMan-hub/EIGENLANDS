@@ -141,3 +141,34 @@ describe('shards', () => {
     await Promise.all([a.r.leave(), j.r.leave(), k.r.leave().catch(() => {})]);
   });
 });
+
+describe('player-built floors in real sharded rooms',()=>{
+ it('keeps stairs, their landings and edits under one authority through both transitions',async()=>{
+  const g=await guest(app),a=await connect(g.token,{name:'Builder',shard:'0,0'}),room=serverRoom(a.r);
+  await until(()=>room.players.has(a.r.sessionId));const p=room.players.get(a.r.sessionId)!;
+  p.sim.x=100.5;p.sim.y=100.5;room.setTile(100,100,T.GRASS);
+  p.data.inv[0]={id:'timber_floor',n:1};p.toolReadyAt=0;a.r.send(MSG.USE,{slot:0,tx:100,ty:100});
+  await until(()=>!!room.store.structureAt(100,100));
+  p.data.inv[0]={id:'timber_stairs',n:1};p.toolReadyAt=0;a.r.send(MSG.USE,{slot:0,tx:100,ty:100});
+  await until(()=>room.store.structureAt(100,-79900)?.data.stairs==='down');
+  a.r.send(MSG.OPEN,{tx:100,ty:100});await until(()=>p.sim.y===-79899.5);await sleep(300);
+  expect(room.owns(100,-79900)).toBe(true);expect(a.handoffs).toHaveLength(0);
+  a.r.send(MSG.OPEN,{tx:100,ty:-79900});await until(()=>p.sim.y===100.5);
+  expect(a.handoffs).toHaveLength(0);await a.r.leave();
+ });
+});
+
+it('relays built collision, furniture and independent deletions across real region borders',async()=>{
+ const ga=await guest(app),gb=await guest(app),right=await into10(gb.token,'East builder',B0.x1+4),left=await connect(ga.token,{name:'West visitor',shard:'0,0'});
+ const ra=serverRoom(left.r),rb=serverRoom(right.r),x=B0.x1+1,y=0;
+ await until(()=>ra.players.has(left.r.sessionId));ra.players.get(left.r.sessionId)!.sim.x=B0.x1-1.5;
+ rb.setTile(x,y,T.GRASS);await ra.ensureChunk(Math.floor(x/32),0);
+ const floor={x,y,kind:'structure' as const,sub:'cell',owner:gb.accountId,data:{floor:'timber_floor'}};
+ rb.objects.put(floor);await until(()=>!!ra.store.structureAt(x,y));
+ rb.objects.put({...floor,data:{...floor.data,wall:'stone_wall'}});await until(()=>ra.store.solidAt(x,y));
+ rb.objects.put({x,y,kind:'furniture',sub:'rug',owner:gb.accountId});await until(()=>!!ra.store.objectAt(x,y));
+ rb.objects.remove(x,y,true);await until(()=>!ra.store.structureAt(x,y));expect(ra.store.objectAt(x,y)?.sub).toBe('rug');expect(ra.store.solidAt(x,y)).toBe(false);
+ // Refreshing the foreign snapshot must not resurrect an earlier wall or erase a live rug.
+ await ra.ensureChunk(Math.floor(x/32),0);expect(ra.store.structureAt(x,y)).toBeUndefined();expect(ra.store.objectAt(x,y)?.sub).toBe('rug');
+ await left.r.leave();await right.r.leave();
+});

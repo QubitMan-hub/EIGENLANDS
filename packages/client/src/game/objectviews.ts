@@ -130,7 +130,7 @@ export class ObjectViews {
     const m = new Map<number, Obj>();
     for (let i = 0; i < chunk.tiles.length; i++) {
       const tx = cx * CHUNK_SIZE + i % CHUNK_SIZE, ty = cy * CHUNK_SIZE + Math.floor(i / CHUNK_SIZE);
-      const kind = TILE_DEFS[chunk.tiles[i]!]?.obj ?? sceneryAt(this.store, tx, ty);
+      const kind = TILE_DEFS[this.store.getTile(tx, ty)]?.obj ?? sceneryAt(this.store, tx, ty);
       if (!kind) continue;
       const o = this.makeObj(cx * CHUNK_SIZE + (i % CHUNK_SIZE), cy * CHUNK_SIZE + Math.floor(i / CHUNK_SIZE), kind);
       if (o) m.set(i, o);

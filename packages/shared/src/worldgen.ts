@@ -148,7 +148,7 @@ function surfaceTileAt(seed: number, x: number, y: number, legacy: boolean): num
   if (isCaveY(y)) return caveTileAt(seed, x, y, legacy);
   const tt = townTileAt(seed, x, y);
   if (tt !== null) return tt;
-  if (isUpperY(y)) return T.CAVE_WALL;
+  if (isUpperY(y)) return T.UPPER_VOID;
   // Spawn shrine: path disc, four torches.
   const r0 = Math.hypot(x, y);
   if (Math.abs(x) === 3 && Math.abs(y) === 3) return T.TORCH;

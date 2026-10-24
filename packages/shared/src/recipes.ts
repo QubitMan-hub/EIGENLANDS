@@ -1,3 +1,4 @@
+import { BUILD_PIECES } from './construction';
 import { ITEMS } from './items';
 import { ARMOR_SLOTS, armorId } from './equipment';
 
@@ -27,6 +28,8 @@ const R: Recipe[] = [];
 function r(id: string, station: StationId, inputs: Array<[string, number]>, out: [string, number], xp: number, learn: Recipe['learn'], hint: string, p?: Record<string, unknown>): void {
   R.push({ id, station, inputs: inputs.map(([i, n]) => ({ id: i, n })), out: { id: out[0], n: out[1], ...(p ? { p } : {}) }, xp, learn, hint });
 }
+
+for (const [id, piece] of Object.entries(BUILD_PIECES)) r(id, 'hand', piece.cost.map(([id, n]) => [id, n]), [id, 1], 1, 'start', `Build freely: ${piece.name}. Place a floor first, then walls, roofs or stairs.`);
 
 // Field crafting (no station)
 r('waterskin', 'hand', [['hide', 1], ['fiber', 2]], ['waterskin_empty', 1], 2, 'start', 'Hide stitched with fiber. Fill at a town well.');

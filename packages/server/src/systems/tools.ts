@@ -2,6 +2,7 @@ import {
   isCaveY,
   FORAGE_BY_SEASON, HEARTS_MAX, ITEMS, NODES, T, chunkOf, isSolid, toolDamage, type Stack, type UseMsg, type WorldObj,
 } from '@eigenlands/shared';
+import { useConstruction } from './construction';
 import { tuning } from '../rooms/runtime';
 import type { ServerPlayer } from '../rooms/player';
 import type { RoomApi } from './api';
@@ -66,6 +67,9 @@ export async function handleUse(room: RoomApi, p: ServerPlayer, msg: UseMsg): Pr
   const slot = msg.slot;
   const obj = room.store.objectAt(tx, ty);
   const tool = def.tool?.type;
+  if (await useConstruction(room, p, msg, stack.id, tool === 'pickaxe')) return;
+  const built = room.store.structureAt(tx, ty);
+  if (built && (built.owner !== p.accountId || built.data.stairs)) { p.toast(built.data.stairs ? 'Keep the stair landing clear.' : 'This building belongs to another player.'); return; }
   if(stack.id==='waterskin_empty'){if(obj?.sub!=='well'){p.toast('Fill an empty waterskin at a town well.');return;}p.data.inv[slot]={id:'waterskin_full',n:1};p.dirty('inv');room.fx({kind:'water',x:tx+.5,y:ty+.5});return;}
 
   if (obj && !obj.static) {

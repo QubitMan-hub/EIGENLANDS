@@ -1,7 +1,7 @@
 import { C } from './palette';
 
 /** Things placed on top of the tile grid. Persisted per chunk (crops, stations...) or static (town furnishing). */
-export type WorldObjKind = 'crop' | 'station' | 'sprinkler' | 'shelter' | 'chest' | 'furniture' | 'sign' | 'deco';
+export type WorldObjKind = 'crop' | 'station' | 'sprinkler' | 'shelter' | 'chest' | 'furniture' | 'sign' | 'deco' | 'structure';
 
 export interface WorldObj {
   x: number;

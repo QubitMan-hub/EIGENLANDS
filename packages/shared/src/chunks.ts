@@ -1,3 +1,4 @@
+import { buildTile, type BuildCell } from './construction';
 import { oceanObjectsIn } from './ocean';
 import { sanctuaryObjectsIn, isDiveY } from './sanctuaries';
 import { CHUNK_SIZE } from './constants';
@@ -55,6 +56,8 @@ export class ChunkStore {
   private solidObjs = new Set<string>();
   /** all dynamic + static objects by "x,y" (server/client keep this in sync with OBJ messages) */
   readonly objects = new Map<string, WorldObj>();
+  readonly structures = new Map<string, BuildCell>();
+  structureRevision = 0;
   private townByChunk: Map<string, WorldObj[]> | null = null;
 
   constructor(readonly seed: number, private maxChunks = 256) {}
@@ -95,6 +98,8 @@ export class ChunkStore {
   private lastChunk: Chunk | null = null;
 
   getTile(x: number, y: number): number {
+    const built = buildTile(this.structureAt(x, y));
+    if (built !== undefined) return built;
     const cx = chunkOf(x), cy = chunkOf(y);
     let c = this.lastChunk;
     // fast path: consecutive lookups (collision, light scans) mostly hit the same chunk
@@ -130,10 +135,13 @@ export class ChunkStore {
 
   putObject(o: WorldObj): void {
     const k = `${o.x},${o.y}`;
+    if (o.kind === 'structure') { this.structures.set(k, o as BuildCell); this.structureRevision++; return; }
     this.objects.set(k, o);
     if (objSolid(o.kind, o.sub)) this.solidObjs.add(k); else this.solidObjs.delete(k);
   }
   removeObject(x: number, y: number): void { const k = `${x},${y}`; this.objects.delete(k); this.solidObjs.delete(k); }
+  structureAt(x: number, y: number): BuildCell | undefined { return this.structures.get(`${x},${y}`); }
+  removeStructure(x: number, y: number): void { this.structures.delete(`${x},${y}`); this.structureRevision++; }
   objectAt(x: number, y: number): WorldObj | undefined { return this.objects.get(`${x},${y}`); }
 
   /** a ship's collision: only open water is passable */

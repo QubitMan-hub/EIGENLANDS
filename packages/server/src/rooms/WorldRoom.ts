@@ -5,7 +5,7 @@ import {
   NAME_MAX, ORB_RADIUS, ORB_RANGE, ORB_SPEED, ORB_SPREAD, PLAYER_RADIUS, PROJECTILE_DAMAGE, PROJECTILE_RADIUS, PROJECTILE_RANGE,
   PROJECTILE_SPEED, CHUNK_SIZE, REFLECT_DAMAGE, REFLECT_SPEED_MULT, SKILL_POISE, SLAM_POISE, SLIP_SLOW_RADIUS, SLIP_SLOW_TIME, SLIP_TIME,
   BOMB_FUSE, BOMB_RADIUS, CRIT_MULT, moveBody, TICK_DT, enemyScale, eliteChance, hasIframes, meleeTap, meleeHeavy, setMeleeWeapon, isPerfectDodge, pickSpawn, resolveHit, rollCrit,
-  shapeHits, slamDamage, spawnBudget, type StepEvents, type StrikeShape,
+  shapeHits, slamDamage, spawnBudget, type ObjMsg, type StepEvents, type StrikeShape,
   TICK_MS, TILE_DEFS, PlayerState, ProjectileState, WorldState, chunkOf, encodeAck, encodeDiff, inArc, isNight,
   maxHpForLevel, newPlayerSim, rewindPosition, sanitizeCmd, segmentHitsCircle, stepPlayer, xpForLevel, T, buildingAt,
   type ChunkDiff, type FxMsg, type InputBatch, type InputCmd, type PlayerSim, type PosSample, type Stack,
@@ -116,7 +116,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     this.seed = rt.config.worldSeed;
     this.wclock = worldClock();
     this.store = new ChunkStore(this.seed, 512);
-    this.objects = new ObjectManager({ store: this.store, seed: this.seed, players: this.players });
+    this.objects = new ObjectManager({ store: this.store, seed: this.seed, players: this.players, objectChanged: m => this.hookObjectChanged(m) });
     this.processedDay = this.wclock.day();
     this.setPatchRate(TICK_MS);
     this.setSimulationInterval(() => this.tick(), TICK_MS);
@@ -952,14 +952,14 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
         const habitat = biomeAt(this.seed, x, y);
         const kind = pickSpawn(p.level, night, this.rand(), habitat, isCaveY(y)), def = ENEMY_DEFS[kind];
         const cost = def.budget ?? 1;
-        if (used + cost > budget || Math.hypot(x, y) < 12 || buildingAt(this.seed, x, y) || sanctuaryAt(this.seed, x, y) || this.store.solidAt(Math.floor(x), Math.floor(y))) continue;
+        if (used + cost > budget || Math.hypot(x, y) < 12 || buildingAt(this.seed, x, y) || this.store.structureAt(Math.floor(x), Math.floor(y)) || sanctuaryAt(this.seed, x, y) || this.store.solidAt(Math.floor(x), Math.floor(y))) continue;
         if ([...this.players.values()].some(other => other.deadT <= 0 && Math.hypot(x - other.sim.x, y - other.sim.y) < 14)) continue;
         if ([...this.enemies.values()].some(e => !e.def.passive && Math.hypot(x - e.x, y - e.y) < 3)) continue;
         const pack = kind === 'mite' ? 2 : kind === 'wolf' ? 2 : 1;
         const n = Math.min(pack, headroom, Math.floor((budget - used) / cost), MAX_ENEMIES - total);
         for (let i = 0; i < n; i++) {
           const px = x + i * 1.1, py = y + i * .6;
-          if (sanctuaryAt(this.seed, px, py) || this.store.solidAt(Math.floor(px), Math.floor(py)) || [...this.players.values()].some(other => Math.hypot(px - other.sim.x, py - other.sim.y) < 14)) continue;
+          if (this.store.structureAt(Math.floor(px), Math.floor(py)) || sanctuaryAt(this.seed, px, py) || this.store.solidAt(Math.floor(px), Math.floor(py)) || [...this.players.values()].some(other => Math.hypot(px - other.sim.x, py - other.sim.y) < 14)) continue;
           const elite = p.level >= 3 && n === 1 && this.rand() < eliteChance(p.level, night) ? [ELITE.HARDENED, ELITE.SWIFT, ELITE.VOLATILE][Math.floor(this.rand() * 3)]! : 0;
           this.spawnEnemy(kind, px, py, night, { level: p.level, elite }); total++;
         }
@@ -984,7 +984,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       for (let tries = 0; tries < 10; tries++) {
         const a = this.rand() * Math.PI * 2, d = 10 + this.rand() * 8;
         const x = Math.floor(p.sim.x + Math.cos(a) * d), y = Math.floor(p.sim.y + Math.sin(a) * d);
-        if (Math.hypot(x, y) < 12 || buildingAt(this.seed, x, y) || sanctuaryAt(this.seed, x, y)) continue;
+        if (Math.hypot(x, y) < 12 || buildingAt(this.seed, x, y) || this.store.structureAt(Math.floor(x), Math.floor(y)) || sanctuaryAt(this.seed, x, y)) continue;
         const t = this.store.getTile(x, y);
         const biome = biomeAt(this.seed, x, y);
         if (biome === 'corrupted' || isCaveY(y)) continue;         // nothing gentle lives in the wastes or underground
@@ -1030,6 +1030,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   // ───────────────────────── extension hooks (overridden by GameRoom, Phase 3/4) ─────────────────────────
   protected makeVillage(host: VillageHost): VillageSystem { return createVillage(host); }
   protected hookAccepts(_p: ServerPlayer, _msg: unknown): boolean { return true; }
+  protected hookObjectChanged(_m: ObjMsg): void {}
   protected hookTileChanged(_x: number, _y: number, _tile: number): void {}
   protected hookTick(_now: number): void {}
   protected hookViewEntities(_push: (id: string, x: number, y: number, st: SpellState) => void): void {}
