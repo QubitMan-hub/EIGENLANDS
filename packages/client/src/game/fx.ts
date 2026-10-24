@@ -1,5 +1,5 @@
 import { Container, Graphics, Sprite, Text, type Texture } from 'pixi.js';
-import { COMBO, PALETTE, heavyHit, type ComboHit } from '@eigenlands/shared';
+import { meleeTap, meleeHeavy, PALETTE, type ComboHit } from '@eigenlands/shared';
 import { ISO_HH, ISO_HW, isoX, isoY } from './iso';
 
 const pc = (i: number) => parseInt(PALETTE[i]!.slice(1), 16);
@@ -28,15 +28,15 @@ export class Fx {
   private add(it: Item): void { this.items.push(it); }
 
   /** Light combo swing (kept for callers that only know the combo index). */
-  swing(x: number, y: number, dx: number, dy: number, combo: number): void {
-    const hit = COMBO[Math.max(0, Math.min(2, combo))]!;
+  swing(x: number, y: number, dx: number, dy: number, combo: number, weapon?: string): void {
+    const hit = meleeTap(weapon,combo);
     this.arc(x, y, dx, dy, hit, combo === 2 ? 37 : 7, combo === 1 ? -1 : 1, combo === 2 ? 0.2 : 0.15);
     if (combo === 2) this.kick(0.2);
   }
 
   /** Charged heavy: a wide two-tone cleave with a ground shock ring. */
-  heavy(x: number, y: number, dx: number, dy: number, level: number): void {
-    const hit = heavyHit(level);
+  heavy(x: number, y: number, dx: number, dy: number, level: number, weapon?: string): void {
+    const hit = meleeHeavy(weapon,level);
     this.arc(x, y, dx, dy, hit, level >= 1 ? 39 : 46, 1, 0.26, true);
     this.ring(x + dx * 0.6, y + dy * 0.6, level >= 1 ? 38 : 45, hit.range * 0.8, 0.35);
     this.kick(0.35 + 0.25 * level);

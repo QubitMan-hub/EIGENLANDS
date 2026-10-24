@@ -1,10 +1,10 @@
 import { Client, Room, ServerError } from 'colyseus';
 import { StateView } from '@colyseus/schema';
 import {
-  ATK, attackDamage, weaponShotPower, weaponRecovery, BASE_PLAYER_HP, ChunkStore, COMBO, CHARGE_MIN, DASH_CHARGES, ELITE, ELITE_XP_MULT, ENEMY_DEFS, INTEREST_RADIUS, MAX_REWIND_TICKS, MSG,
+  ATK, attackDamage, weaponShotPower, weaponRecovery, BASE_PLAYER_HP, ChunkStore, CHARGE_MIN, DASH_CHARGES, ELITE, ELITE_XP_MULT, ENEMY_DEFS, INTEREST_RADIUS, MAX_REWIND_TICKS, MSG,
   NAME_MAX, ORB_RADIUS, ORB_RANGE, ORB_SPEED, ORB_SPREAD, PLAYER_RADIUS, PROJECTILE_DAMAGE, PROJECTILE_RADIUS, PROJECTILE_RANGE,
   PROJECTILE_SPEED, CHUNK_SIZE, REFLECT_DAMAGE, REFLECT_SPEED_MULT, SKILL_POISE, SLAM_POISE, SLIP_SLOW_RADIUS, SLIP_SLOW_TIME, SLIP_TIME,
-  BOMB_FUSE, BOMB_RADIUS, CRIT_MULT, moveBody, TICK_DT, enemyScale, eliteChance, hasIframes, heavyHit, isPerfectDodge, pickSpawn, resolveHit, rollCrit,
+  BOMB_FUSE, BOMB_RADIUS, CRIT_MULT, moveBody, TICK_DT, enemyScale, eliteChance, hasIframes, meleeTap, meleeHeavy, setMeleeWeapon, isPerfectDodge, pickSpawn, resolveHit, rollCrit,
   shapeHits, slamDamage, spawnBudget, type StepEvents, type StrikeShape,
   TICK_MS, TILE_DEFS, PlayerState, ProjectileState, WorldState, chunkOf, encodeAck, encodeDiff, inArc, isNight,
   maxHpForLevel, newPlayerSim, rewindPosition, sanitizeCmd, segmentHitsCircle, stepPlayer, xpForLevel, T, buildingAt,
@@ -532,7 +532,9 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       // jittery clients drift a tick or two past the window: clamp; absurd values get no compensation at all
       p.viewLag = cmd.viewTick > 0 && lag > 0 && lag <= MAX_REWIND_TICKS * 3 ? Math.min(lag, MAX_REWIND_TICKS) : 0;
       p.lastViewTick = p.viewLag > 0 ? cmd.viewTick : tick;
-      p.sim.ranged = isRangedWeapon(this.weaponOf(p));
+      const weapon = this.weaponOf(p);
+      p.sim.ranged = isRangedWeapon(weapon);
+      setMeleeWeapon(p.sim,weapon?.id);
       const ev = stepPlayer(p.sim, cmd, solid);
       if(cmd.dx||cmd.dy||ev.attacked||ev.skill||ev.dashed)p.travelExerted=true;
       if (ev.dashed) {
@@ -591,13 +593,14 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
 
   /** Light combo hits and charged heavies; lag-compensated against what the attacker saw. Also bats enemy orbs back. */
   private resolveMelee(p: ServerPlayer, cmd: InputCmd, ev: StepEvents, tick: number, form?: { name: string; dmg: number; knockback: number }): void {
-    const base = ev.heavy ? heavyHit(ev.level) : COMBO[ev.combo]!;
+    const weapon=this.weaponOf(p)?.id;
+    const base = ev.heavy ? meleeHeavy(weapon,ev.level) : meleeTap(weapon,ev.combo);
     const hit = form ? { ...base, damage: Math.round(base.damage * form.dmg), knockback: base.knockback * form.knockback } : base;
     if (form) this.fx({ kind: 'form', x: p.sim.x, y: p.sim.y, v: form.name === 'Bear' ? 1 : 0, id: p.id });
     const rewindTick = Math.min(tick, Math.max(cmd.viewTick, tick - MAX_REWIND_TICKS));
     const fx = p.sim.faceX, fy = p.sim.faceY;
-    if (ev.heavy) this.fx({ kind: 'heavy', x: p.sim.x, y: p.sim.y, dx: fx, dy: fy, v: ev.level, id: p.id }, p.client.sessionId);
-    else this.fx({ kind: 'swing', x: p.sim.x, y: p.sim.y, dx: fx, dy: fy, v: ev.combo, id: p.id }, p.client.sessionId);
+    if (ev.heavy) this.fx({ kind: 'heavy', x: p.sim.x, y: p.sim.y, dx: fx, dy: fy, v: ev.level, id: p.id, weapon }, p.client.sessionId);
+    else this.fx({ kind: 'swing', x: p.sim.x, y: p.sim.y, dx: fx, dy: fy, v: ev.combo, id: p.id, weapon }, p.client.sessionId);
     for (const e of [...this.enemies.values()]) {
       const pos = rewindPosition(e.history, rewindTick) ?? { x: e.x, y: e.y };
       if (!inArc(p.sim.x, p.sim.y, fx, fy, hit, { x: pos.x, y: pos.y, r: e.def.radius })) continue;

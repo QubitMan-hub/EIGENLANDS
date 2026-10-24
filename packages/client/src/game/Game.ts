@@ -34,7 +34,7 @@ import { buildFoeSheets, type FoeSheets } from '../art/foes';
 import { CombatView } from './combatview';
 import { WindField } from './windfield';
 import { Ambient } from './ambient';
-import { HUE_PALETTE, ITEMS, MSG34, SHADOW_RANKS, WEAPONS, isRangedWeapon, isWeaponId } from '@eigenlands/shared';
+import { HUE_PALETTE, ITEMS, MSG34, SHADOW_RANKS, WEAPONS, setMeleeWeapon, isRangedWeapon, isWeaponId } from '@eigenlands/shared';
 import { Critters } from '../art/critters';
 import { Ships } from '../art/ships';
 import { TargetFrame } from '../ui/targetframe';
@@ -630,10 +630,10 @@ export class Game {
   }
 
   /** wielded weapon summary for prediction and effects */
-  private weaponInfo(): { ranged: boolean; hue: number } {
+  private weaponInfo(): { ranged: boolean; hue: number; id: string } {
     const id = this.gameplay.profile.equip.weapon ? ITEMS[this.gameplay.profile.equip.weapon.id]?.weapon : undefined;
     const w = id ? WEAPONS[id] : null;
-    return { ranged: isRangedWeapon(w), hue: w ? w.hue : -1 };
+    return { ranged: isRangedWeapon(w), hue: w ? w.hue : -1,id: w?.id ?? 'sword' };
   }
 
   currentTarget(): { id: string; kind: 'enemy' | 'player' } | null {
@@ -737,7 +737,9 @@ export class Game {
     const frozen = this.dead || !this.connected || this.settingsOpen() || this.gameplay.blocking || this.ext.blocking || this.net.switching || now - (this.hops.get(this.myId)?.at ?? -1e9) < 650;
     if (frozen) { this.input.read(now); return; }
     const viewTick = Math.max(0, Math.floor(this.clock.tickAt(this.clock.serverNow(now) - this.clock.interpDelay - this.combat.warp)));
-    this.predictor.sim.ranged = this.weaponInfo().ranged;
+    const weapon = this.weaponInfo();
+    this.predictor.sim.ranged = weapon.ranged;
+    setMeleeWeapon(this.predictor.sim,weapon.id);
     const { cmd, ev } = this.predictor.step(r, viewTick);
     this.net.sendInput(cmd);
     const acts = this.gameplay.acts;

@@ -4,7 +4,7 @@ const browser = await chromium.launch({ executablePath: process.env.CHROME ?? '/
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1240 } });
   const errors = []; page.on('pageerror', e => errors.push(e.message));
-  await page.goto(`${process.argv[2] ?? 'http://127.0.0.1:5173/'}labs/artlab.html?lab=equipment&scale=3&motion=0`);
+  await page.goto(`${process.argv[2] ?? 'http://127.0.0.1:5173/'}labs/artlab.html?lab=equipment&weapons=sword,spear,battle_axe,warhammer&scale=3&motion=0`);
   await page.waitForFunction(() => window.__lab?.ready);
   const failures = await page.evaluate(async () => {
     const { HeldWeapons } = await import('/src/art/weapons.ts');
@@ -25,5 +25,13 @@ try {
   assert.deepEqual(failures, [], 'Held equipment has visible geometry, no cropped edges and cached frames');
   assert.deepEqual(errors, []);
   await page.screenshot({ path: '/tmp/eigenlands-equipment.png' });
-  console.log('Seven weapons × eight facings × thirty poses: bounds and texture reuse passed');
+  console.log('All weapons × eight facings × thirty poses: bounds and texture reuse passed');
+  for (const frame of [0,1,5,10,11,12,13]) {
+    await page.goto(`${process.argv[2] ?? 'http://127.0.0.1:5173/'}labs/artlab.html?lab=equipment&weapons=sword,spear,battle_axe,warhammer&scale=3&motion=0&frame=${frame}`);
+    await page.waitForFunction(() => window.__lab?.ready);
+    await page.screenshot({path:`/tmp/eigenlands-arsenal-poses-${frame}.png`});
+  }
+  await page.goto(`${process.argv[2] ?? 'http://127.0.0.1:5173/'}labs/spritelab.html?lab=people&scale=2&look=0`);
+  await page.waitForFunction(() => window.__lab?.ready);await page.screenshot({path:'/tmp/eigenlands-arsenal-people.png'});
+  assert.deepEqual(errors, []);
 } finally { await browser.close(); }

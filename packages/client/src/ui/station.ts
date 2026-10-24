@@ -4,14 +4,14 @@ import { clear, h, iconCell, tooltipFor, type Tooltip } from './dom';
 
 export interface StationActions {
   craft(recipe: string, n: number): void;
-  experiment(items: Array<{ slot: number; n: number }>): void;
+  experiment?(items: Array<{ slot: number; n: number }>): void;
 }
 
 const have = (profile: Profile, id: string) => profile.count(id);
 
 /** Recipe book + free-form experiment bench for one station. */
 export function buildStation(station: StationId, profile: Profile, tip: Tooltip, act: StationActions): HTMLElement {
-  const root = h('div', { class: 'station' });
+  const root = h('div', { class: 'station', ...(!act.experiment ? { style: 'grid-template-columns:1fr' } : {}) });
   const list = h('div', { class: 'recipes' });
   const exp = h('div', { class: 'experiment' });
   const offered: Array<{ slot: number; n: number }> = [];
@@ -60,7 +60,7 @@ export function buildStation(station: StationId, profile: Profile, tip: Tooltip,
     exp.append(slots);
     const ids = offered.map((o) => ({ id: profile.inv[o.slot]?.id ?? '', n: o.n }));
     const m = offered.length ? matchExperiment(station, ids) : null;
-    exp.append(h('button', { class: 'primary', text: 'Try it', disabled: !offered.length, on: { click: () => { act.experiment(offered.map((o) => ({ ...o }))); offered.length = 0; renderExp(); } } }));
+    exp.append(h('button', { class: 'primary', text: 'Try it', disabled: !offered.length, on: { click: () => { act.experiment?.(offered.map((o) => ({ ...o }))); offered.length = 0; renderExp(); } } }));
     if (m && profile.recipes.has(m.id)) exp.append(h('div', { class: 'small good', text: `Known: ${ITEMS[m.out.id]!.name}` }));
     // pack picker
     const pack = h('div', { class: 'pack-pick' });
@@ -80,9 +80,10 @@ export function buildStation(station: StationId, profile: Profile, tip: Tooltip,
     exp.append(h('div', { class: 'side-title', text: 'Your pack' }), pack);
   };
 
-  const rerender = () => { renderList(); renderExp(); };
+  const rerender = () => { renderList(); if (act.experiment) renderExp(); };
   rerender();
-  root.append(h('div', { class: 'col' }, h('div', { class: 'side-title', text: `${STATION_NAMES[station]} recipes` }), list), h('div', { class: 'col' }, exp));
+  root.append(h('div', { class: 'col' }, h('div', { class: 'side-title', text: `${STATION_NAMES[station]} recipes` }), list));
+  if (act.experiment) root.append(h('div', { class: 'col' }, exp));
   const unsub = profile.onChange(() => { if (!root.isConnected) { unsub(); return; } rerender(); });
   return root;
 }

@@ -1,5 +1,5 @@
 /**
- * Armor sets and Foci (weapons). Pure data shared by server (stats, attacks), client (tooltips, looks) and recipes.
+ * Armor sets, melee weapons and Foci. Pure data shared by server (stats, attacks), client (tooltips, looks) and recipes.
  * Quantum flavour: staves are Foci that bias which element your attacks collapse into, armor can phase-slip a hit.
  */
 export type ArmorSlot = 'head' | 'chest' | 'legs' | 'feet';
@@ -73,7 +73,7 @@ export function armorTotals(worn: WornArmor): { bonus: Required<Bonus>; sets: Re
 // ───────────────────────── weapons ─────────────────────────
 
 export type WeaponClass = 'blade' | 'crossbow' | 'staff';
-export type WeaponId = 'sword' | 'crossbow' | 'ember_staff' | 'rime_staff' | 'verdant_staff' | 'radiant_staff' | 'morph_staff';
+export type WeaponId = 'sword' | 'spear' | 'battle_axe' | 'warhammer' | 'crossbow' | 'ember_staff' | 'rime_staff' | 'verdant_staff' | 'radiant_staff' | 'morph_staff';
 
 /** One attack of a weapon, expressed with the same fields the ability engine understands. */
 export interface WeaponShot {
@@ -113,6 +113,9 @@ export interface WeaponDef {
 }
 
 export const WEAPONS: Record<WeaponId, WeaponDef> = {
+  spear: {id:'spear',name:'Iron Spear',cls:'blade',hue:-1,level:3,cd:0,basic:null,charged:null,bonus:{},blurb:'Long, narrow thrusts. Keep foes in front of you; charge for a reaching drive.',quantum:'Your Phase Slip counter still guarantees a critical hit.'},
+  battle_axe: {id:'battle_axe',name:'Broadhead Battle Axe',cls:'blade',hue:-1,level:6,cd:0,basic:null,charged:null,bonus:{},blurb:'Wide sweeps catch groups, with less reach and slower recovery than a sword.',quantum:'Your physical cleaves leave room for Circuit abilities between swings.'},
+  warhammer: {id:'warhammer',name:'Iron Warhammer',cls:'blade',hue:-1,level:10,cd:0,basic:null,charged:null,bonus:{},blurb:'Short, deliberate blows. The finisher bypasses light-hit armour; a full heavy crushes 60 poise.',quantum:'Phase Slip counters turn patient positioning into a guaranteed critical smash.'},
   sword: { id: 'sword', name: 'Sword', cls: 'blade', hue: -1, level: 1, cd: 0, basic: null, charged: null, bonus: {}, blurb: 'A three-hit combo and a charged heavy strike.', quantum: 'Hold to charge: the longer, the heavier.' },
   crossbow: { id: 'crossbow', name: 'Crossbow', cls: 'crossbow', hue: -1, level: 5, cd: 0.55,
     basic: { name: 'Bolt', hue: -1, kind: 'bolt', dmg: 16, range: 12, speed: 20 },

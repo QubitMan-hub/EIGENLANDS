@@ -79,6 +79,8 @@ export type FxKind = 'hit' | 'swing' | 'shot' | 'dash' | 'die' | 'levelup' | 'te
   | 'shadow' | 'jump';   // jump: x/y origin, dx/dy landing, 650ms visual arc
 export interface FxMsg {
   kind: FxKind; x: number; y: number; v?: number; dx?: number; dy?: number; id?: string;
+  /** Equipped weapon for matching remote melee shape/pose; absent on older effects. */
+  weapon?: string;
   /** hit weight: 0 light, 1 finisher, 2 heavy, 3 full heavy (hit-stop, shake, sound) */
   w?: number;
   /** 1 = critical hit */
@@ -260,7 +262,7 @@ export const JOIN_ROOM = 'world';
 
 /**
  * Compact binary ack: u32 seq, u32 tick, then ACK_FIELDS.length float32 of PlayerSim (80 bytes). Sent to the owner every tick.
- * Every PlayerSim field must be listed here or prediction cannot replay exactly.
+ * Dynamic numeric state is listed here; weapon metadata is derived from equipment and retained during replay.
  */
 export const ACK_FIELDS = [
   'x', 'y', 'faceX', 'faceY', 'dashT', 'dashCd', 'dashDx', 'dashDy', 'atkCd', 'combo', 'comboT', 'skillCd',

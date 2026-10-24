@@ -193,3 +193,9 @@ label { display: grid; gap: 4px; } label:has(input[type=checkbox]) { display: fl
 .equip-lock { color:#e6b48f; width:100%; }
 
 .inv-win > .inv-detail { flex:1 1 100%; width:100%; }
+
+/* Forge patterns share the ledger materials; native disclosures keep alloy work one step away. */
+.forge-workshop > details > summary { min-height:44px; padding:12px 0; cursor:pointer; color:#ebce90; }
+.forge-workshop .recipe { background:var(--bg); border-color:#655f4b; border-radius:0; }
+.forge-workshop .recipe.can { border-color:var(--accent); }
+.forge-workshop .rbtns button { min-width:44px; min-height:44px; }

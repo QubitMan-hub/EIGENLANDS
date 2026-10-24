@@ -13,7 +13,7 @@ export type Glyph =
   | 'pie' | 'bread' | 'jar' | 'cloth' | 'axe' | 'pickaxe' | 'hoe' | 'can' | 'rod' | 'net' | 'sword' | 'ring'
   | 'shirt' | 'box' | 'bench' | 'furnace' | 'anvil' | 'pot' | 'loom' | 'chair' | 'table' | 'bed' | 'lamp'
   | 'shelf' | 'rug' | 'sprinkler' | 'coop' | 'barn' | 'chicken' | 'cow' | 'sign' | 'fence' | 'gel' | 'tooth'
-  | 'waterskin' | 'bag' | 'orb' | 'book' | 'staff' | 'crossbow' | 'helm' | 'cuirass' | 'greaves' | 'boots';
+  | 'waterskin' | 'bag' | 'orb' | 'book' | 'staff' | 'crossbow' | 'spear' | 'battle_axe' | 'warhammer' | 'helm' | 'cuirass' | 'greaves' | 'boots';
 
 import { ARMOR_SETS, ARMOR_SLOTS, ARMOR_SLOT_NAMES, SET_BY_ID, WEAPONS, armorId, type ArmorSlot, type WeaponId } from './equipment';
 
@@ -42,7 +42,7 @@ export interface ItemDef {
   outfit?: number;
   /** armor piece: slot and set id */
   armor?: { slot: ArmorSlot; set: string };
-  /** weapon id in WEAPONS (staves, crossbow); the sword is a plain weapon */
+  /** Main-hand weapon id; the forged sword remains a plain quick-bar weapon. */
   weapon?: WeaponId;
   /** consumed on use for a special effect: a Heart Crystal (+10 max health) or a boss summon */
   special?: 'heart' | 'summon' | 'ship';
@@ -249,11 +249,11 @@ for (const set of ARMOR_SETS) {
     def(armorId(set.id, slot), set.pieces[slot], 'armor', 60 + set.level * 14, SLOT_GLYPH[slot], a, b, `${ARMOR_SLOT_NAMES[slot]} armour of ${set.name}. ${parts}. Level ${set.level}. ${set.blurb}`, { armor: { slot, set: set.id } });
   }
 }
-const WEAPON_COLORS: Record<string, [number, number]> = { crossbow: [C.e4, C.steel], ember_staff: [C.r4, C.e6], rime_staff: [C.w4, C.pale], verdant_staff: [C.g4, C.e5], radiant_staff: [C.e6, C.white], morph_staff: [C.q4, C.e4] };
+const WEAPON_COLORS: Record<string, [number, number]> = { spear:[C.steel,C.e4],battle_axe:[C.steel,C.r3],warhammer:[C.steel,C.e3], crossbow: [C.e4, C.steel], ember_staff: [C.r4, C.e6], rime_staff: [C.w4, C.pale], verdant_staff: [C.g4, C.e5], radiant_staff: [C.e6, C.white], morph_staff: [C.q4, C.e4] };
 for (const w of Object.values(WEAPONS)) {
   if (w.id === 'sword') continue;
   const [a, b] = WEAPON_COLORS[w.id]!;
-  def(w.id, w.name, 'weapon', 120 + w.level * 20, w.cls === 'crossbow' ? 'crossbow' : 'staff', a, b, `${w.blurb} ${w.quantum} Level ${w.level}.`, { weapon: w.id });
+  def(w.id, w.name, 'weapon', 120 + w.level * 20, w.id==='spear'?'spear':w.id==='battle_axe'?'battle_axe':w.id==='warhammer'?'warhammer':w.cls === 'crossbow' ? 'crossbow' : 'staff', a, b, `${w.blurb} ${w.quantum} Level ${w.level}.`, { weapon: w.id });
 }
 
 export const ITEMS: Readonly<Record<string, ItemDef>> = I;

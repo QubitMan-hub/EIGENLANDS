@@ -164,7 +164,15 @@ export class Gameplay {
     if (m.kind === 'station') {
       const st = (m.station ?? 'workbench') as StationId;
       if (st === 'forge') {
-        this.wins.show('forge', STATION_NAMES.forge, buildForge(this.profile, this.tip, { start: (template: Template, slots: number[]) => net.forgeStart({ tx: m.tx, ty: m.ty, template, slots }) }), { wide: true });
+        const patterns = buildStation('forge', this.profile, this.tip, {
+          craft: (recipe, n) => { net.craft({ station: st, tx: m.tx, ty: m.ty, recipe, n }); this.acts.crafted = true; },
+        });
+        const alloy = buildForge(this.profile, this.tip, { start: (template: Template, slots: number[]) => net.forgeStart({ tx: m.tx, ty: m.ty, template, slots }) });
+        const book = h('details', {}, h('summary', { text: 'Weapon patterns' }), patterns);
+        book.open = true;
+        this.wins.show('forge', STATION_NAMES.forge, h('div', { class: 'forge-workshop' },
+          book,
+          h('details', {}, h('summary', { text: 'Interference forging · swords & tools' }), alloy)), { wide: true });
       } else {
         this.wins.show(`station:${st}`, STATION_NAMES[st] ?? 'Station', buildStation(st, this.profile, this.tip, {
           craft: (recipe, n) => { net.craft({ station: st, tx: m.tx, ty: m.ty, recipe, n }); this.acts.crafted = true; },
