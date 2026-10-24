@@ -615,7 +615,7 @@ Circuit workshop continuation: five guided patterns reuse actual tokens/edit con
 - [ ] NOT STARTED — NPC professions, routines, and relationships.
 - [ ] NOT STARTED — Dynamic settlements.
 - [ ] NOT STARTED — Dungeons and ruins.
-- [ ] NOT STARTED — Companions and mounts.
+- [ ] IN PROGRESS — Companions and mounts: three forage-tamed wildlife bonds are implemented and verified; mounts and further companion families remain open.
 - [ ] NOT STARTED — Environmental storytelling.
 - [ ] NOT STARTED — Royal events, tournaments, and political intrigue.
 - [ ] NOT STARTED — Use efficient simulation models so the world feels alive without overwhelming the browser.
@@ -831,3 +831,5 @@ Travel-needs continuation (2026-10-24): a complete opt-in hunger/thirst loop reu
 Travel-needs integration: merged in PR #14 at `f0b3be8` after both final-head CI runs passed all 453 tests, typechecks and build. Both production build variants and final solo desktop / multiplayer landscape supply, save and tutorial-regression checks passed locally. Broader survival and master-overhaul work remains open.
 
 Wildlife-bonds continuation (2026-10-24): tame Brambleback boars, Mossburrow badgers and Glimmerhart deer through actual forage offers and authoritative calm/range/ownership/slot checks. Reuse natural critter art, roster progression and persistence, with real shove/slow/safe-rest traits and no new HUD. Existing echo repeated-charge hit tracking is corrected. Resident hiring and travelling merchants remain open; exact validation/integration status: CONTINUE_HERE.md.
+
+Wildlife-bonds integration: PR #15 merged at `173a763` after push CI `40068679527` and PR CI `40068682027` passed all 462 tests, typechecking and build on implementation head `fb344ad`. Both final build variants and actual solo desktop / multiplayer landscape taming, commands, follow, rendering and save/reload loops passed locally. Resident recruitment, travelling merchants and the broader master scope remain open.
