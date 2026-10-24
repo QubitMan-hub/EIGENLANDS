@@ -79,7 +79,7 @@ export type FxKind = 'hit' | 'swing' | 'shot' | 'dash' | 'die' | 'levelup' | 'te
   | 'shadow' | 'jump';   // jump: x/y origin, dx/dy landing, 650ms visual arc
 export interface FxMsg {
   kind: FxKind; x: number; y: number; v?: number; dx?: number; dy?: number; id?: string;
-  /** Equipped weapon for matching remote melee shape/pose; absent on older effects. */
+  /** Combat weapon or successful harvesting tool for matching remote poses; absent on older effects. */
   weapon?: string;
   /** hit weight: 0 light, 1 finisher, 2 heavy, 3 full heavy (hit-stop, shake, sound) */
   w?: number;

@@ -13,6 +13,17 @@ const STEEL = [C.slate, C.steel, C.mist, C.fog, C.pale] as const;
 /** shaded disc helper */
 const ball = (ctx: Ctx, x: number, y: number, r: number, c: number, seed = 1) => blob(ctx, x, y, r, r, ramp4(c), { seed, noise: 0.08, edgeDark: 0.25 });
 
+const CROP_ICONS: Record<string, Draw> = {
+  strawberry: (c,a,b) => {
+    poly(c,[[4,4],[11,4],[13,7],[8,14],[3,7]],a);
+    poly(c,[[4,4],[8,4],[7,10],[3,7]],lt(a));
+    poly(c,[[11,4],[13,7],[8,14],[9,9]],dk(a));
+    for(const [x,y] of [[5,6],[9,6],[6,9],[9,9],[8,12]])put(c,x,y,C.e6);
+    poly(c,[[3,3],[7,4],[8,1],[9,4],[13,3],[10,6],[6,6]],b);
+    put(c,7,3,C.g6,2,2);
+  },
+};
+
 const G: Record<Glyph, Draw> = {
   log: (c, a, b) => {
     slab(c, 2, 5, 11, 7, ramp4(a), 3, 0.3); put(c, 2, 5, lt(a), 11, 1);
@@ -367,7 +378,18 @@ function paint(id: string, size: number): HTMLCanvasElement {
   const { canvas, ctx } = makeCanvas(16, 16);
   const d = ITEMS[id];
   if (!d) { put(ctx, 2, 2, C.slate, 12, 12); put(ctx, 3, 3, C.mist, 10, 10); put(ctx, 7, 5, C.ink, 2, 4); put(ctx, 7, 11, C.ink, 2, 1); outline(ctx, 16, 16); }
-  else { undithered(() => (SEA_ICONS[id] ?? G[d.icon.g])(ctx, d.icon.a, d.icon.b)); outline(ctx, 16, 16); }
+  else {
+    const crop = d.kind === 'seed' && d.crop ? ITEMS[d.crop] : undefined;
+    if (crop?.kind === 'crop') {
+      // A parchment packet with the actual crop picture, readable without relying on seed colour alone.
+      put(ctx,3,2,C.e4,10,12); put(ctx,3,2,C.pale,9,11); put(ctx,4,3,d.icon.a,7,2);
+      const picture = makeCanvas(16,16);
+      undithered(() => (CROP_ICONS[d.crop!] ?? G[crop.icon.g])(picture.ctx,crop.icon.a,crop.icon.b));
+      ctx.imageSmoothingEnabled=false; ctx.drawImage(picture.canvas,0,0,16,16,4,5,8,8);
+      put(ctx,11,3,C.e6,1,9);
+    } else undithered(() => (SEA_ICONS[id] ?? CROP_ICONS[id] ?? G[d.icon.g])(ctx, d.icon.a, d.icon.b));
+    outline(ctx, 16, 16);
+  }
   if (size === 16) return canvas;
   const out = makeCanvas(size, size);
   out.ctx.imageSmoothingEnabled = false;

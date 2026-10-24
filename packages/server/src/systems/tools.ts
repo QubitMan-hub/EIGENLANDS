@@ -128,7 +128,7 @@ function hitNode(room: RoomApi, p: ServerPlayer, tool: Stack, tx: number, ty: nu
   st.last = now;
   room.nodeHp.set(key, st);
   const cx = tx + 0.5, cy = ty + 0.5;
-  room.fx({ kind: node.tool === 'axe' ? 'chop' : 'mine', x: cx, y: cy });
+  room.fx({ kind: node.tool === 'axe' ? 'chop' : 'mine', x: cx, y: cy, id: p.id, weapon: node.tool });
   if (st.hp > 0) return;
 
   const drops: Stack[] = [];
@@ -156,7 +156,7 @@ function cutGrass(room: RoomApi, p: ServerPlayer, tx: number, ty: number): void 
   addSkillXp(p, 'foraging', 1);
   room.setTile(tx, ty, T.GRASS);
   room.scheduleRespawn(tx, ty, T.GRASS_TALL, room.wclock.dayStart(room.wclock.day() + 1));
-  room.fx({ kind: 'chop', x: tx + 0.5, y: ty + 0.5 });
+  room.fx({ kind: 'chop', x: tx + 0.5, y: ty + 0.5, id: p.id, weapon: 'axe' });
 }
 
 function gatherForage(room: RoomApi, p: ServerPlayer, tx: number, ty: number): void {
