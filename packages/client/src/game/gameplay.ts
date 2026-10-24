@@ -53,7 +53,7 @@ export interface GameplayDeps {
   reduced?: () => boolean;
 }
 
-const REPEATABLE = new Set(['tool', 'till', 'water', 'net', 'forage', 'harvest']);
+const REPEATABLE = new Set(['tool', 'till', 'water', 'refill', 'net', 'forage', 'harvest']);
 const MINING = new Set(['stone', 'coal', 'copper_ore', 'iron_ore', 'silver_ore', 'gold_ore', 'qubit_crystal']);
 
 /** Turns network messages into windows and player intent into messages. No rendering. */
