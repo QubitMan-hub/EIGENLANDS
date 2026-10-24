@@ -1,4 +1,18 @@
-# Current continuation: cooked food and main potion artwork (2026-10-24)
+# Current continuation: owned modular player buildings (2026-10-24)
+
+Implementation is on `codex/player-construction`; integration is pending final-head CI. No subagents used. [Player guide, recipes and explicit limits](PLAYER_BUILDING.md).
+
+Eight original craftable blocks build arbitrary furnished two-floor houses: timber/stone floors and walls, timber doors, slate/thatch roofs and paired stairs. Structural cells have their own persisted layer so furniture survives roof/floor edits. Shared collision is authoritative on server and predicted on client. Authenticated owners control edits and doors. Safe dismantling refunds pieces, checks pack capacity, protects occupied/supporting floors and stair exits, and removes the included upper landing without duplication. Connected roofs form gables and lift by room; contextual rotation, preview and Journal guidance preserve the uncluttered HUD.
+
+Live browser testing exposed a real shard boundary issue: upper coordinates previously selected a different authority and foreign structural landings were unavailable on descent. Storeys now share their horizontal ground shard; neighboring object/structural changes are hydrated and relayed through the existing bus, including independent deletions. Ordinary terrain, towns and old object rows remain compatible. Migration `104_construction.sql` only adds a table; solo uses a separate local namespace.
+
+Validation: **507 workspace tests passed** (103 client, 249 server, 155 shared), all typechecks and both builds. Production solo browser built a crafted 5×5 house plus a 3×3 upper floor, checked real movement against walls, doors, authentic Use stairs, furniture beneath roofs, upstairs/ground reload and touch landscape rotation without hint overlap. Multiplayer browser passed touch/reduced-motion stairs, upstairs save/reload and descent. Art lab reviewed all 26 material/orientation samples. Server tests cover authenticated ownership, full-pack refunds, paired landing safety, reconnect snapshots and live cross-region collision/deletion. Evidence: `/tmp/construction-*.log`, `/tmp/construction-shots/`, `/tmp/construction-network.png`, `/tmp/construction-gallery.png` (ephemeral).
+
+Limits: two floors, ±10,000 horizontal construction region, existing horizontal region edit ownership. Towers, co-owners and house benefits remain in REMAINING_WORK.md. The user's latest request adds performance work: profile region/chunk stalls, combat/dash/movement cadence and weather, then measure and improve mobile performance. Do not claim a 10× speedup without evidence.
+
+---
+
+## Previous continuation: cooked food and main potion artwork (2026-10-24)
 
 Merged [PR #22](https://github.com/QubitMan-hub/EIGENLANDS/pull/22) at `e714d02b37dacadfa946d44be43a2709cf60440f`. Implementation head `2f877acc186a99aa8b2deea0667e603cafc4db8b`; push CI `40114398159` and PR CI `40114402324` passed. Merged packages/e2e tree matches that tested head. No subagents used.
 

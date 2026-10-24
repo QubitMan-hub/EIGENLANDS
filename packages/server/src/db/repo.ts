@@ -101,25 +101,25 @@ export class Repo {
   async loadObjects(seed: number, cx: number, cy: number): Promise<WorldObj[]> {
     const x0 = cx * CHUNK_SIZE, y0 = cy * CHUNK_SIZE;
     const r = await this.pool.query(
-      'SELECT x, y, kind, sub, owner, data FROM world_objects WHERE world_seed=$1 AND x >= $2 AND x < $3 AND y >= $4 AND y < $5',
+      'SELECT x, y, kind, sub, owner, data FROM world_objects WHERE world_seed=$1 AND x >= $2 AND x < $3 AND y >= $4 AND y < $5 UNION ALL SELECT x, y, kind, sub, owner, data FROM construction_cells WHERE world_seed=$1 AND x >= $2 AND x < $3 AND y >= $4 AND y < $5',
       [seed, x0, x0 + CHUNK_SIZE, y0, y0 + CHUNK_SIZE],
     );
     return r.rows.map((o) => ({ x: o.x, y: o.y, kind: o.kind as WorldObjKind, sub: o.sub, ...(o.owner ? { owner: o.owner as string } : {}), data: o.data as Record<string, unknown> }));
   }
 
-  async saveObjects(seed: number, upserts: WorldObj[], deletes: Array<{ x: number; y: number }>): Promise<void> {
+  async saveObjects(seed: number, upserts: WorldObj[], deletes: Array<{ x: number; y: number; structure?: boolean }>): Promise<void> {
     if (!upserts.length && !deletes.length) return;
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
       for (const o of upserts) {
         await client.query(
-          `INSERT INTO world_objects (world_seed, x, y, kind, sub, owner, data) VALUES ($1,$2,$3,$4,$5,$6,$7)
+          `INSERT INTO ${o.kind === 'structure' ? 'construction_cells' : 'world_objects'} (world_seed, x, y, kind, sub, owner, data) VALUES ($1,$2,$3,$4,$5,$6,$7)
            ON CONFLICT (world_seed, x, y) DO UPDATE SET kind=EXCLUDED.kind, sub=EXCLUDED.sub, owner=EXCLUDED.owner, data=EXCLUDED.data, updated_at=now()`,
           [seed, o.x, o.y, o.kind, o.sub, o.owner ?? null, JSON.stringify(o.data ?? {})],
         );
       }
-      for (const d of deletes) await client.query('DELETE FROM world_objects WHERE world_seed=$1 AND x=$2 AND y=$3', [seed, d.x, d.y]);
+      for (const d of deletes) await client.query(`DELETE FROM ${d.structure ? 'construction_cells' : 'world_objects'} WHERE world_seed=$1 AND x=$2 AND y=$3`, [seed, d.x, d.y]);
       await client.query('COMMIT');
     } catch (e) {
       await client.query('ROLLBACK');

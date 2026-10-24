@@ -1,3 +1,5 @@
+import { constructionCanvas } from '../art/construction';
+import { BUILD_PIECES, type BuildPiece } from '@eigenlands/shared';
 import { Critters } from '../art/critters';
 import { buildFoeSheets } from '../art/foes';
 // Dev-only art lab (no server). Modes via ?lab=:
@@ -40,7 +42,15 @@ const playerTx = q.has('px') ? num('px', 0) : -9999, playerTy = num('py', 0);
 const app = new Application();
 await app.init({ canvas: document.getElementById('c') as HTMLCanvasElement, resizeTo: window, background: 0x0b0c1a, antialias: false, roundPixels: true, resolution: 1, preference: 'webgl' });
 
-if (mode === 'icons') {
+if (mode === 'construction') {
+  app.canvas.style.display = 'none'; document.body.style.overflow = 'auto';
+  const gallery = document.createElement('div'); gallery.style.cssText='display:flex;flex-wrap:wrap;gap:16px;padding:24px;background:#263b35;color:#f2e4c5;font:14px sans-serif';
+  for (const [id,piece] of Object.entries(BUILD_PIECES)) for (const turn of piece.layer==='floor'?[0]:[0,1,2,3]) {
+    const panel=document.createElement('figure'),canvas=constructionCanvas(id as BuildPiece,turn),label=document.createElement('figcaption');
+    panel.style.margin='0';canvas.style.cssText='width:144px;height:288px;image-rendering:pixelated';label.textContent=`${piece.name} · ${turn+1}`;panel.append(canvas,label);gallery.append(panel);
+  }
+  document.body.append(gallery);(window as unknown as {__lab:unknown}).__lab={ready:true};
+} else if (mode === 'icons') {
   app.canvas.style.display = 'none';
   document.body.style.overflow = 'auto';
   const grid = document.createElement('div');

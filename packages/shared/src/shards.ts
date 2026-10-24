@@ -3,6 +3,10 @@
  * region is simulated by one shard (one room). Region (0,0) is centred on the spawn shrine.
  */
 import { CHUNK_SIZE } from './constants';
+import { isUpperY, UPPER_OY } from './floors';
+
+/** Storeys retain separate collision coordinates but share the ground region’s authority. */
+export const shardY = (y: number): number => isUpperY(y) ? y - UPPER_OY : y;
 
 export const REGION_CHUNKS = 8;
 export const REGION_TILES = REGION_CHUNKS * CHUNK_SIZE;
@@ -15,7 +19,7 @@ export interface Region { rx: number; ry: number }
 
 const OFFSET = (REGION_CHUNKS / 2) * CHUNK_SIZE;
 export const regionOfTile = (t: number): number => Math.floor((t + OFFSET) / REGION_TILES);
-export const regionOf = (x: number, y: number): Region => ({ rx: regionOfTile(Math.floor(x)), ry: regionOfTile(Math.floor(y)) });
+export const regionOf = (x: number, y: number): Region => ({ rx: regionOfTile(Math.floor(x)), ry: regionOfTile(Math.floor(shardY(y))) });
 export const shardId = (r: Region): string => `${r.rx},${r.ry}`;
 export const shardAt = (x: number, y: number): string => shardId(regionOf(x, y));
 
@@ -33,13 +37,15 @@ export function regionBounds(r: Region): { x0: number; y0: number; x1: number; y
 
 export const inRegion = (r: Region, x: number, y: number): boolean => {
   const b = regionBounds(r);
-  return x >= b.x0 && x < b.x1 && y >= b.y0 && y < b.y1;
+  const sy = shardY(y);
+  return x >= b.x0 && x < b.x1 && sy >= b.y0 && sy < b.y1;
 };
 
 /** The shard a player at (x,y) should move to, or null while they are within the margin of `r`. */
 export function handoffTarget(r: Region, x: number, y: number, margin = HANDOFF_MARGIN): string | null {
   const b = regionBounds(r);
-  if (x >= b.x0 - margin && x < b.x1 + margin && y >= b.y0 - margin && y < b.y1 + margin) return null;
+  const sy = shardY(y);
+  if (x >= b.x0 - margin && x < b.x1 + margin && sy >= b.y0 - margin && sy < b.y1 + margin) return null;
   return shardAt(x, y);
 }
 

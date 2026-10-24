@@ -1,3 +1,6 @@
+import { constructionTexture, BUILD_AX, BUILD_AY } from '../art/construction';
+import { isBuildPiece } from '@eigenlands/shared';
+import { ConstructionViews } from './constructionviews';
 import { planeOf } from '../features/atlas/model';
 import { Application, Container, Graphics, Sprite, Text } from 'pixi.js';
 import {
@@ -127,8 +130,11 @@ export class Game {
   private worldObjs!: WorldObjViews;
   private buildings!: BuildingViews;
   private weatherFx!: WeatherFx;
+  private construction!: ConstructionViews;
+  private constructionFloor = new Container();
   private roofLayer = new Container();
   private weatherLayer = new Container();
+  private buildGhost = new Sprite();
   private cursor = new Graphics();
   private aimGfx = new Graphics();
   readonly wind = new WindField();
@@ -162,7 +168,8 @@ export class Game {
     this.foes = buildFoeSheets();
     this.critters = await Critters.load();
     this.entityLayer.sortableChildren = true;
-    this.world.addChild(this.shadowLayer, this.decalLayer, this.entityLayer, this.roofLayer, this.cursor, this.aimGfx, this.bobber, this.fxLayer);
+    this.roofLayer.sortableChildren = true;
+    this.world.addChild(this.constructionFloor, this.shadowLayer, this.decalLayer, this.entityLayer, this.roofLayer, this.buildGhost, this.cursor, this.aimGfx, this.bobber, this.fxLayer);
     this.lighting = new Lighting(this.app.renderer);
     this.app.stage.addChild(this.lighting.sprite, this.weatherLayer, this.labelLayer);
     this.gameplay = new Gameplay({
@@ -227,6 +234,7 @@ export class Game {
     this.terrain = new Terrain(this.app.renderer, this.store);
     this.objects = new ObjectViews(this.store, this.shadowLayer, this.entityLayer);
     this.worldObjs = new WorldObjViews(this.store, this.shadowLayer, this.entityLayer);
+    this.construction = new ConstructionViews(this.store, this.constructionFloor, this.shadowLayer, this.entityLayer, this.roofLayer);
     this.buildings = new BuildingViews(seed, this.shadowLayer, this.entityLayer, this.roofLayer);
     this.weatherFx = new WeatherFx(this.weatherLayer);
     this.app.stage.addChildAt(this.terrain.sprite, 0);
@@ -337,12 +345,17 @@ export class Game {
   private chunk(m: ChunkMsg): void {
     const diff = decodeDiff(m.diff);
     this.store.applyDiff(m.cx, m.cy, diff);
+    for (const cell of this.store.structures.values()) if (chunkOf(cell.x) === m.cx && chunkOf(cell.y) === m.cy) this.store.removeStructure(cell.x, cell.y);
     for (const o of m.objs ?? []) this.store.putObject(o);
     if (this.terrain.has(m.cx, m.cy)) this.terrain.invalidate(m.cx, m.cy);
     if (this.shown.has(`${m.cx},${m.cy}`)) { this.objects.buildChunk(m.cx, m.cy); this.worldObjs.buildChunk(m.cx, m.cy); }
   }
   private obj(m: ObjMsg): void {
-    if (m.obj) { this.store.putObject(m.obj); this.worldObjs.upsert(m.obj); } else { this.store.removeObject(m.x, m.y); this.worldObjs.remove(m.x, m.y); }
+    const structural = m.structure || m.obj?.kind === 'structure';
+    if (m.obj) { this.store.putObject(m.obj); if (!structural) this.worldObjs.upsert(m.obj); }
+    else if (structural) this.store.removeStructure(m.x, m.y);
+    else { this.store.removeObject(m.x, m.y); this.worldObjs.remove(m.x, m.y); }
+    if (structural) this.terrain.invalidate(chunkOf(m.x), chunkOf(m.y));
     this.objects.refreshTile(m.x, m.y);
   }
   private tile(m: TileMsg): void {
@@ -582,6 +595,7 @@ export class Game {
       this.vis = { x0: vx0, y0: vy0, x1: vx1, y1: vy1 };
       this.objects.update(now, sun, reduced, vx0, vy0, vx1, vy1, this.wind);
       this.worldObjs.update(now, sun, reduced, vx0, vy0, vx1, vy1, this.wind);
+      this.construction.update(Math.floor(me.x), Math.floor(me.y), sun, vx0, vy0, vx1, vy1);
       this.buildings.update(now, Math.floor(me.x), Math.floor(me.y), reduced, sun, vx0, vy0, vx1, vy1, this.wind);
       const m = this.input.mouseXY;
       const u = unproject((m.x - this.world.x) / S, (m.y - this.world.y) / S);
@@ -860,6 +874,7 @@ export class Game {
     const g = this.cursor;
     g.clear();
     this.bobber.clear();
+    this.buildGhost.visible = false;
     const f = this.gameplay.fishing;
     if (f) {
       const bx = isoX(f.tx + 0.5, f.ty + 0.5), by = isoY(f.tx + 0.5, f.ty + 0.5) + Math.sin(now / 250) * (f.bite ? 2.5 : 0.8);
@@ -870,6 +885,13 @@ export class Game {
     if (this.gameplay.blocking || this.dead) { this.gameplay.setHint(null); return; }
     const pr = this.gameplay.prompt();
     const info = pr.info;
+    const selected = this.gameplay.selected();
+    if (selected && isBuildPiece(selected.id) && info?.kind === 'place') {
+      const ghost = this.buildGhost, tex = constructionTexture(selected.id, this.gameplay.buildRotation);
+      ghost.texture = tex; ghost.anchor.set(BUILD_AX / tex.width, BUILD_AY / tex.height);
+      ghost.position.set(Math.round(isoX(pr.tx + .5, pr.ty + .5)), Math.round(isoY(pr.tx + .5, pr.ty + .5)));
+      ghost.alpha = .55; ghost.tint = info.ok ? 0xbce0c6 : 0xea9273; ghost.visible = true;
+    }
     if (info && info.kind !== 'talk') {
       const col = info.ok ? pc(info.kind === 'none' ? 6 : 47) : pc(37);
       const pulse = 0.55 + 0.25 * Math.sin(now / 200);

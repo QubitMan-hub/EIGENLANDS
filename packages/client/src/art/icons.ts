@@ -3,7 +3,8 @@
  * Every glyph is shaded from the item's two palette colours and gets a 1px dark outline so icons stay readable
  * on any panel colour. Unknown ids get a "?" box.
  */
-import { ITEMS, type Glyph } from '@eigenlands/shared';
+import { constructionIcon } from './construction';
+import { ITEMS, isBuildPiece, type Glyph } from '@eigenlands/shared';
 import { blob, C, dk, line, lt, makeCanvas, outline, poly, put, ramp4, slab, undithered, type Ctx } from './shade';
 
 type Draw = (ctx: Ctx, a: number, b: number) => void;
@@ -415,7 +416,8 @@ function paint(id: string, size: number): HTMLCanvasElement {
   if (!d) { put(ctx, 2, 2, C.slate, 12, 12); put(ctx, 3, 3, C.mist, 10, 10); put(ctx, 7, 5, C.ink, 2, 4); put(ctx, 7, 11, C.ink, 2, 1); outline(ctx, 16, 16); }
   else {
     const crop = d.kind === 'seed' && d.crop ? ITEMS[d.crop] : undefined;
-    if (crop?.kind === 'crop') {
+    if (isBuildPiece(id)) constructionIcon(ctx, id);
+    else if (crop?.kind === 'crop') {
       // A parchment packet with the actual crop picture, readable without relying on seed colour alone.
       put(ctx,3,2,C.e4,10,12); put(ctx,3,2,C.pale,9,11); put(ctx,4,3,d.icon.a,7,2);
       const picture = makeCanvas(16,16);

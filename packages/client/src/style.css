@@ -199,3 +199,10 @@ label { display: grid; gap: 4px; } label:has(input[type=checkbox]) { display: fl
 .forge-workshop .recipe { background:var(--bg); border-color:#655f4b; border-radius:0; }
 .forge-workshop .recipe.can { border-color:var(--accent); }
 .forge-workshop .rbtns button { min-width:44px; min-height:44px; }
+
+/* A single contextual construction control; instructions stay in the Journal. */
+#build-rotate { position:fixed; left:50%; bottom:112px; transform:translateX(-50%); z-index:7; min-height:44px; padding:8px 16px; background:#1d2728f5; color:#f2e4c5; border:1px solid #8a7959; }
+#build-rotate[hidden] { display:none; }
+#build-rotate:hover { background:#35443d; }
+#build-rotate:focus-visible { outline:2px solid #f2d590; outline-offset:3px; }
+@media (max-height:500px) and (orientation:landscape) { html #build-rotate { bottom:65px; } html #target-hint { bottom:117px; } }

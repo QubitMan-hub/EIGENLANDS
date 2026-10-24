@@ -125,7 +125,7 @@ export interface ProfileMsg {
   /** selected quick-bar slot is client-side; this is the server's last accepted USE slot (diagnostics) */
 }
 
-export interface UseMsg { slot: number; tx: number; ty: number }
+export interface UseMsg { slot: number; tx: number; ty: number; turn?: number }
 export interface OpenMsg { tx: number; ty: number }
 export interface InvMoveMsg { from: number; to: number }
 export interface InvTrashMsg { slot: number; n: number }
@@ -255,7 +255,7 @@ export interface BoardRequest {
   day: number;
 }
 
-export interface ObjMsg { x: number; y: number; obj: WorldObj | null }
+export interface ObjMsg { x: number; y: number; obj: WorldObj | null; structure?: boolean }
 export interface ToastMsg { text: string; kind: 'info' | 'good' | 'bad' | 'item'; item?: Stack }
 
 export const JOIN_ROOM = 'world';

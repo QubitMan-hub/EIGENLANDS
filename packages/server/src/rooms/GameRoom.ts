@@ -2,7 +2,7 @@ import { matchMaker, type Client } from 'colyseus';
 import type { Schema } from '@colyseus/schema';
 import {
   CLASS_INDEX, MSG, MSG34, NPCS, PORTS, chunkOf, encodeDiff, inRegion, parseShard, regionBounds, shardAt, shardId, townFor,
-  type ChunkReq, type HandoffMsg, type Region, type ShardInfoMsg, type SpellState, type StrikeShape, type WeaponShot, type WorldObj,
+  type ObjMsg, type ChunkReq, type HandoffMsg, type Region, type ShardInfoMsg, type SpellState, type StrikeShape, type WeaponShot, type WorldObj,
 } from '@eigenlands/shared';
 import type { Enemy } from '../game/enemies';
 import { TokenBucket } from '../rate';
@@ -53,7 +53,7 @@ export class GameRoom extends WorldRoom {
   private modules: Module[] = [];
   private buckets = new Map<string, Map<BucketName, TokenBucket>>();
   /** read-only copies of neighbouring shards' chunks (diff loaded, objects cached) */
-  private foreign = new Map<string, { at: number; objs: WorldObj[]; pr: Promise<void> | null }>();
+  private foreign = new Map<string, { at: number; objs: WorldObj[]; pr: Promise<void> | null; live: Map<string, ObjMsg> }>();
   private lockTimer: ReturnType<typeof setInterval> | null = null;
 
   async onCreate(options: JoinOpts = {}): Promise<void> {
@@ -196,14 +196,19 @@ export class GameRoom extends WorldRoom {
   private ensureForeign(cx: number, cy: number, maxAgeMs = Infinity): Promise<void> {
     const k = `${cx},${cy}`;
     const f = this.foreign.get(k);
-    if (f && (f.pr || Date.now() - f.at < maxAgeMs)) return f.pr ?? Promise.resolve();
-    const rec = f ?? { at: 0, objs: [], pr: null };
+    if (f && (f.pr || f.at > 0 && Date.now() - f.at < maxAgeMs)) return f.pr ?? Promise.resolve();
+    const rec = f ?? { at: 0, objs: [], pr: null, live: new Map<string, ObjMsg>() };
     const repo = runtime().repo;
     rec.pr = Promise.all([repo.loadChunkDiff(this.seed, cx, cy), repo.loadObjects(this.seed, cx, cy)]).then(([diff, objs]) => {
       // tiles relayed live by the owner shard win over the stored copy
       const live = this.store.get(cx, cy).diff;
       this.store.applyDiff(cx, cy, new Map([...diff, ...live]));
-      rec.objs = objs; rec.at = Date.now(); rec.pr = null;
+      // Live object relays win over a stored snapshot, just like live terrain diffs.
+      for(const old of rec.objs) { if(old.kind==='structure')this.store.removeStructure(old.x,old.y);else if(!old.static)this.store.removeObject(old.x,old.y); }
+      const merged=new Map(objs.map(o=>[`${o.kind==='structure'?'s:':''}${o.x},${o.y}`,o]));
+      for(const[k,m]of rec.live)if(m.obj)merged.set(k,m.obj);else merged.delete(k);
+      rec.objs=[...merged.values()];for(const o of rec.objs)this.store.putObject(o);
+      rec.at = Date.now(); rec.pr = null;
     }).catch((e) => { rec.pr = null; throw e; });
     this.foreign.set(k, rec);
     return rec.pr;
@@ -218,6 +223,19 @@ export class GameRoom extends WorldRoom {
     await this.ensureForeign(msg.cx, msg.cy, 5000);
     const objs: WorldObj[] = [...this.store.townObjectsIn(msg.cx, msg.cy), ...(this.foreign.get(`${msg.cx},${msg.cy}`)?.objs ?? [])];
     client.send(MSG.CHUNK, { cx: msg.cx, cy: msg.cy, diff: encodeDiff(this.store.get(msg.cx, msg.cy).diff), objs });
+  }
+
+  protected hookObjectChanged(m:ObjMsg):void { this.shardMod?.objectChanged(m); }
+
+  /** Read-only collision/transport cache. Foreign edits are still refused at hookAccepts. */
+  applyForeignObject(m:ObjMsg):void {
+    if(this.owns(m.x,m.y))return;
+    const ck=`${chunkOf(m.x)},${chunkOf(m.y)}`;
+    let rec=this.foreign.get(ck);if(!rec){rec={at:0,objs:[],pr:null,live:new Map()};this.foreign.set(ck,rec);}
+    const structural=!!m.structure||m.obj?.kind==='structure',k=`${structural?'s:':''}${m.x},${m.y}`;
+    rec.live.set(k,m);rec.objs=rec.objs.filter(o=>!(o.x===m.x&&o.y===m.y&&(o.kind==='structure')===structural));
+    if(m.obj){rec.objs.push(m.obj);this.store.putObject(m.obj);}else if(structural)this.store.removeStructure(m.x,m.y);else this.store.removeObject(m.x,m.y);
+    for(const p of this.nearby(m.x,m.y,3*32))p.client.send(MSG.OBJ,m);
   }
 
   /** A tile changed in a neighbouring shard (relayed over the bus). */

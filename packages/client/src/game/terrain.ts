@@ -86,14 +86,14 @@ export class Terrain {
 
   private compute(cx: number, cy: number): Uint8Array {
     const out = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE * 4);
-    const chunk = this.store.get(cx, cy);
+    this.store.get(cx, cy);
     const seed = this.store.seed;
     const cave = isCaveY(cy * CHUNK_SIZE);
     for (let y = 0; y < CHUNK_SIZE; y++) {
       for (let x = 0; x < CHUNK_SIZE; x++) {
         const o = (y * CHUNK_SIZE + x) * 4;
         const tx = cx * CHUNK_SIZE + x, ty = cy * CHUNK_SIZE + y;
-        const tile = chunk.tiles[y * CHUNK_SIZE + x]!;
+        const tile = this.store.getTile(tx, ty);
         const biome = biomeAt(seed, tx, ty);
         let ground = TILE_DEFS[tile]?.ground ?? 3;
         if (biome === 'desert' && ground === G.GRASS) ground = G.SAND;     // scrub and cacti stand on the dunes

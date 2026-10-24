@@ -2,7 +2,7 @@ import { C } from './palette';
 
 /** Ground classes: what the terrain shader blends. Objects sit on top of a ground class. */
 export const G = {
-  DEEP: 0, WATER: 1, SAND: 2, GRASS: 3, PATH: 4, SOIL: 5, SOIL_WET: 6, FLOOR: 7, WALL: 8, CAVE: 9, CAVE_WALL: 10,
+  DEEP: 0, WATER: 1, SAND: 2, GRASS: 3, PATH: 4, SOIL: 5, SOIL_WET: 6, FLOOR: 7, WALL: 8, CAVE: 9, CAVE_WALL: 10, VOID: 11,
 } as const;
 
 export type ObjKind =
@@ -13,7 +13,7 @@ export const T = {
   DEEP_WATER: 0, WATER: 1, SAND: 2, GRASS: 3, GRASS_TALL: 4, FLOWERS: 5,
   TREE: 6, ROCK: 7, SHIMMER: 8, PATH: 9, STUMP: 10, TORCH: 11,
   TILLED: 12, TILLED_WET: 13, ORE_COPPER: 14, ORE_IRON: 15, ORE_SILVER: 16, ORE_GOLD: 17, CRYSTAL: 18,
-  FORAGE: 19, FLOOR: 20, WALL: 21, FACE: 22, DOOR: 23, FENCE: 24, CAVE_FLOOR: 25, CAVE_WALL: 26,
+  FORAGE: 19, FLOOR: 20, WALL: 21, FACE: 22, DOOR: 23, FENCE: 24, CAVE_FLOOR: 25, CAVE_WALL: 26, UPPER_VOID: 27,
 } as const;
 
 export interface TileDef {
@@ -67,6 +67,7 @@ export const TILE_DEFS: TileDef[] = [
   d(T.FENCE, 'Fence', G.GRASS, 'fence', { solid: true, breaksTo: T.GRASS }),
   d(T.CAVE_FLOOR, 'Cave floor', G.CAVE),
   d(T.CAVE_WALL, 'Cave rock', G.CAVE_WALL, null, { solid: true, breaksTo: T.CAVE_FLOOR }),
+  d(T.UPPER_VOID, 'Beyond the upper floor', G.VOID, null, { solid: true }),
 ];
 
 export function isSolid(tile: number): boolean {
