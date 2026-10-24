@@ -140,7 +140,7 @@ export const HTML = `
     <div class="grid">
       <section><h3>Controls</h3>
         <label for="s-movement">Movement controls</label><select id="s-movement" aria-describedby="movement-help"><option value="keyboard">WASD / keyboard</option><option value="mouse">Mouse — hold right button</option></select>
-        <p id="movement-help" class="small dim">Keyboard: your movement keys; right button looks ahead. Mouse: hold right button to move toward the cursor and look ahead; release to stop. Movement keys, touch and gamepad remain available.</p>
+        <p id="movement-help" class="small dim">Keyboard: your movement keys; right button aims without moving the camera. Mouse: hold right button to move toward the cursor; release to stop. Movement keys, touch and gamepad remain available.</p>
         <p class="small dim">Left click attacks or shoots at the cursor. Directional orbs: press their key, aim, then left click to cast. Escape or the same key cancels. Self abilities cast immediately.</p>
         <div id="keys"></div><p class="small dim">Click a control below, then press the new key. Your custom bindings are kept when changing movement controls.</p></section>
       <section><h3>Accessibility</h3>

@@ -170,7 +170,10 @@ export class WorldObjViews {
       const d = v.def;
       if (d.frames.length > 1) {
         const f = reduced ? 0 : Math.floor(t * d.fps + v.phase) % d.frames.length;
-        const tex = d.frames[f]!.tex;
+        const frame = d.frames[f]!, tex = frame.tex;
+        v.root.anchor.set(frame.ax / tex.width, frame.ay / tex.height);
+        v.shadow.anchor.copyFrom(v.root.anchor);
+        if (v.echo) v.echo.anchor.copyFrom(v.root.anchor);
         if (v.root.texture !== tex) { v.root.texture = tex; v.shadow.texture = tex; if (v.echo) v.echo.texture = tex; }
       }
       const sway = reduced || !d.sway ? 0 : wind.sway(v.obj.x, v.obj.y, v.phase, d.sway * 4);

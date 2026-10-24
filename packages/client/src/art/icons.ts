@@ -4,7 +4,7 @@
  * on any panel colour. Unknown ids get a "?" box.
  */
 import { ITEMS, type Glyph } from '@eigenlands/shared';
-import { blob, C, dk, line, lt, makeCanvas, outline, poly, put, ramp4, slab, type Ctx } from './shade';
+import { blob, C, dk, line, lt, makeCanvas, outline, poly, put, ramp4, slab, undithered, type Ctx } from './shade';
 
 type Draw = (ctx: Ctx, a: number, b: number) => void;
 const WOOD = [C.e1, C.e2, C.e3, C.e4, C.e5] as const;
@@ -23,11 +23,25 @@ const G: Record<Glyph, Draw> = {
     slab(c, 1, 3, 14, 5, ramp4(a), 4, 0.25); slab(c, 2, 9, 13, 5, ramp4(a), 5, 0.25);
     put(c, 1, 3, lt(a), 14, 1); put(c, 2, 9, lt(a), 13, 1); put(c, 3, 5, dk(b), 5, 1); put(c, 9, 11, dk(b), 4, 1); put(c, 2, 5, C.steel); put(c, 13, 11, C.steel);
   },
-  stone: (c, a, b) => { blob(c, 8, 9.5, 6, 4.8, ramp4(a), { seed: 5, noise: 0.3, shape: 2.4, edgeDark: 0.3 }); put(c, 5, 6, b, 4, 1); put(c, 4, 7, b, 2, 1); },
-  coal: (c, a, b) => { blob(c, 8, 9, 5.6, 4.6, [C.ink, C.night, a, b], { seed: 6, noise: 0.45, shape: 2.2, edgeDark: 0.1 }); put(c, 5, 6, C.fog); put(c, 10, 8, C.mist); put(c, 7, 10, b); },
+  stone: (c, a, b) => {
+    poly(c, [[2,9],[5,4],[10,3],[14,8],[12,13],[6,14],[2,12]], dk(a));
+    poly(c, [[2,9],[5,4],[10,3],[12,7],[7,10]], a);
+    poly(c, [[5,4],[10,3],[12,7],[7,6]], b);
+    line(c,3,10,6,12,lt(a)); line(c,8,10,11,8,dk(a));
+  },
+  coal: (c, a, b) => {
+    poly(c, [[2,7],[6,3],[11,4],[14,9],[11,13],[5,14],[2,11]], C.ink);
+    poly(c, [[2,7],[6,3],[9,6],[7,10]], a);
+    poly(c, [[9,6],[11,4],[14,9],[10,11]], C.night);
+    line(c,3,7,6,4,b); line(c,10,6,12,8,C.slate); put(c,5,11,b,2,1);
+  },
   ore: (c, a, b) => {
-    blob(c, 8, 9.5, 6, 4.8, STEEL, { seed: 7, noise: 0.3, shape: 2.4, edgeDark: 0.3 });
-    for (const [x, y] of [[5, 8], [9, 7], [10, 11], [7, 10], [4, 11]] as const) { put(c, x, y, a, 2, 2); put(c, x, y, b); }
+    poly(c, [[2,10],[4,5],[9,3],[13,6],[14,11],[10,14],[4,13]], C.slate);
+    poly(c, [[4,5],[9,3],[13,6],[8,9],[2,10]], C.steel);
+    poly(c, [[8,9],[13,6],[14,11],[10,14]], C.ink);
+    for (const [x,y] of [[5,6],[9,5],[10,10],[5,10]]) {
+      put(c,x,y,a,3,2); put(c,x,y,b,2,1);
+    }
   },
   ingot: (c, a, b) => {
     const bar = (x: number, y: number) => { poly(c, [[x + 2, y], [x + 11, y], [x + 13, y + 4], [x, y + 4]], (px, py) => (py === y ? b : py === y + 1 ? lt(a) : a)); put(c, x, y + 4, dk(a), 14, 1); put(c, x + 13, y + 3, dk(dk(a))); put(c, x + 1, y + 2, b); };
@@ -353,7 +367,7 @@ function paint(id: string, size: number): HTMLCanvasElement {
   const { canvas, ctx } = makeCanvas(16, 16);
   const d = ITEMS[id];
   if (!d) { put(ctx, 2, 2, C.slate, 12, 12); put(ctx, 3, 3, C.mist, 10, 10); put(ctx, 7, 5, C.ink, 2, 4); put(ctx, 7, 11, C.ink, 2, 1); outline(ctx, 16, 16); }
-  else { (SEA_ICONS[id] ?? G[d.icon.g])(ctx, d.icon.a, d.icon.b); outline(ctx, 16, 16); }
+  else { undithered(() => (SEA_ICONS[id] ?? G[d.icon.g])(ctx, d.icon.a, d.icon.b)); outline(ctx, 16, 16); }
   if (size === 16) return canvas;
   const out = makeCanvas(size, size);
   out.ctx.imageSmoothingEnabled = false;

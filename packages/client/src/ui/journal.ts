@@ -113,7 +113,7 @@ export function buildJournal(profile: Profile, portrait: (npcId: string) => stri
       body.append(h('div', { class: 'small dim', text: `${profile.recipes.size} / ${RECIPES.length} recipes known. Experiment at stations to discover more; villagers teach some once you are friends.` }));
     } else {
       const rows: Array<[string, string]> = [
-        ['Mouse movement', 'Settings → Controls → Movement controls: Mouse. Hold right button to move toward the ground cursor and look ahead; release to stop. Your movement keys still work. Keyboard mode keeps right button as look only.'],
+        ['Mouse movement', 'Settings → Controls → Movement controls: Mouse. Hold right button to move toward the ground cursor; release to stop. Your movement keys still work. Keyboard mode keeps right button as aim only.'],
         ['Aim directional orbs', 'Press an orb key, aim the direction preview, then left click to cast. Escape or the same key cancels. Selected enemies do not bypass aiming. Touch/gamepad cast directly; self abilities remain instant.'],
         ['Combo', 'tap Attack: slash, slash, lunging finisher (presses are buffered; dash cancels recovery)'],
         ['Heavy strike', 'hold Attack to charge (ring fills), release to cleave — breaks armour'],
