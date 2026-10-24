@@ -35,12 +35,20 @@ const CSS = `
 .npc-bubble.fade { opacity: 0; }
 .reduced .npc-mark { animation: none; }
 
-.lore { display: grid; gap: 12px; width: min(620px, 92vw); }
+.window:has(.lore) { width:min(700px,100%); }
+.window:has(.lore) .win-head { display:grid; grid-template-columns:44px minmax(0,1fr) 44px; }
+.window:has(.lore) .win-title { grid-column:2; grid-row:1; text-align:center; }
+.window:has(.lore) .win-x { grid-column:3; grid-row:1; }
+.lore { display:grid; gap:12px; width:min(100%,640px); margin-inline:auto; min-width:0; }
+.lore > div { display:grid; gap:16px; min-width:0; }
+.lore .small.dim { text-align:center; overflow-wrap:anywhere; }
 .lore-plaque { text-align: center; padding: 16px 12px; border: 3px double #c8a35a; border-radius: 6px; background: linear-gradient(#3a2a12, #22180a); color: #fcd45a; }
-.lore-plaque .hail { font-size: 1.6em; letter-spacing: .18em; font-weight: bold; text-shadow: 0 0 12px #a46aff; }
+.lore-plaque .hail { font-size: 1.6em; letter-spacing: .09em; overflow-wrap:anywhere; font-weight: bold; text-shadow: 0 0 12px #a46aff; }
 .lore-plaque .ep { margin-top: 8px; color: #e8d7a8; font-style: italic; white-space: pre-line; font-size: .9em; }
 .lore-page { white-space: pre-line; line-height: 1.55; padding: 10px 12px; background: #12132a; border: 2px solid #3a3e5e; border-radius: 6px; min-height: 110px; }
-.lore-nav { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.lore-nav { display: flex; justify-content: center; flex-wrap:wrap; align-items: center; gap: 12px; }
+.lore-nav > span { flex:1 1 180px; text-align:center; }
+.lore-nav button { min-height:44px; }
 .lore-remark { font-size: .85em; color: var(--mute); display: flex; gap: 8px; align-items: center; }
 .lore-remark img { width: 28px; height: 42px; image-rendering: pixelated; }
 

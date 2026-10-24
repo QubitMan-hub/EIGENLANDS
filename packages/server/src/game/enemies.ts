@@ -131,12 +131,17 @@ export function stepEnemies(
   const ctx: AiContext = { allies: all.filter((e) => !e.def.passive), engaged: new Map(), casting: new Map() };
   for (const e of ctx.allies) {
     if (!e.targetId || !committed(e)) continue;
-    const m = e.def.ai === 'caster' ? ctx.casting : e.def.ai === 'swarm' ? null : ctx.engaged;
+    const m = (e.def.ai === 'caster'||e.def.ai === 'harrier') ? ctx.casting : e.def.ai === 'swarm' ? null : ctx.engaged;
     if (m) m.set(e.targetId, (m.get(e.targetId) ?? 0) + 1);
   }
   for (const e of all) {
     if (e.slowT > 0) e.slowT = Math.max(0, e.slowT - dt);
+    const wasCommitted=committed(e);
     stepEnemy(e, e.slowT > 0 ? dt * SLIP_SLOW : dt, tick, targets, e.def.sea ? (solid.sea ?? solid) : solid, rand, hooks, ctx);
+    if(!wasCommitted&&committed(e)&&e.targetId){
+      const slots=e.def.ai==='caster'||e.def.ai==='harrier'?ctx.casting:e.def.ai==='swarm'?null:ctx.engaged;
+      if(slots)slots.set(e.targetId,(slots.get(e.targetId)??0)+1);
+    }
   }
 }
 
@@ -230,7 +235,7 @@ export function stepEnemy(
           e.mode = 'wander'; e.t = 0.8 + rand() * 1.2;
         } else { e.mode = 'idle'; e.t = 1 + rand() * 2; }
       }
-      if (e.mode === 'wander' && e.flinchT <= 0) {
+      if (e.mode === 'wander' && e.flinchT <= 0 && ai!=='ambusher') {
         moveBody(e, e.wx * speed * 0.4 * dt, e.wy * speed * 0.4 * dt, e.def.radius, solid);
         e.state.faceX = e.wx; e.state.faceY = e.wy;
       }
@@ -244,7 +249,10 @@ export function stepEnemy(
       const engaged = ctx?.engaged.get(target.id) ?? 0;
       const casting = ctx?.casting.get(target.id) ?? 0;
       const token = engaged < MAX_ENGAGED;
+      if(ai==='ambusher'&&d>4.5&&e.cd<=0)break;
       if (e.cd <= 0 && e.flinchT <= 0) {
+        if(ai==='ambusher'&&token&&d<=3&&lineOfSight(solid,e.x,e.y,target.x,target.y)){startWindup(e,ATK.LEAP,e.def.windup,target,hooks);break;}
+        if(ai==='harrier'&&casting<MAX_CASTING&&d>=3&&d<=e.def.strikeRange&&lineOfSight(solid,e.x,e.y,target.x,target.y)){startWindup(e,ATK.ORB,e.def.windup,target,hooks);break;}
         if (ai === 'melee' && token && d <= e.def.strikeRange * 0.8) { startWindup(e, ATK.SELF, e.def.windup, target, hooks); break; }
         if (ai === 'leap' && token && d <= e.def.strikeRange * 0.85) { startWindup(e, ATK.LEAP, e.def.windup, target, hooks); break; }
         if (ai === 'boar' && token) {
@@ -264,7 +272,9 @@ export function stepEnemy(
       // movement: approach on a flank, circle when the target is already busy, keep distance as a caster
       const px = -uy, py = ux;
       let vx = ux, vy = uy, k = 1;
-      if (ai === 'caster') {
+      if(ai==='ambusher'&&e.cd>0){vx=-ux+px*e.orbit*.5;vy=-uy+py*e.orbit*.5;k=.8;}
+      else if(ai==='harrier'){const retreat=d<3.5?-1:d>5.5?1:0;vx=ux*retreat+px*e.orbit*.8;vy=uy*retreat+py*e.orbit*.8;k=.8;}
+      else if (ai === 'caster') {
         if (d < 3.5) { vx = -ux; vy = -uy; k = 0.9; }
         else if (d > 6) { vx = ux + px * e.orbit * 0.4; vy = uy + py * e.orbit * 0.4; }
         else { vx = px * e.orbit; vy = py * e.orbit; k = 0.6; if (rand() < 0.01) e.orbit = -e.orbit; }
@@ -366,8 +376,9 @@ export function stepEnemy(
 
 function syncState(e: Enemy, tick: number): void {
   const s = e.state;
+  const moving=Math.hypot(s.x-e.x,s.y-e.y)>.001;
   s.x = e.x; s.y = e.y;
-  s.st = e.mode === 'chase' || e.mode === 'wander' ? 1 : e.mode === 'windup' ? 2 : e.mode === 'leap' || e.mode === 'charge' ? 3
+  s.st = e.mode === 'chase' || e.mode === 'wander' ? (moving?1:0) : e.mode === 'windup' ? 2 : e.mode === 'leap' || e.mode === 'charge' ? 3
     : e.mode === 'recover' ? 4 : e.mode === 'stagger' ? 5 : 0;
   s.atk = e.mode === 'windup' || e.mode === 'leap' || e.mode === 'charge' ? e.atk : ATK.NONE;
   s.tx = e.lockX; s.ty = e.lockY;

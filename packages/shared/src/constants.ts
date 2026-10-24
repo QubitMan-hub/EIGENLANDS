@@ -11,7 +11,7 @@ export const PLAYER_RADIUS = 0.3;
 export const DASH_TIME = 0.18;
 export const DASH_SPEED = 13;
 /** recharge time of ONE dash charge (charges refill one after another) */
-export const DASH_COOLDOWN = 1.1;
+export const DASH_COOLDOWN = 4.0;
 /** dash charges (Hades-style double dash) */
 export const DASH_CHARGES = 2;
 /** invulnerability from the start of a dash (a little longer than the dash itself) */

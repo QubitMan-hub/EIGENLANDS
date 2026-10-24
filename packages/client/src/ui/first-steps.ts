@@ -7,7 +7,7 @@ export const FIRST_STEPS: { id: keyof Acts; text: string }[] = [
   {id:'moved',text:'Walk with {up}, {left}, {down}, {right}, the arrow keys, or the left stick.'},
   {id:'attacked',text:'Left-click or press {attack} to swing. Tap for a combo; hold and release for a heavy strike. You can practise on empty ground.'},
   {id:'dashed',text:'Press {dash} to dodge. In combat, dash through a red warning just before it fills.'},
-  {id:'selected',text:'Choose a quick-bar slot with 1–0, the mouse wheel, or a tap. Your starting tools are already there. With a pickaxe selected, left-click a rock to walk over and mine until it breaks; movement or Dodge cancels.'},
+  {id:'selected',text:'Choose a quick-bar slot with 1–0, the mouse wheel, or a tap. Your starting tools are already there. Select an axe or pickaxe, then left-click a tree or rock to approach and gather until it breaks; movement or Dodge cancels.'},
   {id:'openedPack',text:'Open your pack with {inventory}. Select an item to inspect, equip or use it.'},
   {id:'openedMap',text:'Open the atlas with {map}. Track Hadamere below: its pin guides you without revealing unexplored ground.'},
   {id:'arrived',text:'Follow the tracked direction to Hadamere. Its wards protect streets, shops and homes from monsters.'},

@@ -24,14 +24,14 @@ export class HeldWeapons {
         const aimedTool = (id === 'can' || id === 'rod') && n >= CAST_FRAME;
         const thrust = id === 'spear' && n >= ATTACK_FRAME && n < ATTACK_FRAME+4;
         // Broad heads rest outside the face; grip/arm anchors remain unchanged.
-        const resting = (id === 'spear' || id === 'battle_axe' || id === 'warhammer') && (n < ATTACK_FRAME || n >= RUN_FRAME && n < SHOT_FRAME);
-        const angle = thrust || aimedTool ? personGrip(d,SHOT_FRAME).angle : resting ? (personGrip(d,0).x < 12.5 ? -2.05 : -1.1) : bow && n < 22 ? (d === 2 || d === 4 || d === 6 ? -2.6 : -0.55) : g.angle;
+        const resting = (id === 'spear' || id === 'battle_axe' || id === 'warhammer' || tool&&id!=='can') && (n < ATTACK_FRAME || n >= RUN_FRAME && n < SHOT_FRAME);
+        const angle = id==='can'&&!aimedTool?0:thrust || aimedTool ? personGrip(d,SHOT_FRAME).angle : resting ? (personGrip(d,0).x < 12.5 ? -2.05 : -1.1) : bow && n < 22 ? (d === 2 || d === 4 || d === 6 ? -2.6 : -0.55) : g.angle;
         const ux = Math.cos(angle), uy = Math.sin(angle), vx = -uy, vy = ux;
         const pt = (along: number, across = 0): [number, number] => [x + ux * along + vx * across, y + uy * along + vy * across];
         const stroke = (a: number, z: number, c: number, offset = 0) => { const p = pt(a, offset), q = pt(z, offset); line(b.ctx, p[0], p[1], q[0], q[1], c); };
         undithered(() => {
           if (tool) {
-            stroke(-4, id === 'rod' ? 13 : 8, C.e1, 0.8); stroke(-4, id === 'rod' ? 13 : 8, C.e4);
+            if(id!=='can'){stroke(-4,id==='rod'?13:8,C.e1,.8);stroke(-4,id==='rod'?13:8,C.e4);}
             if (id === 'axe') { poly(b.ctx, [pt(6, -1), pt(10, -6), pt(7, -7), pt(3, -4), pt(3, -1)], C.steel); poly(b.ctx, [pt(10, -6), pt(7, -7), pt(4, -5), pt(4, -3)], C.pale); }
             else if (id === 'pickaxe') { poly(b.ctx, [pt(8, -7), pt(10, -3), pt(9, 1), pt(7, 6), pt(7, 1), pt(8, -3)], C.mist); stroke(7, 9, C.pale); }
             else if (id === 'hoe') { poly(b.ctx, [pt(7, -1), pt(8, -5), pt(5, -6), pt(5, -2)], C.steel); const a = pt(5, -6), q = pt(8, -5); line(b.ctx, ...a, ...q, C.pale); }
@@ -85,6 +85,8 @@ export class HeldWeapons {
           }
         });
         outline(b.ctx, 56, 64, C.night);
+        // Let the body hand cover the handle instead of painting a shaft across its fingers.
+        b.ctx.clearRect(Math.round(x)-1,Math.round(y)-1,3,2);
         ctx.drawImage(b.canvas, n * 56, d * 64);
       }
       sheet = Texture.from(canvas); sheet.source.scaleMode = 'nearest'; this.sheets.set(id, sheet);

@@ -24,3 +24,12 @@ it('rejects wrong tools and insufficient tiers and stops rather than walking for
  select({slot:1,item:{id:'pickaxe',n:1}});store.setTile(4,0,T.ORE_GOLD);expect(mining.start(.5,.5,4,0,0)).toBe(true);expect(mining.step(50,.5,.5)).toBeNull();expect(notice).toHaveBeenCalled();
  store.setTile(4,0,T.ROCK);mining.start(.5,.5,4,0,0);mining.step(50,.5,.5);expect(mining.step(2000,.5,.5)).toBeNull();expect(use).not.toHaveBeenCalled();
 });
+it('uses the same cancellable approach and authoritative swings for trees and stumps with an axe',()=>{
+ const{store,mining,use,select}=setup();store.setTile(4,0,T.TREE);select({slot:0,item:{id:'axe',n:1}});expect(mining.start(3.5,.5,4,0,0)).toBe(true);mining.step(50,3.5,.5);expect(use).toHaveBeenCalledWith(0,4,0);
+ store.setTile(4,0,T.STUMP);expect(mining.step(500,3.5,.5)).toBeNull();
+});
+it('finishes hoe/watering actions after one changed tile and gathers forage without a weapon swing',()=>{
+ const{store,mining,use,select}=setup();store.setTile(4,0,T.GRASS);select({slot:0,item:{id:'hoe',n:1}});expect(mining.start(3.5,.5,4,0,0)).toBe(true);mining.step(50,3.5,.5);store.setTile(4,0,T.TILLED);expect(mining.step(500,3.5,.5)).toBeNull();
+ select({slot:0,item:{id:'can',n:1}});expect(mining.start(3.5,.5,4,0,600)).toBe(true);mining.step(650,3.5,.5);store.setTile(4,0,T.TILLED_WET);expect(mining.step(1100,3.5,.5)).toBeNull();
+ store.setTile(4,0,T.FORAGE);select({slot:0,item:null});expect(mining.start(3.5,.5,4,0,1200)).toBe(true);mining.step(1250,3.5,.5);expect(use).toHaveBeenCalledTimes(3);
+});

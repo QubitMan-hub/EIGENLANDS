@@ -1,6 +1,22 @@
-# Current continuation: click-to-mine and comfortable controls (2026-10-24)
+# Current continuation: gathering, deliberate dodges and interior polish (2026-10-24)
 
-Built inline on the performance branch. Selected pickaxe + left-click on opaque pixels of a visible rock/ore body consumes the attack click, follows bounded cached A* to a walkable adjacent tile, and repeats ordinary authoritative USE at 360ms until the original node changes. Existing server tier/range/cooldown/loot and mining pose stay in charge. No automatic resource chaining or structure dismantling. Movement, right-click, Dodge, combat/interaction keys, tool/slot changes, menus, death, focus loss and world handoffs cancel the intent; blocked/stuck routes and a 30s limit prevent endless walking. Enemy clicks and armed abilities retain priority. Both WASD and mouse movement modes work.
+Built inline on `codex/gathering-combat-interiors`, no subagents. Final GitHub integration/CI evidence belongs to this branch's pull request.
+
+The existing resource intent now handles axe/tree/stump, forage, ripe harvest, selected hoe/can actions and well refills through the same server USE authority. Completion, movement, Dodge, menus, focus, selected-tool changes and blocked routes stop it. It never dismantles structures or automatically chains into a new node. Visible tree/rock body selection uses the existing alpha masks, including wind transforms.
+
+Dodge retains two charges, travel and perfect-dodge timing, but each charge takes four seconds to replenish sequentially. Both prediction and authority use the shared constant; held or spammed commands cannot bypass it. Selected rod + Space chooses nearby water without cursor precision, keeps an intentional aimed-water option, and preserves fishing rewards and the existing bite/rhythm game. Early presses no longer restart waiting; stale local fishing state clears after a missed bite or leaving the water.
+
+Statue reading uses a centered bounded column/header and wrapping navigation. Beds now have separate grounded legs, frame, mattress, quilt, pillow and backboard on the existing 2:1 projection. Held tools use the exact shared hand anchor, expose fingers over handles, rest heads away from faces, and no longer put a wooden shaft through a watering can. Generated town stairs occupy a back corner with reserved landing space and reversible upper-floor links; player-placed stairs remain where their owners choose.
+
+Two original baked, animated encounters: Reed Stalker waits at range, telegraphs a leap and disengages during recovery; Cinder Moth circles at range, retreats up close and telegraphs shots. They join forest/swamp and desert/cave tables at levels 4/5, inside existing density budgets. Casting/attack tokens count new commitments immediately so a group cannot all start attacks in one tick. Stationary enemies no longer play a walking cycle.
+
+Evidence: 537 workspace tests (123 client / 252 server / 162 shared), typechecks and both production builds. Art lab reviewed two beds, 48 held poses and 32 new enemy frames; production solo and multiplayer replays pass actual axe loot, charge exhaustion, Space shore fishing, statue alignment at desktop/landscape plus a separate actual touch-portrait title/body/overflow check, reversible corner stairs and both enemy sprites. Stair path tests cover furnished settlements across three seeds. Scripts: `e2e/gathering-art.mjs`, `e2e/gathering-polish.mjs`; ephemeral logs/screenshots `/tmp/gather-*`. Phone GPU/memory/thermals and the broader remaining catalog still require the validation in [REMAINING_WORK.md](REMAINING_WORK.md).
+
+---
+
+# Previous continuation: click-to-mine and comfortable controls (2026-10-24)
+
+Merged in [PR #24](https://github.com/QubitMan-hub/EIGENLANDS/pull/24), main `135a05dee9a1a147462287eb39bd3dfacd0e4854`, after push/PR CI `40137334227` / `40137337874` passed 529 tests. Built inline, no agents. Selected pickaxe + left-click on opaque pixels of a visible rock/ore body consumes the attack click, follows bounded cached A* to a walkable adjacent tile, and repeats ordinary authoritative USE at 360ms until the original node changes. Existing server tier/range/cooldown/loot and mining pose stay in charge. No automatic resource chaining or structure dismantling. Movement, right-click, Dodge, combat/interaction keys, tool/slot changes, menus, death, focus loss and world handoffs cancel the intent; blocked/stuck routes and a 30s limit prevent endless walking. Enemy clicks and armed abilities retain priority. Both WASD and mouse movement modes work.
 
 New defaults: either Shift dodges; Space uses/talks/opens/enters caves and stairs. Untouched old Space+Shift/X pairs migrate; explicit custom or empty bindings remain. Journal prompts use actual bindings, Settings explains click mining, and README/building instructions and executable E2E shortcuts match the defaults.
 

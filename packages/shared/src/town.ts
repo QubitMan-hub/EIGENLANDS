@@ -1,5 +1,5 @@
 import { extraTowns } from './settlements';
-import { upperTowns, isUpperY } from './floors';
+import { upperTowns, townStairTile, isUpperY } from './floors';
 import { hash2 } from './rng';
 import { T } from './tiles';
 import { sampleClimate } from './worldgen';
@@ -238,7 +238,8 @@ export function furnish(b: Building, rawObj: ObjAdd, spot: SpotAdd): void {
   const right = ix + iw - 1, bottom = iy + ih - 1;
   const used = new Set<string>();
   // keep the entrance corridor (door column +-1, bottom two interior rows) clear so people can walk in
-  const reserved = (x: number, y: number) => Math.abs(x - b.doorX) <= 1 && y >= b.doorY - 2;
+  const stair=['hall','inn','farmhouse'].includes(b.kind)?townStairTile(b):null;
+  const reserved = (x: number, y: number) => (Math.abs(x-b.doorX)<=1&&y>=b.doorY-2)||!!stair&&x>=stair.x-1&&x<=stair.x&&y>=stair.y&&y<=stair.y+1;
   const inside = (x: number, y: number) => x >= ix && x <= right && y >= iy && y <= bottom;
   const free = (x: number, y: number) => inside(x, y) && !reserved(x, y) && !used.has(`${x},${y}`);
   const obj = (x: number, y: number, kind: TownObject['kind'], sub: string): boolean => {

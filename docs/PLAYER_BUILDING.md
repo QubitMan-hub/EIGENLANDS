@@ -30,3 +30,5 @@ Implementation: shared structural collision, additive `104_construction.sql`, ex
 Art references reviewed before implementation: [Minecraft](https://en.wikipedia.org/wiki/Minecraft), [Terraria](https://store.steampowered.com/app/105600/Terraria/) and [Project Zomboid construction](https://pzwiki.net/wiki/Building). These informed modular crafting, shelter readability and functional access; artwork is original.
 
 Validation entry points: `e2e/construction.mjs`, `/labs/artlab.html?lab=construction`, shared/client/server construction tests and the sharded-building cases in `packages/server/test/shard.test.ts`.
+
+Generated town buildings place their stairs at back corners and reserve a clear landing. Stairs in your own buildings stay where you place them; choose a corner and leave a walking aisle if you prefer that layout.
