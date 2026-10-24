@@ -1,4 +1,16 @@
-# Current continuation: utility poses and common fish (2026-10-24)
+# Current continuation: companion following/combat and catch pose (2026-10-24)
+
+Merged [PR #21](https://github.com/QubitMan-hub/EIGENLANDS/pull/21) at `844163324b3b9648e9b69adde2849d2525c3db74`. Implementation head `436fdc29075f0666ef4685e2c1fd49cfe4629380`; push CI `40112119853` and PR CI `40112123929` passed. Merged packages/e2e tree matches the tested head. Work completed inline, no subagents.
+
+Root causes: straight-line point collision stalled followers at obstacles; creature speed could not keep up with walking players; owner-centered target lists could include foes outside inherited creature sight, suppressing follow without producing combat; aggressive pursuit lacked an enforced owner leash; emergency recall used an unchecked adjacent tile. Reuse cached bounded A* (512 nodes, at most every .5s when obstructed), radius-aware movement and smooth catch-up speed. Companion sight covers the owner-selected range, pursuit is bounded to the owner, wall-hidden targets yield to following, and recall uses the owner tile. Stances, support deer, neutral-wildlife rules, damage, rewards and saved roster contracts remain.
+
+Next animation slice: approved fish catches identify the rod. Local presentation waits until Continue closes the fishing result overlay, retains a known casting target and falls back to current facing; peers can react immediately. Reduced motion uses a static rod contact frame. Hook/missed-catch and held-consumable work remain tracked in [REMAINING_WORK.md](REMAINING_WORK.md).
+
+Proof: 491 tests (100 client / 240 server / 151 shared), typechecks and both builds pass. Five new authoritative simulations cover obstacle routing, target acquisition beyond old sight, return from distant aggression, hidden-threat-before-follow behavior, walking catch-up and recall collision. Real fishing integration asserts catch actor/rod metadata. Production solo wildlife-bonds browser flow passes taming, three species, commands, follow and save/reload. A separate browser presentation fixture verifies an approved catch pose waits for Continue and then renders its reduced-motion contact frame; it does not substitute for the server fishing-authority test. Evidence: `/tmp/companion-*.log`, `/tmp/catch-browser.log` (ephemeral).
+
+---
+
+## Previous continuation: utility poses and common fish (2026-10-24)
 
 Merged [PR #20](https://github.com/QubitMan-hub/EIGENLANDS/pull/20) at `48afac77cb6543cb31c0b244edcbf4cb8478e1ce`. Tested implementation head `a3339f428332833b53e5ff067667be8f8b8bfe27`; push CI `40110016345` and PR CI `40110019603` passed. Merged packages/e2e tree matches that head. No subagents used.
 
