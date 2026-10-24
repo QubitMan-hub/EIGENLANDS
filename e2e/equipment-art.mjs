@@ -26,7 +26,7 @@ try {
   assert.deepEqual(errors, []);
   await page.screenshot({ path: '/tmp/eigenlands-equipment.png' });
   console.log('All weapons × eight facings × thirty poses: bounds and texture reuse passed');
-  for (const frame of [0,10,11,12,13]) {
+  for (const frame of [0,1,5,10,11,12,13]) {
     await page.goto(`${process.argv[2] ?? 'http://127.0.0.1:5173/'}labs/artlab.html?lab=equipment&weapons=sword,spear,battle_axe,warhammer&scale=3&motion=0&frame=${frame}`);
     await page.waitForFunction(() => window.__lab?.ready);
     await page.screenshot({path:`/tmp/eigenlands-arsenal-poses-${frame}.png`});

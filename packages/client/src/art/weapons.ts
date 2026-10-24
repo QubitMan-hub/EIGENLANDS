@@ -24,7 +24,7 @@ export class HeldWeapons {
         const thrust = id === 'spear' && n >= ATTACK_FRAME && n < ATTACK_FRAME+4;
         // Broad heads rest outside the face; grip/arm anchors remain unchanged.
         const resting = (id === 'spear' || id === 'battle_axe' || id === 'warhammer') && (n < ATTACK_FRAME || n >= RUN_FRAME && n < SHOT_FRAME);
-        const angle = thrust ? personGrip(d,SHOT_FRAME).angle : resting ? (g.x < 12.5 ? -2.05 : -1.1) : bow && n < 22 ? (d === 2 || d === 4 || d === 6 ? -2.6 : -0.55) : g.angle;
+        const angle = thrust ? personGrip(d,SHOT_FRAME).angle : resting ? (personGrip(d,0).x < 12.5 ? -2.05 : -1.1) : bow && n < 22 ? (d === 2 || d === 4 || d === 6 ? -2.6 : -0.55) : g.angle;
         const ux = Math.cos(angle), uy = Math.sin(angle), vx = -uy, vy = ux;
         const pt = (along: number, across = 0): [number, number] => [x + ux * along + vx * across, y + uy * along + vy * across];
         const stroke = (a: number, z: number, c: number, offset = 0) => { const p = pt(a, offset), q = pt(z, offset); line(b.ctx, p[0], p[1], q[0], q[1], c); };
