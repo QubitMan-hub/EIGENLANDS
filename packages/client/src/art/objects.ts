@@ -128,7 +128,7 @@ export function drawBroadleaf(ctx: Ctx, seed: number, season: SeasonIdx): void {
 
 /** Layered conifer (48x64); keeps its needles in winter and gains snow. */
 export function drawPine(ctx: Ctx, seed: number, season: SeasonIdx): void {
-  trunk(ctx, 24, 48, 62, 4, seed);
+  trunk(ctx, 24, 48, 59, 4, seed);
   const tiers: Array<[number, number]> = [[46, 15], [37, 12.5], [28.5, 10.5], [20.5, 8], [13, 5.5]];
   const rng = mulberry32(seed * 31);
   tiers.forEach(([baseY, baseRx], k) => {
@@ -151,7 +151,7 @@ export function buildTrees(season: SeasonIdx): ObjSprite[] {
   for (let v = 0; v < 6; v++) {
     const { canvas, ctx } = makeCanvas(48, 64);
     if (v >= 4) drawPine(ctx, 100 + v, season); else drawBroadleaf(ctx, 10 + v * 17, season);
-    out.push(toSprite(canvas, 24, 61));
+    out.push(toSprite(canvas, 24, 60));
   }
   return out;
 }
@@ -193,7 +193,7 @@ export function buildQTree(season: SeasonIdx): ObjSprite[] {
       for (let k = 0; k < 4; k++) img.data[i + k] = src[i + k]!;
     }
     ctx.putImageData(img, 0, 0);
-    return toSprite(canvas, 24, 61);
+    return toSprite(canvas, 24, 60);
   };
   out.push(mix(0), mix(1), mix(2), mix(3));
   return out;

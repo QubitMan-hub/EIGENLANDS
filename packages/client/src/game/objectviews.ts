@@ -35,12 +35,13 @@ interface Obj {
 
 /** Sun azimuth/elevation from the in-game hour: long shadows at dawn/dusk, short at noon, faint moon shadows at night. */
 export function sunFor(hour: number): Sun {
-  if (hour >= 6 && hour <= 18) {
-    const a = ((hour - 6) / 12) * Math.PI;
-    const elev = Math.max(0.22, Math.sin(a));
-    return { dx: -Math.cos(a), len: Math.min(2.4, 0.55 / elev), alpha: 0.34 * Math.min(1, elev * 2.2), dark: darkness(hour), hour };
-  }
-  return { dx: 0.3, len: 0.9, alpha: 0.1, dark: darkness(hour), hour };
+  hour = ((hour % 24) + 24) % 24;
+  const phase = (hour - 6) / 12 * Math.PI;
+  const elevation = Math.sin(phase), daylight = Math.max(0, elevation);
+  // Fade at the horizon instead of snapping to a fixed night shadow.
+  return { dx: -Math.cos(phase), len: Math.min(2.4, 0.55 / Math.max(.22, Math.abs(elevation))),
+    alpha: daylight > 0 ? .34 * Math.min(1, daylight * 2.2) : .08 * Math.min(1, -elevation * 2.2),
+    dark: darkness(hour), hour };
 }
 
 /** Sprites for every tile that carries an object (trees, rocks, flowers...), with sun-cast shadows. */
@@ -190,7 +191,11 @@ export class ObjectViews {
             const list = kind ? context === 'cave' ? this.art.cave[kind]! : (this.art.biome[context as keyof typeof this.art.biome] as Record<string, ObjSprite[]>)[kind]! : (this.art as unknown as Record<string, ObjSprite[]>)[o.artKey]!;
             const rate = o.artKey === 'qtree' ? 0.9 : o.kind === 'crystal' ? 2.2 : o.kind === 'torch' ? 6 : o.kind === 'bloom' ? 3 : 1.4;
             const f = reduced ? 0 : Math.floor(t * rate + o.phase) % o.frames;
-            o.root.texture = list[o.variant * o.frames + f]!.tex;
+            const frame = list[o.variant * o.frames + f]!;
+            o.root.texture = frame.tex;
+            o.root.anchor.set(frame.ax / frame.tex.width, frame.ay / frame.tex.height);
+            o.shadow.anchor.copyFrom(o.root.anchor);
+            if (o.echo) o.echo.anchor.copyFrom(o.root.anchor);
             o.shadow.texture = o.root.texture;
             if (o.kind === 'bloom') o.root.alpha = reduced ? 1 : 0.8 + 0.2 * Math.sin(t * 2 + o.phase);
           }

@@ -141,9 +141,9 @@ function mushroomsOf(cap: Ramp, stem: number, spots: number, seed: number): ObjS
 /** Every biome's flora, built once (biome sprites do not change with the calendar). */
 export function buildBiomeArt(season: SeasonIdx): BiomeArt {
   const snowS: SeasonIdx = 3, autS: SeasonIdx = 2;
-  const taigaTrees = list(5, (ctx, v) => { if (v < 4) drawPine(ctx, 200 + v, snowS); else drawBroadleaf(ctx, 230, snowS); });
-  const autumnTrees = list(5, (ctx, v) => drawBroadleaf(ctx, 300 + v * 23, autS));
-  const forestTrees = list(6, (ctx, v) => { if (v % 3 === 2) drawPine(ctx, 400 + v, season); else drawBroadleaf(ctx, 410 + v * 19, season); });
+  const taigaTrees = list(5, (ctx, v) => { if (v < 4) drawPine(ctx, 200 + v, snowS); else drawBroadleaf(ctx, 230, snowS); }, 48, 64, 24, 60);
+  const autumnTrees = list(5, (ctx, v) => drawBroadleaf(ctx, 300 + v * 23, autS), 48, 64, 24, 60);
+  const forestTrees = list(6, (ctx, v) => { if (v % 3 === 2) drawPine(ctx, 400 + v, season); else drawBroadleaf(ctx, 410 + v * 19, season); }, 48, 64, 24, 60);
   return {
     forest: { tree: forestTrees, flowers: mushroomsOf([C.e1, C.r2, C.r3, C.r4], C.pale, C.white, 50) },
     autumn: { tree: autumnTrees, tallgrass: buildTallGrass(autS), flowers: buildFlowers(autS), stump: buildStump(autS) },

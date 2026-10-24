@@ -341,7 +341,7 @@ if (mode === 'icons') {
     buildings.setDarkness(dark);
     buildings.update(performance.now(), Math.floor(playerTx), Math.floor(playerTy), noMotion, sun, ...b);
     line.forEach((s, i) => { const f = q.has('idle') ? 0 : 1 + (Math.floor(now / 100) % (WALK_FRAMES - 1)); const d = Math.floor(now / 1500 + i) % 8; s.texture = mode === 'town' ? sheets.npc(lineIds[i]!, d, f) : sheets.person(i, d, f); });
-    for (const [s, sh] of shadowOf) { sh.texture = s.texture; sh.position.set(s.x, s.y); sh.alpha = sun.alpha; sh.scale.y = -(0.26 + 0.18 * sun.len); sh.skew.x = sun.dx * sun.len * 0.55; }
+    for (const [s, sh] of shadowOf) { sh.texture = s.texture; sh.position.set(s.x, s.y); sh.alpha = sun.alpha; sh.scale.y = -(0.22 + 0.14 * sun.len); sh.skew.x = sun.dx * sun.len * 0.55; }
     wfx.update(dt, weather, W, H, noMotion, hour);
     const amb = ambientColor(hour), wa = wfx.ambient(weather);
     // lights: tile lights + world objects + a lantern on the "player"

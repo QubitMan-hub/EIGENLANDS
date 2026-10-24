@@ -135,8 +135,6 @@ export class Game {
   private ambient!: Ambient;
   private targetId: string | null = null;
   private targetFrame = new TargetFrame();
-  /** smoothed right-mouse look offset in iso world px */
-  private look = { x: 0, y: 0 };
   private bobber = new Graphics();
   features = { aiDialogue: false };
   private portraitCache = new Map<string, string>();
@@ -559,26 +557,7 @@ export class Game {
     let ox = 0, oy = 0;
     if (this.fx.shake > 0 && !reduced) { ox = Math.round((Math.random() - 0.5) * 6 * this.fx.shake); oy = Math.round((Math.random() - 0.5) * 6 * this.fx.shake); }
     // iso camera: centred on the player's body (feet minus 6px), snapped to device pixels
-    // holding the right mouse button slides the camera toward the cursor (eased, frame-rate independent)
-    {
-      const m = this.input.mouseXY, held = this.input.lookHeld && !this.dead;
-      const reach = Math.min(W, H) * 0.42;
-      let tx = 0, ty = 0;
-      const mouseMove = this.input.movementMode === 'mouse', origin = mouseMove ? this.input.feetScreen : this.input.playerScreen;
-      if (held && mouseMove && Math.hypot(m.x - origin.x, m.y - origin.y) < 8) {
-        // Holding on your feet stops movement; don't pan the feet away from that cursor.
-        tx = this.look.x; ty = this.look.y;
-      } else if (held) {
-        let dx = (m.x - origin.x) / S, dy = (m.y - origin.y) / S;
-        const l = Math.hypot(dx, dy), cap = reach / S;
-        if (l > cap) { dx = (dx / l) * cap; dy = (dy / l) * cap; }
-        tx = dx * 0.85; ty = dy * 0.85;
-      }
-      const k = 1 - Math.exp(-dt * (held ? 9 : 12));
-      this.look.x += (tx - this.look.x) * k; this.look.y += (ty - this.look.y) * k;
-      if (!held && Math.hypot(this.look.x, this.look.y) < 0.05) this.look.x = this.look.y = 0;
-    }
-    const camX = Math.round((isoX(me.x, me.y) + this.look.x) * S * dpr) / (S * dpr), camY = Math.round((isoY(me.x, me.y) - 6 + this.look.y) * S * dpr) / (S * dpr);
+    const camX = Math.round((isoX(me.x, me.y)) * S * dpr) / (S * dpr), camY = Math.round((isoY(me.x, me.y) - 6) * S * dpr) / (S * dpr);
     this.world.x = Math.round((W / 2 - camX * S) * dpr) / dpr + ox;
     this.world.y = Math.round((H / 2 - camY * S) * dpr) / dpr + oy;
     {
@@ -926,9 +905,10 @@ export class Game {
     sh.visible = v.root.visible && v.type !== 'proj' && sun.alpha > 0.02;
     if (!sh.visible) return;
     sh.texture = v.sprite.texture;
-    sh.position.set(v.root.x, v.root.y + 1);
+    sh.anchor.copyFrom(v.sprite.anchor);
+    sh.position.set(v.root.x, v.root.y);
     sh.alpha = sun.alpha * v.sprite.alpha;
-    sh.scale.y = -(0.26 + 0.18 * sun.len);
+    sh.scale.y = -(0.22 + 0.14 * sun.len);
     sh.skew.x = sun.dx * sun.len * 0.55;
     sh.rotation = v.sprite.rotation;
   }
