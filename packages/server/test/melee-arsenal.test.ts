@@ -8,7 +8,9 @@ async function equip(p:P3,id:string){let slot=p.sp.data.inv.findIndex(s=>s?.id==
 async function setup(x:number){const p=await spawn3(app,'Arms tester');await setLevel(p,20);await tp(p,x+.5,700.5);flatten(p.room,x,700,10);clearEnemies(p.room);p.room.rand=()=>.99;p.sp.invuln=0;return p;}
 function foe(p:P3,x:number,y:number){const e=dummy(p.room,x,y);e.poise=e.maxPoise=100000;e.hp=e.maxHp=1000;return e;}
 it('crafts at a real town forge, enforces equip level and restores the new main hand after reconnect',async()=>{
- const p=await spawn3(app,'Young smith');const forge=townFor(p.room.seed).objects.find(o=>o.kind==='station'&&o.sub==='forge')!;expect(forge).toBeDefined();await tp(p,forge.x+1.5,forge.y+.5);
+ const p=await spawn3(app,'Young smith');
+ // Exact-cost branch: the existing crafting skill can otherwise save a random ingredient.
+ p.room.rand=()=>.99;const forge=townFor(p.room.seed).objects.find(o=>o.kind==='station'&&o.sub==='forge')!;expect(forge).toBeDefined();await tp(p,forge.x+1.5,forge.y+.5);
  p.sp.data.inv.fill(null);p.sp.data.inv[0]={id:'iron_ingot',n:2};p.sp.data.inv[1]={id:'wood',n:4};p.sp.data.inv[2]={id:'fiber',n:2};expect(p.sp.data.recipes.has('spear')).toBe(true);
  p.r.send(MSG.CRAFT,{station:'forge',recipe:'spear',n:1,tx:forge.x,ty:forge.y});await until(()=>p.sp.data.inv.some(s=>s?.id==='spear'),2000);expect(p.sp.data.inv.filter(Boolean)).toHaveLength(1);
  const slot=p.sp.data.inv.findIndex(s=>s?.id==='spear');p.r.send(MSG.EQUIP,{slot,as:'weapon'});await sleep(150);expect(p.sp.data.equip.weapon).toBeNull();expect(p.sp.data.inv[slot]?.id).toBe('spear');
