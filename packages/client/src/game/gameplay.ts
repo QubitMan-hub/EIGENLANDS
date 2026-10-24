@@ -53,7 +53,7 @@ export interface GameplayDeps {
   reduced?: () => boolean;
 }
 
-const REPEATABLE = new Set(['tool', 'till', 'water', 'net', 'forage', 'harvest']);
+const REPEATABLE = new Set(['tool', 'till', 'water', 'refill', 'net', 'forage', 'harvest']);
 const MINING = new Set(['stone', 'coal', 'copper_ore', 'iron_ore', 'silver_ore', 'gold_ore', 'qubit_crystal']);
 
 /** Turns network messages into windows and player intent into messages. No rendering. */
@@ -126,7 +126,7 @@ export class Gameplay {
     if (this.wins.name === 'journal') { this.wins.close(); return; }
     this.acts.journal = true;
     this.journey = this.d.journey ? buildJourney(this.d.journey, () => { this.wins.close(); this.d.openBoard?.(); }) : null;
-    this.wins.show('journal', 'Journal', buildJournal(this.profile, this.d.portrait, 'quests', this.d.seed?.() ?? 0, () => [FIRST_STEPS.every(s => this.done.has(s.id)) ? this.tutorialHint() : null, this.d.guidance?.()].filter(Boolean).join("\n\n") || null, this.journey?.el, { keys: () => this.d.input.keys, firstSteps: this.firstSteps.el, track: (id, map) => this.d.trackQuest?.(id, map), tracked: () => this.d.trackedQuest?.() ?? null }), { wide: true });
+    this.wins.show('journal', 'Journal', buildJournal(this.profile, this.d.portrait, 'quests', this.d.seed?.() ?? 0, () => [FIRST_STEPS.every(s => this.done.has(s.id)) ? this.tutorialHint() : null, this.d.guidance?.()].filter(Boolean).join("\n\n") || null, this.journey?.el, { keys: () => this.d.input.keys, firstSteps: this.firstSteps.el, track: (id, map) => this.d.trackQuest?.(id, map), tracked: () => this.d.trackedQuest?.() ?? null, travelMode: mode => this.d.net().send(MSG.TRAVEL_MODE,{mode}) }), { wide: true });
   }
   toggleFieldCraft(): void {
     if (this.wins.name === 'hand') { this.wins.close(); return; }

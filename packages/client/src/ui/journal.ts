@@ -28,7 +28,7 @@ export const GUIDE: Array<[string, string]> = [
   ['The Statue of QubitMan', 'In the middle of the plaza stands the statue of Hadamere\'s legendary founder. Walk up to it and press E to read the plaque and his legend. ALL HAIL QUBITMAN.'],
 ];
 
-export function buildJournal(profile: Profile, portrait: (npcId: string) => string, tab0: JournalTab = 'quests', seed = 0, guidance: () => string | null = () => null, journey?: HTMLElement, options: { keys?: () => KeyMap; firstSteps?: HTMLElement; track?: (id: string | null, map?: boolean) => void; tracked?: () => string | null } = {}): HTMLElement {
+export function buildJournal(profile: Profile, portrait: (npcId: string) => string, tab0: JournalTab = 'quests', seed = 0, guidance: () => string | null = () => null, journey?: HTMLElement, options: { keys?: () => KeyMap; firstSteps?: HTMLElement; track?: (id: string | null, map?: boolean) => void; tracked?: () => string | null; travelMode?: (mode:'cozy'|'adventure')=>void } = {}): HTMLElement {
   ensureP2Styles();
   const root = h('div', { class: 'journal' });
   const body = h('div', { class: 'jbody' });
@@ -43,6 +43,12 @@ export function buildJournal(profile: Profile, portrait: (npcId: string) => stri
     const shortcutText = (text: string) => text.replace(/\b[EJCIL]\b/g, key => binding(keys, ({ E:'interact', J:'attack', C:'craft', I:'inventory', L:'journal' } as const)[key as 'E'|'J'|'C'|'I'|'L']));
     clear(tabs); clear(body);
     for (const [id, label] of [['quests', 'Quests'], ['journey', 'Journey'], ['skills', 'Skills'], ['friends', 'Friends'], ['recipes', 'Recipes'], ['guide', 'How to…'], ['help', 'Controls']] as const) { if (id === 'journey' && !journey) continue; tabs.append(h('button', { class: id === tab ? 'primary' : '', text: label, data: { tab: id }, on: { click: () => { tab = id; render(); } } })); }
+    if(tab==='guide') {
+      const n=profile.needs, mode=h('select',{data:{focus:'travel-mode'}});mode.setAttribute('aria-label','Travel mode');
+      mode.append(h('option',{value:'cozy',text:'Cozy · no depletion'}),h('option',{value:'adventure',text:'Adventure · food and water'}));mode.value=n.mode;mode.disabled=!options.travelMode;
+      mode.addEventListener('change',()=>options.travelMode?.(mode.value as 'cozy'|'adventure'));
+      body.append(h('section',{class:'journal-guidance travel-guide'},h('h3',{text:'Travel needs'}),mode,h('p',{text:`Food ${Math.ceil(n.food)}/100 · Water ${Math.ceil(n.water)}/100. ${n.mode==='cozy'?'Cozy pauses depletion.':'Adventure needs are enabled.'}`}),h('p',{text:'Adventure uses food over about 30 minutes and water over 20 minutes at rest. Exertion costs more; desert thirst rises faster. Town wards, death and offline time pause depletion. At zero, exhaustion costs 1 HP every 10 seconds and stops at 1 HP. Switching modes never refills supplies.'}),h('p',{text:'Food restores 25 nourishment, even at full health. Craft an empty waterskin from 1 hide + 2 fiber in Field crafting, select it in the quick-bar and Use it facing a town well. Each filled skin restores 35 water and keeps the empty container. Rivers and ocean water cannot fill it. The mode changes food and water needs only.'})));
+    }
     if ((tab === 'quests' || tab === 'guide') && options.firstSteps) body.append(options.firstSteps);
     if (tab === 'quests' || tab === 'guide') {
       const next = guidance();

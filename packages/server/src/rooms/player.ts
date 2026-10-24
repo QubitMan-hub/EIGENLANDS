@@ -33,6 +33,8 @@ export interface CastSession {
 
 /** A connected player: the simulation state plus the Phase 2 private profile. Implements the `PlayerRef` seen by systems. */
 export class ServerPlayer implements PlayerRef {
+  travelExerted = false;
+  travelDamageT = 0;
   queue: InputCmd[] = [];
   lastSeq = 0;
   deadT = 0;

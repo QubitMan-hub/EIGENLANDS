@@ -70,6 +70,7 @@ export function tooltipFor(s: Stack): HTMLElement {
   if (s.p?.stats) for (const [k, v] of Object.entries(s.p.stats)) if (v) root.append(h('div', { class: `tip-line ${v > 0 ? 'good' : 'bad'}`, text: `${v > 0 ? '+' : ''}${v} ${STAT_LABEL[k] ?? k}` }));
   if (s.p?.note) root.append(h('div', { class: 'tip-note', text: s.p.note }));
   if (d.kind === 'ring' && s.p?.stat) root.append(h('div', { class: 'tip-line good', text: `+${s.p.val} ${s.p.stat === 'hp' ? 'max HP' : s.p.stat === 'atk' ? 'attack' : s.p.stat === 'luck' ? 'luck' : 'haste'}` }));
+  if(d.nourishment)root.append(h('div',{class:'tip-line good',text:`Restores ${d.nourishment} food`}));
   if (d.heal) root.append(h('div', { class: 'tip-line good', text: `Heals ${d.heal}` }));
   if (d.buff) root.append(h('div', { class: 'tip-line good', text: `${d.buff.kind} for ${d.buff.secs}s` }));
   if (d.kind === 'seed' && d.crop && CROPS[d.crop]) {

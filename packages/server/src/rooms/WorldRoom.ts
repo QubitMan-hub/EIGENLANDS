@@ -30,6 +30,7 @@ import { addSkillXp, giveStacks } from '../systems/helpers';
 import { handleEquip, handleInvMove, handleInvTrash, lookOf } from '../systems/inventory';
 import { ObjectManager } from '../systems/objects';
 import { loadPlayerData, serializePlayerData } from '../systems/profile';
+import { setTravelMode, tickTravelNeeds } from '../systems/travel-needs';
 import { handleUse } from '../systems/tools';
 import { handleDev } from '../systems/dev';
 import { onKill, registerQuests } from '../systems/quests';
@@ -147,6 +148,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     };
     on<DevMsg>(MSG.DEV, 'invBucket', (p, m) => (m?.cmd === 'spawn' ? this.devSpawn(p, m) : m?.cmd === 'kill' ? this.devKill(p, m) : handleDev(this, p, m)));
     on<{ slot: number }>(MSG.HOLD, 'invBucket', (p, m) => { if (Number.isInteger(m?.slot) && m.slot >= 0 && m.slot < 10) p.heldSlot = m.slot; });
+    on<{mode?:unknown}>(MSG.TRAVEL_MODE, 'invBucket', (p,m)=>setTravelMode(p,m));
     on<UseMsg>(MSG.USE, 'useBucket', (p, m) => handleUse(this, p, m));
     on<OpenMsg>(MSG.OPEN, 'openBucket', (p, m) => handleOpen(this, p, m));
     on<InvMoveMsg>(MSG.INV_MOVE, 'invBucket', (p, m) => handleInvMove(p, m));
@@ -499,6 +501,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   private secondly(now: number): void {
     for (const r of [...this.respawns.values()]) if (r.at <= now) this.applyRespawn(r);
     for (const p of this.players.values()) {
+      tickTravelNeeds(this,p);
       let changed = false;
       for (const [k, b] of Object.entries(p.data.buffs)) if (b.until <= now) { delete p.data.buffs[k]; changed = true; }
       if (changed) p.dirty('buffs');
@@ -531,6 +534,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       p.lastViewTick = p.viewLag > 0 ? cmd.viewTick : tick;
       p.sim.ranged = isRangedWeapon(this.weaponOf(p));
       const ev = stepPlayer(p.sim, cmd, solid);
+      if(cmd.dx||cmd.dy||ev.attacked||ev.skill||ev.dashed)p.travelExerted=true;
       if (ev.dashed) {
         p.dashTick = tick;
         this.fx({ kind: 'dash', x: p.sim.x, y: p.sim.y, dx: p.sim.faceX, dy: p.sim.faceY, id: p.id }, p.client.sessionId);

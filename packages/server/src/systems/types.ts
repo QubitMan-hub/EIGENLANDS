@@ -17,6 +17,7 @@ export interface Buff { until: number; power: number }
 
 /** Persisted, private per-character data (characters.data JSONB). */
 export interface PlayerData {
+  needs: import('@eigenlands/shared').TravelNeeds;
   inv: Inventory;
   coins: number;
   skills: SkillXp;
@@ -34,7 +35,7 @@ export interface PlayerData {
   prog: { hearts: number; bosses: string[]; shrines: string[]; ruins: string[] };
 }
 
-export type DirtyPart = 'inv' | 'coins' | 'skills' | 'recipes' | 'equip' | 'friends' | 'buffs' | 'stats' | 'quests';
+export type DirtyPart = 'inv' | 'coins' | 'skills' | 'recipes' | 'equip' | 'friends' | 'buffs' | 'stats' | 'quests' | 'needs';
 
 export interface PlayerRef {
   /** colyseus session id */

@@ -1,5 +1,5 @@
 import {
-  INV_SIZE, emptyInventory, emptySkills, type EquipState, type Inventory, type ProfileMsg, type QuestLog, type SkillXp, type Stack,
+  validTravelNeeds, INV_SIZE, emptyInventory, emptySkills, type EquipState, type Inventory, type ProfileMsg, type QuestLog, type SkillXp, type Stack,
 } from '@eigenlands/shared';
 
 export interface FriendView { pts: number; talked: number; gifted: number }
@@ -9,6 +9,7 @@ export interface Buffs { [kind: string]: { until: number; power: number } }
 export class Profile {
   /** Public state level; private PROFILE loading remains separate. */
   level = 1;
+  needs = validTravelNeeds(null);
   inv: Inventory = emptyInventory();
   coins = 0;
   skills: SkillXp = emptySkills();
@@ -33,6 +34,7 @@ export class Profile {
 
   apply(m: ProfileMsg): void {
     const changed = new Set<string>();
+    if(m.needs){this.needs=validTravelNeeds(m.needs);changed.add('needs');}
     if (m.inv) { this.inv = Array.from({ length: INV_SIZE }, (_, i) => m.inv![i] ?? null); changed.add('inv'); }
     if (m.coins !== undefined) { this.coins = m.coins; changed.add('coins'); }
     if (m.skills) { this.skills = { ...this.skills, ...m.skills }; changed.add('skills'); }
