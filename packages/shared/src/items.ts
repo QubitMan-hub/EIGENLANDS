@@ -13,7 +13,7 @@ export type Glyph =
   | 'pie' | 'bread' | 'jar' | 'cloth' | 'axe' | 'pickaxe' | 'hoe' | 'can' | 'rod' | 'net' | 'sword' | 'ring'
   | 'shirt' | 'box' | 'bench' | 'furnace' | 'anvil' | 'pot' | 'loom' | 'chair' | 'table' | 'bed' | 'lamp'
   | 'shelf' | 'rug' | 'sprinkler' | 'coop' | 'barn' | 'chicken' | 'cow' | 'sign' | 'fence' | 'gel' | 'tooth'
-  | 'bag' | 'orb' | 'book' | 'staff' | 'crossbow' | 'helm' | 'cuirass' | 'greaves' | 'boots';
+  | 'waterskin' | 'bag' | 'orb' | 'book' | 'staff' | 'crossbow' | 'helm' | 'cuirass' | 'greaves' | 'boots';
 
 import { ARMOR_SETS, ARMOR_SLOTS, ARMOR_SLOT_NAMES, SET_BY_ID, WEAPONS, armorId, type ArmorSlot, type WeaponId } from './equipment';
 
@@ -32,6 +32,7 @@ export interface ItemDef {
   tool?: ToolSpec;
   /** food/potion */
   heal?: number;
+  nourishment?: number;
   buff?: { kind: 'regen' | 'might' | 'ward' | 'lantern'; secs: number; power: number };
   /** placeable: world object subtype created */
   place?: { kind: 'station' | 'sprinkler' | 'shelter' | 'chest' | 'furniture' | 'sign' | 'fence'; sub: string };
@@ -78,9 +79,12 @@ const COL = {
   q2: 42, q3: 43, q4: 44, q5: 45, q6: 46, q7: 47,
 };
 function def(id: string, name: string, kind: ItemKind, value: number, g: Glyph, a: number, b: number, desc: string, o: Partial<ItemDef> = {}): void {
-  I[id] = { id, name, kind, stack: kind === 'tool' || kind === 'weapon' || kind === 'ring' || kind === 'outfit' || kind === 'armor' ? 1 : 99, value, desc, icon: { g, a, b }, ...o };
+  I[id] = { id, name, kind, stack: kind === 'tool' || kind === 'weapon' || kind === 'ring' || kind === 'outfit' || kind === 'armor' ? 1 : 99, value, desc, ...(kind==='food'?{nourishment:25}:{}), icon: { g, a, b }, ...o };
 }
 const C = COL;
+
+def('waterskin_empty', 'Empty Waterskin', 'misc', 10, 'waterskin', C.e3, C.e5, 'Select in the quick-bar, face a town well, then Use to fill with clean water.', {stack:1,tags:['supplies']});
+def('waterskin_full', 'Filled Waterskin', 'misc', 10, 'waterskin', C.e3, C.w5, 'Drink to restore 35 water. Keeps the empty skin; refill it at a reachable town well.', {stack:1,tags:['supplies']});
 
 // ── raw resources
 def('wood', 'Wood', 'resource', 4, 'log', C.e3, C.e5, 'Rough timber from a felled tree.');

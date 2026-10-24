@@ -990,6 +990,9 @@ export class Game {
     const tip = this.combat.currentTip(now) ?? this.ext.hint();
     hintEl.hidden = !tip || this.gameplay.blocking;
     if (tip) hintEl.textContent = tip;
+    const needs=this.gameplay.profile.needs;
+    $('needs-hud').hidden=needs.mode!=='adventure';document.body.classList.toggle('needs-enabled',needs.mode==='adventure');
+    for(const key of ['food','water'] as const){const bar=$(`needs-${key}`) as HTMLProgressElement;bar.value=needs[key];$(`needs-${key}-value`).textContent=String(Math.ceil(needs[key]));bar.classList.toggle('low',needs[key]<=20);}
     $('coins').textContent = `${this.gameplay.profile.coins} coins`;
     const buffs = Object.entries(this.gameplay.profile.buffs).filter(([, b]) => b.until > sn);
     const bb = $('buffs');

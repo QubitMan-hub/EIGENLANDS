@@ -58,6 +58,11 @@ export class VoiceClient implements ClientModule {
     this.chip = h('div', { id: 'voice-chip', title: 'Proximity voice chat. Click to mute your microphone.' }, h('span', { class: 'vc-dot' }), h('span', { text: 'Voice off' }), this.who);
     this.chip.addEventListener('click', () => { if (this.on) this.toggleMute(); else void this.enable(); });
     document.body.append(this.chip);
+    const ledger=document.getElementById('hud-left');
+    if(ledger&&typeof ResizeObserver!=='undefined') {
+      const place=()=>{const box=ledger.getBoundingClientRect();if(!box.height)return;const bottom=Math.ceil(box.bottom);document.body.style.setProperty('--ledger-bottom',`${bottom}px`);this.chip.style.top=`${bottom+4}px`;};
+      new ResizeObserver(place).observe(ledger);window.addEventListener('resize',place);place();
+    }
     this.gfx.zIndex = 9e8;
     this.d.fxLayer().addChild(this.gfx);
     this.paint();

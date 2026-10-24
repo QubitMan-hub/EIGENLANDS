@@ -66,6 +66,10 @@ export const HTML = `
       <div id="orb" class="orbwrap" role="progressbar" aria-label="Health" aria-valuemin="0" aria-valuemax="60" aria-valuenow="60"></div>
       <div class="xpbar" aria-hidden="true"><i id="xp-orb"></i></div>
       <div class="statrow"><span class="gate" id="hud-level">Lv 1</span><span class="coinrow">${iconSvg('coin', 16)}<span id="coins">0 coins</span></span></div>
+      <div id="needs-hud" hidden>
+        <label>Food <b id="needs-food-value">100</b><progress id="needs-food" aria-label="Food" max="100" value="100"></progress></label>
+        <label>Water <b id="needs-water-value">100</b><progress id="needs-water" aria-label="Water" max="100" value="100"></progress></label>
+      </div>
       <div id="buffs"></div>
     </div>
     <div class="legacy" aria-hidden="true"><i id="hp-fill"></i><span id="hp-text"></span><i id="xp-fill"></i><span id="clock"></span></div>

@@ -96,3 +96,5 @@ Welcoming-world continuation: tutorial controls and quest checklists remain insi
 Lumen keeps its existing original world sprite and Board portrait. Tutorial story pages are docked inside the Board, keeping the mobile aiming area clear; first-steps directions remain in Journal. Do not restore a floating story panel over free play.
 
 Weapon comparisons retain original item icons and character equipment. Pack-only before/after attack tables use the field-ledger materials; timing/effects are disclosed on demand. Numeric output is qualified as base output rather than final combat damage. No new art or animation is introduced.
+
+Optional travel needs reuse the existing ledger: food leaf-green, water blue, both labelled/numeric and ochre when low. Cozy hides them. A new original leather waterskin inventory glyph has a stitched body, strap and distinct water accent when filled; empty/full textures remain in the existing 16×16 icon cache. Existing water/heal effects and pixel anchors are reused. No external assets or new held-consumable sprite pipeline are introduced.

@@ -50,6 +50,8 @@ export async function handleUse(room: RoomApi, p: ServerPlayer, msg: UseMsg): Pr
     return;
   }
 
+  if(first.id==='waterskin_full'){p.toolReadyAt=t0+tuning.toolCooldownMs;if(p.data.needs.water>=100){p.toast('You are not thirsty.');return;}p.data.needs.water=Math.min(100,p.data.needs.water+35);p.data.inv[msg.slot]={id:'waterskin_empty',n:1};p.dirty('needs','inv');room.fx({kind:'water',x:p.sim.x,y:p.sim.y});return;}
+
   // items that do not need a target
   if (kind === 'food' || kind === 'potion') { p.toolReadyAt = t0 + tuning.toolCooldownMs; eat(room, p, msg.slot); return; }
 
@@ -64,6 +66,7 @@ export async function handleUse(room: RoomApi, p: ServerPlayer, msg: UseMsg): Pr
   const slot = msg.slot;
   const obj = room.store.objectAt(tx, ty);
   const tool = def.tool?.type;
+  if(stack.id==='waterskin_empty'){if(obj?.sub!=='well'){p.toast('Fill an empty waterskin at a town well.');return;}p.data.inv[slot]={id:'waterskin_full',n:1};p.dirty('inv');room.fx({kind:'water',x:tx+.5,y:ty+.5});return;}
 
   if (obj && !obj.static) {
     if (obj.kind === 'crop') {
@@ -177,7 +180,8 @@ export function forageAt(room: RoomApi, p: ServerPlayer, tx: number, ty: number)
 function eat(room: RoomApi, p: ServerPlayer, slot: number): void {
   const stack = p.data.inv[slot]!;
   const def = ITEMS[stack.id]!;
-  if (def.heal && !def.buff && p.hp >= p.maxHp) { p.toast("You're already at full health."); return; }
+  if (def.heal && !def.buff && p.hp >= p.maxHp && (!def.nourishment || p.data.needs.food >= 100)) { p.toast("You're already at full health."); return; }
+  if(def.nourishment){p.data.needs.food=Math.min(100,p.data.needs.food+def.nourishment);p.dirty('needs');}
   if (def.heal) p.hp = Math.min(p.maxHp, p.hp + def.heal);
   if (def.buff) {
     p.data.buffs[def.buff.kind] = { until: room.wclock.now() + def.buff.secs * 1000, power: def.buff.power };

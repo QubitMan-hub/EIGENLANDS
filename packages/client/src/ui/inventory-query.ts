@@ -11,7 +11,7 @@ export function inventorySlots(inv: Inventory, query: string, category: Inventor
   const q = query.trim().toLocaleLowerCase();
   return inv.map((_, i) => i).filter(i => {
     const st = inv[i], d = st && ITEMS[st.id];
-    return (!q || !!d && `${d.name} ${st?.id} ${st?.p?.qname ?? ''}`.toLocaleLowerCase().includes(q)) && (category === 'all' || !!d && categories[category].has(d.kind));
+    return (!q || !!d && `${d.name} ${st?.id} ${st?.p?.qname ?? ''}`.toLocaleLowerCase().includes(q)) && (category === 'all' || !!d && (categories[category].has(d.kind) || category==='supplies' && !!d.tags?.includes('supplies')));
   }).sort((a, b) => {
     if (a < HOTBAR || b < HOTBAR || sort === 'slot') return a - b;
     const sa = inv[a], sb = inv[b];

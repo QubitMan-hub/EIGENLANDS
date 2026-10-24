@@ -29,6 +29,7 @@ function r(id: string, station: StationId, inputs: Array<[string, number]>, out:
 }
 
 // Field crafting (no station)
+r('waterskin', 'hand', [['hide', 1], ['fiber', 2]], ['waterskin_empty', 1], 2, 'start', 'Hide stitched with fiber. Fill at a town well.');
 r('workbench', 'hand', [['wood', 10], ['stone', 4]], ['workbench', 1], 4, 'start', 'Wood and stone make a bench.');
 r('torch_post', 'hand', [['wood', 2], ['coal', 1]], ['lamp', 1], 2, 'start', 'Wood and a lump of coal.');
 r('chest', 'hand', [['wood', 12]], ['chest', 1], 3, 'start', 'A box of wood.');

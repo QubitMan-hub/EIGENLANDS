@@ -66,7 +66,7 @@ export function buildInventory(profile: Profile, tip: Tooltip, act: InvActions, 
     const required = equipmentLevel(st.id), locked = level() < required;
     if (d.weapon || d.armor) details.append(h('p', {class:locked ? 'equip-lock' : 'small dim', text:locked ? `Requires level ${required} · your level ${level()}.` : `Requires level ${required}.`}));
     const equippable = !!destination || d.kind === 'outfit';
-    if (equippable || d.heal || d.buff || d.kind === 'potion') details.append(h('button', { class: 'primary', text: equippable ? 'Equip item' : 'Use item', disabled: equippable && locked, data:{focus:'item-action'}, on: { click: () => destination ? act.equip(selected, destination) : quick(selected, st) } }));
+    if (equippable || d.heal || d.buff || d.kind === 'potion' || st.id === 'waterskin_full') details.append(h('button', { class: 'primary', text: equippable ? 'Equip item' : 'Use item', disabled: equippable && locked, data:{focus:'item-action'}, on: { click: () => destination ? act.equip(selected, destination) : quick(selected, st) } }));
     const empty = profile.inv.slice(0, HOTBAR).findIndex(s => !s);
     const held = h('button', { data:{focus:'quickbar-action'}, text: empty >= 0 ? 'Place in quick-bar' : 'Swap with quick-bar slot 1', on: { click: () => act.move(selected, empty >= 0 ? empty : 0) } });
     if (selected >= HOTBAR) details.append(held);

@@ -1,3 +1,4 @@
+import type { TravelNeeds } from './travel-needs';
 import type { InputCmd, PlayerSim } from './sim';
 import type { Slot, Stack } from './items';
 import type { RhythmPlan } from './rhythm';
@@ -22,6 +23,7 @@ export const MSG = {
   ACK: 'ack',
   // ── Phase 2 (client -> server)
   HOLD: 'hold',               // {slot}: select the tool held from the hotbar
+  TRAVEL_MODE: 'travel_mode', // private preference only; meters are always authoritative
   USE: 'use',                 // UseMsg: use hotbar item on a tile (tools, seeds, food, placeables...)
   OPEN: 'open',               // OpenMsg: open a station / chest / shelter / sign at a tile
   INV_MOVE: 'inv_move',       // InvMoveMsg
@@ -101,6 +103,7 @@ export interface WelcomeMsg {
 
 /** Private per-player data. Every field is optional: the server sends only what changed (the first PROFILE is complete). */
 export interface ProfileMsg {
+  needs?: TravelNeeds;
   inv?: Slot[];
   coins?: number;
   skills?: SkillXp;

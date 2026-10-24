@@ -97,6 +97,11 @@ const G: Record<Glyph, Draw> = {
   egg: (c, a, b) => {
     blob(c, 8, 9, 4.4, 5.4, [dk(a), a, lt(a), b], { seed: 16, noise: 0.05, edgeDark: 0.22 }); put(c, 6, 6, C.white); put(c, 6, 7, C.white); put(c, 9, 11, dk(dk(a)), 2, 1);
   },
+  waterskin: (c,a,b) => {
+    line(c,3,4,2,11,C.e2);line(c,2,11,5,14,C.e2);
+    poly(c,[[6,3],[10,3],[11,6],[13,9],[12,13],[9,15],[4,14],[3,10],[5,6]],(x,y)=>x<7?lt(a):x<10?a:dk(a));
+    slab(c,6,1,4,3,[C.e2,C.e3,C.e5],2,.1);line(c,5,7,5,12,C.e5);put(c,8,8,b,2,4);put(c,7,10,b,4,2);
+  },
   bottle: (c, a, b) => {
     slab(c, 6, 1, 4, 3, [C.e2, C.e3, C.e4], 1, 0.1);                       // cork
     put(c, 7, 4, C.pale, 2, 3);

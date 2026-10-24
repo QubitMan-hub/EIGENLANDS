@@ -11,6 +11,8 @@ const WATER_TILES: number[] = [T.WATER, T.DEEP_WATER];
 /** What would "Use" do on this tile with the selected item? Drives the on-screen prompt and client-side routing. */
 export function describeUse(sel: Stack | null, tile: number, obj: WorldObj | undefined, season: number): UseInfo | null {
   const def = sel ? ITEMS[sel.id] : undefined;
+  if(sel?.id==='waterskin_full')return {kind:'eat',label:'Drink clean water (+35 water)',ok:true};
+  if(sel?.id==='waterskin_empty')return {kind:obj?.sub==='well'?'water':'none',label:obj?.sub==='well'?'Fill waterskin with clean water':'Fill at a town well',ok:obj?.sub==='well'};
   if (obj) {
     if (obj.sub === 'stairs_up' || obj.sub === 'stairs_down') return { kind: 'open', label: obj.sub === 'stairs_up' ? 'Climb to upper floor' : 'Return downstairs', ok: true };
     if (obj.sub === 'dive_gate' || obj.sub === 'dive_exit') return { kind: 'open', label: obj.sub === 'dive_gate' ? 'Dive into the submerged sanctuary' : 'Return to your sloop', ok: true };
