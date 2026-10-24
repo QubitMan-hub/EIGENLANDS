@@ -38,6 +38,8 @@ export function heavyHit(level: number): ComboHit {
 }
 
 export const SKILL_DAMAGE = PROJECTILE_DAMAGE;
+/** Outgoing physical damage, before the target's armour/critical modifiers. */
+export const attackDamage = (base: number, attack: number, might = 0): number => Math.max(1, Math.round((base + attack) * (1 + might)));
 /** poise damage of the skill shot */
 export const SKILL_POISE = 6;
 

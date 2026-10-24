@@ -179,3 +179,17 @@ label { display: grid; gap: 4px; } label:has(input[type=checkbox]) { display: fl
 @media (pointer: coarse) { .inv-side .slot.small { width: 44px; height: 44px; } }
 :focus-visible { outline: 2px solid #f0cf87; outline-offset: 3px; }
 .reduced-motion *, .reduced-motion *::before, .reduced-motion *::after { transition-duration: 0s !important; animation-duration: 0s !important; }
+
+/* Weapon field guide shares the pack's ink/bronze material and stays out of gameplay. */
+.weapon-guide { min-width:0; width:100%; }
+.weapon-guide table { width:100%; border-collapse:collapse; table-layout:fixed; }
+.weapon-guide caption { text-align:left; color:#ebce90; margin:12px 0 8px; }
+.weapon-guide th, .weapon-guide td { text-align:left; vertical-align:top; padding:8px; border-bottom:1px solid #786646; overflow-wrap:anywhere; font-size:12px; line-height:1.5; }
+.weapon-guide th { color:#ebce90; }
+.weapon-guide details { margin-top:12px; }
+.weapon-guide summary { cursor:pointer; min-height:44px; padding:12px 0; color:#ebce90; }
+.weapon-guide details p { max-width:70ch; line-height:1.5; }
+.inv-detail button { min-height:44px; }
+.equip-lock { color:#e6b48f; width:100%; }
+
+.inv-win > .inv-detail { flex:1 1 100%; width:100%; }

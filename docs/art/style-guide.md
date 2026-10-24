@@ -94,3 +94,5 @@ Circuit workshop: matte ink-green Board surfaces and bronze borders now match th
 Welcoming-world continuation: tutorial controls and quest checklists remain inside the Journal. The existing travel strip carries one tracked destination, projected direction, distance and Sanctuary label. Use a warm-gold triangle on the chart; do not add a world-space beacon, continuous animation or a second HUD panel. Town wards are simulation protection with quiet textual explanation, not decorative particle fields. No artwork or palette changes were introduced in this slice.
 
 Lumen keeps its existing original world sprite and Board portrait. Tutorial story pages are docked inside the Board, keeping the mobile aiming area clear; first-steps directions remain in Journal. Do not restore a floating story panel over free play.
+
+Weapon comparisons retain original item icons and character equipment. Pack-only before/after attack tables use the field-ledger materials; timing/effects are disclosed on demand. Numeric output is qualified as base output rather than final combat damage. No new art or animation is introduced.

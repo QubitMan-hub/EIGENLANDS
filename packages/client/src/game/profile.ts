@@ -7,6 +7,8 @@ export interface Buffs { [kind: string]: { until: number; power: number } }
 
 /** Client-side mirror of the private PROFILE the server sends (partial updates merge in). */
 export class Profile {
+  /** Public state level; private PROFILE loading remains separate. */
+  level = 1;
   inv: Inventory = emptyInventory();
   coins = 0;
   skills: SkillXp = emptySkills();
@@ -22,6 +24,12 @@ export class Profile {
   private listeners = new Set<(changed: Set<string>) => void>();
 
   onChange(fn: (changed: Set<string>) => void): () => void { this.listeners.add(fn); return () => this.listeners.delete(fn); }
+
+  setLevel(level: number): void {
+    if (!Number.isInteger(level) || level < 1 || level === this.level) return;
+    this.level = level;
+    for (const listener of this.listeners) listener(new Set(['level']));
+  }
 
   apply(m: ProfileMsg): void {
     const changed = new Set<string>();

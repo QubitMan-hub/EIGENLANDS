@@ -1,7 +1,7 @@
 import { Client, Room, ServerError } from 'colyseus';
 import { StateView } from '@colyseus/schema';
 import {
-  ATK, BASE_PLAYER_HP, ChunkStore, COMBO, CHARGE_MIN, DASH_CHARGES, ELITE, ELITE_XP_MULT, ENEMY_DEFS, INTEREST_RADIUS, MAX_REWIND_TICKS, MSG,
+  ATK, attackDamage, weaponShotPower, weaponRecovery, BASE_PLAYER_HP, ChunkStore, COMBO, CHARGE_MIN, DASH_CHARGES, ELITE, ELITE_XP_MULT, ENEMY_DEFS, INTEREST_RADIUS, MAX_REWIND_TICKS, MSG,
   NAME_MAX, ORB_RADIUS, ORB_RANGE, ORB_SPEED, ORB_SPREAD, PLAYER_RADIUS, PROJECTILE_DAMAGE, PROJECTILE_RADIUS, PROJECTILE_RANGE,
   PROJECTILE_SPEED, CHUNK_SIZE, REFLECT_DAMAGE, REFLECT_SPEED_MULT, SKILL_POISE, SLAM_POISE, SLIP_SLOW_RADIUS, SLIP_SLOW_TIME, SLIP_TIME,
   BOMB_FUSE, BOMB_RADIUS, CRIT_MULT, moveBody, TICK_DT, enemyScale, eliteChance, hasIframes, heavyHit, isPerfectDodge, pickSpawn, resolveHit, rollCrit,
@@ -567,10 +567,10 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     if (!shot) { this.resolveMelee(p, cmd, ev, tick); return; }
     const now = Date.now();
     if (p.weaponReadyAt > now) return;
-    p.weaponReadyAt = now + (w.cd * (ev.heavy ? 1.4 : 1) * 1000) / (1 + p.stats.haste * 0.05);
-    const power = ev.heavy ? 0.7 + 0.5 * ev.level : 1;
+    p.weaponReadyAt = now + weaponRecovery(w, ev.heavy, p.stats.haste) * 1000;
+    const power = weaponShotPower(ev.heavy ? ev.level : null, p.stats.atkBonus);
     const aim = Math.hypot(cmd.aimX, cmd.aimY) > 1e-3 ? { x: cmd.aimX, y: cmd.aimY } : { x: p.sim.faceX, y: p.sim.faceY };
-    if (!this.hookWeaponShot(p, shot, aim.x, aim.y, power * (1 + p.stats.atkBonus * 0.02))) this.resolveMelee(p, cmd, ev, tick);
+    if (!this.hookWeaponShot(p, shot, aim.x, aim.y, power)) this.resolveMelee(p, cmd, ev, tick);
     else this.fx({ kind: 'shot', id: p.client.sessionId, x: p.sim.x, y: p.sim.y, dx: aim.x, dy: aim.y, v: w.hue < 0 ? 8 : w.hue }, p.client.sessionId);
   }
 
@@ -610,7 +610,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   /** weapon/ring attack bonus and the Might buff */
   private outgoing(p: ServerPlayer, base: number): number {
     const might = p.data.buffs.might;
-    return Math.max(1, Math.round((base + p.stats.atkBonus) * (1 + (might && might.until > this.wclock.now() ? might.power : 0))));
+    return attackDamage(base, p.stats.atkBonus, might && might.until > this.wclock.now() ? might.power : 0);
   }
 
   private addProjectile(o: Omit<Projectile, 'state' | 'travelled' | 'history' | 'endTick' | 'passed'>, kind: number): Projectile {

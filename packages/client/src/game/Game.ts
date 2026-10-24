@@ -325,6 +325,7 @@ export class Game {
       if (this.dead !== wasDead) { $('dead').hidden = !this.dead; if (this.dead) this.deadAt = performance.now(); }
       this.selfXp = me.xp;
       this.self = this.interp.sample(this.myId, t)?.pose ?? null;
+      this.gameplay.profile.setLevel(me.level);
       if (!this.predictor) {
         this.predictor = new Predictor(me.x, me.y, this.store.solidAt);
         this.selfReady?.();
