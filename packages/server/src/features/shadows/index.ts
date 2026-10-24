@@ -4,7 +4,7 @@
  * players), earn XP, evolve through five ranks, and re-form after falling. See docs/design/shadow-army.md.
  */
 import {
-  BOND_RANGE, companionBond, ENEMY_DEFS, ENEMY_BY_KIND, NPC_BY_ID, giftTaste, EXTRACT_LEVEL, EXTRACT_RANGE, EXTRACT_SECS, MSG34, RESIDUE_SECS, ROSTER_MAX, SHADOW_REFORM_SECS, SPELL,
+  findPath, moveBody, PLAYER_SPEED, BOND_RANGE, companionBond, ENEMY_DEFS, ENEMY_BY_KIND, NPC_BY_ID, giftTaste, EXTRACT_LEVEL, EXTRACT_RANGE, EXTRACT_SECS, MSG34, RESIDUE_SECS, ROSTER_MAX, SHADOW_REFORM_SECS, SPELL,
   STANCES, SpellState, ShadowState, addShadowXp, canExtract, extractChance, newShadow, rankName, rankOf, shadowSlots, shadowStats,
   shadowXpFrom, shapeHits, type ShadowCmd, type ShadowEvent, type ShadowRec, type ShadowRosterMsg, type Stance, type StrikeShape,
 } from '@eigenlands/shared';
@@ -20,7 +20,7 @@ const LEASH = 14;
 const TELEPORT_DIST = 28;
 
 interface Residue { id: string; owner: string; kind: number; level: number; elite: boolean; x: number; y: number; until: number; st: SpellState }
-interface Unit { rec: ShadowRec; en: Enemy; st: ShadowState; downUntil: number; chargeHits: Set<string>; supportT: number }
+interface Unit { rec: ShadowRec; en: Enemy; st: ShadowState; downUntil: number; chargeHits: Set<string>; supportT: number; route?: Array<[number, number]>; routeAt?: number }
 interface Saved { roster: ShadowRec[]; active: string[]; stance: Stance; seq: number }
 interface Live {
   p: ServerPlayer;
@@ -273,6 +273,8 @@ export class ShadowModule implements Module {
 
   private applyStats(en: Enemy, rec: ShadowRec, keepHpRatio = 1): void {
     const s = shadowStats(rec.kind, rec.level);
+    // Targets are selected around the owner, not around the creature's former spawn/sight radius.
+    en.def = { ...en.def, sight: LEASH * 2 + 1 };
     en.maxHp = s.hp; en.hp = Math.max(1, Math.round(s.hp * keepHpRatio));
     en.dmgMult = s.dmg; en.speedMult = s.speed; en.night = false; en.windMult = 0.9;
   }
@@ -338,12 +340,12 @@ export class ShadowModule implements Module {
     // out-of-combat regeneration
     if (en.hp < en.maxHp && en.mode === 'idle') en.hp = Math.min(en.maxHp, en.hp + en.maxHp * 0.04 * dt);
     const dOwner = Math.hypot(p.sim.x - en.x, p.sim.y - en.y);
-    if (dOwner > TELEPORT_DIST) { en.x = p.sim.x + 1; en.y = p.sim.y; en.mode = 'idle'; this.room.fx({ kind: 'shadow', x: en.x, y: en.y, v: 1, id: p.id }); }
+    if (dOwner > TELEPORT_DIST) { en.x = p.sim.x; en.y = p.sim.y; en.mode = 'idle'; en.targetId = null; u.route = undefined; u.routeAt = 0; this.room.fx({ kind: 'shadow', x: en.x, y: en.y, v: 1, id: p.id }); }
 
     // what to fight: the owner's focus target first, then by stance
     const reach = L.data.stance === 'guard' ? 5 : L.data.stance === 'aggressive' ? 15 : 9;
     const hostile = this.hostiles();
-    const focus = L.focus ? hostile.find((h) => h.id === L.focus && Math.hypot(h.x - p.sim.x, h.y - p.sim.y) < 22) : undefined;
+    const focus = L.focus ? hostile.find((h) => h.id === L.focus && Math.hypot(h.x - p.sim.x, h.y - p.sim.y) <= LEASH) : undefined;
     const targets: Target[] = [];
     if (u.rec.bonded && u.rec.kind === 3) {
       // A haven is earned through quiet rest, never while a hostile is nearby or while catching up offline.
@@ -353,25 +355,35 @@ export class ShadowModule implements Module {
       } else u.supportT = 12;
     } else if (focus) targets.push({ id: focus.id, x: focus.x, y: focus.y, alive: true });
     else for (const h of hostile) {
-      if (Math.hypot(h.x - p.sim.x, h.y - p.sim.y) <= reach + 3 || (L.data.stance === 'aggressive' && Math.hypot(h.x - en.x, h.y - en.y) <= reach)) targets.push({ id: h.id, x: h.x, y: h.y, alive: true });
+      if (Math.hypot(h.x - p.sim.x, h.y - p.sim.y) <= Math.min(LEASH, reach + 3)) targets.push({ id: h.id, x: h.x, y: h.y, alive: true });
     }
+    if (dOwner > LEASH) targets.length = 0;
+    // Do not abandon the owner to chase a creature hidden behind a wall.
+    for (let i=targets.length-1;i>=0;i--) if (!lineOfSight(solid,en.x,en.y,targets[i]!.x,targets[i]!.y)) targets.splice(i,1);
     const committed = en.mode === 'windup' || en.mode === 'leap' || en.mode === 'charge';
     if (!targets.length && !committed) {
       // follow: hold a loose formation around the owner
       const ang = (index / Math.max(1, L.units.size)) * Math.PI * 2 + 0.6;
-      const gx = p.sim.x + Math.cos(ang) * 2.2, gy = p.sim.y + Math.sin(ang) * 2.2;
-      const dx = gx - en.x, dy = gy - en.y, d = Math.hypot(dx, dy);
-      en.mode = 'idle'; en.atk = 0; en.state.tele = 0;
-      if (d > 0.7) {
-        const sp = en.def.speed * en.speedMult * (d > 6 ? 1.8 : 1.1);
-        const step = Math.min(d, sp * dt);
-        const nx = en.x + (dx / d) * step, ny = en.y + (dy / d) * step;
-        if (!solid(Math.floor(nx), Math.floor(ny))) { en.x = nx; en.y = ny; }
-        else if (!solid(Math.floor(nx), Math.floor(en.y))) en.x = nx;
-        else if (!solid(Math.floor(en.x), Math.floor(ny))) en.y = ny;
-        en.state.faceX = dx / d; en.state.faceY = dy / d;
-        en.state.st = 1;
-      } else en.state.st = 0;
+      let gx = p.sim.x + Math.cos(ang) * 2.2, gy = p.sim.y + Math.sin(ang) * 2.2;
+      if (solid(Math.floor(gx), Math.floor(gy))) { gx = p.sim.x; gy = p.sim.y; }
+      const distance = Math.hypot(gx-en.x,gy-en.y);
+      en.mode = 'idle'; en.atk = 0; en.state.tele = 0; en.targetId = null;
+      if (distance > .7) {
+        if (!lineOfSight(solid,en.x,en.y,gx,gy)) {
+          if (this.t >= (u.routeAt ?? 0)) {
+            u.route = findPath(Math.floor(en.x),Math.floor(en.y),Math.floor(gx),Math.floor(gy),solid,512) ?? [];
+            u.routeAt = this.t + .5;
+          }
+          while (u.route?.length && Math.hypot(u.route[0]![0]+.5-en.x,u.route[0]![1]+.5-en.y)<.25) u.route.shift();
+          if (u.route?.length) { gx=u.route[0]![0]+.5;gy=u.route[0]![1]+.5; }
+        } else { u.route=undefined;u.routeAt=0; }
+        const dx=gx-en.x,dy=gy-en.y,d=Math.hypot(dx,dy);
+        const baseSpeed=en.def.speed*en.speedMult*1.1;
+        const catchup=Math.max(0,Math.min(1,(dOwner-1)/3));
+        const speed=baseSpeed+(Math.max(baseSpeed,PLAYER_SPEED*1.25)-baseSpeed)*catchup;
+        if(d>.01){const step=Math.min(d,speed*dt);moveBody(en,dx/d*step,dy/d*step,en.def.radius,solid);en.state.faceX=dx/d;en.state.faceY=dy/d;}
+        en.state.st=1;
+      } else en.state.st=0;
       this.sync(u, en.state.st);
       return;
     }

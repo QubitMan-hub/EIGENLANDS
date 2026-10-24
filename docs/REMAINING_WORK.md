@@ -9,11 +9,14 @@ This is the practical remaining-work index. The full original requirements and d
 - Completed in [PR #20](https://github.com/QubitMan-hub/EIGENLANDS/pull/20): distinct carp, perch, trout, catfish, pike and eel inventory artwork, with species markings and corrected common-fish tail bounds.
 - Still open: individual silhouette/art review for the rest of the catalog (food, fish, equipment, furniture and rare loot); the shared painter improvement is not a bespoke redraw of every item.
 - Completed in [PR #20](https://github.com/QubitMan-hub/EIGENLANDS/pull/20): held hoe, watering-can, rod-cast and net-sweep poses reuse the harvesting presentation, including with a combat weapon equipped. A net attempt animates even when it catches nothing.
-- Still open: hook/reeling and other interaction animation review, plus visible held consumables and non-tool/non-weapon items where appropriate.
+- Implemented in the companion follow-up: successful catches use a rod reaction after the local fishing result overlay closes, retaining a known casting direction.
+- Still open: hook/missed-catch and other interaction animation review, plus visible held consumables and non-tool/non-weapon items where appropriate.
 - Still open: per-material dynamic highlights. Current pixel-art highlights are authored into sprites; ambient scene lighting and cast shadows respond to time. A complete normal-map/relighting pipeline is not implemented.
 - Still open: real mobile-device GPU profiling and native orientation-lock verification. Landscape browser emulation is covered.
 
 ## Gameplay and world expansion
+
+- Companion fixes in the current follow-up: bounded cached obstacle routes, smooth walking catch-up, owner-centered threat sight/leash, and safe recall to the owner tile. Support deer retain their noncombat role; neutral wildlife is not attacked automatically.
 
 - Expand the existing single paid guild-fighter contract into resident-specific recruitment with clear ownership/lease visibility, payment/dismissal, persistence and multiplayer identity. The existing contract already checks friendship and expires; wildlife bonds and extracted echoes also work.
 - Travelling merchants: actual routes/schedules, stock/economy, discovery, interaction and persistence.
