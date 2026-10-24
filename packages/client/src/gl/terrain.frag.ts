@@ -49,6 +49,7 @@ uniform vec2 uIso;          // iso art-pixel position of the render target's (0,
 uniform vec2 uRes;          // render target size in art pixels
 uniform float uTime;
 uniform float uSeason;      // 0 spring, 1 summer, 2 autumn, 3 winter
+uniform float uDetail;
 uniform float uMotion;      // 1 = animate, 0 = reduced motion
 uniform vec4 uPlaza;        // town plaza centre (tiles) + radius
 uniform vec4 uShrine;       // spawn shrine centre (tiles) + radius
@@ -500,6 +501,30 @@ int waterTop(ivec2 ip, vec2 tf, float sdf, bool deep, float t, int s, int b) {
   return c;
 }
 
+// Quieter materials for small/limited GPUs: keep the same biome ramps, water depths and shore foam.
+int economyGrass(ivec2 ip,vec2 tf,int s,float flux,float t,int b){
+  Tones tone=biomeTones(b,s,false);
+  ivec2 cell=cellOf(ip,ivec2(10,6));
+  vec2 centre=vec2(cell*ivec2(10,6))+vec2(3.0+hashk(cell,2)*4.0,2.0+hashk(cell,3)*2.0);
+  vec2 q=(vec2(ip)-centre)/vec2(2.5,1.5);
+  int c=tone.base;
+  if(hashk(cell,6)>.82&&dot(q,q)<1.0)c=q.y<-.2?tone.body:tone.sh;
+  if(flux>.6&&hashk(ip,8)>.999)c=phaseCol(flux,t);
+  return c;
+}
+int economyWater(ivec2 ip,float sdf,bool deep,float t,int s,int b){
+  float depth=sdf+(deep?1.2:0.0),tt=t*uMotion;
+  int c=depth<.55?W4:depth<1.5?W3:depth<4.5?W2:depth<9.0?W1:W0;
+  float wave=sin(float(ip.x)*.15+float(ip.y)*.3+tt*1.2);
+  if(!deep&&sdf<.28+.1*wave)c=W5;
+  else if(wave>.96&&hashk(cellOf(ip,ivec2(12,4)),4)>.7)c=min(c+1,W4);
+  if(b==B_SWAMP)c=c>=W4?G3:c==W3?G1:c==W2?G0:NIGHT;
+  else if(b==B_CORRUPT)c=c>=W4?Q3:c==W3?Q1:c==W2?Q0:INK;
+  else if(b==B_ENCHANTED&&c>=W3)c=c>=W4?Q7:W4;
+  if(s==3&&sdf<1.3)c=hashk(cellOf(ip,ivec2(4,3)),7)>.65?W7:W6;
+  return c;
+}
+
 // ───────── side faces ─────────
 // k: 0 earth (under grass/dirt/soil), 1 sand, 2 stone; left = lit face; d = px below the top edge; H = face height
 int sideEarth(ivec2 ip, bool left, int d) {
@@ -609,18 +634,18 @@ void main() {
   vec2 fr = fract(tfHit);
   int c;
 
-  int bio = biomeAtPx(tfHit, ip);
+  int bio = uDetail < .5 ? biomeOf(X0) : biomeAtPx(tfHit, ip);
   int sb = seasonOf(bio, s);
   if (face == 0) {
     float sdf = sdfAt(tfHit);
     if (cls == VOID) {
       c = NIGHT;
     } else if (isWater(cls)) {
-      c = waterTop(ip, tfHit, sdf, cls == DEEP, t, sb, bio);
+      c = uDetail < .5 ? economyWater(ip, sdf, cls == DEEP, t, sb, bio) : waterTop(ip, tfHit, sdf, cls == DEEP, t, sb, bio);
     } else if (cls == GRASS) {
-      c = grassTop(ip, tfHit, sb, fluxAt(tfHit), t, bio);
+      c = uDetail < .5 ? economyGrass(ip, tfHit, sb, fluxOf(X0), t, bio) : grassTop(ip, tfHit, sb, fluxAt(tfHit), t, bio);
       // wind gusts ripple across the meadow as travelling lighter bands
-      if (uMotion > 0.5 && sb != 3 && c >= G3 && c < G7) {
+      if (uDetail > .5 && uMotion > 0.5 && sb != 3 && c >= G3 && c < G7) {
         vec2 wd = normalize(uWind.xy + 1e-4);
         float ph = dot(tfHit, wd) * 0.72 - t * (0.6 + 1.6 * uWind.z) + 1.7 * sin(dot(tfHit, vec2(-wd.y, wd.x)) * 0.32);
         float band = smoothstep(0.78, 0.97, 0.5 + 0.5 * sin(ph)) * smoothstep(0.08, 0.5, uWind.z);

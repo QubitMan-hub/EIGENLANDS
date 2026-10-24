@@ -42,11 +42,12 @@ export class Input {
   /** left click while an ability is armed: fire it at the cursor */
   onFire: ((a: typeof EXT_ACTIONS[number]) => void) | null = null;
   /** left click on the world (not firing an armed ability) */
-  onWorldClick: ((x: number, y: number) => void) | null = null;
+  onWorldClick: ((x: number, y: number) => boolean | void) | null = null;
+  onCancelIntent: (() => void) | null = null;
   onClearTarget: (() => void) | null = null;
   arm(a: typeof EXT_ACTIONS[number] | null): void { this.setArmed(a); }
   private setArmed(a: typeof EXT_ACTIONS[number] | null): void { if (this.armed !== a) { this.armed = a; this.onArmChange?.(a); } }
-  /** right mouse held: look ahead toward the cursor */
+  /** right mouse held: aim cone / optional mouse steering; never camera look-ahead */
   get lookHeld(): boolean { return this.enabled && !this.blocked() && this.mouse.right; }
   /** where the player is on screen, for mouse aiming (CSS px) */
   playerScreen = { x: 0, y: 0 };
@@ -57,6 +58,7 @@ export class Input {
 
   /** Drop held and queued gestures when focus or orientation changes. */
   reset(): void {
+    this.onCancelIntent?.();
     this.down.clear(); this.buffered.clear(); this.touchHeld.clear();
     this.setStick(0, 0); this.mouse.left = this.mouse.right = false;
     this.interactDown = false; this.setArmed(null);
@@ -75,10 +77,12 @@ export class Input {
       if (!this.enabled || this.blocked()) { this.reset(); return; }
       this.mouse.x = e.clientX; this.mouse.y = e.clientY; this.mouse.lastMove = performance.now();
       if (e.button === 0) {
+        this.onCancelIntent?.();
         if (this.armed) { const a = this.armed; this.setArmed(null); this.onFire?.(a); }
-        else { this.mouse.left = true; this.buffer('attack'); this.onWorldClick?.(e.clientX, e.clientY); }
+        else if(this.onWorldClick?.(e.clientX,e.clientY)){this.mouse.left=false;this.buffered.delete('attack');}
+        else { this.mouse.left = true; this.buffer('attack'); }
       }
-      if (e.button === 2) this.mouse.right = true;
+      if (e.button === 2) { this.onCancelIntent?.(); this.mouse.right = true; }
     });
     window.addEventListener('pointerup', (e) => { if (e.button === 0) this.mouse.left = false; if (e.button === 2) this.mouse.right = false; });
     el.addEventListener('pointercancel', () => this.reset());
@@ -96,7 +100,7 @@ export class Input {
     this.firstGesture?.();
     if (e.repeat) { if (this.isBound(e.code)) e.preventDefault(); return; }
     const playing = this.enabled && !this.blocked();
-    if (playing) this.down.add(e.code); else this.reset();
+    if (playing) { if(this.isBound(e.code)||e.code==='Escape')this.onCancelIntent?.(); this.down.add(e.code); } else this.reset();
     for (const a of ['attack', 'skill', 'dash', 'interact'] as Action[]) if (this.keys[a].includes(e.code)) { if (playing) this.buffer(a); e.preventDefault(); }
     if (/^Digit[0-9]$/.test(e.code)) { this.onHotbar?.((Number(e.code.slice(5)) + 9) % 10); e.preventDefault(); }
     if (this.keys.prev.includes(e.code)) this.onCycle?.(-1);

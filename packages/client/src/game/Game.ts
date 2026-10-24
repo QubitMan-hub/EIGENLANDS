@@ -1,12 +1,16 @@
+import { ClickMining } from './click-mining';
+import { WorldPreparer } from './world-preparer';
+import { applyChunkSnapshot } from './chunk-updates';
+import { economyGraphics, pixelResolution } from './visual-budget';
 import { constructionTexture, BUILD_AX, BUILD_AY } from '../art/construction';
-import { isBuildPiece } from '@eigenlands/shared';
+import { isBuildPiece, buildTile, simulationBudget } from '@eigenlands/shared';
 import { ConstructionViews } from './constructionviews';
 import { planeOf } from '../features/atlas/model';
 import { Application, Container, Graphics, Sprite, Text } from 'pixi.js';
 import {
   BOSSES, xpForLevel, sanctuaryAt, CAVE_OY, isCaveY, isDiveY, isUpperY, DIVE_OY, UPPER_OY, MSG,
   ChunkStore, ELITE_NAMES, ENEMY_BY_KIND, INTEREST_RADIUS, NPC_BY_ID, TILE_DEFS, TILE_SIZE, ambientColor, SEASONS, chunkOf,
-  darkness, decodeDiff, dayNumber, formatClock, gameHour, season, PALETTE, townFor, townsFor, weatherForDay, biomeWeather, biomeAt, type Ack, type ChunkMsg,
+  darkness, dayNumber, formatClock, gameHour, season, PALETTE, townFor, townsFor, weatherForDay, biomeWeather, biomeAt, type Ack, type ChunkMsg,
   type DialogueMsg, type FishBiteMsg, type FxMsg, type ObjMsg, type PanelMsg, type ProfileMsg, type RhythmResultMsg, type RhythmStartMsg,
   type ShopViewMsg, type TileMsg, type ToastMsg, type WelcomeMsg, type ForgePreviewReply,
 } from '@eigenlands/shared';
@@ -108,6 +112,8 @@ export class Game {
   private interp = new Interpolator<Snap>();
   private views = new Map<string, ActorView>();
   private requested = new Set<string>();
+  private mining = new ClickMining(()=>this.store,()=>({slot:this.gameplay.hotbar.selected,item:this.gameplay.selected()}),(slot,tx,ty)=>this.net.use({slot,tx,ty}),text=>this.gameplay.toasts.add(text,'info'));
+  private preparer = new WorldPreparer();
   private pendingBuild: Array<[number, number]> = [];
   /** chunks whose objects (trees, rocks, furniture) are built; the terrain builds its own texture independently */
   private shown = new Set<string>();
@@ -149,6 +155,8 @@ export class Game {
   accountInfo = '';
   /** test/screenshot aid: ?hour=12 pins the in-game clock */
   private hourOverride: number | null = (() => { const h = new URLSearchParams(location.search).get('hour'); return h !== null && !Number.isNaN(Number(h)) ? Number(h) : null; })();
+  private economy = false;
+  private graphicsMode = '';
   private frameMs = 0;
   private lastFrameAt = 0;
   private vis = { x0: -20, y0: -20, x1: 20, y1: 20 };
@@ -160,9 +168,10 @@ export class Game {
   // ───────────── boot ─────────────
   async init(canvas: HTMLCanvasElement): Promise<void> {
     this.app = new Application();
+    this.economy = economyGraphics(this.settings().graphics, matchMedia('(pointer: coarse)').matches, navigator.hardwareConcurrency, (navigator as Navigator & {deviceMemory?:number}).deviceMemory);
     await this.app.init({
       canvas, resizeTo: window, background: 0x0b0c1a, antialias: false, roundPixels: true,
-      resolution: Math.min(window.devicePixelRatio || 1, 3), autoDensity: true, preference: 'webgl',
+      resolution: pixelResolution(window.devicePixelRatio || 1, this.economy), autoDensity: true, preference: 'webgl',
     });
     this.sheets = buildActorSheets();
     this.foes = buildFoeSheets();
@@ -219,6 +228,7 @@ export class Game {
       level: () => this.self?.level ?? 1, dead: () => this.dead,
     });
     this.input.onWorldClick = (x, y) => this.clickWorld(x, y);
+    this.input.onCancelIntent = () => this.mining.cancel();
     this.input.onClearTarget = () => this.setTarget(null);
     const menu = document.getElementById('hud-menu');
     this.input.blocked = () => !this.connected || this.dead || this.settingsOpen() || this.gameplay.blocking || this.ext.blocking || !!this.net?.switching || !!menu?.matches(':popover-open');
@@ -268,7 +278,7 @@ export class Game {
     // Landscape phones need phone-sized artwork too. Width alone classified
     // them as desktops and quadrupled the terrain fill cost at a tiny zoom.
     const phone = matchMedia('(pointer: coarse)').matches && Math.min(w, h) < 600;
-    const target = phone ? (w > h ? 12 : 9) : w < 700 ? 9 : 18;
+    const target = phone ? (this.economy ? (w > h ? 8 : 6) : (w > h ? 12 : 9)) : w < 700 ? 9 : 18;
     this.scale = Math.max(1, Math.floor((w * dpr) / (32 * target))) / dpr;
     this.world.scale.set(this.scale);
     this.lighting.sprite.scale.set(this.scale);
@@ -283,7 +293,10 @@ export class Game {
     await new Promise<void>((res) => { if (this.self) res(); else this.selfReady = res; });
     // synchronously draw the 3x3 around the player so the first frame is never empty
     const cx = chunkOf(Math.floor(this.predictor.sim.x)), cy = chunkOf(Math.floor(this.predictor.sim.y));
+    await this.preparer.neighborhood(this.seed,cx,cy,2);
     for (let y = cy - 1; y <= cy + 1; y++) for (let x = cx - 1; x <= cx + 1; x++) this.showChunk(x, y);
+    // Compile/upload the first terrain and UI while the login still says Entering the world.
+    this.frame(0);this.app.render();
     this.app.ticker.add((t) => this.frame(t.deltaMS));
   }
 
@@ -343,20 +356,24 @@ export class Game {
   }
 
   private chunk(m: ChunkMsg): void {
-    const diff = decodeDiff(m.diff);
-    this.store.applyDiff(m.cx, m.cy, diff);
-    for (const cell of this.store.structures.values()) if (chunkOf(cell.x) === m.cx && chunkOf(cell.y) === m.cy) this.store.removeStructure(cell.x, cell.y);
-    for (const o of m.objs ?? []) this.store.putObject(o);
-    if (this.terrain.has(m.cx, m.cy)) this.terrain.invalidate(m.cx, m.cy);
-    if (this.shown.has(`${m.cx},${m.cy}`)) { this.objects.buildChunk(m.cx, m.cy); this.worldObjs.buildChunk(m.cx, m.cy); }
+    const changed = applyChunkSnapshot(this.store, m);
+    if(changed.tiles.length&&this.terrain.has(m.cx,m.cy))this.terrain.invalidate(m.cx,m.cy);
+    if(this.shown.has(`${m.cx},${m.cy}`)){
+      for(const t of changed.tiles)this.objects.refreshTile(t.x,t.y);
+      for(const o of changed.objects)this.worldObjs.upsert(o);
+      for(const o of changed.removed)this.worldObjs.remove(o.x,o.y);
+    }
   }
+
   private obj(m: ObjMsg): void {
     const structural = m.structure || m.obj?.kind === 'structure';
+    const before = structural ? buildTile(this.store.structureAt(m.x,m.y)) : undefined;
     if (m.obj) { this.store.putObject(m.obj); if (!structural) this.worldObjs.upsert(m.obj); }
     else if (structural) this.store.removeStructure(m.x, m.y);
     else { this.store.removeObject(m.x, m.y); this.worldObjs.remove(m.x, m.y); }
-    if (structural) this.terrain.invalidate(chunkOf(m.x), chunkOf(m.y));
-    this.objects.refreshTile(m.x, m.y);
+    const groundChanged = structural && before !== buildTile(this.store.structureAt(m.x,m.y));
+    if (groundChanged) this.terrain.invalidate(chunkOf(m.x), chunkOf(m.y));
+    if(!structural||groundChanged)this.objects.refreshTile(m.x, m.y);
   }
   private tile(m: TileMsg): void {
     const { cx, cy } = this.store.setTile(m.tx, m.ty, m.tile);
@@ -521,6 +538,7 @@ export class Game {
   private stream(): void {
     const px = Math.floor(this.predictor.sim.x), py = Math.floor(this.predictor.sim.y);
     const cx = chunkOf(px), cy = chunkOf(py);
+    this.preparer.stream(this.seed,cx,cy);
     const keep = new Set<string>();
     const R = INTEREST_RADIUS;
     const want: Array<[number, number]> = [];
@@ -535,6 +553,7 @@ export class Game {
     for (let y = cy - R - 1; y <= cy + R + 1; y++) for (let x = cx - R - 1; x <= cx + R + 1; x++) far.add(`${x},${y}`);
     this.terrain.retain(far);
     this.objects.retain(far);
+    this.worldObjs.retain(far);
     for (const k of [...this.shown]) if (!far.has(k)) this.shown.delete(k);
     for (const k of [...this.requested]) if (!far.has(k)) this.requested.delete(k);
   }
@@ -547,16 +566,13 @@ export class Game {
     const frameInterval = this.lastFrameAt ? now - this.lastFrameAt : dtMs;
     this.lastFrameAt = now;
     this.fps = this.fps * 0.95 + (1000 / Math.max(1, frameInterval)) * 0.05;
-    const dt = Math.min(dtMs, 250) / 1000;
+    const dt = Math.min(frameInterval, 250) / 1000;
     if (!this.predictor || !this.connected) return;
 
     // fixed-step simulation (same step as the server)
-    this.acc += dt * 1000;
-    const stepMs = 1000 / 20;
-    let steps = 0;
-    while (this.acc >= stepMs && steps < 5) { this.fixedStep(now); this.acc -= stepMs; steps++; }
-    if (steps === 5) this.acc = 0;
-    const alpha = this.acc / stepMs;
+    const budget=simulationBudget(this.acc,frameInterval);this.acc=budget.remainder;
+    for(let i=0;i<budget.steps;i++)this.fixedStep(now);
+    const alpha=this.acc/50;
     this.predictor.update(dt);
 
     if (now - this.lastStream > 200) { this.lastStream = now; this.stream(); }
@@ -565,6 +581,12 @@ export class Game {
       if (!this.shown.has(`${x},${y}`)) this.showChunk(x, y);
     }
 
+    const mode = this.settings().graphics;
+    if (mode !== this.graphicsMode) {
+      this.graphicsMode = mode;
+      const economy = economyGraphics(mode, matchMedia('(pointer: coarse)').matches, navigator.hardwareConcurrency, (navigator as Navigator & {deviceMemory?:number}).deviceMemory);
+      if(economy!==this.economy){this.economy=economy;this.app.renderer.resolution=pixelResolution(window.devicePixelRatio||1,economy);this.app.renderer.resize(window.innerWidth,window.innerHeight);this.layout();}
+    }
     const reduced = this.settings().reducedMotion;
     const hour = this.hourOverride ?? gameHour(this.clock.serverNow(now));
     const sun = sunFor(hour);
@@ -585,9 +607,9 @@ export class Game {
     this.world.y = Math.round((H / 2 - camY * S) * dpr) / dpr + oy;
     {
       const ow = Math.floor(camX - W / 2 / S), oh = Math.floor(camY - H / 2 / S);
-      this.terrain.render(ow, oh, chunkOf(Math.floor(me.x)), chunkOf(Math.floor(me.y)), now / 1000, this.seasonIdx, !reduced, this.wind.w);
-      this.terrain.sprite.x = this.world.x + ow * S;
-      this.terrain.sprite.y = this.world.y + oh * S;
+      this.terrain.render(ow, oh, chunkOf(Math.floor(me.x)), chunkOf(Math.floor(me.y)), now / 1000, this.seasonIdx, !reduced, this.wind.w, this.economy ? 0 : 1);
+      this.terrain.sprite.x = this.world.x + this.terrain.originX * S;
+      this.terrain.sprite.y = this.world.y + this.terrain.originY * S;
       // visible tile bounds = bounding box of the four unprojected screen corners
       const c = [unproject(ow, oh), unproject(ow + W / S, oh), unproject(ow, oh + H / S), unproject(ow + W / S, oh + H / S)];
       const vx0 = Math.floor(Math.min(...c.map((p) => p.x))) - 4, vx1 = Math.ceil(Math.max(...c.map((p) => p.x))) + 4;
@@ -608,7 +630,7 @@ export class Game {
     // hit-stop / phase slip: remote entities and effects run on a slightly delayed, dilated clock (visual only)
     const fxScale = this.combat.frame(dt);
     const renderT = this.clock.serverNow(now) - this.clock.interpDelay - this.combat.warp;
-    this.updateViews(me, alpha, renderT, now, dtMs);
+    this.updateViews(me, alpha, renderT, now, Math.min(frameInterval,250));
     this.ambient.frame({ now, dt, view: this.vis, me, hour: underground ? 0 : hour, weather, season: this.seasonIdx, wind: this.wind.w, reduced });
     this.updateTarget34(renderT, me);
     this.syncFocus(now);
@@ -616,11 +638,11 @@ export class Game {
     for (const v of this.views.values()) this.castShadow(v, sun);
     this.fx.update(dt * fxScale);
     if (this.self) this.combat.vignette($('vignette'), this.self.hp, this.self.maxHp, this.dead, dt);
-    this.ext.frame(now, dtMs);
+    this.ext.frame(now,Math.min(frameInterval,250));
 
     // lighting
     const topLeftIso = { x: camX - W / 2 / S, y: camY - H / 2 / S };
-    this.weatherFx.update(dt, weather, W, H, reduced, underground ? 0 : hour, underground ? undefined : this.wind.w, this.seasonIdx);
+    this.weatherFx.update(dt, weather, W, H, reduced, underground ? 0 : hour, underground ? undefined : this.wind.w, this.seasonIdx, this.economy, this.settings().weatherDetail);
     const wa = this.weatherFx.ambient(weather), amb = diving ? [0.27, 0.53, 0.61] : upper ? [0.72, 0.67, 0.59] : underground ? CAVE_AMBIENT : ambientColor(hour);
     this.lighting.render([amb[0] * wa[0], amb[1] * wa[1], amb[2] * wa[2]], this.collectLights(topLeftIso.x, topLeftIso.y, underground ? 0 : hour, now, reduced));
     this.updateTarget(now);
@@ -661,7 +683,8 @@ export class Game {
   }
 
   /** Left click on an enemy selects it (the click still swings). Players are picked by the social layer. */
-  private clickWorld(cx: number, cy: number): void {
+  private clickWorld(cx: number, cy: number): boolean {
+    this.mining.cancel();
     const S = this.scale;
     let best: ActorView | null = null, bd = Infinity;
     for (const v of this.views.values()) {
@@ -673,7 +696,13 @@ export class Game {
       const d = dx * dx + dy * dy;
       if (d < bd) { bd = d; best = v; }
     }
-    if (best) this.setTarget(best.id);
+    if (best) { this.setTarget(best.id); return false; }
+    const ground=unproject((cx-this.world.x)/S,(cy-this.world.y)/S);
+    const tile=this.objects.pickMineable(cx,cy)??{tx:Math.floor(ground.x),ty:Math.floor(ground.y)};
+    const me=this.predictor.sim;
+    const mining=this.mining.start(me.x,me.y,tile.tx,tile.ty,performance.now());
+    if(mining)this.setTarget(null);
+    return mining;
   }
 
   private updateTarget34(renderT: number, me: { x: number; y: number }): void {
@@ -738,7 +767,10 @@ export class Game {
   private fixedStep(now: number): void {
     const r = this.input.read(now);
     const frozen = this.dead || !this.connected || this.settingsOpen() || this.gameplay.blocking || this.ext.blocking || this.net.switching || now - (this.hops.get(this.myId)?.at ?? -1e9) < 650;
-    if (frozen) { this.input.read(now); return; }
+    if (frozen) { this.mining.cancel(); this.input.read(now); return; }
+    if(r.dx||r.dy||r.attack||r.hold||r.skill||r.dash||r.interact||this.input.armed||this.input.lookHeld)this.mining.cancel();
+    const mining=this.mining.step(now,this.predictor.sim.x,this.predictor.sim.y);
+    if(mining)Object.assign(r,mining);
     const viewTick = Math.max(0, Math.floor(this.clock.tickAt(this.clock.serverNow(now) - this.clock.interpDelay - this.combat.warp)));
     const weapon = this.weaponInfo();
     this.predictor.sim.ranged = weapon.ranged;

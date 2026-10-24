@@ -300,7 +300,7 @@ export class BoardView {
       this.armed = null; this.pathPending = null; this.say('Cancelled.'); this.render();
       return;
     }
-    // the game binds Enter (chat) and Space (dash) and swallows their default action, so press buttons ourselves
+    // the game binds Enter (chat) and Space (interaction) and swallows their default action, so press buttons ourselves
     if ((e.key === 'Enter' || e.key === ' ') && !e.repeat && (t.tagName === 'BUTTON' || t.tagName === 'SUMMARY')) {
       e.preventDefault(); e.stopPropagation();
       t.click();

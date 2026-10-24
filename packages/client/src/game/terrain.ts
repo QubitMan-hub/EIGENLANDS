@@ -1,3 +1,4 @@
+import {TERRAIN_PAD,terrainWindow} from './terrain-window';
 import {
   BufferImageSource, Container, Mesh, MeshGeometry, RenderTexture, Shader, Sprite, UniformGroup, type Renderer,
 } from 'pixi.js';
@@ -18,6 +19,7 @@ export class Terrain {
   private scene = new Container();
   private mesh: Mesh<MeshGeometry, Shader>;
   private geometry: MeshGeometry;
+  private shaders=new Map<number,Shader>();
   private chunks = new Map<string, Uint8Array>();
   private data = new Uint8Array(WIN * WIN * 4);
   private src: BufferImageSource;
@@ -25,7 +27,8 @@ export class Terrain {
   private winCx = 1e9;
   private winCy = 1e9;
   private winDirty = true;
-  private painted: { x: number; y: number; season: number; motion: boolean } | null = null;
+  private dirtyChunks = new Set<string>();
+  private painted: { x: number; y: number; season: number; motion: boolean; detail:number; tick:number } | null = null;
   private w = 16;
   private h = 16;
   private plaza: { x: number; y: number; r: number; x0: number; y0: number; x1: number; y1: number };
@@ -42,7 +45,7 @@ export class Terrain {
     });
     this.src = new BufferImageSource({ resource: this.data, width: WIN, height: WIN, format: 'rgba8unorm', scaleMode: 'nearest', alphaMode: 'no-premultiply-alpha' });
     this.common = new UniformGroup({
-      uTime: { value: 0, type: 'f32' }, uSeason: { value: 1, type: 'f32' }, uMotion: { value: 1, type: 'f32' },
+      uDetail: {value:1,type:'f32'}, uTime: { value: 0, type: 'f32' }, uSeason: { value: 1, type: 'f32' }, uMotion: { value: 1, type: 'f32' },
       uWin: { value: new Float32Array([0, 0]), type: 'vec2<f32>' }, uWinSize: { value: WIN, type: 'f32' },
       uIso: { value: new Float32Array([0, 0]), type: 'vec2<f32>' }, uRes: { value: new Float32Array([16, 16]), type: 'vec2<f32>' },
       uPlaza: { value: new Float32Array([0, 0, 0, 0]), type: 'vec4<f32>' }, uShrine: { value: new Float32Array([0.5, 0.5, 3.05, 0]), type: 'vec4<f32>' },
@@ -51,17 +54,30 @@ export class Terrain {
     const town = townFor(store.seed);
     this.plaza = { x: town.cx + 0.5, y: town.cy + 4.5, r: 5.9, x0: town.x0, y0: town.y0, x1: town.x1, y1: town.y1 };
     this.common.uniforms.uPlaza = new Float32Array([this.plaza.x, this.plaza.y, this.plaza.r, 0]);
-    const shader = Shader.from({ gl: { vertex: TERRAIN_VERT, fragment: TERRAIN_FRAG }, resources: { uTiles: this.src, commonUniforms: this.common } });
+    const shader = this.shaderFor(1);
     this.mesh = new Mesh({ geometry: this.geometry, shader });
     this.scene.addChild(this.mesh);
   }
 
+  private shaderFor(detail:number):Shader{
+    const mode=detail<.5?0:1;let shader=this.shaders.get(mode);
+    if(!shader){
+      // Compile-time branches remove expensive high-detail loops on limited GPUs.
+      // Both variants use the same tile buffer, projection, materials and render target.
+      shader=Shader.from({gl:{vertex:TERRAIN_VERT,fragment:TERRAIN_FRAG.replace('uniform float uDetail;',`const float uDetail = ${mode}.0;`)},resources:{uTiles:this.src,commonUniforms:this.common}});
+      this.shaders.set(mode,shader);
+    }
+    return shader;
+  }
+
+  get originX():number{return this.painted?.x??0;}
+  get originY():number{return this.painted?.y??0;}
   get count(): number { return this.chunks.size; }
   has(cx: number, cy: number): boolean { return this.chunks.has(chunkKey(cx, cy)); }
 
   /** Visible region in art pixels (1 texel = 1 art pixel). */
   resize(wPx: number, hPx: number): void {
-    wPx = Math.ceil(wPx); hPx = Math.ceil(hPx);
+    wPx = Math.ceil(wPx)+TERRAIN_PAD*2; hPx = Math.ceil(hPx)+TERRAIN_PAD*2;
     if (wPx === this.w && hPx === this.h) return;
     this.w = wPx; this.h = hPx;
     this.rt.resize(wPx, hPx);
@@ -144,20 +160,21 @@ export class Terrain {
   /** Cache a chunk's tile classes (cheap to call repeatedly; use invalidate() after edits). */
   build(cx: number, cy: number): void {
     const k = chunkKey(cx, cy);
-    if (!this.chunks.has(k)) this.chunks.set(k, this.compute(cx, cy));
-    this.winDirty = true;
+    if (!this.chunks.has(k)||this.dirtyChunks.has(k)) {
+      this.chunks.set(k,this.compute(cx,cy));this.dirtyChunks.delete(k);this.winDirty=true;
+    }
   }
 
   /** A tile changed (or the chunk's diff arrived): recompute that chunk. */
   invalidate(cx: number, cy: number, _lx = 16, _ly = 16): void {
     const k = chunkKey(cx, cy);
     if (!this.chunks.has(k)) return;
-    this.chunks.set(k, this.compute(cx, cy));
+    this.dirtyChunks.add(k);
     this.winDirty = true;
   }
 
   retain(keep: Set<string>): void {
-    for (const k of [...this.chunks.keys()]) if (!keep.has(k)) this.chunks.delete(k);
+    for (const k of [...this.chunks.keys()]) if (!keep.has(k)) {this.chunks.delete(k);this.dirtyChunks.delete(k);}
   }
 
   private assemble(cx: number, cy: number): void {
@@ -168,7 +185,7 @@ export class Terrain {
         const ccx = cx - half + i, ccy = cy - half + j;
         const k = chunkKey(ccx, ccy);
         let c = this.chunks.get(k);
-        if (!c) { c = this.compute(ccx, ccy); this.chunks.set(k, c); }
+        if (!c||this.dirtyChunks.has(k)) { c = this.compute(ccx, ccy); this.chunks.set(k, c); this.dirtyChunks.delete(k); }
         for (let y = 0; y < CHUNK_SIZE; y++) {
           const dst = ((j * CHUNK_SIZE + y) * WIN + i * CHUNK_SIZE) * 4;
           this.data.set(c.subarray(y * CHUNK_SIZE * 4, (y + 1) * CHUNK_SIZE * 4), dst);
@@ -182,16 +199,19 @@ export class Terrain {
   }
 
   /** Draw the terrain for the view whose top-left iso art-pixel is (isoX, isoY); (pcx,pcy) = the player's chunk. */
-  render(isoX: number, isoY: number, pcx: number, pcy: number, time: number, season: number, motion: boolean, wind?: { dx: number; dy: number; strength: number }): void {
+  render(isoX: number, isoY: number, pcx: number, pcy: number, time: number, season: number, motion: boolean, wind?: { dx: number; dy: number; strength: number }, detail = 1): void {
+    const window=terrainWindow(isoX,isoY,time,motion,detail);isoX=window.x;isoY=window.y;
     const changed = this.winDirty || pcx !== this.winCx || pcy !== this.winCy;
     if (changed) this.assemble(pcx, pcy);
-    if (!motion && !changed && this.painted && !this.painted.motion && this.painted.x === isoX && this.painted.y === isoY && this.painted.season === season) return;
+    if (!changed && this.painted && this.painted.motion === motion && this.painted.x === isoX && this.painted.y === isoY && this.painted.season === season && this.painted.detail === detail && this.painted.tick === window.tick) return;
+    this.mesh.shader=this.shaderFor(detail);
+    this.common.uniforms.uDetail = detail;
     this.common.uniforms.uTime = motion ? time : 0;
     this.common.uniforms.uSeason = season;
     this.common.uniforms.uMotion = motion ? 1 : 0;
     if (wind) this.common.uniforms.uWind = new Float32Array([wind.dx, wind.dy, wind.strength]);
     this.common.uniforms.uIso = new Float32Array([isoX, isoY]);
     this.renderer.render({ container: this.scene, target: this.rt, clear: true });
-    this.painted = { x: isoX, y: isoY, season, motion };
+    this.painted = { x: isoX, y: isoY, season, motion, detail, tick:window.tick };
   }
 }

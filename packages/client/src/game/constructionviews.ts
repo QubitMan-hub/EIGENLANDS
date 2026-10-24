@@ -36,6 +36,7 @@ export class ConstructionViews {
   get count():number{return this.views.size;}
   private drop(k:string,v:View):void{for(const p of v.parts){p.sprite.destroy();p.shadow?.destroy();}this.views.delete(k);}
   update(px:number,py:number,sun:Sun,x0:number,y0:number,x1:number,y1:number):void{
+    if(!this.store.structures.size){for(const[k,v]of this.views)this.drop(k,v);this.room.clear();this.roomKey='';return;}
     const key=`${px},${py}:${this.store.structureRevision}`;
     if(key!==this.roomKey){this.room=constructionRoom(this.store,px,py);this.roomKey=key;}
     for(const[k,v]of this.views)if(!this.store.structures.has(k)||v.cell.x<x0||v.cell.x>x1||v.cell.y<y0||v.cell.y>y1)this.drop(k,v);

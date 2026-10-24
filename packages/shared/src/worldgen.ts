@@ -66,7 +66,24 @@ export interface ClimateSample {
   flux: number;
 }
 
-export function sampleClimate(seed: number, x: number, y: number): ClimateSample {
+// Bounded Float64 blocks preserve every generated value while sharing cold work between
+// terrain, scenery and (in solo) authority. No per-tile object/string cache or periodic global clear.
+interface ClimateBlock {seed:number;cx:number;cy:number;data:Float64Array;biomes?:Uint8Array}
+const climateBlocks=new Map<string,ClimateBlock>();let lastClimate:ClimateBlock|undefined;
+export function sampleClimate(seed:number,x:number,y:number):ClimateSample {
+  if(!Number.isInteger(x)||!Number.isInteger(y))return computeClimate(seed,x,y);
+  const cx=Math.floor(x/CHUNK_SIZE),cy=Math.floor(y/CHUNK_SIZE);let b=lastClimate;
+  if(!b||b.seed!==seed||b.cx!==cx||b.cy!==cy){
+    const k=`${seed}:${cx},${cy}`;b=climateBlocks.get(k);
+    if(b)climateBlocks.delete(k);else b={seed,cx,cy,data:new Float64Array(CHUNK_SIZE*CHUNK_SIZE*4).fill(NaN)};
+    climateBlocks.set(k,b);if(climateBlocks.size>96)climateBlocks.delete(climateBlocks.keys().next().value!);lastClimate=b;
+  }
+  const i=((y-cy*CHUNK_SIZE)*CHUNK_SIZE+x-cx*CHUNK_SIZE)*4,a=b.data;
+  if(!Number.isNaN(a[i]))return{height:a[i]!,moisture:a[i+1]!,temperature:a[i+2]!,flux:a[i+3]!};
+  const c=computeClimate(seed,x,y);a.set([c.height,c.moisture,c.temperature,c.flux],i);return c;
+}
+
+function computeClimate(seed: number, x: number, y: number): ClimateSample {
   const l = layers(seed);
   let height = l.height.fbm(x / 48, y / 48, 4);
   // keep the spawn area dry land
@@ -92,6 +109,10 @@ const biomeCache = new Map<number, Biome>();
 /** Which biome a tile belongs to: climate (temperature, moisture, quantum flux) with ragged, noise-jittered borders. */
 export function biomeAt(seed: number, x: number, y: number): Biome {
   if (isCaveY(y)) y -= CAVE_OY;                                    // the Undercroft takes the biome of the land above
+  if(Number.isInteger(x)&&Number.isInteger(y)){
+    const cx=Math.floor(x/CHUNK_SIZE),cy=Math.floor(y/CHUNK_SIZE),prepared=climateBlocks.get(`${seed}:${cx},${cy}`)?.biomes;
+    if(prepared)return BIOMES[prepared[(y-cy*CHUNK_SIZE)*CHUNK_SIZE+x-cx*CHUNK_SIZE]!]!;
+  }
   const k = ((x & 0xffff) << 16) ^ (y & 0xffff) ^ (seed << 3);
   const hit = biomeCache.get(k);
   if (hit) return hit;
@@ -235,7 +256,10 @@ function smooth(v: number, a: number, b: number): number {
   return t * t * (3 - 2 * t);
 }
 
+const generatedChunks=new Map<string,Uint8Array>();
 export function generateChunk(seed: number, cx: number, cy: number): Uint8Array {
+  const key=`${seed}:${cx},${cy}`,cached=generatedChunks.get(key);
+  if(cached){generatedChunks.delete(key);generatedChunks.set(key,cached);return cached.slice();}
   const out = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
   const ox = cx * CHUNK_SIZE;
   const oy = cy * CHUNK_SIZE;
@@ -244,5 +268,28 @@ export function generateChunk(seed: number, cx: number, cy: number): Uint8Array 
       out[y * CHUNK_SIZE + x] = tileAt(seed, ox + x, oy + y);
     }
   }
+  generatedChunks.set(key,out.slice());
+  if(generatedChunks.size>128)generatedChunks.delete(generatedChunks.keys().next().value!);
   return out;
+}
+
+/** Transferable deterministic base data; mutable edits and ownership never enter this cache. */
+export interface PreparedWorldChunk {seed:number;cx:number;cy:number;tiles:Uint8Array;climate:Float64Array;biomes:Uint8Array}
+export function prepareWorldChunk(seed:number,cx:number,cy:number):PreparedWorldChunk{
+ const tiles=generateChunk(seed,cx,cy),climate=new Float64Array(CHUNK_SIZE*CHUNK_SIZE*4),biomes=new Uint8Array(CHUNK_SIZE*CHUNK_SIZE);
+ for(let y=0;y<CHUNK_SIZE;y++)for(let x=0;x<CHUNK_SIZE;x++){
+  const tx=cx*CHUNK_SIZE+x,ty=cy*CHUNK_SIZE+y,i=y*CHUNK_SIZE+x,c=sampleClimate(seed,tx,ty);
+  climate.set([c.height,c.moisture,c.temperature,c.flux],i*4);biomes[i]=BIOMES.indexOf(biomeAt(seed,tx,ty));
+ }
+ return{seed,cx,cy,tiles,climate,biomes};
+}
+export function hasPreparedWorldChunk(seed:number,cx:number,cy:number):boolean{
+ return generatedChunks.has(`${seed}:${cx},${cy}`)&&!!climateBlocks.get(`${seed}:${cx},${cy}`)?.biomes;
+}
+export function acceptPreparedWorldChunk(p:PreparedWorldChunk):void{
+ if(p.tiles.length!==CHUNK_SIZE*CHUNK_SIZE||p.climate.length!==CHUNK_SIZE*CHUNK_SIZE*4||p.biomes.length!==CHUNK_SIZE*CHUNK_SIZE)throw new Error('invalid prepared chunk');
+ const key=`${p.seed}:${p.cx},${p.cy}`;
+ generatedChunks.delete(key);generatedChunks.set(key,p.tiles.slice());if(generatedChunks.size>128)generatedChunks.delete(generatedChunks.keys().next().value!);
+ const block={seed:p.seed,cx:p.cx,cy:p.cy,data:p.climate.slice(),biomes:p.biomes.slice()};
+ climateBlocks.delete(key);climateBlocks.set(key,block);if(climateBlocks.size>96)climateBlocks.delete(climateBlocks.keys().next().value!);lastClimate=block;
 }

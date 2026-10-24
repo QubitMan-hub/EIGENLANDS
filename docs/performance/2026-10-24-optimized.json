@@ -1,0 +1,158 @@
+{
+  "calls": {
+    "game.chunk": {
+      "n": 77,
+      "sum": 19.69999999552965,
+      "max": 10.299999997019768
+    },
+    "objects.buildChunk": {
+      "n": 66,
+      "sum": 38.90000003576279,
+      "max": 2.7999999970197678
+    },
+    "worldObjects.buildChunk": {
+      "n": 66,
+      "sum": 119.89999999850988,
+      "max": 24.599999994039536
+    },
+    "game.showChunk": {
+      "n": 66,
+      "sum": 163.60000003129244,
+      "max": 25.69999999552965
+    },
+    "terrain.render": {
+      "n": 173,
+      "sum": 263.9999999552965,
+      "max": 181.79999999701977
+    },
+    "objects.update": {
+      "n": 173,
+      "sum": 45.69999999552965,
+      "max": 9.5
+    },
+    "worldObjects.update": {
+      "n": 173,
+      "sum": 9.399999976158142,
+      "max": 3.399999998509884
+    },
+    "buildings.update": {
+      "n": 173,
+      "sum": 31.000000022351742,
+      "max": 17
+    },
+    "extensions.frame": {
+      "n": 173,
+      "sum": 600.4000000283122,
+      "max": 172.79999999701977
+    },
+    "game.collectLights": {
+      "n": 173,
+      "sum": 47.099999986588955,
+      "max": 14
+    },
+    "gameplay.frame": {
+      "n": 173,
+      "sum": 5.700000010430813,
+      "max": 2.399999998509884
+    },
+    "game.frame": {
+      "n": 173,
+      "sum": 1808.9000000432134,
+      "max": 183.90000000596046
+    },
+    "terrain.compute": {
+      "n": 52,
+      "sum": 199.10000000149012,
+      "max": 37.29999999701977
+    },
+    "terrain.shoreField": {
+      "n": 4,
+      "sum": 43.400000005960464,
+      "max": 18.200000002980232
+    },
+    "terrain.assemble": {
+      "n": 4,
+      "sum": 242.79999999701977,
+      "max": 181.79999999701977
+    }
+  },
+  "tasks": [
+    161,
+    130,
+    177,
+    64,
+    225,
+    63,
+    84,
+    85,
+    126,
+    63,
+    199,
+    69,
+    51,
+    51,
+    328
+  ],
+  "marks": [
+    {
+      "at": 14685.39999999851,
+      "x": 60.5,
+      "y": 8.5
+    },
+    {
+      "at": 19038.89999999851,
+      "x": 132.5,
+      "y": -4.5
+    },
+    {
+      "at": 23167.5,
+      "x": -193.5,
+      "y": -498.5
+    }
+  ],
+  "frame": {
+    "n": 172,
+    "median": 100,
+    "p95": 316.7999999999993,
+    "max": 699.8999999999996,
+    "over50": 157
+  },
+  "state": {
+    "fps": 12.703137913876484,
+    "frameMs": 6.697062610947887,
+    "position": [
+      -185.4566650390625,
+      -501.69989013671875
+    ],
+    "pending": 7,
+    "correction": 0.000009863289934077054,
+    "scale": 3,
+    "resolution": 1,
+    "terrainPixels": 51824,
+    "objects": 942,
+    "worldObjects": 14
+  },
+  "weather": {
+    "rain": 26,
+    "snow": 0
+  },
+  "settings": {
+    "graphics": "auto",
+    "weatherDetail": "gentle",
+    "movementMode": "keyboard",
+    "reducedMotion": false,
+    "textScale": 1,
+    "colorblind": "off",
+    "muted": false,
+    "captions": false,
+    "volume": 0.5,
+    "highContrastHud": false
+  },
+  "build": "http://127.0.0.1:5240/assets/index-DYZTKB2t.js",
+  "workerReady": true,
+  "terrainOpaqueRatio": 1,
+  "gate": 4555,
+  "joined": 8838,
+  "errors": [],
+  "conditions": "Chromium SwiftShader software GPU; 844x390 touch, DPR2; production solo; 3 verified land region jumps + movement, dash and attack; level20 fixture and forced storm weather. This is not a physical-phone benchmark."
+}

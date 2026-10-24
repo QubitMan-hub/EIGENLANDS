@@ -267,7 +267,7 @@ export class Gameplay {
   }
 
   // ───────── player intent ─────────
-  /** E / click-use / touch USE. Returns true if something was sent. */
+  /** Bound interaction key / touch USE. Returns true if something was sent. */
   interact(): boolean {
     if (this.blocking) return false;
     const net = this.d.net();
@@ -303,7 +303,7 @@ export class Gameplay {
     return true;
   }
 
-  /** While E is held: repeat tool swings at ~3/s. */
+  /** While the interaction key is held: repeat tool swings at ~3/s. */
   holdUse(now: number): void {
     if (this.blocking || !this.d.input.interactHeld || now - this.lastUse < 320) return;
     const p = this.d.player();

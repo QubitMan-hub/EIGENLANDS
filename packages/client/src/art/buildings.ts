@@ -17,7 +17,7 @@ import { Texture } from 'pixi.js';
 import { Iso } from './isokit';
 import type { Building } from '@eigenlands/shared';
 import { hash2 } from '@eigenlands/shared';
-import { bigTextC, bigTextWidth, C, makeCanvas, put, rampAt, undithered, type Ctx, type Ramp } from './shade';
+import { bigTextC, bigTextWidth, C, makeCanvas, put, rasterPixels, rampAt, undithered, type Ctx, type Ramp } from './shade';
 
 export const WALL_H = 44;
 const CUT_H = 8;
@@ -187,9 +187,25 @@ function buildRoof(b: Building, st: Style, seed: number): { canvas: HTMLCanvasEl
   const R0 = st.roof;
   const windows: Array<{ x: number; y: number }> = [];
   const glass: Array<[number, number, number]> = [];
+  // Rays move (+1/16,+1/16) in tile space per vertical pixel. Intersect their
+  // bounding volumes and roof planes before sampling, keeping the original half-pixel grid.
+  // Empty space above/beside a roof used to consume almost the entire raster budget.
+  const boxCap = (ax:number,ay:number,x0:number,y0:number,x1:number,y1:number,cap:number):number => {
+    const lo=Math.max(zE-4,(x0-ax)*16,(y0-ay)*16),hi=Math.min(cap,(x1-ax)*16,(y1-ay)*16);
+    return hi>=lo?hi:-Infinity;
+  };
+  const gableCap = (base:number,centre:number,eave:number,height:number,slope:number):number =>
+    Math.min((eave+height-slope*(base-centre))/(1+slope/16),(eave+height+slope*(base-centre))/(1-slope/16));
+  rasterPixels(ctx,w,h,()=>{
   for (let py = 0; py < h; py++) for (let px = 0; px < w; px++) {
     const P = (px + 0.5 + L) / 16, sy = py + 0.5 + top;
-    for (let z = chTop; z >= zE - 4; z -= 0.5) {
+    const ax=(sy/8+P)/2,ay=(sy/8-P)/2;
+    let cap=boxCap(ax,ay,X0,Y0,X1,Y1,gableCap(alongX?ay:ax,mid,zE,rise,rise/span));
+    if(ch)cap=Math.max(cap,boxCap(ax,ay,ch.x0,ch.y0,ch.x0+ch.s,ch.y0+ch.s,chTop));
+    for(const d of dormers)cap=Math.max(cap,boxCap(ax,ay,alongX?d.a-d.half:d.n0,alongX?d.n0:d.a-d.half,alongX?d.a+d.half:d.n1,alongX?d.n1:d.a+d.half,gableCap(alongX?ax:ay,d.a,d.eave,9,9/d.half)));
+    if(!Number.isFinite(cap))continue;
+    const start=chTop-Math.max(0,Math.floor((chTop-cap)*2))*0.5;
+    for (let z = start; z >= zE - 4; z -= 0.5) {
       const Q = (sy + z) / 8, x = (Q + P) / 2, y = (Q - P) / 2;
       // chimney (a brick box poking through the roof)
       if (ch && x >= ch.x0 && x <= ch.x0 + ch.s && y >= ch.y0 && y <= ch.y0 + ch.s && z <= chTop && z >= zE) {
@@ -305,6 +321,7 @@ function buildRoof(b: Building, st: Style, seed: number): { canvas: HTMLCanvasEl
     iso.left(u, v + 12, 30, 24, 2, st.trim);
   }
   for (const d of dormers) windows.push({ x: alongX ? d.a : d.n1, y: alongX ? d.n1 : d.a });
+  });
   const night = glass.length ? makeCanvas(w, h) : null;
   if (night) {
     night.ctx.drawImage(canvas, 0, 0);
@@ -394,8 +411,10 @@ function buildBuildingArtInner(b: Building): BuildingArt {
     const render = (zTop: number, mat: Mat, night: boolean) => {
       const { canvas, ctx } = makeCanvas(W, H);
       const glass: Array<[number, number, number]> = [];
-      drawBoxes(ctx, W, H, left, top, boxes(zTop, mat, innerMat), glass);
-      if (night) for (const [px, py, gi] of glass) put(ctx, px, py, GLASS_NIGHT[gi]!);
+      rasterPixels(ctx,W,H,()=>{
+        drawBoxes(ctx, W, H, left, top, boxes(zTop, mat, innerMat), glass);
+        if (night) for (const [px, py, gi] of glass) put(ctx, px, py, GLASS_NIGHT[gi]!);
+      });
       return { canvas, glass };
     };
     const dayR = render(WALL_H, outerMat, false);
@@ -415,6 +434,7 @@ function buildBuildingArtInner(b: Building): BuildingArt {
   const sx0 = (b.x - y1) * 16 - 2, sx1 = (x1 + 2.2 - b.y) * 16 + 2, sy0 = (b.x + b.y) * 8 - 2, sy1 = (x1 + 2.2 + y1 + 0.6) * 8 + 2;
   const sw = Math.ceil(sx1 - sx0), shh = Math.ceil(sy1 - sy0);
   const sc = makeCanvas(sw, shh);
+  rasterPixels(sc.ctx,sw,shh,()=>{
   for (let py = 0; py < shh; py++) for (let px = 0; px < sw; px++) {
     const P = (px + 0.5 + sx0) / 16, Q = (py + 0.5 + sy0) / 8;
     const x = (Q + P) / 2, y = (Q - P) / 2;
@@ -423,6 +443,7 @@ function buildBuildingArtInner(b: Building): BuildingArt {
     for (let k = 0; k <= 1 && !hit; k += 0.1) { const dx = 2.2 * k, dy = 0.6 * k; if (x >= b.x + dx && x <= x1 + dx && y >= b.y + dy && y <= y1 + dy) hit = true; }
     if (hit && !(x >= b.x && x <= x1 && y >= b.y && y <= y1)) put(sc.ctx, px, py, C.q0);
   }
+  });
   const sign = signTexture(SIGN[b.id] ? b.id : b.kind);
   return {
     walls,

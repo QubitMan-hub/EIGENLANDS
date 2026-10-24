@@ -1,0 +1,38 @@
+import {findPath,ITEMS,NODES,type ChunkStore,type Stack} from '@eigenlands/shared';
+type Selection={slot:number;item:Stack|null};
+type Target={tx:number;ty:number;tile:number;slot:number;id:string;path:Array<[number,number]>;started:number;progress:number;best:number;lastUse:number};
+/** One cancellable resource intent. Movement still passes through ordinary prediction/collision;
+ * every swing uses the existing authoritative USE handler. No automatic target chaining. */
+export class ClickMining {
+ private target:Target|null=null;
+ constructor(private store:()=>ChunkStore,private selection:()=>Selection,private use:(slot:number,tx:number,ty:number)=>void,private notice:(text:string)=>void){}
+ cancel():void{this.target=null;}
+ start(x:number,y:number,tx:number,ty:number,now:number):boolean{
+  this.cancel();const store=this.store(),{slot,item}=this.selection(),tile=store.getTile(tx,ty),node=NODES[tile];
+  if(!item||ITEMS[item.id]?.tool?.type!=='pickaxe'||node?.tool!=='pickaxe'||store.structureAt(tx,ty)||store.objectAt(tx,ty))return false;
+  if((item.p?.tier??1)<node.minTier){this.notice(`${node.label} needs a Tier ${node.minTier} pickaxe.`);return true;}
+  if(Math.hypot(tx+.5-x,ty+.5-y)>18){this.notice('Move closer to that rock first.');return true;}
+  let path:Array<[number,number]>|null=null;
+  if(Math.hypot(tx+.5-x,ty+.5-y)<=1.65)path=[];
+  else{
+   const goals:Array<[number,number]>=[];
+   for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if((dx||dy)&&!store.solidAt(tx+dx,ty+dy))goals.push([tx+dx,ty+dy]);
+   goals.sort((a,b)=>Math.hypot(a[0]+.5-x,a[1]+.5-y)-Math.hypot(b[0]+.5-x,b[1]+.5-y));
+   for(const[gx,gy]of goals){path=findPath(Math.floor(x),Math.floor(y),gx,gy,(a,b)=>store.solidAt(a,b),512);if(path)break;}
+  }
+  if(!path){this.notice('No clear path to that rock.');return true;}
+  this.target={tx,ty,tile,slot,id:item.id,path,started:now,progress:now,best:Infinity,lastUse:-Infinity};return true;
+ }
+ step(now:number,x:number,y:number):{dx:number;dy:number;aimX:number;aimY:number}|null{
+  const t=this.target;if(!t)return null;const store=this.store(),{slot,item}=this.selection();
+  if(!item||slot!==t.slot||item.id!==t.id||ITEMS[item.id]?.tool?.type!=='pickaxe'||(item.p?.tier??1)<NODES[t.tile]!.minTier||store.getTile(t.tx,t.ty)!==t.tile||store.structureAt(t.tx,t.ty)||store.objectAt(t.tx,t.ty)||now-t.started>30000){this.cancel();return null;}
+  const aimX=t.tx+.5-x,aimY=t.ty+.5-y;
+  if(Math.hypot(aimX,aimY)<=1.65){if(now-t.lastUse>=360){t.lastUse=now;this.use(t.slot,t.tx,t.ty);}return{dx:0,dy:0,aimX,aimY};}
+  while(t.path.length&&Math.hypot(t.path[0]![0]+.5-x,t.path[0]![1]+.5-y)<.12){t.path.shift();t.best=Infinity;t.progress=now;}
+  const next=t.path[0];if(!next||store.solidAt(next[0],next[1])){this.cancel();this.notice('Path blocked. Click the rock again.');return null;}
+  const dx=next[0]+.5-x,dy=next[1]+.5-y,d=Math.hypot(dx,dy);
+  if(d<t.best-.02){t.best=d;t.progress=now;}
+  if(now-t.progress>1500){this.cancel();this.notice('Path blocked. Click the rock again.');return null;}
+  const speed=Math.min(1,d/.25);return{dx:dx/d*speed,dy:dy/d*speed,aimX,aimY};
+ }
+}

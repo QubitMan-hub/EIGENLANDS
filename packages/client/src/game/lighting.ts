@@ -18,6 +18,7 @@ export class Lighting {
   private glow: Texture;
   private w = 0;
   private h = 0;
+  private ambientHex = -1;
 
   constructor(private renderer: Renderer) {
     const { canvas, ctx } = makeCanvas(128, 128);
@@ -28,7 +29,7 @@ export class Lighting {
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, 128, 128);
     this.glow = Texture.from(canvas);
-    this.rt = RenderTexture.create({ width: 16, height: 16 });
+    this.rt = RenderTexture.create({ width: 16, height: 16, resolution:.5 });
     // Pixi must invalidate the submitted sprite quad when this render target resizes.
     this.rt.dynamic = true;
     this.sprite = new Sprite(this.rt);
@@ -41,12 +42,14 @@ export class Lighting {
     wPx = Math.ceil(wPx); hPx = Math.ceil(hPx);
     if (wPx === this.w && hPx === this.h) return;
     this.w = wPx; this.h = hPx;
-    this.rt.resize(wPx, hPx);
+    this.rt.resize(wPx, hPx,.5);
+    this.ambientHex=-1;
     this.rt.source.scaleMode = 'linear';
   }
 
   render(ambient: [number, number, number], lights: Light[]): void {
-    this.base.clear().rect(0, 0, this.w, this.h).fill(hex(ambient[0], ambient[1], ambient[2]));
+    const color=hex(ambient[0],ambient[1],ambient[2]);
+    if(color!==this.ambientHex){this.ambientHex=color;this.base.clear().rect(0,0,this.w,this.h).fill(color);}
     while (this.pool.length < lights.length) {
       const s = new Sprite(this.glow);
       s.anchor.set(0.5);

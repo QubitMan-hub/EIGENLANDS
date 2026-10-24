@@ -79,6 +79,7 @@ function noSolo(): Plugin {
 export default defineConfig({
   base: process.env.VITE_BASE ?? '/',
   server: { port: 5173, host: true },
+  worker: { format: 'es' },
   build: { target: 'es2022', sourcemap: false, chunkSizeWarningLimit: 1500 },
   esbuild: { tsconfigRaw: { compilerOptions: { experimentalDecorators: true, useDefineForClassFields: false } } },
   plugins: SOLO ? [solo()] : [noSolo()],

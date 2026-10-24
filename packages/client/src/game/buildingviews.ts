@@ -1,3 +1,4 @@
+import { buildingArtWorker } from '../art/building-worker-client';
 import { CALM, type WindField } from './windfield';
 import { Sprite, Texture, type Container } from 'pixi.js';
 import { townsFor, type Building } from '@eigenlands/shared';
@@ -11,6 +12,8 @@ interface Puff { s: Sprite; t: number }
 interface BView {
   b: Building;
   art: BuildingArt | null;
+  ready?: BuildingArt;
+  pending?: boolean;
   walls: Array<{ s: Sprite; front: boolean; piece: BuildingArt['walls'][number] }>;
   roof: Sprite | null;
   shadow: Sprite | null;
@@ -47,19 +50,30 @@ export class BuildingViews {
   private last = 0;
   private darkness = 0;
   private builtThisFrame = 0;
+  private priority = '';
 
   constructor(seed: number, private shadowLayer: Container, private entityLayer: Container, private roofLayer: Container) {
+    roofLayer.sortableChildren=true;
     for (const b of townsFor(seed).flatMap(t => t.buildings)) {
       this.views.push({ b, art: null, walls: [], roof: null, shadow: null, sign: null, puffs: [], roofA: 1, wallA: 1, cut: false, night: false });
     }
     setBuildingLights((a, b2, c, d) => this.lights(a, b2, c, d));
   }
 
+  private prepare(v:BView):boolean{
+    if(v.ready)return true;
+    const worker=buildingArtWorker();
+    if(!worker.available)return true;
+    if(!v.pending){const request=worker.request(v.b);if(request){v.pending=true;void request.then(art=>{v.pending=false;if(art)v.ready=art;});}}
+    return false;
+  }
+
   /** 0 (day) .. 1 (night): lit windows. */
   setDarkness(d: number): void { this.darkness = d; }
 
   private build(v: BView): void {
-    const art = buildBuildingArt(v.b);
+    const art = v.ready ?? buildBuildingArt(v.b);
+    v.ready = undefined;
     v.art = art;
     for (const p of art.walls) {
       const s = new Sprite(p.day);
@@ -69,7 +83,7 @@ export class BuildingViews {
       v.walls.push({ s, front: p.front, piece: p });
     }
     const roof = new Sprite(art.roof.tex);
-    roof.x = art.roof.x; roof.y = art.roof.y;
+    roof.x = art.roof.x; roof.y = art.roof.y;roof.zIndex=depth(v.b.x+v.b.w,v.b.y+v.b.h);
     this.roofLayer.addChild(roof);
     v.roof = roof;
     const sh = new Sprite(art.shadow.tex);
@@ -109,6 +123,12 @@ export class BuildingViews {
     const dt = this.last ? Math.min(0.1, (now - this.last) / 1000) : 0.016;
     this.last = now;
     this.builtThisFrame = 0;
+    const priority=`${playerTx},${playerTy}`;
+    if(priority!==this.priority){
+      this.priority=priority;
+      const dist=(b:Building)=>Math.max(b.x-playerTx,0,playerTx-b.x-b.w)+Math.max(b.y-playerTy,0,playerTy-b.y-b.h);
+      this.views.sort((a,b)=>dist(a.b)-dist(b.b));
+    }
     const inside = this.insideBuilding(playerTx, playerTy);
     if (sun.dark !== undefined) this.darkness = sun.dark;
     const dark = this.darkness;
@@ -117,13 +137,13 @@ export class BuildingViews {
       const b = v.b;
       const vis = b.x + b.w + 4 >= minX && b.x - 4 <= maxX && b.y + b.h + 4 >= minY && b.y - 4 <= maxY;
       // pre-build one building per frame while it is still off screen (within ~40 tiles), so walking into town never hitches
-      if (!v.art && !vis && this.builtThisFrame === 0 && b.x + b.w + 40 >= minX && b.x - 40 <= maxX && b.y + b.h + 40 >= minY && b.y - 40 <= maxY) { this.build(v); this.builtThisFrame++; }
+      if (!v.art && !vis && this.builtThisFrame === 0 && b.x + b.w + 40 >= minX && b.x - 40 <= maxX && b.y + b.h + 40 >= minY && b.y - 40 <= maxY) { if(this.prepare(v)){this.build(v);this.builtThisFrame++;} }
       if (!vis) {
         if (v.art) { v.walls.forEach((w) => (w.s.visible = false)); v.roof!.visible = false; v.shadow!.visible = false; if (v.sign) v.sign.visible = false; v.puffs.forEach((p) => (p.s.visible = false)); }
         continue;
       }
       if (!v.art) {
-        if (this.builtThisFrame >= 2) continue;   // spread the (tens of ms) builds over frames
+        if (!this.prepare(v) || this.builtThisFrame >= 1) continue;   // keep cold architecture bakes out of the same frame
         this.build(v); this.builtThisFrame++;
       }
       const isIn = inside === b.id;

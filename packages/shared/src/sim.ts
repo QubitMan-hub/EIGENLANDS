@@ -4,6 +4,12 @@ import {
 } from './constants';
 import { meleeFamily, meleeTap, meleeHeavy, type MeleeFamily } from './combat';
 
+/** Fixed-rate simulation stays real-time after a render/IO stall; never replay an unbounded suspension. */
+export function simulationBudget(remainder:number,elapsedMs:number):{steps:number;remainder:number}{
+  const total=remainder+Math.max(0,Math.min(Number.isFinite(elapsedMs)?elapsedMs:0,250)),stepMs=TICK_DT*1000;
+  const steps=Math.min(5,Math.floor(total/stepMs));return{steps,remainder:total-steps*stepMs};
+}
+
 /**
  * Everything the client predicts about its own player. Dynamic numeric fields are in the ACK (see protocol.ts),
  * so the client can rewind and replay. Weapon metadata is derived from equipment, outside the packed ACK.

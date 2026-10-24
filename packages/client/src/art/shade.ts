@@ -32,9 +32,32 @@ export const R = {
 const L = (() => { const v = [-0.55, -0.7, 0.45]; const n = Math.hypot(...v); return v.map((a) => a / n) as [number, number, number]; })();
 
 export const col = (i: number) => PALETTE[i]!;
+// Pixel rasters use one upload instead of thousands of Canvas state changes.
+// Colours are packed through the byte view, so native endianness stays correct.
+const packedPalette=new Uint32Array(PALETTE.length);
+const packedBytes=new Uint8Array(packedPalette.buffer);
+PALETTE.forEach((hex,i)=>{const n=parseInt(hex.slice(1),16);packedBytes.set([n>>>16,(n>>>8)&255,n&255,255],i*4);});
+let pixelTarget:Ctx|null=null,pixelWords:Uint32Array|null=null,pixelWidth=0,pixelHeight=0;
+/** For opaque, integer-pixel painters using put(); native Canvas drawing belongs outside this scope. */
+export function rasterPixels<T>(ctx:Ctx,w:number,h:number,paint:()=>T):T {
+  const prev=[pixelTarget,pixelWords,pixelWidth,pixelHeight] as const,img=ctx.createImageData(w,h);
+  pixelTarget=ctx;pixelWords=new Uint32Array(img.data.buffer);pixelWidth=w;pixelHeight=h;
+  try{return paint();}finally{
+    ctx.putImageData(img,0,0);
+    [pixelTarget,pixelWords,pixelWidth,pixelHeight]=prev;
+  }
+}
 export function put(ctx: Ctx, x: number, y: number, c: number, w = 1, h = 1): void {
+  x=Math.round(x);y=Math.round(y);
+  if(ctx===pixelTarget&&pixelWords){
+    if(x+w<=0||x>=pixelWidth||y+h<=0||y>=pixelHeight)return;
+    const color=packedPalette[c]!;
+    if(w===1&&h===1){if(x>=0&&y>=0&&x<pixelWidth&&y<pixelHeight)pixelWords[y*pixelWidth+x]=color;}
+    else for(let yy=Math.max(0,y);yy<Math.min(pixelHeight,y+h);yy++)pixelWords.fill(color,yy*pixelWidth+Math.max(0,x),yy*pixelWidth+Math.min(pixelWidth,x+w));
+    return;
+  }
   ctx.fillStyle = PALETTE[c]!;
-  ctx.fillRect(Math.round(x), Math.round(y), w, h);
+  ctx.fillRect(x, y, w, h);
 }
 let noDither = false;
 /** Run `fn` with the shading helpers (blob, slab, cyl, limb, rampAt) in clean, undithered bands (painterly style). */

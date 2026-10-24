@@ -1,6 +1,6 @@
 import { sceneryAt, type SceneryKind } from './scenery';
-import { Container, Sprite } from 'pixi.js';
-import { C, CHUNK_SIZE, PALETTE, T, TILE_DEFS, biomeAt, chunkKey, darkness, hash2, isCaveY, sampleClimate, type ChunkStore } from '@eigenlands/shared';
+import { Container, Sprite, type Texture } from 'pixi.js';
+import { C, NODES, CHUNK_SIZE, PALETTE, T, TILE_DEFS, biomeAt, chunkKey, darkness, hash2, isCaveY, sampleClimate, type ChunkStore } from '@eigenlands/shared';
 import { depth, isoX, isoY } from './iso';
 import { WindField, CALM } from './windfield';
 import { FRAMES_PER_VARIANT, type ObjectArt, type ObjSprite } from '../art/objects';
@@ -48,6 +48,8 @@ export function sunFor(hour: number): Sun {
 export class ObjectViews {
   private chunks = new Map<string, Map<number, Obj>>();
   private art!: ObjectArt;
+  private visibleBounds='';
+  private hitPixels=new WeakMap<Texture,{data:Uint8ClampedArray;width:number}>();
 
   constructor(
     private store: ChunkStore,
@@ -67,6 +69,22 @@ export class ObjectViews {
   }
 
   get count(): number { let n = 0; for (const m of this.chunks.values()) n += m.size; return n; }
+
+  /** Actual visible sprite bounds include the raised body above its ground diamond. */
+  pickMineable(x:number,y:number):{tx:number;ty:number}|null{
+    let best:Obj|null=null;
+    for(const m of this.chunks.values())for(const o of m.values()){
+      if(!o.root.visible||NODES[this.store.getTile(o.tx,o.ty)]?.tool!=='pickaxe')continue;
+      const b=o.root.getBounds();
+      if(x<b.minX||x>b.maxX||y<b.minY||y>b.maxY||best&&o.root.zIndex<=best.root.zIndex)continue;
+      const tex=o.root.texture,p=o.root.toLocal({x,y});
+      const px=Math.floor(p.x+o.root.anchor.x*tex.orig.width)+tex.frame.x,py=Math.floor(p.y+o.root.anchor.y*tex.orig.height)+tex.frame.y;
+      let pixels=this.hitPixels.get(tex);
+      if(!pixels){const canvas=tex.source.resource as HTMLCanvasElement,ctx=canvas.getContext('2d')!;pixels={data:ctx.getImageData(0,0,canvas.width,canvas.height).data,width:canvas.width};this.hitPixels.set(tex,pixels);}
+      if(px>=0&&py>=0&&px<pixels.width&&pixels.data[(py*pixels.width+px)*4+3]!>0)best=o;
+    }
+    return best?{tx:best.tx,ty:best.ty}:null;
+  }
 
   private pickSprite(kind0: string, tx: number, ty: number): { s: ObjSprite; variant: number; frames: number; key: string } | null {
     // trees in flux-rich ground are quantum superposition trees
@@ -136,10 +154,12 @@ export class ObjectViews {
       if (o) m.set(i, o);
     }
     this.chunks.set(k, m);
+    this.visibleBounds='';
   }
 
   /** A single tile changed (smashed rock, felled tree...). */
   refreshTile(tx: number, ty: number, noPropagate = false): void {
+    this.visibleBounds='';
     const cx = Math.floor(tx / CHUNK_SIZE), cy = Math.floor(ty / CHUNK_SIZE);
     const m = this.chunks.get(chunkKey(cx, cy));
     if (!m) return;
@@ -171,6 +191,14 @@ export class ObjectViews {
 
   /** Per-frame: wind sway, torch flicker, and sun-driven shadows for objects near the camera. */
   update(now: number, sun: Sun, reduced: boolean, minX: number, minY: number, maxX: number, maxY: number, wind: WindField = CALM): void {
+    const bounds=`${minX},${minY},${maxX},${maxY}`;
+    if(bounds!==this.visibleBounds){
+      this.visibleBounds=bounds;
+      for(const m of this.chunks.values())for(const o of m.values()){
+        const visible=o.tx>=minX&&o.tx<=maxX&&o.ty>=minY&&o.ty<=maxY;
+        o.root.visible=visible;if(o.echo)o.echo.visible=visible;if(!visible)o.shadow.visible=false;
+      }
+    }
     const t = now / 1000;
     const c0x = Math.floor(minX / CHUNK_SIZE), c1x = Math.floor(maxX / CHUNK_SIZE);
     const c0y = Math.floor(minY / CHUNK_SIZE), c1y = Math.floor(maxY / CHUNK_SIZE);
@@ -179,6 +207,7 @@ export class ObjectViews {
         const m = this.chunks.get(chunkKey(cx, cy));
         if (!m) continue;
         for (const o of m.values()) {
+          if(!o.root.visible)continue;
           const amp = SWAY[o.kind] ?? 0;
           const sway = reduced || !amp ? 0 : wind.sway(o.tx, o.ty, o.phase, amp);
           o.root.skew.x = sway;
@@ -192,11 +221,10 @@ export class ObjectViews {
             const rate = o.artKey === 'qtree' ? 0.9 : o.kind === 'crystal' ? 2.2 : o.kind === 'torch' ? 6 : o.kind === 'bloom' ? 3 : 1.4;
             const f = reduced ? 0 : Math.floor(t * rate + o.phase) % o.frames;
             const frame = list[o.variant * o.frames + f]!;
-            o.root.texture = frame.tex;
-            o.root.anchor.set(frame.ax / frame.tex.width, frame.ay / frame.tex.height);
-            o.shadow.anchor.copyFrom(o.root.anchor);
-            if (o.echo) o.echo.anchor.copyFrom(o.root.anchor);
-            o.shadow.texture = o.root.texture;
+            if(o.root.texture!==frame.tex){
+              o.root.texture=frame.tex;o.root.anchor.set(frame.ax/frame.tex.width,frame.ay/frame.tex.height);
+              o.shadow.anchor.copyFrom(o.root.anchor);if(o.echo)o.echo.anchor.copyFrom(o.root.anchor);o.shadow.texture=frame.tex;
+            }
             if (o.kind === 'bloom') o.root.alpha = reduced ? 1 : 0.8 + 0.2 * Math.sin(t * 2 + o.phase);
           }
           const flat = o.kind.startsWith('wild_') || o.kind === 'tallgrass' || o.kind === 'flowers' || o.kind === 'bloom' || o.kind === 'forage';

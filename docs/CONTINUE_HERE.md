@@ -1,6 +1,28 @@
-# Current continuation: owned modular player buildings (2026-10-24)
+# Current continuation: click-to-mine and comfortable controls (2026-10-24)
 
-Implementation is on `codex/player-construction`; integration is pending final-head CI. No subagents used. [Player guide, recipes and explicit limits](PLAYER_BUILDING.md).
+Built inline on the performance branch. Selected pickaxe + left-click on opaque pixels of a visible rock/ore body consumes the attack click, follows bounded cached A* to a walkable adjacent tile, and repeats ordinary authoritative USE at 360ms until the original node changes. Existing server tier/range/cooldown/loot and mining pose stay in charge. No automatic resource chaining or structure dismantling. Movement, right-click, Dodge, combat/interaction keys, tool/slot changes, menus, death, focus loss and world handoffs cancel the intent; blocked/stuck routes and a 30s limit prevent endless walking. Enemy clicks and armed abilities retain priority. Both WASD and mouse movement modes work.
+
+New defaults: either Shift dodges; Space uses/talks/opens/enters caves and stairs. Untouched old Space+Shift/X pairs migrate; explicit custom or empty bindings remain. Journal prompts use actual bindings, Settings explains click mining, and README/building instructions and executable E2E shortcuts match the defaults.
+
+Performance work beneath this entry is already committed locally and rebased onto merged construction PR #23. Validation: all workspace typechecks, 120 client tests, both builds and production solo actual sprite clicks, repeated authoritative mining/loot, attack suppression, depletion stop, Shift cancellation/dodge, Space NPC dialogue and cave entry/exit. Multiplayer mining, Shift and NPC interaction passed before the final opaque-pixel fix; the final replay is recorded in the associated pull request. GitHub CI/integration status lives on that pull request. The preceding performance batch passed all 523 workspace tests before these six additional client tests.
+
+---
+
+# Previous continuation: runtime and mobile performance (2026-10-24)
+
+Implemented on `codex/runtime-performance`; GitHub CI/integration status lives on the associated pull request. No subagents used. [Measurements, reproduction and explicit limits](performance/2026-10-24-runtime.md).
+
+Cold building art moves to one background worker using the existing pixel-identical painter. Exact climate/base-chunk caches and a bounded chunk worker prewarm the existing generator. Unchanged snapshots and cached terrain windows avoid repeated work; offscreen renderables are hidden. Auto/Economy/High graphics and Gentle/Full/Off weather are saved in Settings. Touch defaults are lighter, storm rain is substantially quieter, and combat telegraphs remain. Client and authority share bounded elapsed-time catch-up to preserve movement/dash pace after a slow callback.
+
+Controlled software-GPU touch trace: mean main game-frame work 134.4→10.5ms (about 13× less), median frame interval 350→100ms (about 3.5× better), storm streaks 260→26. This is not a universal 10× FPS claim. Cold spikes and physical phone/network limits remain explicit in the report.
+
+Validation: workspace typechecks, 523 workspace tests (114 client, 249 server, 160 shared), multiplayer/solo builds, both shaders and saved preferences in production solo/multiplayer, real mouse steering, centered camera, dash and attack. Six worker/main building fixtures preserve original day/night/cutaway pixels. Final construction regression passed crafting, collision, doors, stairs, roof cutaways, mobile rotation and upstairs/ground persistence. Six worker/main fixtures match original pixels; rebuilt nested solo and multiplayer controls checks both pass. CI evidence is recorded on the associated pull request. Physical Android/iPhone, older browser and large network encounter profiles remain open.
+
+---
+
+# Previous continuation: owned modular player buildings (2026-10-24)
+
+Merged [PR #23](https://github.com/QubitMan-hub/EIGENLANDS/pull/23) at `8d6ccfac8328685da52357515ffd6dc3866da18c`; push CI `40130280508` and PR CI `40130311122` passed. No subagents used. [Player guide, recipes and explicit limits](PLAYER_BUILDING.md).
 
 Eight original craftable blocks build arbitrary furnished two-floor houses: timber/stone floors and walls, timber doors, slate/thatch roofs and paired stairs. Structural cells have their own persisted layer so furniture survives roof/floor edits. Shared collision is authoritative on server and predicted on client. Authenticated owners control edits and doors. Safe dismantling refunds pieces, checks pack capacity, protects occupied/supporting floors and stair exits, and removes the included upper landing without duplication. Connected roofs form gables and lift by room; contextual rotation, preview and Journal guidance preserve the uncluttered HUD.
 

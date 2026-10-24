@@ -61,3 +61,7 @@ it('discards pending clicks when a desktop tab becomes hidden before the next fr
  doc.hidden=true;doc.dispatchEvent(new Event('visibilitychange'));doc.hidden=false;
  expect(input.read()).toMatchObject({dx:0,dy:0,attack:false,hold:false});expect(input.armed).toBeNull();
 });
+it('consumes a mining click without buffering a combat attack or heavy charge',()=>{
+ const{input,point}=setup();input.onWorldClick=()=>true;point('pointerdown',132,116,0);expect(input.read()).toMatchObject({attack:false,hold:false});
+ point('pointerup',132,116,0);input.onWorldClick=()=>false;point('pointerdown',132,116,0);expect(input.read()).toMatchObject({attack:true,hold:true});
+});
