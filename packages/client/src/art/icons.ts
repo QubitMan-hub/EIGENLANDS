@@ -13,7 +13,28 @@ const STEEL = [C.slate, C.steel, C.mist, C.fog, C.pale] as const;
 /** shaded disc helper */
 const ball = (ctx: Ctx, x: number, y: number, r: number, c: number, seed = 1) => blob(ctx, x, y, r, r, ramp4(c), { seed, noise: 0.08, edgeDark: 0.25 });
 
+/** Shared glass neck; each brew keeps its own body outline and readable mark. */
+const cork = (c: Ctx) => { put(c,6,1,C.e3,4,2);put(c,6,3,C.pale,4,2);put(c,6,1,C.e5,3,1); };
+const plate = (c: Ctx) => { poly(c,[[1,10],[5,8],[11,8],[14,10],[12,13],[4,13]],C.steel);line(c,2,10,13,10,C.pale); };
+
 const ITEM_ART: Record<string, Draw> = {
+  roast_potato: (c,a,b) => {poly(c,[[3,5],[9,3],[13,6],[12,11],[7,14],[2,11]],C.e2);poly(c,[[3,5],[9,4],[11,7],[7,12],[3,11]],a);poly(c,[[5,6],[9,5],[10,7],[6,11],[4,10]],C.pale);put(c,6,7,b,3,2);line(c,4,5,6,4,C.e6);},
+  baked_yam: (c,a,b) => {poly(c,[[2,10],[5,5],[11,3],[14,6],[11,12],[5,14]],dk(a));poly(c,[[3,10],[6,6],[11,4],[12,6],[9,11],[5,12]],a);poly(c,[[5,10],[7,6],[10,5],[10,8],[7,11]],b);line(c,6,9,9,6,C.e6);},
+  fish_fry: (c,a,b) => {plate(c);poly(c,[[2,7],[5,4],[10,5],[12,8],[10,11],[5,10],[3,12]],a);line(c,4,6,9,7,b);for(const x of [5,8])line(c,x,7,x+1,9,C.e2);poly(c,[[11,3],[14,5],[11,6]],C.e6);put(c,12,4,C.pale);},
+  grilled_meat: (c,a,b) => {plate(c);poly(c,[[3,5],[7,3],[12,5],[13,9],[10,12],[4,11],[2,8]],C.e1);poly(c,[[4,5],[7,4],[11,6],[11,9],[9,10],[4,9]],a);poly(c,[[5,5],[8,5],[10,7],[7,8],[4,7]],b);for(const x of [5,8])line(c,x,6,x+1,9,C.e1);put(c,4,5,C.e6,2,1);},
+  omelet: (c,a,b) => {plate(c);poly(c,[[2,8],[5,4],[9,4],[13,8],[11,11],[4,11]],C.e4);poly(c,[[3,8],[5,5],[9,5],[12,8],[10,10],[4,10]],a);line(c,4,8,11,8,b);put(c,6,6,C.g3);put(c,9,9,C.g3);put(c,4,7,C.pale,2,1);},
+  qubit_tea: (c,a,b) => {poly(c,[[11,6],[14,6],[14,10],[11,11]],C.e5);put(c,12,7,C.ink,1,2);poly(c,[[3,5],[11,5],[10,12],[5,12]],C.pale);put(c,4,5,a,6,2);line(c,4,8,4,10,C.white);line(c,5,13,11,13,C.steel);put(c,7,2,b);put(c,8,1,b);},
+  veggie_stew: (c,a,b) => {G.bowl(c,a,b);put(c,5,6,C.r4,2,1);put(c,8,5,C.g6,2,2);put(c,10,7,C.e6,2,1);line(c,12,6,14,2,C.e5);},
+  pumpkin_soup: (c,a,b) => {G.bowl(c,a,b);line(c,5,6,10,6,C.pale);line(c,10,6,9,7,C.pale);put(c,7,5,C.e2);put(c,9,7,b);},
+  hearty_stew: (c,a,b) => {poly(c,[[3,6],[12,6],[13,10],[10,14],[5,14],[2,10]],C.slate);line(c,1,7,1,10,C.steel);line(c,14,7,14,10,C.steel);poly(c,[[3,6],[7,4],[12,6],[10,8],[5,8]],a);line(c,3,6,12,6,C.mist);put(c,5,6,b,2,1);put(c,9,6,C.e6,2,1);put(c,7,2,C.fog);},
+  berry_jam: (c,a,b) => {G.jar(c,a,b);put(c,4,3,C.r3,8,2);for(const x of [5,8,11])put(c,x,3,C.pale);put(c,6,8,C.pale,5,4);put(c,7,9,a,2,2);put(c,9,8,C.g4);},
+  fruit_pie: (c,a,b) => {plate(c);poly(c,[[2,7],[5,4],[10,4],[13,7],[12,11],[4,11]],C.e3);poly(c,[[3,7],[5,5],[10,5],[12,7],[10,9],[5,9]],b);for(const x of [5,8,11])line(c,x-2,6,x,9,a);line(c,4,8,11,6,C.e6);line(c,4,11,11,11,a);},
+  healing_potion: (c,a,b) => {cork(c);poly(c,[[6,5],[10,5],[13,8],[12,13],[9,14],[5,14],[2,11],[3,8]],C.pale);poly(c,[[5,7],[10,7],[11,10],[10,13],[5,13],[4,10]],a);line(c,4,8,4,11,b);put(c,7,8,C.pale,2,5);put(c,6,9,C.pale,4,2);},
+  regen_potion: (c,a,b) => {cork(c);poly(c,[[5,5],[10,5],[11,13],[9,14],[5,14],[4,12]],C.pale);put(c,5,7,a,5,6);line(c,5,7,5,11,b);poly(c,[[6,10],[9,8],[9,11],[7,12]],C.white);},
+  might_potion: (c,a,b) => {cork(c);poly(c,[[6,5],[10,5],[14,12],[11,14],[4,14],[2,12]],C.steel);poly(c,[[6,7],[10,7],[12,12],[10,13],[5,13],[4,12]],a);poly(c,[[8,7],[10,7],[8,10],[10,10],[6,13],[7,10],[5,10]],C.pale);put(c,5,8,b);},
+  ward_potion: (c,a,b) => {cork(c);put(c,3,6,C.pale,10,8);put(c,4,7,a,8,6);poly(c,[[6,8],[10,8],[10,10],[8,12],[6,10]],C.pale);put(c,5,7,b,1,4);},
+  lantern_potion: (c,a,b) => {cork(c);poly(c,[[7,5],[10,5],[14,10],[9,14],[6,14],[2,10]],C.steel);poly(c,[[7,6],[9,6],[12,10],[8,13],[4,10]],a);line(c,8,8,8,12,b);line(c,6,10,10,10,b);put(c,5,9,C.pale);},
+
   eel: (c,a,b) => {
     poly(c,[[2,5],[6,4],[10,7],[10,10],[13,10],[14,8],[14,12],[11,14],[7,12],[7,9],[4,8],[2,8]],dk(a));
     line(c,3,5,6,5,a);line(c,6,5,9,8,a);line(c,8,9,8,11,b);line(c,8,11,11,12,b);line(c,11,12,13,11,a);
