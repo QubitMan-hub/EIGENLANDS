@@ -5,7 +5,7 @@ This is the practical remaining-work index. The full original requirements and d
 ## Current visual request
 
 - Completed in PR #18: centered RMB camera, preserved mouse movement, shared clean icon shading, native compact scaling, stone/coal/ore artwork, tree and animated-object anchors, consistent actor/prop shadow projection, continuous sun/moon shadow cycle.
-- Implemented in this follow-up: successful mining/chopping uses the correct held axe/pickaxe, faces its resource and plays a harvesting pose, including with another weapon equipped. All 13 ordinary seeds use distinct crop-picture packets; strawberry artwork now differs from cranberry; quantum seeds retain their distinct icon.
+- Completed in [PR #19](https://github.com/QubitMan-hub/EIGENLANDS/pull/19): successful mining/chopping uses the correct held axe/pickaxe, faces its resource and plays a harvesting pose, including with another weapon equipped. All 13 ordinary seeds use distinct crop-picture packets; strawberry artwork now differs from cranberry; quantum seeds retain their distinct icon.
 - Still open: individual silhouette/art review for the rest of the catalog (food, fish, equipment, furniture and rare loot); the shared painter improvement is not a bespoke redraw of every item.
 - Still open: animation review for other utility actions (watering, tilling, fishing) and visible held consumables and non-tool/non-weapon items where appropriate.
 - Still open: per-material dynamic highlights. Current pixel-art highlights are authored into sprites; ambient scene lighting and cast shadows respond to time. A complete normal-map/relighting pipeline is not implemented.

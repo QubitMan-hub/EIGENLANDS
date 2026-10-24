@@ -1,4 +1,16 @@
-# Current continuation: camera, icons and grounding (2026-10-24)
+# Current continuation: harvesting poses and seed packets (2026-10-24)
+
+Merged [PR #19](https://github.com/QubitMan-hub/EIGENLANDS/pull/19) at `204ae2151a0fb37c709f0a9a4f3a367182c60b57`. Implementation head `904cf45be417a2c90f8c57dec429f2dcb6e10b71`; push CI `40108548578` and PR CI `40108551633` passed. The merged packages/e2e tree matches the tested head. No subagents used.
+
+Successful chopping/mining events now identify the actor and actual tool. Client rendering faces the resource and uses the existing four human strike poses with the axe/pickaxe even when a combat weapon is equipped. Combat, dash and death presentation retain priority. The timer begins on first render; stale events expire, and reduced motion uses a static contact pose. Rejected tools do not start a harvesting event. Existing resource damage, cooldowns and loot remain authoritative.
+
+All thirteen ordinary seeds now have distinct native crop-picture packets. A new strawberry silhouette separates it from cranberry and is used consistently by its packet. Quantum seeds retain their orb identity. Verified 485 tests (100 client / 234 server / 151 shared), workspace typechecks, both builds, real production-solo axe/pickaxe use with crossbow equipped in normal/reduced motion, thirteen distinct native seed icons and 480 held-tool pose bounds/cache entries. Art captures reviewed. Local proof: `/tmp/harvest-*.log`, `/tmp/harvesting-tools.png`, `/tmp/seed-packets.png` (ephemeral).
+
+**Remaining-work index:** [REMAINING_WORK.md](REMAINING_WORK.md), with links to the exhaustive master requirements. Do not imply that this completes all inventory silhouettes, utility animations, dynamic material relighting, recruitment, merchants or the broader master overhaul.
+
+---
+
+## Previous continuation: camera, icons and grounding (2026-10-24)
 
 Merged [PR #18](https://github.com/QubitMan-hub/EIGENLANDS/pull/18) at `e68d8b53a96e708992724e021601beb10c5a291b`. Tested implementation head `cdfbbcdd945de47c1c9f91aa20516fa2712a1bf9`; push CI `40086719355` and PR CI `40086722704` passed. Merged packages/e2e tree matches the tested head. No subagents used.
 
