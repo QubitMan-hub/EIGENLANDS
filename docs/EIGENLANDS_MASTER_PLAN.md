@@ -827,3 +827,5 @@ Pack attack comparisons now distinguish real Focus swaps from strongest-sword qu
 Weapon field guide integration: merged in PR #13 at `5fae659` after both CI runs passed all 444 tests, typechecks and build. Both final build variants and real solo desktop / multiplayer mobile pack checks passed locally. The broader master scope remains in progress.
 
 Travel-needs continuation (2026-10-24): a complete opt-in hunger/thirst loop reuses existing character JSONB, PROFILE, tick, food, crafting and wells. Old saves remain Cozy with full reserves. This does not complete temperature/injuries, purification, Hardcore or the full survival brief. Exact proof/integration: CONTINUE_HERE.md.
+
+Travel-needs integration: merged in PR #14 at `f0b3be8` after both final-head CI runs passed all 453 tests, typechecks and build. Both production build variants and final solo desktop / multiplayer landscape supply, save and tutorial-regression checks passed locally. Broader survival and master-overhaul work remains open.
