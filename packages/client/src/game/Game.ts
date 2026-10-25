@@ -56,6 +56,9 @@ import {
   type ToastMsg,
   type WelcomeMsg,
   type ForgePreviewReply,
+  CLIFF,
+  LEVEL_PX,
+  MAX_LEVEL,
 } from '@eigenlands/shared';
 import {
   buildActorSheets,
@@ -82,7 +85,20 @@ import type { KeyMap } from '../input/keymap';
 import type { Net, NetHandlers } from '../net/session';
 import { Predictor } from '../net/prediction';
 import type { Settings } from '../ui/ui';
-import { depth, isoX, isoY, screenDir, unproject, ISO_HH, ISO_HW } from './iso';
+import {
+  depth,
+  isoX,
+  isoY,
+  lift,
+  occluded,
+  screenDir,
+  setLift,
+  softLevel,
+  tileDiamond,
+  unproject,
+  ISO_HH,
+  ISO_HW,
+} from './iso';
 import { Gameplay } from './gameplay';
 
 /** The Undercroft's ambient light: near-black, a little warm (torches and crystals do the rest). */
@@ -461,10 +477,26 @@ export class Game {
     this.layout();
   }
 
+  /** The ground point under a screen position, accounting for terrain height (flat world coordinates + its level). */
+  private pickGround(cx: number, cy: number): { x: number; y: number; level: number } {
+    const S = this.scale,
+      sx = (cx - this.world.x) / S,
+      sy = (cy - this.world.y) / S;
+    if (this.store.generation >= 3)
+      for (let level = MAX_LEVEL; level >= 1; level--) {
+        const u = unproject(sx, sy + level * LEVEL_PX);
+        if (this.store.levelAt(Math.floor(u.x), Math.floor(u.y)) >= level) return { x: u.x, y: u.y, level };
+      }
+    const u = unproject(sx, sy);
+    return { x: u.x, y: u.y, level: 0 };
+  }
+
   /** Called once the server told us the world seed. */
   private startWorld(seed: number, generation: import('@eigenlands/shared').WorldGeneration): void {
     this.seed = seed;
     this.store = new ChunkStore(seed, 400, generation);
+    // revision-3 worlds have elevation: every projection lifts by the ground level under it
+    setLift(generation >= 3 ? (x, y) => softLevel(this.store.levelAt, x, y) * LEVEL_PX : null);
     this.terrain = new Terrain(this.app.renderer, this.store);
     this.objects = new ObjectViews(this.store, this.shadowLayer, this.entityLayer);
     this.worldObjs = new WorldObjViews(this.store, this.shadowLayer, this.entityLayer);
@@ -1086,12 +1118,13 @@ export class Game {
       );
       this.terrain.sprite.x = this.world.x + this.terrain.originX * S;
       this.terrain.sprite.y = this.world.y + this.terrain.originY * S;
-      // visible tile bounds = bounding box of the four unprojected screen corners
+      // visible tile bounds = bounding box of the four unprojected screen corners (raised ground shows farther tiles)
+      const lifted = this.store.generation >= 3 ? MAX_LEVEL * LEVEL_PX : 0;
       const c = [
         unproject(ow, oh),
         unproject(ow + W / S, oh),
-        unproject(ow, oh + H / S),
-        unproject(ow + W / S, oh + H / S),
+        unproject(ow, oh + H / S + lifted),
+        unproject(ow + W / S, oh + H / S + lifted),
       ];
       const vx0 = Math.floor(Math.min(...c.map((p) => p.x))) - 4,
         vx1 = Math.ceil(Math.max(...c.map((p) => p.x))) + 4;
@@ -1103,8 +1136,10 @@ export class Game {
       this.construction.update(Math.floor(me.x), Math.floor(me.y), sun, vx0, vy0, vx1, vy1);
       this.buildings.update(now, Math.floor(me.x), Math.floor(me.y), reduced, sun, vx0, vy0, vx1, vy1, this.wind);
       const m = this.input.mouseXY;
-      const u = unproject((m.x - this.world.x) / S, (m.y - this.world.y) / S);
+      const u = this.pickGround(m.x, m.y);
       this.input.mouseTile = { tx: Math.floor(u.x), ty: Math.floor(u.y) };
+      // aiming compares the cursor's ground with the player's own: height must not bend the direction
+      this.input.aimLift = u.level * LEVEL_PX - lift(me.x, me.y);
     }
     this.input.playerScreen = {
       x: W / 2 + (isoX(me.x, me.y) - camX) * S,
@@ -1225,7 +1260,7 @@ export class Game {
       this.setTarget(best.id);
       return false;
     }
-    const ground = unproject((cx - this.world.x) / S, (cy - this.world.y) / S);
+    const ground = this.pickGround(cx, cy);
     const tool = ITEMS[this.gameplay.selected()?.id ?? '']?.tool?.type;
     const hit = tool === 'axe' || tool === 'pickaxe' ? this.objects.pickMineable(cx, cy, tool) : null;
     const tile = hit ?? { tx: Math.floor(ground.x), ty: Math.floor(ground.y) };
@@ -1426,6 +1461,9 @@ export class Game {
       v.ly = y;
       v.root.x = Math.round(isoX(x, y) * pixels) / pixels;
       v.root.y = Math.round(isoY(x, y) * pixels) / pixels;
+      // raised ground between the camera and a creature dims it instead of drawing it through the cliff
+      if (v.type !== 'proj' && this.store.generation >= 3)
+        v.root.alpha = occluded(this.store.levelAt, x, y, this.store.levelAt(Math.floor(x), Math.floor(y))) ? 0.4 : 1;
       const hop = this.hops.get(v.id);
       if (hop) {
         const k = Math.min(1, (now - hop.at) / 650);
@@ -1619,16 +1657,11 @@ export class Game {
     if (info && info.kind !== 'talk') {
       const col = info.ok ? pc(info.kind === 'none' ? 6 : 47) : pc(37);
       const pulse = 0.55 + 0.25 * Math.sin(now / 200);
-      g.poly([
-        isoX(pr.tx, pr.ty),
-        isoY(pr.tx, pr.ty),
-        isoX(pr.tx + 1, pr.ty),
-        isoY(pr.tx + 1, pr.ty),
-        isoX(pr.tx + 1, pr.ty + 1),
-        isoY(pr.tx + 1, pr.ty + 1),
-        isoX(pr.tx, pr.ty + 1),
-        isoY(pr.tx, pr.ty + 1),
-      ]).stroke({ color: col, width: 1, alpha: pulse });
+      g.poly(tileDiamond(pr.tx, pr.ty, this.store.levelAt(pr.tx, pr.ty) * LEVEL_PX)).stroke({
+        color: col,
+        width: 1,
+        alpha: pulse,
+      });
     }
     this.gameplay.setHint(pr.label, info?.ok ?? true);
   }
@@ -1919,6 +1952,8 @@ export class Game {
       inv: this.gameplay?.profile.inv,
       objects: this.store?.objects.size,
       tile: (x: number, y: number) => this.store.getTile(x, y),
+      generation: this.store?.generation,
+      elevation: p && this.store ? this.store.levelAt(Math.floor(p.x), Math.floor(p.y)) : 0,
       p34: this.ext?.debug(),
       interpDelay: this.clock.interpDelay,
       shard: this.net?.shard,

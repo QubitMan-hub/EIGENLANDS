@@ -10,7 +10,8 @@ export function findPath(
 ): Array<[number, number]> | null {
   const level = solid.level;
   /** can a walker step from (ax, ay) to the adjacent tile (bx, by)? Cliffs of CLIFF levels or more cannot be crossed. */
-  const step = (ax: number, ay: number, bx: number, by: number) => !level || Math.abs(level(bx, by) - level(ax, ay)) < CLIFF;
+  const step = (ax: number, ay: number, bx: number, by: number) =>
+    !level || Math.abs(level(bx, by) - level(ax, ay)) < CLIFF;
   if (sx === tx && sy === ty) return [];
   if (solid(tx, ty)) return null;
   const key = (x: number, y: number) => `${x},${y}`;
@@ -46,7 +47,10 @@ export function findPath(
         if (
           dx &&
           dy &&
-          (solid(cur.x + dx, cur.y) || solid(cur.x, cur.y + dy) || !step(cur.x, cur.y, cur.x + dx, cur.y) || !step(cur.x, cur.y, cur.x, cur.y + dy))
+          (solid(cur.x + dx, cur.y) ||
+            solid(cur.x, cur.y + dy) ||
+            !step(cur.x, cur.y, cur.x + dx, cur.y) ||
+            !step(cur.x, cur.y, cur.x, cur.y + dy))
         )
           continue; // no corner cutting, not even across a cliff corner
         const g = cur.g + (dx && dy ? 1.41 : 1);

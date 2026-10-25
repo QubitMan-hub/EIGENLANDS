@@ -13,6 +13,7 @@ import { Application, Container, Graphics, Sprite, Text } from 'pixi.js';
 import {
   CROPS,
   ChunkStore,
+  LEVEL_PX,
   ITEMS,
   NPCS,
   PALETTE,
@@ -53,7 +54,7 @@ import { BuildingViews } from '../game/buildingviews';
 import { WeatherFx } from '../game/weatherfx';
 import { Terrain } from '../game/terrain';
 import { Lighting, type Light } from '../game/lighting';
-import { depth, isoX, isoY, tileDiamond } from '../game/iso';
+import { depth, isoX, isoY, setLift, softLevel, tileDiamond } from '../game/iso';
 
 const q = new URLSearchParams(location.search);
 const num = (k: string, d: number) => (q.has(k) ? Number(q.get(k)) : d);
@@ -509,7 +510,8 @@ if (mode === 'construction') {
   (window as unknown as { __lab: unknown }).__lab = { ready: true };
 } else {
   // ───────── isometric scene: the same render path as the game (GPU terrain, views, lightmap, weather) ─────────
-  const store = new ChunkStore(seed, 400, q.get('generation') === '1' ? 1 : 2);
+  const store = new ChunkStore(seed, 400, q.get('generation') === '1' ? 1 : q.get('generation') === '3' ? 3 : 2);
+  setLift(store.generation >= 3 ? (x, y) => softLevel(store.levelAt, x, y) * LEVEL_PX : null);
   const world = new Container(),
     shadows = new Container(),
     ents = new Container(),

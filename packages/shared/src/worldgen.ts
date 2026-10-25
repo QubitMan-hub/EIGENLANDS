@@ -519,7 +519,14 @@ export function acceptPreparedWorldChunk(p: PreparedWorldChunk): void {
     if (generatedLevels.size > 128) generatedLevels.delete(generatedLevels.keys().next().value!);
   }
   const fam = family(p.generation);
-  const block: ClimateBlock = { seed: p.seed, cx: p.cx, cy: p.cy, fam, data: p.climate.slice(), biomes: p.biomes.slice() };
+  const block: ClimateBlock = {
+    seed: p.seed,
+    cx: p.cx,
+    cy: p.cy,
+    fam,
+    data: p.climate.slice(),
+    biomes: p.biomes.slice(),
+  };
   const climateKey = `${fam}:${p.seed}:${p.cx},${p.cy}`;
   climateBlocks.delete(climateKey);
   climateBlocks.set(climateKey, block);

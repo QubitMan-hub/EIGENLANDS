@@ -4,6 +4,8 @@ export const TICK_RATE = 20;
 export const TICK_DT = 1 / TICK_RATE;
 export const TICK_MS = 1000 / TICK_RATE;
 
+/** screen pixels one elevation level lifts the ground (a tile diamond is 32x16, so two levels equal one tile of depth) */
+export const LEVEL_PX = 8;
 /** highest terrain elevation level (revision-3 worlds have levels 0..MAX_LEVEL) */
 export const MAX_LEVEL = 9;
 /** a step of this many levels between neighbouring tiles is a cliff: it blocks walking, shots and sight */

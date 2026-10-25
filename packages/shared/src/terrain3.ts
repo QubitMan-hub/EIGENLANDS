@@ -209,8 +209,8 @@ export function biome3(seed: number, x: number, y: number): Biome {
     const n = l.ecotone.noise(x / 8 + 3, y / 8 - 3) * 0.5 + 0.5; // clustered, never per-tile
     if (n > 0.5 + 0.5 * (edge / ECOTONE)) biome = across(a.biome, b.biome);
   }
-  // the vale frontier: a broad ragged edge, meadow dissolving into the region biomes between r=85 and r=160
-  if (dist < 160 && l.frontier.noise(x / 27 + 9, y / 27 - 9) * 0.5 + 0.5 > smooth(dist, 85, 160)) return 'meadow';
+  // the vale frontier: a broad ragged edge, meadow dissolving into the region biomes between r=82 and r=140
+  if (dist < 140 && l.frontier.noise(x / 27 + 9, y / 27 - 9) * 0.5 + 0.5 > smooth(dist, 82, 140)) return 'meadow';
   return biome;
 }
 
@@ -242,7 +242,12 @@ export function landmarkDistance(seed: number, x: number, y: number, r: number):
   return nearestLandmark(seed, x, y, r)?.d ?? Infinity;
 }
 /** The nearest authored surface site within `r`, with its distance. */
-export function nearestLandmark(seed: number, x: number, y: number, r: number): { x: number; y: number; d: number } | null {
+export function nearestLandmark(
+  seed: number,
+  x: number,
+  y: number,
+  r: number,
+): { x: number; y: number; d: number } | null {
   let best: { x: number; y: number; d: number } | null = null;
   const take = (px: number, py: number) => {
     const d = Math.hypot(px - x, py - y);

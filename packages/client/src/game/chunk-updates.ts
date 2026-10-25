@@ -19,7 +19,8 @@ export function applyChunkSnapshot(store: ChunkStore, m: ChunkMsg) {
   store.applyDiff(m.cx, m.cy, diff);
   // the server's levels are authoritative; a locally derived copy that disagrees is replaced
   let levels = false;
-  if (m.levels && chunk.levels && m.levels.some((v, i) => v !== chunk.levels![i])) levels = store.setLevels(m.cx, m.cy, m.levels);
+  if (m.levels && chunk.levels && m.levels.some((v, i) => v !== chunk.levels![i]))
+    levels = store.setLevels(m.cx, m.cy, m.levels);
   else if (m.levels && !chunk.levels) levels = store.setLevels(m.cx, m.cy, m.levels);
   if (!m.objs)
     return {

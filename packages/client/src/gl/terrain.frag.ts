@@ -1,4 +1,4 @@
-import { CAVE_OY, DIVE_OY, UPPER_OY, PALETTE } from '@eigenlands/shared';
+import { CAVE_OY, DIVE_OY, LEVEL_PX, UPPER_OY, PALETTE } from '@eigenlands/shared';
 
 const pal = PALETTE.map((h) => {
   const n = parseInt(h.slice(1), 16);
@@ -7,6 +7,10 @@ const pal = PALETTE.map((h) => {
 }).join(',');
 
 /** Surface height (art px, + up) of each ground class; PATH depends on its paving style. Mirrored in terrain.ts. */
+/** tallest block the ray can start from: MAX_LEVEL levels of LEVEL_PX art pixels */
+const MAX_TOP = 9 * LEVEL_PX;
+/** coarse planes needed to cross the tallest terrain plus the water/ground offsets below sea level */
+const MAX_LEVEL_COARSE = 9 + 3;
 export const GROUND_Z = {
   water: -7,
   grass: 0,
@@ -44,7 +48,8 @@ void main() {
  * the ring-laid plaza, furrows, planks, layered water with ripple lines); sides show soil / sand strata / stone
  * courses under an overhanging grass lip, and a cyan foam line where a bank meets the water.
  *
- * Tile texel: r = ground class, g = biome * 32 + quantum flux (0..31), b = paving style (1 road, 2 plaza, 3 shrine),
+ * Tile texel: r = ground class, g = biome * 32 + quantum flux (0..31),
+ *             b = paving style (1 road, 2 plaza, 3 shrine) in the low 2 bits + elevation level * 4 (a level lifts the block LEVEL_PX px),
  *             a = signed distance to the shoreline in tiles (128 + 12*d; + inside water, - on land).
  */
 export const TERRAIN_FRAG = /* glsl */ `#version 300 es
@@ -65,6 +70,7 @@ uniform float uMotion;      // 1 = animate, 0 = reduced motion
 uniform vec4 uPlaza;        // town plaza centre (tiles) + radius
 uniform vec4 uShrine;       // spawn shrine centre (tiles) + radius
 uniform vec3 uWind;         // world wind: direction xy + strength 0..1 (same field the swaying plants follow)
+uniform float uTopZ;        // highest raised ground in the window (art px); 0 keeps the flat-world ray length
 
 const vec3 PAL[48] = vec3[48](${pal});
 
@@ -78,7 +84,7 @@ const int R0=32, R1=33, R2=34, R3=35, R4=36, R5=37, R6=38, R7=39;
 const int Q0=40, Q1=41, Q2=42, Q3=43, Q4=44, Q5=45, Q6=46, Q7=47;
 
 const float Z_WATER = ${GROUND_Z.water}.0;
-const int STEPS = 9 + ${GROUND_Z.caveWall};   // ray samples from the top (0, or the cave rock's crown) down to z = -8
+const int STEPS = 9 + ${GROUND_Z.caveWall} + ${MAX_TOP};   // upper bound; the ray starts at the crown of the tallest block (0 on flat ground)
 
 uint pcg(uint v) {
   uint s = v * 747796405u + 2891336453u;
@@ -107,10 +113,11 @@ vec2 isoToTile(vec2 iso) { return vec2(iso.y / 16.0 + iso.x / 32.0, iso.y / 16.0
 // ───────── tiles ─────────
 vec4 tileAt(ivec2 t) { int hi = int(uWinSize) - 1; return texelFetch(uTiles, clamp(t - ivec2(uWin), ivec2(0), ivec2(hi)), 0); }
 int clsOf(vec4 t) { return int(t.r * 255.0 + 0.5); }
-int styleOf(vec4 t) { return int(t.b * 255.0 + 0.5); }
+int styleOf(vec4 t) { return int(t.b * 255.0 + 0.5) & 3; }
+int levelOf(vec4 t) { return int(t.b * 255.0 + 0.5) >> 2; }
 float sdfOf(vec4 t) { return (t.a * 255.0 - 128.0) / 12.0; }
 bool isWater(int c) { return c == WATER || c == DEEP; }
-float heightOf(vec4 t) {
+float surfaceOf(vec4 t) {
   int c = clsOf(t);
   if (c == WATER || c == DEEP || c == LAVA) return Z_WATER;
   if (c == CAVEWALL) return ${GROUND_Z.caveWall}.0;
@@ -119,6 +126,8 @@ float heightOf(vec4 t) {
   if (c == PATH) { int s = styleOf(t); return s >= 2 ? ${GROUND_Z.plaza}.0 : s == 1 ? ${GROUND_Z.road}.0 : ${GROUND_Z.dirt}.0; }
   return 0.0;
 }
+// block top: the ground class's own offset plus the whole levels the terrain is raised
+float heightOf(vec4 t) { return surfaceOf(t) + float(levelOf(t)) * ${LEVEL_PX}.0; }
 float sdfAt(vec2 tf) {
   vec2 u = tf - 0.5;
   ivec2 b = ivec2(floor(u));
@@ -594,9 +603,30 @@ void main() {
   int dPx = 0;
   bool submerged=abs(uWin.y - ${DIVE_OY}.0)<4000.0;
   bool enclosed = uWin.y > ${CAVE_ROW}.0 || abs(uWin.y - ${UPPER_OY}.0) < 1000.0 || abs(uWin.y - ${DIVE_OY}.0) < 4000.0;
-  float zTop = enclosed ? ${GROUND_Z.caveWall}.0 : 0.0;
+  float zTop = enclosed ? ${GROUND_Z.caveWall}.0 : uTopZ;
+  float zStart = zTop;
+  int steps = 9 + int(zTop);
+  // Tall terrain: coarse 8px (one level) planes find the block the ray enters, then the usual 1px march refines it.
+  // Any tile footprint holds at least two coarse samples, so nothing is skipped; flat windows and caves keep the exact
+  // single-pass march.
+  if (!enclosed && zTop > 12.0) {
+    float zc = zTop;
+    for (int k = 0; k < ${MAX_LEVEL_COARSE}; k++) {
+      vec2 tfc = isoToTile(vec2(iso.x, iso.y + zc));
+      if (heightOf(tileAt(ivec2(floor(tfc)))) >= zc - 0.001 || zc <= -8.0) break;
+      zc -= ${LEVEL_PX}.0;
+    }
+    zStart = min(zTop, zc + ${LEVEL_PX}.0);
+    steps = 9 + ${LEVEL_PX} + 1;
+    if (zStart < zTop) {
+      vec2 tfp = isoToTile(vec2(iso.x, iso.y + zStart));
+      prevT = ivec2(floor(tfp));
+      prevH = heightOf(tileAt(prevT));
+    }
+  }
   for (int k = 0; k < STEPS; k++) {
-    float z = zTop - float(k);
+    if (k >= steps) break;
+    float z = zStart - float(k);
     vec2 tf = isoToTile(vec2(iso.x, iso.y + z));
     ivec2 tt = ivec2(floor(tf));
     vec4 X = tileAt(tt);
@@ -676,7 +706,7 @@ void main() {
       } else c = (cls == GRASS) ? (sb == 3 ? FOG : G2) : (cls == SAND ? E4 : (cls == PATH && style >= 1 ? STEEL : cls == CAVE ? INK : E2));
     } else if (water && ((hxm > hHit + 0.5 && ex < 2.5) || (hym > hHit + 0.5 && ey < 2.5))) {
       c = sb == 3 ? W6 : W4;                          // glow halo just off the foam
-    } else if (!water && ((hxm < hHit - 0.5 && ex < 1.0) || (hym < hHit - 0.5 && ey < 1.0))) {
+    } else if (!water && ((hxm < hHit - 0.5 && hHit - hxm < 5.0 && ex < 1.0) || (hym < hHit - 0.5 && hHit - hym < 5.0 && ey < 1.0))) {
       if (cls == GRASS) c = sb == 3 ? WHITE : (sb == 2 ? G5 : G6);
       else if (cls == SAND) c = E7;
       else if (cls == PATH && style == 0) c = E5;
@@ -689,8 +719,17 @@ void main() {
     float hN = heightOf(NX);
     int H = int(hHit - hN + 0.5);
     bool toWater = isWater(clsOf(NX));
+    bool cliff = H >= 2 * ${LEVEL_PX} - 2 && cls != CAVEWALL; // a tall face: rock, not turf
     int k = (cls == SAND) ? 1 : (cls == FLOOR || cls == WALLC || (cls == PATH && style >= 1)) ? 2 : 0;
     if (cls == CAVEWALL) c = submerged ? sideStone(ip,tfHit,left,dPx) : sideCave(ip, tfHit, left, dPx, H);
+    else if (cls == GRASS && !toWater && !cliff && H >= 6) {
+      // a one-level step is a grassy bank in the habitat's own tones, not a trench of bare earth
+      Tones bt = biomeTones(bio, s, false);
+      c = left ? bt.body : bt.sh;
+      if (hashi(ivec2(ip.x / 2, dPx)) > 0.82) c = left ? bt.hi : bt.body;
+      if (dPx >= H - 1) c = bt.dk;
+    }
+    else if (cliff) c = bio == B_DESERT ? sideSand(ip, left, dPx) : sideStone(ip, tfHit, left, dPx);
     else if (k == 1) c = sideSand(ip, left, dPx);
     else if (k == 2) c = sideStone(ip, tfHit, left, dPx);
     else c = sideEarth(ip, left, dPx);

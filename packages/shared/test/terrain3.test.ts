@@ -50,7 +50,8 @@ describe('revisions 1 and 2 are frozen', () => {
     const old = new ChunkStore(20260101, 64, 2);
     expect(old.levelAt(120, 90)).toBe(0);
     expect(old.get(3, 3).levels).toBeUndefined();
-    const sites = (seed: number) => JSON.stringify([ruinOfCell(seed, 2, 1), caveOfCell(seed, 1, 2), shrinesNear(seed, 90, 70, 200)]);
+    const sites = (seed: number) =>
+      JSON.stringify([ruinOfCell(seed, 2, 1), caveOfCell(seed, 1, 2), shrinesNear(seed, 90, 70, 200)]);
     const before = sites(20260101);
     new ChunkStore(20260101, 64, 3); // registering a revision-3 world must not move any landmark id or site
     expect(sites(20260101)).toBe(before);
@@ -197,35 +198,39 @@ function flood(store: ChunkStore, radius: number): { seen: Set<number>; land: nu
 }
 
 describe('revision 3 accessibility', () => {
-  it.each(SEEDS)('seed %i: nearly all of the home continent is walkable from the spawn, plateaus included', (seed) => {
-    const store = new ChunkStore(seed, 1200, 3);
-    const radius = 200;
-    const { seen, land, reached } = flood(store, radius);
-    // the continent is one connected landmass: only pockets walled in by trees, rock and rivers are cut off
-    console.info(`reachable ${seed}: ${((reached / land) * 100).toFixed(1)}% of ${land} tiles`);
-    expect(reached / land).toBeGreaterThan(0.93);
-    // every mountain top is reachable by ramp
-    for (let j = -3; j <= 3; j++)
-      for (let i = -3; i <= 3; i++) {
-        const m = massifOfCell(seed, i, j);
-        if (!m || Math.hypot(m.x, m.y) > radius - 10) continue;
-        let top = -1,
-          best: [number, number] | null = null;
-        for (let y = m.y - m.r; y <= m.y + m.r; y++)
-          for (let x = m.x - m.r; x <= m.x + m.r; x++) {
-            if (store.solidAt(x, y) || Math.hypot(x - m.x, y - m.y) > m.r * 0.5) continue;
-            const l = store.levelAt(x, y);
-            if (l > top) {
-              top = l;
-              best = [x, y];
+  it.each(SEEDS)(
+    'seed %i: nearly all of the home continent is walkable from the spawn, plateaus included',
+    (seed) => {
+      const store = new ChunkStore(seed, 1200, 3);
+      const radius = 200;
+      const { seen, land, reached } = flood(store, radius);
+      // the continent is one connected landmass: only pockets walled in by trees, rock and rivers are cut off
+      console.info(`reachable ${seed}: ${((reached / land) * 100).toFixed(1)}% of ${land} tiles`);
+      expect(reached / land).toBeGreaterThan(0.93);
+      // every mountain top is reachable by ramp
+      for (let j = -3; j <= 3; j++)
+        for (let i = -3; i <= 3; i++) {
+          const m = massifOfCell(seed, i, j);
+          if (!m || Math.hypot(m.x, m.y) > radius - 10) continue;
+          let top = -1,
+            best: [number, number] | null = null;
+          for (let y = m.y - m.r; y <= m.y + m.r; y++)
+            for (let x = m.x - m.r; x <= m.x + m.r; x++) {
+              if (store.solidAt(x, y) || Math.hypot(x - m.x, y - m.y) > m.r * 0.5) continue;
+              const l = store.levelAt(x, y);
+              if (l > top) {
+                top = l;
+                best = [x, y];
+              }
             }
+          if (best && top >= 2) {
+            const w = radius * 2 + 1;
+            expect(seen.has((best[1] + radius) * w + best[0] + radius)).toBe(true);
           }
-        if (best && top >= 2) {
-          const w = radius * 2 + 1;
-          expect(seen.has((best[1] + radius) * w + best[0] + radius)).toBe(true);
         }
-      }
-  }, 120_000);
+    },
+    120_000,
+  );
 
   it('authored sites stay reachable', () => {
     const seed = 20260101;
@@ -251,7 +256,8 @@ describe('revision 3 accessibility', () => {
 
 describe('level-aware collision and pathing', () => {
   // a 4-level plateau for x >= 10 with a ramp in the row y = 5 (x 4..9) and a cliff elsewhere
-  const level = (x: number, y: number) => (x >= 10 ? 4 : y === 5 || y === 4 || y === 6 ? Math.max(0, Math.min(4, x - 5)) : 0);
+  const level = (x: number, y: number) =>
+    x >= 10 ? 4 : y === 5 || y === 4 || y === 6 ? Math.max(0, Math.min(4, x - 5)) : 0;
   const solid: SolidQuery = Object.assign(() => false, { level });
 
   it('a body cannot walk or be pushed over a cliff but can climb a ramp', () => {

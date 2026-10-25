@@ -13,7 +13,6 @@ import { ruinObjectsIn } from './ruins';
 import { caveObjectsIn, isCaveY } from './caves';
 import { shrineObjectsIn } from './shrines';
 
-
 export type ChunkDiff = Map<number, number>;
 
 export interface Chunk {
@@ -114,9 +113,15 @@ export class ChunkStore {
   levelAt = (x: number, y: number): number => {
     const cx = chunkOf(x),
       cy = chunkOf(y);
-    const lv = this.get(cx, cy).levels;
+    let c = this.lastLevelChunk;
+    if (!c || c.cx !== cx || c.cy !== cy) {
+      c = this.get(cx, cy);
+      this.lastLevelChunk = c;
+    }
+    const lv = c.levels;
     return lv ? lv[(y - cy * CHUNK_SIZE) * CHUNK_SIZE + (x - cx * CHUNK_SIZE)]! : 0;
   };
+  private lastLevelChunk: Chunk | null = null;
 
   applyDiff(cx: number, cy: number, diff: ChunkDiff): Chunk {
     const c = this.get(cx, cy);
@@ -182,7 +187,8 @@ export class ChunkStore {
   private seaSiteStillAtSea(o: WorldObj): boolean {
     if (o.sub !== 'dive_gate' && o.sub !== 'sea_cache') return true;
     for (let j = -2; j <= 2; j++)
-      for (let i = -2; i <= 2; i++) if (tileAt(this.seed, o.x + i, o.y + j, this.generation) !== T.DEEP_WATER) return false;
+      for (let i = -2; i <= 2; i++)
+        if (tileAt(this.seed, o.x + i, o.y + j, this.generation) !== T.DEEP_WATER) return false;
     return true;
   }
 

@@ -1,7 +1,7 @@
 import {
   acceptPreparedWorldChunk,
   hasPreparedWorldChunk,
-  WORLD_GENERATION,
+  LEGACY_GENERATION,
   type WorldGeneration,
   type PreparedWorldChunk,
 } from '@eigenlands/shared';
@@ -104,7 +104,7 @@ export class WorldPreparer {
     cx: number,
     cy: number,
     radius: number,
-    generation: WorldGeneration = WORLD_GENERATION,
+    generation: WorldGeneration = LEGACY_GENERATION,
   ): Promise<void> {
     const coords: Array<[number, number]> = [];
     for (let y = cy - radius; y <= cy + radius; y++)
@@ -119,7 +119,7 @@ export class WorldPreparer {
     this.queue = this.queue.filter((t) => wanted.has(this.key(t.seed, t.cx, t.cy, t.generation)));
     return Promise.all(coords.map(([x, y]) => this.request(seed, x, y, generation))).then(() => {});
   }
-  stream(seed: number, cx: number, cy: number, generation: WorldGeneration = WORLD_GENERATION): void {
+  stream(seed: number, cx: number, cy: number, generation: WorldGeneration = LEGACY_GENERATION): void {
     const area = this.key(seed, cx, cy, generation);
     if (area === this.area) return;
     this.area = area;

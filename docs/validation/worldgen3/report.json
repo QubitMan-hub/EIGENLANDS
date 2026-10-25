@@ -1,0 +1,108 @@
+{
+  "half": 300,
+  "chunk": 32,
+  "results": [
+    {
+      "seed": 20260101,
+      "landTilesWithin200": 117160,
+      "reachablePercent": 99.89,
+      "maxLevel": 8,
+      "cliffEdges": 570,
+      "regionsOver1000Tiles": 11,
+      "largestRegions": [
+        {
+          "biome": "meadow",
+          "tiles": 58176
+        },
+        {
+          "biome": "forest",
+          "tiles": 16272
+        },
+        {
+          "biome": "swamp",
+          "tiles": 8496
+        },
+        {
+          "biome": "enchanted",
+          "tiles": 6720
+        },
+        {
+          "biome": "desert",
+          "tiles": 6592
+        },
+        {
+          "biome": "forest",
+          "tiles": 6480
+        }
+      ]
+    },
+    {
+      "seed": 1337,
+      "landTilesWithin200": 117510,
+      "reachablePercent": 98.24,
+      "maxLevel": 8,
+      "cliffEdges": 627,
+      "regionsOver1000Tiles": 10,
+      "largestRegions": [
+        {
+          "biome": "meadow",
+          "tiles": 55328
+        },
+        {
+          "biome": "autumn",
+          "tiles": 10880
+        },
+        {
+          "biome": "taiga",
+          "tiles": 9392
+        },
+        {
+          "biome": "desert",
+          "tiles": 8976
+        },
+        {
+          "biome": "enchanted",
+          "tiles": 8032
+        },
+        {
+          "biome": "enchanted",
+          "tiles": 6768
+        }
+      ]
+    },
+    {
+      "seed": 7102025,
+      "landTilesWithin200": 115797,
+      "reachablePercent": 99.48,
+      "maxLevel": 8,
+      "cliffEdges": 738,
+      "regionsOver1000Tiles": 11,
+      "largestRegions": [
+        {
+          "biome": "meadow",
+          "tiles": 54848
+        },
+        {
+          "biome": "forest",
+          "tiles": 22048
+        },
+        {
+          "biome": "autumn",
+          "tiles": 9936
+        },
+        {
+          "biome": "taiga",
+          "tiles": 7904
+        },
+        {
+          "biome": "swamp",
+          "tiles": 7344
+        },
+        {
+          "biome": "taiga",
+          "tiles": 5712
+        }
+      ]
+    }
+  ]
+}

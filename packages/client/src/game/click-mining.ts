@@ -53,7 +53,7 @@ export class ClickMining {
           if ((dx || dy) && !store.solidAt(tx + dx, ty + dy)) goals.push([tx + dx, ty + dy]);
       goals.sort((a, b) => Math.hypot(a[0] + 0.5 - x, a[1] + 0.5 - y) - Math.hypot(b[0] + 0.5 - x, b[1] + 0.5 - y));
       for (const [gx, gy] of goals) {
-        path = findPath(Math.floor(x), Math.floor(y), gx, gy, (a, b) => store.solidAt(a, b), 512);
+        path = findPath(Math.floor(x), Math.floor(y), gx, gy, store.solidAt, 512);
         if (path) break;
       }
     }
