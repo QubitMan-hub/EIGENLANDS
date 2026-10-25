@@ -19,7 +19,9 @@ try{
  await p.goto(base+'?dev=1');await ready(p);await p.goto(base+'?server=javascript%3Aalert(1)');await p.waitForSelector('.friends-menu');await p.locator('.friends-menu summary').click();await p.fill('#friend-server',server);await p.click('#btn-join-server');
  await p.waitForURL(url=>url.searchParams.get('server')===server);await p.goto(p.url()+'&dev=1');await login(p,'Online miner');const online=await inspect(p);console.log('online ready');assert.notEqual(online.account,solo.account);assert.equal(await p.evaluate(()=>localStorage.getItem('eigen.token')),soloToken);
  assert.equal(await p.evaluate(()=>!!window.__eigenSolo),false,'online mode must not boot an in-page server');
- const invite=new URL(p.url());invite.searchParams.set('dev','1');q=await b.newPage();await q.goto(invite.href);await login(q,'Online friend');const friend=await inspect(q);console.log('friend ready');assert.notEqual(friend.account,online.account);assert.equal(friend.day,online.day);
+ const invite=new URL(p.url());invite.searchParams.set('dev','1');q=await b.newPage();await q.goto(base+'?server=javascript%3Aalert(1)');await q.locator('.friends-menu summary').click();await q.fill('#friend-server',server);
+ const field=await q.locator('#friend-server').boundingBox();assert(field.height>=44);await q.screenshot({path:`${out}/friends-touch-form.png`});
+ await q.click('#btn-join-server');await q.waitForURL(url=>url.searchParams.get('server')===server);await q.goto(q.url()+'&dev=1');await login(q,'Online friend');const friend=await inspect(q);console.log('friend ready');assert.notEqual(friend.account,online.account);assert.equal(friend.day,online.day);
  await p.waitForFunction(id=>window.__eigen.game.views.has(id),friend.session);await q.waitForFunction(id=>window.__eigen.game.views.has(id),online.session);
  // Development-only fixture transport, then all riding controls use real browser input / server authority.
  const seed=await p.evaluate(()=>window.__eigen.game.store.seed);let loop;for(let gy=-4;gy<=4&&!loop;gy++)for(let gx=-4;gx<=4&&!loop;gx++){const r=caveRegion(seed,gx,gy);loop=mineLoopAt(seed,r.x,r.y)??undefined;}assert(loop);
