@@ -11,7 +11,7 @@ import { sanctuaryAt } from './sanctuary';
 import { LEGACY_GENERATION, isWorldGeneration, type WorldGeneration } from './world-version';
 import { biome3, chunkLevels, climate3, surfaceTile3 } from './terrain3';
 import { CAVE_OY, caveTileAt, isCaveY } from './caves';
-import { caveTileAt2 } from './caves2';
+import { caveLevels, caveTileAt2 } from './caves2';
 
 /**
  * Biomes, in a fixed order (the index is packed into the client's terrain texture).
@@ -439,6 +439,7 @@ export function generateLevels(
   generation: WorldGeneration = LEGACY_GENERATION,
 ): Uint8Array {
   if (generation < 3) return new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
+  if (generation >= 4 && isCaveY(cy * CHUNK_SIZE)) return caveLevels(seed, cx, cy);
   const key = `${generation}:${seed}:${cx},${cy}`,
     cached = generatedLevels.get(key);
   if (cached) {

@@ -7,6 +7,7 @@ import {
   caveRoutes,
   caveTownAt,
   caveWaystation,
+  CAVE_TOWNS,
   type CaveBiome,
   type CavePoint,
 } from './undercroft';
@@ -448,7 +449,7 @@ export function delverCampOf(seed: number, gx: number, gy: number): DelverCamp |
     id: r.id,
     x: r.x,
     y: r.y,
-    stall: { x: r.x + 3, y: r.y },
+    stall: { x: r.x + 3, y: r.y + 2 },
     rest: { x: r.x - 2, y: r.y + 2 },
   };
 }
@@ -631,6 +632,79 @@ export function caveFeatureObjects2(seed: number, cx: number, cy: number): World
         }
         default:
       }
+    }
+  return out;
+}
+
+// ───────────────────────── elevation ─────────────────────────
+
+const smooth = (a: number, b: number, x: number): number => {
+  const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
+/**
+ * Cave terraces (revision 4): broad plateaus of one or two levels rising out of the floor. The field is smooth and
+ * is flattened around every authored site, so adjacent tiles never differ by a cliff (two levels), camps, boss rooms,
+ * vaults, towns, ladders and mine lines always stand on level ground, and the passages between them climb and dip.
+ */
+const levelCache = new Map<string, Uint8Array>();
+export function caveLevels(seed: number, cx: number, cy: number): Uint8Array {
+  const ck = `${seed}:${cx},${cy}`,
+    hit = levelCache.get(ck);
+  if (hit) return hit.slice();
+  const out = computeCaveLevels(seed, cx, cy);
+  if (levelCache.size > 256) levelCache.delete(levelCache.keys().next().value!);
+  levelCache.set(ck, out);
+  return out.slice();
+}
+function computeCaveLevels(seed: number, cx: number, cy: number): Uint8Array {
+  const out = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
+  const x0 = cx * CHUNK_SIZE,
+    y0 = cy * CHUNK_SIZE,
+    n = noiseFor(seed);
+  // gather flat sites near the chunk: [kind, a, b, c, d, inner, outer]
+  type Site = { x0: number; y0: number; x1: number; y1: number; r0: number; r1: number };
+  const sites: Site[] = [];
+  const pad = 30;
+  const gx0 = Math.floor((x0 - pad) / 72),
+    gx1 = Math.floor((x0 + CHUNK_SIZE + pad) / 72),
+    gy0 = Math.floor((y0 - CAVE_OY - pad) / 72),
+    gy1 = Math.floor((y0 + CHUNK_SIZE - CAVE_OY + pad) / 72);
+  for (let gy = gy0; gy <= gy1; gy++)
+    for (let gx = gx0; gx <= gx1; gx++) {
+      const r = caveRegion(seed, gx, gy, 4);
+      sites.push({ x0: r.x, y0: r.y, x1: r.x, y1: r.y, r0: 16, r1: 26 });
+      const lift = caveWaystation(seed, gx, gy);
+      if (lift) sites.push({ x0: lift.x, y0: lift.y, x1: lift.x, y1: lift.y, r0: 7, r1: 13 });
+      const v = vaultOf(seed, gx, gy);
+      if (v) sites.push({ x0: v.x0 - 1, y0: v.y0 - 1, x1: v.x1 + 1, y1: v.y1 + 1, r0: 6, r1: 14 });
+      const mine = mineLineOfRegion(seed, gx, gy);
+      if (mine)
+        for (let i = 1; i < mine.pts.length; i++) {
+          const a = mine.pts[i - 1]!,
+            b = mine.pts[i]!;
+          sites.push({ x0: Math.min(a[0], b[0]), y0: Math.min(a[1], b[1]), x1: Math.max(a[0], b[0]), y1: Math.max(a[1], b[1]), r0: 5, r1: 11 });
+        }
+      for (const m of planOf(seed, gx, gy).mouths) sites.push({ x0: m.x, y0: m.y + CAVE_OY, x1: m.x, y1: m.y + CAVE_OY, r0: 8, r1: 14 });
+    }
+  for (const t of CAVE_TOWNS)
+    sites.push({ x0: t.cx - t.w / 2, y0: t.cy - t.h / 2, x1: t.cx + t.w / 2, y1: t.cy + t.h / 2, r0: 4, r1: 14 });
+  for (let j = 0; j < CHUNK_SIZE; j++)
+    for (let i = 0; i < CHUNK_SIZE; i++) {
+      const x = x0 + i,
+        y = y0 + j,
+        ly = y - CAVE_OY;
+      let flat = 1;
+      for (const s of sites) {
+        const dx = Math.max(s.x0 - x, 0, x - s.x1),
+          dy = Math.max(s.y0 - y, 0, y - s.y1);
+        flat = Math.min(flat, smooth(s.r0, s.r1, Math.hypot(dx, dy)));
+        if (flat === 0) break;
+      }
+      if (flat === 0) continue;
+      const base = 0.5 + 0.5 * n.noise(x / 38 + 900, ly / 38 - 300),
+        f = smooth(0.45, 0.82, base) * 2.2 * flat;
+      out[j * CHUNK_SIZE + i] = Math.min(2, Math.floor(f));
     }
   return out;
 }

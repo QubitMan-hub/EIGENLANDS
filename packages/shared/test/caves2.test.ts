@@ -5,6 +5,7 @@ import {
   caveRegion,
   caveWaystation,
   delverCampOf,
+  generateLevels,
   isSolid,
   mineLineOfRegion,
   mouthsNear,
@@ -95,6 +96,37 @@ describe('Undercroft 2 terrain', () => {
       expect(missing).toEqual([]);
     });
   }
+
+  it('keeps cave terraces walkable: no cliffs, flat camps and vaults', () => {
+    for (const seed of [3, 20260101]) {
+      let max = 0,
+        raised = 0;
+      const chunks = new Map<string, Uint8Array>();
+      const lv = (x: number, y: number) => {
+        const cx = Math.floor(x / 32),
+          cy = Math.floor(y / 32),
+          k = `${cx},${cy}`;
+        let c = chunks.get(k);
+        if (!c) chunks.set(k, (c = generateLevels(seed, cx, cy, 4)));
+        return c[(y - cy * 32) * 32 + (x - cx * 32)]!;
+      };
+      for (let y = CAVE_OY - 100; y < CAVE_OY + 220; y += 1)
+        for (let x = -120; x < 260; x += 1) {
+          const a = lv(x, y);
+          if (a > 0) raised++;
+          max = Math.max(max, Math.abs(a - lv(x + 1, y)), Math.abs(a - lv(x, y + 1)));
+        }
+      expect(max).toBeLessThanOrEqual(1);
+      expect(raised).toBeGreaterThan(500);
+      for (let gy = -3; gy <= 3; gy++)
+        for (let gx = -3; gx <= 3; gx++) {
+          const r = caveRegion(seed, gx, gy, 4);
+          expect(lv(r.x, r.y)).toBe(0);
+          const v = vaultOf(seed, gx, gy);
+          if (v) expect(lv(Math.floor((v.x0 + v.x1) / 2), Math.floor((v.y0 + v.y1) / 2))).toBe(0);
+        }
+    }
+  });
 
   it('spreads the authored features evenly across the lattice', () => {
     const seed = 5;

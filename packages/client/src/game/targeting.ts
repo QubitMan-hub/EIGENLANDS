@@ -83,7 +83,13 @@ export function describeUse(
   if (cell?.data.wall === 'timber_door')
     return { kind: 'open', label: cell.data.open ? 'Close door (owner only)' : 'Open door (owner only)', ok: true };
   if (obj) {
-    if (obj.sub === 'minecart') return { kind: 'open', label: 'Ride the minecart · hold movement to travel', ok: true };
+    if (obj.sub === 'minecart')
+      return { kind: 'open', label: 'Ride the minecart · push along the rails to roll, against them to reverse', ok: true };
+    if (obj.sub === 'ruin_cache' && (obj.data as { vault?: string } | undefined)?.vault)
+      return { kind: 'open', label: 'Open the vault chest (its guardians wake)', ok: true };
+    if (obj.sub === 'merchant_cart') return { kind: 'open', label: 'A travelling merchant works this cart', ok: false };
+    if (obj.sub === 'campfire' || obj.sub === 'delver_tent')
+      return { kind: 'open', label: obj.sub === 'campfire' ? 'Delver camp fire' : 'Delver tent', ok: false };
     if (obj.sub === 'stairs_up' || obj.sub === 'stairs_down')
       return { kind: 'open', label: obj.sub === 'stairs_up' ? 'Climb to upper floor' : 'Return downstairs', ok: true };
     if (obj.sub === 'dive_gate' || obj.sub === 'dive_exit')

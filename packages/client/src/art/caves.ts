@@ -72,17 +72,20 @@ function caveFrame(sub: string, f: number) {
     } else if (sub === 'delver_tent') {
       // canvas lean-to on a pole frame, a bedroll and a lantern under the eave
       const canvasM = mat([C.e1, C.e2, C.e3, C.e4, C.e5, C.e6], { noise: 0.1 });
-      p.box(-4, 0, 0, 2, 16, 3, wood);
-      p.box(18, 0, 0, 2, 16, 3, wood);
-      for (let k = 0; k < 12; k++) {
-        const z = 4 + k * 1.2,
-          w = Math.max(1, 17 - k * 1.45);
-        p.box(-3 + k * 0.5, 0, z, w * 0.55, 16, 1.4, canvasM);
+      // one tile footprint: two end frames, a ridge pole and canvas hung either side of it
+      p.box(0, 0, 0, 2, 2, 17, wood);
+      p.box(14, 0, 0, 2, 2, 17, wood);
+      p.box(0, 14, 0, 2, 2, 17, wood);
+      p.box(14, 14, 0, 2, 2, 17, wood);
+      for (let k = 0; k < 8; k++) {
+        const z = 2 + k * 1.9,
+          w = Math.max(2, 16 - k * 1.8);
+        p.box(0, (16 - w) / 2, z, 16, w, 1.9, canvasM);
       }
-      p.box(2, 3, 0, 9, 4, 2, mat([C.r1, C.r2, C.r3, C.r4, C.r5]));
-      p.box(2, 3, 2, 3, 4, 1.2, mat([C.pale, C.fog, C.mist, C.steel]));
-      p.box(13, 12, 0, 3, 3, 3, wood);
-      p.box(13.3, 12.3, 3, 2.4, 2.4, 3, { top: C.e7, left: C.e6, right: C.e4 });
+      p.box(2, 3, 0, 11, 4, 1.6, mat([C.r1, C.r2, C.r3, C.r4, C.r5]));
+      p.box(2.5, 3.5, 1.6, 4, 3, 1.2, mat([C.pale, C.fog, C.mist, C.steel]));
+      p.box(11, 12, 0, 2.5, 2.5, 2.5, wood);
+      p.box(11.3, 12.3, 2.5, 1.9, 1.9, 2.5, { top: C.e7, left: C.e6, right: C.e4 });
     } else if (sub === 'merchant_cart') {
       // two-wheeled cart under a striped awning, crates and a hanging lantern: the travelling merchant's stall
       p.box(0, 2, 5, 18, 12, 2, wood);

@@ -569,7 +569,7 @@ int caveFloorTop(ivec2 ip, float t, int bio) {
 // Each cave biome tints its own rock: warm amber limestone, mossy green, violet prism, soot basalt, grey rime, teal wet stone.
 ivec3 caveRockTone(int bio, int face) {
   if (face == 0) {
-    return bio==B_DESERT?ivec3(INK,E0,E1):bio==B_FOREST?ivec3(INK,G0,G1):bio==B_ENCHANTED?ivec3(INK,Q0,Q1):bio==B_CORRUPT?ivec3(INK,NIGHT,R0):bio==B_TAIGA?ivec3(NIGHT,SLATE,STEEL):ivec3(INK,W0,W1);
+    return bio==B_DESERT?ivec3(E0,E1,E2):bio==B_FOREST?ivec3(G0,G1,G2):bio==B_ENCHANTED?ivec3(Q0,Q1,Q2):bio==B_CORRUPT?ivec3(NIGHT,SLATE,STEEL):bio==B_TAIGA?ivec3(SLATE,STEEL,MIST):ivec3(W0,W1,W2);
   }
   if (face == 1) {
     return bio==B_DESERT?ivec3(E2,E3,E4):bio==B_FOREST?ivec3(G1,G2,G3):bio==B_ENCHANTED?ivec3(Q1,Q2,Q3):bio==B_CORRUPT?ivec3(NIGHT,SLATE,STEEL):bio==B_TAIGA?ivec3(STEEL,MIST,FOG):ivec3(W1,W2,W3);
@@ -616,7 +616,7 @@ void main() {
   int dPx = 0;
   bool submerged=abs(uWin.y - ${DIVE_OY}.0)<4000.0;
   bool enclosed = uWin.y > ${CAVE_ROW}.0 || abs(uWin.y - ${UPPER_OY}.0) < 1000.0 || abs(uWin.y - ${DIVE_OY}.0) < 4000.0;
-  float zTop = enclosed ? ${GROUND_Z.caveWall}.0 : uTopZ;
+  float zTop = enclosed ? ${GROUND_Z.caveWall}.0 + uTopZ : uTopZ;
   float zStart = zTop;
   int steps = 9 + int(zTop);
   // Tall terrain: coarse 8px (one level) planes find the block the ray enters, then the usual 1px march refines it.
