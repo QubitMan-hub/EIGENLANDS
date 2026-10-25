@@ -19,7 +19,7 @@ import {
   type StatusInput,
   type StatusTone,
 } from './vitals-model';
-import { VIAL_STYLES, renderVitals, vitalsLayout, type VialSpec } from './vitals-art';
+import { renderVitals, vitalsLayout, type VialSpec } from './vitals-art';
 
 export interface VitalsFrame {
   hp: number;
@@ -194,9 +194,9 @@ export class VitalsHud {
     this.lastText.clear();
     this.key = '';
     for (const p of this.layout.places) {
-      const s = VIAL_STYLES[p.id];
       const el = h('span', { class: `v-label v-${p.id}` });
-      el.style.setProperty('--cell', String((s.w + 1) * 2 + 5));
+      el.style.setProperty('--row', String(p.h));
+      el.style.setProperty('--gap', String(3));
       el.setAttribute('role', 'progressbar');
       el.setAttribute('aria-label', GAUGE_LABEL[p.id]);
       el.setAttribute('aria-valuemin', '0');

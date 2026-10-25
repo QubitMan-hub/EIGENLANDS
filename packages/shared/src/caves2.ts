@@ -683,9 +683,17 @@ function computeCaveLevels(seed: number, cx: number, cy: number): Uint8Array {
         for (let i = 1; i < mine.pts.length; i++) {
           const a = mine.pts[i - 1]!,
             b = mine.pts[i]!;
-          sites.push({ x0: Math.min(a[0], b[0]), y0: Math.min(a[1], b[1]), x1: Math.max(a[0], b[0]), y1: Math.max(a[1], b[1]), r0: 5, r1: 11 });
+          sites.push({
+            x0: Math.min(a[0], b[0]),
+            y0: Math.min(a[1], b[1]),
+            x1: Math.max(a[0], b[0]),
+            y1: Math.max(a[1], b[1]),
+            r0: 5,
+            r1: 11,
+          });
         }
-      for (const m of planOf(seed, gx, gy).mouths) sites.push({ x0: m.x, y0: m.y + CAVE_OY, x1: m.x, y1: m.y + CAVE_OY, r0: 8, r1: 14 });
+      for (const m of planOf(seed, gx, gy).mouths)
+        sites.push({ x0: m.x, y0: m.y + CAVE_OY, x1: m.x, y1: m.y + CAVE_OY, r0: 8, r1: 14 });
     }
   for (const t of CAVE_TOWNS)
     sites.push({ x0: t.cx - t.w / 2, y0: t.cy - t.h / 2, x1: t.cx + t.w / 2, y1: t.cy + t.h / 2, r0: 4, r1: 14 });

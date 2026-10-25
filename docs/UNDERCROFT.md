@@ -63,7 +63,6 @@ The repair also removes oval Economy grass clumps, broad meadow/sand/snow color 
 
 `node --import tsx e2e/terrain-materials.mjs` renders the real shader through the existing art lab, compares to the last merged terrain rules, measures connected high-contrast regions in isolated basalt/dirt/rock samples, and verifies camera anchoring in both quality modes. It creates and removes a temporary comparison module. In the recorded basalt sample, the largest strong-contrast region changed from 4,825 pixels to five in Economy; this measures texture structure, not a universal frame-rate improvement. Screenshots/logs: `/tmp/terrain-materials*`.
 
-
 ## Undercroft 2 (world revision 4)
 
 New worlds are created at revision 4 (`WORLD_GENERATION = 4`); revision 1–3 worlds keep their exact caves, ores and mine loops (rev 4 only changes the cave plane, towns/surface are identical to revision 3). `caveTileAt2` (`shared/src/caves2.ts`) is a pure function of (seed, x, y) that keeps the district skeleton (centre chamber + four shared gates) as its connectivity guarantee but draws it through a smooth noise warp:

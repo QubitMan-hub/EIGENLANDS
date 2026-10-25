@@ -84,7 +84,11 @@ export function describeUse(
     return { kind: 'open', label: cell.data.open ? 'Close door (owner only)' : 'Open door (owner only)', ok: true };
   if (obj) {
     if (obj.sub === 'minecart')
-      return { kind: 'open', label: 'Ride the minecart · push along the rails to roll, against them to reverse', ok: true };
+      return {
+        kind: 'open',
+        label: 'Ride the minecart · push along the rails to roll, against them to reverse',
+        ok: true,
+      };
     if (obj.sub === 'ruin_cache' && (obj.data as { vault?: string } | undefined)?.vault)
       return { kind: 'open', label: 'Open the vault chest (its guardians wake)', ok: true };
     if (obj.sub === 'merchant_cart') return { kind: 'open', label: 'A travelling merchant works this cart', ok: false };

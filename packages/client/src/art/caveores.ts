@@ -90,10 +90,10 @@ function paintFace(kind: string, variant: number, frame: number, face: number) {
   return (s: number, t: number): number => {
     const [fx, fy] = faceXY(face, s, t);
     const level = face === 0 ? 3 : face === 1 ? 2 : 1;
-    // rock: strata on the sides, pitting on top, a few chipped corners of lighter stone
-    const grain = hash2(variant, Math.floor(fx * 1.5), Math.floor(fy * 1.5), 4411);
-    const strata = face !== 0 && (Math.floor(fy + Math.sin(fx * 0.45 + variant) * 1.2) % 5 === 0 ? -1 : 0);
-    let c = ROCK[Math.max(0, Math.min(4, level + (strata || 0) + (grain > 0.9 ? 1 : grain < 0.12 ? -1 : 0)))]!;
+    void level;
+    // Rock is left transparent: the terrain shader already paints the wall block in this biome's own stone, so a vein
+    // only adds what is embedded in it (nuggets, their dark sockets and fissure threads).
+    let c = -1;
     // fissure threads between neighbouring nuggets
     if (seam.thread)
       for (let i = 1; i < nuggets.length; i++) {
@@ -104,8 +104,7 @@ function paintFace(kind: string, variant: number, frame: number, face: number) {
           len2 = dx * dx + dy * dy || 1;
         const k = Math.max(0, Math.min(1, ((fx - p.x) * dx + (fy - p.y) * dy) / len2));
         const d = Math.hypot(fx - (p.x + dx * k), fy - (p.y + dy * k));
-        if (d < 0.55 && (Math.floor(k * 9) + variant) % 3) c = ROCK[Math.max(0, level - 1)]!;
-        else if (d < 0.9 && d >= 0.55 && !glows) c = ROCK[Math.max(0, level - 2)]!;
+        if (d < 0.5 && (Math.floor(k * 9) + variant) % 3) c = seam.ramp[4];
       }
     for (const n of nuggets) {
       const dx = fx - n.x,
@@ -130,13 +129,14 @@ function paintFace(kind: string, variant: number, frame: number, face: number) {
 }
 
 /** A quarried wall block (36x44, anchor 18,34) with a believable vein embedded in all three faces. */
-export function caveOreBlock(kind: string, variant: number, frame: number): HTMLCanvasElement {
+export function caveOreBlock(kind: string, variant: number, frame: number, mask = 3): HTMLCanvasElement {
   const { canvas, ctx } = makeCanvas(36, 44),
     p = new Iso(ctx, 18, 26);
   p.box(0, 0, 0, 16, 16, 13, {
     top: paintFace(kind, variant, frame, 0),
-    left: paintFace(kind, variant, frame, 1),
-    right: paintFace(kind, variant, frame, 2),
+    // a face buried against more rock is never drawn, so a vein cannot show through the wall in front of it
+    left: mask & 1 ? paintFace(kind, variant, frame, 1) : () => -1,
+    right: mask & 2 ? paintFace(kind, variant, frame, 2) : () => -1,
   });
   if (kind === 'cave_crystal' || kind === 'cave_geode') crystalsPoking(ctx, kind, variant, frame);
   return canvas;
@@ -258,17 +258,20 @@ export interface CaveSpec {
 }
 
 /** Everything the Undercroft draws as a tile object, keyed by ObjKind. */
+/** Kinds drawn as wall blocks whose variant list is [mask][layout]. */
+export const CAVE_ORE_KINDS = new Set(Object.keys(SEAMS));
 export const CAVE_ART: Record<string, CaveSpec> = {
   ...Object.fromEntries(
     Object.keys(SEAMS).map((k) => [
       k,
       {
-        variants: 3,
+        // 3 vein layouts x 4 exposure masks (bit 0: +y face open, bit 1: +x face open)
+        variants: 12,
         frames: k === 'cave_crystal' || k === 'cave_geode' || k === 'cave_silver' || k === 'cave_gold' ? 2 : 1,
         ax: 18,
         ay: 34,
         rim: false,
-        draw: (v: number, f: number) => caveOreBlock(k, v, f),
+        draw: (v: number, f: number) => caveOreBlock(k, v % 3, f, Math.floor(v / 3)),
       } satisfies CaveSpec,
     ]),
   ),
