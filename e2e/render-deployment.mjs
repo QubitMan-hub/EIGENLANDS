@@ -1,13 +1,16 @@
 // Only operates on disposable eigenlands-render-test volumes, never production.
 // TSX_TSCONFIG_PATH=packages/server/tsconfig.json node --import tsx e2e/render-deployment.mjs /tmp/render-test.env
 import assert from 'node:assert/strict';
-import {execFileSync} from 'node:child_process';
+import {execFile,execFileSync} from 'node:child_process';
+import {promisify} from 'node:util';
 import {resolve} from 'node:path';
 import {Client} from 'colyseus.js';
 import {JOIN_ROOM,MSG,TICK_MS,decodeAck} from '../packages/shared/src/index.ts';
 const envFile=process.argv[2];if(!envFile)throw new Error('Provide the isolated test environment file.');
 const args=['compose','--project-name','eigenlands-render-test','--env-file',resolve(envFile),'-f',resolve('deploy/render/compose.test.yml')];
 const dc=(...command)=>execFileSync('docker',[...args,...command],{encoding:'utf8',timeout:120000,stdio:['pipe','pipe','pipe']});
+const run=promisify(execFile);
+const dcAsync=(...command)=>run('docker',[...args,...command],{timeout:120000});
 const url='http://127.0.0.1:2667',sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn){const end=Date.now()+90000;while(Date.now()<end){if(await fn())return;await sleep(100);}throw new Error('Deployment condition timed out');}
 async function connect(token,name){
@@ -26,7 +29,8 @@ try {
  current.room.send(MSG.DEV,{cmd:'tp',x:5000,y:5000});await sleep(250);assert(Math.hypot(current.ack.x-saved.x,current.ack.y-saved.y)<.2,'production must reject development commands');const coins=current.profile.coins;
  // Recreate both containers with the same volume/secret, as after a host restart or redeploy.
  console.log('Recreating containers with a connected player; last position', {x:saved.x,y:saved.y});
- dc('down');current=null;dc('up','-d','--no-build','--wait','--wait-timeout','90');
+ // Keep Node's event loop running so the SDK processes old socket close events during restart.
+ await dcAsync('down');current=null;await dcAsync('up','-d','--no-build','--wait','--wait-timeout','90');
  current=await connect(guest.token);console.log('Restored position', {x:current.ack.x,y:current.ack.y});assert(Math.hypot(current.ack.x-saved.x,current.ack.y-saved.y)<.1);assert.equal(current.profile.coins,coins);assert.equal(current.room.state.players.get(current.room.sessionId).name,'Render proof');
  await current.room.leave();current=null;
  // An actual custom-format dump must restore into a separate verification database.
