@@ -135,15 +135,17 @@ await sleep(1000);
 const after = await page.evaluate(async () => ({
   token: localStorage.getItem('eigen.token'),
   entered: !!window.__eigen,
-  records: await new Promise((res) => { const r = indexedDB.open('eigenlands-solo'); r.onsuccess = () => { const t = r.result.transaction('kv').objectStore('kv').count(); t.onsuccess = () => { res(t.result); r.result.close(); }; }; r.onerror = () => res(-1); }),
+  keys: await new Promise((res) => { const r = indexedDB.open('eigenlands-solo'); r.onsuccess = () => { const t = r.result.transaction('kv').objectStore('kv').getAllKeys(); t.onsuccess = () => { res(t.result); r.result.close(); }; }; r.onerror = () => res(null); }),
 }));
 console.log('after delete', after);
 if (after.token || after.entered) fail('still signed in after deleting data');
-if (after.records > 1) fail(`save not wiped (${after.records} records left)`);
+// Boot may recreate world identity and day-one clock metadata; no player/world records may survive.
+if (!Array.isArray(after.keys) || after.keys.some(k => !['meta:secret', 'meta:clock-offset'].includes(k))) fail(`save not wiped (${JSON.stringify(after.keys)})`);
 await page.click('#btn-guest');
 await ready();
 const s4 = await st();
 console.log('fresh start', { x: s4.x?.toFixed(2), y: s4.y?.toFixed(2), coins: s4.coins });
+if (!(s4.hour >= 6 && s4.hour < 7)) fail('new world clock did not restart at dawn');
 if (Math.hypot(s4.x - s0.x, s4.y - s0.y) > 1) fail('new character did not start at the spawn point');
 
 // ── everything stayed in the browser ──
