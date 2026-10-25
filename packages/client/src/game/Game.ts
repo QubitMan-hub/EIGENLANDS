@@ -1,3 +1,4 @@
+import { CAVE_BIOME_NAMES, caveRegionAt } from '@eigenlands/shared';
 import { ClickMining } from './click-mining';
 import { WorldPreparer } from './world-preparer';
 import { applyChunkSnapshot } from './chunk-updates';
@@ -29,7 +30,7 @@ import { depth, isoX, isoY, screenDir, unproject, ISO_HH, ISO_HW } from './iso';
 import { Gameplay } from './gameplay';
 
 /** The Undercroft's ambient light: near-black, a little warm (torches and crystals do the rest). */
-const CAVE_AMBIENT: [number, number, number] = [0.4, 0.37, 0.46];
+const CAVE_AMBIENT: [number, number, number] = [0.52, 0.49, 0.57];
 import { BuildingViews } from './buildingviews';
 import { WeatherFx } from './weatherfx';
 import { WorldObjViews } from './worldobjviews';
@@ -1063,7 +1064,7 @@ export class Game {
     const surfaceY = isDiveY(me.y) ? me.y - DIVE_OY : isUpperY(me.y) ? me.y - UPPER_OY : isCaveY(me.y) ? me.y - CAVE_OY : me.y;
     const town = townsFor(this.seed).reduce((best, t) => Math.hypot(t.cx - me.x, t.cy - surfaceY) < Math.hypot(best.cx - me.x, best.cy - surfaceY) ? t : best);
     const tdx = town.cx - me.x, tdy = town.cy - surfaceY, td = Math.hypot(tdx, tdy);
-    const place = isDiveY(me.y) ? 'Submerged sanctuary · ' : isUpperY(me.y) ? 'Upper floor · ' : isCaveY(me.y) ? 'Undercroft · ' : '';
+    const place = isDiveY(me.y) ? 'Submerged sanctuary · ' : isUpperY(me.y) ? 'Upper floor · ' : isCaveY(me.y) ? `${CAVE_BIOME_NAMES[caveRegionAt(this.seed,me.x,me.y).biome]} · ` : '';
     const arrow = (dx: number, dy: number) => ['→', '↘', '↓', '↙', '←', '↖', '↑', '↗'][Math.round(((Math.atan2(isoY(dx, dy), isoX(dx, dy)) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8];
     const ward = sanctuaryAt(this.seed, me.x, me.y);
     const route = this.ext.atlas.navigation();

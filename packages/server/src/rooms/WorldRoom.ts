@@ -1,3 +1,4 @@
+import { caveRegionAt } from '@eigenlands/shared';
 import { Client, Room, ServerError } from 'colyseus';
 import { StateView } from '@colyseus/schema';
 import {
@@ -222,6 +223,15 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     }
     await this.ensureAround(chunkOf(Math.floor(ch.x)), chunkOf(Math.floor(ch.y)), 1);
 
+    // Old saved cave positions can become rock after the network upgrade. Preserve edits,
+    // but move a trapped traveller to the dry district junction rather than leaving them stuck.
+    if(isCaveY(ch.y)&&!isDiveY(ch.y)&&this.store.solidAt(Math.floor(ch.x),Math.floor(ch.y))){
+      const r=caveRegionAt(this.seed,ch.x,ch.y);await this.ensureAround(chunkOf(r.x),chunkOf(r.y),1);
+      for(let radius=0;radius<=12;radius++){
+        let found=false;for(let dy=-radius;dy<=radius&&!found;dy++)for(let dx=-radius;dx<=radius&&!found;dx++)if(!this.store.solidAt(r.x+dx,r.y+dy)){ch.x=r.x+dx+.5;ch.y=r.y+dy+.5;found=true;}
+        if(found)break;
+      }
+    }
     const data = loadPlayerData(ch.data, this.wclock.season(), this.wclock.now());
     const st = new PlayerState();
     st.id = client.sessionId; st.name = ch.name; st.x = ch.x; st.y = ch.y; st.look = data.equip.outfit;
@@ -954,7 +964,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
         const a = this.rand() * Math.PI * 2, d = 16 + this.rand() * 10;
         const x = Math.floor(p.sim.x + Math.cos(a) * d) + .5, y = Math.floor(p.sim.y + Math.sin(a) * d) + .5;
         const habitat = biomeAt(this.seed, x, y);
-        const kind = pickSpawn(p.level, night, this.rand(), habitat, isCaveY(y)), def = ENEMY_DEFS[kind];
+        const kind = pickSpawn(p.level, night, this.rand(), habitat, isCaveY(y), isCaveY(y)?caveRegionAt(this.seed,x,y).biome:undefined), def = ENEMY_DEFS[kind];
         const cost = def.budget ?? 1;
         if (used + cost > budget || Math.hypot(x, y) < 12 || buildingAt(this.seed, x, y) || this.store.structureAt(Math.floor(x), Math.floor(y)) || sanctuaryAt(this.seed, x, y) || this.store.solidAt(Math.floor(x), Math.floor(y))) continue;
         if ([...this.players.values()].some(other => other.deadT <= 0 && Math.hypot(x - other.sim.x, y - other.sim.y) < 14)) continue;

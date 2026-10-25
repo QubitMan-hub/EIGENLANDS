@@ -134,7 +134,7 @@ export class ShrineModule implements Module {
 
   private spawnWave(p: ServerPlayer, s: Session): void {
     const sh = s.shrine;
-    const kinds = WAVES[s.wave]!;
+    const kinds:EnemyKind[] = s.shrine.id.startsWith('cs') ? ([['echo_bat','echo_bat'],['spore_sage','rime_skitter'],['prism_beetle','echo_bat']] as EnemyKind[][])[s.wave]! : WAVES[s.wave]!;
     kinds.forEach((k, i) => {
       const a = (i / kinds.length) * Math.PI * 2 + s.wave, x = sh.x + Math.cos(a) * 5.5, y = sh.y + Math.sin(a) * 5.5;
       const e = this.room.spawnEnemy(k, x, y, false, { level: Math.max(2, p.level + s.wave) });

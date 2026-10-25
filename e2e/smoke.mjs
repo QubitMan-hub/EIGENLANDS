@@ -10,7 +10,7 @@ const errors = [];
 const fail = (m) => { console.error('FAIL:', m); process.exitCode = 1; };
 
 const browser = await chromium.launch({
-  executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  executablePath: process.env.CHROME ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
   args: ['--use-angle=swiftshader', '--use-gl=angle', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'],
 });
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });

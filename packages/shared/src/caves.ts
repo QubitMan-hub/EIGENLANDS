@@ -1,3 +1,5 @@
+import{CAVE_OY,caveRegionAt,caveRegion,caveRouteDistance2,caveWaystation,caveTownAt,CAVE_TOWNS,caveExitsNear,segmentDistance2}from'./undercroft';
+export{CAVE_OY}from'./undercroft';
 import { mineralDeposit } from './distribution';
 import { CHUNK_SIZE } from './constants';
 import type { WorldObj } from './objects';
@@ -14,7 +16,7 @@ import { HOME_VALE, biomeAt, landmarkTileAt, type Biome } from './worldgen';
  * lit landing chamber with a ladder back up; from there winding tunnels and caverns hold ore veins, qubit crystals,
  * glowcaps, still pools, the torches of old miners and a forgotten cache. Cave rock can be dug: tunnels stay dug.
  */
-export const CAVE_OY = 40000;
+
 /** True for tiles on the cave plane. */
 export const isCaveY = (y: number): boolean => y >= CAVE_OY - 512;
 
@@ -49,55 +51,57 @@ export function caveOfCell(seed: number, gx: number, gy: number): CaveMouth | nu
   return out;
 }
 
+
+const shafts=new Map<string,CaveMouth|null>();
+export function caveShaftOfCell(seed:number,gx:number,gy:number):CaveMouth|null{
+ const key=`${seed}:${gx},${gy}`;if(shafts.has(key))return shafts.get(key)!;let out:CaveMouth|null=null;
+ if(!caveOfCell(seed,gx,gy))for(let k=12;k<48&&!out;k++){
+  const x=gx*72+8+Math.floor(hash2(seed,gx*17+k,gy,962)*56),y=gy*72+8+Math.floor(hash2(seed,gx,gy*17+k,963)*56);
+  if(Math.hypot(x,y)<HOME_VALE*.55||townAt(seed,x,y))continue;
+  let clear=true;for(let j=-1;j<=2;j++)for(let i=-1;i<=1;i++)if(isSolid(landmarkTileAt(seed,x+i,y+j)))clear=false;
+  if(clear)out={id:`sx${gx}_${gy}`,x,y,biome:biomeAt(seed,x,y)};
+ }
+ if(shafts.size>2048)shafts.clear();shafts.set(key,out);return out;
+}
+
 function mouthsNear(seed: number, x: number, y: number, r: number): CaveMouth[] {
   const out: CaveMouth[] = [];
   for (let gy = Math.floor((y - r) / CELL); gy <= Math.floor((y + r) / CELL); gy++) {
     for (let gx = Math.floor((x - r) / CELL); gx <= Math.floor((x + r) / CELL); gx++) {
       const m = caveOfCell(seed, gx, gy);
       if (m) out.push(m);
+      const secondary=caveShaftOfCell(seed,gx,gy);if(secondary)out.push(secondary);
     }
   }
   return out;
 }
 
-const noise = new Map<number, [Simplex2D, Simplex2D, Simplex2D]>();
-function caveNoise(seed: number): [Simplex2D, Simplex2D, Simplex2D] {
-  let n = noise.get(seed);
-  if (!n) { n = [new Simplex2D(seed ^ 0xca5e), new Simplex2D(seed ^ 0x0bed), new Simplex2D(seed ^ 0x7001)]; noise.set(seed, n); }
-  return n;
-}
-
-/** Generated tile of the cave plane at world (x, y) (y already on the cave plane). */
-export function caveTileAt(seed: number, x: number, y: number, legacy = false): number {
-  const ly = y - CAVE_OY;
-  const [a, b, c] = caveNoise(seed);
-  // landing chambers under every mouth: always open, always dry, kept clear of clutter
-  let landing = 99;
-  for (const m of mouthsNear(seed, x, ly, 8)) landing = Math.min(landing, Math.hypot((x - m.x) * 0.85, ly - m.y));
-  if (landing < 3.2) return T.CAVE_FLOOR;
-  // winding tunnels along the zero contours of two smooth fields (2-3 tiles wide), broad caverns where a third peaks
-  const worm = Math.min(Math.abs(a.fbm(x / 34, ly / 34, 2)), Math.abs(c.fbm(x / 41 + 60, ly / 41, 2)) * 1.1);
-  const hall = b.fbm(x / 46 + 100, ly / 46, 3);
-  const open = worm < 0.085 || hall > 0.32 || landing < 5.5 + 1.5 * c.noise(x / 6, ly / 6);
-  if (!open) {
-    // Mineable seams replace already-solid wall margins, preserving every open route and landing.
-    if (legacy) return T.CAVE_WALL;
-    const deposit = mineralDeposit(seed, x, ly);
-    return deposit !== null && (worm < 0.17 || hall > 0.24) ? deposit : T.CAVE_WALL;
-  }
-  if (hall > 0.46 && c.fbm(x / 14, ly / 14 + 40, 2) > 0.2 && landing > 7) return c.fbm(x / 14, ly / 14 + 40, 2) > 0.38 ? T.DEEP_WATER : T.WATER;
-  if (landing < 6) return T.CAVE_FLOOR;
-  const h = hash2(seed, x, y, 977);
-  if (h < 0.032 && legacy) {
-    const o = hash2(seed, x, y, 978);
-    return o < 0.3 ? T.ORE_IRON : o < 0.55 ? T.ORE_COPPER : o < 0.8 ? T.ORE_SILVER : T.ORE_GOLD;
-  }
-  if (h < 0.032) return T.CAVE_FLOOR; // keep walking space clear; minerals belong to the rock strata
-  if (h < 0.042) return T.CRYSTAL;
-  if (h < 0.065) return legacy || worm > 0.055 ? T.ROCK : T.CAVE_FLOOR;
-  if (h < 0.082) return T.SHIMMER;                                    // glowcaps
-  if (h < 0.085) return T.TORCH;                                    // an old miner's torch, still burning
-  return T.CAVE_FLOOR;
+const noise=new Map<number,Simplex2D>();
+/** Wide connected routes and authored discoveries; deposits replace rock, never the dry route core. */
+export function caveTileAt(seed:number,x:number,y:number,legacy=false):number{
+ const ly=y-CAVE_OY,r=caveRegionAt(seed,x,y),route=caveRouteDistance2(seed,x,y);
+ let landing=Infinity;for(const m of mouthsNear(seed,x,ly,9))landing=Math.min(landing,(x-m.x)**2+(ly-m.y)**2);
+ const lift=caveWaystation(seed,r.gx,r.gy),ld=lift?Math.hypot(x-lift.x,y-lift.y):Infinity;
+ if(landing<42||ld<4)return T.CAVE_FLOOR;
+ let n=noise.get(seed);if(!n){n=new Simplex2D(seed^0xca5e);if(noise.size>8)noise.clear();noise.set(seed,n);}
+ const dx=x-r.x,dy=y-r.y,room=(dx/r.rx)**2+(dy/r.ry)**2;
+ const lake=(r.feature==='lake'||r.biome==='drowned')&&((dx-8)/10)**2+((dy-5)/8)**2<1;
+ if(route<6.25)return lake?T.FLOOR:T.PATH;
+ // Preserve a roomy, dry centre for orientation, combat and district connections.
+ if(dx*dx+dy*dy<110)return T.CAVE_FLOOR;
+ const sx=r.gx*72+12,sy=CAVE_OY+r.gy*72+12,secret=Math.hypot(x-sx,y-sy);
+ if(r.feature==='secret'&&secret<8)return secret<5.5?T.CAVE_FLOOR:T.CAVE_WALL;
+ const spur=r.feature==='secret'&&segmentDistance2(x,y,r,{x:sx,y:sy})<5;
+ // A guaranteed connector from each legacy mouth joins the same junction network.
+ let access=false;for(const m of mouthsNear(seed,x,ly,52)){const hub=caveRegionAt(seed,m.x,m.y+CAVE_OY);if(hub.gx===r.gx&&hub.gy===r.gy&&segmentDistance2(x,y,{x:m.x,y:m.y+CAVE_OY},hub)<10)access=true;}
+ const open=route<22||access||spur||room<1+.13*n.noise(x/9,ly/9);
+ if(!open){if(legacy)return T.CAVE_WALL;const deposit=mineralDeposit(seed,x,ly);return deposit!==null&&(route<65||room<1.5)?deposit:T.CAVE_WALL;}
+ if(access||spur)return T.CAVE_FLOOR;
+ if(r.feature==='puzzle'||r.feature==='arena'||r.feature==='ruins'||r.feature==='vents')return T.CAVE_FLOOR;
+ if(lake)return room<.65?T.DEEP_WATER:T.WATER;
+ const h=hash2(seed,x,y,977);if(h<(r.biome==='crystal'?.025:.009)&&room>.55)return T.CRYSTAL;
+ if(h<.02&&room>.72&&room<1.05)return T.ROCK;if(h<.045&&(r.biome==='glowmoss'||r.feature==='grove'))return T.SHIMMER;
+ return T.CAVE_FLOOR;
 }
 
 /** Static objects of chunk (cx, cy): cave mouths on the surface; ladders and forgotten caches below. */
@@ -113,27 +117,43 @@ export function caveObjectsIn(seed: number, cx: number, cy: number): WorldObj[] 
       continue;
     }
     if (inChunk(m.x, m.y + CAVE_OY)) out.push({ x: m.x, y: m.y + CAVE_OY, kind: 'deco', sub: 'cave_ladder', static: true, data: { cave: m.id } });
-    const k = cacheSpot(seed, m);
-    if (k && inChunk(k.x, k.y)) out.push({ x: k.x, y: k.y, kind: 'deco', sub: 'ruin_cache', static: true, data: { ruin: `${m.id}c`, biome: m.biome } });
+
+  }
+  if(below){
+   for(let gy=Math.floor(sy/72);gy<=Math.floor((sy+31)/72);gy++)for(let gx=Math.floor(x0/72);gx<=Math.floor((x0+31)/72);gx++){
+    const r=caveRegion(seed,gx,gy),lift=caveWaystation(seed,gx,gy);
+    const add=(x:number,y:number,sub:string,data:Record<string,unknown>={})=>{if(inChunk(x,y)&&!caveTownAt(x,y))out.push({x,y,kind:sub==='cave_waymark'?'sign':'deco',sub,static:true,data});};
+    if(lift)add(lift.x,lift.y,'cave_lift',{cave:lift.id});
+    add(r.x,r.y+7,'cave_waymark',{text:`${r.biome.toUpperCase()} · survey district ${gx}, ${gy}. Depth band ${r.depth}. Broad marked passages connect every junction. Supply lifts lie at every other junction; the Atlas can track the nearest exit.`});
+    if(r.feature==='secret')add(gx*72+12,CAVE_OY+gy*72+12,'ruin_cache',{ruin:`${r.id}:secret`,biome:'enchanted',cave:true,depth:r.depth,secret:true});
+    else if(r.feature==='ruins'){
+     add(r.x-7,r.y-6,'ruin_cache',{ruin:`${r.id}:archive`,biome:'enchanted',cave:true,depth:r.depth});
+     add(r.x+7,r.y-6,'ruin_pillar');add(r.x-8,r.y+4,'ruin_pillar');
+    }else if(r.feature==='vents'){add(r.x+7,r.y-6,'cave_vent',{region:r.id});}
+    else if(r.feature==='arena')add(r.x+7,r.y-6,'cave_altar',{region:r.id,depth:r.depth});
+    if(r.biome==='glowmoss'||r.feature==='grove'){add(r.x-10,r.y+8,'ruin_crystal');add(r.x+11,r.y+8,'ruin_monolith');}
+   }
   }
   return out;
 }
 
-/** A dry, open tile some way down the tunnels from the landing where a cache was left behind. */
-function cacheSpot(seed: number, m: CaveMouth): { x: number; y: number } | null {
-  for (let k = 0; k < 24; k++) {
-    const a = hash2(seed, m.x + k, m.y, 981) * Math.PI * 2, d = 9 + hash2(seed, m.x, m.y + k, 982) * 14;
-    const x = Math.round(m.x + Math.cos(a) * d), y = Math.round(m.y + Math.sin(a) * d) + CAVE_OY;
-    if (caveTileAt(seed, x, y, true) === T.CAVE_FLOOR && caveTileAt(seed, x, y + 1, true) === T.CAVE_FLOOR && caveTileAt(seed, x - 1, y, true) === T.CAVE_FLOOR) return { x, y };
-  }
-  return null;
-}
-
 /** Where a traveller stands after climbing down (cave) or out (surface) of mouth `id`. */
 export function caveLanding(seed: number, id: string, down: boolean): { x: number; y: number } | null {
-  const m = /^cv(-?\d+)_(-?\d+)$/.exec(id);
+  const town=CAVE_TOWNS.find(t=>`townlift:${t.id}`===id&&!t.abandoned);
+  if(town){if(down)return{x:town.cx+3.5,y:town.cy+6.5};const home=townFor(seed),spot=home.spots.plaza_d??{x:home.cx,y:home.cy+4};return{x:spot.x+.5,y:spot.y+.5};}
+  const lift=/^lf(-?\d+)_(-?\d+)$/.exec(id);
+  if(lift){const p=caveWaystation(seed,Number(lift[1]),Number(lift[2]));if(!p)return null;
+   if(down)return{x:p.x+.5,y:p.y+1.5};const near=mouthsNear(seed,p.x,p.y-CAVE_OY,216).sort((a,b)=>Math.hypot(a.x-p.x,a.y+CAVE_OY-p.y)-Math.hypot(b.x-p.x,b.y+CAVE_OY-p.y))[0];
+   if(near)return{x:near.x+.5,y:near.y+1.5};const t=townFor(seed),q=t.spots.plaza_d??{x:t.cx,y:t.cy+4};return{x:q.x+.5,y:q.y+.5};
+  }
+  const m = /^(cv|sx)(-?\d+)_(-?\d+)$/.exec(id);
   if (!m) return null;
-  const mouth = caveOfCell(seed, Number(m[1]), Number(m[2]));
+  const mouth = m[1]==='sx'?caveShaftOfCell(seed,Number(m[2]),Number(m[3])):caveOfCell(seed, Number(m[2]), Number(m[3]));
   if (!mouth) return null;
   return down ? { x: mouth.x + 0.5, y: mouth.y + CAVE_OY + 1.5 } : { x: mouth.x + 0.5, y: mouth.y + 1.5 };
+}
+
+/** Existing nearby ladders take priority over more distant emergency lifts. */
+export function caveExitRoutes(seed:number,x:number,y:number):Array<{id:string;name:string;x:number;y:number}>{
+ return [...caveExitsNear(seed,x,y),...mouthsNear(seed,x,y-CAVE_OY,100).map(m=>({id:m.id,name:'Surface ladder',x:m.x,y:m.y+CAVE_OY}))].sort((a,b)=>Math.hypot(a.x-x,a.y-y)-Math.hypot(b.x-x,b.y-y));
 }

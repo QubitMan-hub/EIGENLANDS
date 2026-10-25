@@ -37,7 +37,7 @@ it('lantern moves are reversible and all generated move combinations can be solv
 });
 
 it('coastal residents have furnished homes on dry ground and every harbour opens onto the sea', () => {
-  expect(NPCS.filter(n => n.settlement)).toHaveLength(40);
+  expect(NPCS.filter(n => PORTS.some(p=>p.id===n.settlement))).toHaveLength(40);
   const towns = townsFor(1337), merged = Object.assign({}, ...towns.map(t => t.spots));
   for (const [name, position] of Object.entries(towns[0]!.spots)) expect(merged[name], `Hadamere spot ${name} must stay local`).toEqual(position);
   for (const seed of [1337, 20260101]) for (const port of PORTS) {

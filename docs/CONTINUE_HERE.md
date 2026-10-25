@@ -1,3 +1,15 @@
+# Current continuation: Undercroft survey network (2026-10-25)
+
+Implemented inline on `codex/undercroft-overhaul`, without subagents. See [UNDERCROFT.md](UNDERCROFT.md) for controls, cave content, save compatibility, test scripts and exact scope. The original gathering/interior work below remains intact.
+
+The cave network now uses broad interconnected districts, large rooms, six habitats, dry lake bridges, sealed mining secrets, ruined caches, supply lifts and secondary shafts. Original cave-mouth IDs/coordinates remain stable; mined diffs win over generated terrain. Atlas guidance tracks existing nearby ladders or emergency lifts without charting terrain, and records the entry chamber from authoritative positions.
+
+Two occupied cave towns have 16 residents, furnished shops/homes, schedules, friendship, shops, quests and sanctuary wards. Two abandoned towns deliberately have no ward, with lore, archives, caches and guardian encounters. Six original ambient enemies, two guardian kinds, a craftable level-12 arena boss, cave shrine challenges and warned steam vents reuse existing combat/reward/persistence systems. The Bellkeeper has phases and delayed echo tolls. Supply lifts are one-way returns, depth bands use distance on the existing plane, and extra bosses/vertical strata/phone hardware validation remain in [REMAINING_WORK.md](REMAINING_WORK.md).
+
+Verification: full workspace regression pass (548 tests before the final two focused regression checks), all 171 shared tests, the four cave authority/integration checks plus four existing stairs/diving/trap tests, typechecks and both production builds. Art lab passes five native props and 72 creature poses with nine distinct model images. Production solo and multiplayer cave replays pass entrances, lifts, entry persistence, six habitats, shrine interaction, four towns, loot, arena summoning and mobile Atlas; generic solo save/reload and multiplayer smoke also pass. An actual touch landscape context passes tapping the mini-atlas, exit tracking and panel overflow checks. Final-head CI is recorded on the pull request. Development captures/logs: `/tmp/cave-*`; repeatable scripts `e2e/undercroft-art.mjs` and `e2e/undercroft.mjs`.
+
+---
+
 # Current continuation: gathering, deliberate dodges and interior polish (2026-10-24)
 
 Built inline on `codex/gathering-combat-interiors`, no subagents. Final GitHub integration/CI evidence belongs to this branch's pull request.

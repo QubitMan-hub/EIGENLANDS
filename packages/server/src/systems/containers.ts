@@ -81,14 +81,19 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
     if (!p.data.deeds.statue) recordDeed(p, 'statue', 'the plaque', room.wclock.day());
     return;
   }
+  if(o.static&&o.sub==='cave_altar'){
+    if(countItem(p.data.inv,'deep_sigil')<1){p.toast('A resonant arena. Craft a Deep Sigil at a workbench, then return at level 12.');return;}
+    if(room.summonBoss?.(p,'deep_sigil',o.x-7,o.y+6)){removeItem(p.data.inv,'deep_sigil',1);p.dirty('inv');}return;
+  }
   if (o.static && (o.sub === 'ruin_cache' || o.sub === 'sea_cache')) { openRuinCache(room, p, o); return; }
-  if (o.static && (o.sub === 'cave_mouth' || o.sub === 'cave_ladder')) { await climb(room, p, o); return; }
+  if (o.static && (o.sub === 'cave_mouth' || o.sub === 'cave_ladder' || o.sub === 'cave_lift')) { await climb(room, p, o); return; }
   if (o.static && RUIN_LORE[o.sub]) {
     const l = RUIN_LORE[o.sub]!;
     p.client.send(MSG.PANEL, { kind: 'lore', tx: o.x, ty: o.y, sub: o.sub, lore: { title: RUIN_NAMES[o.sub] ?? 'Ruin', plaque: l.plaque, epitaph: l.epitaph, pages: [...l.pages] } });
     return;
   }
   if (o.static && o.sub === 'board') { p.client.send(MSG.PANEL, boardPanel(p, room.wclock.day(), room.seed, { x: o.x, y: o.y })); return; }
+  if(o.kind==='sign'&&['cave_archive','cave_waymark'].includes(o.sub))questEvent(p,{type:'read',target:o.sub,n:1});
   sendPanel(p, o);
 }
 
@@ -154,12 +159,12 @@ export function handleShelter(room: RoomApi, p: ServerPlayer, msg: ShelterMsg): 
 
 /** A ruin's treasure cache: every traveller may open each one once. */
 function openRuinCache(room: RoomApi, p: ServerPlayer, o: WorldObj): void {
-  const d = (o.data ?? {}) as { ruin?: string; biome?: string };
+  const d = (o.data ?? {}) as { ruin?: string; biome?: string; cave?: boolean; depth?: number; secret?: boolean };
   const id = typeof d.ruin === 'string' ? d.ruin : `${o.x},${o.y}`;
   if (p.data.prog.ruins.includes(id)) { p.toast('Only dust and old wax left. You have already searched this cache.'); return; }
   const biome = (BIOMES as readonly string[]).includes(d.biome ?? '') ? (d.biome as Biome) : 'meadow';
   const ocean = o.sub === 'sea_cache';
-  const loot = ocean ? [{ id: 'doubloon', n: 2 + Math.floor(hash2(room.seed, o.x, o.y, 1703) * 4) }, { id: 'cloth', n: 2 }, { id: hash2(room.seed, o.x, o.y, 1704) < 0.15 ? 'qubit_crystal' : 'plank', n: 1 }] : ruinLoot(room.seed, id, biome, room.rand);
+  const loot = d.cave ? [{id:'iron_ore',n:2+Math.min(4,d.depth??1)},{id:d.secret?'qubit_crystal':'healing_potion',n:d.secret?1:2},{id:'coal',n:3}] : ocean ? [{ id: 'doubloon', n: 2 + Math.floor(hash2(room.seed, o.x, o.y, 1703) * 4) }, { id: 'cloth', n: 2 }, { id: hash2(room.seed, o.x, o.y, 1704) < 0.15 ? 'qubit_crystal' : 'plank', n: 1 }] : ruinLoot(room.seed, id, biome, room.rand);
   if (!giveStacks(p, loot)) { p.toast('Your pack is too full to carry the cache\'s contents.', 'bad'); return; }
   p.data.prog.ruins.push(id);
   p.dirty('inv');
@@ -174,7 +179,7 @@ async function climb(room: RoomApi, p: ServerPlayer, o: WorldObj): Promise<void>
   const to = typeof id === 'string' ? caveLanding(room.seed, id, down) : null;
   if (!to) return;
   await room.ensureChunk(chunkOf(Math.floor(to.x)), chunkOf(Math.floor(to.y)));
-  p.sim.x = to.x; p.sim.y = to.y;
+  p.sim.x = to.x; p.sim.y = to.y; p.sim.dashT = 0;
   p.queue.length = 0;
   p.toast(down ? 'You climb down into the Undercroft. Mind the dark.' : 'You climb back up into the daylight.');
   room.fx({ kind: 'craft', x: to.x, y: to.y });

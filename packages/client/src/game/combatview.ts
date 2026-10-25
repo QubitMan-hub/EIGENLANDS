@@ -72,7 +72,7 @@ export interface CombatDeps {
 const TIP_KEY = 'eigen.combatTips';
 const TIPS: Record<string, string> = {
   combo: 'Combat: tap Attack (J / left click) for a 3-hit combo — the 3rd hit is a lunging finisher. HOLD Attack to charge a heavy strike, release to unleash it.',
-  dodge: 'Red ground = an incoming attack. Dash (Space) THROUGH it just before it fills to Phase Slip: slow-mo, a refunded dash and a guaranteed critical counter.',
+  dodge: 'Red ground = an incoming attack. Dodge THROUGH it just before it fills to Phase Slip: slow-mo, a refunded dash and a guaranteed critical counter.',
   orb: 'Phase Wisps fire slow orbs: dash through them — or swing at one to bat it back at them!',
   brute: 'Decoherent Brutes are armoured: light hits barely stagger them. Use finishers and charged heavies, or bait the charge into a wall.',
   charges: 'You have 2 dash charges (pips under your feet). They refill one at a time.',

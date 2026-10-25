@@ -1,3 +1,4 @@
+import { CAVE_RESIDENTS } from './undercroft';
 import { PORT_RESIDENTS } from './settlements';
 import { ITEMS, type Stack } from './items';
 import { CROPS } from './crops';
@@ -124,6 +125,21 @@ QUESTS.push(...PORT_RESIDENTS.map((n): QuestDef => {
   const item = ['cloth', 'plank', 'healing_herb', 'copper_ingot', 'carp', 'stone'][n.index % 6]!;
   const amount = item === 'stone' ? 8 : item === 'copper_ingot' ? 2 : 3;
   return { id: `port_${n.id}`, giver: n.id, title: `${n.name.split(' ')[0]}'s ${['Sail Repairs', 'Quay Timber', 'Medicine Chest', 'Lantern Fittings', 'Harbour Supper', 'Storm Wall'][n.index % 6]}`, summary: `Bring ${amount} ${ITEMS[item]!.name.toLowerCase()} to ${n.name}.`, where: `${n.name}, ${n.port} harbour`, objectives: [{ type: 'deliver', target: item, n: amount, label: `Bring ${amount} ${ITEMS[item]!.name}` }], rewards: { coins: Math.round(ITEMS[item]!.value * amount * 0.85) + 20, friend: 25, xp: 25 }, lines: { offer: `The crossing was rough on our supplies. Could you bring ${amount} ${ITEMS[item]!.name.toLowerCase()}? I will pay a fair share and remember the kindness.`, progress: `I still need ${amount} ${ITEMS[item]!.name.toLowerCase()}. You will find me near the quay or market.`, done: `That is exactly what we needed. The harbour is safer for your help, ${n.title.toLowerCase()} or no.` } };
+}));
+
+QUESTS.push(...CAVE_RESIDENTS.map((n):QuestDef=>{
+ const plans=[
+  {title:'Keep the Lamps Alight',type:'deliver',target:'coal',amount:8,task:'Bring eight coal to keep the settlement lamps burning.'},
+  {title:'Fresh Lift Ropes',type:'deliver',target:'cloth',amount:3,task:'Bring three cloth for the supply lift ropes.'},
+  {title:'Medicine Below',type:'deliver',target:'healing_herb',amount:4,task:'Bring four healing herbs for injured surveyors.'},
+  {title:'Quiet the Echoes',type:'kill',target:'echo_bat',amount:4,task:'Defeat four Echo Bats along the survey roads. Bait a dive, then punish the landing.'},
+  {title:'The Lost Survey',type:'read',target:'cave_archive',amount:1,task:'Read a surviving archive in abandoned Bellfall or Stillwater Refuge.'},
+  {title:'Iron for the Shafts',type:'deliver',target:'iron_ore',amount:5,task:'Bring five iron ore to repair the shaft braces.'},
+  {title:'Read the Roads',type:'read',target:'cave_waymark',amount:1,task:'Find and read a survey waymark at a cavern junction.'},
+  {title:'Supper from Stillwater',type:'deliver',target:'carp',amount:2,task:'Bring two carp for the communal kitchen. Try a cavern lake with your fishing rod.'},
+ ]as const;
+ const q=plans[n.local]!;
+ return{id:`cave_${n.id}`,giver:n.id,title:q.title,summary:q.task,where:`${n.name}, ${n.town}`,objectives:[{type:q.type,target:q.target,n:q.amount,label:q.task}],rewards:{coins:q.type==='read'?100:q.type==='kill'?100:Math.round(ITEMS[q.target]!.value*q.amount*1.1)+20,xp:45,friend:25},lines:{offer:`${n.culture} ${q.task}`,progress:q.task+' Follow the dry survey roads; the Atlas can track the nearest exit.',done:'You have given this place another reason to keep the lamps burning.'}};
 }));
 
 export const QUEST_BY_ID: Record<string, QuestDef> = Object.fromEntries(QUESTS.map((x) => [x.id, x]));

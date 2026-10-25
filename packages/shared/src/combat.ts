@@ -1,3 +1,4 @@
+import type { CaveBiome } from './undercroft';
 import type { Biome } from './worldgen';
 import { IFRAME_TIME, PERFECT_WINDOW, PROJECTILE_DAMAGE } from './constants';
 
@@ -261,7 +262,7 @@ export const REFLECT_SPEED_MULT = 1.7;
 export const REFLECT_DAMAGE = 18;
 
 const melee = { ai: 'melee' as const };
-export const ENEMY_DEFS: Record<'slime' | 'hopper' | 'rabbit' | 'deer' | 'wisp' | 'brute' | 'mite' | 'boar' | 'wolf' | 'badger' | 'slime_king' | 'warden' | 'colossus' | 'pirate' | 'serpent' | 'fox' | 'otter' | 'tortoise' | 'owl' | 'thornling' | 'glasscrawler' | 'guild_guard' | 'reed_stalker' | 'cinder_moth', EnemyDef> = {
+export const ENEMY_DEFS: Record<'slime' | 'hopper' | 'rabbit' | 'deer' | 'wisp' | 'brute' | 'mite' | 'boar' | 'wolf' | 'badger' | 'slime_king' | 'warden' | 'colossus' | 'pirate' | 'serpent' | 'fox' | 'otter' | 'tortoise' | 'owl' | 'thornling' | 'glasscrawler' | 'guild_guard' | 'reed_stalker' | 'cinder_moth' | 'echo_bat' | 'spore_sage' | 'prism_beetle' | 'blind_ram' | 'rime_skitter' | 'pool_lurker' | 'vault_guardian' | 'spore_matriarch' | 'bellkeeper', EnemyDef> = {
   slime: { kind: 0, name: 'Wisp Slime', hp: 30, speed: 2.1, radius: 0.4, damage: 7, sight: 7, windup: 0.55, strikeRange: 1.1, xp: 10, ...melee, poise: 8, staggerTime: 0.7, cooldown: 0.5, budget: 1, drops: [{ item: 'slime_gel', min: 1, max: 2, chance: 0.7 }] },
   hopper: { kind: 1, name: 'Glint Hopper', hp: 22, speed: 3.0, radius: 0.35, damage: 9, sight: 9, windup: 0.7, strikeRange: 3.0, xp: 14, ai: 'leap', poise: 6, staggerTime: 0.7, cooldown: 0.6, budget: 1, drops: [{ item: 'hopper_tooth', min: 1, max: 1, chance: 0.45 }, { item: 'hide', min: 1, max: 1, chance: 0.25 }] },
   rabbit: { kind: 2, name: 'Meadow Rabbit', passive: true, ai: 'passive', hp: 8, speed: 4.6, radius: 0.3, damage: 0, sight: 6, windup: 0, strikeRange: 0, xp: 3, drops: [{ item: 'raw_meat', min: 1, max: 1, chance: 0.9 }, { item: 'hide', min: 1, max: 1, chance: 0.5 }] },
@@ -286,6 +287,15 @@ export const ENEMY_DEFS: Record<'slime' | 'hopper' | 'rabbit' | 'deer' | 'wisp' 
   glasscrawler: { kind: 20, name: 'Prism Crawler', hp: 34, speed: 3.1, radius: 0.35, damage: 12, sight: 9, windup: 0.8, strikeRange: 3.1, xp: 26, ai: 'leap', poise: 8, staggerTime: 0.8, cooldown: 1.5, budget: 1.5, drops: [{ item: 'copper_ore', min: 1, max: 2, chance: 0.7 }, { item: 'qubit_crystal', min: 1, max: 1, chance: 0.08 }] },
   reed_stalker: {kind:22,name:'Reed Stalker',hp:42,speed:2.7,radius:.4,damage:10,sight:8,windup:.9,strikeRange:3.4,xp:25,ai:'ambusher',poise:10,staggerTime:.9,cooldown:2.2,budget:1.5,drops:[{item:'fiber',min:2,max:4,chance:1},{item:'healing_herb',min:1,max:1,chance:.2}]},
   cinder_moth: {kind:23,name:'Cinder Moth',hp:28,speed:2.8,radius:.3,damage:8,sight:10,windup:1,strikeRange:6.5,xp:28,ai:'harrier',poise:6,staggerTime:.8,cooldown:2.4,budget:1.5,drops:[{item:'coal',min:1,max:2,chance:1},{item:'qubit_crystal',min:1,max:1,chance:.08}]},
+  echo_bat: {kind:24,name:'Echo Bat',hp:20,speed:3.1,radius:.28,damage:5,sight:8,windup:1,strikeRange:3.3,xp:14,ai:'ambusher',poise:5,staggerTime:1,cooldown:2.8,budget:1,drops:[{item:'fiber',min:1,max:2,chance:.8}]},
+  spore_sage: {kind:25,name:'Spore Sage',hp:32,speed:1.5,radius:.4,damage:7,sight:9,windup:1.3,strikeRange:6,xp:24,ai:'caster',poise:8,staggerTime:1.2,cooldown:3,budget:1.5,drops:[{item:'healing_herb',min:1,max:2,chance:.8}]},
+  prism_beetle: {kind:26,name:'Prism Scarab',hp:54,speed:1.8,radius:.42,damage:9,sight:7,windup:1,strikeRange:1.5,xp:28,ai:'melee',armor:true,poise:20,staggerTime:1.4,cooldown:1.8,budget:2,drops:[{item:'copper_ore',min:1,max:3,chance:1},{item:'qubit_crystal',min:1,max:1,chance:.12}]},
+  blind_ram: {kind:27,name:'Blindstone Ram',hp:68,speed:1.5,radius:.5,damage:12,sight:8,windup:1.2,strikeRange:7,xp:35,ai:'boar',poise:24,staggerTime:1.8,cooldown:2.8,budget:2,drops:[{item:'iron_ore',min:1,max:3,chance:1}]},
+  rime_skitter: {kind:28,name:'Rime Skitter',hp:26,speed:2.8,radius:.3,damage:8,sight:8,windup:.9,strikeRange:3.5,xp:23,ai:'leap',poise:6,staggerTime:1,cooldown:2,budget:1.5,drops:[{item:'silver_ore',min:1,max:2,chance:.45}]},
+  pool_lurker: {kind:29,name:'Stillwater Lurker',hp:38,speed:2.2,radius:.4,damage:9,sight:9,windup:1.2,strikeRange:6,xp:26,ai:'harrier',poise:8,staggerTime:1,cooldown:2.8,budget:1.5,drops:[{item:'slime_gel',min:2,max:3,chance:1},{item:'healing_potion',min:1,max:1,chance:.15}]},
+  vault_guardian: {kind:30,name:'Vault Guardian',hp:240,speed:1.4,radius:.7,damage:15,sight:12,windup:1.3,strikeRange:7,xp:140,ai:'brute',armor:true,poise:65,staggerTime:2,cooldown:2.2,aoe:1.3,budget:4,drops:[{item:'gold_ore',min:3,max:5,chance:1},{item:'qubit_crystal',min:1,max:2,chance:1}]},
+  spore_matriarch: {kind:31,name:'Lanternroot Matriarch',hp:200,speed:1.2,radius:.75,damage:13,sight:12,windup:1.6,strikeRange:7,xp:140,ai:'caster',poise:40,staggerTime:2,cooldown:2.5,budget:4,drops:[{item:'healing_potion',min:2,max:4,chance:1},{item:'qubit_crystal',min:1,max:2,chance:1}]},
+  bellkeeper: {kind:32,name:'The Hollow Bellkeeper',boss:true,hp:1100,speed:1.5,radius:1,damage:17,sight:18,windup:1.3,strikeRange:7,xp:700,ai:'brute',armor:true,poise:160,staggerTime:1.8,resist:.1,cooldown:2,aoe:1.6,budget:99,drops:[{item:'heart_crystal',min:1,max:1,chance:1},{item:'qubit_crystal',min:3,max:5,chance:1},{item:'gold_ingot',min:3,max:5,chance:1}]},
   guild_guard: { kind: 21, name: 'Guild Escort', hp: 60, speed: 2.6, radius: 0.35, damage: 8, sight: 8, windup: 0.65, strikeRange: 1.2, xp: 0, ai: 'melee', poise: 14, staggerTime: 0.9, cooldown: 1.1, budget: 2, drops: [] },
   // ── bosses (see bosses.ts)
   slime_king: { kind: 10, name: 'Gelatinous Sovereign', boss: true, hp: 900, speed: 1.5, radius: 1.4, damage: 16, sight: 18, windup: 1.1, strikeRange: 5, xp: 500, ai: 'leap', poise: 150, staggerTime: 1.2, armor: true, resist: 0.08, cooldown: 1.3, aoe: 3, budget: 99,
@@ -299,7 +309,7 @@ export const ENEMY_DEFS: Record<'slime' | 'hopper' | 'rabbit' | 'deer' | 'wisp' 
   colossus: { kind: 12, name: 'Decoherent Colossus', boss: true, hp: 2200, speed: 1.8, radius: 1.5, damage: 26, sight: 20, windup: 1.0, strikeRange: 9, xp: 1600, ai: 'brute', poise: 300, staggerTime: 1.4, armor: true, resist: 0.1, cooldown: 1.3, aoe: 2.2, budget: 99,
     drops: [{ item: 'void_core', min: 1, max: 1, chance: 1 }, { item: 'heart_crystal', min: 2, max: 2, chance: 1 }, { item: 'qubit_crystal', min: 4, max: 6, chance: 1 }, { item: 'iron_ore', min: 6, max: 10, chance: 1 }, { item: 'coal', min: 4, max: 8, chance: 1 }] },
 };
-export const ENEMY_BY_KIND: EnemyDef[] = [ENEMY_DEFS.slime, ENEMY_DEFS.hopper, ENEMY_DEFS.rabbit, ENEMY_DEFS.deer, ENEMY_DEFS.wisp, ENEMY_DEFS.brute, ENEMY_DEFS.mite, ENEMY_DEFS.boar, ENEMY_DEFS.wolf, ENEMY_DEFS.badger, ENEMY_DEFS.slime_king, ENEMY_DEFS.warden, ENEMY_DEFS.colossus, ENEMY_DEFS.pirate, ENEMY_DEFS.serpent, ENEMY_DEFS.fox, ENEMY_DEFS.otter, ENEMY_DEFS.tortoise, ENEMY_DEFS.owl, ENEMY_DEFS.thornling, ENEMY_DEFS.glasscrawler, ENEMY_DEFS.guild_guard, ENEMY_DEFS.reed_stalker, ENEMY_DEFS.cinder_moth];
+export const ENEMY_BY_KIND: EnemyDef[] = [ENEMY_DEFS.slime, ENEMY_DEFS.hopper, ENEMY_DEFS.rabbit, ENEMY_DEFS.deer, ENEMY_DEFS.wisp, ENEMY_DEFS.brute, ENEMY_DEFS.mite, ENEMY_DEFS.boar, ENEMY_DEFS.wolf, ENEMY_DEFS.badger, ENEMY_DEFS.slime_king, ENEMY_DEFS.warden, ENEMY_DEFS.colossus, ENEMY_DEFS.pirate, ENEMY_DEFS.serpent, ENEMY_DEFS.fox, ENEMY_DEFS.otter, ENEMY_DEFS.tortoise, ENEMY_DEFS.owl, ENEMY_DEFS.thornling, ENEMY_DEFS.glasscrawler, ENEMY_DEFS.guild_guard, ENEMY_DEFS.reed_stalker, ENEMY_DEFS.cinder_moth, ENEMY_DEFS.echo_bat, ENEMY_DEFS.spore_sage, ENEMY_DEFS.prism_beetle, ENEMY_DEFS.blind_ram, ENEMY_DEFS.rime_skitter, ENEMY_DEFS.pool_lurker, ENEMY_DEFS.vault_guardian, ENEMY_DEFS.spore_matriarch, ENEMY_DEFS.bellkeeper];
 export type EnemyKindName = keyof typeof ENEMY_DEFS;
 
 export const NIGHT_HP_MULT = 1.6;
@@ -323,10 +333,14 @@ export function enemyScale(level: number): { hp: number; dmg: number; xp: number
 }
 
 /** Ambient encounter weights by habitat, level and time of day. */
-export function spawnTable(level: number, night: boolean, biome: Biome = 'meadow', cave = false): Array<{ kind: EnemyKindName; w: number }> {
+export function spawnTable(level: number, night: boolean, biome: Biome = 'meadow', cave = false, cavern: CaveBiome = 'limestone'): Array<{ kind: EnemyKindName; w: number }> {
+  if(cave){
+    const kinds:Record<CaveBiome,EnemyKindName[]>={limestone:['echo_bat','blind_ram'],glowmoss:['echo_bat','spore_sage'],crystal:['prism_beetle','echo_bat'],basalt:['blind_ram','prism_beetle'],frost:['rime_skitter','echo_bat'],drowned:['pool_lurker','spore_sage']};
+    const allowed=kinds[cavern].filter(k=>level>=3||k!=='blind_ram'&&k!=='prism_beetle');
+    return level<2||!allowed.length?[{kind:'echo_bat',w:1}]:allowed.map(kind=>({kind,w:2}));
+  }
   if (level < 2) return [{ kind: 'slime', w: 3 }, { kind: 'hopper', w: 1 }];
-  const table: Array<[EnemyKindName, number]> = cave ? [['mite', 5], ['slime', 3], ['glasscrawler', 2], ['brute', 1], ['cinder_moth',2]]
-    : biome === 'enchanted' ? [['wisp', 6], ['glasscrawler', 4], ['hopper', 1]]
+  const table: Array<[EnemyKindName, number]> = biome === 'enchanted' ? [['wisp', 6], ['glasscrawler', 4], ['hopper', 1]]
     : biome === 'corrupted' ? [['mite', 5], ['brute', 3], ['glasscrawler', 2]]
     : biome === 'swamp' ? [['slime', 6], ['mite', 2], ['wisp', night ? 2 : 0], ['reed_stalker',2]]
     : biome === 'desert' ? [['hopper', 5], ['mite', 3], ['brute', 1], ['cinder_moth',2]]
@@ -336,8 +350,8 @@ export function spawnTable(level: number, night: boolean, biome: Biome = 'meadow
   return table.filter(([kind, w]) => w > 0 && (kind!=='reed_stalker'||level>=4) && (kind!=='cinder_moth'||level>=5) && (!['brute', 'wolf', 'thornling', 'glasscrawler'].includes(kind) || level >= (kind === 'brute' ? 4 : 3))).map(([kind, w]) => ({ kind, w }));
 }
 
-export function pickSpawn(level: number, night: boolean, roll: number, biome: Biome = 'meadow', cave = false): EnemyKindName {
-  const t = spawnTable(level, night, biome, cave);
+export function pickSpawn(level: number, night: boolean, roll: number, biome: Biome = 'meadow', cave = false, cavern: CaveBiome = 'limestone'): EnemyKindName {
+  const t = spawnTable(level, night, biome, cave, cavern);
   const total = t.reduce((a, b) => a + b.w, 0);
   let r = roll * total;
   for (const e of t) { r -= e.w; if (r < 0) return e.kind; }

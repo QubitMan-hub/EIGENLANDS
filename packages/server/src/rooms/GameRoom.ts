@@ -1,7 +1,8 @@
+import { CaveModule } from '../features/caves';
 import { matchMaker, type Client } from 'colyseus';
 import type { Schema } from '@colyseus/schema';
 import {
-  CLASS_INDEX, MSG, MSG34, NPCS, PORTS, chunkOf, encodeDiff, inRegion, parseShard, regionBounds, shardAt, shardId, townFor,
+  CLASS_INDEX, MSG, MSG34, NPCS, PORTS, CAVE_TOWNS, chunkOf, encodeDiff, inRegion, parseShard, regionBounds, shardAt, shardId, townFor,
   type ObjMsg, type ChunkReq, type HandoffMsg, type Region, type ShardInfoMsg, type SpellState, type StrikeShape, type WeaponShot, type WorldObj,
 } from '@eigenlands/shared';
 import type { Enemy } from '../game/enemies';
@@ -82,7 +83,7 @@ export class GameRoom extends WorldRoom {
     this.voice = new VoiceModule(this);
     this.bosses = new BossModule(this);
     this.shrines = new ShrineModule(this);
-    this.modules = [this.shardMod, this.circuit, this.social, this.shadows, this.bosses, this.shrines, this.sailing, this.voice];
+    this.modules = [this.shardMod, this.circuit, this.social, this.shadows, this.bosses, new CaveModule(this), this.shrines, this.sailing, this.voice];
     const reg: Registrar = {
       on: <M>(type: string, bucket: BucketName, fn: (p: ServerPlayer, msg: M) => void | Promise<void>) => {
         this.onMessage(type, (client: Client, msg: M) => {
@@ -172,7 +173,7 @@ export class GameRoom extends WorldRoom {
   protected makeVillage(host: VillageHost): VillageSystem {
     const t = townFor(host.seed);
     const ids = NPCS.filter(n => {
-      const port = PORTS.find(p => p.id === n.settlement);
+      const port = [...PORTS, ...CAVE_TOWNS].find(p => p.id === n.settlement);
       return this.unsharded || shardAt(port?.cx ?? t.cx, port?.cy ?? t.cy) === this.shard;
     }).map(n => n.id);
     if (!ids.length) return nullVillage();

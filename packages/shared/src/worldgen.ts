@@ -166,7 +166,7 @@ export function tileAt(seed: number, x: number, y: number): number { return surf
 
 function surfaceTileAt(seed: number, x: number, y: number, legacy: boolean): number {
   const sanctuary = sanctuaryTileAt(seed, x, y); if (sanctuary !== null) return sanctuary;
-  if (isCaveY(y)) return caveTileAt(seed, x, y, legacy);
+  if (isCaveY(y)) return townTileAt(seed, x, y) ?? caveTileAt(seed, x, y, legacy);
   const tt = townTileAt(seed, x, y);
   if (tt !== null) return tt;
   if (isUpperY(y)) return T.UPPER_VOID;

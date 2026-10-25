@@ -55,3 +55,5 @@ export * from './sanctuary';
 export * from "./travel-needs";
 
 export * from './construction';
+
+export * from './undercroft';

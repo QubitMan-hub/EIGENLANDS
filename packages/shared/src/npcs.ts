@@ -1,3 +1,4 @@
+import { CAVE_RESIDENTS, CAVE_TOWNS } from './undercroft';
 import { PORT_RESIDENTS, PORTS } from './settlements';
 import type { Weather } from './weather';
 import { ITEMS, type ItemKind } from './items';
@@ -210,6 +211,27 @@ NPCS.push(...PORT_RESIDENTS.map((n): NpcDef => {
       season: [[`Spring brings fresh sails to ${port.name}.`], ['The long light makes the sea look endless.'], ['We mend the quay before the autumn storms.'], ['Ice on the ropes this morning. Watch your step.']],
       rain: ['The harbour smells different before a storm.'], snow: ['Keep your hands warm. Cold knots are stubborn knots.'], night: ['Lanterns mark the safe way home.'],
       gift: { love: [`${keepsake.replaceAll('_', ' ')}! You remembered. Thank you.`], like: ['A thoughtful gift. You have a place at my table.'], neutral: ['Thank you for thinking of me.'], hate: ['Please keep this away from the clean nets.'], again: ['One gift is plenty for today, friend.'] },
+    },
+  };
+}));
+
+NPCS.push(...CAVE_RESIDENTS.map((n): NpcDef => {
+  const port = CAVE_TOWNS.find(p => p.id === n.town)!;
+  const keepsake = ['daffodil', 'fish_fry', 'healing_herb', 'cloth', 'qubit_crystal', 'fruit_pie'][n.index % 6]!;
+  const habits = ['collects old survey maps', 'repairs things rather than replacing them', 'writes letters by lantern light', 'keeps a glowcap nursery', 'knows every echo in the galleries', 'brews very strong tea', 'carves little stone lanterns', 'keeps the lift maintenance log'][(n.index + 3) % 8]!;
+  const greet = `I'm ${n.name}. I work as ${n.title.toLowerCase()} here in ${port.name}. ${n.culture}`;
+  return {
+    id: n.id, name: n.name, title: n.title, look: (n.index + 3) % 8, settlement: port.id,
+    bio: `${n.name}, ${port.name}'s ${n.title.toLowerCase()}, ${habits}.`, home: `${n.id}.home`,
+    schedule: [B(0, 7, `${n.id}.home`, 'asleep'), B(7, 9, `${n.id}.square`, 'watching the cavern'), B(9, 18, `${n.id}.work`, `working as ${n.title.toLowerCase()}`), B(18, 21, `${n.id}.square`, 'sharing cavern stories'), B(21, 24, `${n.id}.home`, 'asleep')],
+    loves: [keepsake], likes: ['fish_fry', 'cloth', 'blueberry'], hates: ['slime_gel', 'raw_meat'],
+    ...([1,2,5].includes(n.local) ? { shop: { name: `${n.name.split(' ')[0]}'s Cavern Provisions`, hours: [0, 24] as [number, number], buyBonus: 1, buys: ['fish', 'forage', 'resource'] as ItemKind[], stock: (n.local===2?['healing_potion','healing_herb','fruit_pie']:n.local===5?['iron_ingot','copper_ingot','coal']:['cloth','plank','rod']).map(item=>({item,markup:1.3})) } } : {}),
+    lines: {
+      greet: [[greet], [`Good to see you again. ${port.name} is starting to know your footsteps.`], [`There you are, my friend. Stay for a cup before you explore.`]],
+      work: [`A ${n.title.toLowerCase()}'s work is never quite done.`, `When the work is finished, I ${habits.replace(/^(\w+)s /, '$1 ')}.`],
+      season: [[`Spring brings new travellers to ${port.name}.`], ['The crystals keep their own season.'], ['We inspect every lift before the autumn rains.'], ['Cold seeps down the shafts. Share a warm meal.']],
+      rain: ['Rain above means rising water below. Keep to the survey roads.'], snow: ['Keep your hands warm. Cold tools are stubborn tools.'], night: ['Lanterns mark the safe way home.'],
+      gift: { love: [`${keepsake.replaceAll('_', ' ')}! You remembered. Thank you.`], like: ['A thoughtful gift. You have a place at my table.'], neutral: ['Thank you for thinking of me.'], hate: ['Please keep this away from the archive.'], again: ['One gift is plenty for today, friend.'] },
     },
   };
 }));

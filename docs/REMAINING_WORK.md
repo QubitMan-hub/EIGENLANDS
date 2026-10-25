@@ -2,6 +2,12 @@
 
 This is the practical remaining-work index. The full original requirements and detailed checklist remain in [master request](design/master-request.md) and [master plan](EIGENLANDS_MASTER_PLAN.md). Completed implementation and verification history: [continuation notes](CONTINUE_HERE.md).
 
+## Undercroft overhaul
+
+Implemented: broad interconnected districts/caverns, original mouth compatibility, secondary shafts, supply exits, six visual habitats, dry lake crossings, secret caches, ruins, five shrine challenge types, warned steam vents, six cave enemies, two guardian kinds, one three-phase Bellkeeper, two occupied underground towns (16 residents, shops and quests), two abandoned towns, and Atlas exit/entry tracking. [Player guide, implementation scope and limitations](UNDERCROFT.md).
+
+Remaining cave expansion: stacked geological floors/coordinate migration, additional distinct bosses and authored puzzle mechanics, deeper town-specific interiors/quest stories, durable guardian cooldowns across room restarts, physical phone performance measurements. Supply lifts currently provide one-way returns; normal mouths/shafts remain two-way. Existing mined edits and character reward records remain authoritative.
+
 ## Comfortable controls
 
 - Implemented: selected axe/pickaxe + left-click on tree/stump/rock/ore approaches and gathers through the existing server rules; forage/ripe harvest and selected hoe/can/refill actions use the same intent; opaque sprite picking, bounded obstacle routes and cancellation preserve combat control. Defaults are either Shift for Dodge and Space for context interactions (including NPCs, caves and stairs); untouched older defaults migrate while custom bindings remain.

@@ -2,7 +2,7 @@
  * Boss encounters, Terraria style: each boss is called with a crafted summoning item, and what it drops is the
  * ingredient for the next boss's item, so they form a chain. Player level scales their health and damage.
  */
-export type BossId = 'slime_king' | 'warden' | 'colossus';
+export type BossId = 'slime_king' | 'warden' | 'colossus' | 'bellkeeper';
 export interface BossDef {
   id: BossId;
   name: string;
@@ -21,6 +21,7 @@ export interface BossDef {
   loot: string;
 }
 export const BOSSES: Record<BossId, BossDef> = {
+  bellkeeper:{id:'bellkeeper',name:'The Hollow Bellkeeper',kind:32,item:'deep_sigil',level:12,townGap:30,phases:[.66,.33],intro:'A bell sounds beneath the stone. Its keeper remembers your footsteps.',loot:'Heart Crystal, Qubit Crystals and gold. Bring a Deep Sigil to a surveyed cave arena.'},
   slime_king: { id: 'slime_king', name: 'Gelatinous Sovereign', kind: 10, item: 'slime_crown', level: 10, townGap: 30, phases: [0.66, 0.33],
     intro: 'The ground ripples. Something enormous and wobbling answers the crown.', loot: 'Slime Core, Heart Crystal. The core calls the Warden.' },
   warden: { id: 'warden', name: 'Warden of the Grove', kind: 11, item: 'warden_horn', level: 18, townGap: 30, phases: [0.5],

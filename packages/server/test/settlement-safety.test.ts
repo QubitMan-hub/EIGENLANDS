@@ -24,7 +24,7 @@ it('keeps wilderness damage and guarded boss restrictions real',async()=>{
  p.sim.x=250.5;p.sim.y=250.5;p.invuln=0;expect(sanctuaryAt(w.seed,p.sim.x,p.sim.y)).toBeNull();
  await w.ensureChunk(7,7);for(let y=245;y<256;y++)for(let x=245;x<256;x++)w.store.setTile(x,y,T.GRASS);
  const oldLevel=p.level;p.level=10;
- for(const t of townsFor(w.seed))expect((w as any).summonBoss(p,'slime_crown',t.cx,t.cy)).toBe(false);
+ for(const t of townsFor(w.seed).filter(t=>!t.abandoned))expect((w as any).summonBoss(p,'slime_crown',t.cx,t.cy)).toBe(false);
  p.level=oldLevel;
  const e=w.spawnEnemy('slime',252,250,false),hp=p.hp;
  expect((w as any).hurtPlayer(p,5,e,1,1,0)).toBe(true);expect(p.hp).toBeLessThan(hp);w.enemies.clear();w.state.enemies.clear();

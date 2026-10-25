@@ -370,3 +370,5 @@ export function equipmentLevel(id: string): number {
 }
 /** Forged swords contribute only the strongest bonus in the quick-bar, including when a Focus is equipped. */
 export const quickbarAttack = (inv: Inventory): number => inv.slice(0, HOTBAR).reduce((best, s) => s?.id === 'sword' ? Math.max(best, s.p?.atk ?? 0) : best, 0);
+
+def('deep_sigil', 'Deep Sigil', 'misc', 350, 'orb', C.q4, C.e6, 'Use at a surveyed Undercroft arena to call the Hollow Bellkeeper. Level 12.', {special:'summon',stack:5});

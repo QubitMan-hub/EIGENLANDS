@@ -1,3 +1,4 @@
+import { caveRegionAt } from '@eigenlands/shared';
 import {TERRAIN_PAD,terrainWindow} from './terrain-window';
 import {
   BufferImageSource, Container, Mesh, MeshGeometry, RenderTexture, Shader, Sprite, UniformGroup, type Renderer,
@@ -110,7 +111,7 @@ export class Terrain {
         const o = (y * CHUNK_SIZE + x) * 4;
         const tx = cx * CHUNK_SIZE + x, ty = cy * CHUNK_SIZE + y;
         const tile = this.store.getTile(tx, ty);
-        const biome = biomeAt(seed, tx, ty);
+        const biome = cave ? ({limestone:'desert',glowmoss:'forest',crystal:'enchanted',basalt:'corrupted',frost:'taiga',drowned:'swamp'} as const)[caveRegionAt(seed,tx,ty).biome] : biomeAt(seed, tx, ty);
         let ground = TILE_DEFS[tile]?.ground ?? 3;
         if (biome === 'desert' && ground === G.GRASS) ground = G.SAND;     // scrub and cacti stand on the dunes
         if (cave && ground === G.GRASS) ground = G.CAVE;                   // ore, crystals and glowcaps rest on the cave floor
