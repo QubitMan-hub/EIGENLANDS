@@ -1,3 +1,5 @@
+import { caveRegion, caveTownAt, CAVE_OY } from './undercroft';
+import { isCaveY } from './caves';
 import { hash2 } from './rng';
 import { landmarkTileAt, sampleClimate } from './worldgen';
 import { isSolid } from './tiles';
@@ -53,9 +55,20 @@ export function shrineOfRegion(seed: number, rx: number, ry: number): Shrine | n
   return out;
 }
 
+/** Survey chambers use the same persistent, authoritative shrine challenges as the surface. */
+export function caveShrine(seed:number,gx:number,gy:number):Shrine|null {
+ const r=caveRegion(seed,gx,gy);if(r.feature!=='puzzle'||caveTownAt(r.x,r.y))return null;
+ return{id:`cs${gx}_${gy}`,x:r.x,y:r.y,type:(['sequence','balance','trail','traps','gauntlet']as const)[Math.floor(hash2(seed,gx,gy,2440)*5)]!,pillars:PILLARS};
+}
+
 /** Every shrine within `r` tiles of (x, y). */
 export function shrinesNear(seed: number, x: number, y: number, r: number): Shrine[] {
   const out: Shrine[] = [];
+  if(isCaveY(y)&&!isDiveY(y)){
+    for(let gy=Math.floor((y-CAVE_OY-r)/72);gy<=Math.floor((y-CAVE_OY+r)/72);gy++)for(let gx=Math.floor((x-r)/72);gx<=Math.floor((x+r)/72);gx++){
+      const sh=caveShrine(seed,gx,gy);if(sh&&Math.hypot(sh.x-x,sh.y-y)<=r)out.push(sh);
+    }return out;
+  }
   if (isDiveY(y)) {
     for (let gy = Math.floor((y - DIVE_OY - r) / 192); gy <= Math.floor((y - DIVE_OY + r) / 192); gy++) for (let gx = Math.floor((x - r) / 192); gx <= Math.floor((x + r) / 192); gx++) {
       const sh = oceanShrine(seed, gx, gy); if (sh && Math.hypot(sh.x - x, sh.y - y) <= r) out.push(sh);
@@ -75,12 +88,13 @@ export function shrinesNear(seed: number, x: number, y: number, r: number): Shri
 /** The altar and pillars of every shrine in chunk (cx, cy), as static world objects. */
 export function shrineObjectsIn(seed: number, cx: number, cy: number): WorldObj[] {
   const span = REGION;
-  const s = shrineOfRegion(seed, Math.floor(cx / span), Math.floor(cy / span));
-  if (!s) return [];
+  const sites=isCaveY(cy*32)&&!isDiveY(cy*32)?shrinesNear(seed,cx*32+16,cy*32+16,32):[shrineOfRegion(seed, Math.floor(cx / span), Math.floor(cy / span))].filter((s):s is Shrine=>!!s);
   const out: WorldObj[] = [];
   const mine = (x: number, y: number) => Math.floor(x / 32) === cx && Math.floor(y / 32) === cy;
+  for(const s of sites){
   if (mine(s.x, s.y)) out.push({ x: s.x, y: s.y, kind: 'deco', sub: 'shrine_altar', static: true, data: { shrine: s.id, type: s.type } });
   s.pillars.forEach(([dx, dy], i) => { if (mine(s.x + dx, s.y + dy)) out.push({ x: s.x + dx, y: s.y + dy, kind: 'deco', sub: 'shrine_pillar', static: true, data: { shrine: s.id, idx: i } }); });
+  }
   return out;
 }
 
@@ -96,8 +110,8 @@ export type ShrineEvent =
   | { kind: 'trail'; shrine: string; pattern: number[]; stage: number; seconds: number };
 
 export function shrineOfId(seed: number, id: string): Shrine | null {
-  const m = /^(sh|os)(-?\d+)_(-?\d+)$/.exec(id);
-  return m ? m[1] === 'os' ? oceanShrine(seed, Number(m[2]), Number(m[3])) : shrineOfRegion(seed, Number(m[2]), Number(m[3])) : null;
+  const m = /^(sh|os|cs)(-?\d+)_(-?\d+)$/.exec(id);
+  return m ? m[1] === 'cs' ? caveShrine(seed,Number(m[2]),Number(m[3])) : m[1] === 'os' ? oceanShrine(seed, Number(m[2]), Number(m[3])) : shrineOfRegion(seed, Number(m[2]), Number(m[3])) : null;
 }
 
 /** Pressing a lantern toggles it and its clockwise neighbour. */

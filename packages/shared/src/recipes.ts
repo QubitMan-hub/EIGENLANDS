@@ -177,3 +177,5 @@ export function matchExperiment(station: StationId, offered: Array<{ id: string;
 /** Can the player afford this recipe from `count`? (Wildcard recipes are handled by the experiment path.) */
 export const canCraft = (rec: Recipe, count: (id: string) => number, times = 1): boolean =>
   !rec.inputs.some((i) => i.id.startsWith('*')) && rec.inputs.every((i) => count(i.id) >= i.n * times);
+
+r('deep_sigil','workbench',[['iron_ingot',4],['qubit_crystal',2],['coal',8]],['deep_sigil',1],20,'discover','A crystal bell sealed in iron. It answers only in a surveyed cave arena.');

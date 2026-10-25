@@ -127,7 +127,7 @@ export class ChunkStore {
       }
     }
     const town = this.townByChunk.get(chunkKey(cx, cy)) ?? [];
-    const wild = isCaveY(cy * CHUNK_SIZE) ? caveObjectsIn(this.seed, cx, cy)
+    const wild = isCaveY(cy * CHUNK_SIZE) ? [...caveObjectsIn(this.seed, cx, cy), ...shrineObjectsIn(this.seed,cx,cy)]
       : isDiveY(cy * CHUNK_SIZE) ? sanctuaryObjectsIn(this.seed, cx, cy)
       : [...sanctuaryObjectsIn(this.seed, cx, cy), ...oceanObjectsIn(this.seed, cx, cy), ...shrineObjectsIn(this.seed, cx, cy), ...ruinObjectsIn(this.seed, cx, cy), ...caveObjectsIn(this.seed, cx, cy)];
     return wild.length ? [...town, ...wild] : town;

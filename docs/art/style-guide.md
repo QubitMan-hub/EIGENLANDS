@@ -127,3 +127,12 @@ Auto selects Economy on touch/limited devices; High keeps the detailed material 
 Held tool sheets share the 24×32 body's grip at the exact same screen anchor; the equipment overlay has no extra vertical offset. Idle heads lean outward and fingers remain in front of the shaft. A watering can has a vessel, handle and spout, without a pole. Beds stack legs/rails at floor level, mattress at z5, pillow/quilt above it and a rear headboard using Prop's true wall-facing geometry; do not interpenetrate blanket and mattress volumes.
 
 Generated two-floor town buildings reserve a back-corner 2×2 stair landing before furnishing. Native enemy models now include Reed Stalker's moss/root silhouette and Cinder Moth's warm patterned wings, with idle/move/windup/attack/hurt/death in four facings and day/night variants. Windups reuse existing readable combat decals; these additions never increase population budgets.
+
+
+## Undercroft survey districts (2026-10-25)
+
+Entrances, shafts, supply lifts, vents and resonant altars use `art/caves.ts` and the shared `Iso` projection. Openings are cut into visible side planes; rails, beams and platforms show real depth. Ground anchors remain the tile center. Architecture uses the existing stone/wood/iron ramps and small warm or quantum accents, nearest filtering and cached textures.
+
+Cave floors use quiet habitat ramps (amber, moss, muted violet, basalt, pale frost, deep teal). Floor material stays lower in contrast than ores, actors and telegraphs. Economy avoids dense animated noise, while preserving the same habitat colors. Survey roads and wooden lake crossings provide readable navigational structure. Ambient cave light is intentionally brighter than the earlier near-black cave setting, with local shaft/altar/crystal lamps preserved.
+
+Nine original cave models share the existing four-facing rig, lazy sheets and idle/move/windup/attack/hurt/death interface. Small bats, capped fungi, armored scarabs, horned rams, segmented skitters, tailed lurkers, vault sentinels and the bell-shaped keeper have distinct silhouettes. Idle motion is restrained; windups and contact poses communicate attacks. Reduced-motion rendering keeps the existing pose limits. Do not substitute unrelated fallback sprites for new enemy IDs; the art-lab script verifies distinct images.

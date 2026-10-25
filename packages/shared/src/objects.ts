@@ -33,6 +33,8 @@ export function objLight(kind: WorldObjKind, sub: string): ObjLight | null {
   if (sub === 'cauldron') return { radius: 2, color: C.q7 };
   if (sub === 'ruin_crystal') return { radius: 4, color: C.q7 };
   if (sub === 'cave_mouth') return { radius: 3, color: C.e6 };
+  if (sub === 'cave_lift') return {radius:6,color:C.e6};
+  if(sub==='cave_altar')return {radius:5,color:C.q5};
   if (sub === 'cave_ladder') return { radius: 6, color: C.pale };          // daylight down the shaft
   if (sub === 'ruin_monolith') return { radius: 4, color: C.q5 };
   if (sub === 'statue') return { radius: 6, color: C.q5 };

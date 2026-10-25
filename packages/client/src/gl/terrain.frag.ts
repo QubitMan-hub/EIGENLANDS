@@ -556,25 +556,29 @@ int sideStone(ivec2 ip, vec2 tf, bool left, int d) {
 
 // ───────── the Undercroft ─────────
 // floor: warm packed earth worn into flagstones, pebbles, damp glinting patches (reads lighter than the rock above)
-int caveFloorTop(ivec2 ip, float t) {
-  vec2 wp = vec2(ip);
-  float n = vnoise(wp * 0.13), m = vnoise(wp * 0.035 + 17.0);
-  bool stone = m > 0.62;
-  int c = stone ? STEEL : E2;
-  if (n > 0.66) c = stone ? MIST : E3;
-  else if (n < 0.3) c = stone ? SLATE : E1;
-  if (abs(vnoise(wp * vec2(0.05, 0.1) + 5.0) - 0.5) < 0.02) c = stone ? NIGHT : E0;   // cracks
-  float h = hashi(ip);
-  if (h > 0.988) c = FOG; else if (h > 0.976) c = stone ? SLATE : E1;            // pebbles
-  if (vnoise(wp * 0.05 + 90.0) > 0.76 && ((ip.x + ip.y) & 1) == 0) c = (hashi(ip / 2) > 0.85 && fract(t * 0.3 + hashi(ip)) < 0.15) ? W4 : W1;
+int caveFloorTop(ivec2 ip, float t, int bio) {
+  vec2 wp=vec2(ip);
+  // Broad, quiet material clusters. Economy uses one coherent noise sample, never random checkerboard patches.
+  float n=vnoise(wp*.045);
+  int base=E2, low=E1, high=E3;
+  if(bio==1){base=G1;low=G0;high=G2;}
+  else if(bio==6){base=SLATE;low=Q0;high=STEEL;}
+  else if(bio==7){base=E1;low=E0;high=R0;}
+  else if(bio==3){base=STEEL;low=SLATE;high=MIST;}
+  else if(bio==4){base=W1;low=W0;high=W2;}
+  int c=n<.24?low:n>.79?high:base;
+  float h=hashi(ip);
+  if(h>.997)c=high;
+  else if(h>.993)c=low;
+  if(uDetail>.5 && n>.72 && abs(vnoise(wp*.14+7.0)-.5)<.015)c=low;
   return c;
 }
 // rock crown seen from above: near-black lumpy stone, moss in the hollows, the rare crystal glint
 int caveRockTop(ivec2 ip, float t) {
   vec2 wp = vec2(ip);
-  float n = vnoise(wp * 0.16) + 0.5 * vnoise(wp * 0.4 + 3.0);
+  float n = uDetail < .5 ? hashi(ip / 4) * 1.5 : vnoise(wp * 0.16) + 0.5 * vnoise(wp * 0.4 + 3.0);
   int c = n > 1.1 ? SLATE : n > 0.55 ? NIGHT : INK;
-  if (vnoise(wp * 0.06 + 30.0) > 0.7 && n > 0.7) c = n > 1.0 ? G1 : G0;
+  if (uDetail > .5 && vnoise(wp * 0.06 + 30.0) > 0.7 && n > 0.7) c = n > 1.0 ? G1 : G0;
   if (hashi(ip + ivec2(7, 3)) > 0.9993) c = fract(hashi(ip) * 5.0 + t * 0.25 * uMotion) < 0.25 ? Q7 : Q3;
   return c;
 }
@@ -663,7 +667,7 @@ void main() {
     } else if (cls == FLOOR) {
       c = floorTop(tfHit);
     } else if (cls == CAVE) {
-      c = caveFloorTop(ip, t);
+      c = caveFloorTop(ip, t, bio);
     } else if (cls == CAVEWALL) {
       c = caveRockTop(ip, t);
     } else {

@@ -1,4 +1,4 @@
-import { sanctuaryAt } from '@eigenlands/shared';
+import { sanctuaryAt, isCaveY, caveRegionAt, caveTownAt } from '@eigenlands/shared';
 /**
  * Bosses: called with a crafted item, scaled to the summoner's level, with phases and scripted specials on top of the
  * ordinary enemy AI (leap / charge / slam). Killing one pays out through the normal drop table (guaranteed here) and
@@ -22,8 +22,8 @@ interface Run {
   born: number;
 }
 
-const KEY: Record<BossId, EnemyKind> = { slime_king: 'slime_king', warden: 'warden', colossus: 'colossus' };
-const SPECIAL_EVERY: Record<BossId, number> = { slime_king: 9, warden: 8, colossus: 7 };
+const KEY: Record<BossId, EnemyKind> = { slime_king: 'slime_king', warden: 'warden', colossus: 'colossus', bellkeeper:'bellkeeper' };
+const SPECIAL_EVERY: Record<BossId, number> = { slime_king: 9, warden: 8, colossus: 7, bellkeeper:8 };
 
 export class BossModule implements Module {
   private runs = new Map<string, Run>();
@@ -38,6 +38,10 @@ export class BossModule implements Module {
   summon(p: ServerPlayer, itemId: string, x: number, y: number): boolean {
     const def = BOSS_BY_ITEM[itemId];
     if (!def) return false;
+    if(def.id==='bellkeeper'){
+      const r=caveRegionAt(this.room.seed,x,y);
+      if(!isCaveY(y)||r.feature!=='arena'||caveTownAt(x,y)||Math.hypot(x-r.x,y-r.y)>10){p.toast('The Deep Sigil answers only in a surveyed cave arena. Follow the survey roads and look for a resonant altar.','bad');return false;}
+    }
     if (p.level < def.level) { p.toast(`The ${def.name} would crush you. (Level ${def.level} needed.)`, 'bad'); return false; }
     for (const r of this.runs.values()) if (r.def.id === def.id && Math.hypot(r.e.x - p.sim.x, r.e.y - p.sim.y) < 120) { p.toast(`The ${def.name} is already here.`, 'bad'); return false; }
     const t = townFor(this.room.seed);
@@ -82,6 +86,8 @@ export class BossModule implements Module {
       else { say('The Sovereign boils with rage.'); r.rage = true; e.speedMult = 1.4; e.windMult = 0.8; this.spawnAdds(r, 'slime', 3); }
     } else if (id === 'warden') {
       say('The Warden bellows. The pack answers.'); r.rage = true; e.speedMult = 1.3; e.windMult = 0.85; this.spawnAdds(r, 'wolf', 2);
+    } else if(id==='bellkeeper'){
+      say(r.phase===1?'The first seal breaks. Echoes gather beneath the bell.':'The final chime. Leave the marked ground before it rings.');r.rage=r.phase>1;this.spawnAdds(r,r.phase===1?'echo_bat':'prism_beetle',2);
     } else {
       if (r.phase === 1) say('The Colossus phases out of sync with itself.');
       else { say('It is everywhere at once.'); r.rage = true; e.speedMult = 1.3; e.windMult = 0.85; }
@@ -110,6 +116,11 @@ export class BossModule implements Module {
       // Howl: wolves answer, and the Warden surges at its target
       this.room.fx({ kind: 'stagger', x: e.x, y: e.y, id: e.id });
       this.spawnAdds(r, 'wolf', r.rage ? 3 : 2);
+    } else if(id==='bellkeeper'){
+      // Echo toll: three fixed, clearly marked impact sites. Move out, then punish its recovery.
+      const points=[{x:target.sim.x,y:target.sim.y},...[-1,1].map(side=>({x:e.x+side*4,y:e.y}))];
+      points.forEach((p,i)=>{const delay=1.4+i*.35;this.room.fx({kind:'bomb',x:p.x,y:p.y,v:delay,w:2,id:`${e.id}echo${i}`});r.later.push({at:this.t+delay,fn:()=>{if(this.room.enemies.has(e.id))this.room.enemyStrike(e,p.x,p.y,2,.9);}});});
+      if(r.phase>0)this.spawnAdds(r,'echo_bat',1);
     } else {
       // Fault Line: three expanding rings with a clear telegraph each, plus an orb storm once past the first phase
       for (let i = 0; i < 3; i++) {

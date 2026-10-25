@@ -38,6 +38,8 @@ export function describeUse(sel: Stack | null, tile: number, obj: WorldObj | und
     if (obj.sub === 'board') return { kind: 'open', label: 'Check the request board', ok: true };
     if (obj.sub === 'ruin_cache') return { kind: 'open', label: 'Search the forgotten cache', ok: true };
     if (obj.sub === 'cave_mouth') return { kind: 'open', label: 'Climb down into the Undercroft', ok: true };
+    if(obj.sub==='cave_altar') return {kind:'open',label:'Invoke the Hollow Bellkeeper · Deep Sigil',ok:true};
+    if (obj.sub === 'cave_lift') return { kind: 'open', label: 'Take the supply lift to daylight', ok: true };
     if (obj.sub === 'cave_ladder') return { kind: 'open', label: 'Climb the ladder to daylight', ok: true };
     if (RUIN_NAMES[obj.sub]) return { kind: 'open', label: `Read the ${RUIN_NAMES[obj.sub]!.toLowerCase()}`, ok: true };
     if (obj.kind === 'sign') return { kind: 'open', label: 'Read sign', ok: true };

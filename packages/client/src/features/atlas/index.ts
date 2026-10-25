@@ -1,5 +1,5 @@
 import './atlas.css';
-import { ENEMY_BY_KIND, NPC_BY_ID, G, PALETTE, TILE_DEFS, townsFor, townFor, type PartyStateMsg } from '@eigenlands/shared';
+import { ENEMY_BY_KIND, NPC_BY_ID, caveExitRoutes, isCaveY, isDiveY, G, PALETTE, TILE_DEFS, townsFor, townFor, type PartyStateMsg } from '@eigenlands/shared';
 import { isoX, isoY, unproject } from '../../game/iso';
 import { keyLabel } from '../../input/keymap';
 import { h } from '../../ui/dom';
@@ -17,13 +17,16 @@ interface Landmark extends Point {
   sub: string;
   shrine?: string;
 }
-const known = new Map<string, string>([['shrine_altar', 'Resonance shrine'], ['cave_mouth', 'Cave entrance'], ['cave_ladder', 'Surface ladder'], ['dive_gate', 'Diving buoy'], ['dive_exit', 'Sloop return'], ['stairs_up', 'Upper floor'], ['stairs_down', 'Downstairs'], ['board', 'Town board']]);
+const known = new Map<string, string>([['shrine_altar', 'Resonance shrine'], ['cave_mouth', 'Cave entrance'], ['cave_ladder', 'Surface ladder'], ['cave_lift', 'Supply lift'], ['dive_gate', 'Diving buoy'], ['dive_exit', 'Sloop return'], ['stairs_up', 'Upper floor'], ['stairs_down', 'Downstairs'], ['board', 'Town board']]);
 const colors = ['#224555', '#326779', '#cba67c', '#5b8056', '#af855e', '#62433f', '#443039', '#b48d60', '#6b7c7c', '#46565b', '#2b3941'];
 const point = (v: unknown): v is Point => !!v && typeof v === 'object' && ['x', 'y'].every(k => Number.isFinite((v as Record<string, unknown>)[k]) && Math.abs(Number((v as Record<string, unknown>)[k])) < 1e6) && typeof (v as Point).name === 'string';
 /** One local chart shared by the modal atlas and quiet live minimap. */
 export class AtlasClient implements ClientModule {
   journal = new Exploration();
   private key = '';
+  private entrance: Point | null = null;
+  private wasUnderground = false;
+  private observedPosition=false;
   private tracked: string | null = '@arrival';
   private archive?: ChartArchive;
   private last = -Infinity;
@@ -95,13 +98,14 @@ export class AtlasClient implements ClientModule {
     this.journal = new Exploration(512, (key, cells) => this.archive?.record(key, cells));
     this.cache.clear();
     this.landmarks.clear();
-    this.waypoints = [];
+    this.waypoints = []; this.entrance=null;this.wasUnderground=false;this.observedPosition=false;
     this.tracked = '@arrival';
     this.centres.clear();
     let recovery: string | null = null;
     try {
       const v = JSON.parse(localStorage.getItem(key) ?? 'null');
       if (v?.v === 1) {
+        if(point(v.entrance))this.entrance=v.entrance;
         if (v.tracked === null || typeof v.tracked === 'string' && v.tracked.length < 128) this.tracked = v.tracked;
         if (v.archiveVersion === 1) recovery = typeof v.recovery === 'string' ? v.recovery : '';
         if (typeof v.chart === 'string')
@@ -149,12 +153,17 @@ export class AtlasClient implements ClientModule {
   }
   trackedQuest(): string | null { return this.tracked; }
   navigation(): Destination | null {
+    const me=this.d.me(),cave=!!me&&isCaveY(me.y)&&!isDiveY(me.y);
+    if(cave&&(this.tracked==='@cave-exit'||this.tracked==='@cave-entry'||!this.tracked||this.tracked==='@arrival')){
+      const exit=this.tracked==='@cave-entry'&&this.entrance?this.entrance:caveExitRoutes(this.d.store().seed,me!.x,me!.y)[0];
+      if(exit)return{id:'@cave-exit',title:exit.name,detail:'Follow the broad survey roads. Supply lifts return to daylight; unexplored terrain stays hidden.',point:exit};
+    }
     if (this.tracked === '@arrival') { const town = townFor(this.d.store().seed); return { id: '@arrival', title: town.name, detail: 'Known settlement · follow the roads; wards protect its streets and homes', point: { x: town.cx, y: town.cy } }; }
     if (!this.tracked) return null;
     return questDestinations(this.d.store().seed, this.d.profile.quests, id => this.d.profile.count(id), this.state?.npcs ?? new Map(), (x, y) => this.seen(x, y), true).find(p => p.questId === this.tracked) ?? null;
   }
   trackQuest(id: string | null, showMap = false): void {
-    if (id && id !== '@arrival' && this.d.profile.quests[id]?.state !== 'active') return;
+    if (id && !['@arrival','@cave-entry','@cave-exit'].includes(id) && this.d.profile.quests[id]?.state !== 'active') return;
     this.tracked = id; this.changed = true; this.save();
     if (!showMap) return;
     const route = this.navigation();
@@ -172,7 +181,7 @@ export class AtlasClient implements ClientModule {
     if (!this.key || !this.changed && this.saved === this.journal.revision && this.savedArchive === this.archive?.revision)
       return;
     try {
-      localStorage.setItem(this.key, JSON.stringify({ v: 1, tracked: this.tracked, archiveVersion: 1, recovery: this.archive?.recovery(), chart: this.journal.serialize(), waypoints: this.waypoints, landmarks: [...this.landmarks.values()], centres: [...this.centres.values()], showMini: this.showMini, size: this.size, filters: this.filters }));
+      localStorage.setItem(this.key, JSON.stringify({ v: 1, tracked: this.tracked, entrance:this.entrance, archiveVersion: 1, recovery: this.archive?.recovery(), chart: this.journal.serialize(), waypoints: this.waypoints, landmarks: [...this.landmarks.values()], centres: [...this.centres.values()], showMini: this.showMini, size: this.size, filters: this.filters }));
       this.changed = false;
       this.saved = this.journal.revision;
       this.savedArchive = this.archive?.revision ?? -1;
@@ -190,8 +199,13 @@ export class AtlasClient implements ClientModule {
     if (this.d.profile.loaded) {
       const status = this.tracked ? this.d.profile.quests[this.tracked]?.state : undefined;
       if (this.tracked === '@arrival' && this.d.profile.quests.welcome) { this.tracked = this.d.profile.quests.welcome.state === 'active' ? 'welcome' : null; this.changed = true; }
-      else if (this.tracked && this.tracked !== '@arrival' && status !== 'active') { this.tracked = null; this.changed = true; }
+      else if (this.tracked && !['@arrival','@cave-entry','@cave-exit'].includes(this.tracked) && status !== 'active') { this.tracked = null; this.changed = true; }
     }
+    const authority=this.state?.players?.get(this.d.myId());
+    const entryPosition=authority?{x:authority.x,y:authority.y}:null;
+    const underground=entryPosition?isCaveY(entryPosition.y)&&!isDiveY(entryPosition.y):this.wasUnderground;
+    if(underground&&!this.wasUnderground){if(entryPosition&&(this.observedPosition||!this.entrance)){this.entrance={...entryPosition,name:'Entry chamber'};this.changed=true;}}
+    this.wasUnderground=underground;if(entryPosition)this.observedPosition=true;
     const plane = planeOf(me.y);
     this.journal.visit(this.d.store(), me.x, me.y);
     this.centres.set(plane, { x: me.x, y: me.y, name: plane });
@@ -247,6 +261,7 @@ export class AtlasClient implements ClientModule {
       layer.value = this.plane;
       this.centre = { ...p, name: '' };
     } }));
+    if(isCaveY(me.y)&&!isDiveY(me.y))tools.append(act('Track nearest exit',()=>this.trackQuest('@cave-exit')),act('Track entry chamber',()=>this.trackQuest('@cave-entry')));
     const places = h('select');
     places.setAttribute('aria-label', 'Charted location');
     places.append(h('option', { value: '', text: 'Find a charted location' }));

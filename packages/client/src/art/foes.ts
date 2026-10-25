@@ -1,7 +1,7 @@
 import { wildDef } from './fauna';
 import type { Texture } from 'pixi.js';
 import {
-  D4_YAW, Scene, Sheet, add, lerp3, ramp, rampOf, rotX, rotY, rotZ, type Mat, type Ramp, type V3,
+  D4_YAW, Scene, Sheet, I3, add, lerp3, ramp, rampOf, rotX, rotY, rotZ, type Mat, type Ramp, type V3,
 } from './sprite';
 
 /**
@@ -12,7 +12,7 @@ import {
  */
 export type Anim = 'idle' | 'move' | 'windup' | 'attack' | 'hurt' | 'death';
 export const ANIMS: Anim[] = ['idle', 'move', 'windup', 'attack', 'hurt', 'death'];
-export type CritterKind = 'slime' | 'hopper' | 'rabbit' | 'deer' | 'wisp' | 'brute' | 'mite' | 'fox' | 'otter' | 'tortoise' | 'owl' | 'thornling' | 'glasscrawler' | 'reed_stalker' | 'cinder_moth';
+export type CritterKind = 'slime' | 'hopper' | 'rabbit' | 'deer' | 'wisp' | 'brute' | 'mite' | 'fox' | 'otter' | 'tortoise' | 'owl' | 'thornling' | 'glasscrawler' | 'reed_stalker' | 'cinder_moth' | 'echo_bat' | 'spore_sage' | 'prism_beetle' | 'blind_ram' | 'rime_skitter' | 'pool_lurker' | 'vault_guardian' | 'spore_matriarch' | 'bellkeeper';
 
 interface Def {
   w: number; h: number; ay?: number;
@@ -458,7 +458,42 @@ function encounterDef(moth:boolean):Def{return{w:48,h:44,ay:36,shadow:moth?[6,3]
  }
 }};}
 
+/** Original cave fauna, with restrained idle poses and distinct windup silhouettes. */
+function caveFauna(form:number):Def{return{w:form>=6?64:48,h:form>=6?64:46,ay:form>=6?56:39,shadow:form>=6?[12,5]:[7,3],n:{idle:4,move:6,windup:4,attack:3,hurt:2,death:5},draw(s,a,k,t){
+ const moving=a==='move',wind=a==='windup',dead=a==='death',pulse=moving?Math.sin(t*TAU):0;
+ const colors=[0x6c547a,0x67917b,0x628eac,0x9c8772,0x9bc4d4,0x397c87,0x867f80,0x658d77,0x92795f];
+ const shell=M(ramp(colors[form]!,3,2,{hue:9})),dark=M(ramp(0x30353f,2,2)),ivory=M(ramp(0xd9c5a1,2,1));
+ const glow=M(ramp(form===3?0xdfa46a:0x88d9d4,2,1),{glow:true}),scale=form>=6?1.5:1;
+ s.push(I3,[0,0,0],[a==='attack'?(1-t)*3:0,0,0]);
+ const z=(form===0?10:5)*scale-(dead?t*7:0)+(moving?.4*pulse:0);
+ if(form===0){
+  s.ell([0,0,z],[3,2,3],dark);s.sph([2,0,z+2],2.6,shell);
+  for(const side of[-1,1]){const flap=wind?-.5:Math.sin(t*TAU)*.35;
+   s.cap([0,side*1,z],[0,side*8,z+flap*7],1,.7,shell);s.cap([0,side*8,z+flap*7],[-5,side*11,z+flap*5],.6,.1,shell);
+   s.ell([-2,side*6,z+flap*4],[4,5,.7],shell);s.cap([2,side,z+3],[2,side*2,z+7],1.3,.1,ivory);
+  }
+ }else if(form===1||form===7){
+  s.cap([0,0,1],[0,0,z+7*scale],2*scale,3*scale,ivory);
+  s.ell([0,0,z+9*scale],[7*scale,6*scale,3*scale],shell);
+  for(const side of[-1,1]){s.cap([0,side*2,z+3],[3,side*5,z+(wind?8:1)],1.1*scale,.7*scale,ivory);s.sph([2,side*4,z+10*scale],1*scale,glow);}
+  for(let i=0;i<5;i++)s.sph([Math.cos(i*2.4)*4*scale,Math.sin(i*2.4)*4*scale,z+11*scale],.7*scale,ivory);
+ }else if(form===8){
+  s.ell([0,0,z+10],[9,8,12],shell);s.ell([0,0,z+1],[12,10,3],dark);s.sph([0,0,z+23],3,ivory);
+  for(const side of[-1,1]){s.cap([0,side*7,z+10],[4,side*13,z+(wind?16:4)],2.5,2,shell);s.sph([4,side*13,z+(wind?16:4)],3,ivory);s.glowPx([8,side*3,z+13],0xa3e8df);}
+  s.line([8,-4,z+6],[8,4,z+6],0x9cded7,2);
+  for(const side of[-1,1]){s.line([7,side*5,z+5],[7,side*5,z+15],0x4c6867,2);s.line([8,side*4,z+8],[8,side*4,z+12],0xa3e8df,1);}s.sph([0,0,z-1],2.5,ivory);
+ }else{
+  const r=scale;s.ell([0,0,z],[5*r,4*r,3.5*r],shell);s.ell([4*r,0,z+1],[2.5*r,3*r,2*r],dark);
+  for(const side of[-1,1])for(let i=0;i<(form===4?4:2);i++){const x=(-3+i*(form===4?2:6))*r,step=moving?Math.sin(t*TAU+i+side)*1.5:0;s.cap([x,side*3*r,z-1],[x+step,side*5*r,1],1*r,.5*r,shell);}
+  if(form===3)for(const side of[-1,1])s.cap([5,side*2,z+1],[8,side*3,z+(wind?6:4)],1.5,.3,ivory);
+  if(form===2||form===6)for(const side of[-1,1])s.cap([-2,side*2,z+2],[-2,side*3,z+7*r],2*r,.1,glow);
+  if(form===5)s.cap([-4,0,z],[-10,0,1],2,.2,shell);
+ }
+ if(!dead)for(const side of[-1,1])s.sph([form===8?8:4,side*1.5,z+2],wind?1.1:.6,glow);s.pop();
+}};}
+
 const DEFS: Record<CritterKind, Def> = {
+  echo_bat:caveFauna(0),spore_sage:caveFauna(1),prism_beetle:caveFauna(2),blind_ram:caveFauna(3),rime_skitter:caveFauna(4),pool_lurker:caveFauna(5),vault_guardian:caveFauna(6),spore_matriarch:caveFauna(7),bellkeeper:caveFauna(8),
   reed_stalker:encounterDef(false),cinder_moth:encounterDef(true),
   fox: wildDef('fox'), otter: wildDef('otter'), tortoise: wildDef('tortoise'), owl: wildDef('owl'), thornling: wildDef('thornling'), glasscrawler: wildDef('glasscrawler'),
   deer: deerDef, rabbit: rabbitDef, slime: slimeDef, hopper: hopperDef, wisp: wispDef, brute: bruteDef, mite: miteDef,
@@ -543,7 +578,12 @@ export interface FoeSheets {
 }
 
 export function buildFoeSheets(): FoeSheets {
-  const name = (k: number) => k===22?'reed_stalker':k===23?'cinder_moth':(['fox', 'otter', 'tortoise', 'owl', 'thornling', 'glasscrawler'] as const)[k - 15] ?? KIND_NAMES[k] ?? 'slime';
+  const caveNames = ['echo_bat','spore_sage','prism_beetle','blind_ram','rime_skitter','pool_lurker','vault_guardian','spore_matriarch','bellkeeper'] as const;
+  const name = (k: number):CritterKind => {
+    const cave=caveNames[k-24];if(cave)return cave;
+    if(k===22)return 'reed_stalker';if(k===23)return 'cinder_moth';
+    return (['fox','otter','tortoise','owl','thornling','glasscrawler']as const)[k-15]??KIND_NAMES[k]??'slime';
+  };
   return {
     anchor: k => (DEFS[name(k)].ay ?? DEFS[name(k)].h - 2) / DEFS[name(k)].h,
     frame: (k, n, d, a, f) => critter(name(k), n, d, a, f),

@@ -233,7 +233,7 @@ describe('world: nodes, ores and the town', () => {
 describe('NPCs', () => {
   const town = { ...townFor(SEED), spots: Object.assign({}, ...townsFor(SEED).map(t => t.spots)) };
   it('all villagers with complete 24h schedules whose spots all exist', () => {
-    expect(NPCS.length).toBe(50);
+    expect(NPCS.length).toBe(66);
     for (const n of NPCS) {
       let h = 0;
       for (const b of [...n.schedule].sort((a, c) => a.h0 - c.h0)) { expect(b.h0, n.id).toBe(h); h = b.h1; expect(town.spots[b.spot], `${n.id}:${b.spot}`).toBeTruthy(); }
