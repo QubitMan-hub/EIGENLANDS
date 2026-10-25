@@ -14,7 +14,7 @@ export interface Config {
   /** enable DEV messages (teleport, give items, shift time...). Never in production. */
   devCommands: boolean;
   /** revision given to a brand-new world (existing worlds stay pinned to their saved revision) */
-  newWorldGeneration: 1 | 2 | 3;
+  newWorldGeneration: 1 | 2 | 3 | 4;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -33,6 +33,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     authRatePerSec: Number(env.AUTH_RATE ?? 2),
     authBurst: Number(env.AUTH_BURST ?? 20),
     devCommands: env.DEV_COMMANDS === '1' && env.NODE_ENV !== 'production',
-    newWorldGeneration: env.NEW_WORLD_GENERATION === '2' ? 2 : 3,
+    newWorldGeneration:
+      env.NEW_WORLD_GENERATION === '2' ? 2 : env.NEW_WORLD_GENERATION === '3' ? 3 : 4,
   };
 }

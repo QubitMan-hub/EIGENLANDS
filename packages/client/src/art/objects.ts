@@ -3,6 +3,7 @@ import { Rectangle, Texture } from 'pixi.js';
 import { Iso } from './isokit';
 import { PALETTE, hash2, mulberry32 } from '@eigenlands/shared';
 import { buildSceneryArt } from './scenery';
+import { CAVE_ART, type CaveSpec } from './caveores';
 import type { SceneryKind } from '../game/scenery';
 import { buildBiomeArt, destroyBiomeArt, type BiomeArt } from './biomeart';
 import { C, line, lump, makeCanvas, poly, polish, put, stonePile, type Ctx, type Ramp } from './shade';
@@ -634,6 +635,14 @@ export function buildOreBlocks(kind: string): ObjSprite[] {
   return out;
 }
 
+/** Sprites for one Undercroft 2 ore block or floor find, [variant][frame] flattened. */
+function buildCaveArt(spec: CaveSpec): ObjSprite[] {
+  const out: ObjSprite[] = [];
+  for (let v = 0; v < spec.variants; v++)
+    for (let f = 0; f < spec.frames; f++) out.push(toSprite(spec.draw(v, f), spec.ax, spec.ay, { rim: spec.rim }));
+  return out;
+}
+
 /** Qubit crystal: faceted glass shards growing from a stone, glowing from within (cyan or magenta); three shimmer frames. */
 export function buildCrystal(): ObjSprite[] {
   const out: ObjSprite[] = [];
@@ -818,6 +827,7 @@ export const FRAMES_PER_VARIANT: Record<string, number> = {
   ore_gold: 2,
   torch: 2,
   bloom: 2,
+  ...Object.fromEntries(Object.entries(CAVE_ART).filter(([, v]) => v.frames > 1).map(([k, v]) => [k, v.frames])),
 };
 
 export function buildObjectArt(season: SeasonIdx): ObjectArt {
@@ -842,6 +852,7 @@ export function buildObjectArt(season: SeasonIdx): ObjectArt {
     cave: {
       rock: buildOreBlocks('rock'),
       ...Object.fromEntries(Object.keys(MINERALS).map((k) => [k, buildOreBlocks(k)])),
+      ...Object.fromEntries(Object.entries(CAVE_ART).map(([k, spec]) => [k, buildCaveArt(spec)])),
     },
   };
 }

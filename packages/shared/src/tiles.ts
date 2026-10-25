@@ -31,6 +31,16 @@ export type ObjKind =
   | 'ore_silver'
   | 'ore_gold'
   | 'crystal'
+  | 'cave_coal'
+  | 'cave_copper'
+  | 'cave_iron'
+  | 'cave_silver'
+  | 'cave_gold'
+  | 'cave_crystal'
+  | 'cave_geode'
+  | 'stalagmite'
+  | 'glowcap'
+  | 'cave_boulder'
   | 'forage'
   | 'fence';
 
@@ -66,6 +76,17 @@ export const T = {
   LAVA: 28,
   VAULT_FLOOR: 29,
   SCORIA: 30,
+  // Undercroft 2 (world revision 4): minerals are veins inside the rock wall and finds stand on the cave floor
+  CAVE_COAL: 31,
+  CAVE_COPPER: 32,
+  CAVE_IRON: 33,
+  CAVE_SILVER: 34,
+  CAVE_GOLD: 35,
+  CAVE_CRYSTAL: 36,
+  CAVE_GEODE: 37,
+  STALAGMITE: 38,
+  GLOWCAP: 39,
+  CAVE_BOULDER: 40,
 } as const;
 
 export interface TileDef {
@@ -137,6 +158,37 @@ export const TILE_DEFS: TileDef[] = [
   d(T.LAVA, 'Lava', G.LAVA, null, { solid: true, light: 4, lightColor: C.r5 }),
   d(T.VAULT_FLOOR, 'Engraved vault stone', G.VAULT),
   d(T.SCORIA, 'Volcanic scree', G.CAVE),
+  // veins sit in the rock wall itself and leave open floor behind when mined
+  d(T.CAVE_COAL, 'Coal seam', G.CAVE_WALL, 'cave_coal', { solid: true, breaksTo: T.CAVE_FLOOR }),
+  d(T.CAVE_COPPER, 'Copper vein', G.CAVE_WALL, 'cave_copper', { solid: true, breaksTo: T.CAVE_FLOOR }),
+  d(T.CAVE_IRON, 'Iron vein', G.CAVE_WALL, 'cave_iron', { solid: true, breaksTo: T.CAVE_FLOOR }),
+  d(T.CAVE_SILVER, 'Silver vein', G.CAVE_WALL, 'cave_silver', {
+    solid: true,
+    breaksTo: T.CAVE_FLOOR,
+    light: 1.4,
+    lightColor: C.w6,
+  }),
+  d(T.CAVE_GOLD, 'Gold vein', G.CAVE_WALL, 'cave_gold', {
+    solid: true,
+    breaksTo: T.CAVE_FLOOR,
+    light: 1.6,
+    lightColor: C.e6,
+  }),
+  d(T.CAVE_CRYSTAL, 'Qubit crystal vein', G.CAVE_WALL, 'cave_crystal', {
+    solid: true,
+    breaksTo: T.CAVE_FLOOR,
+    light: 3,
+    lightColor: C.q5,
+  }),
+  d(T.CAVE_GEODE, 'Crystal geode', G.CAVE_WALL, 'cave_geode', {
+    solid: true,
+    breaksTo: T.CAVE_FLOOR,
+    light: 4,
+    lightColor: C.q7,
+  }),
+  d(T.STALAGMITE, 'Stalagmite', G.CAVE, 'stalagmite', { solid: true, breaksTo: T.CAVE_FLOOR }),
+  d(T.GLOWCAP, 'Glowcap', G.CAVE, 'glowcap', { light: 2.6, lightColor: C.w6 }),
+  d(T.CAVE_BOULDER, 'Fallen boulder', G.CAVE, 'cave_boulder', { solid: true, breaksTo: T.CAVE_FLOOR }),
 ];
 
 export function isSolid(tile: number): boolean {

@@ -8,7 +8,7 @@ import { Simplex2D } from './simplex';
 import { T } from './tiles';
 import { townTileAt } from './town';
 import { sanctuaryAt } from './sanctuary';
-import { LEGACY_GENERATION, type WorldGeneration } from './world-version';
+import { LEGACY_GENERATION, isWorldGeneration, type WorldGeneration } from './world-version';
 import { biome3, chunkLevels, climate3, surfaceTile3 } from './terrain3';
 import { CAVE_OY, caveTileAt, isCaveY } from './caves';
 
@@ -77,14 +77,8 @@ export interface ClimateSample {
   flux: number;
 }
 
-// Which revision a seed's world uses, for callers that have a seed but no store (renderer, spawning, labels). A
-// ChunkStore registers its revision when it is created; seeds never registered behave as revision 2, so every
-// legacy-placement caller (towns, shrines, ruins, caves, camps) is unaffected unless it asks for revision 3.
-const activeGenerations = new Map<number, WorldGeneration>();
-export function setActiveGeneration(seed: number, generation: WorldGeneration): void {
-  activeGenerations.set(seed, generation);
-}
-export const activeGeneration = (seed: number): WorldGeneration => activeGenerations.get(seed) ?? LEGACY_GENERATION;
+export { setActiveGeneration, activeGeneration } from './generation-registry';
+import { activeGeneration } from './generation-registry';
 /** Climate and biome fields are shared by revisions 1 and 2; revision 3 has its own. */
 const family = (generation: WorldGeneration): 2 | 3 => (generation >= 3 ? 3 : 2);
 
@@ -502,7 +496,7 @@ export function hasPreparedWorldChunk(
 }
 export function acceptPreparedWorldChunk(p: PreparedWorldChunk): void {
   if (
-    (p.generation !== 1 && p.generation !== 2 && p.generation !== 3) ||
+    !isWorldGeneration(p.generation) ||
     p.tiles.length !== CHUNK_SIZE * CHUNK_SIZE ||
     p.levels.length !== CHUNK_SIZE * CHUNK_SIZE ||
     p.climate.length !== CHUNK_SIZE * CHUNK_SIZE * 4 ||

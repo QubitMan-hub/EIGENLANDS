@@ -173,6 +173,7 @@ if (mode === 'construction') {
   mode === 'equipment' ||
   mode === 'wilderness' ||
   mode === 'resources' ||
+  mode === 'caveores' ||
   mode === 'foliage' ||
   mode === 'fauna' ||
   mode === 'portfolks'
@@ -272,6 +273,22 @@ if (mode === 'construction') {
           place(sp.tex, sp.ax, sp.ay, x, y);
         }
     }
+  } else if (mode === 'caveores') {
+    const art = buildObjectArt(season);
+    const kinds = Object.keys(art.cave).filter((k) => k.startsWith('cave_') || k === 'stalagmite' || k === 'glowcap');
+    label('Undercroft 2: veins embedded in rock, floor finds', 4, 8);
+    kinds.forEach((kind, r) => {
+      label(kind, 4, 50 + r * 44);
+      const fr = FRAMES_PER_VARIANT[kind] ?? 1,
+        n = art.cave[kind]!.length;
+      for (let i = 0; i < n; i++) {
+        const sp = art.cave[kind]![i]!,
+          x = 110 + (i % (3 * fr)) * 40 + Math.floor(i / (3 * fr)) * 0,
+          y = 56 + r * 44;
+        root.addChild(new Graphics().poly([x, y - 8, x + 16, y, x, y + 8, x - 16, y]).fill(0x343740));
+        place(sp.tex, sp.ax, sp.ay, x, y);
+      }
+    });
   } else if (mode === 'wilderness') {
     Object.entries(buildSceneryArt()).forEach(([kind, list], row) => {
       label(kind.replace('wild_', ''), 4, 24 + row * 40);
