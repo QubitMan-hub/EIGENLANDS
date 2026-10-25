@@ -20,9 +20,11 @@ export class VoiceModule implements Module {
   private relay(p: ServerPlayer, m: VoiceMsg): void {
     if (!m || typeof m.to !== 'string' || !m.d || typeof m.d !== 'object' || m.to === p.id) return;
     const d = m.d;
-    if (d.t === 'offer' || d.t === 'answer') { if (typeof d.sdp !== 'string' || d.sdp.length > MAX_SDP) return; }
-    else if (d.t === 'ice') { if (!d.c || typeof d.c.candidate !== 'string' || d.c.candidate.length > 1000) return; }
-    else if (d.t !== 'bye') return;
+    if (d.t === 'offer' || d.t === 'answer') {
+      if (typeof d.sdp !== 'string' || d.sdp.length > MAX_SDP) return;
+    } else if (d.t === 'ice') {
+      if (!d.c || typeof d.c.candidate !== 'string' || d.c.candidate.length > 1000) return;
+    } else if (d.t !== 'bye') return;
     const q = this.room.players.get(m.to);
     if (!q) return;
     // goodbyes always pass; anything else needs the two players to be near

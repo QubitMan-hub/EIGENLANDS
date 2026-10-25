@@ -1,5 +1,12 @@
 import {
-  MSG34, PARTY_MAX, type ChatMsg, type ClassId, type PartyInviteMsg, type PartyMember, type PartyMsg, type PartyStateMsg,
+  MSG34,
+  PARTY_MAX,
+  type ChatMsg,
+  type ClassId,
+  type PartyInviteMsg,
+  type PartyMember,
+  type PartyMsg,
+  type PartyStateMsg,
 } from '@eigenlands/shared';
 import type { GameRoom } from '../../rooms/GameRoom';
 import type { ServerPlayer } from '../../rooms/player';
@@ -23,11 +30,18 @@ export class PartyRoom {
   /** session id -> party id last sent ('' = told "no party") */
   private sent = new Map<string, string>();
 
-  constructor(private room: GameRoom, private hub: SocialHub) {}
+  constructor(
+    private room: GameRoom,
+    private hub: SocialHub,
+  ) {}
 
-  private get reg() { return this.hub.parties; }
+  private get reg() {
+    return this.hub.parties;
+  }
 
-  partyOf(accountId: string): string { return this.reg.partyOf(accountId); }
+  partyOf(accountId: string): string {
+    return this.reg.partyOf(accountId);
+  }
 
   partyMates(accountId: string): string[] {
     const p = this.reg.partyRecOf(accountId);
@@ -35,7 +49,11 @@ export class PartyRoom {
   }
 
   private cls(p: ServerPlayer): ClassId {
-    try { return this.room.circuit?.classOf(p.id) ?? 'wanderer'; } catch { return 'wanderer'; }
+    try {
+      return this.room.circuit?.classOf(p.id) ?? 'wanderer';
+    } catch {
+      return 'wanderer';
+    }
   }
 
   private memberRec(p: ServerPlayer): PartyMemberRec {
@@ -49,13 +67,15 @@ export class PartyRoom {
     if (id) {
       // back online (or arrived from another shard): refresh name/level/class and the online flag
       const me = this.memberRec(p);
-      await this.reg.update(id, (cur) => {
-        if (!cur) return undefined;
-        const m = cur.members.find((x) => x.accountId === p.accountId);
-        if (!m) return undefined;
-        Object.assign(m, me);
-        return normalizeParty(cur, Date.now());
-      }).catch((e) => console.error('party join failed', e));
+      await this.reg
+        .update(id, (cur) => {
+          if (!cur) return undefined;
+          const m = cur.members.find((x) => x.accountId === p.accountId);
+          if (!m) return undefined;
+          Object.assign(m, me);
+          return normalizeParty(cur, Date.now());
+        })
+        .catch((e) => console.error('party join failed', e));
     }
     this.refreshWatches();
     this.sendState(p, true);
@@ -69,13 +89,16 @@ export class PartyRoom {
     // a handoff or a second sign-in keeps them online
     if (id && reason === 'leave') {
       const now = Date.now();
-      await this.reg.update(id, (cur) => {
-        if (!cur) return undefined;
-        const m = cur.members.find((x) => x.accountId === p.accountId);
-        if (!m || m.offlineSince) return undefined;
-        m.offlineSince = now; m.level = p.level;
-        return normalizeParty(cur, now);
-      }).catch((e) => console.error('party leave failed', e));
+      await this.reg
+        .update(id, (cur) => {
+          if (!cur) return undefined;
+          const m = cur.members.find((x) => x.accountId === p.accountId);
+          if (!m || m.offlineSince) return undefined;
+          m.offlineSince = now;
+          m.level = p.level;
+          return normalizeParty(cur, now);
+        })
+        .catch((e) => console.error('party leave failed', e));
     }
     this.refreshWatches(p);
   }
@@ -93,7 +116,11 @@ export class PartyRoom {
       const id = this.partyOf(q.accountId);
       if (id) want.add(id);
     }
-    for (const [id, off] of this.watches) if (!want.has(id)) { off(); this.watches.delete(id); }
+    for (const [id, off] of this.watches)
+      if (!want.has(id)) {
+        off();
+        this.watches.delete(id);
+      }
     for (const id of want) if (!this.watches.has(id)) this.watches.set(id, this.hub.watchParty(id));
   }
 
@@ -117,14 +144,29 @@ export class PartyRoom {
       const id = this.partyOf(q.accountId);
       if (!id) continue;
       let l = byParty.get(id);
-      if (!l) { l = []; byParty.set(id, l); }
-      l.push({ a: q.accountId, n: q.name, l: q.level, c: this.cls(q), hp: q.hp, mh: q.maxHp, x: q.sim.x, y: q.sim.y, s: this.room.shard, at: now });
+      if (!l) {
+        l = [];
+        byParty.set(id, l);
+      }
+      l.push({
+        a: q.accountId,
+        n: q.name,
+        l: q.level,
+        c: this.cls(q),
+        hp: q.hp,
+        mh: q.maxHp,
+        x: q.sim.x,
+        y: q.sim.y,
+        s: this.room.shard,
+        at: now,
+      });
     }
     for (const [id, list] of byParty) {
       for (const li of list) this.hub.live.set(li.a, li);
       this.hub.bus.publish(`party:${id}`, { t: 'live', list } satisfies PartyBusMsg);
     }
-    for (const q of this.room.players.values()) if (this.partyOf(q.accountId) || this.sent.get(q.id)) this.sendState(q, false);
+    for (const q of this.room.players.values())
+      if (this.partyOf(q.accountId) || this.sent.get(q.id)) this.sendState(q, false);
   }
 
   // ───────────────────────── state ─────────────────────────
@@ -136,13 +178,33 @@ export class PartyRoom {
     const members: PartyMember[] = rec.members.map((m) => {
       const local = this.room.playerByAccount(m.accountId);
       if (local) {
-        return { accountId: m.accountId, name: local.name, level: local.level, cls: this.cls(local), hp: local.hp, maxHp: local.maxHp, x: local.sim.x, y: local.sim.y, shard: this.room.shard, online: true, sid: local.id };
+        return {
+          accountId: m.accountId,
+          name: local.name,
+          level: local.level,
+          cls: this.cls(local),
+          hp: local.hp,
+          maxHp: local.maxHp,
+          x: local.sim.x,
+          y: local.sim.y,
+          shard: this.room.shard,
+          online: true,
+          sid: local.id,
+        };
       }
       const li = this.hub.live.get(m.accountId);
       return {
-        accountId: m.accountId, name: li?.n ?? m.name, level: li?.l ?? m.level, cls: li?.c ?? m.cls,
-        hp: li?.hp ?? 0, maxHp: li?.mh ?? 0, x: li?.x ?? 0, y: li?.y ?? 0, shard: li?.s ?? '',
-        online: !m.offlineSince && (!li || now - li.at < 15_000), sid: '',
+        accountId: m.accountId,
+        name: li?.n ?? m.name,
+        level: li?.l ?? m.level,
+        cls: li?.c ?? m.cls,
+        hp: li?.hp ?? 0,
+        maxHp: li?.mh ?? 0,
+        x: li?.x ?? 0,
+        y: li?.y ?? 0,
+        shard: li?.s ?? '',
+        online: !m.offlineSince && (!li || now - li.at < 15_000),
+        sid: '',
       };
     });
     return { id: rec.id, leader: rec.leader, members };
@@ -153,17 +215,32 @@ export class PartyRoom {
     const prev = this.sent.get(p.id);
     if (!st.id && !prev && !force) return;
     this.sent.set(p.id, st.id ?? '');
-    try { p.client.send(MSG34.PARTY_STATE, st); } catch { /* gone */ }
+    try {
+      p.client.send(MSG34.PARTY_STATE, st);
+    } catch {
+      /* gone */
+    }
   }
 
   private sendInvite(p: ServerPlayer, inv: Invite): void {
     const m: PartyInviteMsg = { partyId: inv.partyId, from: inv.from };
-    try { p.client.send(MSG34.PARTY_INVITE, m); } catch { /* gone */ }
+    try {
+      p.client.send(MSG34.PARTY_INVITE, m);
+    } catch {
+      /* gone */
+    }
   }
 
   /** An invite arrived over the bus for a player on this shard. */
   receiveInvite(p: ServerPlayer, inv: Invite): void {
-    if (!inv || typeof inv.partyId !== 'string' || !PARTY_ID_RE.test(inv.partyId) || typeof inv.from !== 'string' || typeof inv.fromId !== 'string') return;
+    if (
+      !inv ||
+      typeof inv.partyId !== 'string' ||
+      !PARTY_ID_RE.test(inv.partyId) ||
+      typeof inv.from !== 'string' ||
+      typeof inv.fromId !== 'string'
+    )
+      return;
     if (this.partyOf(p.accountId)) return;
     this.hub.addInvite(p.accountId, inv);
     this.sendInvite(p, inv);
@@ -195,31 +272,66 @@ export class PartyRoom {
 
   async handle(p: ServerPlayer, m: PartyMsg): Promise<void> {
     switch (m.action) {
-      case 'invite': return this.invite(p, nameArg(m.name));
-      case 'accept': return this.accept(p, m.partyId);
-      case 'decline': return this.decline(p, m.partyId);
-      case 'leave': return this.leaveParty(p);
-      case 'kick': return this.kick(p, m.accountId);
-      case 'promote': return this.promote(p, m.accountId);
-      default: return undefined;
+      case 'invite':
+        return this.invite(p, nameArg(m.name));
+      case 'accept':
+        return this.accept(p, m.partyId);
+      case 'decline':
+        return this.decline(p, m.partyId);
+      case 'leave':
+        return this.leaveParty(p);
+      case 'kick':
+        return this.kick(p, m.accountId);
+      case 'promote':
+        return this.promote(p, m.accountId);
+      default:
+        return undefined;
     }
   }
 
   async invite(p: ServerPlayer, name: string): Promise<void> {
     if (!name) return;
-    if (name.toLowerCase() === p.name.toLowerCase()) { sys(this.hub, p, "You can't invite yourself."); return; }
+    if (name.toLowerCase() === p.name.toLowerCase()) {
+      sys(this.hub, p, "You can't invite yourself.");
+      return;
+    }
     const myParty = this.reg.partyRecOf(p.accountId);
     if (myParty) {
-      if (myParty.leader !== p.accountId) { sys(this.hub, p, 'Only the party leader can invite.'); return; }
-      if (myParty.members.length >= PARTY_MAX) { sys(this.hub, p, `Your party is full (${PARTY_MAX}).`); return; }
+      if (myParty.leader !== p.accountId) {
+        sys(this.hub, p, 'Only the party leader can invite.');
+        return;
+      }
+      if (myParty.members.length >= PARTY_MAX) {
+        sys(this.hub, p, `Your party is full (${PARTY_MAX}).`);
+        return;
+      }
     }
     const t = await this.hub.dir.find(name);
-    if (!t) { sys(this.hub, p, `${name} is not online.`); return; }
-    if (t.accountId === p.accountId) { sys(this.hub, p, "You can't invite yourself."); return; }
-    if (myParty?.members.some((x) => x.accountId === t.accountId)) { sys(this.hub, p, `${t.name} is already in your party.`); return; }
-    if (this.partyOf(t.accountId)) { sys(this.hub, p, `${t.name} is already in a party.`); return; }
+    if (!t) {
+      sys(this.hub, p, `${name} is not online.`);
+      return;
+    }
+    if (t.accountId === p.accountId) {
+      sys(this.hub, p, "You can't invite yourself.");
+      return;
+    }
+    if (myParty?.members.some((x) => x.accountId === t.accountId)) {
+      sys(this.hub, p, `${t.name} is already in your party.`);
+      return;
+    }
+    if (this.partyOf(t.accountId)) {
+      sys(this.hub, p, `${t.name} is already in a party.`);
+      return;
+    }
     const partyId = myParty?.id ?? this.hub.partyIdFor(p.accountId);
-    const inv: Invite = { partyId, from: p.name, fromId: p.accountId, fromLevel: p.level, fromCls: this.cls(p), exp: Date.now() + INVITE_MS };
+    const inv: Invite = {
+      partyId,
+      from: p.name,
+      fromId: p.accountId,
+      fromLevel: p.level,
+      fromCls: this.cls(p),
+      exp: Date.now() + INVITE_MS,
+    };
     this.hub.bus.publish(`player:${t.accountId}`, { t: 'pinvite', inv });
     sys(this.hub, p, `Invited ${t.name} to your party.`);
   }
@@ -227,29 +339,63 @@ export class PartyRoom {
   async accept(p: ServerPlayer, partyId: unknown): Promise<void> {
     if (typeof partyId !== 'string' || !PARTY_ID_RE.test(partyId)) return;
     const inv = this.hub.takeInvite(p.accountId, partyId);
-    if (!inv) { sys(this.hub, p, 'That invite has expired.'); return; }
-    if (this.partyOf(p.accountId)) { sys(this.hub, p, 'Leave your current party first.'); return; }
-    if (this.reg.wasDeleted(partyId)) { sys(this.hub, p, 'That party has disbanded.'); return; }
+    if (!inv) {
+      sys(this.hub, p, 'That invite has expired.');
+      return;
+    }
+    if (this.partyOf(p.accountId)) {
+      sys(this.hub, p, 'Leave your current party first.');
+      return;
+    }
+    if (this.reg.wasDeleted(partyId)) {
+      sys(this.hub, p, 'That party has disbanded.');
+      return;
+    }
     const me = this.memberRec(p);
     let outcome = 'ok' as 'ok' | 'full' | 'gone';
     try {
       const r = await this.reg.update(partyId, (cur) => {
         if (!cur) {
-          if (inv.fromId === p.accountId) { outcome = 'gone'; return undefined; }
-          return { id: partyId, v: 0, leader: inv.fromId, members: [{ accountId: inv.fromId, name: inv.from, level: inv.fromLevel, cls: inv.fromCls, offlineSince: 0 }, me] };
+          if (inv.fromId === p.accountId) {
+            outcome = 'gone';
+            return undefined;
+          }
+          return {
+            id: partyId,
+            v: 0,
+            leader: inv.fromId,
+            members: [
+              { accountId: inv.fromId, name: inv.from, level: inv.fromLevel, cls: inv.fromCls, offlineSince: 0 },
+              me,
+            ],
+          };
         }
         if (cur.members.some((x) => x.accountId === p.accountId)) return undefined;
-        if (cur.members.length >= PARTY_MAX) { outcome = 'full'; return undefined; }
+        if (cur.members.length >= PARTY_MAX) {
+          outcome = 'full';
+          return undefined;
+        }
         return { ...cur, members: [...cur.members, me] };
       });
-      if (outcome === 'full') { sys(this.hub, p, 'That party is full.'); return; }
-      if (outcome === 'gone' || !r.party) { sys(this.hub, p, 'That party has disbanded.'); return; }
+      if (outcome === 'full') {
+        sys(this.hub, p, 'That party is full.');
+        return;
+      }
+      if (outcome === 'gone' || !r.party) {
+        sys(this.hub, p, 'That party has disbanded.');
+        return;
+      }
       if (r.changed) {
         if (!r.prev) this.hub.pendingParty.delete(inv.fromId);
         this.partyNotice(partyId, `${p.name} joined the party.`);
       }
     } catch (e) {
-      if (e instanceof PartyConflict) sys(this.hub, p, e.accountId === p.accountId ? 'Leave your current party first.' : `${inv.from} is in another party now.`);
+      if (e instanceof PartyConflict)
+        sys(
+          this.hub,
+          p,
+          e.accountId === p.accountId ? 'Leave your current party first.' : `${inv.from} is in another party now.`,
+        );
       else throw e;
     }
   }
@@ -262,7 +408,10 @@ export class PartyRoom {
 
   async leaveParty(p: ServerPlayer): Promise<void> {
     const id = this.partyOf(p.accountId);
-    if (!id) { sys(this.hub, p, "You're not in a party."); return; }
+    if (!id) {
+      sys(this.hub, p, "You're not in a party.");
+      return;
+    }
     const r = await this.reg.update(id, (cur) => {
       if (!cur || !cur.members.some((x) => x.accountId === p.accountId)) return undefined;
       return normalizeParty({ ...cur, members: cur.members.filter((x) => x.accountId !== p.accountId) }, Date.now());
@@ -270,7 +419,9 @@ export class PartyRoom {
     if (r.changed) {
       sys(this.hub, p, r.party ? 'You left the party.' : 'You left the party. It has disbanded.');
       if (r.party) this.partyNotice(id, `${p.name} left the party.`);
-      else for (const m of r.prev?.members ?? []) if (m.accountId !== p.accountId) this.tellAccount(m.accountId, 'Your party has disbanded.');
+      else
+        for (const m of r.prev?.members ?? [])
+          if (m.accountId !== p.accountId) this.tellAccount(m.accountId, 'Your party has disbanded.');
     }
   }
 
@@ -278,18 +429,27 @@ export class PartyRoom {
     if (typeof accountId !== 'string' || accountId.length > 64) return;
     const id = this.partyOf(p.accountId);
     if (!id) return;
-    if (accountId === p.accountId) { await this.leaveParty(p); return; }
+    if (accountId === p.accountId) {
+      await this.leaveParty(p);
+      return;
+    }
     let why = '';
     let name = '';
     const r = await this.reg.update(id, (cur) => {
       if (!cur) return undefined;
-      if (cur.leader !== p.accountId) { why = 'Only the party leader can remove members.'; return undefined; }
+      if (cur.leader !== p.accountId) {
+        why = 'Only the party leader can remove members.';
+        return undefined;
+      }
       const t = cur.members.find((x) => x.accountId === accountId);
       if (!t) return undefined;
       name = t.name;
       return normalizeParty({ ...cur, members: cur.members.filter((x) => x.accountId !== accountId) }, Date.now());
     });
-    if (why) { sys(this.hub, p, why); return; }
+    if (why) {
+      sys(this.hub, p, why);
+      return;
+    }
     if (!r.changed) return;
     this.tellAccount(accountId, 'You were removed from the party.');
     if (r.party) this.partyNotice(id, `${name} was removed from the party.`);
@@ -304,14 +464,23 @@ export class PartyRoom {
     let name = '';
     const r = await this.reg.update(id, (cur): PartyRec | undefined => {
       if (!cur) return undefined;
-      if (cur.leader !== p.accountId) { why = 'Only the party leader can promote.'; return undefined; }
+      if (cur.leader !== p.accountId) {
+        why = 'Only the party leader can promote.';
+        return undefined;
+      }
       const t = cur.members.find((x) => x.accountId === accountId);
       if (!t) return undefined;
-      if (t.offlineSince) { why = `${t.name} is offline.`; return undefined; }
+      if (t.offlineSince) {
+        why = `${t.name} is offline.`;
+        return undefined;
+      }
       name = t.name;
       return { ...cur, leader: accountId };
     });
-    if (why) { sys(this.hub, p, why); return; }
+    if (why) {
+      sys(this.hub, p, why);
+      return;
+    }
     if (r.changed) this.partyNotice(id, `${name} now leads the party.`);
   }
 }

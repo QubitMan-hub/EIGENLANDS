@@ -55,13 +55,30 @@ export class VoiceClient implements ClientModule {
     style.textContent = CSS;
     document.head.append(style);
     this.who = h('span', { class: 'vc-who', text: '' });
-    this.chip = h('div', { id: 'voice-chip', title: 'Proximity voice chat. Click to mute your microphone.' }, h('span', { class: 'vc-dot' }), h('span', { text: 'Voice off' }), this.who);
-    this.chip.addEventListener('click', () => { if (this.on) this.toggleMute(); else void this.enable(); });
+    this.chip = h(
+      'div',
+      { id: 'voice-chip', title: 'Proximity voice chat. Click to mute your microphone.' },
+      h('span', { class: 'vc-dot' }),
+      h('span', { text: 'Voice off' }),
+      this.who,
+    );
+    this.chip.addEventListener('click', () => {
+      if (this.on) this.toggleMute();
+      else void this.enable();
+    });
     document.body.append(this.chip);
-    const ledger=document.getElementById('hud-left');
-    if(ledger&&typeof ResizeObserver!=='undefined') {
-      const place=()=>{const box=ledger.getBoundingClientRect();if(!box.height)return;const bottom=Math.ceil(box.bottom);document.body.style.setProperty('--ledger-bottom',`${bottom}px`);this.chip.style.top=`${bottom+4}px`;};
-      new ResizeObserver(place).observe(ledger);window.addEventListener('resize',place);place();
+    const ledger = document.getElementById('hud-left');
+    if (ledger && typeof ResizeObserver !== 'undefined') {
+      const place = () => {
+        const box = ledger.getBoundingClientRect();
+        if (!box.height) return;
+        const bottom = Math.ceil(box.bottom);
+        document.body.style.setProperty('--ledger-bottom', `${bottom}px`);
+        this.chip.style.top = `${bottom + 4}px`;
+      };
+      new ResizeObserver(place).observe(ledger);
+      window.addEventListener('resize', place);
+      place();
     }
     this.gfx.zIndex = 9e8;
     this.d.fxLayer().addChild(this.gfx);
@@ -72,12 +89,15 @@ export class VoiceClient implements ClientModule {
     return { [MSG34.VOICE]: (m: VoiceIn) => void this.onSignal(m) };
   }
 
-  onState(s: any): void { this.players = s?.players ?? null; }
+  onState(s: any): void {
+    this.players = s?.players ?? null;
+  }
 
   action(a: ExtAction): boolean {
     if (a !== 'voice') return false;
     if (this.d.wins.open) return false;
-    if (this.on) this.disable(); else void this.enable();
+    if (this.on) this.disable();
+    else void this.enable();
     return true;
   }
 
@@ -86,16 +106,27 @@ export class VoiceClient implements ClientModule {
   private async enable(): Promise<void> {
     if (this.on) return;
     this.on = true;
-    try { this.ctx = new AudioContext(); void this.ctx.resume(); } catch { this.ctx = null; }
+    try {
+      this.ctx = new AudioContext();
+      void this.ctx.resume();
+    } catch {
+      this.ctx = null;
+    }
     if (navigator.mediaDevices?.getUserMedia) {
       try {
-        this.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false });
+        this.stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+          video: false,
+        });
         if (this.ctx) {
-          const an = this.ctx.createAnalyser(); an.fftSize = 512;
+          const an = this.ctx.createAnalyser();
+          an.fftSize = 512;
           this.ctx.createMediaStreamSource(this.stream).connect(an);
           this.mic = { an, buf: new Uint8Array(an.fftSize) };
         }
-      } catch { this.d.toasts.add('No microphone: you can hear nearby players but they will not hear you.', 'info'); }
+      } catch {
+        this.d.toasts.add('No microphone: you can hear nearby players but they will not hear you.', 'info');
+      }
     } else this.d.toasts.add('Voice chat needs a browser with microphone support.', 'info');
     this.paint();
   }
@@ -104,7 +135,8 @@ export class VoiceClient implements ClientModule {
     this.on = false;
     for (const id of [...this.peers.keys()]) this.drop(id, true);
     this.stream?.getTracks().forEach((t) => t.stop());
-    this.stream = null; this.mic = null;
+    this.stream = null;
+    this.mic = null;
     void this.ctx?.close().catch(() => {});
     this.ctx = null;
     this.gfx.clear();
@@ -113,11 +145,19 @@ export class VoiceClient implements ClientModule {
 
   private toggleMute(): void {
     this.muted = !this.muted;
-    this.stream?.getAudioTracks().forEach((t) => { t.enabled = !this.muted; });
+    this.stream?.getAudioTracks().forEach((t) => {
+      t.enabled = !this.muted;
+    });
     this.paint();
   }
 
-  private send(to: string, d: VoiceSignal): void { try { this.d.net().send(MSG34.VOICE, { to, d }); } catch { /* offline */ } }
+  private send(to: string, d: VoiceSignal): void {
+    try {
+      this.d.net().send(MSG34.VOICE, { to, d });
+    } catch {
+      /* offline */
+    }
+  }
 
   // ───────────────────────── peers ─────────────────────────
 
@@ -127,23 +167,39 @@ export class VoiceClient implements ClientModule {
     this.peers.set(id, peer);
     if (this.stream) for (const t of this.stream.getAudioTracks()) pc.addTrack(t, this.stream);
     else pc.addTransceiver('audio', { direction: 'recvonly' });
-    pc.onicecandidate = (e) => { if (e.candidate) this.send(id, { t: 'ice', c: { candidate: e.candidate.candidate, sdpMid: e.candidate.sdpMid, sdpMLineIndex: e.candidate.sdpMLineIndex } }); };
+    pc.onicecandidate = (e) => {
+      if (e.candidate)
+        this.send(id, {
+          t: 'ice',
+          c: { candidate: e.candidate.candidate, sdpMid: e.candidate.sdpMid, sdpMLineIndex: e.candidate.sdpMLineIndex },
+        });
+    };
     pc.ontrack = (e) => this.attach(peer, e.streams[0] ?? new MediaStream([e.track]));
-    pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed' || pc.connectionState === 'closed') this.drop(id, false); };
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === 'failed' || pc.connectionState === 'closed') this.drop(id, false);
+    };
     return peer;
   }
 
   /** remote audio -> analyser (who is speaking) -> gain (distance) -> panner (left/right) -> speakers */
   private attach(peer: Peer, stream: MediaStream): void {
     // a muted element keeps the stream flowing in Chromium; the Web Audio graph does the actual playback
-    const audio = new Audio(); audio.srcObject = stream; audio.muted = true; void audio.play().catch(() => {});
+    const audio = new Audio();
+    audio.srcObject = stream;
+    audio.muted = true;
+    void audio.play().catch(() => {});
     peer.audio = audio;
     if (!this.ctx) return;
     const src = this.ctx.createMediaStreamSource(stream);
-    const an = this.ctx.createAnalyser(); an.fftSize = 512;
-    const gain = this.ctx.createGain(); gain.gain.value = 0;
+    const an = this.ctx.createAnalyser();
+    an.fftSize = 512;
+    const gain = this.ctx.createGain();
+    gain.gain.value = 0;
     const pan = this.ctx.createStereoPanner();
-    src.connect(an); src.connect(gain); gain.connect(pan); pan.connect(this.ctx.destination);
+    src.connect(an);
+    src.connect(gain);
+    gain.connect(pan);
+    pan.connect(this.ctx.destination);
     Object.assign(peer, { an, buf: new Uint8Array(an.fftSize), gain, pan });
   }
 
@@ -152,7 +208,11 @@ export class VoiceClient implements ClientModule {
     if (!p) return;
     this.peers.delete(id);
     if (tell) this.send(id, { t: 'bye' });
-    try { p.pc.close(); } catch { /* already closed */ }
+    try {
+      p.pc.close();
+    } catch {
+      /* already closed */
+    }
     p.audio?.pause();
     p.gain?.disconnect();
   }
@@ -161,7 +221,10 @@ export class VoiceClient implements ClientModule {
     if (!this.on || !m || typeof m.from !== 'string' || !m.d) return;
     const d = m.d;
     try {
-      if (d.t === 'bye') { this.drop(m.from, false); return; }
+      if (d.t === 'bye') {
+        this.drop(m.from, false);
+        return;
+      }
       if (d.t === 'offer') {
         this.drop(m.from, false);
         const p = this.make(m.from);
@@ -181,7 +244,9 @@ export class VoiceClient implements ClientModule {
         if (p.pc.remoteDescription) await p.pc.addIceCandidate(d.c).catch(() => {});
         else p.queued.push(d.c);
       }
-    } catch { this.drop(m.from, false); }
+    } catch {
+      this.drop(m.from, false);
+    }
   }
 
   private async call(id: string): Promise<void> {
@@ -190,7 +255,9 @@ export class VoiceClient implements ClientModule {
       const offer = await p.pc.createOffer();
       await p.pc.setLocalDescription(offer);
       this.send(id, { t: 'offer', sdp: offer.sdp ?? '' });
-    } catch { this.drop(id, false); }
+    } catch {
+      this.drop(id, false);
+    }
   }
 
   // ───────────────────────── per frame ─────────────────────────
@@ -199,12 +266,19 @@ export class VoiceClient implements ClientModule {
     if (!an || !buf) return 0;
     an.getByteTimeDomainData(buf);
     let s = 0;
-    for (let i = 0; i < buf.length; i++) { const v = (buf[i]! - 128) / 128; s += v * v; }
+    for (let i = 0; i < buf.length; i++) {
+      const v = (buf[i]! - 128) / 128;
+      s += v * v;
+    }
     return Math.sqrt(s / buf.length);
   }
 
   frame(now: number, _dt: number): void {
-    const key=this.d.keys().voice[0]??'';if(key!==this.key){this.key=key;this.paint();}
+    const key = this.d.keys().voice[0] ?? '';
+    if (key !== this.key) {
+      this.key = key;
+      this.paint();
+    }
     if (!this.on) return;
     const me = this.d.me();
     if (!me) return;
@@ -219,8 +293,12 @@ export class VoiceClient implements ClientModule {
     // connect / disconnect twice a second; the lexicographically smaller id places the call
     if (now - this.last > 500) {
       this.last = now;
-      for (const [id, n] of near) if (n.dist <= VOICE_FAR && !this.peers.has(id) && this.d.myId() < id) void this.call(id);
-      for (const id of [...this.peers.keys()]) { const n = near.get(id); if (!n || n.dist > VOICE_FAR + 6) this.drop(id, true); }
+      for (const [id, n] of near)
+        if (n.dist <= VOICE_FAR && !this.peers.has(id) && this.d.myId() < id) void this.call(id);
+      for (const id of [...this.peers.keys()]) {
+        const n = near.get(id);
+        if (!n || n.dist > VOICE_FAR + 6) this.drop(id, true);
+      }
     }
     const g = this.gfx;
     g.clear();
@@ -231,30 +309,52 @@ export class VoiceClient implements ClientModule {
       if (!n) continue;
       if (p.gain && p.pan && this.ctx) {
         p.gain.gain.setTargetAtTime(voiceGain(n.dist), this.ctx.currentTime, 0.08);
-        p.pan.pan.setTargetAtTime(Math.max(-0.9, Math.min(0.9, (isoX(n.x, n.y) - sx) / 220)), this.ctx.currentTime, 0.08);
+        p.pan.pan.setTargetAtTime(
+          Math.max(-0.9, Math.min(0.9, (isoX(n.x, n.y) - sx) / 220)),
+          this.ctx.currentTime,
+          0.08,
+        );
       }
       p.level += (this.level(p.an, p.buf) - p.level) * 0.35;
       if (p.level > SPEAK_LEVEL && voiceGain(n.dist) > 0.02) {
         speakers.push(n.name);
-        const x = isoX(n.x, n.y), y = isoY(n.x, n.y) - 36;
+        const x = isoX(n.x, n.y),
+          y = isoY(n.x, n.y) - 36;
         const k = 0.5 + 0.5 * Math.sin(now / 90);
-        for (let i = 0; i < 3; i++) g.arc(x + 7, y, 3 + i * 2.5, -0.7, 0.7).stroke({ color: 0x5af0d0, width: 1, alpha: 0.35 + 0.5 * k * (1 - i / 3) });
+        for (let i = 0; i < 3; i++)
+          g.arc(x + 7, y, 3 + i * 2.5, -0.7, 0.7).stroke({
+            color: 0x5af0d0,
+            width: 1,
+            alpha: 0.35 + 0.5 * k * (1 - i / 3),
+          });
       }
     }
     const lvl = this.mic && !this.muted ? this.level(this.mic.an, this.mic.buf) : 0;
     this.talking = lvl > SPEAK_LEVEL ? 1 : 0;
     this.chip.classList.toggle('talk', !!this.talking);
-    this.who.textContent = speakers.length ? speakers.slice(0, 3).join(', ') : this.peers.size ? `${this.peers.size} nearby` : '';
+    this.who.textContent = speakers.length
+      ? speakers.slice(0, 3).join(', ')
+      : this.peers.size
+        ? `${this.peers.size} nearby`
+        : '';
   }
 
   private paint(): void {
     this.chip.classList.toggle('on', this.on);
     this.chip.classList.toggle('muted', this.on && (this.muted || !this.stream));
     const label = this.chip.children[1] as HTMLElement;
-    const code = this.d.keys().voice[0], key = code ? ` · ${keyLabel(code)}` : '';
+    const code = this.d.keys().voice[0],
+      key = code ? ` · ${keyLabel(code)}` : '';
     label.textContent = (!this.on ? 'Voice off' : !this.stream ? 'Listening' : this.muted ? 'Muted' : 'Voice on') + key;
     if (!this.on) this.who.textContent = '';
   }
 
-  debug(): Record<string, unknown> { return { voice: this.on, voicePeers: this.peers.size, voiceLive: [...this.peers.values()].filter((p) => p.pc.connectionState === 'connected').length, muted: this.muted }; }
+  debug(): Record<string, unknown> {
+    return {
+      voice: this.on,
+      voicePeers: this.peers.size,
+      voiceLive: [...this.peers.values()].filter((p) => p.pc.connectionState === 'connected').length,
+      muted: this.muted,
+    };
+  }
 }

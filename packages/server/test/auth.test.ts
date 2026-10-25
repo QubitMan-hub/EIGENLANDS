@@ -41,10 +41,19 @@ describe('auth http api', () => {
     if (!t.startsWith('good:')) throw new Error('bad');
     return { sub: t.slice(5), email: 'p@example.com' };
   };
-  beforeAll(async () => { await resetDb(); app = await startApp({ googleVerify: fakeGoogle }); });
-  afterAll(async () => { await app?.close(); });
+  beforeAll(async () => {
+    await resetDb();
+    app = await startApp({ googleVerify: fakeGoogle });
+  });
+  afterAll(async () => {
+    await app?.close();
+  });
 
-  const call = (path: string, init: RequestInit = {}) => fetch(`${httpUrl(app)}/api/auth${path}`, { ...init, headers: { 'content-type': 'application/json', ...(init.headers ?? {}) } });
+  const call = (path: string, init: RequestInit = {}) =>
+    fetch(`${httpUrl(app)}/api/auth${path}`, {
+      ...init,
+      headers: { 'content-type': 'application/json', ...(init.headers ?? {}) },
+    });
 
   it('creates a guest and recognises the device secret again', async () => {
     const a = await guest(app);
@@ -57,13 +66,18 @@ describe('auth http api', () => {
 
   it('upgrades a guest to a Google account keeping the same account id', async () => {
     const g = await guest(app);
-    const r = await call('/google', { method: 'POST', body: JSON.stringify({ idToken: 'good:sub-123', deviceSecret: g.deviceSecret }) });
-    const j = await r.json() as any;
+    const r = await call('/google', {
+      method: 'POST',
+      body: JSON.stringify({ idToken: 'good:sub-123', deviceSecret: g.deviceSecret }),
+    });
+    const j = (await r.json()) as any;
     expect(r.status).toBe(200);
     expect(j.upgraded).toBe(true);
     expect(j.accountId).toBe(g.accountId);
     // later sign-in from a fresh device resolves to the same account
-    const again = await (await call('/google', { method: 'POST', body: JSON.stringify({ idToken: 'good:sub-123' }) })).json() as any;
+    const again = (await (
+      await call('/google', { method: 'POST', body: JSON.stringify({ idToken: 'good:sub-123' }) })
+    ).json()) as any;
     expect(again.accountId).toBe(g.accountId);
     // the old device secret no longer works as a guest login for that account
     const stale = await guest(app, g.deviceSecret);
@@ -89,7 +103,10 @@ describe('auth http api', () => {
     const strict = await startApp({ config: { authRatePerSec: 1, authBurst: 5 } });
     let limited = false;
     for (let i = 0; i < 40; i++) {
-      if ((await fetch(`${httpUrl(strict)}/api/auth/config`)).status === 429) { limited = true; break; }
+      if ((await fetch(`${httpUrl(strict)}/api/auth/config`)).status === 429) {
+        limited = true;
+        break;
+      }
     }
     await strict.close();
     expect(limited).toBe(true);

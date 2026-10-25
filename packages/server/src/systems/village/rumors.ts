@@ -1,13 +1,24 @@
 import { NPCS, RUMOR_TEMPLATES } from '@eigenlands/shared';
 
-export interface Rumor { id: number; kind: string; who: string; what: string; text: string; day: number; heard: string[] }
+export interface Rumor {
+  id: number;
+  kind: string;
+  who: string;
+  what: string;
+  text: string;
+  day: number;
+  heard: string[];
+}
 export const MAX_RUMORS = 40;
 /** NPCs who hear everything (town hall, inn). */
 export const GOSSIPS = ['orla', 'maribel'];
 
 export function renderRumor(kind: string, who: string, what: string): string {
   const tpl = RUMOR_TEMPLATES[kind] ?? '{who} did something worth talking about.';
-  return tpl.replace(/\{who\}/g, who).replace(/\{what\}/g, what).replace(/\{npc\}/g, what);
+  return tpl
+    .replace(/\{who\}/g, who)
+    .replace(/\{what\}/g, what)
+    .replace(/\{npc\}/g, what);
 }
 
 export class RumorBook {
@@ -16,7 +27,9 @@ export class RumorBook {
 
   load(v: unknown): void {
     if (!Array.isArray(v)) return;
-    this.list = v.filter((r): r is Rumor => r && typeof r.id === 'number' && typeof r.text === 'string' && Array.isArray(r.heard)).slice(-MAX_RUMORS);
+    this.list = v
+      .filter((r): r is Rumor => r && typeof r.id === 'number' && typeof r.text === 'string' && Array.isArray(r.heard))
+      .slice(-MAX_RUMORS);
     this.seq = this.list.reduce((m, r) => Math.max(m, r.id), 0) + 1;
   }
 
@@ -27,12 +40,19 @@ export class RumorBook {
     return r;
   }
 
-  heardBy(npc: string): Rumor[] { return this.list.filter((r) => r.heard.includes(npc)); }
+  heardBy(npc: string): Rumor[] {
+    return this.list.filter((r) => r.heard.includes(npc));
+  }
 
   /** Gossips hear every rumor. Returns true if anything changed. */
   gossipHears(): boolean {
     let changed = false;
-    for (const r of this.list) for (const g of GOSSIPS) if (!r.heard.includes(g)) { r.heard.push(g); changed = true; }
+    for (const r of this.list)
+      for (const g of GOSSIPS)
+        if (!r.heard.includes(g)) {
+          r.heard.push(g);
+          changed = true;
+        }
     return changed;
   }
 
@@ -41,7 +61,8 @@ export class RumorBook {
     if (rand() >= 0.5) return false;
     const opts: Array<[Rumor, string]> = [];
     for (const r of this.list) {
-      const ha = r.heard.includes(a), hb = r.heard.includes(b);
+      const ha = r.heard.includes(a),
+        hb = r.heard.includes(b);
       if (ha && !hb) opts.push([r, b]);
       else if (hb && !ha) opts.push([r, a]);
     }

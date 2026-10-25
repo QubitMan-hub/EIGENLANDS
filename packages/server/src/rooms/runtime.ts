@@ -1,5 +1,5 @@
 import type { Config } from '../config';
-import type { Repo } from '../db/repo';
+import type { RepoStore } from '../db/repo';
 import type { Presence } from '../presence';
 import type { GoogleVerifier } from '../auth/google';
 import { ServerClock } from '../systems/clock';
@@ -7,7 +7,7 @@ import { ServerClock } from '../systems/clock';
 /** Process-wide dependencies handed to rooms (Colyseus instantiates rooms itself). */
 export interface Runtime {
   config: Config;
-  repo: Repo;
+  repo: RepoStore;
   presence: Presence;
   googleVerify: GoogleVerifier | null;
   /** tests set this to 0 to disable ambient enemy spawning */
@@ -19,7 +19,10 @@ export const tuning = { pace: 1, toolCooldownMs: 300 };
 
 let rt: Runtime | null = null;
 let clock: ServerClock | null = null;
-export const setRuntime = (r: Runtime) => { rt = r; clock = null; };
+export const setRuntime = (r: Runtime) => {
+  rt = r;
+  clock = null;
+};
 export const runtime = (): Runtime => {
   if (!rt) throw new Error('runtime not initialised');
   return rt;

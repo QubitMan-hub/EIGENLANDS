@@ -1,0 +1,74 @@
+[
+  {
+    "tile": 1,
+    "detail": 0,
+    "before": true,
+    "selected": 40689,
+    "darkFraction": 0.7115682371156824,
+    "movingFraction": 0.0331047703310477,
+    "reducedStable": true
+  },
+  {
+    "tile": 1,
+    "detail": 0,
+    "before": false,
+    "selected": 40870,
+    "darkFraction": 0,
+    "movingFraction": 0.001981893809640323,
+    "reducedStable": true
+  },
+  {
+    "tile": 1,
+    "detail": 1,
+    "before": true,
+    "selected": 40576,
+    "darkFraction": 0.7350897082018928,
+    "movingFraction": 0.03787953470031546,
+    "reducedStable": true
+  },
+  {
+    "tile": 1,
+    "detail": 1,
+    "before": false,
+    "selected": 40870,
+    "darkFraction": 0,
+    "movingFraction": 0.0025201859554685587,
+    "reducedStable": true
+  },
+  {
+    "tile": 28,
+    "detail": 0,
+    "before": true,
+    "selected": 40960,
+    "darkFraction": 0.773291015625,
+    "movingFraction": 0.599267578125,
+    "reducedStable": true
+  },
+  {
+    "tile": 28,
+    "detail": 0,
+    "before": false,
+    "selected": 40960,
+    "darkFraction": 0.0015380859375,
+    "movingFraction": 0.0050537109375,
+    "reducedStable": true
+  },
+  {
+    "tile": 28,
+    "detail": 1,
+    "before": true,
+    "selected": 40960,
+    "darkFraction": 0.773291015625,
+    "movingFraction": 0.599267578125,
+    "reducedStable": true
+  },
+  {
+    "tile": 28,
+    "detail": 1,
+    "before": false,
+    "selected": 40960,
+    "darkFraction": 0.0015380859375,
+    "movingFraction": 0.0050537109375,
+    "reducedStable": true
+  }
+]

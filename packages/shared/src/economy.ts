@@ -25,6 +25,9 @@ export function buyPrice(itemId: string, markup = 1): number {
 export function decaySupply(supply: Supply, hours: number): Supply {
   const out: Supply = {};
   const k = Math.pow(1 - SUPPLY_DECAY_PER_HOUR, hours);
-  for (const [id, v] of Object.entries(supply)) { const n = v * k; if (n > 0.05) out[id] = n; }
+  for (const [id, v] of Object.entries(supply)) {
+    const n = v * k;
+    if (n > 0.05) out[id] = n;
+  }
   return out;
 }

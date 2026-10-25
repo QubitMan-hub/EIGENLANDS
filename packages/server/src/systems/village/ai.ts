@@ -4,9 +4,22 @@ import type { NpcDef } from '@eigenlands/shared';
  * Optional AI dialogue layer. Disabled unless AI_DIALOGUE=1 and ANTHROPIC_API_KEY are set.
  * Core flows never depend on it: every failure resolves to `null` and the caller uses the scripted line.
  */
-export const AI_LIMITS = { inputChars: 140, outputChars: 200, maxTokens: 120, perAccountPerMin: 6, maxConcurrent: 8, timeoutMs: 4000 };
+export const AI_LIMITS = {
+  inputChars: 140,
+  outputChars: 200,
+  maxTokens: 120,
+  perAccountPerMin: 6,
+  maxConcurrent: 8,
+  timeoutMs: 4000,
+};
 
-export interface AiContext { season: string; weather: string; hour: number; hearts: number; doing: string }
+export interface AiContext {
+  season: string;
+  weather: string;
+  hour: number;
+  hearts: number;
+  doing: string;
+}
 export interface AiOptions {
   env?: Record<string, string | undefined>;
   fetchFn?: typeof fetch;
@@ -16,11 +29,18 @@ export interface AiOptions {
 const URL_RE = /(https?:\/\/|www\.)\S+/gi;
 // eslint-disable-next-line no-control-regex
 const CTRL_RE = /[\u0000-\u001f\u007f]/g;
-const LEAK_RE = /(system prompt|my instructions|as an ai|language model|i am an ai|i'm an ai|anthropic|claude|openai|chatgpt)/i;
+const LEAK_RE =
+  /(system prompt|my instructions|as an ai|language model|i am an ai|i'm an ai|anthropic|claude|openai|chatgpt)/i;
 
 /** Strip markup, links and control characters, collapse whitespace. */
 export function stripText(s: string): string {
-  return s.replace(URL_RE, ' ').replace(/<[^>]*>/g, ' ').replace(/[`*_#>\[\]{}\\|~^]/g, '').replace(CTRL_RE, ' ').replace(/\s+/g, ' ').trim();
+  return s
+    .replace(URL_RE, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/[`*_#>[\]{}\\|~^]/g, '')
+    .replace(CTRL_RE, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 export function sanitizeInput(s: unknown): string {
@@ -68,13 +88,18 @@ export class AiDialogue {
     this.now = o.now ?? Date.now;
   }
 
-  get enabled(): boolean { return this.env.AI_DIALOGUE === '1' && !!this.env.ANTHROPIC_API_KEY; }
+  get enabled(): boolean {
+    return this.env.AI_DIALOGUE === '1' && !!this.env.ANTHROPIC_API_KEY;
+  }
 
   /** Sliding-window per-account limiter. Records the attempt when allowed. */
   private allow(accountId: string): boolean {
     const t = this.now();
     const list = (this.hits.get(accountId) ?? []).filter((x) => t - x < 60_000);
-    if (list.length >= AI_LIMITS.perAccountPerMin) { this.hits.set(accountId, list); return false; }
+    if (list.length >= AI_LIMITS.perAccountPerMin) {
+      this.hits.set(accountId, list);
+      return false;
+    }
     list.push(t);
     this.hits.set(accountId, list);
     if (this.hits.size > 5000) for (const [k, v] of this.hits) if (!v.some((x) => t - x < 60_000)) this.hits.delete(k);
@@ -94,7 +119,11 @@ export class AiDialogue {
       const res = await this.fetchFn('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         signal: ac.signal,
-        headers: { 'content-type': 'application/json', 'x-api-key': this.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': this.env.ANTHROPIC_API_KEY!,
+          'anthropic-version': '2023-06-01',
+        },
         body: JSON.stringify({
           model: this.env.AI_DIALOGUE_MODEL || 'claude-haiku-5-5',
           max_tokens: AI_LIMITS.maxTokens,

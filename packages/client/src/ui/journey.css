@@ -1,15 +1,67 @@
-.journey { display:block; max-width:72ch; line-height:1.5; }
-.journey > button { min-height:44px; }
-.journey h3 { margin:20px 0 8px; color:#ebce90; font-size:16px; }
-.journey h3:first-child { margin-top:0; }
-.journey p { margin:6px 0 12px; }
-.journey progress { display:block; width:100%; height:12px; accent-color:#c6a568; background:#10191d; border:0; }
-.journey progress::-webkit-progress-bar { background:#10191d; }
-.journey progress::-webkit-progress-value { background:#c6a568; }
-.journey progress::-moz-progress-bar { background:#c6a568; }
-.journey-milestones { display:grid; grid-template-columns:140px 1fr; gap:10px 16px; margin:8px 0; }
-.journey-milestones dt { color:#f1e4c7; }
-.journey-milestones dd { margin:0; color:#c5ceb9; }
-.journey-encounters section { display:block; padding:12px 0; border-top:1px solid #455047; }
-.journey-encounters h4 { margin:0 0 6px; color:#ebce90; }
-@media (max-width:600px) { .journey-milestones { grid-template-columns:1fr; gap:4px; } .journey-milestones dd { margin-bottom:12px; } }
+.journey {
+  display: block;
+  max-width: 72ch;
+  line-height: 1.5;
+}
+.journey > button {
+  min-height: 44px;
+}
+.journey h3 {
+  margin: 20px 0 8px;
+  color: #ebce90;
+  font-size: 16px;
+}
+.journey h3:first-child {
+  margin-top: 0;
+}
+.journey p {
+  margin: 6px 0 12px;
+}
+.journey progress {
+  display: block;
+  width: 100%;
+  height: 12px;
+  accent-color: #c6a568;
+  background: #10191d;
+  border: 0;
+}
+.journey progress::-webkit-progress-bar {
+  background: #10191d;
+}
+.journey progress::-webkit-progress-value {
+  background: #c6a568;
+}
+.journey progress::-moz-progress-bar {
+  background: #c6a568;
+}
+.journey-milestones {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 10px 16px;
+  margin: 8px 0;
+}
+.journey-milestones dt {
+  color: #f1e4c7;
+}
+.journey-milestones dd {
+  margin: 0;
+  color: #c5ceb9;
+}
+.journey-encounters section {
+  display: block;
+  padding: 12px 0;
+  border-top: 1px solid #455047;
+}
+.journey-encounters h4 {
+  margin: 0 0 6px;
+  color: #ebce90;
+}
+@media (max-width: 600px) {
+  .journey-milestones {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .journey-milestones dd {
+    margin-bottom: 12px;
+  }
+}

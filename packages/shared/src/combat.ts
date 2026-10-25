@@ -12,8 +12,12 @@ import { IFRAME_TIME, PERFECT_WINDOW, PROJECTILE_DAMAGE } from './constants';
  * `weight` drives poise, armour, hit-stop and camera shake: 0 light, 1 finisher, 2 heavy, 3 fully charged heavy.
  */
 export interface ComboHit {
-  damage: number; range: number; arc: number; knockback: number;
-  poise: number; weight: number;
+  damage: number;
+  range: number;
+  arc: number;
+  knockback: number;
+  poise: number;
+  weight: number;
   /** forward step taken by the attacker when the hit comes out (tiles) */
   lunge: number;
   /** recovery before the next attack (s) */
@@ -33,49 +37,88 @@ export const COMBO: ComboHit[] = [
 export function heavyHit(level: number): ComboHit {
   const l = Math.min(1, Math.max(0, level));
   return {
-    damage: Math.round(20 + 14 * l), range: 2.1 + 0.35 * l, arc: cosDeg(100), knockback: 8.5 + 4 * l,
-    poise: Math.round(24 + 16 * l), weight: l >= 1 ? 3 : 2, lunge: 0.35 + 0.35 * l, recovery: 0.45,
+    damage: Math.round(20 + 14 * l),
+    range: 2.1 + 0.35 * l,
+    arc: cosDeg(100),
+    knockback: 8.5 + 4 * l,
+    poise: Math.round(24 + 16 * l),
+    weight: l >= 1 ? 3 : 2,
+    lunge: 0.35 + 0.35 * l,
+    recovery: 0.45,
   };
 }
 
 export const MELEE_FAMILIES = ['sword', 'spear', 'battle_axe', 'warhammer'] as const;
-export type MeleeFamily = typeof MELEE_FAMILIES[number];
-export const meleeFamily = (id: unknown): MeleeFamily => MELEE_FAMILIES.includes(id as MeleeFamily) ? id as MeleeFamily : 'sword';
+export type MeleeFamily = (typeof MELEE_FAMILIES)[number];
+export const meleeFamily = (id: unknown): MeleeFamily =>
+  MELEE_FAMILIES.includes(id as MeleeFamily) ? (id as MeleeFamily) : 'sword';
 /** Sidegrades: reach, cleave or poise instead of a straight increase to sword damage per recovery. */
 export const MELEE_COMBOS: Record<MeleeFamily, readonly ComboHit[]> = {
   sword: COMBO,
   spear: [
-    {damage:7,range:2.35,arc:cosDeg(22),knockback:2,poise:4,weight:0,lunge:.1,recovery:.27},
-    {damage:8,range:2.35,arc:cosDeg(22),knockback:2,poise:4,weight:0,lunge:.1,recovery:.27},
-    {damage:13,range:2.75,arc:cosDeg(25),knockback:6,poise:12,weight:1,lunge:.3,recovery:.46},
+    { damage: 7, range: 2.35, arc: cosDeg(22), knockback: 2, poise: 4, weight: 0, lunge: 0.1, recovery: 0.27 },
+    { damage: 8, range: 2.35, arc: cosDeg(22), knockback: 2, poise: 4, weight: 0, lunge: 0.1, recovery: 0.27 },
+    { damage: 13, range: 2.75, arc: cosDeg(25), knockback: 6, poise: 12, weight: 1, lunge: 0.3, recovery: 0.46 },
   ],
   battle_axe: [
-    {damage:9,range:1.35,arc:cosDeg(80),knockback:3.5,poise:6,weight:0,lunge:.1,recovery:.36},
-    {damage:10,range:1.35,arc:cosDeg(80),knockback:3.5,poise:6,weight:0,lunge:.1,recovery:.36},
-    {damage:18,range:1.65,arc:cosDeg(110),knockback:8,poise:18,weight:1,lunge:.35,recovery:.58},
+    { damage: 9, range: 1.35, arc: cosDeg(80), knockback: 3.5, poise: 6, weight: 0, lunge: 0.1, recovery: 0.36 },
+    { damage: 10, range: 1.35, arc: cosDeg(80), knockback: 3.5, poise: 6, weight: 0, lunge: 0.1, recovery: 0.36 },
+    { damage: 18, range: 1.65, arc: cosDeg(110), knockback: 8, poise: 18, weight: 1, lunge: 0.35, recovery: 0.58 },
   ],
   warhammer: [
-    {damage:12,range:1.25,arc:cosDeg(45),knockback:4,poise:10,weight:1,lunge:.08,recovery:.5},
-    {damage:13,range:1.25,arc:cosDeg(45),knockback:4,poise:10,weight:1,lunge:.08,recovery:.5},
-    {damage:22,range:1.55,arc:cosDeg(60),knockback:10,poise:30,weight:2,lunge:.2,recovery:.8},
+    { damage: 12, range: 1.25, arc: cosDeg(45), knockback: 4, poise: 10, weight: 1, lunge: 0.08, recovery: 0.5 },
+    { damage: 13, range: 1.25, arc: cosDeg(45), knockback: 4, poise: 10, weight: 1, lunge: 0.08, recovery: 0.5 },
+    { damage: 22, range: 1.55, arc: cosDeg(60), knockback: 10, poise: 30, weight: 2, lunge: 0.2, recovery: 0.8 },
   ],
 };
 export function meleeTap(id: unknown, combo: number): ComboHit {
-  return MELEE_COMBOS[meleeFamily(id)][Number.isFinite(combo) ? Math.max(0,Math.min(2,Math.floor(combo))) : 0]!;
+  return MELEE_COMBOS[meleeFamily(id)][Number.isFinite(combo) ? Math.max(0, Math.min(2, Math.floor(combo))) : 0]!;
 }
 export function meleeHeavy(id: unknown, level: number): ComboHit {
-  const l = Number.isFinite(level) ? Math.max(0,Math.min(1,level)) : 0;
-  switch(meleeFamily(id)) {
-    case 'spear': return {damage:Math.round(16+14*l),range:3.1+.3*l,arc:cosDeg(25),knockback:6+3*l,poise:Math.round(18+14*l),weight:l>=1?3:2,lunge:.15+.2*l,recovery:.5};
-    case 'battle_axe': return {damage:Math.round(22+12*l),range:1.8+.3*l,arc:cosDeg(125),knockback:8+4*l,poise:Math.round(25+15*l),weight:l>=1?3:2,lunge:.25+.3*l,recovery:.62};
-    case 'warhammer': return {damage:Math.round(30+18*l),range:1.7+.3*l,arc:cosDeg(60),knockback:10+5*l,poise:Math.round(35+25*l),weight:l>=1?3:2,lunge:.15+.15*l,recovery:.85};
-    default: return heavyHit(l);
+  const l = Number.isFinite(level) ? Math.max(0, Math.min(1, level)) : 0;
+  switch (meleeFamily(id)) {
+    case 'spear':
+      return {
+        damage: Math.round(16 + 14 * l),
+        range: 3.1 + 0.3 * l,
+        arc: cosDeg(25),
+        knockback: 6 + 3 * l,
+        poise: Math.round(18 + 14 * l),
+        weight: l >= 1 ? 3 : 2,
+        lunge: 0.15 + 0.2 * l,
+        recovery: 0.5,
+      };
+    case 'battle_axe':
+      return {
+        damage: Math.round(22 + 12 * l),
+        range: 1.8 + 0.3 * l,
+        arc: cosDeg(125),
+        knockback: 8 + 4 * l,
+        poise: Math.round(25 + 15 * l),
+        weight: l >= 1 ? 3 : 2,
+        lunge: 0.25 + 0.3 * l,
+        recovery: 0.62,
+      };
+    case 'warhammer':
+      return {
+        damage: Math.round(30 + 18 * l),
+        range: 1.7 + 0.3 * l,
+        arc: cosDeg(60),
+        knockback: 10 + 5 * l,
+        poise: Math.round(35 + 25 * l),
+        weight: l >= 1 ? 3 : 2,
+        lunge: 0.15 + 0.15 * l,
+        recovery: 0.85,
+      };
+    default:
+      return heavyHit(l);
   }
 }
 
 export const SKILL_DAMAGE = PROJECTILE_DAMAGE;
 /** Outgoing physical damage, before the target's armour/critical modifiers. */
-export const attackDamage = (base: number, attack: number, might = 0): number => Math.max(1, Math.round((base + attack) * (1 + might)));
+export const attackDamage = (base: number, attack: number, might = 0): number =>
+  Math.max(1, Math.round((base + attack) * (1 + might)));
 /** poise damage of the skill shot */
 export const SKILL_POISE = 6;
 
@@ -91,7 +134,9 @@ export const ARMOR_LIGHT_MULT = 0.6;
 /** an enemy's poise refills after this long without poise damage */
 export const POISE_REGEN_DELAY = 1.6;
 
-export function critChance(luck: number): number { return Math.min(0.5, CRIT_BASE + CRIT_PER_LUCK * Math.max(0, luck)); }
+export function critChance(luck: number): number {
+  return Math.min(0.5, CRIT_BASE + CRIT_PER_LUCK * Math.max(0, luck));
+}
 
 /** Random crits only come from melee; a counter (attack after a perfect dodge) always crits. */
 export function rollCrit(roll: number, luck: number, counter: boolean, melee: boolean): boolean {
@@ -99,19 +144,31 @@ export function rollCrit(roll: number, luck: number, counter: boolean, melee: bo
   return melee && roll < critChance(luck);
 }
 
-export interface HitResult { damage: number; poise: number; knockback: number; flinch: boolean }
+export interface HitResult {
+  damage: number;
+  poise: number;
+  knockback: number;
+  flinch: boolean;
+}
 
 /** Final damage/poise/knockback of a hit on an enemy after crit, stagger vulnerability and armour. */
 export function resolveHit(
-  def: Pick<EnemyDef, 'armor'>, base: { damage: number; poise: number; knockback: number; weight: number },
+  def: Pick<EnemyDef, 'armor'>,
+  base: { damage: number; poise: number; knockback: number; weight: number },
   o: { crit: boolean; staggered: boolean; counter?: boolean },
 ): HitResult {
-  let dmg = base.damage, poise = base.poise, kb = base.knockback;
+  let dmg = base.damage,
+    poise = base.poise,
+    kb = base.knockback;
   if (o.crit) dmg *= CRIT_MULT;
   if (o.counter) poise *= 1.5;
   if (o.staggered) dmg *= VULNERABLE_MULT;
   const armoured = !!def.armor && !o.staggered && base.weight < 1;
-  if (armoured) { dmg *= ARMOR_LIGHT_MULT; poise = 0; kb *= 0.3; }
+  if (armoured) {
+    dmg *= ARMOR_LIGHT_MULT;
+    poise = 0;
+    kb *= 0.3;
+  }
   return { damage: Math.max(1, Math.round(dmg)), poise, knockback: kb, flinch: !armoured };
 }
 
@@ -119,14 +176,20 @@ export function resolveHit(
 
 /** knockback speed (tiles/s) at which being blocked by a wall counts as a slam */
 export const SLAM_SPEED = 4.5;
-export function slamDamage(speed: number): number { return Math.round(4 + speed * 0.9); }
+export function slamDamage(speed: number): number {
+  return Math.round(4 + speed * 0.9);
+}
 export const SLAM_POISE = 18;
 
 // ───────────────────────── dodging ─────────────────────────
 
 /** `ifrT` counts down from IFRAME_TIME when a dash starts. */
-export function hasIframes(sim: { ifrT: number }): boolean { return sim.ifrT > 0; }
-export function isPerfectDodge(sim: { ifrT: number }): boolean { return sim.ifrT > IFRAME_TIME - PERFECT_WINDOW + 1e-9; }
+export function hasIframes(sim: { ifrT: number }): boolean {
+  return sim.ifrT > 0;
+}
+export function isPerfectDodge(sim: { ifrT: number }): boolean {
+  return sim.ifrT > IFRAME_TIME - PERFECT_WINDOW + 1e-9;
+}
 
 // ───────────────────────── client feel (deterministic so it can be tested) ─────────────────────────
 
@@ -144,10 +207,21 @@ export function shakeFor(weight: number, crit: boolean, reduced: boolean): numbe
 
 // ───────────────────────── geometry ─────────────────────────
 
-export interface Circle { x: number; y: number; r: number }
+export interface Circle {
+  x: number;
+  y: number;
+  r: number;
+}
 
 /** Does a melee arc from (ox,oy) facing (fx,fy) touch the target circle? */
-export function inArc(ox: number, oy: number, fx: number, fy: number, hit: Pick<ComboHit, 'range' | 'arc'>, t: Circle): boolean {
+export function inArc(
+  ox: number,
+  oy: number,
+  fx: number,
+  fy: number,
+  hit: Pick<ComboHit, 'range' | 'arc'>,
+  t: Circle,
+): boolean {
   const dx = t.x - ox;
   const dy = t.y - oy;
   const dist = Math.hypot(dx, dy);
@@ -158,7 +232,8 @@ export function inArc(ox: number, oy: number, fx: number, fy: number, hit: Pick<
 
 /** Segment (a->b) vs circle, for projectile sweeps and charge lanes. */
 export function segmentHitsCircle(ax: number, ay: number, bx: number, by: number, rad: number, c: Circle): boolean {
-  const vx = bx - ax, vy = by - ay;
+  const vx = bx - ax,
+    vy = by - ay;
   const l2 = vx * vx + vy * vy;
   let t = l2 > 0 ? ((c.x - ax) * vx + (c.y - ay) * vy) / l2 : 0;
   t = Math.min(1, Math.max(0, t));
@@ -168,7 +243,11 @@ export function segmentHitsCircle(ax: number, ay: number, bx: number, by: number
   return px * px + py * py <= rr * rr;
 }
 
-export interface PosSample { tick: number; x: number; y: number }
+export interface PosSample {
+  tick: number;
+  x: number;
+  y: number;
+}
 
 /** Lag compensation: position of an entity at an earlier tick from its history. */
 export function rewindPosition(history: PosSample[], tick: number): { x: number; y: number } | null {
@@ -200,7 +279,12 @@ export function maxHpForLevel(level: number, base: number): number {
 
 // ───────────────────────── enemies ─────────────────────────
 
-export interface DropDef { item: string; min: number; max: number; chance: number }
+export interface DropDef {
+  item: string;
+  min: number;
+  max: number;
+  chance: number;
+}
 export type EnemyAi = 'melee' | 'leap' | 'caster' | 'brute' | 'swarm' | 'passive' | 'boar' | 'ambusher' | 'harrier';
 export interface EnemyDef {
   kind: number;
@@ -262,54 +346,805 @@ export const REFLECT_SPEED_MULT = 1.7;
 export const REFLECT_DAMAGE = 18;
 
 const melee = { ai: 'melee' as const };
-export const ENEMY_DEFS: Record<'slime' | 'hopper' | 'rabbit' | 'deer' | 'wisp' | 'brute' | 'mite' | 'boar' | 'wolf' | 'badger' | 'slime_king' | 'warden' | 'colossus' | 'pirate' | 'serpent' | 'fox' | 'otter' | 'tortoise' | 'owl' | 'thornling' | 'glasscrawler' | 'guild_guard' | 'reed_stalker' | 'cinder_moth' | 'echo_bat' | 'spore_sage' | 'prism_beetle' | 'blind_ram' | 'rime_skitter' | 'pool_lurker' | 'vault_guardian' | 'spore_matriarch' | 'bellkeeper', EnemyDef> = {
-  slime: { kind: 0, name: 'Wisp Slime', hp: 30, speed: 2.1, radius: 0.4, damage: 7, sight: 7, windup: 0.55, strikeRange: 1.1, xp: 10, ...melee, poise: 8, staggerTime: 0.7, cooldown: 0.5, budget: 1, drops: [{ item: 'slime_gel', min: 1, max: 2, chance: 0.7 }] },
-  hopper: { kind: 1, name: 'Glint Hopper', hp: 22, speed: 3.0, radius: 0.35, damage: 9, sight: 9, windup: 0.7, strikeRange: 3.0, xp: 14, ai: 'leap', poise: 6, staggerTime: 0.7, cooldown: 0.6, budget: 1, drops: [{ item: 'hopper_tooth', min: 1, max: 1, chance: 0.45 }, { item: 'hide', min: 1, max: 1, chance: 0.25 }] },
-  rabbit: { kind: 2, name: 'Meadow Rabbit', passive: true, ai: 'passive', hp: 8, speed: 4.6, radius: 0.3, damage: 0, sight: 6, windup: 0, strikeRange: 0, xp: 3, drops: [{ item: 'raw_meat', min: 1, max: 1, chance: 0.9 }, { item: 'hide', min: 1, max: 1, chance: 0.5 }] },
-  deer: { kind: 3, name: 'Eigendeer', passive: true, ai: 'passive', hp: 36, speed: 5.4, radius: 0.5, damage: 0, sight: 9, windup: 0, strikeRange: 0, xp: 12, drops: [{ item: 'raw_meat', min: 2, max: 3, chance: 1 }, { item: 'hide', min: 1, max: 2, chance: 0.8 }] },
+export const ENEMY_DEFS: Record<
+  | 'slime'
+  | 'hopper'
+  | 'rabbit'
+  | 'deer'
+  | 'wisp'
+  | 'brute'
+  | 'mite'
+  | 'boar'
+  | 'wolf'
+  | 'badger'
+  | 'slime_king'
+  | 'warden'
+  | 'colossus'
+  | 'pirate'
+  | 'serpent'
+  | 'fox'
+  | 'otter'
+  | 'tortoise'
+  | 'owl'
+  | 'thornling'
+  | 'glasscrawler'
+  | 'guild_guard'
+  | 'reed_stalker'
+  | 'cinder_moth'
+  | 'echo_bat'
+  | 'spore_sage'
+  | 'prism_beetle'
+  | 'blind_ram'
+  | 'rime_skitter'
+  | 'pool_lurker'
+  | 'vault_guardian'
+  | 'spore_matriarch'
+  | 'bellkeeper'
+  | 'veyr',
+  EnemyDef
+> = {
+  slime: {
+    kind: 0,
+    name: 'Wisp Slime',
+    hp: 30,
+    speed: 2.1,
+    radius: 0.4,
+    damage: 7,
+    sight: 7,
+    windup: 0.55,
+    strikeRange: 1.1,
+    xp: 10,
+    ...melee,
+    poise: 8,
+    staggerTime: 0.7,
+    cooldown: 0.5,
+    budget: 1,
+    drops: [{ item: 'slime_gel', min: 1, max: 2, chance: 0.7 }],
+  },
+  hopper: {
+    kind: 1,
+    name: 'Glint Hopper',
+    hp: 22,
+    speed: 3.0,
+    radius: 0.35,
+    damage: 9,
+    sight: 9,
+    windup: 0.7,
+    strikeRange: 3.0,
+    xp: 14,
+    ai: 'leap',
+    poise: 6,
+    staggerTime: 0.7,
+    cooldown: 0.6,
+    budget: 1,
+    drops: [
+      { item: 'hopper_tooth', min: 1, max: 1, chance: 0.45 },
+      { item: 'hide', min: 1, max: 1, chance: 0.25 },
+    ],
+  },
+  rabbit: {
+    kind: 2,
+    name: 'Meadow Rabbit',
+    passive: true,
+    ai: 'passive',
+    hp: 8,
+    speed: 4.6,
+    radius: 0.3,
+    damage: 0,
+    sight: 6,
+    windup: 0,
+    strikeRange: 0,
+    xp: 3,
+    drops: [
+      { item: 'raw_meat', min: 1, max: 1, chance: 0.9 },
+      { item: 'hide', min: 1, max: 1, chance: 0.5 },
+    ],
+  },
+  deer: {
+    kind: 3,
+    name: 'Eigendeer',
+    passive: true,
+    ai: 'passive',
+    hp: 36,
+    speed: 5.4,
+    radius: 0.5,
+    damage: 0,
+    sight: 9,
+    windup: 0,
+    strikeRange: 0,
+    xp: 12,
+    drops: [
+      { item: 'raw_meat', min: 2, max: 3, chance: 1 },
+      { item: 'hide', min: 1, max: 2, chance: 0.8 },
+    ],
+  },
   /** ranged: keeps its distance and fires slow, dodgeable (and reflectable) orbs after a visible aim line */
-  wisp: { kind: 4, name: 'Phase Wisp', hp: 18, speed: 2.5, radius: 0.35, damage: 8, sight: 10, windup: 0.8, strikeRange: 7, xp: 16, ai: 'caster', poise: 5, staggerTime: 0.8, cooldown: 1.5, budget: 1, drops: [{ item: 'slime_gel', min: 1, max: 1, chance: 0.4 }, { item: 'qubit_crystal', min: 1, max: 1, chance: 0.06 }] },
+  wisp: {
+    kind: 4,
+    name: 'Phase Wisp',
+    hp: 18,
+    speed: 2.5,
+    radius: 0.35,
+    damage: 8,
+    sight: 10,
+    windup: 0.8,
+    strikeRange: 7,
+    xp: 16,
+    ai: 'caster',
+    poise: 5,
+    staggerTime: 0.8,
+    cooldown: 1.5,
+    budget: 1,
+    drops: [
+      { item: 'slime_gel', min: 1, max: 1, chance: 0.4 },
+      { item: 'qubit_crystal', min: 1, max: 1, chance: 0.06 },
+    ],
+  },
   /** armoured bruiser: long telegraphed charge (crashes into walls), close-range ground slam */
-  brute: { kind: 5, name: 'Decoherent Brute', hp: 95, speed: 1.7, radius: 0.55, damage: 16, sight: 9, windup: 0.95, strikeRange: 7, xp: 45, ai: 'brute', poise: 40, staggerTime: 1.4, armor: true, resist: 0.25, cooldown: 1.4, budget: 3, drops: [{ item: 'iron_ore', min: 1, max: 2, chance: 0.7 }, { item: 'coal', min: 1, max: 2, chance: 0.5 }, { item: 'hide', min: 1, max: 1, chance: 0.35 }] },
+  brute: {
+    kind: 5,
+    name: 'Decoherent Brute',
+    hp: 95,
+    speed: 1.7,
+    radius: 0.55,
+    damage: 16,
+    sight: 9,
+    windup: 0.95,
+    strikeRange: 7,
+    xp: 45,
+    ai: 'brute',
+    poise: 40,
+    staggerTime: 1.4,
+    armor: true,
+    resist: 0.25,
+    cooldown: 1.4,
+    budget: 3,
+    drops: [
+      { item: 'iron_ore', min: 1, max: 2, chance: 0.7 },
+      { item: 'coal', min: 1, max: 2, chance: 0.5 },
+      { item: 'hide', min: 1, max: 1, chance: 0.35 },
+    ],
+  },
   /** swarm: tiny, fast, fragile, come in packs */
-  mite: { kind: 6, name: 'Static Mite', hp: 6, speed: 4.3, radius: 0.22, damage: 3, sight: 8, windup: 0.32, strikeRange: 0.75, xp: 3, ai: 'swarm', poise: 0, staggerTime: 0.35, cooldown: 0.6, budget: 0.34, drops: [{ item: 'copper_ore', min: 1, max: 1, chance: 0.12 }] },
+  mite: {
+    kind: 6,
+    name: 'Static Mite',
+    hp: 6,
+    speed: 4.3,
+    radius: 0.22,
+    damage: 3,
+    sight: 8,
+    windup: 0.32,
+    strikeRange: 0.75,
+    xp: 3,
+    ai: 'swarm',
+    poise: 0,
+    staggerTime: 0.35,
+    cooldown: 0.6,
+    budget: 0.34,
+    drops: [{ item: 'copper_ore', min: 1, max: 1, chance: 0.12 }],
+  },
   /** wild boar: roots around peacefully; hurt it or crowd it and it lowers its head and charges (long telegraph, dodge sideways) */
-  boar: { kind: 7, name: 'Wild Boar', neutral: true, ai: 'boar', hp: 58, speed: 2.4, radius: 0.5, damage: 13, sight: 7, windup: 0.75, strikeRange: 6, xp: 24, poise: 22, staggerTime: 1.0, resist: 0.5, cooldown: 1.6, budget: 0, drops: [{ item: 'raw_meat', min: 2, max: 3, chance: 1 }, { item: 'hide', min: 1, max: 2, chance: 0.7 }, { item: 'boar_tusk', min: 1, max: 1, chance: 0.35 }] },
+  boar: {
+    kind: 7,
+    name: 'Wild Boar',
+    neutral: true,
+    ai: 'boar',
+    hp: 58,
+    speed: 2.4,
+    radius: 0.5,
+    damage: 13,
+    sight: 7,
+    windup: 0.75,
+    strikeRange: 6,
+    xp: 24,
+    poise: 22,
+    staggerTime: 1.0,
+    resist: 0.5,
+    cooldown: 1.6,
+    budget: 0,
+    drops: [
+      { item: 'raw_meat', min: 2, max: 3, chance: 1 },
+      { item: 'hide', min: 1, max: 2, chance: 0.7 },
+      { item: 'boar_tusk', min: 1, max: 1, chance: 0.35 },
+    ],
+  },
   /** wolf: pack hunter of forests and snowfields; circles, then lunges with a short, readable windup */
-  wolf: { kind: 8, name: 'Dire Wolf', hp: 44, speed: 4.2, radius: 0.45, damage: 10, sight: 12, windup: 0.6, strikeRange: 3.6, xp: 30, ai: 'leap', poise: 10, staggerTime: 0.8, cooldown: 0.9, budget: 1.5, drops: [{ item: 'hide', min: 1, max: 2, chance: 0.8 }, { item: 'wolf_fang', min: 1, max: 1, chance: 0.4 }, { item: 'raw_meat', min: 1, max: 2, chance: 0.8 }] },
+  wolf: {
+    kind: 8,
+    name: 'Dire Wolf',
+    hp: 44,
+    speed: 4.2,
+    radius: 0.45,
+    damage: 10,
+    sight: 12,
+    windup: 0.6,
+    strikeRange: 3.6,
+    xp: 30,
+    ai: 'leap',
+    poise: 10,
+    staggerTime: 0.8,
+    cooldown: 0.9,
+    budget: 1.5,
+    drops: [
+      { item: 'hide', min: 1, max: 2, chance: 0.8 },
+      { item: 'wolf_fang', min: 1, max: 1, chance: 0.4 },
+      { item: 'raw_meat', min: 1, max: 2, chance: 0.8 },
+    ],
+  },
   /** badger: small, stubborn and fast to bite; leave it alone and it digs for grubs */
-  badger: { kind: 9, name: 'Badger', neutral: true, ai: 'melee', hp: 30, speed: 3.2, radius: 0.35, damage: 8, sight: 6, windup: 0.4, strikeRange: 1.1, xp: 14, poise: 6, staggerTime: 0.6, cooldown: 0.7, budget: 0, drops: [{ item: 'hide', min: 1, max: 1, chance: 0.6 }, { item: 'raw_meat', min: 1, max: 1, chance: 0.7 }] },
-  fox: { kind: 15, name: 'Copper Fox', passive: true, ai: 'passive', hp: 18, speed: 4.2, radius: 0.3, damage: 0, sight: 7, windup: 0, strikeRange: 0, xp: 5, drops: [{ item: 'hide', min: 1, max: 1, chance: 0.65 }] },
-  otter: { kind: 16, name: 'River Otter', passive: true, ai: 'passive', hp: 20, speed: 3.4, radius: 0.3, damage: 0, sight: 6, windup: 0, strikeRange: 0, xp: 5, drops: [{ item: 'raw_meat', min: 1, max: 1, chance: 0.6 }] },
-  tortoise: { kind: 17, name: 'Mossback Tortoise', passive: true, ai: 'passive', hp: 48, speed: 0.85, radius: 0.4, damage: 0, sight: 0, windup: 0, strikeRange: 0, xp: 4, armor: true, drops: [{ item: 'stone', min: 1, max: 2, chance: 0.65 }] },
-  owl: { kind: 18, name: 'Lantern Owl', passive: true, ai: 'passive', hp: 12, speed: 2.8, radius: 0.25, damage: 0, sight: 7, windup: 0, strikeRange: 0, xp: 4, drops: [{ item: 'fiber', min: 1, max: 2, chance: 0.6 }] },
-  thornling: { kind: 19, name: 'Briar Warden', hp: 64, speed: 1.65, radius: 0.45, damage: 11, sight: 8, windup: 0.9, strikeRange: 1.4, xp: 27, ai: 'melee', armor: true, poise: 22, staggerTime: 1.1, resist: 0.6, cooldown: 1.5, budget: 2, drops: [{ item: 'wood', min: 2, max: 4, chance: 1 }, { item: 'healing_herb', min: 1, max: 1, chance: 0.2 }] },
-  glasscrawler: { kind: 20, name: 'Prism Crawler', hp: 34, speed: 3.1, radius: 0.35, damage: 12, sight: 9, windup: 0.8, strikeRange: 3.1, xp: 26, ai: 'leap', poise: 8, staggerTime: 0.8, cooldown: 1.5, budget: 1.5, drops: [{ item: 'copper_ore', min: 1, max: 2, chance: 0.7 }, { item: 'qubit_crystal', min: 1, max: 1, chance: 0.08 }] },
-  reed_stalker: {kind:22,name:'Reed Stalker',hp:42,speed:2.7,radius:.4,damage:10,sight:8,windup:.9,strikeRange:3.4,xp:25,ai:'ambusher',poise:10,staggerTime:.9,cooldown:2.2,budget:1.5,drops:[{item:'fiber',min:2,max:4,chance:1},{item:'healing_herb',min:1,max:1,chance:.2}]},
-  cinder_moth: {kind:23,name:'Cinder Moth',hp:28,speed:2.8,radius:.3,damage:8,sight:10,windup:1,strikeRange:6.5,xp:28,ai:'harrier',poise:6,staggerTime:.8,cooldown:2.4,budget:1.5,drops:[{item:'coal',min:1,max:2,chance:1},{item:'qubit_crystal',min:1,max:1,chance:.08}]},
-  echo_bat: {kind:24,name:'Echo Bat',hp:20,speed:3.1,radius:.28,damage:5,sight:8,windup:1,strikeRange:3.3,xp:14,ai:'ambusher',poise:5,staggerTime:1,cooldown:2.8,budget:1,drops:[{item:'fiber',min:1,max:2,chance:.8}]},
-  spore_sage: {kind:25,name:'Spore Sage',hp:32,speed:1.5,radius:.4,damage:7,sight:9,windup:1.3,strikeRange:6,xp:24,ai:'caster',poise:8,staggerTime:1.2,cooldown:3,budget:1.5,drops:[{item:'healing_herb',min:1,max:2,chance:.8}]},
-  prism_beetle: {kind:26,name:'Prism Scarab',hp:54,speed:1.8,radius:.42,damage:9,sight:7,windup:1,strikeRange:1.5,xp:28,ai:'melee',armor:true,poise:20,staggerTime:1.4,cooldown:1.8,budget:2,drops:[{item:'copper_ore',min:1,max:3,chance:1},{item:'qubit_crystal',min:1,max:1,chance:.12}]},
-  blind_ram: {kind:27,name:'Blindstone Ram',hp:68,speed:1.5,radius:.5,damage:12,sight:8,windup:1.2,strikeRange:7,xp:35,ai:'boar',poise:24,staggerTime:1.8,cooldown:2.8,budget:2,drops:[{item:'iron_ore',min:1,max:3,chance:1}]},
-  rime_skitter: {kind:28,name:'Rime Skitter',hp:26,speed:2.8,radius:.3,damage:8,sight:8,windup:.9,strikeRange:3.5,xp:23,ai:'leap',poise:6,staggerTime:1,cooldown:2,budget:1.5,drops:[{item:'silver_ore',min:1,max:2,chance:.45}]},
-  pool_lurker: {kind:29,name:'Stillwater Lurker',hp:38,speed:2.2,radius:.4,damage:9,sight:9,windup:1.2,strikeRange:6,xp:26,ai:'harrier',poise:8,staggerTime:1,cooldown:2.8,budget:1.5,drops:[{item:'slime_gel',min:2,max:3,chance:1},{item:'healing_potion',min:1,max:1,chance:.15}]},
-  vault_guardian: {kind:30,name:'Vault Guardian',hp:240,speed:1.4,radius:.7,damage:15,sight:12,windup:1.3,strikeRange:7,xp:140,ai:'brute',armor:true,poise:65,staggerTime:2,cooldown:2.2,aoe:1.3,budget:4,drops:[{item:'gold_ore',min:3,max:5,chance:1},{item:'qubit_crystal',min:1,max:2,chance:1}]},
-  spore_matriarch: {kind:31,name:'Lanternroot Matriarch',hp:200,speed:1.2,radius:.75,damage:13,sight:12,windup:1.6,strikeRange:7,xp:140,ai:'caster',poise:40,staggerTime:2,cooldown:2.5,budget:4,drops:[{item:'healing_potion',min:2,max:4,chance:1},{item:'qubit_crystal',min:1,max:2,chance:1}]},
-  bellkeeper: {kind:32,name:'The Hollow Bellkeeper',boss:true,hp:1100,speed:1.5,radius:1.3,damage:17,sight:18,windup:1.3,strikeRange:7,xp:700,ai:'brute',armor:true,poise:160,staggerTime:1.8,resist:.1,cooldown:2,aoe:1.6,budget:99,drops:[{item:'heart_crystal',min:1,max:1,chance:1},{item:'qubit_crystal',min:3,max:5,chance:1},{item:'gold_ingot',min:3,max:5,chance:1}]},
-  guild_guard: { kind: 21, name: 'Guild Escort', hp: 60, speed: 2.6, radius: 0.35, damage: 8, sight: 8, windup: 0.65, strikeRange: 1.2, xp: 0, ai: 'melee', poise: 14, staggerTime: 0.9, cooldown: 1.1, budget: 2, drops: [] },
+  badger: {
+    kind: 9,
+    name: 'Badger',
+    neutral: true,
+    ai: 'melee',
+    hp: 30,
+    speed: 3.2,
+    radius: 0.35,
+    damage: 8,
+    sight: 6,
+    windup: 0.4,
+    strikeRange: 1.1,
+    xp: 14,
+    poise: 6,
+    staggerTime: 0.6,
+    cooldown: 0.7,
+    budget: 0,
+    drops: [
+      { item: 'hide', min: 1, max: 1, chance: 0.6 },
+      { item: 'raw_meat', min: 1, max: 1, chance: 0.7 },
+    ],
+  },
+  fox: {
+    kind: 15,
+    name: 'Copper Fox',
+    passive: true,
+    ai: 'passive',
+    hp: 18,
+    speed: 4.2,
+    radius: 0.3,
+    damage: 0,
+    sight: 7,
+    windup: 0,
+    strikeRange: 0,
+    xp: 5,
+    drops: [{ item: 'hide', min: 1, max: 1, chance: 0.65 }],
+  },
+  otter: {
+    kind: 16,
+    name: 'River Otter',
+    passive: true,
+    ai: 'passive',
+    hp: 20,
+    speed: 3.4,
+    radius: 0.3,
+    damage: 0,
+    sight: 6,
+    windup: 0,
+    strikeRange: 0,
+    xp: 5,
+    drops: [{ item: 'raw_meat', min: 1, max: 1, chance: 0.6 }],
+  },
+  tortoise: {
+    kind: 17,
+    name: 'Mossback Tortoise',
+    passive: true,
+    ai: 'passive',
+    hp: 48,
+    speed: 0.85,
+    radius: 0.4,
+    damage: 0,
+    sight: 0,
+    windup: 0,
+    strikeRange: 0,
+    xp: 4,
+    armor: true,
+    drops: [{ item: 'stone', min: 1, max: 2, chance: 0.65 }],
+  },
+  owl: {
+    kind: 18,
+    name: 'Lantern Owl',
+    passive: true,
+    ai: 'passive',
+    hp: 12,
+    speed: 2.8,
+    radius: 0.25,
+    damage: 0,
+    sight: 7,
+    windup: 0,
+    strikeRange: 0,
+    xp: 4,
+    drops: [{ item: 'fiber', min: 1, max: 2, chance: 0.6 }],
+  },
+  thornling: {
+    kind: 19,
+    name: 'Briar Warden',
+    hp: 64,
+    speed: 1.65,
+    radius: 0.45,
+    damage: 11,
+    sight: 8,
+    windup: 0.9,
+    strikeRange: 1.4,
+    xp: 27,
+    ai: 'melee',
+    armor: true,
+    poise: 22,
+    staggerTime: 1.1,
+    resist: 0.6,
+    cooldown: 1.5,
+    budget: 2,
+    drops: [
+      { item: 'wood', min: 2, max: 4, chance: 1 },
+      { item: 'healing_herb', min: 1, max: 1, chance: 0.2 },
+    ],
+  },
+  glasscrawler: {
+    kind: 20,
+    name: 'Prism Crawler',
+    hp: 34,
+    speed: 3.1,
+    radius: 0.35,
+    damage: 12,
+    sight: 9,
+    windup: 0.8,
+    strikeRange: 3.1,
+    xp: 26,
+    ai: 'leap',
+    poise: 8,
+    staggerTime: 0.8,
+    cooldown: 1.5,
+    budget: 1.5,
+    drops: [
+      { item: 'copper_ore', min: 1, max: 2, chance: 0.7 },
+      { item: 'qubit_crystal', min: 1, max: 1, chance: 0.08 },
+    ],
+  },
+  reed_stalker: {
+    kind: 22,
+    name: 'Reed Stalker',
+    hp: 42,
+    speed: 2.7,
+    radius: 0.4,
+    damage: 10,
+    sight: 8,
+    windup: 0.9,
+    strikeRange: 3.4,
+    xp: 25,
+    ai: 'ambusher',
+    poise: 10,
+    staggerTime: 0.9,
+    cooldown: 2.2,
+    budget: 1.5,
+    drops: [
+      { item: 'fiber', min: 2, max: 4, chance: 1 },
+      { item: 'healing_herb', min: 1, max: 1, chance: 0.2 },
+    ],
+  },
+  cinder_moth: {
+    kind: 23,
+    name: 'Cinder Moth',
+    hp: 28,
+    speed: 2.8,
+    radius: 0.3,
+    damage: 8,
+    sight: 10,
+    windup: 1,
+    strikeRange: 6.5,
+    xp: 28,
+    ai: 'harrier',
+    poise: 6,
+    staggerTime: 0.8,
+    cooldown: 2.4,
+    budget: 1.5,
+    drops: [
+      { item: 'coal', min: 1, max: 2, chance: 1 },
+      { item: 'qubit_crystal', min: 1, max: 1, chance: 0.08 },
+    ],
+  },
+  echo_bat: {
+    kind: 24,
+    name: 'Echo Bat',
+    hp: 20,
+    speed: 3.1,
+    radius: 0.28,
+    damage: 5,
+    sight: 8,
+    windup: 1,
+    strikeRange: 3.3,
+    xp: 14,
+    ai: 'ambusher',
+    poise: 5,
+    staggerTime: 1,
+    cooldown: 2.8,
+    budget: 1,
+    drops: [{ item: 'fiber', min: 1, max: 2, chance: 0.8 }],
+  },
+  spore_sage: {
+    kind: 25,
+    name: 'Spore Sage',
+    hp: 32,
+    speed: 1.5,
+    radius: 0.4,
+    damage: 7,
+    sight: 9,
+    windup: 1.3,
+    strikeRange: 6,
+    xp: 24,
+    ai: 'caster',
+    poise: 8,
+    staggerTime: 1.2,
+    cooldown: 3,
+    budget: 1.5,
+    drops: [{ item: 'healing_herb', min: 1, max: 2, chance: 0.8 }],
+  },
+  prism_beetle: {
+    kind: 26,
+    name: 'Prism Scarab',
+    hp: 54,
+    speed: 1.8,
+    radius: 0.42,
+    damage: 9,
+    sight: 7,
+    windup: 1,
+    strikeRange: 1.5,
+    xp: 28,
+    ai: 'melee',
+    armor: true,
+    poise: 20,
+    staggerTime: 1.4,
+    cooldown: 1.8,
+    budget: 2,
+    drops: [
+      { item: 'copper_ore', min: 1, max: 3, chance: 1 },
+      { item: 'qubit_crystal', min: 1, max: 1, chance: 0.12 },
+    ],
+  },
+  blind_ram: {
+    kind: 27,
+    name: 'Blindstone Ram',
+    hp: 68,
+    speed: 1.5,
+    radius: 0.5,
+    damage: 12,
+    sight: 8,
+    windup: 1.2,
+    strikeRange: 7,
+    xp: 35,
+    ai: 'boar',
+    poise: 24,
+    staggerTime: 1.8,
+    cooldown: 2.8,
+    budget: 2,
+    drops: [{ item: 'iron_ore', min: 1, max: 3, chance: 1 }],
+  },
+  rime_skitter: {
+    kind: 28,
+    name: 'Rime Skitter',
+    hp: 26,
+    speed: 2.8,
+    radius: 0.3,
+    damage: 8,
+    sight: 8,
+    windup: 0.9,
+    strikeRange: 3.5,
+    xp: 23,
+    ai: 'leap',
+    poise: 6,
+    staggerTime: 1,
+    cooldown: 2,
+    budget: 1.5,
+    drops: [{ item: 'silver_ore', min: 1, max: 2, chance: 0.45 }],
+  },
+  pool_lurker: {
+    kind: 29,
+    name: 'Stillwater Lurker',
+    hp: 38,
+    speed: 2.2,
+    radius: 0.4,
+    damage: 9,
+    sight: 9,
+    windup: 1.2,
+    strikeRange: 6,
+    xp: 26,
+    ai: 'harrier',
+    poise: 8,
+    staggerTime: 1,
+    cooldown: 2.8,
+    budget: 1.5,
+    drops: [
+      { item: 'slime_gel', min: 2, max: 3, chance: 1 },
+      { item: 'healing_potion', min: 1, max: 1, chance: 0.15 },
+    ],
+  },
+  vault_guardian: {
+    kind: 30,
+    name: 'Vault Guardian',
+    hp: 240,
+    speed: 1.4,
+    radius: 0.7,
+    damage: 15,
+    sight: 12,
+    windup: 1.3,
+    strikeRange: 7,
+    xp: 140,
+    ai: 'brute',
+    armor: true,
+    poise: 65,
+    staggerTime: 2,
+    cooldown: 2.2,
+    aoe: 1.3,
+    budget: 4,
+    drops: [
+      { item: 'gold_ore', min: 3, max: 5, chance: 1 },
+      { item: 'qubit_crystal', min: 1, max: 2, chance: 1 },
+    ],
+  },
+  spore_matriarch: {
+    kind: 31,
+    name: 'Lanternroot Matriarch',
+    hp: 200,
+    speed: 1.2,
+    radius: 0.75,
+    damage: 13,
+    sight: 12,
+    windup: 1.6,
+    strikeRange: 7,
+    xp: 140,
+    ai: 'caster',
+    poise: 40,
+    staggerTime: 2,
+    cooldown: 2.5,
+    budget: 4,
+    drops: [
+      { item: 'healing_potion', min: 2, max: 4, chance: 1 },
+      { item: 'qubit_crystal', min: 1, max: 2, chance: 1 },
+    ],
+  },
+  veyr: {
+    kind: 33,
+    name: 'Veyr, the Stormbound Colossus',
+    boss: true,
+    hp: 1350,
+    speed: 1.45,
+    radius: 1.2,
+    damage: 18,
+    sight: 20,
+    windup: 1.25,
+    strikeRange: 2.8,
+    xp: 950,
+    ai: 'brute',
+    armor: true,
+    poise: 140,
+    staggerTime: 2.1,
+    resist: 0.1,
+    cooldown: 2.2,
+    aoe: 1.7,
+    budget: 99,
+    drops: [
+      { item: 'storm_heart', min: 1, max: 1, chance: 1 },
+      { item: 'heart_crystal', min: 1, max: 1, chance: 1 },
+      { item: 'qubit_crystal', min: 4, max: 6, chance: 1 },
+      { item: 'gold_ingot', min: 3, max: 4, chance: 1 },
+    ],
+  },
+  bellkeeper: {
+    kind: 32,
+    name: 'The Hollow Bellkeeper',
+    boss: true,
+    hp: 1100,
+    speed: 1.5,
+    radius: 1.3,
+    damage: 17,
+    sight: 18,
+    windup: 1.3,
+    strikeRange: 7,
+    xp: 700,
+    ai: 'brute',
+    armor: true,
+    poise: 160,
+    staggerTime: 1.8,
+    resist: 0.1,
+    cooldown: 2,
+    aoe: 1.6,
+    budget: 99,
+    drops: [
+      { item: 'heart_crystal', min: 1, max: 1, chance: 1 },
+      { item: 'qubit_crystal', min: 3, max: 5, chance: 1 },
+      { item: 'gold_ingot', min: 3, max: 5, chance: 1 },
+    ],
+  },
+  guild_guard: {
+    kind: 21,
+    name: 'Guild Escort',
+    hp: 60,
+    speed: 2.6,
+    radius: 0.35,
+    damage: 8,
+    sight: 8,
+    windup: 0.65,
+    strikeRange: 1.2,
+    xp: 0,
+    ai: 'melee',
+    poise: 14,
+    staggerTime: 0.9,
+    cooldown: 1.1,
+    budget: 2,
+    drops: [],
+  },
   // ── bosses (see bosses.ts)
-  slime_king: { kind: 10, name: 'Gelatinous Sovereign', boss: true, hp: 900, speed: 1.5, radius: 1.4, damage: 16, sight: 18, windup: 1.1, strikeRange: 5, xp: 500, ai: 'leap', poise: 150, staggerTime: 1.2, armor: true, resist: 0.08, cooldown: 1.3, aoe: 3, budget: 99,
-    drops: [{ item: 'slime_core', min: 1, max: 1, chance: 1 }, { item: 'heart_crystal', min: 1, max: 1, chance: 1 }, { item: 'slime_gel', min: 10, max: 16, chance: 1 }, { item: 'qubit_crystal', min: 1, max: 2, chance: 0.6 }] },
-  warden: { kind: 11, name: 'Warden of the Grove', boss: true, hp: 1400, speed: 2.5, radius: 1.1, damage: 20, sight: 18, windup: 0.9, strikeRange: 9, xp: 900, ai: 'boar', poise: 200, staggerTime: 1.2, armor: true, resist: 0.1, cooldown: 1.2, aoe: 1.8, budget: 99,
-    drops: [{ item: 'warden_heart', min: 1, max: 1, chance: 1 }, { item: 'heart_crystal', min: 1, max: 1, chance: 1 }, { item: 'boar_tusk', min: 3, max: 5, chance: 1 }, { item: 'wolf_fang', min: 2, max: 4, chance: 1 }, { item: 'hide', min: 3, max: 5, chance: 1 }, { item: 'heartwood', min: 2, max: 4, chance: 0.8 }] },
-  pirate: { kind: 13, name: 'Corsair Sloop', sea: true, hp: 80, speed: 2.7, radius: 0.9, damage: 11, sight: 16, windup: 0.9, strikeRange: 9, xp: 70, ai: 'caster', poise: 40, staggerTime: 0.9, armor: true, resist: 0.4, cooldown: 1.6, budget: 2,
-    drops: [{ item: 'doubloon', min: 1, max: 3, chance: 0.9 }, { item: 'plank', min: 2, max: 5, chance: 0.8 }, { item: 'cloth', min: 1, max: 3, chance: 0.5 }, { item: 'iron_ingot', min: 1, max: 1, chance: 0.2 }] },
-  serpent: { kind: 14, name: 'Brine Serpent', sea: true, hp: 150, speed: 3.4, radius: 0.8, damage: 18, sight: 12, windup: 0.8, strikeRange: 7, xp: 120, ai: 'brute', poise: 80, staggerTime: 1.1, armor: true, resist: 0.3, cooldown: 1.4, budget: 3,
-    drops: [{ item: 'doubloon', min: 2, max: 5, chance: 0.8 }, { item: 'hide', min: 2, max: 3, chance: 0.9 }, { item: 'qubit_crystal', min: 1, max: 2, chance: 0.35 }] },
-  colossus: { kind: 12, name: 'Decoherent Colossus', boss: true, hp: 2200, speed: 1.8, radius: 1.5, damage: 26, sight: 20, windup: 1.0, strikeRange: 9, xp: 1600, ai: 'brute', poise: 300, staggerTime: 1.4, armor: true, resist: 0.1, cooldown: 1.3, aoe: 2.2, budget: 99,
-    drops: [{ item: 'void_core', min: 1, max: 1, chance: 1 }, { item: 'heart_crystal', min: 2, max: 2, chance: 1 }, { item: 'qubit_crystal', min: 4, max: 6, chance: 1 }, { item: 'iron_ore', min: 6, max: 10, chance: 1 }, { item: 'coal', min: 4, max: 8, chance: 1 }] },
+  slime_king: {
+    kind: 10,
+    name: 'Gelatinous Sovereign',
+    boss: true,
+    hp: 900,
+    speed: 1.5,
+    radius: 1.4,
+    damage: 16,
+    sight: 18,
+    windup: 1.1,
+    strikeRange: 5,
+    xp: 500,
+    ai: 'leap',
+    poise: 150,
+    staggerTime: 1.2,
+    armor: true,
+    resist: 0.08,
+    cooldown: 1.3,
+    aoe: 3,
+    budget: 99,
+    drops: [
+      { item: 'slime_core', min: 1, max: 1, chance: 1 },
+      { item: 'heart_crystal', min: 1, max: 1, chance: 1 },
+      { item: 'slime_gel', min: 10, max: 16, chance: 1 },
+      { item: 'qubit_crystal', min: 1, max: 2, chance: 0.6 },
+    ],
+  },
+  warden: {
+    kind: 11,
+    name: 'Warden of the Grove',
+    boss: true,
+    hp: 1400,
+    speed: 2.5,
+    radius: 1.1,
+    damage: 20,
+    sight: 18,
+    windup: 0.9,
+    strikeRange: 9,
+    xp: 900,
+    ai: 'boar',
+    poise: 200,
+    staggerTime: 1.2,
+    armor: true,
+    resist: 0.1,
+    cooldown: 1.2,
+    aoe: 1.8,
+    budget: 99,
+    drops: [
+      { item: 'warden_heart', min: 1, max: 1, chance: 1 },
+      { item: 'heart_crystal', min: 1, max: 1, chance: 1 },
+      { item: 'boar_tusk', min: 3, max: 5, chance: 1 },
+      { item: 'wolf_fang', min: 2, max: 4, chance: 1 },
+      { item: 'hide', min: 3, max: 5, chance: 1 },
+      { item: 'heartwood', min: 2, max: 4, chance: 0.8 },
+    ],
+  },
+  pirate: {
+    kind: 13,
+    name: 'Corsair Sloop',
+    sea: true,
+    hp: 80,
+    speed: 2.7,
+    radius: 0.9,
+    damage: 11,
+    sight: 16,
+    windup: 0.9,
+    strikeRange: 9,
+    xp: 70,
+    ai: 'caster',
+    poise: 40,
+    staggerTime: 0.9,
+    armor: true,
+    resist: 0.4,
+    cooldown: 1.6,
+    budget: 2,
+    drops: [
+      { item: 'doubloon', min: 1, max: 3, chance: 0.9 },
+      { item: 'plank', min: 2, max: 5, chance: 0.8 },
+      { item: 'cloth', min: 1, max: 3, chance: 0.5 },
+      { item: 'iron_ingot', min: 1, max: 1, chance: 0.2 },
+    ],
+  },
+  serpent: {
+    kind: 14,
+    name: 'Brine Serpent',
+    sea: true,
+    hp: 150,
+    speed: 3.4,
+    radius: 0.8,
+    damage: 18,
+    sight: 12,
+    windup: 0.8,
+    strikeRange: 7,
+    xp: 120,
+    ai: 'brute',
+    poise: 80,
+    staggerTime: 1.1,
+    armor: true,
+    resist: 0.3,
+    cooldown: 1.4,
+    budget: 3,
+    drops: [
+      { item: 'doubloon', min: 2, max: 5, chance: 0.8 },
+      { item: 'hide', min: 2, max: 3, chance: 0.9 },
+      { item: 'qubit_crystal', min: 1, max: 2, chance: 0.35 },
+    ],
+  },
+  colossus: {
+    kind: 12,
+    name: 'Decoherent Colossus',
+    boss: true,
+    hp: 2200,
+    speed: 1.8,
+    radius: 1.5,
+    damage: 26,
+    sight: 20,
+    windup: 1.0,
+    strikeRange: 9,
+    xp: 1600,
+    ai: 'brute',
+    poise: 300,
+    staggerTime: 1.4,
+    armor: true,
+    resist: 0.1,
+    cooldown: 1.3,
+    aoe: 2.2,
+    budget: 99,
+    drops: [
+      { item: 'void_core', min: 1, max: 1, chance: 1 },
+      { item: 'heart_crystal', min: 2, max: 2, chance: 1 },
+      { item: 'qubit_crystal', min: 4, max: 6, chance: 1 },
+      { item: 'iron_ore', min: 6, max: 10, chance: 1 },
+      { item: 'coal', min: 4, max: 8, chance: 1 },
+    ],
+  },
 };
-export const ENEMY_BY_KIND: EnemyDef[] = [ENEMY_DEFS.slime, ENEMY_DEFS.hopper, ENEMY_DEFS.rabbit, ENEMY_DEFS.deer, ENEMY_DEFS.wisp, ENEMY_DEFS.brute, ENEMY_DEFS.mite, ENEMY_DEFS.boar, ENEMY_DEFS.wolf, ENEMY_DEFS.badger, ENEMY_DEFS.slime_king, ENEMY_DEFS.warden, ENEMY_DEFS.colossus, ENEMY_DEFS.pirate, ENEMY_DEFS.serpent, ENEMY_DEFS.fox, ENEMY_DEFS.otter, ENEMY_DEFS.tortoise, ENEMY_DEFS.owl, ENEMY_DEFS.thornling, ENEMY_DEFS.glasscrawler, ENEMY_DEFS.guild_guard, ENEMY_DEFS.reed_stalker, ENEMY_DEFS.cinder_moth, ENEMY_DEFS.echo_bat, ENEMY_DEFS.spore_sage, ENEMY_DEFS.prism_beetle, ENEMY_DEFS.blind_ram, ENEMY_DEFS.rime_skitter, ENEMY_DEFS.pool_lurker, ENEMY_DEFS.vault_guardian, ENEMY_DEFS.spore_matriarch, ENEMY_DEFS.bellkeeper];
+export const ENEMY_BY_KIND: EnemyDef[] = [
+  ENEMY_DEFS.slime,
+  ENEMY_DEFS.hopper,
+  ENEMY_DEFS.rabbit,
+  ENEMY_DEFS.deer,
+  ENEMY_DEFS.wisp,
+  ENEMY_DEFS.brute,
+  ENEMY_DEFS.mite,
+  ENEMY_DEFS.boar,
+  ENEMY_DEFS.wolf,
+  ENEMY_DEFS.badger,
+  ENEMY_DEFS.slime_king,
+  ENEMY_DEFS.warden,
+  ENEMY_DEFS.colossus,
+  ENEMY_DEFS.pirate,
+  ENEMY_DEFS.serpent,
+  ENEMY_DEFS.fox,
+  ENEMY_DEFS.otter,
+  ENEMY_DEFS.tortoise,
+  ENEMY_DEFS.owl,
+  ENEMY_DEFS.thornling,
+  ENEMY_DEFS.glasscrawler,
+  ENEMY_DEFS.guild_guard,
+  ENEMY_DEFS.reed_stalker,
+  ENEMY_DEFS.cinder_moth,
+  ENEMY_DEFS.echo_bat,
+  ENEMY_DEFS.spore_sage,
+  ENEMY_DEFS.prism_beetle,
+  ENEMY_DEFS.blind_ram,
+  ENEMY_DEFS.rime_skitter,
+  ENEMY_DEFS.pool_lurker,
+  ENEMY_DEFS.vault_guardian,
+  ENEMY_DEFS.spore_matriarch,
+  ENEMY_DEFS.bellkeeper,
+  ENEMY_DEFS.veyr,
+];
 export type EnemyKindName = keyof typeof ENEMY_DEFS;
 
 export const NIGHT_HP_MULT = 1.6;
@@ -333,28 +1168,102 @@ export function enemyScale(level: number): { hp: number; dmg: number; xp: number
 }
 
 /** Ambient encounter weights by habitat, level and time of day. */
-export function spawnTable(level: number, night: boolean, biome: Biome = 'meadow', cave = false, cavern: CaveBiome = 'limestone'): Array<{ kind: EnemyKindName; w: number }> {
-  if(cave){
-    const kinds:Record<CaveBiome,EnemyKindName[]>={limestone:['echo_bat','blind_ram'],glowmoss:['echo_bat','spore_sage'],crystal:['prism_beetle','echo_bat'],basalt:['blind_ram','prism_beetle'],frost:['rime_skitter','echo_bat'],drowned:['pool_lurker','spore_sage']};
-    const allowed=kinds[cavern].filter(k=>level>=3||k!=='blind_ram'&&k!=='prism_beetle');
-    return level<2||!allowed.length?[{kind:'echo_bat',w:1}]:allowed.map(kind=>({kind,w:2}));
+export function spawnTable(
+  level: number,
+  night: boolean,
+  biome: Biome = 'meadow',
+  cave = false,
+  cavern: CaveBiome = 'limestone',
+): Array<{ kind: EnemyKindName; w: number }> {
+  if (cave) {
+    const kinds: Record<CaveBiome, EnemyKindName[]> = {
+      limestone: ['echo_bat', 'blind_ram'],
+      glowmoss: ['echo_bat', 'spore_sage'],
+      crystal: ['prism_beetle', 'echo_bat'],
+      basalt: ['blind_ram', 'prism_beetle'],
+      frost: ['rime_skitter', 'echo_bat'],
+      drowned: ['pool_lurker', 'spore_sage'],
+    };
+    const allowed = kinds[cavern].filter((k) => level >= 3 || (k !== 'blind_ram' && k !== 'prism_beetle'));
+    return level < 2 || !allowed.length ? [{ kind: 'echo_bat', w: 1 }] : allowed.map((kind) => ({ kind, w: 2 }));
   }
-  if (level < 2) return [{ kind: 'slime', w: 3 }, { kind: 'hopper', w: 1 }];
-  const table: Array<[EnemyKindName, number]> = biome === 'enchanted' ? [['wisp', 6], ['glasscrawler', 4], ['hopper', 1]]
-    : biome === 'corrupted' ? [['mite', 5], ['brute', 3], ['glasscrawler', 2]]
-    : biome === 'swamp' ? [['slime', 6], ['mite', 2], ['wisp', night ? 2 : 0], ['reed_stalker',2]]
-    : biome === 'desert' ? [['hopper', 5], ['mite', 3], ['brute', 1], ['cinder_moth',2]]
-    : biome === 'taiga' ? [['wolf', 5], ['hopper', 3], ['slime', 2]]
-    : biome === 'forest' || biome === 'autumn' ? [['thornling', 3], ['hopper', 4], ['wolf', night ? 3 : 0], ['slime', 2], ['reed_stalker',2]]
-    : [['slime', 6], ['hopper', 3], ['wisp', night ? 2 : 0]];
-  return table.filter(([kind, w]) => w > 0 && (kind!=='reed_stalker'||level>=4) && (kind!=='cinder_moth'||level>=5) && (!['brute', 'wolf', 'thornling', 'glasscrawler'].includes(kind) || level >= (kind === 'brute' ? 4 : 3))).map(([kind, w]) => ({ kind, w }));
+  if (level < 2)
+    return [
+      { kind: 'slime', w: 3 },
+      { kind: 'hopper', w: 1 },
+    ];
+  const table: Array<[EnemyKindName, number]> =
+    biome === 'enchanted'
+      ? [
+          ['wisp', 6],
+          ['glasscrawler', 4],
+          ['hopper', 1],
+        ]
+      : biome === 'corrupted'
+        ? [
+            ['mite', 5],
+            ['brute', 3],
+            ['glasscrawler', 2],
+          ]
+        : biome === 'swamp'
+          ? [
+              ['slime', 6],
+              ['mite', 2],
+              ['wisp', night ? 2 : 0],
+              ['reed_stalker', 2],
+            ]
+          : biome === 'desert'
+            ? [
+                ['hopper', 5],
+                ['mite', 3],
+                ['brute', 1],
+                ['cinder_moth', 2],
+              ]
+            : biome === 'taiga'
+              ? [
+                  ['wolf', 5],
+                  ['hopper', 3],
+                  ['slime', 2],
+                ]
+              : biome === 'forest' || biome === 'autumn'
+                ? [
+                    ['thornling', 3],
+                    ['hopper', 4],
+                    ['wolf', night ? 3 : 0],
+                    ['slime', 2],
+                    ['reed_stalker', 2],
+                  ]
+                : [
+                    ['slime', 6],
+                    ['hopper', 3],
+                    ['wisp', night ? 2 : 0],
+                  ];
+  return table
+    .filter(
+      ([kind, w]) =>
+        w > 0 &&
+        (kind !== 'reed_stalker' || level >= 4) &&
+        (kind !== 'cinder_moth' || level >= 5) &&
+        (!['brute', 'wolf', 'thornling', 'glasscrawler'].includes(kind) || level >= (kind === 'brute' ? 4 : 3)),
+    )
+    .map(([kind, w]) => ({ kind, w }));
 }
 
-export function pickSpawn(level: number, night: boolean, roll: number, biome: Biome = 'meadow', cave = false, cavern: CaveBiome = 'limestone'): EnemyKindName {
+export function pickSpawn(
+  level: number,
+  night: boolean,
+  roll: number,
+  biome: Biome = 'meadow',
+  cave = false,
+  cavern: CaveBiome = 'limestone',
+): EnemyKindName {
   const t = spawnTable(level, night, biome, cave, cavern);
   const total = t.reduce((a, b) => a + b.w, 0);
   let r = roll * total;
-  for (const e of t) { r -= e.w; if (r < 0) return e.kind; }
+  for (const e of t) {
+    r -= e.w;
+    if (r < 0) return e.kind;
+  }
   return t[t.length - 1]!.kind;
 }
 

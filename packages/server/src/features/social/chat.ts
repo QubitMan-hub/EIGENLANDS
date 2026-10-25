@@ -1,6 +1,15 @@
 import {
-  EMOTES, LOCAL_CHAT_RANGE, MSG34, cleanChat, isSpammy,
-  type ChatMsg, type ChatSendMsg, type Emote, type EmoteEvent, type EmoteMsg, type ReportMsg,
+  EMOTES,
+  LOCAL_CHAT_RANGE,
+  MSG34,
+  cleanChat,
+  isSpammy,
+  type ChatMsg,
+  type ChatSendMsg,
+  type Emote,
+  type EmoteEvent,
+  type EmoteMsg,
+  type ReportMsg,
 } from '@eigenlands/shared';
 import type { GameRoom } from '../../rooms/GameRoom';
 import type { ServerPlayer } from '../../rooms/player';
@@ -20,7 +29,11 @@ type SendCh = ChatSendMsg['ch'];
 const CHANNELS: ReadonlySet<string> = new Set<SendCh>(['local', 'global', 'party', 'whisper']);
 
 /** Lowercase, squeeze spaces and repeated letters: "HELLO!!" and "hello !" count as the same line. */
-const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '').replace(/(.)\1+/g, '$1');
+const norm = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, '')
+    .replace(/(.)\1+/g, '$1');
 
 /**
  * Chat for one shard: local (nearby, same shard), global (every shard, over the bus), party, whisper (any shard),
@@ -30,9 +43,15 @@ const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '').repl
 export class ChatRoom {
   private muteCheck = new Map<string, number>();
 
-  constructor(private room: GameRoom, private hub: SocialHub, private party: PartyRoom) {}
+  constructor(
+    private room: GameRoom,
+    private hub: SocialHub,
+    private party: PartyRoom,
+  ) {}
 
-  private send(p: ServerPlayer, msg: ChatMsg): void { deliver(this.hub, p, msg); }
+  private send(p: ServerPlayer, msg: ChatMsg): void {
+    deliver(this.hub, p, msg);
+  }
 
   join(p: ServerPlayer, fresh: boolean): void {
     this.refreshMute(p);
@@ -40,12 +59,19 @@ export class ChatRoom {
     if (fresh) for (const m of this.hub.globalLog) this.send(p, m);
   }
 
-  leave(p: ServerPlayer): void { this.muteCheck.delete(p.accountId); }
+  leave(p: ServerPlayer): void {
+    this.muteCheck.delete(p.accountId);
+  }
 
   private refreshMute(p: ServerPlayer): void {
     this.muteCheck.set(p.accountId, Date.now());
     const lim = this.hub.limitsOf(p.accountId);
-    runtime34().repo34.mutedUntil(p.accountId).then((t) => { lim.mutedUntil = t; }).catch(() => {});
+    runtime34()
+      .repo34.mutedUntil(p.accountId)
+      .then((t) => {
+        lim.mutedUntil = t;
+      })
+      .catch(() => {});
   }
 
   /** Re-read the admin mute flag of each player now and then (a moderator may mute someone who is online). */
@@ -66,20 +92,33 @@ export class ChatRoom {
     const now = Date.now();
     if (lim.mutedUntil > now) {
       const mins = Math.ceil((lim.mutedUntil - now) / 60_000);
-      sys(this.hub, p, `You are muted for ${mins > 60 * 24 * 365 ? 'a long time' : `${mins} more minute${mins === 1 ? '' : 's'}`}.`);
+      sys(
+        this.hub,
+        p,
+        `You are muted for ${mins > 60 * 24 * 365 ? 'a long time' : `${mins} more minute${mins === 1 ? '' : 's'}`}.`,
+      );
       return;
     }
-    if (isSpammy(text)) { sys(this.hub, p, 'That looks like spam, so it was not sent.'); return; }
+    if (isSpammy(text)) {
+      sys(this.hub, p, 'That looks like spam, so it was not sent.');
+      return;
+    }
     const ch = m.ch as SendCh;
     let to = '';
     let partyId = '';
     if (ch === 'whisper') {
       to = nameArg(m.to);
       if (!to) return;
-      if (to.toLowerCase() === p.name.toLowerCase()) { sys(this.hub, p, "You can't whisper to yourself."); return; }
+      if (to.toLowerCase() === p.name.toLowerCase()) {
+        sys(this.hub, p, "You can't whisper to yourself.");
+        return;
+      }
     } else if (ch === 'party') {
       partyId = this.party.partyOf(p.accountId);
-      if (!partyId) { sys(this.hub, p, "You're not in a party. Invite someone with /invite name."); return; }
+      if (!partyId) {
+        sys(this.hub, p, "You're not in a party. Invite someone with /invite name.");
+        return;
+      }
     }
     // repeated-line suppression (any channel)
     const n = norm(text) || text;
@@ -91,7 +130,12 @@ export class ChatRoom {
       return;
     }
     if (!lim.buckets[ch].take(1, now)) {
-      this.warn(p, ch === 'global' ? 'Global chat is limited to one message every 3 seconds.' : 'Slow down: you are sending messages too fast.');
+      this.warn(
+        p,
+        ch === 'global'
+          ? 'Global chat is limited to one message every 3 seconds.'
+          : 'Slow down: you are sending messages too fast.',
+      );
       return;
     }
     lim.recent.push({ norm: n, t: now });
@@ -106,8 +150,14 @@ export class ChatRoom {
       this.hub.bus.publish(`party:${partyId}`, { t: 'chat', msg } satisfies PartyBusMsg);
     } else {
       const t = await this.hub.dir.find(to);
-      if (!t) { sys(this.hub, p, `${to} is not online.`); return; }
-      if (t.accountId === p.accountId) { sys(this.hub, p, "You can't whisper to yourself."); return; }
+      if (!t) {
+        sys(this.hub, p, `${to} is not online.`);
+        return;
+      }
+      if (t.accountId === p.accountId) {
+        sys(this.hub, p, "You can't whisper to yourself.");
+        return;
+      }
       const w: ChatMsg = { ...msg, to: t.name };
       this.hub.bus.publish(`player:${t.accountId}`, { t: 'whisper', msg: w } satisfies PlayerBusMsg);
       this.send(p, w); // the sender's own copy ("To X: ...")
@@ -123,9 +173,13 @@ export class ChatRoom {
     sys(this.hub, p, text);
   }
 
-  onGlobal(msg: ChatMsg): void { for (const q of this.room.players.values()) this.send(q, msg); }
+  onGlobal(msg: ChatMsg): void {
+    for (const q of this.room.players.values()) this.send(q, msg);
+  }
 
-  onPartyChat(partyId: string, msg: ChatMsg): void { this.party.onPartyChat(partyId, msg, (q, m) => this.send(q, m)); }
+  onPartyChat(partyId: string, msg: ChatMsg): void {
+    this.party.onPartyChat(partyId, msg, (q, m) => this.send(q, m));
+  }
 
   /** A whisper or system line for a player on this shard (from any shard). */
   onPlayerBus(p: ServerPlayer, m: PlayerBusMsg): void {
@@ -138,16 +192,27 @@ export class ChatRoom {
   async report(p: ServerPlayer, m: ReportMsg): Promise<void> {
     const name = nameArg(m.name);
     if (!name) return;
-    // eslint-disable-next-line no-control-regex
-    const reason = (typeof m.reason === 'string' ? m.reason : '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, 200) || 'no reason given';
+    const reason =
+      (typeof m.reason === 'string' ? m.reason : '')
+        // Deliberately remove protocol control characters.
+        // eslint-disable-next-line no-control-regex
+        .replace(/[\u0000-\u001f\u007f]/g, ' ')
+        .trim()
+        .slice(0, 200) || 'no reason given';
     const lim = this.hub.limitsOf(p.accountId);
     const now = Date.now();
     lim.reports = lim.reports.filter((t) => now - t < 60_000);
-    if (lim.reports.length >= 3) { this.warn(p, 'You have sent several reports already. Please wait a minute.'); return; }
+    if (lim.reports.length >= 3) {
+      this.warn(p, 'You have sent several reports already. Please wait a minute.');
+      return;
+    }
     lim.reports.push(now);
     const repo = runtime34().repo34;
     const target = await repo.accountByName(name).catch(() => null);
-    const context = lim.log.filter((l) => l.ch !== 'system').slice(-REPORT_CONTEXT).map((l) => ({ ch: l.ch, from: l.from, fromId: l.fromId, to: l.to, text: l.text, t: l.t }));
+    const context = lim.log
+      .filter((l) => l.ch !== 'system')
+      .slice(-REPORT_CONTEXT)
+      .map((l) => ({ ch: l.ch, from: l.from, fromId: l.fromId, to: l.to, text: l.text, t: l.t }));
     try {
       await repo.report(p.accountId, target?.name ?? name, target?.accountId ?? null, reason, context);
       sys(this.hub, p, `Thanks. Your report about ${target?.name ?? name} was sent to the moderators.`);
@@ -165,7 +230,11 @@ export class ChatRoom {
     lim.emoteAt = now;
     const ev: EmoteEvent = { id: p.id, e: m.e as Emote };
     for (const q of this.room.nearby(p.sim.x, p.sim.y, EMOTE_RANGE)) {
-      try { q.client.send(MSG34.EMOTE_EV, ev); } catch { /* gone */ }
+      try {
+        q.client.send(MSG34.EMOTE_EV, ev);
+      } catch {
+        /* gone */
+      }
     }
   }
 }

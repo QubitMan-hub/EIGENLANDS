@@ -1,34 +1,85 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { usesMemoryStore } from './memory-store';
 import { MSG34, PARTY_MAX } from '@eigenlands/shared';
 import type { App } from '../src/app';
 import { OFFLINE_KEEP_MS, normalizeParty, type PartyRec } from '../src/features/social/party';
 import { bootP4, hasSys, joinP4, lastParty, partyUp, sleep, until, waitSys, type P4 } from './p4helpers';
 
 let app: App;
-beforeAll(async () => { app = await bootP4(); });
-afterAll(async () => { await app?.close(); });
+beforeAll(async () => {
+  app = await bootP4();
+});
+afterAll(async () => {
+  await app?.close();
+});
 
-const leave = async (...ps: P4[]) => { for (const p of ps) await p.r.leave().catch(() => {}); await sleep(80); };
+const leave = async (...ps: P4[]) => {
+  for (const p of ps) await p.r.leave().catch(() => {});
+  await sleep(80);
+};
 
 describe('party rules (pure)', () => {
   const rec = (members: Array<[string, number]>, leader = members[0]![0]): PartyRec => ({
-    id: 'pt_0123456789abcdef', v: 1, leader,
+    id: 'pt_0123456789abcdef',
+    v: 1,
+    leader,
     members: members.map(([a, off]) => ({ accountId: a, name: a, level: 1, cls: 'wanderer', offlineSince: off })),
   });
   it('drops long-offline members, disbands below two, hands leadership to an online member', () => {
     const now = 10_000_000;
-    expect(normalizeParty(rec([['a', 0], ['b', 0]]), now)?.leader).toBe('a');
-    expect(normalizeParty(rec([['a', now - 1000], ['b', 0], ['c', 0]]), now)?.leader).toBe('b');
-    expect(normalizeParty(rec([['a', now - 1000], ['b', now - 500]]), now)?.leader).toBe('a'); // nobody online: keep
-    expect(normalizeParty(rec([['a', 0], ['b', now - OFFLINE_KEEP_MS - 1]]), now)).toBeNull();
-    const r = normalizeParty(rec([['a', 0], ['b', now - OFFLINE_KEEP_MS - 1], ['c', 0]]), now)!;
+    expect(
+      normalizeParty(
+        rec([
+          ['a', 0],
+          ['b', 0],
+        ]),
+        now,
+      )?.leader,
+    ).toBe('a');
+    expect(
+      normalizeParty(
+        rec([
+          ['a', now - 1000],
+          ['b', 0],
+          ['c', 0],
+        ]),
+        now,
+      )?.leader,
+    ).toBe('b');
+    expect(
+      normalizeParty(
+        rec([
+          ['a', now - 1000],
+          ['b', now - 500],
+        ]),
+        now,
+      )?.leader,
+    ).toBe('a'); // nobody online: keep
+    expect(
+      normalizeParty(
+        rec([
+          ['a', 0],
+          ['b', now - OFFLINE_KEEP_MS - 1],
+        ]),
+        now,
+      ),
+    ).toBeNull();
+    const r = normalizeParty(
+      rec([
+        ['a', 0],
+        ['b', now - OFFLINE_KEEP_MS - 1],
+        ['c', 0],
+      ]),
+      now,
+    )!;
     expect(r.members.map((m) => m.accountId)).toEqual(['a', 'c']);
   });
 });
 
 describe('parties', () => {
   it('invite by name, accept: both get PARTY_STATE, nameplates carry the party id', async () => {
-    const a = await joinP4(app, 'Ada'), b = await joinP4(app, 'Bix');
+    const a = await joinP4(app, 'Ada'),
+      b = await joinP4(app, 'Bix');
     const id = await partyUp(a, b);
     await until(() => lastParty(a)?.id === id && lastParty(a)?.members?.length === 2 && lastParty(b)?.id === id);
     const st = lastParty(b)!;
@@ -46,7 +97,9 @@ describe('parties', () => {
   });
 
   it('unknown or offline names, self-invites, duplicates and non-leaders are refused politely', async () => {
-    const a = await joinP4(app, 'Cato'), b = await joinP4(app, 'Dree'), c = await joinP4(app, 'Eno');
+    const a = await joinP4(app, 'Cato'),
+      b = await joinP4(app, 'Dree'),
+      c = await joinP4(app, 'Eno');
     a.r.send(MSG34.PARTY, { action: 'invite', name: 'Nobody Here' });
     await waitSys(a, /Nobody Here is not online/);
     a.r.send(MSG34.PARTY, { action: 'invite', name: 'cato' });
@@ -62,7 +115,8 @@ describe('parties', () => {
   });
 
   it('decline tells the inviter; expired and forged invites do nothing', async () => {
-    const a = await joinP4(app, 'Fen'), b = await joinP4(app, 'Gil');
+    const a = await joinP4(app, 'Fen'),
+      b = await joinP4(app, 'Gil');
     a.r.send(MSG34.PARTY, { action: 'invite', name: 'Gil' });
     await until(() => b.invites.length === 1);
     b.r.send(MSG34.PARTY, { action: 'decline', partyId: b.invites[0]!.partyId });
@@ -115,7 +169,8 @@ describe('parties', () => {
   });
 
   it('leaving a two-person party disbands it', async () => {
-    const a = await joinP4(app, 'Nia'), b = await joinP4(app, 'Oto');
+    const a = await joinP4(app, 'Nia'),
+      b = await joinP4(app, 'Oto');
     const id = await partyUp(a, b);
     b.r.send(MSG34.PARTY, { action: 'leave' });
     await until(() => !a.room.social.hub.parties.get(id));
@@ -126,7 +181,9 @@ describe('parties', () => {
   });
 
   it('leader disconnect hands leadership over; the leader stays listed as offline, then returns', async () => {
-    const a = await joinP4(app, 'Pim'), b = await joinP4(app, 'Quo'), c = await joinP4(app, 'Rae');
+    const a = await joinP4(app, 'Pim'),
+      b = await joinP4(app, 'Quo'),
+      c = await joinP4(app, 'Rae');
     const id = await partyUp(a, b);
     await partyUp(a, c);
     const creds = { token: a.token, accountId: a.accountId };
@@ -143,20 +200,24 @@ describe('parties', () => {
     // offline for more than 5 minutes: dropped
     await c.r.leave();
     await until(() => hub.parties.get(id)!.members.find((m) => m.accountId === c.accountId)!.offlineSince > 0);
-    await hub.parties.sweep(hub.parties.get(id)!, Date.now() + OFFLINE_KEEP_MS + 1000, () => Date.now() + OFFLINE_KEEP_MS);
+    await hub.parties.sweep(
+      hub.parties.get(id)!,
+      Date.now() + OFFLINE_KEEP_MS + 1000,
+      () => Date.now() + OFFLINE_KEEP_MS,
+    );
     await until(() => !hub.parties.get(id)?.members.some((m) => m.accountId === c.accountId));
     await leave(a2, b);
   });
 
   it('cross-shard: invite reaches a player on another shard; frames carry shard, HP and position at ~2 Hz', async () => {
     const a = await joinP4(app, 'Sol', { shard: '0,0', pos: [2.5, 4.5] });
-    const b = await joinP4(app, 'Tam', { shard: '1,0', pos: [145.5, 3.5] });
+    const b = await joinP4(app, 'Tam', { shard: '1,0', pos: [147.5, 3.5] });
     expect(a.room).not.toBe(b.room);
     expect(b.room.shard).toBe('1,0');
     const id = await partyUp(a, b);
     await until(() => {
       const m = lastParty(a)?.members?.find((x) => x.accountId === b.accountId);
-      return !!m && m.shard === '1,0' && m.online && Math.abs(m.x - 145.5) < 0.6;
+      return !!m && m.shard === '1,0' && m.online && Math.abs(m.x - 147.5) < 0.6;
     }, 4000);
     const inA = lastParty(a)!;
     expect(inA.id).toBe(id);
@@ -178,11 +239,18 @@ describe('parties', () => {
   });
 
   it('shared XP: members within 30 tiles of the kill get +50%; others get nothing', async () => {
-    const a = await joinP4(app, 'Uma'), b = await joinP4(app, 'Vex'), c = await joinP4(app, 'Wyn'), far = await joinP4(app, 'Xan');
+    const a = await joinP4(app, 'Uma'),
+      b = await joinP4(app, 'Vex'),
+      c = await joinP4(app, 'Wyn'),
+      far = await joinP4(app, 'Xan');
     await partyUp(a, b);
     await partyUp(a, far);
-    for (const p of [a, b, c, far]) { p.sp.level = 5; p.sp.xp = 0; }
-    far.sp.sim.x = 300; far.sp.sim.y = 300;
+    for (const p of [a, b, c, far]) {
+      p.sp.level = 5;
+      p.sp.xp = 0;
+    }
+    far.sp.sim.x = 300;
+    far.sp.sim.y = 300;
     const e = a.room.spawnEnemy('slime', a.sp.sim.x + 1, a.sp.sim.y, false);
     a.room.hitEnemy(e, 9999, a.sp, 1, 0, 0);
     expect(a.sp.xp).toBe(10);
@@ -194,9 +262,22 @@ describe('parties', () => {
 
   it('junk party payloads never crash the room', async () => {
     const a = await joinP4(app, 'Yul');
-    const junk: any[] = [null, 1, 'x', [], {}, { action: 'invite' }, { action: 'invite', name: 5 }, { action: 'invite', name: 'x'.repeat(500) },
-      { action: 'accept' }, { action: 'accept', partyId: { a: 1 } }, { action: 'kick', accountId: ['x'] }, { action: 'promote', accountId: null },
-      { action: '__proto__' }, { action: 'leave', extra: 1 }];
+    const junk: any[] = [
+      null,
+      1,
+      'x',
+      [],
+      {},
+      { action: 'invite' },
+      { action: 'invite', name: 5 },
+      { action: 'invite', name: 'x'.repeat(500) },
+      { action: 'accept' },
+      { action: 'accept', partyId: { a: 1 } },
+      { action: 'kick', accountId: ['x'] },
+      { action: 'promote', accountId: null },
+      { action: '__proto__' },
+      { action: 'leave', extra: 1 },
+    ];
     for (const m of junk) a.r.send(MSG34.PARTY, m);
     await sleep(300);
     expect(a.room.players.has(a.r.sessionId)).toBe(true);
@@ -204,11 +285,12 @@ describe('parties', () => {
   });
 });
 
-describe('parties on the Redis cluster bus', () => {
+describe.skipIf(usesMemoryStore)('parties on the Redis cluster bus', () => {
   it('invite, accept and frames work with the Redis party store and directory', async () => {
     await app.close();
     app = await bootP4({ cluster: true });
-    const a = await joinP4(app, 'Zed'), b = await joinP4(app, 'Abe');
+    const a = await joinP4(app, 'Zed'),
+      b = await joinP4(app, 'Abe');
     expect(a.room.social.hub.bus.kind).toBe('redis');
     const id = await partyUp(a, b);
     await until(() => lastParty(a)?.id === id && lastParty(a)?.members?.length === 2);

@@ -18,7 +18,10 @@ export function weatherForDay(seed: number, day: number): Weather {
   const r = hash2(seed, day, 7, 401);
   const row = TABLE[seasonOfDay(day)]!;
   let acc = 0;
-  for (let i = 0; i < row.length; i++) { acc += row[i]!; if (r < acc) return NAMES[i]!; }
+  for (let i = 0; i < row.length; i++) {
+    acc += row[i]!;
+    if (r < acc) return NAMES[i]!;
+  }
   return 'clear';
 }
 

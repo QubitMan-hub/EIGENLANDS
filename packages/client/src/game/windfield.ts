@@ -14,8 +14,12 @@ export class WindField {
   }
 
   /** Skew (radians-ish) for a plant of flexibility `amp` at tile (x, y). */
-  sway(x: number, y: number, phase: number, amp: number): number { return sway(this.w, x, y, this.t, phase) * amp; }
-  gust(x: number, y: number): number { return gust(this.w, x, y, this.t); }
+  sway(x: number, y: number, phase: number, amp: number): number {
+    return sway(this.w, x, y, this.t, phase) * amp;
+  }
+  gust(x: number, y: number): number {
+    return gust(this.w, x, y, this.t);
+  }
 }
 
 /** Calm wind for places without a world (art lab, tests). */

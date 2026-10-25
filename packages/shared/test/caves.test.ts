@@ -4,7 +4,11 @@ import { CAVE_OY, CHUNK_SIZE, T, caveLanding, caveObjectsIn, caveOfCell, chunkOf
 const SEED = 1337;
 function mouths(): NonNullable<ReturnType<typeof caveOfCell>>[] {
   const out = [];
-  for (let gy = -4; gy <= 4; gy++) for (let gx = -4; gx <= 4; gx++) { const m = caveOfCell(SEED, gx, gy); if (m) out.push(m); }
+  for (let gy = -4; gy <= 4; gy++)
+    for (let gx = -4; gx <= 4; gx++) {
+      const m = caveOfCell(SEED, gx, gy);
+      if (m) out.push(m);
+    }
   return out;
 }
 
@@ -14,16 +18,23 @@ describe('undercroft caves', () => {
     expect(ms.length).toBeGreaterThan(10);
     for (const m of ms) {
       expect(isSolid(tileAt(SEED, m.x, m.y))).toBe(false);
-      for (let j = -2; j <= 2; j++) for (let i = -2; i <= 2; i++) expect(tileAt(SEED, m.x + i, m.y + CAVE_OY + j)).toBe(T.CAVE_FLOOR);
-      const down = caveLanding(SEED, m.id, true)!, up = caveLanding(SEED, m.id, false)!;
+      for (let j = -2; j <= 2; j++)
+        for (let i = -2; i <= 2; i++) expect(tileAt(SEED, m.x + i, m.y + CAVE_OY + j)).toBe(T.CAVE_FLOOR);
+      const down = caveLanding(SEED, m.id, true)!,
+        up = caveLanding(SEED, m.id, false)!;
       expect(isSolid(tileAt(SEED, Math.floor(down.x), Math.floor(down.y)))).toBe(false);
       expect(Math.floor(up.y)).toBe(m.y + 1);
     }
   });
 
   it('carves tunnels and caverns through solid rock', () => {
-    let open = 0, wall = 0;
-    for (let y = 0; y < 128; y++) for (let x = 0; x < 128; x++) { if (tileAt(SEED, x + 300, y + CAVE_OY + 300) === T.CAVE_WALL) wall++; else open++; }
+    let open = 0,
+      wall = 0;
+    for (let y = 0; y < 128; y++)
+      for (let x = 0; x < 128; x++) {
+        if (tileAt(SEED, x + 300, y + CAVE_OY + 300) === T.CAVE_WALL) wall++;
+        else open++;
+      }
     const f = open / (open + wall);
     expect(f).toBeGreaterThan(0.2);
     expect(f).toBeLessThan(0.7);

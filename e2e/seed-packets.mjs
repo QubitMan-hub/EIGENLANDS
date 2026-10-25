@@ -1,8 +1,53 @@
-import {chromium} from 'playwright-core';import assert from 'node:assert/strict';
-const base=process.argv[2]??'http://127.0.0.1:5174/';const b=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
-try{const p=await b.newPage({viewport:{width:1280,height:800}});await p.goto(base+'labs/artlab.html?lab=icons');await p.waitForFunction(()=>window.__lab?.ready);const result=await p.evaluate(async()=>{
-const seeds=[...document.images].filter(i=>i.parentElement.textContent.trim().endsWith('_seed')&&!i.parentElement.textContent.includes('superposed_seed'));
-const {HeldWeapons}=await import('/src/art/weapons.ts'),art=new HeldWeapons(),fail=[];
-for(const id of ['axe','pickaxe'])for(let d=0;d<8;d++)for(let f=0;f<30;f++){const t=art.texture(id,d,f),r=t.frame,a=t.source.resource.getContext('2d').getImageData(r.x,r.y,r.width,r.height).data;let n=0,edge=0;for(let y=0;y<r.height;y++)for(let x=0;x<r.width;x++)if(a[(y*r.width+x)*4+3]){n++;if(!x||!y||x===r.width-1||y===r.height-1)edge++;}if(n<12||edge||art.texture(id,d,f)!==t)fail.push({id,d,f,n,edge});}
-for(const img of document.images)if(!seeds.includes(img))img.parentElement.style.display='none';return{seeds:seeds.length,unique:new Set(seeds.map(i=>i.src)).size,native:seeds.every(i=>i.naturalWidth===16&&i.naturalHeight===16),fail};});assert(result.seeds>=12);assert.equal(result.unique,result.seeds);assert(result.native);assert.deepEqual(result.fail,[]);await p.screenshot({path:'/tmp/seed-packets.png'});console.log('Distinct native seed packets and 480 axe/pickaxe pose bounds/cache passed',result.seeds);
-}finally{await b.close();}
+import { chromium } from 'playwright-core';
+import assert from 'node:assert/strict';
+const base = process.argv[2] ?? 'http://127.0.0.1:5174/';
+const b = await chromium.launch({
+  executablePath: '/usr/bin/chromium',
+  args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
+});
+try {
+  const p = await b.newPage({ viewport: { width: 1280, height: 800 } });
+  await p.goto(base + 'labs/artlab.html?lab=icons');
+  await p.waitForFunction(() => window.__lab?.ready);
+  const result = await p.evaluate(async () => {
+    const seeds = [...document.images].filter(
+      (i) =>
+        i.parentElement.textContent.trim().endsWith('_seed') &&
+        !i.parentElement.textContent.includes('superposed_seed'),
+    );
+    const { HeldWeapons } = await import('/src/art/weapons.ts'),
+      art = new HeldWeapons(),
+      fail = [];
+    for (const id of ['axe', 'pickaxe'])
+      for (let d = 0; d < 8; d++)
+        for (let f = 0; f < 30; f++) {
+          const t = art.texture(id, d, f),
+            r = t.frame,
+            a = t.source.resource.getContext('2d').getImageData(r.x, r.y, r.width, r.height).data;
+          let n = 0,
+            edge = 0;
+          for (let y = 0; y < r.height; y++)
+            for (let x = 0; x < r.width; x++)
+              if (a[(y * r.width + x) * 4 + 3]) {
+                n++;
+                if (!x || !y || x === r.width - 1 || y === r.height - 1) edge++;
+              }
+          if (n < 12 || edge || art.texture(id, d, f) !== t) fail.push({ id, d, f, n, edge });
+        }
+    for (const img of document.images) if (!seeds.includes(img)) img.parentElement.style.display = 'none';
+    return {
+      seeds: seeds.length,
+      unique: new Set(seeds.map((i) => i.src)).size,
+      native: seeds.every((i) => i.naturalWidth === 16 && i.naturalHeight === 16),
+      fail,
+    };
+  });
+  assert(result.seeds >= 12);
+  assert.equal(result.unique, result.seeds);
+  assert(result.native);
+  assert.deepEqual(result.fail, []);
+  await p.screenshot({ path: '/tmp/seed-packets.png' });
+  console.log('Distinct native seed packets and 480 axe/pickaxe pose bounds/cache passed', result.seeds);
+} finally {
+  await b.close();
+}

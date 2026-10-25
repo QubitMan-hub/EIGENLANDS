@@ -1,10 +1,38 @@
 import {
-  validTravelNeeds, CROPS, DEED_KINDS, ITEMS, NPC_BY_ID, QUEST_BY_ID, RECIPES, WEAPONS, quickbarAttack, addStack, armorTotals, dayNumber, emptyInventory, pruneRequests, validInventory, validSkills,
-  type EquipSlotKey, type EquipState, type Inventory, type ProfileMsg, type QuestLog, type Stack,
+  validTravelNeeds,
+  WORLD_GENERATION,
+  CROPS,
+  DEED_KINDS,
+  ITEMS,
+  NPC_BY_ID,
+  QUEST_BY_ID,
+  RECIPES,
+  WEAPONS,
+  quickbarAttack,
+  addStack,
+  armorTotals,
+  dayNumber,
+  emptyInventory,
+  pruneRequests,
+  validInventory,
+  validSkills,
+  type EquipSlotKey,
+  type EquipState,
+  type Inventory,
+  type ProfileMsg,
+  type QuestLog,
+  type Stack,
 } from '@eigenlands/shared';
 import type { Buff, DirtyPart, FriendRec, PlayerData } from './types';
 
-export interface DerivedStats { hpBonus: number; atkBonus: number; luck: number; haste: number; /** damage reduction 0..0.6 */ def: number; /** chance a hit passes straight through */ phase: number }
+export interface DerivedStats {
+  hpBonus: number;
+  atkBonus: number;
+  luck: number;
+  haste: number;
+  /** damage reduction 0..0.6 */ def: number;
+  /** chance a hit passes straight through */ phase: number;
+}
 
 const BUFF_KINDS = new Set(['regen', 'might', 'ward', 'lantern']);
 
@@ -14,10 +42,14 @@ export function startRecipes(): string[] {
 
 /** The cheapest seed whose crop grows in `season` (used for the starter kit). */
 export function starterSeed(season: number): string {
-  let best = 'turnip', cost = Infinity;
+  let best = 'turnip',
+    cost = Infinity;
   for (const c of Object.values(CROPS)) {
     const v = ITEMS[`${c.id}_seed`]?.value ?? Infinity;
-    if (c.seasons.includes(season) && v < cost) { best = c.id; cost = v; }
+    if (c.seasons.includes(season) && v < cost) {
+      best = c.id;
+      cost = v;
+    }
   }
   return `${best}_seed`;
 }
@@ -29,8 +61,19 @@ export function newPlayerData(season: number): PlayerData {
   addStack(inv, { id: starterSeed(season), n: 12 });
   addStack(inv, { id: 'fiber', n: 5 });
   return {
-    needs: validTravelNeeds(null), inv, coins: 100, skills: validSkills(null), recipes: new Set(startRecipes()),
-    equip: emptyEquip(), friends: {}, buffs: {}, quests: {}, deeds: {}, events: [], prog: { hearts: 0, bosses: [], shrines: [], ruins: [] },
+    worldGeneration: WORLD_GENERATION,
+    needs: validTravelNeeds(null),
+    inv,
+    coins: 100,
+    skills: validSkills(null),
+    recipes: new Set(startRecipes()),
+    equip: emptyEquip(),
+    friends: {},
+    buffs: {},
+    quests: {},
+    deeds: {},
+    events: [],
+    prog: { hearts: 0, bosses: [], shrines: [], ruins: [] },
   };
 }
 
@@ -40,16 +83,32 @@ export function validQuests(v: unknown, today: number): QuestLog {
   if (!v || typeof v !== 'object') return out;
   for (const [id, raw] of Object.entries(v as Record<string, unknown>)) {
     const s = raw as { state?: unknown; progress?: unknown };
-    if (!s || (s.state !== 'active' && s.state !== 'done') || !Array.isArray(s.progress) || s.progress.length > 8) continue;
+    if (!s || (s.state !== 'active' && s.state !== 'done') || !Array.isArray(s.progress) || s.progress.length > 8)
+      continue;
     if (!QUEST_BY_ID[id] && !/^req:-?\d+:\d$/.test(id)) continue;
     const n = QUEST_BY_ID[id]?.objectives.length ?? s.progress.length;
-    out[id] = { state: s.state, progress: Array.from({ length: n }, (_, i) => { const x = (s.progress as unknown[])[i]; return typeof x === 'number' && Number.isFinite(x) ? Math.max(0, Math.min(999, Math.floor(x))) : 0; }) };
+    out[id] = {
+      state: s.state,
+      progress: Array.from({ length: n }, (_, i) => {
+        const x = (s.progress as unknown[])[i];
+        return typeof x === 'number' && Number.isFinite(x) ? Math.max(0, Math.min(999, Math.floor(x))) : 0;
+      }),
+    };
   }
   pruneRequests(out, today);
   return out;
 }
 
-export const emptyEquip = (): EquipState => ({ ring1: null, ring2: null, outfit: 0, weapon: null, head: null, chest: null, legs: null, feet: null });
+export const emptyEquip = (): EquipState => ({
+  ring1: null,
+  ring2: null,
+  outfit: 0,
+  weapon: null,
+  head: null,
+  chest: null,
+  legs: null,
+  feet: null,
+});
 
 /** Is `v` a stack of an item that fits this equipment slot? (stored data is never trusted) */
 export function fitsSlot(slot: EquipSlotKey, v: unknown): v is Stack {
@@ -62,33 +121,40 @@ export function fitsSlot(slot: EquipSlotKey, v: unknown): v is Stack {
   return d.kind === 'armor' && d.armor?.slot === slot;
 }
 
-const isRing = (s: unknown): s is Stack => !!s && typeof (s as Stack).id === 'string' && ITEMS[(s as Stack).id]?.kind === 'ring';
+const isRing = (s: unknown): s is Stack =>
+  !!s && typeof (s as Stack).id === 'string' && ITEMS[(s as Stack).id]?.kind === 'ring';
 
 /** Never trust stored shapes: every field is re-validated (old characters with empty data get the starter kit). */
 export function loadPlayerData(raw: unknown, season: number, nowMs: number): PlayerData {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   if (!Array.isArray(r.inv)) return newPlayerData(season);
   const known = new Set(startRecipes());
-  if (Array.isArray(r.recipes)) for (const id of r.recipes) if (typeof id === 'string' && RECIPES.some((x) => x.id === id)) known.add(id);
+  if (Array.isArray(r.recipes))
+    for (const id of r.recipes) if (typeof id === 'string' && RECIPES.some((x) => x.id === id)) known.add(id);
   const eq = (r.equip ?? {}) as Record<string, unknown>;
-  const slotStack = (slot: EquipSlotKey, v: unknown): Stack | null => (fitsSlot(slot, v) ? { id: v.id, n: 1, ...(v.p ? { p: v.p } : {}) } : null);
+  const slotStack = (slot: EquipSlotKey, v: unknown): Stack | null =>
+    fitsSlot(slot, v) ? { id: v.id, n: 1, ...(v.p ? { p: v.p } : {}) } : null;
   const ring = (v: unknown): Stack | null => (isRing(v) ? { id: v.id, n: 1, ...(v.p ? { p: v.p } : {}) } : null);
-  const outfit = typeof eq.outfit === 'number' && Number.isInteger(eq.outfit) && eq.outfit >= 0 && eq.outfit < 8 ? eq.outfit : 0;
+  const outfit =
+    typeof eq.outfit === 'number' && Number.isInteger(eq.outfit) && eq.outfit >= 0 && eq.outfit < 8 ? eq.outfit : 0;
   const friends: Record<string, FriendRec> = {};
   if (r.friends && typeof r.friends === 'object') {
     for (const [id, v] of Object.entries(r.friends as Record<string, unknown>)) {
       const f = v as Partial<FriendRec>;
-      if (!NPC_BY_ID[id] || !f || !Number.isFinite(f.pts) || !Number.isFinite(f.talked) || !Number.isFinite(f.gifted)) continue;
+      if (!NPC_BY_ID[id] || !f || !Number.isFinite(f.pts) || !Number.isFinite(f.talked) || !Number.isFinite(f.gifted))
+        continue;
       friends[id] = { pts: Math.max(0, Math.min(400, f.pts!)), talked: f.talked!, gifted: f.gifted! };
       if (typeof f.lastGift === 'string' && ITEMS[f.lastGift]) friends[id]!.lastGift = f.lastGift;
-      if (Array.isArray(f.noted)) friends[id]!.noted = f.noted.filter((x): x is string => typeof x === 'string').slice(-6);
+      if (Array.isArray(f.noted))
+        friends[id]!.noted = f.noted.filter((x): x is string => typeof x === 'string').slice(-6);
     }
   }
   const buffs: Record<string, Buff> = {};
   if (r.buffs && typeof r.buffs === 'object') {
     for (const [k, v] of Object.entries(r.buffs as Record<string, unknown>)) {
       const b = v as Partial<Buff>;
-      if (BUFF_KINDS.has(k) && Number.isFinite(b?.until) && Number.isFinite(b?.power) && b.until! > nowMs) buffs[k] = { until: b.until!, power: b.power! };
+      if (BUFF_KINDS.has(k) && Number.isFinite(b?.until) && Number.isFinite(b?.power) && b.until! > nowMs)
+        buffs[k] = { until: b.until!, power: b.power! };
     }
   }
   const coins = typeof r.coins === 'number' && Number.isFinite(r.coins) ? Math.max(0, Math.floor(r.coins)) : 0;
@@ -96,25 +162,70 @@ export function loadPlayerData(raw: unknown, season: number, nowMs: number): Pla
   if (r.deeds && typeof r.deeds === 'object') {
     for (const k of DEED_KINDS) {
       const d = (r.deeds as Record<string, { day?: unknown; what?: unknown }>)[k];
-      if (d && typeof d.day === 'number' && Number.isFinite(d.day) && typeof d.what === 'string') deeds[k] = { day: d.day, what: d.what.slice(0, 60) };
+      if (d && typeof d.day === 'number' && Number.isFinite(d.day) && typeof d.what === 'string')
+        deeds[k] = { day: d.day, what: d.what.slice(0, 60) };
     }
   }
-  const events = Array.isArray(r.events) ? r.events.filter((x): x is string => typeof x === 'string' && /^[a-z]+:\d$/.test(x)).slice(0, 64) : [];
+  const events = Array.isArray(r.events)
+    ? r.events.filter((x): x is string => typeof x === 'string' && /^[a-z]+:\d$/.test(x)).slice(0, 64)
+    : [];
   return {
-    needs: validTravelNeeds(r.needs), inv: validInventory(r.inv), coins, skills: validSkills(r.skills), recipes: known,
-    equip: { ring1: ring(eq.ring1), ring2: ring(eq.ring2), outfit, weapon: slotStack('weapon', eq.weapon), head: slotStack('head', eq.head), chest: slotStack('chest', eq.chest), legs: slotStack('legs', eq.legs), feet: slotStack('feet', eq.feet) }, friends, buffs,
-    quests: validQuests(r.quests, dayNumber(nowMs)), deeds, events, prog: validProg(r.prog),
+    worldGeneration: r.worldGeneration === WORLD_GENERATION ? WORLD_GENERATION : 1,
+    needs: validTravelNeeds(r.needs),
+    inv: validInventory(r.inv),
+    coins,
+    skills: validSkills(r.skills),
+    recipes: known,
+    equip: {
+      ring1: ring(eq.ring1),
+      ring2: ring(eq.ring2),
+      outfit,
+      weapon: slotStack('weapon', eq.weapon),
+      head: slotStack('head', eq.head),
+      chest: slotStack('chest', eq.chest),
+      legs: slotStack('legs', eq.legs),
+      feet: slotStack('feet', eq.feet),
+    },
+    friends,
+    buffs,
+    quests: validQuests(r.quests, dayNumber(nowMs)),
+    deeds,
+    events,
+    prog: validProg(r.prog),
   };
 }
 
 export function validProg(raw: unknown): PlayerData['prog'] {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
-  const ids = (v: unknown): string[] => (Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === 'string' && x.length <= 40))].slice(0, 400) : []);
-  return { hearts: typeof r.hearts === 'number' && Number.isFinite(r.hearts) ? Math.max(0, Math.min(40, Math.floor(r.hearts))) : 0, bosses: ids(r.bosses), shrines: ids(r.shrines), ruins: ids(r.ruins) };
+  const ids = (v: unknown): string[] =>
+    Array.isArray(v)
+      ? [...new Set(v.filter((x): x is string => typeof x === 'string' && x.length <= 40))].slice(0, 400)
+      : [];
+  return {
+    hearts:
+      typeof r.hearts === 'number' && Number.isFinite(r.hearts) ? Math.max(0, Math.min(40, Math.floor(r.hearts))) : 0,
+    bosses: ids(r.bosses),
+    shrines: ids(r.shrines),
+    ruins: ids(r.ruins),
+  };
 }
 
 export function serializePlayerData(d: PlayerData): Record<string, unknown> {
-  return { needs:d.needs, prog: d.prog, inv: d.inv, coins: d.coins, skills: d.skills, recipes: [...d.recipes], equip: d.equip, friends: d.friends, buffs: d.buffs, quests: d.quests, deeds: d.deeds, events: d.events };
+  return {
+    worldGeneration: d.worldGeneration,
+    needs: d.needs,
+    prog: d.prog,
+    inv: d.inv,
+    coins: d.coins,
+    skills: d.skills,
+    recipes: [...d.recipes],
+    equip: d.equip,
+    friends: d.friends,
+    buffs: d.buffs,
+    quests: d.quests,
+    deeds: d.deeds,
+    events: d.events,
+  };
 }
 
 export function deriveStats(d: PlayerData): DerivedStats {
@@ -122,23 +233,57 @@ export function deriveStats(d: PlayerData): DerivedStats {
   for (const r of [d.equip.ring1, d.equip.ring2]) {
     if (!r?.p?.stat || !Number.isFinite(r.p.val)) continue;
     const v = r.p.val!;
-    if (r.p.stat === 'hp') s.hpBonus += v; else if (r.p.stat === 'atk') s.atkBonus += v; else if (r.p.stat === 'luck') s.luck += v; else if (r.p.stat === 'haste') s.haste += v;
+    if (r.p.stat === 'hp') s.hpBonus += v;
+    else if (r.p.stat === 'atk') s.atkBonus += v;
+    else if (r.p.stat === 'luck') s.luck += v;
+    else if (r.p.stat === 'haste') s.haste += v;
   }
   s.atkBonus += quickbarAttack(d.inv);
   // armor (with set bonuses) and the wielded Focus
-  const a = armorTotals({ head: d.equip.head?.id ?? null, chest: d.equip.chest?.id ?? null, legs: d.equip.legs?.id ?? null, feet: d.equip.feet?.id ?? null });
-  s.hpBonus += a.bonus.hp; s.atkBonus += a.bonus.atk; s.luck += a.bonus.luck; s.haste += a.bonus.haste; s.def += a.bonus.def; s.phase += a.bonus.phase;
+  const a = armorTotals({
+    head: d.equip.head?.id ?? null,
+    chest: d.equip.chest?.id ?? null,
+    legs: d.equip.legs?.id ?? null,
+    feet: d.equip.feet?.id ?? null,
+  });
+  s.hpBonus += a.bonus.hp;
+  s.atkBonus += a.bonus.atk;
+  s.luck += a.bonus.luck;
+  s.haste += a.bonus.haste;
+  s.def += a.bonus.def;
+  s.phase += a.bonus.phase;
   const w = d.equip.weapon ? ITEMS[d.equip.weapon.id]?.weapon : undefined;
-  if (w) { const b = WEAPONS[w].bonus; s.hpBonus += b.hp ?? 0; s.atkBonus += b.atk ?? 0; s.def += b.def ?? 0; s.luck += b.luck ?? 0; s.haste += b.haste ?? 0; }
+  if (w) {
+    const b = WEAPONS[w].bonus;
+    s.hpBonus += b.hp ?? 0;
+    s.atkBonus += b.atk ?? 0;
+    s.def += b.def ?? 0;
+    s.luck += b.luck ?? 0;
+    s.haste += b.haste ?? 0;
+  }
   s.hpBonus += d.prog.hearts * 10;
   s.def = Math.min(0.6, s.def);
   return s;
 }
 
 export function profileMsg(d: PlayerData, stats: DerivedStats, parts: Iterable<DirtyPart> | 'all'): ProfileMsg {
-  const set = parts === 'all' ? new Set<DirtyPart>(['inv', 'coins', 'skills', 'recipes', 'equip', 'friends', 'buffs', 'stats', 'quests', 'needs']) : new Set(parts);
+  const set =
+    parts === 'all'
+      ? new Set<DirtyPart>([
+          'inv',
+          'coins',
+          'skills',
+          'recipes',
+          'equip',
+          'friends',
+          'buffs',
+          'stats',
+          'quests',
+          'needs',
+        ])
+      : new Set(parts);
   const m: ProfileMsg = {};
-  if(set.has('needs'))m.needs=d.needs;
+  if (set.has('needs')) m.needs = d.needs;
   if (set.has('inv')) m.inv = d.inv as Inventory;
   if (set.has('coins')) m.coins = d.coins;
   if (set.has('skills')) m.skills = d.skills;
@@ -147,6 +292,9 @@ export function profileMsg(d: PlayerData, stats: DerivedStats, parts: Iterable<D
   if (set.has('friends')) m.friends = d.friends;
   if (set.has('buffs')) m.buffs = d.buffs;
   if (set.has('stats')) m.stats = stats;
-  if (set.has('quests')) { m.quests = d.quests; m.events = d.events; }
+  if (set.has('quests')) {
+    m.quests = d.quests;
+    m.events = d.events;
+  }
   return m;
 }

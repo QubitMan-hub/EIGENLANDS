@@ -1,7 +1,14 @@
 import type { Client } from 'colyseus';
 import type { StateView } from '@colyseus/schema';
 import {
-  MSG, type InputCmd, type PlayerSim, type PlayerState, type PosSample, type RhythmPlan, type Stack, type Template,
+  MSG,
+  type InputCmd,
+  type PlayerSim,
+  type PlayerState,
+  type PosSample,
+  type RhythmPlan,
+  type Stack,
+  type Template,
 } from '@eigenlands/shared';
 import { TokenBucket } from '../rate';
 import { deriveStats, profileMsg, type DerivedStats } from '../systems/profile';
@@ -82,13 +89,22 @@ export class ServerPlayer implements PlayerRef {
     this.stats = deriveStats(data);
   }
 
-  get id(): string { return this.client.sessionId; }
-  get x(): number { return this.sim.x; }
-  get y(): number { return this.sim.y; }
+  get id(): string {
+    return this.client.sessionId;
+  }
+  get x(): number {
+    return this.sim.x;
+  }
+  get y(): number {
+    return this.sim.y;
+  }
 
   dirty(...parts: DirtyPart[]): void {
     for (const p of parts) this.dirtyParts.add(p);
-    if (parts.includes('inv') || parts.includes('equip')) { this.stats = deriveStats(this.data); this.dirtyParts.add('stats'); }
+    if (parts.includes('inv') || parts.includes('equip')) {
+      this.stats = deriveStats(this.data);
+      this.dirtyParts.add('stats');
+    }
   }
 
   toast(text: string, kind: 'info' | 'good' | 'bad' | 'item' = 'info', item?: Stack): void {

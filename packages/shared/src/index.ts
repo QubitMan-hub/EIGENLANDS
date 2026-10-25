@@ -4,6 +4,7 @@ export * from './rng';
 export * from './simplex';
 export * from './tiles';
 export * from './worldgen';
+export * from './world-version';
 export * from './chunks';
 export * from './sim';
 export * from './combat';
@@ -52,7 +53,7 @@ export * from './sanctuaries';
 
 export * from './sanctuary';
 
-export * from "./travel-needs";
+export * from './travel-needs';
 
 export * from './construction';
 

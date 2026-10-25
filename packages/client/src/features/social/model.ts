@@ -6,7 +6,13 @@ import { CHAT_MAX, EMOTES, type ChatMsg, type Emote } from '@eigenlands/shared';
 
 export type Tab = 'all' | 'local' | 'party' | 'global' | 'whisper';
 export const TABS: Tab[] = ['all', 'local', 'party', 'global', 'whisper'];
-export const TAB_LABEL: Record<Tab, string> = { all: 'All', local: 'Local', party: 'Party', global: 'Global', whisper: 'Whisper' };
+export const TAB_LABEL: Record<Tab, string> = {
+  all: 'All',
+  local: 'Local',
+  party: 'Party',
+  global: 'Global',
+  whisper: 'Whisper',
+};
 export type SayCh = 'local' | 'global' | 'party' | 'whisper';
 
 export type Cmd =
@@ -43,11 +49,42 @@ export const HELP: string[] = [
 ];
 
 const ALIASES: Record<string, string> = {
-  w: 'w', whisper: 'w', tell: 'w', msg: 'w', t: 'w', r: 'r', reply: 'r',
-  p: 'p', party: 'p', g: 'g', global: 'g', l: 'l', local: 'l', s: 'l', say: 'l',
-  invite: 'invite', inv: 'invite', trade: 'trade', mute: 'mute', unmute: 'unmute', block: 'block', ignore: 'block',
-  unblock: 'unblock', unignore: 'unblock', kick: 'kick', promote: 'promote', leave: 'leave', leaveparty: 'leave',
-  report: 'report', emote: 'emote', e: 'emote', me: 'emote', emotes: 'emotes', help: 'help', '?': 'help', clear: 'clear',
+  w: 'w',
+  whisper: 'w',
+  tell: 'w',
+  msg: 'w',
+  t: 'w',
+  r: 'r',
+  reply: 'r',
+  p: 'p',
+  party: 'p',
+  g: 'g',
+  global: 'g',
+  l: 'l',
+  local: 'l',
+  s: 'l',
+  say: 'l',
+  invite: 'invite',
+  inv: 'invite',
+  trade: 'trade',
+  mute: 'mute',
+  unmute: 'unmute',
+  block: 'block',
+  ignore: 'block',
+  unblock: 'unblock',
+  unignore: 'unblock',
+  kick: 'kick',
+  promote: 'promote',
+  leave: 'leave',
+  leaveparty: 'leave',
+  report: 'report',
+  emote: 'emote',
+  e: 'emote',
+  me: 'emote',
+  emotes: 'emotes',
+  help: 'help',
+  '?': 'help',
+  clear: 'clear',
 };
 
 /**
@@ -101,13 +138,23 @@ export function parseCommand(raw: string, ctx: ParseCtx): Cmd {
       if (!ctx.lastWhisper) return { k: 'error', text: 'Nobody has whispered you yet.' };
       if (!rest) return { k: 'error', text: 'Usage: /r message' };
       return { k: 'say', ch: 'whisper', to: ctx.lastWhisper, text: rest.slice(0, CHAT_MAX) };
-    case 'p': case 'g': case 'l': {
+    case 'p':
+    case 'g':
+    case 'l': {
       const ch = cmd === 'p' ? 'party' : cmd === 'g' ? 'global' : 'local';
       return rest ? { k: 'say', ch, text: rest.slice(0, CHAT_MAX) } : { k: 'channel', ch };
     }
-    case 'invite': case 'trade': case 'mute': case 'unmute': case 'block': case 'unblock': case 'kick': case 'promote':
+    case 'invite':
+    case 'trade':
+    case 'mute':
+    case 'unmute':
+    case 'block':
+    case 'unblock':
+    case 'kick':
+    case 'promote':
       return needName(cmd);
-    case 'leave': return { k: 'leave' };
+    case 'leave':
+      return { k: 'leave' };
     case 'report': {
       const [name, reason] = splitName(rest, ctx.known);
       if (!name) return { k: 'error', text: 'Usage: /report name reason' };
@@ -118,10 +165,14 @@ export function parseCommand(raw: string, ctx: ParseCtx): Cmd {
       if ((EMOTES as readonly string[]).includes(e)) return { k: 'emote', e: e as Emote };
       return { k: 'help', topic: 'emotes' };
     }
-    case 'emotes': return { k: 'help', topic: 'emotes' };
-    case 'help': return { k: 'help' };
-    case 'clear': return { k: 'clear' };
-    default: return { k: 'error', text: `Unknown command /${word}. Type /help for the list.` };
+    case 'emotes':
+      return { k: 'help', topic: 'emotes' };
+    case 'help':
+      return { k: 'help' };
+    case 'clear':
+      return { k: 'clear' };
+    default:
+      return { k: 'error', text: `Unknown command /${word}. Type /help for the list.` };
   }
 }
 
@@ -137,7 +188,9 @@ function readList(s: Store | null, key: string): string[] {
   try {
     const v = JSON.parse(s?.getItem(key) ?? '[]') as unknown;
     return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string').slice(0, 500) : [];
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 }
 
 export class ChatModel {
@@ -156,28 +209,48 @@ export class ChatModel {
   private seen = new Set<string>();
   private seenOrder: string[] = [];
 
-  constructor(private store: Store | null = null, max = 200) {
+  constructor(
+    private store: Store | null = null,
+    max = 200,
+  ) {
     this.max = max;
     this.blocked = new Set(readList(store, BLOCK_KEY));
     this.muted = new Set(readList(store, MUTE_KEY));
   }
 
   private save(): void {
-    try { this.store?.setItem(BLOCK_KEY, JSON.stringify([...this.blocked])); this.store?.setItem(MUTE_KEY, JSON.stringify([...this.muted])); } catch { /* full or blocked storage */ }
+    try {
+      this.store?.setItem(BLOCK_KEY, JSON.stringify([...this.blocked]));
+      this.store?.setItem(MUTE_KEY, JSON.stringify([...this.muted]));
+    } catch {
+      /* full or blocked storage */
+    }
   }
 
-  isBlocked(name: string, id = ''): boolean { return this.blocked.has(name.toLowerCase()) || (!!id && this.blocked.has(`#${id}`)); }
-  isMuted(name: string, id = ''): boolean { return this.isBlocked(name, id) || this.muted.has(name.toLowerCase()) || (!!id && this.muted.has(`#${id}`)); }
+  isBlocked(name: string, id = ''): boolean {
+    return this.blocked.has(name.toLowerCase()) || (!!id && this.blocked.has(`#${id}`));
+  }
+  isMuted(name: string, id = ''): boolean {
+    return this.isBlocked(name, id) || this.muted.has(name.toLowerCase()) || (!!id && this.muted.has(`#${id}`));
+  }
 
   /** Block by name (and account id when known, so a renamed player stays blocked). */
-  block(name: string, id = ''): void { this.blocked.add(name.toLowerCase()); if (id) this.blocked.add(`#${id}`); this.save(); }
+  block(name: string, id = ''): void {
+    this.blocked.add(name.toLowerCase());
+    if (id) this.blocked.add(`#${id}`);
+    this.save();
+  }
   unblock(name: string, id = ''): boolean {
     const had = this.blocked.delete(name.toLowerCase());
     if (id) this.blocked.delete(`#${id}`);
     this.save();
     return had;
   }
-  mute(name: string, id = ''): void { this.muted.add(name.toLowerCase()); if (id) this.muted.add(`#${id}`); this.save(); }
+  mute(name: string, id = ''): void {
+    this.muted.add(name.toLowerCase());
+    if (id) this.muted.add(`#${id}`);
+    this.save();
+  }
   unmute(name: string, id = ''): boolean {
     const had = this.muted.delete(name.toLowerCase());
     if (id) this.muted.delete(`#${id}`);
@@ -190,7 +263,8 @@ export class ChatModel {
     if (m.ch !== 'system' && m.from && m.from !== myName && this.isMuted(m.from, m.fromId)) return false;
     const key = `${m.t}|${m.fromId}|${m.ch}|${m.to ?? ''}|${m.text}`;
     if (this.seen.has(key)) return false;
-    this.seen.add(key); this.seenOrder.push(key);
+    this.seen.add(key);
+    this.seenOrder.push(key);
     if (this.seenOrder.length > this.max * 2) this.seen.delete(this.seenOrder.shift()!);
     this.lines.push(m);
     if (this.lines.length > this.max) this.lines.splice(0, this.lines.length - this.max);
@@ -204,25 +278,41 @@ export class ChatModel {
   }
 
   /** A local note (help, errors) shown as a system line. */
-  note(text: string): void { this.add({ ch: 'system', from: '', fromId: '', text, t: Date.now() + Math.random() }); }
+  note(text: string): void {
+    this.add({ ch: 'system', from: '', fromId: '', text, t: Date.now() + Math.random() });
+  }
 
-  visible(tab: Tab = this.tab): ChatMsg[] { return this.lines.filter((m) => inTab(m, tab)); }
+  visible(tab: Tab = this.tab): ChatMsg[] {
+    return this.lines.filter((m) => inTab(m, tab));
+  }
 
-  setTab(t: Tab): void { this.tab = t; this.unread[t] = 0; }
-  totalUnread(): number { return TABS.filter((t) => t !== 'all').reduce((a, t) => a + this.unread[t], 0); }
-  clear(): void { this.lines = []; for (const t of TABS) this.unread[t] = 0; }
+  setTab(t: Tab): void {
+    this.tab = t;
+    this.unread[t] = 0;
+  }
+  totalUnread(): number {
+    return TABS.filter((t) => t !== 'all').reduce((a, t) => a + this.unread[t], 0);
+  }
+  clear(): void {
+    this.lines = [];
+    for (const t of TABS) this.unread[t] = 0;
+  }
 
   /** Remember a sent line for ↑/↓ recall. */
   pushHistory(text: string): void {
     const t = text.trim();
     if (t && this.history[this.history.length - 1] !== t) this.history.push(t);
     if (this.history.length > 50) this.history.shift();
-    this.histPos = -1; this.draft = '';
+    this.histPos = -1;
+    this.draft = '';
   }
   /** ↑: older line (current input kept as a draft). */
   prev(current: string): string {
     if (!this.history.length) return current;
-    if (this.histPos === -1) { this.draft = current; this.histPos = this.history.length; }
+    if (this.histPos === -1) {
+      this.draft = current;
+      this.histPos = this.history.length;
+    }
     this.histPos = Math.max(0, this.histPos - 1);
     return this.history[this.histPos]!;
   }
@@ -230,7 +320,10 @@ export class ChatModel {
   next(): string {
     if (this.histPos === -1) return this.draft;
     this.histPos++;
-    if (this.histPos >= this.history.length) { this.histPos = -1; return this.draft; }
+    if (this.histPos >= this.history.length) {
+      this.histPos = -1;
+      return this.draft;
+    }
     return this.history[this.histPos]!;
   }
 }

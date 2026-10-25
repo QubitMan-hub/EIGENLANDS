@@ -2,7 +2,14 @@
 import { matchMaker } from 'colyseus';
 import { Client, type Room } from 'colyseus.js';
 import {
-  MSG, MSG34, emptyBoard, type AbilityId, type Board, type CastResultMsg, type GateId, type ProgressMsg,
+  MSG,
+  MSG34,
+  emptyBoard,
+  type AbilityId,
+  type Board,
+  type CastResultMsg,
+  type GateId,
+  type ProgressMsg,
 } from '@eigenlands/shared';
 import type { App } from '../src/app';
 import { DEV_MSG, type CircuitModule, type CircuitState } from '../src/features/circuit';
@@ -35,9 +42,12 @@ export async function boot3(config: Record<string, unknown> = {}): Promise<App> 
 }
 
 export async function spawn3(
-  app: App, name = 'Orbit', creds?: { token: string; accountId: string }, opts: { relax?: boolean; ticket?: string } = {},
+  app: App,
+  name = 'Orbit',
+  creds?: { token: string; accountId: string },
+  opts: { relax?: boolean; ticket?: string } = {},
 ): Promise<P3> {
-  const g = creds ?? await guest(app);
+  const g = creds ?? (await guest(app));
   const client = new Client(wsUrl(app));
   let r!: Room<any>;
   let room!: GameRoom;
@@ -51,10 +61,23 @@ export async function spawn3(
     await sleep(150);
   }
   const p: P3 = {
-    r, sid: r.sessionId, token: g.token, accountId: g.accountId, room, sp: undefined as unknown as ServerPlayer,
-    circuit: room.circuit, prog: {}, progs: [], casts: [], res: [], toasts: [],
+    r,
+    sid: r.sessionId,
+    token: g.token,
+    accountId: g.accountId,
+    room,
+    sp: undefined as unknown as ServerPlayer,
+    circuit: room.circuit,
+    prog: {},
+    progs: [],
+    casts: [],
+    res: [],
+    toasts: [],
   };
-  r.onMessage(MSG34.PROGRESS, (m: ProgressMsg) => { p.progs.push(m); Object.assign(p.prog, m); });
+  r.onMessage(MSG34.PROGRESS, (m: ProgressMsg) => {
+    p.progs.push(m);
+    Object.assign(p.prog, m);
+  });
   r.onMessage(MSG34.CAST_R, (m: CastResultMsg) => p.casts.push(m));
   r.onMessage(MSG34.RES, (m) => p.res.push(m));
   r.onMessage(MSG.TOAST, (m) => p.toasts.push(m));
@@ -69,7 +92,10 @@ export async function spawn3(
 export function relax3(p: P3): void {
   const big = () => new TokenBucket(100000, 100000);
   const m = new Map(['cast', 'board', 'party', 'chat', 'voice', 'trade', 'emote'].map((n) => [n, big()]));
-  (p.room as unknown as { buckets: Map<string, Map<string, TokenBucket>> }).buckets.set(p.sid, m as Map<string, TokenBucket>);
+  (p.room as unknown as { buckets: Map<string, Map<string, TokenBucket>> }).buckets.set(
+    p.sid,
+    m as Map<string, TokenBucket>,
+  );
   p.sp.invBucket = big();
 }
 
@@ -77,7 +103,11 @@ export const st = (p: P3): CircuitState => p.circuit.stateOf(p.sid)!;
 
 export type CellSpec = GateId | ['cx', number] | null;
 /** Build a board: `lines[q]` lists cells from column 0; `abilities[q]` the ability on line q. */
-export function mkBoard(lines: Record<number, CellSpec[]>, abilities: Record<number, AbilityId | null>, runes: Record<number, number> = {}): Board {
+export function mkBoard(
+  lines: Record<number, CellSpec[]>,
+  abilities: Record<number, AbilityId | null>,
+  runes: Record<number, number> = {},
+): Board {
   const b = emptyBoard();
   for (const [q, cells] of Object.entries(lines)) {
     cells.forEach((c, i) => {
@@ -94,7 +124,8 @@ export function mkBoard(lines: Record<number, CellSpec[]>, abilities: Record<num
 export async function attune(p: P3, board: Board, skipCooldown = true): Promise<{ ok: boolean; toast?: string }> {
   if (skipCooldown) st(p).attuneReady = 0;
   await sleep(30); // let earlier messages' replies arrive first
-  const np = p.progs.length, nt = p.toasts.length;
+  const np = p.progs.length,
+    nt = p.toasts.length;
   p.r.send(MSG34.ATTUNE, { board });
   const done = () => p.progs.slice(np).some((m) => m.board) || p.toasts.slice(nt).some((x) => x.kind === 'bad');
   await until(done, 3000);
@@ -131,10 +162,11 @@ export async function setClass(p: P3, cls: string): Promise<void> {
 
 /** A flat open field around (cx, cy) so bolts and blinks do not meet generated trees or rocks. */
 export function flatten(room: GameRoom, cx: number, cy: number, r = 8, tile = 3): void {
-  for (let y = cy - r; y <= cy + r; y++) for (let x = cx - r; x <= cx + r; x++) {
-    room.objects.remove(x, y);
-    room.setTile(x, y, tile);
-  }
+  for (let y = cy - r; y <= cy + r; y++)
+    for (let x = cx - r; x <= cx + r; x++) {
+      room.objects.remove(x, y);
+      room.setTile(x, y, tile);
+    }
 }
 
 /** A stationary, harmless enemy (it neither walks nor notices anyone). */
@@ -147,9 +179,14 @@ export function dummy(room: GameRoom, x: number, y: number, kind: 'slime' | 'hop
   return e;
 }
 
-export function remove(room: GameRoom, id: string): void { room.enemies.delete(id); room.state.enemies.delete(id); }
+export function remove(room: GameRoom, id: string): void {
+  room.enemies.delete(id);
+  room.state.enemies.delete(id);
+}
 
 /** Drop every enemy in the room (tests share one room). */
-export function clearEnemies(room: GameRoom): void { for (const id of [...room.enemies.keys()]) remove(room, id); }
+export function clearEnemies(room: GameRoom): void {
+  for (const id of [...room.enemies.keys()]) remove(room, id);
+}
 
 export { sleep, until };

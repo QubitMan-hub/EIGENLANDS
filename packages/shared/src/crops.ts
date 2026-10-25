@@ -3,30 +3,48 @@ import { weatherForDay, waters, seasonOfDay } from './weather';
 export interface CropDef {
   id: string;
   name: string;
-  seasons: number[];      // 0 spring 1 summer 2 autumn 3 winter
-  days: number;           // watered days until ripe
-  regrow: number;         // 0 = single harvest, else watered days to ripen again
+  seasons: number[]; // 0 spring 1 summer 2 autumn 3 winter
+  days: number; // watered days until ripe
+  regrow: number; // 0 = single harvest, else watered days to ripen again
   yieldMin: number;
   yieldMax: number;
   xp: number;
   /** art hints */
-  color: number;          // palette index of the fruit
+  color: number; // palette index of the fruit
   shape: 'root' | 'leafy' | 'vine' | 'stalk' | 'bush';
 }
 
-const c = (id: string, name: string, seasons: number[], days: number, regrow: number, yMin: number, yMax: number, xp: number, color: number, shape: CropDef['shape']): CropDef =>
-  ({ id, name, seasons, days, regrow, yieldMin: yMin, yieldMax: yMax, xp, color, shape });
+const c = (
+  id: string,
+  name: string,
+  seasons: number[],
+  days: number,
+  regrow: number,
+  yMin: number,
+  yMax: number,
+  xp: number,
+  color: number,
+  shape: CropDef['shape'],
+): CropDef => ({ id, name, seasons, days, regrow, yieldMin: yMin, yieldMax: yMax, xp, color, shape });
 
 /** A season is 7 game days (2.8 real hours); crops ripen in a few game days of watering. */
-export const CROPS: Record<string, CropDef> = Object.fromEntries([
-  c('turnip', 'Turnip', [0], 2, 0, 1, 2, 8, 31, 'root'), c('potato', 'Potato', [0], 3, 0, 1, 3, 10, 21, 'root'),
-  c('strawberry', 'Strawberry', [0], 4, 2, 1, 2, 14, 36, 'bush'), c('green_bean', 'Green Bean', [0], 3, 2, 1, 2, 11, 13, 'vine'),
-  c('tomato', 'Tomato', [1], 4, 2, 1, 2, 14, 35, 'vine'), c('melon', 'Melon', [1], 5, 0, 1, 1, 22, 12, 'vine'),
-  c('corn', 'Corn', [1, 2], 6, 3, 1, 2, 16, 22, 'stalk'), c('blueberry', 'Blueberry', [1], 4, 2, 2, 4, 14, 27, 'bush'),
-  c('pumpkin', 'Pumpkin', [2], 5, 0, 1, 1, 22, 20, 'vine'), c('cranberry', 'Cranberry', [2], 3, 2, 2, 3, 12, 36, 'bush'),
-  c('yam', 'Yam', [2], 3, 0, 1, 3, 11, 44, 'root'), c('eggplant', 'Eggplant', [2], 3, 2, 1, 2, 13, 43, 'bush'),
-  c('frostroot', 'Frostroot', [3], 3, 0, 1, 2, 15, 30, 'root'),
-].map((d) => [d.id, d]));
+export const CROPS: Record<string, CropDef> = Object.fromEntries(
+  [
+    c('turnip', 'Turnip', [0], 2, 0, 1, 2, 8, 31, 'root'),
+    c('potato', 'Potato', [0], 3, 0, 1, 3, 10, 21, 'root'),
+    c('strawberry', 'Strawberry', [0], 4, 2, 1, 2, 14, 36, 'bush'),
+    c('green_bean', 'Green Bean', [0], 3, 2, 1, 2, 11, 13, 'vine'),
+    c('tomato', 'Tomato', [1], 4, 2, 1, 2, 14, 35, 'vine'),
+    c('melon', 'Melon', [1], 5, 0, 1, 1, 22, 12, 'vine'),
+    c('corn', 'Corn', [1, 2], 6, 3, 1, 2, 16, 22, 'stalk'),
+    c('blueberry', 'Blueberry', [1], 4, 2, 2, 4, 14, 27, 'bush'),
+    c('pumpkin', 'Pumpkin', [2], 5, 0, 1, 1, 22, 20, 'vine'),
+    c('cranberry', 'Cranberry', [2], 3, 2, 2, 3, 12, 36, 'bush'),
+    c('yam', 'Yam', [2], 3, 0, 1, 3, 11, 44, 'root'),
+    c('eggplant', 'Eggplant', [2], 3, 2, 1, 2, 13, 43, 'bush'),
+    c('frostroot', 'Frostroot', [3], 3, 0, 1, 2, 15, 30, 'root'),
+  ].map((d) => [d.id, d]),
+);
 
 export const STAGES = 4; // 0 seed, 1 sprout, 2 growing, 3 ripe
 
@@ -52,7 +70,8 @@ export const cropSeasonOk = (crop: string, season: number, greenhouse = false): 
 
 /** Growth needed to ripen (superposed crops need the slower of the two). */
 export function daysToRipe(d: CropData): number {
-  const a = CROPS[d.crop]!.days, b = d.alt ? CROPS[d.alt]!.days : 0;
+  const a = CROPS[d.crop]!.days,
+    b = d.alt ? CROPS[d.alt]!.days : 0;
   return Math.max(a, b) - (d.fert ? 1 : 0);
 }
 
@@ -64,7 +83,11 @@ export function cropStage(d: CropData): number {
 
 export const isRipe = (d: CropData): boolean => !d.dead && cropStage(d) === 3;
 
-export interface DayContext { rain: boolean; sprinkler: boolean; greenhouse: boolean }
+export interface DayContext {
+  rain: boolean;
+  sprinkler: boolean;
+  greenhouse: boolean;
+}
 
 /** Day `day` has ended: credit growth if it was watered; wither if tomorrow's season is wrong. Pure. */
 export function advanceDay(d: CropData, day: number, ctx: DayContext): CropData {

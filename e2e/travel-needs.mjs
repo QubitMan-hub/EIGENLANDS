@@ -1,28 +1,183 @@
 // Real optional survival loop: authority, crafting, reachable well use, consumption and saved mode/meters.
-import {chromium} from 'playwright-core';import assert from 'node:assert/strict';import {mkdirSync} from 'node:fs';
-const base=process.argv[2]??'http://127.0.0.1:5240/',mobile=process.argv.includes('--mobile'),out=`/tmp/eigenlands-travel-${new URL(base).port}-${mobile?'landscape':'desktop'}`;mkdirSync(out,{recursive:true});
-const browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']});let page;const errors=[];
-try{
- page=await browser.newPage({viewport:mobile?{width:844,height:390}:{width:1280,height:800},hasTouch:mobile});page.on('pageerror',e=>errors.push(e.message));
- await page.goto(`${base}?dev=1&hour=12`);await page.waitForSelector('#g-off:not([hidden])');await page.fill('#name','Prepared traveller');await page.click('#btn-guest');await page.waitForFunction(()=>window.__eigen?.state().ready&&window.__eigen.game.gameplay.profile.loaded,null,{timeout:60000});await page.evaluate(()=>window.__eigen.game.app.ticker.maxFPS=10);
- const dev=msg=>page.evaluate(msg=>window.__eigen.game.net.dev(msg),msg),needs=()=>page.evaluate(()=>({...window.__eigen.game.gameplay.profile.needs}));
- assert.deepEqual(await needs(),{mode:'cozy',food:100,water:100});assert.equal(await page.locator('#needs-hud').isVisible(),false);
- await dev({cmd:'give',id:'hide',n:1});await page.waitForFunction(()=>window.__eigen.game.gameplay.profile.count('hide')===1);
- await page.click('#btn-menu');await page.click('#btn-craft');await page.locator('.recipe').filter({has:page.getByText('Empty Waterskin',{exact:true})}).getByRole('button',{name:'×1',exact:true}).click();await page.waitForFunction(()=>window.__eigen.game.gameplay.profile.count('waterskin_empty')===1);assert.equal(await page.evaluate(()=>window.__eigen.game.gameplay.profile.count('hide')),0);await page.keyboard.press('Escape');
- const home=await page.evaluate(()=>window.__eigen.game.ext.atlas.navigation().point);
- const tp=async p=>{await dev({cmd:'tp',x:p.x,y:p.y});await page.waitForFunction(p=>Math.hypot(window.__eigen.state().x-p.x,window.__eigen.state().y-p.y)<.3,p);};
- await tp({x:home.x+.5,y:home.y+.5});await page.waitForFunction(()=>[...window.__eigen.game.store.objects.values()].some(o=>o.sub==='well'));
- const well=await page.evaluate(()=>{const g=window.__eigen.game,p=g.predictor.sim,o=[...g.store.objects.values()].filter(o=>o.sub==='well').sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0];return{x:o.x,y:o.y};});
- await tp({x:well.x+.5,y:well.y+1.5});const skin=await page.evaluate(()=>window.__eigen.game.gameplay.profile.inv.findIndex(s=>s?.id==='waterskin_empty'));assert.ok(skin<10);await page.locator(`.hslot[data-i="${skin}"]`).click();
- const point=await page.evaluate(o=>{const g=window.__eigen.game;return{x:g.world.x+(o.x-o.y)*16*g.scale,y:g.world.y+(o.x+o.y+1)*8*g.scale};},well);await page.mouse.move(point.x,point.y);await page.waitForFunction(o=>window.__eigen.game.input.mouseTile?.tx===o.x&&window.__eigen.game.input.mouseTile?.ty===o.y,well);await page.keyboard.down('Space');await page.waitForFunction(()=>window.__eigen.game.gameplay.profile.count('waterskin_full')===1,null,{timeout:15000});await page.keyboard.up('Space');assert.equal(await page.evaluate(()=>window.__eigen.game.gameplay.acts.watered),false,'Refilling a skin must not complete the crop-watering lesson');
- const guide=async()=>{await page.click('#btn-journal');await page.getByRole('button',{name:'How to…',exact:true}).click();};
- await guide();await page.getByLabel('Travel mode',{exact:true}).selectOption('adventure');await page.waitForFunction(()=>window.__eigen.game.gameplay.profile.needs.mode==='adventure');await page.locator('.travel-guide').scrollIntoViewIfNeeded();await page.screenshot({path:`${out}/journal.png`});await page.keyboard.press('Escape');await page.waitForTimeout(2000);assert.deepEqual(await needs(),{mode:'adventure',food:100,water:100});assert.equal(await page.locator('#needs-hud').isVisible(),true);assert.ok(await page.evaluate(()=>document.querySelector('#voice-chip').getBoundingClientRect().top>=document.querySelector('#hud-left').getBoundingClientRect().bottom+2),'Voice control must sit below the expanded ledger');await page.screenshot({path:`${out}/hud.png`});
- await tp({x:250.5,y:250.5});await page.waitForFunction(()=>{const n=window.__eigen.game.gameplay.profile.needs;return n.food<100&&n.water<100;});await dev({cmd:'give',id:'roast_potato',n:1});await page.waitForFunction(()=>window.__eigen.game.gameplay.profile.count('roast_potato')===1);
- await page.click('#btn-menu');await page.click('#btn-pack');const pack=page.getByRole('dialog',{name:'Pack',exact:true});
- const use=async id=>{const i=await page.evaluate(id=>window.__eigen.game.gameplay.profile.inv.findIndex(s=>s?.id===id),id);await pack.locator(`.slot[data-i="${i}"]`).click();await pack.getByRole('button',{name:'Use item',exact:true}).click();};
- await use('waterskin_full');await page.waitForFunction(()=>window.__eigen.game.gameplay.profile.count('waterskin_full')===0);assert.equal(await page.evaluate(()=>window.__eigen.game.gameplay.profile.count('waterskin_empty')),1);assert.ok((await needs()).water>98);
- const hp=await page.evaluate(()=>window.__eigen.state().hp);await use('roast_potato');await page.waitForFunction(()=>window.__eigen.game.gameplay.profile.count('roast_potato')===0);assert.ok((await needs()).food>98);assert.equal(await page.evaluate(()=>window.__eigen.state().hp),hp);await page.keyboard.press('Escape');
- await tp({x:home.x+.5,y:home.y+.5});await guide();for(const mode of ['cozy','adventure']){await page.getByLabel('Travel mode',{exact:true}).selectOption(mode);await page.waitForFunction(mode=>window.__eigen.game.gameplay.profile.needs.mode===mode,mode);}const saved=await needs();await page.keyboard.press('Escape');await page.waitForTimeout(2000);assert.deepEqual(await needs(),saved);
- await page.reload();await page.waitForFunction(()=>window.__eigen?.state().ready&&window.__eigen.game.gameplay.profile.loaded,null,{timeout:60000});assert.deepEqual(await needs(),saved);await guide();await page.getByLabel('Travel mode',{exact:true}).selectOption('cozy');await page.waitForFunction(()=>window.__eigen.game.gameplay.profile.needs.mode==='cozy');await page.keyboard.press('Escape');await page.waitForFunction(()=>document.querySelector('#needs-hud').hidden);assert.deepEqual(errors,[]);
- console.log('Travel needs passed: quiet Cozy, actual craft/well/food/drink, Adventure wilderness depletion, sanctuary pause, mode/no-refill, saved needs and reload',out);
-}catch(e){if(page){await page.screenshot({path:`${out}/failure.png`});console.log('Page errors',errors);console.log('Input state',await page.evaluate(()=>{const g=window.__eigen?.game;return {selected:g?.gameplay.hotbar.selected,held:g?.input.interactHeld,mouse:g?.input.mouseTile,window:g?.gameplay.wins.name,blocking:g?.ext.blocking,slot:g?.gameplay.selected(),needs:g?.gameplay.profile.needs};}));}throw e;}finally{await browser.close();}
+import { chromium } from 'playwright-core';
+import assert from 'node:assert/strict';
+import { mkdirSync } from 'node:fs';
+const base = process.argv[2] ?? 'http://127.0.0.1:5240/',
+  mobile = process.argv.includes('--mobile'),
+  out = `/tmp/eigenlands-travel-${new URL(base).port}-${mobile ? 'landscape' : 'desktop'}`;
+mkdirSync(out, { recursive: true });
+const browser = await chromium.launch({
+  executablePath: '/usr/bin/chromium',
+  args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
+});
+let page;
+const errors = [];
+try {
+  page = await browser.newPage({
+    viewport: mobile ? { width: 844, height: 390 } : { width: 1280, height: 800 },
+    hasTouch: mobile,
+  });
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto(`${base}?dev=1&hour=12`);
+  await page.waitForSelector('#g-off:not([hidden])');
+  await page.fill('#name', 'Prepared traveller');
+  await page.click('#btn-guest');
+  await page.waitForFunction(() => window.__eigen?.state().ready && window.__eigen.game.gameplay.profile.loaded, null, {
+    timeout: 60000,
+  });
+  await page.evaluate(() => (window.__eigen.game.app.ticker.maxFPS = 10));
+  const dev = (msg) => page.evaluate((msg) => window.__eigen.game.net.dev(msg), msg),
+    needs = () => page.evaluate(() => ({ ...window.__eigen.game.gameplay.profile.needs }));
+  assert.deepEqual(await needs(), { mode: 'cozy', food: 100, water: 100 });
+  assert.equal(await page.locator('#needs-hud').isVisible(), false);
+  await dev({ cmd: 'give', id: 'hide', n: 1 });
+  await page.waitForFunction(() => window.__eigen.game.gameplay.profile.count('hide') === 1);
+  await page.click('#btn-menu');
+  await page.click('#btn-craft');
+  await page
+    .locator('.recipe')
+    .filter({ has: page.getByText('Empty Waterskin', { exact: true }) })
+    .getByRole('button', { name: '×1', exact: true })
+    .click();
+  await page.waitForFunction(() => window.__eigen.game.gameplay.profile.count('waterskin_empty') === 1);
+  assert.equal(await page.evaluate(() => window.__eigen.game.gameplay.profile.count('hide')), 0);
+  await page.keyboard.press('Escape');
+  const home = await page.evaluate(() => window.__eigen.game.ext.atlas.navigation().point);
+  const tp = async (p) => {
+    await dev({ cmd: 'tp', x: p.x, y: p.y });
+    await page.waitForFunction(
+      (p) => Math.hypot(window.__eigen.state().x - p.x, window.__eigen.state().y - p.y) < 0.3,
+      p,
+    );
+  };
+  await tp({ x: home.x + 0.5, y: home.y + 0.5 });
+  await page.waitForFunction(() => [...window.__eigen.game.store.objects.values()].some((o) => o.sub === 'well'));
+  const well = await page.evaluate(() => {
+    const g = window.__eigen.game,
+      p = g.predictor.sim,
+      o = [...g.store.objects.values()]
+        .filter((o) => o.sub === 'well')
+        .sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
+    return { x: o.x, y: o.y };
+  });
+  await tp({ x: well.x + 0.5, y: well.y + 1.5 });
+  const skin = await page.evaluate(() =>
+    window.__eigen.game.gameplay.profile.inv.findIndex((s) => s?.id === 'waterskin_empty'),
+  );
+  assert.ok(skin < 10);
+  await page.locator(`.hslot[data-i="${skin}"]`).click();
+  const point = await page.evaluate((o) => {
+    const g = window.__eigen.game;
+    return { x: g.world.x + (o.x - o.y) * 16 * g.scale, y: g.world.y + (o.x + o.y + 1) * 8 * g.scale };
+  }, well);
+  await page.mouse.move(point.x, point.y);
+  await page.waitForFunction(
+    (o) => window.__eigen.game.input.mouseTile?.tx === o.x && window.__eigen.game.input.mouseTile?.ty === o.y,
+    well,
+  );
+  await page.keyboard.down('Space');
+  await page.waitForFunction(() => window.__eigen.game.gameplay.profile.count('waterskin_full') === 1, null, {
+    timeout: 15000,
+  });
+  await page.keyboard.up('Space');
+  assert.equal(
+    await page.evaluate(() => window.__eigen.game.gameplay.acts.watered),
+    false,
+    'Refilling a skin must not complete the crop-watering lesson',
+  );
+  const guide = async () => {
+    await page.click('#btn-journal');
+    await page.getByRole('button', { name: 'How to…', exact: true }).click();
+  };
+  await guide();
+  await page.getByLabel('Travel mode', { exact: true }).selectOption('adventure');
+  await page.waitForFunction(() => window.__eigen.game.gameplay.profile.needs.mode === 'adventure');
+  await page.locator('.travel-guide').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `${out}/journal.png` });
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(2000);
+  assert.deepEqual(await needs(), { mode: 'adventure', food: 100, water: 100 });
+  assert.equal(await page.locator('#needs-hud').isVisible(), true);
+  assert.ok(
+    await page.evaluate(
+      () =>
+        document.querySelector('#voice-chip').getBoundingClientRect().top >=
+        document.querySelector('#hud-left').getBoundingClientRect().bottom + 2,
+    ),
+    'Voice control must sit below the expanded ledger',
+  );
+  await page.screenshot({ path: `${out}/hud.png` });
+  await tp({ x: 250.5, y: 250.5 });
+  await page.waitForFunction(() => {
+    const n = window.__eigen.game.gameplay.profile.needs;
+    return n.food < 100 && n.water < 100;
+  });
+  await dev({ cmd: 'give', id: 'roast_potato', n: 1 });
+  await page.waitForFunction(() => window.__eigen.game.gameplay.profile.count('roast_potato') === 1);
+  await page.click('#btn-menu');
+  await page.click('#btn-pack');
+  const pack = page.getByRole('dialog', { name: 'Pack', exact: true });
+  const use = async (id) => {
+    const i = await page.evaluate((id) => window.__eigen.game.gameplay.profile.inv.findIndex((s) => s?.id === id), id);
+    await pack.locator(`.slot[data-i="${i}"]`).click();
+    await pack.getByRole('button', { name: 'Use item', exact: true }).click();
+  };
+  await use('waterskin_full');
+  await page.waitForFunction(() => window.__eigen.game.gameplay.profile.count('waterskin_full') === 0);
+  assert.equal(await page.evaluate(() => window.__eigen.game.gameplay.profile.count('waterskin_empty')), 1);
+  assert.ok((await needs()).water > 98);
+  const hp = await page.evaluate(() => window.__eigen.state().hp);
+  await use('roast_potato');
+  await page.waitForFunction(() => window.__eigen.game.gameplay.profile.count('roast_potato') === 0);
+  assert.ok((await needs()).food > 98);
+  assert.equal(await page.evaluate(() => window.__eigen.state().hp), hp);
+  await page.keyboard.press('Escape');
+  await tp({ x: home.x + 0.5, y: home.y + 0.5 });
+  await guide();
+  for (const mode of ['cozy', 'adventure']) {
+    await page.getByLabel('Travel mode', { exact: true }).selectOption(mode);
+    await page.waitForFunction((mode) => window.__eigen.game.gameplay.profile.needs.mode === mode, mode);
+  }
+  const saved = await needs();
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(2000);
+  assert.deepEqual(await needs(), saved);
+  await page.reload();
+  await page.waitForFunction(() => window.__eigen?.state().ready && window.__eigen.game.gameplay.profile.loaded, null, {
+    timeout: 60000,
+  });
+  assert.deepEqual(await needs(), saved);
+  await guide();
+  await page.getByLabel('Travel mode', { exact: true }).selectOption('cozy');
+  await page.waitForFunction(() => window.__eigen.game.gameplay.profile.needs.mode === 'cozy');
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => document.querySelector('#needs-hud').hidden);
+  assert.deepEqual(errors, []);
+  console.log(
+    'Travel needs passed: quiet Cozy, actual craft/well/food/drink, Adventure wilderness depletion, sanctuary pause, mode/no-refill, saved needs and reload',
+    out,
+  );
+} catch (e) {
+  if (page) {
+    await page.screenshot({ path: `${out}/failure.png` });
+    console.log('Page errors', errors);
+    console.log(
+      'Input state',
+      await page.evaluate(() => {
+        const g = window.__eigen?.game;
+        return {
+          selected: g?.gameplay.hotbar.selected,
+          held: g?.input.interactHeld,
+          mouse: g?.input.mouseTile,
+          window: g?.gameplay.wins.name,
+          blocking: g?.ext.blocking,
+          slot: g?.gameplay.selected(),
+          needs: g?.gameplay.profile.needs,
+        };
+      }),
+    );
+  }
+  throw e;
+} finally {
+  await browser.close();
+}

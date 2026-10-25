@@ -1,12 +1,28 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ITEMS, MSG, NPCS, T, beatTimes, townFor, type FxMsg, type RhythmStartMsg } from '@eigenlands/shared';
 import type { App } from '../src/app';
-import { boot, count, flatten, give, hasToast, nextDay, setDay, sleep, slotOf, spawn, tp, until, use, type Probe } from './p2';
+import {
+  boot,
+  count,
+  flatten,
+  give,
+  hasToast,
+  nextDay,
+  setDay,
+  sleep,
+  slotOf,
+  spawn,
+  tp,
+  until,
+  use,
+  type Probe,
+} from './p2';
 
 let app: App;
 let p: Probe;
 let other: Probe;
-const X = 400, Y = 400;
+const X = 400,
+  Y = 400;
 
 beforeAll(async () => {
   app = await boot();
@@ -18,14 +34,19 @@ beforeAll(async () => {
   flatten(p.room, X, Y, 8);
   for (let dy = -1; dy <= 1; dy++) for (let dx = 3; dx <= 4; dx++) p.room.setTile(X + dx, Y + dy, T.WATER);
 });
-afterAll(async () => { await app?.close(); });
+afterAll(async () => {
+  await app?.close();
+});
 
 describe('fishing', () => {
   const lastBeat = (m: RhythmStartMsg) => m.plan.startAt + m.plan.intervalMs * m.plan.count;
 
   it('cast -> bite -> hook -> rhythm -> a fish in the pack', async () => {
     const xp0 = p.sp.data.skills.fishing;
-    const catches:FxMsg[]=[];p.r.onMessage(MSG.FX,(f:FxMsg)=>{if(f.kind==='catch')catches.push(f);});
+    const catches: FxMsg[] = [];
+    p.r.onMessage(MSG.FX, (f: FxMsg) => {
+      if (f.kind === 'catch') catches.push(f);
+    });
     await use(p, 'rod', X + 3, Y);
     await until(() => p.casts.length > 0);
     await until(() => p.bites.length > 0, 5000);
@@ -40,7 +61,7 @@ describe('fishing', () => {
     await until(() => p.results.length > 0, 3000);
     const res = p.results[p.results.length - 1];
     expect(res.ok).toBe(true);
-    expect(catches.some(f=>f.id===p.sp.id&&f.weapon==='rod')).toBe(true);
+    expect(catches.some((f) => f.id === p.sp.id && f.weapon === 'rod')).toBe(true);
     expect(ITEMS[res.item.id]!.kind).toBe('fish');
     expect(res.item.n).toBe(2); // near-perfect timing doubles the catch
     expect(p.sp.data.skills.fishing).toBeGreaterThan(xp0);
@@ -48,7 +69,9 @@ describe('fishing', () => {
   });
 
   it('a missed rhythm loses the fish; ignoring the bite lets it go; hooking early spooks it', async () => {
-    p.rhythm.length = 0; p.results.length = 0; p.bites.length = 0;
+    p.rhythm.length = 0;
+    p.results.length = 0;
+    p.bites.length = 0;
     await use(p, 'rod', X + 3, Y);
     await until(() => p.bites.length > 0, 5000);
     p.r.send(MSG.FISH_HOOK, { id: p.bites[0].id });
@@ -192,8 +215,10 @@ describe('inventory operations', () => {
     expect(p.sp.data.inv[1]?.id).toBe('stone');
     p.r.send(MSG.INV_TRASH, { slot: 2, n: 7 });
     await until(() => p.sp.data.inv[2]?.n === 23);
-    for (const bad of [{ from: -1, to: 2 }, { from: 0, to: 99 }, { from: 'a', to: 1 }, null, {}]) p.r.send(MSG.INV_MOVE, bad);
-    for (const bad of [{ slot: 2, n: -5 }, { slot: 2, n: 1e9 }, { slot: 77, n: 1 }, { slot: 2 }]) p.r.send(MSG.INV_TRASH, bad);
+    for (const bad of [{ from: -1, to: 2 }, { from: 0, to: 99 }, { from: 'a', to: 1 }, null, {}])
+      p.r.send(MSG.INV_MOVE, bad);
+    for (const bad of [{ slot: 2, n: -5 }, { slot: 2, n: 1e9 }, { slot: 77, n: 1 }, { slot: 2 }])
+      p.r.send(MSG.INV_TRASH, bad);
     await sleep(150);
     expect(p.sp.data.inv[2]?.n).toBe(23);
     // profile updates went out

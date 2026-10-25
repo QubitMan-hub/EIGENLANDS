@@ -1,11 +1,69 @@
-import{chromium}from'playwright-core';import{mkdirSync}from'node:fs';import assert from'node:assert/strict';
-const out=process.argv[2]??'/tmp/cave-art';mkdirSync(out,{recursive:true});const b=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
-try{const p=await b.newPage({viewport:{width:1400,height:1000}});await p.goto('http://127.0.0.1:5174/labs/artlab.html');await p.waitForFunction(()=>window.__lab?.ready);const report=await p.evaluate(async()=>{
- const[{caveArchitecture},{buildFoeSheets}]=await Promise.all([import('/src/art/caves.ts'),import('/src/art/foes.ts')]);document.querySelectorAll('canvas').forEach(c=>c.remove());document.body.style.cssText='margin:16px;background:#23332f;color:#f4e9cb;font:14px monospace;overflow:auto';document.documentElement.style.cssText='height:auto;overflow:auto';
- const section=(id,title)=>{const h=document.createElement('h2');h.textContent=title;document.body.append(h);const s=document.createElement('section');s.id=id;s.style.cssText='display:grid;grid-template-columns:repeat(8,160px);gap:8px;width:max-content';document.body.append(s);return s;};
- const hashes=new Set();
- const draw=(t,ax,ay,s,label)=>{const d=document.createElement('div'),c=document.createElement('canvas');c.width=c.height=80;c.style.cssText='width:160px;height:160px;image-rendering:pixelated;background:#39483d';const f=t.frame;c.getContext('2d').drawImage(t.source.resource,f.x,f.y,f.width,f.height,40-ax,65-ay,f.width,f.height);if(label.includes("idle d0")){let hash=2166136261;for(const v of c.getContext("2d").getImageData(0,0,80,80).data)hash=Math.imul(hash^v,16777619);hashes.add(hash);}d.append(c,document.createTextNode(label));s.append(d);};
- const architecture=section('architecture','Mine architecture · native 2:1 geometry');for(const sub of['cave_mouth','cave_ladder','cave_lift','cave_vent','cave_altar']){const a=caveArchitecture(sub).frames[0];draw(a.tex,a.ax,a.ay,architecture,sub);}
- const creatures=section('creatures','Original cave inhabitants · idle / windup / attack / death');const foes=buildFoeSheets();for(let kind=24;kind<=32;kind++)for(const anim of['idle','windup','attack','death'])for(const dir of[0,1]){const t=foes.frame(kind,false,dir,anim,anim==='death'?3:1);draw(t,t.width/2,t.height*foes.anchor(kind),creatures,`${kind} ${anim} d${dir}`);}
- return{architecture:5,creatureFrames:72,uniqueSilhouettes:hashes.size};});for(const id of['architecture','creatures'])await p.locator('#'+id).screenshot({path:`${out}/${id}.png`});assert.equal(report.creatureFrames,72);assert.equal(report.uniqueSilhouettes,9);console.log('PASS',report);
-}finally{await b.close();}
+import { chromium } from 'playwright-core';
+import { mkdirSync } from 'node:fs';
+import assert from 'node:assert/strict';
+const out = process.argv[2] ?? '/tmp/cave-art';
+mkdirSync(out, { recursive: true });
+const b = await chromium.launch({
+  executablePath: '/usr/bin/chromium',
+  args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
+});
+try {
+  const p = await b.newPage({ viewport: { width: 1400, height: 1000 } });
+  await p.goto('http://127.0.0.1:5174/labs/artlab.html');
+  await p.waitForFunction(() => window.__lab?.ready);
+  const report = await p.evaluate(async () => {
+    const [{ caveArchitecture }, { buildFoeSheets }] = await Promise.all([
+      import('/src/art/caves.ts'),
+      import('/src/art/foes.ts'),
+    ]);
+    document.querySelectorAll('canvas').forEach((c) => c.remove());
+    document.body.style.cssText = 'margin:16px;background:#23332f;color:#f4e9cb;font:14px monospace;overflow:auto';
+    document.documentElement.style.cssText = 'height:auto;overflow:auto';
+    const section = (id, title) => {
+      const h = document.createElement('h2');
+      h.textContent = title;
+      document.body.append(h);
+      const s = document.createElement('section');
+      s.id = id;
+      s.style.cssText = 'display:grid;grid-template-columns:repeat(8,160px);gap:8px;width:max-content';
+      document.body.append(s);
+      return s;
+    };
+    const hashes = new Set();
+    const draw = (t, ax, ay, s, label) => {
+      const d = document.createElement('div'),
+        c = document.createElement('canvas');
+      c.width = c.height = 80;
+      c.style.cssText = 'width:160px;height:160px;image-rendering:pixelated;background:#39483d';
+      const f = t.frame;
+      c.getContext('2d').drawImage(t.source.resource, f.x, f.y, f.width, f.height, 40 - ax, 65 - ay, f.width, f.height);
+      if (label.includes('idle d0')) {
+        let hash = 2166136261;
+        for (const v of c.getContext('2d').getImageData(0, 0, 80, 80).data) hash = Math.imul(hash ^ v, 16777619);
+        hashes.add(hash);
+      }
+      d.append(c, document.createTextNode(label));
+      s.append(d);
+    };
+    const architecture = section('architecture', 'Mine architecture · native 2:1 geometry');
+    for (const sub of ['cave_mouth', 'cave_ladder', 'cave_lift', 'cave_vent', 'cave_altar']) {
+      const a = caveArchitecture(sub).frames[0];
+      draw(a.tex, a.ax, a.ay, architecture, sub);
+    }
+    const creatures = section('creatures', 'Original cave inhabitants · idle / windup / attack / death');
+    const foes = buildFoeSheets();
+    for (let kind = 24; kind <= 32; kind++)
+      for (const anim of ['idle', 'windup', 'attack', 'death'])
+        for (const dir of [0, 1]) {
+          const t = foes.frame(kind, false, dir, anim, anim === 'death' ? 3 : 1);
+          draw(t, t.width / 2, t.height * foes.anchor(kind), creatures, `${kind} ${anim} d${dir}`);
+        }
+    return { architecture: 5, creatureFrames: 72, uniqueSilhouettes: hashes.size };
+  });
+  for (const id of ['architecture', 'creatures']) await p.locator('#' + id).screenshot({ path: `${out}/${id}.png` });
+  assert.equal(report.creatureFrames, 72);
+  assert.equal(report.uniqueSilhouettes, 9);
+  console.log('PASS', report);
+} finally {
+  await b.close();
+}

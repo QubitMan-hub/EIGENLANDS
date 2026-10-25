@@ -1,16 +1,17 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { CHUNK_SIZE, DAY_MS, MSG, T, WORLD_EPOCH_MS, type CropData } from '@eigenlands/shared';
 import type { App } from '../src/app';
-import { createPool } from '../src/db/pool';
-import { Repo } from '../src/db/repo';
 import { worldClock } from '../src/rooms/runtime';
-import { TEST_DB, guest, startApp } from './helpers';
+import { guest, startApp } from './helpers';
 import { boot, count, flatten, give, setDay, sleep, slotOf, spawn, tp, until, use } from './p2';
 
 let app: App;
-afterAll(async () => { await app?.close(); });
+afterAll(async () => {
+  await app?.close();
+});
 
-const X = 500, Y = 500;
+const X = 500,
+  Y = 500;
 
 describe('persistence across a server restart', () => {
   it('objects, inventory, skills, coins, equipment and pending respawns survive; crops catch up offline days', async () => {
@@ -82,8 +83,7 @@ describe('persistence across a server restart', () => {
 
   it('old and garbage character data is sanitised instead of trusted', async () => {
     const g = await guest(app);
-    const pool = createPool(TEST_DB);
-    const repo = new Repo(pool);
+    const repo = app.repo;
     await repo.createCharacter(g.accountId, 'Legacy', 0.5, 4.5);
     // a Phase 1 character has empty data: it gets the starter kit
     const legacy = await spawn(app, 'Legacy', { token: g.token, accountId: g.accountId });
@@ -95,11 +95,27 @@ describe('persistence across a server restart', () => {
     await sleep(300);
 
     await repo.saveCharacter({
-      accountId: g.accountId, x: 0.5, y: 4.5, hp: 30, level: 1, xp: 0,
+      accountId: g.accountId,
+      x: 0.5,
+      y: 4.5,
+      hp: 30,
+      level: 1,
+      xp: 0,
       data: {
-        inv: [{ id: 'wood', n: 5000 }, { id: 'nonsense', n: 3 }, { id: 'axe', n: -1 }, null, 'junk', { id: 'sword', n: 1, p: { atk: 4 } }],
-        coins: -50, skills: { farming: 'lots', mining: 40 }, recipes: ['plank', 'not_a_recipe', 7], equip: { ring1: { id: 'axe', n: 1 }, ring2: { id: 'ring_hp', n: 1, p: { stat: 'hp', val: 5 } }, outfit: 99 },
-        friends: { orla: { pts: 'x', talked: 1, gifted: 1 }, tobin: { pts: 40, talked: 2, gifted: 3 } }, buffs: { might: { until: 1, power: 9 }, bogus: { until: 9e15, power: 1 } },
+        inv: [
+          { id: 'wood', n: 5000 },
+          { id: 'nonsense', n: 3 },
+          { id: 'axe', n: -1 },
+          null,
+          'junk',
+          { id: 'sword', n: 1, p: { atk: 4 } },
+        ],
+        coins: -50,
+        skills: { farming: 'lots', mining: 40 },
+        recipes: ['plank', 'not_a_recipe', 7],
+        equip: { ring1: { id: 'axe', n: 1 }, ring2: { id: 'ring_hp', n: 1, p: { stat: 'hp', val: 5 } }, outfit: 99 },
+        friends: { orla: { pts: 'x', talked: 1, gifted: 1 }, tobin: { pts: 40, talked: 2, gifted: 3 } },
+        buffs: { might: { until: 1, power: 9 }, bogus: { until: 9e15, power: 1 } },
       },
     });
     const bad = await spawn(app, 'Legacy', { token: g.token, accountId: g.accountId });
@@ -120,6 +136,5 @@ describe('persistence across a server restart', () => {
     await repo.putBlob('market', { melon: 3 });
     expect(await repo.getBlob('market')).toEqual({ melon: 3 });
     expect(await repo.getBlob('missing')).toBeNull();
-    await pool.end();
   });
 });

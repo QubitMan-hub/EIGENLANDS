@@ -4,6 +4,7 @@ import { oceanObjectsIn } from './ocean';
 import { sanctuaryObjectsIn, isDiveY } from './sanctuaries';
 import { CHUNK_SIZE } from './constants';
 import { generateChunk } from './worldgen';
+import { WORLD_GENERATION, type WorldGeneration } from './world-version';
 import { T, isSolid } from './tiles';
 import type { SolidQuery } from './sim';
 import { objSolid, type WorldObj } from './objects';
@@ -61,7 +62,11 @@ export class ChunkStore {
   structureRevision = 0;
   private townByChunk: Map<string, WorldObj[]> | null = null;
 
-  constructor(readonly seed: number, private maxChunks = 256) {}
+  constructor(
+    readonly seed: number,
+    private maxChunks = 256,
+    readonly generation: WorldGeneration = WORLD_GENERATION,
+  ) {}
 
   has(cx: number, cy: number): boolean {
     return this.chunks.has(chunkKey(cx, cy));
@@ -76,12 +81,15 @@ export class ChunkStore {
       this.chunks.set(k, c);
       return c;
     }
-    c = { cx, cy, tiles: generateChunk(this.seed, cx, cy), diff: new Map() };
+    c = { cx, cy, tiles: generateChunk(this.seed, cx, cy, this.generation), diff: new Map() };
     this.chunks.set(k, c);
     for (const o of this.townObjectsIn(cx, cy)) this.putObject(o);
     if (this.chunks.size > this.maxChunks) {
       for (const [key, ch] of this.chunks) {
-        if (ch.diff.size === 0 && ch !== this.lastChunk) { this.chunks.delete(key); break; } // never evict edited chunks
+        if (ch.diff.size === 0 && ch !== this.lastChunk) {
+          this.chunks.delete(key);
+          break;
+        } // never evict edited chunks
       }
     }
     return c;
@@ -101,10 +109,14 @@ export class ChunkStore {
   getTile(x: number, y: number): number {
     const built = this.structures.size ? buildTile(this.structureAt(x, y)) : undefined;
     if (built !== undefined) return built;
-    const cx = chunkOf(x), cy = chunkOf(y);
+    const cx = chunkOf(x),
+      cy = chunkOf(y);
     let c = this.lastChunk;
     // fast path: consecutive lookups (collision, light scans) mostly hit the same chunk
-    if (!c || c.cx !== cx || c.cy !== cy) { c = this.get(cx, cy); this.lastChunk = c; }
+    if (!c || c.cx !== cx || c.cy !== cy) {
+      c = this.get(cx, cy);
+      this.lastChunk = c;
+    }
     return c.tiles[(y - c.cy * CHUNK_SIZE) * CHUNK_SIZE + (x - c.cx * CHUNK_SIZE)]!;
   }
 
@@ -120,7 +132,7 @@ export class ChunkStore {
   townObjectsIn(cx: number, cy: number): WorldObj[] {
     if (!this.townByChunk) {
       this.townByChunk = new Map();
-      for (const o of townsFor(this.seed).flatMap(t => t.objects)) {
+      for (const o of townsFor(this.seed).flatMap((t) => t.objects)) {
         const k = chunkKey(chunkOf(o.x), chunkOf(o.y));
         const list = this.townByChunk.get(k) ?? [];
         list.push({ x: o.x, y: o.y, kind: o.kind, sub: o.sub, static: true, ...(o.data ? { data: o.data } : {}) });
@@ -128,22 +140,46 @@ export class ChunkStore {
       }
     }
     const town = this.townByChunk.get(chunkKey(cx, cy)) ?? [];
-    const wild = isCaveY(cy * CHUNK_SIZE) ? [...caveObjectsIn(this.seed, cx, cy), ...shrineObjectsIn(this.seed,cx,cy)]
-      : isDiveY(cy * CHUNK_SIZE) ? sanctuaryObjectsIn(this.seed, cx, cy)
-      : [...sanctuaryObjectsIn(this.seed, cx, cy), ...oceanObjectsIn(this.seed, cx, cy), ...shrineObjectsIn(this.seed, cx, cy), ...ruinObjectsIn(this.seed, cx, cy), ...caveObjectsIn(this.seed, cx, cy)];
+    const wild = isCaveY(cy * CHUNK_SIZE)
+      ? [...caveObjectsIn(this.seed, cx, cy), ...shrineObjectsIn(this.seed, cx, cy)]
+      : isDiveY(cy * CHUNK_SIZE)
+        ? sanctuaryObjectsIn(this.seed, cx, cy)
+        : [
+            ...sanctuaryObjectsIn(this.seed, cx, cy),
+            ...oceanObjectsIn(this.seed, cx, cy),
+            ...shrineObjectsIn(this.seed, cx, cy),
+            ...ruinObjectsIn(this.seed, cx, cy),
+            ...caveObjectsIn(this.seed, cx, cy),
+          ];
     return wild.length ? [...town, ...wild] : town;
   }
 
   putObject(o: WorldObj): void {
     const k = `${o.x},${o.y}`;
-    if (o.kind === 'structure') { this.structures.set(k, o as BuildCell); this.structureRevision++; return; }
+    if (o.kind === 'structure') {
+      this.structures.set(k, o as BuildCell);
+      this.structureRevision++;
+      return;
+    }
     this.objects.set(k, o);
-    if (objSolid(o.kind, o.sub)) this.solidObjs.add(k); else this.solidObjs.delete(k);
+    if (objSolid(o.kind, o.sub)) this.solidObjs.add(k);
+    else this.solidObjs.delete(k);
   }
-  removeObject(x: number, y: number): void { const k = `${x},${y}`; this.objects.delete(k); this.solidObjs.delete(k); }
-  structureAt(x: number, y: number): BuildCell | undefined { return this.structures.get(`${x},${y}`); }
-  removeStructure(x: number, y: number): void { this.structures.delete(`${x},${y}`); this.structureRevision++; }
-  objectAt(x: number, y: number): WorldObj | undefined { return this.objects.get(`${x},${y}`); }
+  removeObject(x: number, y: number): void {
+    const k = `${x},${y}`;
+    this.objects.delete(k);
+    this.solidObjs.delete(k);
+  }
+  structureAt(x: number, y: number): BuildCell | undefined {
+    return this.structures.get(`${x},${y}`);
+  }
+  removeStructure(x: number, y: number): void {
+    this.structures.delete(`${x},${y}`);
+    this.structureRevision++;
+  }
+  objectAt(x: number, y: number): WorldObj | undefined {
+    return this.objects.get(`${x},${y}`);
+  }
 
   /** a ship's collision: only open water is passable */
   private seaSolidAt = (x: number, y: number): boolean => {
@@ -152,7 +188,10 @@ export class ChunkStore {
   };
   solidAt: SolidQuery = Object.assign(
     (x: number, y: number): boolean => isSolid(this.getTile(x, y)) || this.solidObjs.has(`${x},${y}`),
-    { sea: (x: number, y: number): boolean => this.seaSolidAt(x, y), mine: (x:number,y:number)=>mineLoopAt(this.seed,x,y) },
+    {
+      sea: (x: number, y: number): boolean => this.seaSolidAt(x, y),
+      mine: (x: number, y: number) => mineLoopAt(this.seed, x, y),
+    },
   );
   /** cannonballs and bolts fly over water but stop at land, walls and trees */
   shotBlockedAt = (x: number, y: number): boolean => {

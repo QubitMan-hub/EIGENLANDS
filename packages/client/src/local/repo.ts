@@ -12,11 +12,26 @@ import { createHash, randomBytes, randomUUID } from './shims/crypto';
 type RepoApi = { [K in keyof Repo]: Repo[K] };
 type Repo34Api = { [K in Exclude<keyof Repo34, 'pool'>]: Repo34[K] };
 
-interface AccountRec { id: string; googleSub: string | null; email: string | null; guestHash: string | null }
-interface Respawn { x: number; y: number; restore: number; at: number }
+interface AccountRec {
+  id: string;
+  googleSub: string | null;
+  email: string | null;
+  guestHash: string | null;
+}
+interface Respawn {
+  x: number;
+  y: number;
+  restore: number;
+  at: number;
+}
 
 const hashSecret = (s: string) => createHash('sha256').update(s).digest('hex');
-const toAccount = (r: AccountRec): Account => ({ id: r.id, googleSub: r.googleSub, email: r.email, isGuest: !r.googleSub });
+const toAccount = (r: AccountRec): Account => ({
+  id: r.id,
+  googleSub: r.googleSub,
+  email: r.email,
+  isGuest: !r.googleSub,
+});
 const chunkKey = (seed: number, cx: number, cy: number) => `${seed}:${cx},${cy}`;
 const chunkOfTile = (t: number) => Math.floor(t / CHUNK_SIZE);
 /** Postgres REAL is a float32 */
@@ -39,8 +54,32 @@ export class LocalRepo implements RepoApi {
     return { account: toAccount(a), deviceSecret: secret };
   }
 
-  async googleLogin(): Promise<{ account: Account; upgraded: boolean }> {
-    throw new Error('google sign-in is not available in single-player mode');
+  async googleLogin(
+    sub: string,
+    email: string | null,
+    deviceSecret?: string,
+  ): Promise<{ account: Account; upgraded: boolean }> {
+    const existing = this.db.get<string>(`google:${sub}`);
+    if (existing) {
+      const a = this.db.get<AccountRec>(`acct:${existing}`)!;
+      if (email !== null) {
+        a.email = email;
+        this.db.put(`acct:${a.id}`, a);
+      }
+      return { account: toAccount(a), upgraded: false };
+    }
+    const guest = deviceSecret ? this.db.get<string>(`guest:${hashSecret(deviceSecret)}`) : undefined;
+    const a = guest ? this.db.get<AccountRec>(`acct:${guest}`) : undefined;
+    const account: AccountRec =
+      a && !a.googleSub
+        ? { ...a, googleSub: sub, email, guestHash: null }
+        : { id: randomUUID(), googleSub: sub, email, guestHash: null };
+    this.db.putMany([
+      [`acct:${account.id}`, account],
+      [`google:${sub}`, account.id],
+    ]);
+    if (a?.guestHash) this.db.delete(`guest:${a.guestHash}`);
+    return { account: toAccount(account), upgraded: !!a && !a.googleSub };
   }
 
   async getAccount(id: string): Promise<Account | null> {
@@ -53,6 +92,7 @@ export class LocalRepo implements RepoApi {
     if (!a) return false;
     this.db.delete(`acct:${id}`);
     if (a.guestHash) this.db.delete(`guest:${a.guestHash}`);
+    if (a.googleSub) this.db.delete(`google:${a.googleSub}`);
     for (const k of [`char:${id}`, `prog:${id}`, `shadows:${id}`, `flag:${id}`]) this.db.delete(k); // ON DELETE CASCADE
     return true;
   }
@@ -65,16 +105,34 @@ export class LocalRepo implements RepoApi {
     const cur = this.db.get<CharacterRow>(`char:${accountId}`);
     if (cur) return cur; // ON CONFLICT (account_id) returns the existing row
     if (!this.db.has(`acct:${accountId}`)) throw new Error('characters.account_id violates foreign key');
-    const c: CharacterRow = { id: randomUUID(), accountId, name, x: real(x), y: real(y), hp: BASE_PLAYER_HP, level: 1, xp: 0, data: {} };
+    const c: CharacterRow = {
+      id: randomUUID(),
+      accountId,
+      name,
+      x: real(x),
+      y: real(y),
+      hp: BASE_PLAYER_HP,
+      level: 1,
+      xp: 0,
+      data: {},
+    };
     this.db.put(`char:${accountId}`, c);
     return this.db.get<CharacterRow>(`char:${accountId}`)!;
   }
 
-  async saveCharacter(c: Pick<CharacterRow, 'accountId' | 'x' | 'y' | 'hp' | 'level' | 'xp'> & { data?: Record<string, unknown> }): Promise<void> {
+  async saveCharacter(
+    c: Pick<CharacterRow, 'accountId' | 'x' | 'y' | 'hp' | 'level' | 'xp'> & { data?: Record<string, unknown> },
+  ): Promise<void> {
     const cur = this.db.get<CharacterRow>(`char:${c.accountId}`);
     if (!cur) return; // UPDATE ... WHERE account_id = $1 matching no row
     this.db.put(`char:${c.accountId}`, {
-      ...cur, x: real(c.x), y: real(c.y), hp: Math.round(c.hp), level: Math.round(c.level), xp: Math.round(c.xp), ...(c.data ? { data: c.data } : {}),
+      ...cur,
+      x: real(c.x),
+      y: real(c.y),
+      hp: Math.round(c.hp),
+      level: Math.round(c.level),
+      xp: Math.round(c.xp),
+      ...(c.data ? { data: c.data } : {}),
     });
   }
 
@@ -90,21 +148,38 @@ export class LocalRepo implements RepoApi {
     return { diff: out, day: Number(r.day) };
   }
 
-  async saveChunkDiffs(seed: number, diffs: Array<{ cx: number; cy: number; diff: ChunkDiff }>, day = 0): Promise<void> {
-    for (const d of diffs) this.db.put(`chunk:${chunkKey(seed, d.cx, d.cy)}`, { diff: Object.fromEntries(d.diff), day });
+  async saveChunkDiffs(
+    seed: number,
+    diffs: Array<{ cx: number; cy: number; diff: ChunkDiff }>,
+    day = 0,
+  ): Promise<void> {
+    for (const d of diffs)
+      this.db.put(`chunk:${chunkKey(seed, d.cx, d.cy)}`, { diff: Object.fromEntries(d.diff), day });
   }
 
   async loadObjects(seed: number, cx: number, cy: number): Promise<WorldObj[]> {
     const rec = this.db.get<Record<string, WorldObj>>(`objs:${chunkKey(seed, cx, cy)}`) ?? {};
     const built = this.db.get<Record<string, WorldObj>>(`structures:${chunkKey(seed, cx, cy)}`) ?? {};
-    return [...Object.values(rec), ...Object.values(built)].map((o) => ({ x: o.x, y: o.y, kind: o.kind, sub: o.sub, ...(o.owner ? { owner: o.owner } : {}), data: o.data ?? {} }));
+    return [...Object.values(rec), ...Object.values(built)].map((o) => ({
+      x: o.x,
+      y: o.y,
+      kind: o.kind,
+      sub: o.sub,
+      ...(o.owner ? { owner: o.owner } : {}),
+      data: o.data ?? {},
+    }));
   }
 
-  async saveObjects(seed: number, upserts: WorldObj[], deletes: Array<{ x: number; y: number; structure?: boolean }>): Promise<void> {
-    for (const structure of [false, true]) this.editByChunk<WorldObj>(structure ? 'structures' : 'objs', seed, [
-      ...upserts.filter(o => (o.kind === 'structure') === structure).map(o => ({ x: o.x, y: o.y, v: o })),
-      ...deletes.filter(d => !!d.structure === structure).map(d => ({ x: d.x, y: d.y, v: null })),
-    ]);
+  async saveObjects(
+    seed: number,
+    upserts: WorldObj[],
+    deletes: Array<{ x: number; y: number; structure?: boolean }>,
+  ): Promise<void> {
+    for (const structure of [false, true])
+      this.editByChunk<WorldObj>(structure ? 'structures' : 'objs', seed, [
+        ...upserts.filter((o) => (o.kind === 'structure') === structure).map((o) => ({ x: o.x, y: o.y, v: o })),
+        ...deletes.filter((d) => !!d.structure === structure).map((d) => ({ x: d.x, y: d.y, v: null })),
+      ]);
   }
 
   async loadRespawns(seed: number, cx: number, cy: number): Promise<Respawn[]> {
@@ -124,10 +199,17 @@ export class LocalRepo implements RepoApi {
     for (const op of ops) {
       const k = `${kind}:${chunkKey(seed, chunkOfTile(op.x), chunkOfTile(op.y))}`;
       let rec = touched.get(k);
-      if (!rec) { rec = this.db.get<Record<string, T>>(k) ?? {}; touched.set(k, rec); }
-      if (op.v === null) delete rec[`${op.x},${op.y}`]; else rec[`${op.x},${op.y}`] = op.v;
+      if (!rec) {
+        rec = this.db.get<Record<string, T>>(k) ?? {};
+        touched.set(k, rec);
+      }
+      if (op.v === null) delete rec[`${op.x},${op.y}`];
+      else rec[`${op.x},${op.y}`] = op.v;
     }
-    for (const [k, rec] of touched) { if (Object.keys(rec).length) this.db.put(k, rec); else this.db.delete(k); }
+    for (const [k, rec] of touched) {
+      if (Object.keys(rec).length) this.db.put(k, rec);
+      else this.db.delete(k);
+    }
   }
 
   async getBlob<T>(key: string): Promise<T | null> {
@@ -160,15 +242,43 @@ export class LocalRepo34 implements Repo34Api {
     this.db.put(`shadows:${accountId}`, data ?? null);
   }
 
-  async commitTrade(t: { a: string; b: string; aData: unknown; bData: unknown; aItems: unknown; bItems: unknown; aCoins: number; bCoins: number }): Promise<void> {
-    const a = this.db.get<CharacterRow>(`char:${t.a}`), b = this.db.get<CharacterRow>(`char:${t.b}`);
+  async commitTrade(t: {
+    a: string;
+    b: string;
+    aData: unknown;
+    bData: unknown;
+    aItems: unknown;
+    bItems: unknown;
+    aCoins: number;
+    bCoins: number;
+  }): Promise<void> {
+    const a = this.db.get<CharacterRow>(`char:${t.a}`),
+      b = this.db.get<CharacterRow>(`char:${t.b}`);
     if (!a || !b) throw new Error('trade: character missing'); // nothing changed
-    this.db.put(`char:${t.a}`, { ...a, data: t.aData });
-    this.db.put(`char:${t.b}`, { ...b, data: t.bData });
-    this.log('trades', { a: t.a, b: t.b, aItems: t.aItems, bItems: t.bItems, aCoins: t.aCoins, bCoins: t.bCoins, at: Date.now() });
+    const rows = this.db.get<unknown[]>('log:trades') ?? [];
+    rows.push({
+      a: t.a,
+      b: t.b,
+      aItems: t.aItems,
+      bItems: t.bItems,
+      aCoins: t.aCoins,
+      bCoins: t.bCoins,
+      at: Date.now(),
+    });
+    this.db.putMany([
+      [`char:${t.a}`, { ...a, data: t.aData }],
+      [`char:${t.b}`, { ...b, data: t.bData }],
+      ['log:trades', rows.slice(-LOG_CAP)],
+    ]);
   }
 
-  async report(reporter: string, targetName: string, target: string | null, reason: string, context: unknown): Promise<void> {
+  async report(
+    reporter: string,
+    targetName: string,
+    target: string | null,
+    reason: string,
+    context: unknown,
+  ): Promise<void> {
     this.log('reports', { reporter, targetName, target, reason, context, at: Date.now() });
   }
 

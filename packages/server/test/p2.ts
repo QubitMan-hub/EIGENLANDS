@@ -48,15 +48,37 @@ export function pinClock(day: number, hour = 12): void {
 
 export const serverRoom = (): WorldRoom => matchMaker.getLocalRoomById(lastRoomId()) as unknown as WorldRoom;
 
-export async function spawn(app: App, name = 'Tester', creds?: { token: string; accountId: string }, opts: { relax?: boolean } = {}): Promise<Probe> {
+export async function spawn(
+  app: App,
+  name = 'Tester',
+  creds?: { token: string; accountId: string },
+  opts: { relax?: boolean } = {},
+): Promise<Probe> {
   const g = creds ? { token: creds.token, accountId: creds.accountId } : await guest(app);
   const r = await join(app, g.token, name);
   const room = serverRoom();
   await until(() => room.players.has(r.sessionId));
   const sp = room.players.get(r.sessionId)!;
   const pr: Probe = {
-    r, sid: r.sessionId, token: g.token, accountId: g.accountId, room, sp,
-    toasts: [], objs: [], tiles: [], panels: [], profiles: [], rhythm: [], results: [], bites: [], casts: [], dialogues: [], shopViews: [], forgePreviews: [], chunks: [],
+    r,
+    sid: r.sessionId,
+    token: g.token,
+    accountId: g.accountId,
+    room,
+    sp,
+    toasts: [],
+    objs: [],
+    tiles: [],
+    panels: [],
+    profiles: [],
+    rhythm: [],
+    results: [],
+    bites: [],
+    casts: [],
+    dialogues: [],
+    shopViews: [],
+    forgePreviews: [],
+    chunks: [],
   };
   r.onMessage(MSG.TOAST, (m) => pr.toasts.push(m));
   r.onMessage(MSG.OBJ, (m) => pr.objs.push(m));
@@ -94,7 +116,11 @@ export async function nextDay(room: WorldRoom, n = 1): Promise<void> {
 /** Functional tests fire messages faster than humans; the rate-limit tests use the real buckets. */
 export function relax(p: Probe): void {
   const big = () => new TokenBucket(10000, 10000);
-  p.sp.useBucket = big(); p.sp.craftBucket = big(); p.sp.socialBucket = big(); p.sp.openBucket = big(); p.sp.invBucket = big();
+  p.sp.useBucket = big();
+  p.sp.craftBucket = big();
+  p.sp.socialBucket = big();
+  p.sp.openBucket = big();
+  p.sp.invBucket = big();
 }
 
 export const dev = (p: Probe, msg: Record<string, unknown>) => p.r.send(MSG.DEV, msg);
@@ -105,7 +131,8 @@ export async function give(p: Probe, id: string, n = 1, props?: Props): Promise<
   await until(() => p.sp.data.inv.reduce((a, s) => a + (s && s.id === id ? s.n : 0), 0) >= before + (props ? 1 : n));
 }
 
-export const count = (p: Probe, id: string): number => p.sp.data.inv.reduce((a, s) => a + (s && s.id === id ? s.n : 0), 0);
+export const count = (p: Probe, id: string): number =>
+  p.sp.data.inv.reduce((a, s) => a + (s && s.id === id ? s.n : 0), 0);
 export const slotOf = (p: Probe, id: string): number => p.sp.data.inv.findIndex((s) => s?.id === id);
 
 /** Teleport (dev) and wait until the server applied it. */
@@ -127,10 +154,11 @@ export const hasToast = (p: Probe, re: RegExp, from = 0): boolean => p.toasts.sl
 
 /** A flat patch of grass around (cx,cy) so fixtures do not collide with generated trees and rocks. */
 export function flatten(room: WorldRoom, cx: number, cy: number, r = 6, tile = 3): void {
-  for (let y = cy - r; y <= cy + r; y++) for (let x = cx - r; x <= cx + r; x++) {
-    room.objects.remove(x, y);
-    room.setTile(x, y, tile);
-  }
+  for (let y = cy - r; y <= cy + r; y++)
+    for (let x = cx - r; x <= cx + r; x++) {
+      room.objects.remove(x, y);
+      room.setTile(x, y, tile);
+    }
 }
 
 export { sleep, until };

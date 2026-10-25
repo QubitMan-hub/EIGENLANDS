@@ -15,8 +15,6 @@ import { ShardLocks } from '../../../server/src/features/shard/locks';
 import { GameRoom } from '../../../server/src/rooms/GameRoom';
 import { setRuntime, worldClock } from '../../../server/src/rooms/runtime';
 import { metrics } from '../../../server/src/rooms/WorldRoom';
-import type { Repo } from '../../../server/src/db/repo';
-import type { Repo34 } from '../../../server/src/db/repo34';
 import { ErrorCode, Protocol, generateId, matchMaker, roomEvents, type Room } from './colyseus-shim';
 import { LocalDb } from './db';
 import { LocalRepo, LocalRepo34 } from './repo';
@@ -25,8 +23,15 @@ import { randomBytes } from './shims/crypto';
 import { createPipe, queueTask, type ClientEnd } from './transport';
 
 type RoomCtor = new () => Room;
-interface Handler { ctor: RoomCtor; filterBy: string[] }
-interface Seat { name: string; roomId: string; sessionId: string }
+interface Handler {
+  ctor: RoomCtor;
+  filterBy: string[];
+}
+interface Seat {
+  name: string;
+  roomId: string;
+  sessionId: string;
+}
 
 const LOCK = 'eigenlands-solo-world';
 const CHANNEL = 'eigenlands-solo';
@@ -41,7 +46,10 @@ export class LocalHost {
   private dead = false;
   private releaseLock: () => void = () => {};
 
-  private constructor(readonly db: LocalDb, secret: string) {
+  private constructor(
+    readonly db: LocalDb,
+    secret: string,
+  ) {
     const dev = new URLSearchParams(location.search).get('dev') === '1';
     this.config = {
       ...loadConfig({ SESSION_SECRET: secret }),
@@ -60,31 +68,56 @@ export class LocalHost {
     const db = await LocalDb.open();
     const existingWorld = db.has('meta:secret');
     let secret = db.get<string>('meta:secret');
-    if (!secret) { secret = randomBytes(32).toString('hex'); db.put('meta:secret', secret); }
+    if (!secret) {
+      secret = randomBytes(32).toString('hex');
+      db.put('meta:secret', secret);
+    }
     const host = new LocalHost(db, secret);
     host.releaseLock = release.release;
-    release.onTakeover(() => { void host.yieldToOtherTab(); });
+    release.onTakeover(() => {
+      void host.yieldToOtherTab();
+    });
 
     // same wiring as server/src/app.ts createApp (memory presence/bus/locks, i.e. a single-process deployment)
     Encoder.BUFFER_SIZE = 512 * 1024;
-    setRuntime({ config: host.config, repo: host.repo as unknown as Repo, presence: new Presence(null), googleVerify: null, ambientSpawns: true });
+    setRuntime({
+      config: host.config,
+      repo: host.repo,
+      presence: new Presence(null),
+      googleVerify: null,
+      ambientSpawns: true,
+    });
     // New solo worlds begin on day 1 at dawn. Keep old worlds on their original calendar:
     // resetting that clock would invalidate planted days, quests and respawn timestamps.
-    let offset=db.get<number>('meta:clock-offset');
-    if(offset===undefined){offset=existingWorld?0:WORLD_EPOCH_MS-Date.now();db.put('meta:clock-offset',offset);}
+    let offset = db.get<number>('meta:clock-offset');
+    if (offset === undefined) {
+      offset = existingWorld ? 0 : WORLD_EPOCH_MS - Date.now();
+      db.put('meta:clock-offset', offset);
+    }
     worldClock().setOffset(offset);
-    setRuntime34({ repo34: new LocalRepo34(db) as unknown as Repo34, bus: new MemoryBus(), locks: new ShardLocks(null) });
+    setRuntime34({ repo34: new LocalRepo34(db), bus: new MemoryBus(), locks: new ShardLocks(null) });
     host.define(JOIN_ROOM, GameRoom as unknown as RoomCtor, ['shard']);
-    roomEvents.disposed = (r) => { matchMaker.rooms.delete(r.roomId); host.creationOpts.delete(r); };
+    roomEvents.disposed = (r) => {
+      matchMaker.rooms.delete(r.roomId);
+      host.creationOpts.delete(r);
+    };
     host.installLifecycle();
     // debugging / e2e: server tick metrics (same numbers as the server's /metrics) and save-store state
-    (globalThis as { __eigenSolo?: unknown }).__eigenSolo = { metrics, db: () => db.stats(), rooms: () => host.rooms.map((r) => ({ id: r.roomId, ...(r.metadata as object), clients: r.clients.length })) };
+    (globalThis as { __eigenSolo?: unknown }).__eigenSolo = {
+      metrics,
+      db: () => db.stats(),
+      rooms: () => host.rooms.map((r) => ({ id: r.roomId, ...(r.metadata as object), clients: r.clients.length })),
+    };
     return host;
   }
 
-  define(name: string, ctor: RoomCtor, filterBy: string[] = []): void { this.handlers.set(name, { ctor, filterBy }); }
+  define(name: string, ctor: RoomCtor, filterBy: string[] = []): void {
+    this.handlers.set(name, { ctor, filterBy });
+  }
 
-  get rooms(): Room[] { return [...matchMaker.rooms.values()]; }
+  get rooms(): Room[] {
+    return [...matchMaker.rooms.values()];
+  }
 
   // ───────────────────────── matchmaking ─────────────────────────
 
@@ -102,7 +135,8 @@ export class LocalHost {
   private async pickRoom(method: string, nameOrId: string, options: Record<string, unknown>): Promise<Room> {
     if (method === 'joinById') {
       const r = matchMaker.rooms.get(nameOrId);
-      if (!r || r.__disposing) throw new MatchMakeError(`room "${nameOrId}" not found`, ErrorCode.MATCHMAKE_INVALID_ROOM_ID);
+      if (!r || r.__disposing)
+        throw new MatchMakeError(`room "${nameOrId}" not found`, ErrorCode.MATCHMAKE_INVALID_ROOM_ID);
       if (r.locked) throw new MatchMakeError(`room "${nameOrId}" is locked`, ErrorCode.MATCHMAKE_INVALID_ROOM_ID);
       return r;
     }
@@ -112,14 +146,25 @@ export class LocalHost {
     if (method !== 'create') {
       const pending = this.creating.get(fkey);
       if (pending) await pending.catch(() => {});
-      const found = this.rooms.find((r) => r.roomName === nameOrId && !r.__disposing && !r.locked && !r.hasReachedMaxClients()
-        && h.filterBy.every((f) => (this.creationOpts.get(r)?.[f] ?? null) === (options[f] ?? null)));
+      const found = this.rooms.find(
+        (r) =>
+          r.roomName === nameOrId &&
+          !r.__disposing &&
+          !r.locked &&
+          !r.hasReachedMaxClients() &&
+          h.filterBy.every((f) => (this.creationOpts.get(r)?.[f] ?? null) === (options[f] ?? null)),
+      );
       if (found) return found;
-      if (method === 'join') throw new MatchMakeError('no rooms found with provided criteria', ErrorCode.MATCHMAKE_INVALID_CRITERIA);
+      if (method === 'join')
+        throw new MatchMakeError('no rooms found with provided criteria', ErrorCode.MATCHMAKE_INVALID_CRITERIA);
     }
     const pr = this.createRoom(nameOrId, h, options);
     this.creating.set(fkey, pr);
-    try { return await pr; } finally { if (this.creating.get(fkey) === pr) this.creating.delete(fkey); }
+    try {
+      return await pr;
+    } finally {
+      if (this.creating.get(fkey) === pr) this.creating.delete(fkey);
+    }
   }
 
   private async createRoom(name: string, h: Handler, options: Record<string, unknown>): Promise<Room> {
@@ -142,10 +187,16 @@ export class LocalHost {
     const { client, host } = createPipe();
     this.conns.add(client);
     const prevClose = client.close.bind(client);
-    client.close = (code, reason) => { this.conns.delete(client); prevClose(code, reason); };
+    client.close = (code, reason) => {
+      this.conns.delete(client);
+      prevClose(code, reason);
+    };
     const room = matchMaker.rooms.get(seat.roomId);
     queueTask(() => {
-      if (!room || this.dead) { host.close(Protocol.WS_CLOSE_WITH_ERROR, 'room not found'); return; }
+      if (!room || this.dead) {
+        host.close(Protocol.WS_CLOSE_WITH_ERROR, 'room not found');
+        return;
+      }
       void room.__connect(seat.sessionId, host);
     });
     return client;
@@ -162,9 +213,13 @@ export class LocalHost {
       this.conns.clear();
     });
     // 2) ...then stash whatever has not reached IndexedDB yet (listeners run after the previous one's microtasks)
-    addEventListener('pagehide', () => { if (!this.dead) this.db.journalSync(); });
+    addEventListener('pagehide', () => {
+      if (!this.dead) this.db.journalSync();
+    });
     // restored from the back/forward cache: the old connections are gone, start fresh
-    addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
+    addEventListener('pageshow', (e) => {
+      if (e.persisted) location.reload();
+    });
     // backgrounded (mobile tabs may be killed without pagehide): save now
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState !== 'hidden' || this.dead) return;
@@ -199,21 +254,48 @@ export class LocalHost {
 async function acquireWorldLock(): Promise<{ release: () => void; onTakeover: (fn: () => void) => void }> {
   let release = () => {};
   let takeover = () => {};
-  const held = new Promise<void>((r) => { release = r; });
+  const held = new Promise<void>((r) => {
+    release = r;
+  });
   const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
   const bc = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(CHANNEL) : null;
-  const result = { release: () => release(), onTakeover: (fn: () => void) => { takeover = fn; } };
-  if (bc) bc.onmessage = (e) => { if ((e.data as { t?: string })?.t === 'takeover') takeover(); };
+  const result = {
+    release: () => release(),
+    onTakeover: (fn: () => void) => {
+      takeover = fn;
+    },
+  };
+  if (bc)
+    bc.onmessage = (e) => {
+      if ((e.data as { t?: string })?.t === 'takeover') takeover();
+    };
   if (!locks) return result;
   const got = await new Promise<boolean>((resolve) => {
-    locks.request(LOCK, { ifAvailable: true }, async (lock) => { if (!lock) { resolve(false); return; } resolve(true); await held; })
+    locks
+      .request(LOCK, { ifAvailable: true }, async (lock) => {
+        if (!lock) {
+          resolve(false);
+          return;
+        }
+        resolve(true);
+        await held;
+      })
       .catch(() => resolve(true));
   });
   if (got) return result;
   bc?.postMessage({ t: 'takeover' });
   await new Promise<void>((resolve) => {
-    const t = setTimeout(() => { console.warn('the other tab did not hand over the world; continuing'); resolve(); }, 8000);
-    locks.request(LOCK, async () => { clearTimeout(t); resolve(); await held; }).catch(() => resolve());
+    const t = setTimeout(() => {
+      console.warn('the other tab did not hand over the world; continuing');
+      resolve();
+    }, 8000);
+    locks
+      .request(LOCK, async () => {
+        clearTimeout(t);
+        resolve();
+        await held;
+      })
+      .catch(() => resolve());
   });
   return result;
 }

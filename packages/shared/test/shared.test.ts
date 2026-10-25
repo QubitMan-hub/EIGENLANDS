@@ -1,8 +1,36 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ACK_BYTES, ChunkStore, CHUNK_SIZE, decodeAck, encodeAck, COMBO, PALETTE, T, TICK_DT, ambientColor, decodeDiff, dayPhase, encodeDiff,
-  gameHour, generateChunk, inArc, isSolid, moveBody, newPlayerSim, rewindPosition, sanitizeCmd,
-  segmentHitsCircle, stepPlayer, dayNumber, season, WORLD_EPOCH_MS, tileAt, DASH_COOLDOWN, DASH_SPEED, DAY_MS, type InputCmd,
+  ACK_BYTES,
+  ChunkStore,
+  CHUNK_SIZE,
+  decodeAck,
+  encodeAck,
+  COMBO,
+  PALETTE,
+  T,
+  TICK_DT,
+  ambientColor,
+  decodeDiff,
+  dayPhase,
+  encodeDiff,
+  gameHour,
+  generateChunk,
+  inArc,
+  isSolid,
+  moveBody,
+  newPlayerSim,
+  rewindPosition,
+  sanitizeCmd,
+  segmentHitsCircle,
+  stepPlayer,
+  dayNumber,
+  season,
+  WORLD_EPOCH_MS,
+  tileAt,
+  DASH_COOLDOWN,
+  DASH_SPEED,
+  DAY_MS,
+  type InputCmd,
 } from '../src';
 
 const cmd = (o: Partial<InputCmd> = {}): InputCmd => sanitizeCmd({ seq: 1, ...o });
@@ -24,7 +52,12 @@ describe('worldgen', () => {
   });
   it('chunk generation equals per-tile generation', () => {
     const ch = generateChunk(42, -1, 1);
-    for (const [x, y] of [[0, 0], [5, 7], [31, 31], [16, 3]]) {
+    for (const [x, y] of [
+      [0, 0],
+      [5, 7],
+      [31, 31],
+      [16, 3],
+    ]) {
       expect(ch[y! * CHUNK_SIZE + x!]).toBe(tileAt(42, -CHUNK_SIZE + x!, CHUNK_SIZE + y!));
     }
   });
@@ -35,7 +68,8 @@ describe('worldgen', () => {
   });
   it('produces a varied meadow with water, trees and flowers somewhere nearby', () => {
     const seen = new Set<number>();
-    for (let cy = -3; cy <= 3; cy++) for (let cx = -3; cx <= 3; cx++) generateChunk(7, cx, cy).forEach((t) => seen.add(t));
+    for (let cy = -3; cy <= 3; cy++)
+      for (let cx = -3; cx <= 3; cx++) generateChunk(7, cx, cy).forEach((t) => seen.add(t));
     for (const t of [T.GRASS, T.TREE, T.FLOWERS, T.WATER, T.SAND, T.ROCK, T.GRASS_TALL]) expect(seen.has(t)).toBe(true);
   });
 });
@@ -88,7 +122,12 @@ describe('movement and collision', () => {
   it('is deterministic: same inputs give the same state (basis of prediction)', () => {
     const run = () => {
       const p = newPlayerSim(0.5, 0.5);
-      for (let i = 0; i < 60; i++) stepPlayer(p, cmd({ dx: Math.sin(i / 5), dy: Math.cos(i / 7), dash: i % 23 === 0 }), (x, y) => (x * 7 + y * 3) % 11 === 0);
+      for (let i = 0; i < 60; i++)
+        stepPlayer(
+          p,
+          cmd({ dx: Math.sin(i / 5), dy: Math.cos(i / 7), dash: i % 23 === 0 }),
+          (x, y) => (x * 7 + y * 3) % 11 === 0,
+        );
       return p;
     };
     expect(run()).toEqual(run());
@@ -121,7 +160,11 @@ describe('combat maths and lag compensation', () => {
     expect(segmentHitsCircle(0, 0, 10, 0, 0.25, { x: 5, y: 3, r: 0.4 })).toBe(false);
   });
   it('rewinds to the nearest recorded tick', () => {
-    const h = [{ tick: 10, x: 0, y: 0 }, { tick: 11, x: 1, y: 0 }, { tick: 12, x: 2, y: 0 }];
+    const h = [
+      { tick: 10, x: 0, y: 0 },
+      { tick: 11, x: 1, y: 0 },
+      { tick: 12, x: 2, y: 0 },
+    ];
     expect(rewindPosition(h, 11)).toEqual({ x: 1, y: 0 });
     expect(rewindPosition(h, 99)).toEqual({ x: 2, y: 0 });
     expect(rewindPosition([], 1)).toBeNull();
@@ -131,7 +174,9 @@ describe('combat maths and lag compensation', () => {
 describe('ack codec', () => {
   it('round-trips a player sim in ACK_BYTES bytes', () => {
     const sim = newPlayerSim(12.25, -7.5);
-    sim.atkCd = 0.15; sim.combo = 2; sim.dashT = 0.1;
+    sim.atkCd = 0.15;
+    sim.combo = 2;
+    sim.dashT = 0.1;
     const bytes = encodeAck({ seq: 4000000000, tick: 99, sim });
     expect(bytes.byteLength).toBe(ACK_BYTES);
     const back = decodeAck(bytes);
@@ -168,7 +213,8 @@ describe('day/night', () => {
     const midnight = ambientColor(0);
     expect(noon[0]).toBeGreaterThan(midnight[0]);
     for (let h = 0; h < 24; h += 0.05) {
-      const a = ambientColor(h), b = ambientColor(h + 0.05);
+      const a = ambientColor(h),
+        b = ambientColor(h + 0.05);
       expect(Math.abs(a[0] - b[0])).toBeLessThan(0.1);
     }
   });

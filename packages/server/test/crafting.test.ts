@@ -5,7 +5,8 @@ import { boot, count, flatten, give, hasToast, setDay, sleep, slotOf, spawn, tp,
 
 let app: App;
 let p: Probe;
-const X = 300, Y = 300;
+const X = 300,
+  Y = 300;
 
 beforeAll(async () => {
   app = await boot();
@@ -15,10 +16,18 @@ beforeAll(async () => {
   await tp(p, X + 0.5, Y + 0.5);
   flatten(p.room, X, Y, 8);
 });
-afterAll(async () => { await app?.close(); });
+afterAll(async () => {
+  await app?.close();
+});
 
-const place = async (item: string, dx: number, dy: number) => { await give(p, item, 1); await use(p, item, X + dx, Y + dy); };
-const craft = async (station: string, recipe: string, n = 1, tx = 0, ty = 0) => { p.r.send(MSG.CRAFT, { station, recipe, n, tx, ty }); await sleep(120); };
+const place = async (item: string, dx: number, dy: number) => {
+  await give(p, item, 1);
+  await use(p, item, X + dx, Y + dy);
+};
+const craft = async (station: string, recipe: string, n = 1, tx = 0, ty = 0) => {
+  p.r.send(MSG.CRAFT, { station, recipe, n, tx, ty });
+  await sleep(120);
+};
 
 describe('stations and recipes', () => {
   it('field crafting works anywhere; station recipes need the station nearby', async () => {
@@ -51,13 +60,17 @@ describe('stations and recipes', () => {
 
   it('the skill bonus saves one ingredient without changing the crafted output', async () => {
     await give(p, 'wood', 2);
-    const wood = count(p, 'wood'), fences = count(p, 'fence'), roll = p.room.rand;
+    const wood = count(p, 'wood'),
+      fences = count(p, 'fence'),
+      roll = p.room.rand;
     p.room.rand = () => 0;
     try {
       await craft('hand', 'fence');
       expect(count(p, 'wood')).toBe(wood - 1);
       expect(count(p, 'fence')).toBe(fences + 4);
-    } finally { p.room.rand = roll; }
+    } finally {
+      p.room.rand = roll;
+    }
   });
 
   it('unknown recipes are refused until discovered by experimenting; failed experiments cost nothing', async () => {
@@ -69,7 +82,16 @@ describe('stations and recipes', () => {
     expect(count(p, 'forge')).toBe(0); // not learned
     // wrong amounts: nothing happens, nothing consumed
     const iron0 = count(p, 'iron_ingot');
-    p.r.send(MSG.EXPERIMENT, { station: 'workbench', tx: X + 1, ty: Y, items: [{ slot: slotOf(p, 'iron_ingot'), n: 3 }, { slot: slotOf(p, 'stone'), n: 10 }, { slot: slotOf(p, 'coal'), n: 4 }] });
+    p.r.send(MSG.EXPERIMENT, {
+      station: 'workbench',
+      tx: X + 1,
+      ty: Y,
+      items: [
+        { slot: slotOf(p, 'iron_ingot'), n: 3 },
+        { slot: slotOf(p, 'stone'), n: 10 },
+        { slot: slotOf(p, 'coal'), n: 4 },
+      ],
+    });
     await sleep(150);
     expect(count(p, 'forge')).toBe(0);
     expect(count(p, 'iron_ingot')).toBe(iron0);
@@ -110,7 +132,8 @@ describe('stations and recipes', () => {
     await until(() => p.sp.data.equip.ring1 === null);
     expect(p.sp.stats.hpBonus).toBe(0);
     // tools made at the workbench get a tier
-    await give(p, 'wood', 5); await give(p, 'stone', 5);
+    await give(p, 'wood', 5);
+    await give(p, 'stone', 5);
     await craft('workbench', 'axe_1', 1, X + 1, Y);
     expect(p.sp.data.inv.filter((s) => s?.id === 'axe').length).toBeGreaterThanOrEqual(2);
   });
@@ -130,7 +153,16 @@ describe('stations and recipes', () => {
     await give(p, 'qubit_crystal', 1);
     await give(p, 'turnip_seed', 1);
     await give(p, 'potato_seed', 1);
-    p.r.send(MSG.EXPERIMENT, { station: 'alchemy', tx: X - 1, ty: Y, items: [{ slot: slotOf(p, 'qubit_crystal'), n: 1 }, { slot: slotOf(p, 'turnip_seed'), n: 1 }, { slot: slotOf(p, 'potato_seed'), n: 1 }] });
+    p.r.send(MSG.EXPERIMENT, {
+      station: 'alchemy',
+      tx: X - 1,
+      ty: Y,
+      items: [
+        { slot: slotOf(p, 'qubit_crystal'), n: 1 },
+        { slot: slotOf(p, 'turnip_seed'), n: 1 },
+        { slot: slotOf(p, 'potato_seed'), n: 1 },
+      ],
+    });
     await until(() => count(p, 'superposed_seed') === 1);
     const s = p.sp.data.inv.find((x) => x?.id === 'superposed_seed')!;
     expect([s.p!.a, s.p!.b].sort()).toEqual(['potato', 'turnip']);
@@ -225,7 +257,12 @@ describe('interference forging with the rhythm protocol', () => {
     await give(p, 'iron_ingot', 1);
     await give(p, 'silver_ingot', 1);
     p.rhythm.length = 0;
-    p.r.send(MSG.FORGE_START, { tx: X, ty: Y + 3, template: 'pickaxe', slots: [slotOf(p, 'iron_ingot'), slotOf(p, 'silver_ingot')] });
+    p.r.send(MSG.FORGE_START, {
+      tx: X,
+      ty: Y + 3,
+      template: 'pickaxe',
+      slots: [slotOf(p, 'iron_ingot'), slotOf(p, 'silver_ingot')],
+    });
     await until(() => p.rhythm.length > 0);
     const res = await finish(p.rhythm[0], beatTimes(p.rhythm[0].plan));
     expect(res.item.id).toBe('pickaxe');

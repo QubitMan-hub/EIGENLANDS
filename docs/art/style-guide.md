@@ -11,11 +11,15 @@ EIGENLANDS is a medieval world with extraordinary quantum magic: warm plaster an
 
 ## Palette and materials
 
-The shared palette remains 48 colours in six rows of eight: neutrals, greens, earth, water, warm and quantum. Shader indices depend on that layout. The first five ramps favour muted greens, warm limestone, weathered wood and teal water; the quantum row retains its existing colours and indices. The `Scene` creature renderer additionally uses material-specific RGB ramps for fur, shell and crystal, shaded within the same muted value range. These ramps do not alter terrain palette indices.
+The shared palette remains 48 colours in six rows of eight: neutrals, greens, earth, water, warm and quantum. Shader indices depend on that layout. The first five ramps favour muted greens, warm limestone, weathered wood and teal water; the quantum row retains its existing colours and indices. `Scene` creature materials now quantize their generated ramps and final pixels into this palette. Imported wildlife and Veyr are normalized into the same palette when their atlases are prepared. Runtime scene lighting remains free to multiply/add light colours.
+
+Creature silhouettes use selective inner contours on lower/right edges. Keep lit upper edges, eyes and emissive details intact; contours must never swell legs, fill transparent gaps or outline projectile glow. Separate cast shadows retain soft alpha. Native boar and badger fur receives a small midtone lift before palette reduction to keep its volume readable. Each wildlife species uses one common scale and an integer foot anchor across every animation/facing, measured from visible art rather than sheet padding. Preserve original frame counts/FPS. Companion portraits use those same normalized frames.
+
+Veyr uses a 768×384 original atlas adapted from the user's supplied boss design: four genuine iso facings with rear armor, eight poses per row, 96×96 frames and contact (48,86). The visible body is capped at 64×76 pixels. Raised-arm warnings, the hot-core impact and rubble remain distinct. Its telegraphed storm uses existing ground markers and reduced-motion settings. See [STORMBOUND.md](../STORMBOUND.md).
 
 Use palette indices (`C.g4`, etc.) in generated artwork. Runtime lighting can multiply/add light colours. Choose a clear shadow, body and highlight before adding detail. Use larger leaf clusters with shared shaded cores, not single-pixel noise. Autumn cores must use autumn ramps. Grass is quieter than characters and interactable objects; dense patches remain distinct from paths and clearing ground.
 
-Roofs use staggered material courses with restrained seam contrast. The hall and inn have paired cross-gabled dormers; the library and farmhouse have one. Dormers are intersected in the existing roof ray pass, retain correct occlusion and swap only their panes to warm night colours. Entry covers on the hall, inn, store and bakery use sloped `Iso` planes and brackets; they fade with the roof and introduce no new collision. Stone paving uses warmer stones and occasional moss in joints. Floorboards have seams, sparse grain and nail heads. Water retains depth, shoreline foam, ripples and reflections, with faint shallow-water caustics. Avoid uniform bright texture across every surface.
+Roofs use staggered material courses with restrained seam contrast. The hall and inn have paired cross-gabled dormers; the library and farmhouse have one. Dormers are intersected in the existing roof ray pass, retain correct occlusion and swap only their panes to warm night colours. Entry covers on the hall, inn, store and bakery use sloped `Iso` planes and brackets; they fade with the roof and introduce no new collision. Stone paving uses warmer stones and occasional moss in joints. Floorboards have seams, sparse grain and nail heads. Water uses a quiet body tint, a subtle continuous depth gradient, a thin bank shelf and sparse short ripples. Avoid uniform bright texture across every surface.
 
 ## Characters and furnishings
 
@@ -39,11 +43,9 @@ Review `/labs/artlab.html`, `/labs/spritelab.html`, `/labs/uilab.html`, plus pla
 
 All new artwork is original procedural artwork. No new third-party assets were imported, purchased or relicensed. Existing critter asset provenance remains unchanged. The supplied ZIP/7z packs contain no license text; matching repository sheets remain in use and other pack images serve as references only. See the [world upgrade audit](../design/world-upgrade.md).
 
-
 Sparse wilderness details use one deterministic candidate per 8×8 cell: clover, fallen leaves, small boughs, shore driftwood, scree, cave formations and glowcaps. These are cosmetic ground details, drawn by the existing tile-object views. They do not create collision, loot or saved objects. Edited tiles and occupied ground suppress them; town and spawn stay clear. Keep silhouettes low so walkable terrain remains believable.
 
 Shrines use projected stepped stone, brass cradles, faceted suspended qubits and front/back orbit threads. Superposed crops keep a stable primary plant and a translucent alternate silhouette linked by a short quantum strand; only three sparse motes change at one frame per second. Reduced motion selects frame zero. Do not return to alternating single-pixel checkerboard crops.
-
 
 Ore and ordinary stone share a bevelled mesh projected through `Iso`: broad lit tops, shaded sides, and mineral seams sampled continuously across exposed faces. Avoid rounded screen-space piles with bright nuggets pasted onto their silhouettes. Biome stones and crystal bases use the same construction. Underground rock has its own snow-free material selection; surface winter must never put snow on cave ore. Sprite margins include the whole projected footprint.
 
@@ -51,10 +53,9 @@ Natural placement uses deterministic local thinning for tree trunks, small withi
 
 The Qubitman figure is an authored pixel sculpture: weathered green stone, a turned face, long overlapping carved robes, a planted staff, restrained bronze trim and a raised palm beneath the qubit. The projected plinth shares its moss-green material; quiet cracks replace repetitive surface dots. Its feet sit on the projected plinth plane. Preserve the inscription, braziers, orbiting qubit, original ground anchor and stable reduced-motion frame.
 
-
 Broadleaf crowns use asymmetric intersecting masses shaded together, so their branches read as one canopy rather than separately lit balls. Autumn uses one dominant foliage ramp per tree. Conifer tiers vary in width and tip position. Bare winter recursion must fit the existing 48×64 cell; `/labs/artlab.html?lab=foliage&scale=3&motion=0` displays all 24 seasonal variants.
 
-The continuous `vegetationCover` field shapes grass, flowers and cosmetic scenery. Ferns favour nearby trunks, reeds grow on sandy water banks, and plain boulders favour the existing rocky ridges. New plant silhouettes use the shared wind field and freeze under reduced motion. Preserve coastline topology, town layouts, original landmark siting and persisted player edits when tuning these distributions. Water foam is broken into patches, caustics are warped, and ripples are short and sparse.
+The continuous `vegetationCover` field shapes grass, flowers and cosmetic scenery. Ferns favour nearby trunks, reeds grow on sandy water banks, and plain boulders favour the existing rocky ridges. New plant silhouettes use the shared wind field and freeze under reduced motion. Preserve coastline topology, town layouts, original landmark siting and persisted player edits when tuning these distributions. Keep shore foam thin and broken; do not add filled reflection, caustic or depth-contour masks inside water. Ripples are short and sparse.
 
 ## Coastal residents, creatures and exploration
 
@@ -75,7 +76,6 @@ Furnished upper rooms reuse buildings, roof cutaways and existing chunk/shard co
 Platform courses cross real water gaps with authoritative landings and a 650ms visual arc; reduced motion omits that arc. Green outlined seals are safe, red seals show spikes as well as colour. Two-second safe windows use the existing server clock. Completing a challenge uses the existing one-claim shrine reward and disappearance path. Entry/exit structures remain available for safe return.
 
 The player HUD uses bronze rules, muted ink-green recesses and parchment text. A compact labelled carmine health bar shows current/max values with a low-health mark. Everyday chrome avoids purple gradients and glow. Inventory search/category/order changes are presentation-only; the quick-bar retains its real numbered slots. Selectable details and explicit use/equip controls support touch, and dialog focus stays inside the open window. See DESIGN_SYSTEM.md for targets that are still pending; survival indicators must not be drawn before the corresponding gameplay exists.
-
 
 ## Exploration chart
 
@@ -128,7 +128,6 @@ Held tool sheets share the 24×32 body's grip at the exact same screen anchor; t
 
 Generated two-floor town buildings reserve a back-corner 2×2 stair landing before furnishing. Native enemy models now include Reed Stalker's moss/root silhouette and Cinder Moth's warm patterned wings, with idle/move/windup/attack/hurt/death in four facings and day/night variants. Windups reuse existing readable combat decals; these additions never increase population budgets.
 
-
 ## Undercroft survey districts (2026-10-25)
 
 Entrances, shafts, supply lifts, vents and resonant altars use `art/caves.ts` and the shared `Iso` projection. Openings are cut into visible side planes; rails, beams and platforms show real depth. Ground anchors remain the tile center. Architecture uses the existing stone/wood/iron ramps and small warm or quantum accents, nearest filtering and cached textures.
@@ -141,7 +140,7 @@ Nine original cave models share the existing four-facing rig, lazy sheets and id
 
 Use ribbed, low barrel vaults and round oculi for generated cave buildings; surface gables retain their previous silhouette. Submerged sanctuaries use teal dressed masonry, mosaic floors and shell arches. Keep player-chosen timber/stone building materials literal. Architectural raster bounds must enclose curved roofs; gable-plane bounds cannot be reused for a barrel vault.
 
-Mushroom groves use original clustered stems, elliptical caps and restrained cyan speckles, not potted houseplants. Water and magma cascades show a top source, visible rock sides, falling streams and a grounded splash/apron. Magma is dark crust with sparse warm fissures; its sparse light grid avoids per-tile light floods. Arena inlays use muted brass/violet, so red/orange combat warnings remain distinct. Keep the floor seal behind people and enemies, with zero collision.
+Mushroom groves use original clustered stems, elliptical caps and restrained cyan speckles, not potted houseplants. Water and magma cascades show a top source, visible rock sides, falling streams and a grounded splash/apron. Magma has a steady molten body and sparse short flow streaks; its weak, slowly flickering light grid avoids per-tile light floods. Arena inlays use muted brass/violet, so red/orange combat warnings remain distinct. Keep the floor seal behind people and enemies, with zero collision.
 
 Chest lids are reconstructed around a model-space hinge for four poses, with wooden, vault-metal and sea-weathered palettes. Their animation follows accepted server interactions and returns to closed; never loop idle chests. Reduced motion uses immediate endpoint poses. The Bellkeeper's skull cavity, long hooked fingers, iron bell armor and dangling chains should read at game scale without filling the screen with effects. All textures retain nearest filtering and cached geometry.
 
@@ -159,4 +158,4 @@ Survey boards stand beside real supply lifts; settlement records belong at the p
 
 Mine rails use connected u/v endpoints, cross ties and continuous corner rails at ground level, behind actors. The cart has separate wheel pairs, a recessed bed and iron side walls. A moving rider uses an idle passenger pose; the cart translates without ornamental bobbing. Mine circuits are small, dry loops in mining chambers, never boss rings or settlement streets.
 
-Lava is dark crust with sparse warm fissures, with no white sparkling carpet. Water has slower, sparse ripples and broken low-contrast foam. A falling stream may appear only against an actual rear cave wall with a pool at its foot. Its upper end meets the cave crown, not a freestanding source column. Reduced motion stops texture animation and keeps every route and hazard readable.
+Lava has a steady warm body with sparse short flow streaks, without outlined crust polygons, dark islands or a white sparkling carpet. Water has slower, sparse ripples and broken low-contrast foam. A falling stream may appear only against an actual rear cave wall with a pool at its foot. Its upper end meets the cave crown, not a freestanding source column. Reduced motion stops texture animation and keeps every route and hazard readable.

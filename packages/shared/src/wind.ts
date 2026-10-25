@@ -8,7 +8,8 @@ import type { Weather } from './weather';
  */
 export interface Wind {
   /** unit direction the wind blows towards, in world (tile) axes */
-  dx: number; dy: number;
+  dx: number;
+  dy: number;
   /** 0 calm .. 1 storm */
   strength: number;
 }
@@ -20,10 +21,13 @@ const smooth = (a: number, b: number, t: number): number => a + (b - a) * t * t 
 
 /** Direction + strength at world time `tSec` (seconds). */
 export function windBase(seed: number, tSec: number, weather: Weather): Wind {
-  const k = Math.floor(tSec / SLICE_S), f = tSec / SLICE_S - k;
-  const a0 = hash2(seed, k, 3, 811) * Math.PI * 2, a1 = hash2(seed, k + 1, 3, 811) * Math.PI * 2;
+  const k = Math.floor(tSec / SLICE_S),
+    f = tSec / SLICE_S - k;
+  const a0 = hash2(seed, k, 3, 811) * Math.PI * 2,
+    a1 = hash2(seed, k + 1, 3, 811) * Math.PI * 2;
   // interpolate along the short arc
-  let d = a1 - a0; d = Math.atan2(Math.sin(d), Math.cos(d));
+  let d = a1 - a0;
+  d = Math.atan2(Math.sin(d), Math.cos(d));
   const ang = a0 + smooth(0, d, f);
   const s = smooth(hash2(seed, k, 5, 812), hash2(seed, k + 1, 5, 812), f);
   return { dx: Math.cos(ang), dy: Math.sin(ang), strength: Math.min(1, BASE[weather] * (0.8 + 0.45 * s)) };
@@ -34,7 +38,8 @@ export const gustSpeed = (strength: number): number => 0.6 + 1.6 * strength;
 
 /** Gust front intensity 0..1 at tile (x, y): bands travelling with the wind, bent by a slow cross-wave. */
 export function gust(w: Wind, x: number, y: number, tSec: number): number {
-  const along = x * w.dx + y * w.dy, across = -x * w.dy + y * w.dx;
+  const along = x * w.dx + y * w.dy,
+    across = -x * w.dy + y * w.dx;
   const ph = along * 0.72 - tSec * gustSpeed(w.strength) + 1.7 * Math.sin(across * 0.32);
   return 0.5 + 0.5 * Math.sin(ph);
 }

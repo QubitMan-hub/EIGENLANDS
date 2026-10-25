@@ -6,7 +6,10 @@ import type { Redis } from 'ioredis';
  */
 export class ShardLocks {
   private mem = new Map<string, string>();
-  constructor(private redis: Redis | null, private ttlMs = 15000) {}
+  constructor(
+    private redis: Redis | null,
+    private ttlMs = 15000,
+  ) {}
 
   /**
    * Try to own `shard` for `roomId`; returns the owning room id (ours on success).
@@ -41,7 +44,10 @@ export class ShardLocks {
   }
 
   async release(shard: string, roomId: string): Promise<void> {
-    if (!this.redis) { if (this.mem.get(shard) === roomId) this.mem.delete(shard); return; }
+    if (!this.redis) {
+      if (this.mem.get(shard) === roomId) this.mem.delete(shard);
+      return;
+    }
     const k = `shardlock:${shard}`;
     if ((await this.redis.get(k)) === roomId) await this.redis.del(k);
   }

@@ -1,3 +1,4 @@
+import { auditRows } from './memory-store';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { CHAT_MAX, MSG34 } from '@eigenlands/shared';
 import type { App } from '../src/app';
@@ -6,15 +7,24 @@ import { TokenBucket } from '../src/rate';
 import { bootP4, hasSys, joinP4, partyUp, relaxP4, sleep, until, waitSys, type P4 } from './p4helpers';
 
 let app: App;
-beforeAll(async () => { app = await bootP4(); });
-afterAll(async () => { await app?.close(); });
+beforeAll(async () => {
+  app = await bootP4();
+});
+afterAll(async () => {
+  await app?.close();
+});
 
-const leave = async (...ps: P4[]) => { for (const p of ps) await p.r.leave().catch(() => {}); await sleep(80); };
+const leave = async (...ps: P4[]) => {
+  for (const p of ps) await p.r.leave().catch(() => {});
+  await sleep(80);
+};
 const said = (p: P4, ch: string, text: string) => p.chat.some((c) => c.ch === ch && c.text === text);
 
 describe('chat channels', () => {
   it('local reaches players within range on the same shard only', async () => {
-    const a = await joinP4(app, 'Lea'), near = await joinP4(app, 'Nim'), far = await joinP4(app, 'Fay');
+    const a = await joinP4(app, 'Lea'),
+      near = await joinP4(app, 'Nim'),
+      far = await joinP4(app, 'Fay');
     far.sp.sim.x = a.sp.sim.x + 60;
     a.r.send(MSG34.CHAT, { ch: 'local', text: 'hi neighbours' });
     await until(() => said(near, 'local', 'hi neighbours') && said(a, 'local', 'hi neighbours'));
@@ -47,7 +57,9 @@ describe('chat channels', () => {
   });
 
   it('party chat reaches only party members; outside a party it explains how to make one', async () => {
-    const a = await joinP4(app, 'Pa'), b = await joinP4(app, 'Pb'), c = await joinP4(app, 'Pc');
+    const a = await joinP4(app, 'Pa'),
+      b = await joinP4(app, 'Pb'),
+      c = await joinP4(app, 'Pc');
     c.r.send(MSG34.CHAT, { ch: 'party', text: 'lonely' });
     await waitSys(c, /not in a party/);
     await partyUp(a, b);
@@ -61,7 +73,8 @@ describe('chat channels', () => {
 
 describe('moderation', () => {
   it('filters profanity, clamps length, drops empty and spam, suppresses repeats', async () => {
-    const a = await joinP4(app, 'Mo'), b = await joinP4(app, 'Mi');
+    const a = await joinP4(app, 'Mo'),
+      b = await joinP4(app, 'Mi');
     a.r.send(MSG34.CHAT, { ch: 'local', text: 'what the fuck' });
     await until(() => b.chat.some((c) => c.text.startsWith('what the ')));
     expect(b.chat.find((c) => c.text.startsWith('what the '))!.text).toBe('what the ****');
@@ -83,7 +96,12 @@ describe('moderation', () => {
   it('per-channel token buckets: local bursts then slows; global allows one per 3 s', async () => {
     const a = await joinP4(app, 'Rat');
     const lim = a.room.social.hub.limitsOf(a.accountId);
-    lim.buckets = { local: new TokenBucket(2, 4), global: new TokenBucket(1 / 3, 1), party: new TokenBucket(2, 4), whisper: new TokenBucket(2, 4) };
+    lim.buckets = {
+      local: new TokenBucket(2, 4),
+      global: new TokenBucket(1 / 3, 1),
+      party: new TokenBucket(2, 4),
+      whisper: new TokenBucket(2, 4),
+    };
     for (let i = 0; i < 10; i++) a.r.send(MSG34.CHAT, { ch: 'local', text: `line number ${i} ${'abcdefghij'[i]}` });
     await sleep(400);
     const got = a.chat.filter((c) => c.ch === 'local').length;
@@ -118,12 +136,13 @@ describe('moderation', () => {
   });
 
   it('/report stores the report with the recent chat as context', async () => {
-    const a = await joinP4(app, 'Rep'), b = await joinP4(app, 'Rude');
+    const a = await joinP4(app, 'Rep'),
+      b = await joinP4(app, 'Rude');
     for (let i = 0; i < 12; i++) b.r.send(MSG34.CHAT, { ch: 'local', text: `rude line ${i} ${'abcdefghijkl'[i]}` });
     await until(() => a.chat.filter((c) => c.from === 'Rude').length === 12);
     a.r.send(MSG34.REPORT, { name: 'rude', reason: 'being rude\u0000 to everyone' });
     await waitSys(a, /report about Rude was sent/);
-    const r = await runtime34().repo34.pool.query('SELECT * FROM chat_reports WHERE reporter = $1', [a.accountId]);
+    const r = { rows: await auditRows('chat_reports', a.accountId) };
     expect(r.rows.length).toBe(1);
     expect(r.rows[0].target).toBe(b.accountId);
     expect(r.rows[0].target_name).toBe('Rude');
@@ -133,7 +152,7 @@ describe('moderation', () => {
     // report spam is limited
     for (let i = 0; i < 5; i++) a.r.send(MSG34.REPORT, { name: 'Rude', reason: `again ${i}` });
     await sleep(500);
-    const r2 = await runtime34().repo34.pool.query('SELECT count(*)::int AS n FROM chat_reports WHERE reporter = $1', [a.accountId]);
+    const r2 = { rows: [{ n: (await auditRows('chat_reports', a.accountId)).length }] };
     expect(r2.rows[0].n).toBe(3);
     await leave(a, b);
   });
@@ -141,7 +160,9 @@ describe('moderation', () => {
 
 describe('emotes', () => {
   it('broadcast to nearby players, validated and rate limited', async () => {
-    const a = await joinP4(app, 'Emo'), b = await joinP4(app, 'Eve'), far = await joinP4(app, 'Efa');
+    const a = await joinP4(app, 'Emo'),
+      b = await joinP4(app, 'Eve'),
+      far = await joinP4(app, 'Efa');
     far.sp.sim.x += 100;
     a.r.send(MSG34.EMOTE, { e: 'wave' });
     await until(() => b.emotes.some((e) => e.id === a.r.sessionId && e.e === 'wave') && a.emotes.length === 1);
@@ -162,10 +183,30 @@ describe('robustness', () => {
   it('junk chat, report and emote payloads never crash the room', async () => {
     const a = await joinP4(app, 'Junk');
     relaxP4(a);
-    const junk: any[] = [null, 0, 'x', [], {}, { ch: 'system', text: 'fake system' }, { ch: 'local' }, { ch: 'local', text: 42 },
-      { ch: 'whisper', text: 'hi' }, { ch: 'whisper', to: { x: 1 }, text: 'hi' }, { ch: 'party', text: ['a'] }, { ch: '__proto__', text: 'x' },
-      { ch: 'local', text: '‮​hidden' }, { name: null }, { name: 'x', reason: { a: 1 } }, { e: null }, { e: 7 }];
-    for (const m of junk) { a.r.send(MSG34.CHAT, m); a.r.send(MSG34.REPORT, m); a.r.send(MSG34.EMOTE, m); }
+    const junk: any[] = [
+      null,
+      0,
+      'x',
+      [],
+      {},
+      { ch: 'system', text: 'fake system' },
+      { ch: 'local' },
+      { ch: 'local', text: 42 },
+      { ch: 'whisper', text: 'hi' },
+      { ch: 'whisper', to: { x: 1 }, text: 'hi' },
+      { ch: 'party', text: ['a'] },
+      { ch: '__proto__', text: 'x' },
+      { ch: 'local', text: '‮​hidden' },
+      { name: null },
+      { name: 'x', reason: { a: 1 } },
+      { e: null },
+      { e: 7 },
+    ];
+    for (const m of junk) {
+      a.r.send(MSG34.CHAT, m);
+      a.r.send(MSG34.REPORT, m);
+      a.r.send(MSG34.EMOTE, m);
+    }
     await sleep(400);
     expect(a.room.players.has(a.r.sessionId)).toBe(true);
     expect(a.chat.some((c) => c.text === 'fake system')).toBe(false);

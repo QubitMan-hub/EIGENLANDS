@@ -6,7 +6,13 @@
 export type Stat = 'atk' | 'dur' | 'eff' | 'spd' | 'mag';
 export type StatVec = Partial<Record<Stat, number>>;
 
-export interface Material { id: string; grade: number; phase: number; main: StatVec; flaw: StatVec }
+export interface Material {
+  id: string;
+  grade: number;
+  phase: number;
+  main: StatVec;
+  flaw: StatVec;
+}
 
 export const MATERIALS: Record<string, Material> = {
   copper_ingot: { id: 'copper_ingot', grade: 2, phase: 1, main: { atk: 4, eff: 4 }, flaw: { dur: -3 } },
@@ -26,8 +32,8 @@ export const TEMPLATES: Template[] = ['sword', 'axe', 'pickaxe', 'hoe'];
 export const interference = (a: number, b: number): number => Math.cos(((a - b) * Math.PI) / 4);
 
 export interface ForgePreview {
-  coherence: number;     // -1 (cancel) .. +1 (reinforce)
-  phase: number;         // resulting phase 0..8 (fractional)
+  coherence: number; // -1 (cancel) .. +1 (reinforce)
+  phase: number; // resulting phase 0..8 (fractional)
   stats: Record<Stat, number>;
   tier: number;
   note: string;
@@ -36,17 +42,38 @@ export interface ForgePreview {
 export interface ForgeResult extends ForgePreview {
   quality: number;
   qname: string;
-  item: { id: Template; props: { tier: number; atk: number; phase: number; quality: number; qname: string; note: string; stats: Record<Stat, number> } };
+  item: {
+    id: Template;
+    props: {
+      tier: number;
+      atk: number;
+      phase: number;
+      quality: number;
+      qname: string;
+      note: string;
+      stats: Record<Stat, number>;
+    };
+  };
 }
 
-export const qualityName = (q: number): string => (q < 0.35 ? 'Rough' : q < 0.65 ? 'Fine' : q < 0.9 ? 'Superior' : 'Perfect');
+export const qualityName = (q: number): string =>
+  q < 0.35 ? 'Rough' : q < 0.65 ? 'Fine' : q < 0.9 ? 'Superior' : 'Perfect';
 
 export function preview(ids: string[], quality = 0.5): ForgePreview | null {
   if (ids.length < 2 || ids.length > 3) return null;
   const mats: Material[] = [];
-  for (const id of ids) { const m = MATERIALS[id]; if (!m) return null; mats.push(m); }
-  let cs = 0, pairs = 0;
-  for (let i = 0; i < mats.length; i++) for (let j = i + 1; j < mats.length; j++) { cs += interference(mats[i]!.phase, mats[j]!.phase); pairs++; }
+  for (const id of ids) {
+    const m = MATERIALS[id];
+    if (!m) return null;
+    mats.push(m);
+  }
+  let cs = 0,
+    pairs = 0;
+  for (let i = 0; i < mats.length; i++)
+    for (let j = i + 1; j < mats.length; j++) {
+      cs += interference(mats[i]!.phase, mats[j]!.phase);
+      pairs++;
+    }
   const C = cs / pairs;
   const kc = 1 + 0.35 * Math.max(0, C);
   const kd = 1 - 0.2 * Math.max(0, -C);
@@ -54,17 +81,35 @@ export function preview(ids: string[], quality = 0.5): ForgePreview | null {
   const kq = 0.85 + 0.35 * quality;
   const stats: Record<Stat, number> = { atk: 0, dur: 0, eff: 0, spd: 0, mag: 0 };
   for (const s of Object.keys(stats) as Stat[]) {
-    let pos = 0, neg = 0;
-    for (const m of mats) { pos += m.main[s] ?? 0; neg += m.flaw[s] ?? 0; }
+    let pos = 0,
+      neg = 0;
+    for (const m of mats) {
+      pos += m.main[s] ?? 0;
+      neg += m.flaw[s] ?? 0;
+    }
     stats[s] = Math.round(pos * kc * kd * kq + neg * kf);
   }
-  let sx = 0, sy = 0, grade = 0;
+  let sx = 0,
+    sy = 0,
+    grade = 0;
   // weighting by grade breaks ties between exactly opposed phases in favour of the stronger metal
-  for (const m of mats) { sx += m.grade * Math.cos((m.phase * Math.PI) / 4); sy += m.grade * Math.sin((m.phase * Math.PI) / 4); grade += m.grade; }
+  for (const m of mats) {
+    sx += m.grade * Math.cos((m.phase * Math.PI) / 4);
+    sy += m.grade * Math.sin((m.phase * Math.PI) / 4);
+    grade += m.grade;
+  }
   const phase = ((Math.atan2(sy, sx) * 4) / Math.PI + 8) % 8;
   const avgGrade = grade / mats.length;
-  const tier = Math.max(1, Math.min(5, Math.round(avgGrade * (0.9 + 0.12 * quality) + 0.3 * Math.max(0, C) - 0.15 * Math.max(0, -C))));
-  const note = C > 0.6 ? 'In phase: the metals sing together.' : C < -0.6 ? 'Out of phase: flaws cancel out.' : 'Mixed phases: an ordinary alloy.';
+  const tier = Math.max(
+    1,
+    Math.min(5, Math.round(avgGrade * (0.9 + 0.12 * quality) + 0.3 * Math.max(0, C) - 0.15 * Math.max(0, -C))),
+  );
+  const note =
+    C > 0.6
+      ? 'In phase: the metals sing together.'
+      : C < -0.6
+        ? 'Out of phase: flaws cancel out.'
+        : 'Mixed phases: an ordinary alloy.';
   return { coherence: C, phase, stats, tier, note };
 }
 
@@ -74,5 +119,21 @@ export function forge(template: Template, ids: string[], accuracy: number): Forg
   const q = Math.max(0, Math.min(1, accuracy));
   const atk = Math.max(0, pv.stats.atk) + (template === 'sword' ? 3 : 0);
   const qname = qualityName(q);
-  return { ...pv, quality: q, qname, item: { id: template, props: { tier: pv.tier, atk, phase: Math.round(pv.phase * 10) / 10, quality: q, qname, note: pv.note, stats: pv.stats } } };
+  return {
+    ...pv,
+    quality: q,
+    qname,
+    item: {
+      id: template,
+      props: {
+        tier: pv.tier,
+        atk,
+        phase: Math.round(pv.phase * 10) / 10,
+        quality: q,
+        qname,
+        note: pv.note,
+        stats: pv.stats,
+      },
+    },
+  };
 }

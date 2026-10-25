@@ -5,19 +5,39 @@ import { signTicket } from '../src/features/shard/ticket';
 import { runtime } from '../src/rooms/runtime';
 import type { Carry } from '../src/features/types';
 import {
-  attune, boot3, cast, clearEnemies, dev3, dummy, flatten, mkBoard, remove, setClass, setLevel, sleep, spawn3, st, tp,
-  until, type P3,
+  attune,
+  boot3,
+  cast,
+  clearEnemies,
+  dev3,
+  dummy,
+  flatten,
+  mkBoard,
+  remove,
+  setClass,
+  setLevel,
+  sleep,
+  spawn3,
+  st,
+  tp,
+  until,
+  type P3,
 } from './p3helpers';
 
 let app: App;
-beforeAll(async () => { app = await boot3(); });
-afterAll(async () => { await app?.close(); });
+beforeAll(async () => {
+  app = await boot3();
+});
+afterAll(async () => {
+  await app?.close();
+});
 
 let spot = 0;
 /** A fresh player standing in a flat, empty field of their own. */
 async function fielded(name: string): Promise<P3> {
   const p = await spawn3(app, name);
-  const X = 300 + 40 * spot++, Y = 300;
+  const X = 300 + 40 * spot++,
+    Y = 300;
   await tp(p, X + 0.5, Y + 0.5);
   flatten(p.room, X, Y, 9);
   p.sp.invuln = 0;
@@ -34,15 +54,20 @@ describe('cast forms follow the board', () => {
     const p = await fielded('Sampler');
     await gates(p);
     expect((await attune(p, mkBoard({ 0: ['h'] }, { 0: 'glimmer' }))).ok).toBe(true);
-    let b = 0, n = 0;
+    let b = 0,
+      n = 0;
     for (let i = 0; i < 240; i++) {
       const r = await cast(p, 0);
       expect(r.ok).toBe(true);
       const l = r.results[0]!;
       expect(l.ability).toBe('glimmer');
-      if (l.misfire) { expect(l.hue).toBe(FLUX); continue; }
+      if (l.misfire) {
+        expect(l.hue).toBe(FLUX);
+        continue;
+      }
       expect(l.hue).toBe(l.bit ? 4 : 0); // Ember or Frost
-      n++; b += l.bit;
+      n++;
+      b += l.bit;
     }
     expect(b / n).toBeGreaterThan(0.38);
     expect(b / n).toBeLessThan(0.62);
@@ -52,7 +77,10 @@ describe('cast forms follow the board', () => {
       let clean = 0;
       for (let i = 0; i < 40; i++) {
         const l = (await cast(p, 0)).results[0]!;
-        if (l.misfire) { expect(l.bit).toBe(0); continue; }
+        if (l.misfire) {
+          expect(l.bit).toBe(0);
+          continue;
+        }
         clean++;
         expect(l.bit).toBe(1);
       }
@@ -110,7 +138,11 @@ describe('cast forms follow the board', () => {
     let mis = 0;
     for (let i = 0; i < 150; i++) {
       const l = (await cast(p, 0)).results[0]!;
-      if (l.misfire) { mis++; expect(l.hue).toBe(FLUX); expect(l.bit).toBe(1); } else expect(l.bit).toBe(0);
+      if (l.misfire) {
+        mis++;
+        expect(l.hue).toBe(FLUX);
+        expect(l.bit).toBe(1);
+      } else expect(l.bit).toBe(0);
     }
     expect(mis).toBeGreaterThan(8);
     const steady = mkBoard(lines, { 0: 'glimmer' }, { 0: 2 });
@@ -159,7 +191,8 @@ describe('abilities hurt things authoritatively', () => {
 
   it('bolts stop at walls', async () => {
     const p = await fielded('Waller');
-    const x = Math.floor(p.sp.sim.x), y = Math.floor(p.sp.sim.y);
+    const x = Math.floor(p.sp.sim.x),
+      y = Math.floor(p.sp.sim.y);
     p.room.setTile(x + 2, y, T.ROCK);
     expect(p.room.store.solidAt(x + 2, y)).toBe(true);
     const e = dummy(p.room, p.sp.sim.x + 4, p.sp.sim.y);
@@ -191,9 +224,12 @@ describe('abilities hurt things authoritatively', () => {
     // A misfire still executes a damaging form. Retrying on the same dummy can kill it
     // before the Void assertion; isolate this damage test from random board slips.
     const rand = p.room.rand;
-    p.room.rand = () => .99;
-    try { expect((await cast(p, 0)).results[0]!.misfire).toBe(false); }
-    finally { p.room.rand = rand; }
+    p.room.rand = () => 0.99;
+    try {
+      expect((await cast(p, 0)).results[0]!.misfire).toBe(false);
+    } finally {
+      p.room.rand = rand;
+    }
     await until(() => f.hp < 30, 1500);
     expect(f.hp).toBe(30 - Math.round(10 * 1.25)); // Void +25%
     expect(f.def.speed).toBeCloseTo(2 * 0.6, 6);
@@ -208,7 +244,8 @@ describe('Superposer', () => {
     const p = await fielded('Phantom');
     await setClass(p, 'superposer');
     expect((await attune(p, mkBoard({}, { 0: 'echo_step' }))).ok).toBe(true);
-    const x0 = p.sp.sim.x, y0 = p.sp.sim.y;
+    const x0 = p.sp.sim.x,
+      y0 = p.sp.sim.y;
     await cast(p, 0, 1, 0);
     expect(p.sp.sim.x).toBeCloseTo(x0 + 4, 1);
     expect(p.circuit.engine.echoesOf(p.sid)).toHaveLength(1);
@@ -232,7 +269,9 @@ describe('Superposer', () => {
       p.sp.invuln = 0;
       await until(() => p.sp.hp < hp, 4000);
       remove(p.room, g.id);
-    } finally { p.room.rand = rand; }
+    } finally {
+      p.room.rand = rand;
+    }
     await p.r.leave();
   });
 
@@ -268,7 +307,12 @@ describe('Superposer', () => {
   it('Many Worlds: three Echoes repeat every offensive cast', async () => {
     const p = await fielded('Worlds');
     await setClass(p, 'superposer');
-    const no = await new Promise<any>((res) => { p.r.onMessage(MSG34.CAST_R, (m) => { if (m.ult) res(m); }); p.r.send(MSG34.ULT, { aimX: 1, aimY: 0 }); });
+    const no = await new Promise<any>((res) => {
+      p.r.onMessage(MSG34.CAST_R, (m) => {
+        if (m.ult) res(m);
+      });
+      p.r.send(MSG34.ULT, { aimX: 1, aimY: 0 });
+    });
     expect(no).toMatchObject({ ok: false, error: 'Coherence is not full yet.' });
     dev3(p, { cmd: 'res', v: 100 });
     await until(() => p.res.some((r) => r.v === 100));
@@ -293,7 +337,10 @@ describe('Entangler', () => {
     expect(p.prog.board!.abilities.slice(0, 2)).toEqual(['tether', 'pulse']);
     const a = dummy(p.room, p.sp.sim.x + 3, p.sp.sim.y);
     const b = dummy(p.room, p.sp.sim.x, p.sp.sim.y + 3);
-    for (const e of [a, b]) { e.hp = 200; e.maxHp = 200; }
+    for (const e of [a, b]) {
+      e.hp = 200;
+      e.maxHp = 200;
+    }
     await cast(p, 0, 1, 0);
     await until(() => a.hp === 190, 2000); // Void tether 8 × 1.25
     await cast(p, 0, 0, 1);
@@ -349,7 +396,10 @@ describe('Entangler', () => {
     expect((await attune(p, mkBoard({ 1: ['x'] }, { 0: 'mend', 1: 'pulse' }))).ok).toBe(true);
     p.sp.hp = p.sp.maxHp - 30;
     let r = await cast(p, 1);
-    while (r.results[0]!.misfire) { p.sp.hp = p.sp.maxHp - 30; r = await cast(p, 1); }
+    while (r.results[0]!.misfire) {
+      p.sp.hp = p.sp.maxHp - 30;
+      r = await cast(p, 1);
+    }
     expect(p.sp.hp).toBe(p.sp.maxHp - 16);
     await p.r.leave();
   });

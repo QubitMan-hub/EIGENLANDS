@@ -1,7 +1,8 @@
 import { CLASSES, PALETTE, PARTY_MAX, type PartyMember, type PartyStateMsg } from '@eigenlands/shared';
 import { clear, h } from '../../ui/dom';
 
-export const classColor = (cls: string): string => PALETTE[CLASSES[cls as keyof typeof CLASSES]?.color ?? 6] ?? '#f4f4ff';
+export const classColor = (cls: string): string =>
+  PALETTE[CLASSES[cls as keyof typeof CLASSES]?.color ?? 6] ?? '#f4f4ff';
 export const className = (cls: string): string => CLASSES[cls as keyof typeof CLASSES]?.name ?? 'Wanderer';
 
 export interface FrameGeo {
@@ -20,7 +21,22 @@ export interface FrameGeo {
  */
 export class PartyFrames {
   readonly root = h('div', { id: 'party-frames', class: 'party-frames' });
-  private rows = new Map<string, { el: HTMLElement; fill: HTMLElement; lv: HTMLElement; name: HTMLElement; sub: HTMLElement; arrow: HTMLElement; dist: HTMLElement; region: HTMLElement; crown: HTMLElement; dot: HTMLElement; edge: HTMLElement }>();
+  private rows = new Map<
+    string,
+    {
+      el: HTMLElement;
+      fill: HTMLElement;
+      lv: HTMLElement;
+      name: HTMLElement;
+      sub: HTMLElement;
+      arrow: HTMLElement;
+      dist: HTMLElement;
+      region: HTMLElement;
+      crown: HTMLElement;
+      dot: HTMLElement;
+      edge: HTMLElement;
+    }
+  >();
 
   constructor(onClick: () => void) {
     this.root.hidden = true;
@@ -35,7 +51,12 @@ export class PartyFrames {
     const others = (st?.members ?? []).filter((m) => m.accountId !== myAccount);
     this.root.hidden = !st?.id || !others.length;
     const keep = new Set(others.map((m) => m.accountId));
-    for (const [id, r] of this.rows) if (!keep.has(id)) { r.el.remove(); r.edge.remove(); this.rows.delete(id); }
+    for (const [id, r] of this.rows)
+      if (!keep.has(id)) {
+        r.el.remove();
+        r.edge.remove();
+        this.rows.delete(id);
+      }
     others.forEach((m, i) => {
       let r = this.rows.get(m.accountId);
       if (!r) {
@@ -48,7 +69,13 @@ export class PartyFrames {
         const arrow = h('span', { class: 'pf-arrow', text: '➤' });
         const dist = h('span', { class: 'pf-dist' });
         const sub = h('div', { class: 'pf-sub' }, region, arrow, dist);
-        const el = h('div', { class: 'pf', data: { a: m.accountId } }, h('div', { class: 'pf-top' }, dot, name, crown, lv), h('div', { class: 'pf-bar' }, fill), sub);
+        const el = h(
+          'div',
+          { class: 'pf', data: { a: m.accountId } },
+          h('div', { class: 'pf-top' }, dot, name, crown, lv),
+          h('div', { class: 'pf-bar' }, fill),
+          sub,
+        );
         const edge = h('div', { class: 'pf-edge', text: '➤' });
         edge.hidden = true;
         document.body.append(edge);
@@ -72,12 +99,23 @@ export class PartyFrames {
       const g = m.online ? geo(m) : { angle: null, dist: null, visible: false };
       r.arrow.hidden = g.angle === null;
       if (g.angle !== null) r.arrow.style.transform = `rotate(${g.angle}rad)`;
-      r.dist.textContent = !m.online ? 'offline' : g.dist === null ? '' : g.visible ? 'nearby' : `${Math.round(g.dist)} m`;
+      r.dist.textContent = !m.online
+        ? 'offline'
+        : g.dist === null
+          ? ''
+          : g.visible
+            ? 'nearby'
+            : `${Math.round(g.dist)} m`;
       r.edge.hidden = !(m.online && !other && g.angle !== null && !g.visible && this.root.hidden === false);
       r.edge.style.color = col;
       if (!r.edge.hidden) {
-        const W = window.innerWidth, H = window.innerHeight, pad = 22;
-        const cx = W / 2, cy = H / 2, dx = Math.cos(g.angle!), dy = Math.sin(g.angle!);
+        const W = window.innerWidth,
+          H = window.innerHeight,
+          pad = 22;
+        const cx = W / 2,
+          cy = H / 2,
+          dx = Math.cos(g.angle!),
+          dy = Math.sin(g.angle!);
         const t = Math.min(Math.abs((cx - pad) / (dx || 1e-6)), Math.abs((cy - pad) / (dy || 1e-6)));
         r.edge.style.left = `${cx + dx * t}px`;
         r.edge.style.top = `${cy + dy * t}px`;
@@ -87,10 +125,19 @@ export class PartyFrames {
     });
   }
 
-  hideAll(): void { this.root.hidden = true; for (const r of this.rows.values()) r.edge.hidden = true; }
+  hideAll(): void {
+    this.root.hidden = true;
+    for (const r of this.rows.values()) r.edge.hidden = true;
+  }
 }
 
-export interface PromptOpts { text: string; ms: number; accept: () => void; decline: () => void; kind: 'party' | 'trade' }
+export interface PromptOpts {
+  text: string;
+  ms: number;
+  accept: () => void;
+  decline: () => void;
+  kind: 'party' | 'trade';
+}
 
 /** Accept/decline prompts (party invites, trade requests) under the top HUD, with a countdown bar. */
 export class Prompts {
@@ -104,14 +151,42 @@ export class Prompts {
   add(key: string, o: PromptOpts): void {
     this.remove(key);
     let done = false;
-    const close = () => { if (done) return; done = true; clearTimeout(timer); el.remove(); };
+    const close = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      el.remove();
+    };
     const bar = h('i');
-    const el = h('div', { class: `prompt panel ${o.kind}`, data: { key } },
+    const el = h(
+      'div',
+      { class: `prompt panel ${o.kind}`, data: { key } },
       h('div', { class: 'prompt-text', text: o.text }),
-      h('div', { class: 'prompt-btns' },
-        h('button', { class: 'primary', text: 'Accept', on: { click: () => { close(); o.accept(); } } }),
-        h('button', { text: 'Decline', on: { click: () => { close(); o.decline(); } } })),
-      h('div', { class: 'prompt-time' }, bar));
+      h(
+        'div',
+        { class: 'prompt-btns' },
+        h('button', {
+          class: 'primary',
+          text: 'Accept',
+          on: {
+            click: () => {
+              close();
+              o.accept();
+            },
+          },
+        }),
+        h('button', {
+          text: 'Decline',
+          on: {
+            click: () => {
+              close();
+              o.decline();
+            },
+          },
+        }),
+      ),
+      h('div', { class: 'prompt-time' }, bar),
+    );
     bar.style.animationDuration = `${o.ms}ms`;
     const timer = setTimeout(close, o.ms);
     (el as unknown as { _close: () => void })._close = close;
@@ -120,10 +195,13 @@ export class Prompts {
   }
 
   remove(key: string): void {
-    for (const el of [...this.root.children]) if ((el as HTMLElement).dataset.key === key) (el as unknown as { _close: () => void })._close();
+    for (const el of [...this.root.children])
+      if ((el as HTMLElement).dataset.key === key) (el as unknown as { _close: () => void })._close();
   }
 
-  count(): number { return this.root.children.length; }
+  count(): number {
+    return this.root.children.length;
+  }
 }
 
 export interface PartyWinActs {
@@ -135,21 +213,46 @@ export interface PartyWinActs {
 }
 
 /** The party window (P): members with actions for the leader, invite by name, leave. */
-export function buildPartyWindow(acts: PartyWinActs): { el: HTMLElement; update: (st: PartyStateMsg | null, me: string, myShard: string) => void } {
+export function buildPartyWindow(acts: PartyWinActs): {
+  el: HTMLElement;
+  update: (st: PartyStateMsg | null, me: string, myShard: string) => void;
+} {
   const list = h('div', { class: 'party-list' });
   const name = h('input', { placeholder: 'Character name', maxLength: 32 }) as HTMLInputElement;
   name.setAttribute('aria-label', 'Name to invite');
   name.autocomplete = 'off';
-  const go = () => { const v = name.value.trim(); if (v) { acts.invite(v); name.value = ''; } };
-  name.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
-  const inviteRow = h('div', { class: 'party-invite' }, name, h('button', { class: 'primary', text: 'Invite', on: { click: go } }));
+  const go = () => {
+    const v = name.value.trim();
+    if (v) {
+      acts.invite(v);
+      name.value = '';
+    }
+  };
+  name.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      go();
+    }
+  });
+  const inviteRow = h(
+    'div',
+    { class: 'party-invite' },
+    name,
+    h('button', { class: 'primary', text: 'Invite', on: { click: go } }),
+  );
   const leaveBtn = h('button', { class: 'danger', text: 'Leave party', on: { click: () => acts.leave() } });
   const note = h('p', { class: 'small dim' });
   const el = h('div', { class: 'party-win' }, list, inviteRow, note, h('div', { class: 'party-foot' }, leaveBtn));
 
   let sig = '';
   const update = (st: PartyStateMsg | null, me: string, myShard: string) => {
-    const nsig = JSON.stringify([st?.id, st?.leader, me, myShard, (st?.members ?? []).map((m) => [m.accountId, m.name, m.level, m.cls, m.hp, m.maxHp, m.online, m.shard])]);
+    const nsig = JSON.stringify([
+      st?.id,
+      st?.leader,
+      me,
+      myShard,
+      (st?.members ?? []).map((m) => [m.accountId, m.name, m.level, m.cls, m.hp, m.maxHp, m.online, m.shard]),
+    ]);
     if (nsig === sig) return;
     sig = nsig;
     clear(list);
@@ -160,10 +263,20 @@ export function buildPartyWindow(acts: PartyWinActs): { el: HTMLElement; update:
     inviteRow.hidden = !iLead || members.length >= PARTY_MAX;
     note.textContent = !st?.id
       ? 'You are not in a party. Invite someone by name, or click a player in the world. Party members share +50% XP from nearby kills, see each other on the HUD and get the Party chat channel.'
-      : members.length >= PARTY_MAX ? `The party is full (${PARTY_MAX}).` : iLead ? 'Invite up to five players in total, from anywhere in the world.' : 'Only the leader can invite or remove members.';
+      : members.length >= PARTY_MAX
+        ? `The party is full (${PARTY_MAX}).`
+        : iLead
+          ? 'Invite up to five players in total, from anywhere in the world.'
+          : 'Only the leader can invite or remove members.';
     for (const m of members) {
       const col = classColor(m.cls);
-      const status = !m.online ? 'offline' : m.shard && m.shard !== myShard ? 'other region' : m.maxHp ? `${m.hp}/${m.maxHp} HP` : '';
+      const status = !m.online
+        ? 'offline'
+        : m.shard && m.shard !== myShard
+          ? 'other region'
+          : m.maxHp
+            ? `${m.hp}/${m.maxHp} HP`
+            : '';
       const btns = h('div', { class: 'pm-btns' });
       if (m.accountId !== me) {
         btns.append(h('button', { text: 'Whisper', on: { click: () => acts.whisper(m.name) } }));
@@ -173,13 +286,30 @@ export function buildPartyWindow(acts: PartyWinActs): { el: HTMLElement; update:
         }
       }
       const pct = m.maxHp > 0 ? Math.round((m.hp / m.maxHp) * 100) : 0;
-      list.append(h('div', { class: `pm${m.online ? '' : ' offline'}${m.accountId === me ? ' me' : ''}`, data: { a: m.accountId } },
-        h('span', { class: 'pf-dot', style: `background:${col}` }),
-        h('div', { class: 'pm-main' },
-          h('div', {}, h('b', { text: m.name, style: `color:${col}` }), leader === m.accountId ? h('span', { class: 'pf-crown', text: ' ♛', title: 'Leader' }) : null, h('span', { class: 'dim', text: ` Lv ${m.level} ${className(m.cls)}${m.accountId === me ? ' (you)' : ''}` })),
-          h('div', { class: 'pf-bar' }, h('i', { style: `width:${pct}%` })),
-          h('div', { class: 'small dim', text: status })),
-        btns));
+      list.append(
+        h(
+          'div',
+          { class: `pm${m.online ? '' : ' offline'}${m.accountId === me ? ' me' : ''}`, data: { a: m.accountId } },
+          h('span', { class: 'pf-dot', style: `background:${col}` }),
+          h(
+            'div',
+            { class: 'pm-main' },
+            h(
+              'div',
+              {},
+              h('b', { text: m.name, style: `color:${col}` }),
+              leader === m.accountId ? h('span', { class: 'pf-crown', text: ' ♛', title: 'Leader' }) : null,
+              h('span', {
+                class: 'dim',
+                text: ` Lv ${m.level} ${className(m.cls)}${m.accountId === me ? ' (you)' : ''}`,
+              }),
+            ),
+            h('div', { class: 'pf-bar' }, h('i', { style: `width:${pct}%` })),
+            h('div', { class: 'small dim', text: status }),
+          ),
+          btns,
+        ),
+      );
     }
   };
   return { el, update };

@@ -3,9 +3,7 @@
  * Lines = qubits (orbs), each powering one ability; cells hold gates. Shared by the client (live preview)
  * and the server (attune + casting), so both always agree. See docs/design/phase3-4-circuit-multiplayer.md.
  */
-import {
-  ABILITIES, ACTIVE_LINES, ELEMENTS, FLUX, hueWrap, isAbilityId, type AbilityId,
-} from './classes';
+import { ABILITIES, ACTIVE_LINES, ELEMENTS, FLUX, hueWrap, isAbilityId, type AbilityId } from './classes';
 import { MAX_QUBITS, QState, cumulative, repetitionError, sampleIndex, fmtAmp } from './quantum';
 
 export type GateId = 'h' | 'x' | 'z' | 's' | 't' | 'cx' | 'm';
@@ -28,13 +26,76 @@ export interface GateDef {
 }
 
 export const GATES: Record<GateId, GateDef> = {
-  h: { id: 'h', name: 'Split', glyph: '◐', expert: 'H', color: 44, err: 0.01, codex: 'superposition', desc: 'Splits the ability: it can come out as either form. You only find out which when you cast.' },
-  x: { id: 'x', name: 'Flip', glyph: '⇅', expert: 'X', color: 35, err: 0.005, codex: 'xgate', desc: 'Flips the ability to its opposite form and element.' },
-  t: { id: 't', name: 'Tune ¼', glyph: '◔', expert: 'T', color: 38, err: 0.004, codex: 'phase', desc: 'Turns a split orb\'s colour one small step. Only shows on a split orb.' },
-  s: { id: 's', name: 'Tune ½', glyph: '◑', expert: 'S', color: 36, err: 0.004, codex: 'phase', desc: 'Turns a split orb\'s colour two steps. Only shows on a split orb.' },
-  z: { id: 'z', name: 'Tune', glyph: '●', expert: 'Z', color: 45, err: 0.004, codex: 'phase', desc: 'Turns a split orb\'s colour halfway round the wheel. Split it again afterwards and the colours interfere.' },
-  cx: { id: 'cx', name: 'Link', glyph: '⛓', expert: 'CNOT', color: 47, err: 0.03, codex: 'entanglement', desc: 'Links this orb to another. Casting this one also fires the linked one, and their results become connected.' },
-  m: { id: 'm', name: 'Lock in', glyph: '◉', expert: 'M', color: 22, err: 0.01, codex: 'measurement', desc: 'Decides this orb\'s result once, when you attune. It then stays fixed and hits harder.' },
+  h: {
+    id: 'h',
+    name: 'Split',
+    glyph: '◐',
+    expert: 'H',
+    color: 44,
+    err: 0.01,
+    codex: 'superposition',
+    desc: 'Splits the ability: it can come out as either form. You only find out which when you cast.',
+  },
+  x: {
+    id: 'x',
+    name: 'Flip',
+    glyph: '⇅',
+    expert: 'X',
+    color: 35,
+    err: 0.005,
+    codex: 'xgate',
+    desc: 'Flips the ability to its opposite form and element.',
+  },
+  t: {
+    id: 't',
+    name: 'Tune ¼',
+    glyph: '◔',
+    expert: 'T',
+    color: 38,
+    err: 0.004,
+    codex: 'phase',
+    desc: "Turns a split orb's colour one small step. Only shows on a split orb.",
+  },
+  s: {
+    id: 's',
+    name: 'Tune ½',
+    glyph: '◑',
+    expert: 'S',
+    color: 36,
+    err: 0.004,
+    codex: 'phase',
+    desc: "Turns a split orb's colour two steps. Only shows on a split orb.",
+  },
+  z: {
+    id: 'z',
+    name: 'Tune',
+    glyph: '●',
+    expert: 'Z',
+    color: 45,
+    err: 0.004,
+    codex: 'phase',
+    desc: "Turns a split orb's colour halfway round the wheel. Split it again afterwards and the colours interfere.",
+  },
+  cx: {
+    id: 'cx',
+    name: 'Link',
+    glyph: '⛓',
+    expert: 'CNOT',
+    color: 47,
+    err: 0.03,
+    codex: 'entanglement',
+    desc: 'Links this orb to another. Casting this one also fires the linked one, and their results become connected.',
+  },
+  m: {
+    id: 'm',
+    name: 'Lock in',
+    glyph: '◉',
+    expert: 'M',
+    color: 22,
+    err: 0.01,
+    codex: 'measurement',
+    desc: "Decides this orb's result once, when you attune. It then stays fixed and hits harder.",
+  },
 };
 
 export const isGateId = (v: unknown): v is GateId => typeof v === 'string' && Object.hasOwn(GATES, v);
@@ -57,7 +118,10 @@ export function qubitsForLevel(level: number, bonus = 0): number {
   return Math.min(MAX_QUBITS, Math.max(1, n) + bonus);
 }
 
-export interface Cell { g: GateId; /** Link target line */ t?: number }
+export interface Cell {
+  g: GateId;
+  /** Link target line */ t?: number;
+}
 export interface Board {
   /** MAX_QUBITS lines × BOARD_COLS cells */
   lines: Array<Array<Cell | null>>;
@@ -82,10 +146,15 @@ export function emptyBoard(): Board {
 }
 
 export function cloneBoard(b: Board): Board {
-  return { lines: b.lines.map((l) => l.map((c) => (c ? { ...c } : null))), abilities: [...b.abilities], runes: [...b.runes] };
+  return {
+    lines: b.lines.map((l) => l.map((c) => (c ? { ...c } : null))),
+    abilities: [...b.abilities],
+    runes: [...b.runes],
+  };
 }
 
-const isInt = (v: unknown, lo: number, hi: number): v is number => Number.isInteger(v) && (v as number) >= lo && (v as number) <= hi;
+const isInt = (v: unknown, lo: number, hi: number): v is number =>
+  Number.isInteger(v) && (v as number) >= lo && (v as number) <= hi;
 
 /** Coerce anything (stored JSON, a client message) into a well-formed board. Shape only; rules are `checkBoard`. */
 export function validBoard(raw: unknown): Board {
@@ -98,13 +167,22 @@ export function validBoard(raw: unknown): Board {
       for (let c = 0; c < BOARD_COLS; c++) {
         const cell = line[c] as Partial<Cell> | null | undefined;
         if (!cell || typeof cell !== 'object' || !isGateId(cell.g)) continue;
-        if (cell.g === 'cx') { if (isInt(cell.t, 0, MAX_QUBITS - 1) && cell.t !== q) b.lines[q]![c] = { g: 'cx', t: cell.t }; }
-        else b.lines[q]![c] = { g: cell.g };
+        if (cell.g === 'cx') {
+          if (isInt(cell.t, 0, MAX_QUBITS - 1) && cell.t !== q) b.lines[q]![c] = { g: 'cx', t: cell.t };
+        } else b.lines[q]![c] = { g: cell.g };
       }
     }
   }
-  if (Array.isArray(r.abilities)) for (let q = 0; q < MAX_QUBITS; q++) { const a = r.abilities[q]; if (isAbilityId(a)) b.abilities[q] = a; }
-  if (Array.isArray(r.runes)) for (let q = 0; q < MAX_QUBITS; q++) { const n = r.runes[q]; if (isInt(n, 0, MAX_RUNES_PER_LINE)) b.runes[q] = n; }
+  if (Array.isArray(r.abilities))
+    for (let q = 0; q < MAX_QUBITS; q++) {
+      const a = r.abilities[q];
+      if (isAbilityId(a)) b.abilities[q] = a;
+    }
+  if (Array.isArray(r.runes))
+    for (let q = 0; q < MAX_QUBITS; q++) {
+      const n = r.runes[q];
+      if (isInt(n, 0, MAX_RUNES_PER_LINE)) b.runes[q] = n;
+    }
   return b;
 }
 
@@ -139,7 +217,9 @@ export interface BoardRules {
 /** Why a board is not allowed, in plain words; null when it is fine. */
 export function checkBoard(b: Board, rules: BoardRules): string | null {
   const used = placedGates(b);
-  for (const g of GATE_IDS) if (used[g] > rules.gates[g]) return `You only have ${rules.gates[g]} ${GATES[g].name} gate${rules.gates[g] === 1 ? '' : 's'}.`;
+  for (const g of GATE_IDS)
+    if (used[g] > rules.gates[g])
+      return `You only have ${rules.gates[g]} ${GATES[g].name} gate${rules.gates[g] === 1 ? '' : 's'}.`;
   if (used.m > MAX_LOCKS) return `At most ${MAX_LOCKS} Lock-ins fit on one board.`;
   const runes = b.runes.reduce((a, r) => a + r, 0);
   if (runes > rules.runes) return 'Not enough Error Correction runes.';
@@ -167,7 +247,7 @@ export function checkBoard(b: Board, rules: BoardRules): string | null {
       if (cell.g === 'cx') {
         const t = cell.t;
         if (t === undefined || t === q || t >= rules.qubits) return 'A Link needs another unlocked orb to connect to.';
-        if (busy.has(t) || b.lines[t]![c]) return 'A Link\'s far end must land on an empty spot.';
+        if (busy.has(t) || b.lines[t]![c]) return "A Link's far end must land on an empty spot.";
         busy.add(t);
       }
     }
@@ -177,7 +257,12 @@ export function checkBoard(b: Board, rules: BoardRules): string | null {
 
 // ───────────────────────── simulation ─────────────────────────
 
-export interface Op { g: GateId; q: number; t?: number; c: number }
+export interface Op {
+  g: GateId;
+  q: number;
+  t?: number;
+  c: number;
+}
 
 /** Gates in play order: column by column, top line first. */
 export function compile(b: Board, n: number): Op[] {
@@ -186,8 +271,9 @@ export function compile(b: Board, n: number): Op[] {
     for (let q = 0; q < n; q++) {
       const cell = b.lines[q]![c];
       if (!cell) continue;
-      if (cell.g === 'cx') { if (cell.t !== undefined && cell.t < n && cell.t !== q) ops.push({ g: 'cx', q, t: cell.t, c }); }
-      else ops.push({ g: cell.g, q, c });
+      if (cell.g === 'cx') {
+        if (cell.t !== undefined && cell.t < n && cell.t !== q) ops.push({ g: 'cx', q, t: cell.t, c });
+      } else ops.push({ g: cell.g, q, c });
     }
   }
   return ops;
@@ -195,13 +281,26 @@ export function compile(b: Board, n: number): Op[] {
 
 function applyOp(s: QState, op: Op): void {
   switch (op.g) {
-    case 'h': s.h(op.q); break;
-    case 'x': s.x(op.q); break;
-    case 'z': s.z(op.q); break;
-    case 's': s.s(op.q); break;
-    case 't': s.t(op.q); break;
-    case 'cx': s.cx(op.q, op.t!); break;
-    case 'm': break; // handled by the caller
+    case 'h':
+      s.h(op.q);
+      break;
+    case 'x':
+      s.x(op.q);
+      break;
+    case 'z':
+      s.z(op.q);
+      break;
+    case 's':
+      s.s(op.q);
+      break;
+    case 't':
+      s.t(op.q);
+      break;
+    case 'cx':
+      s.cx(op.q, op.t!);
+      break;
+    case 'm':
+      break; // handled by the caller
   }
 }
 
@@ -238,13 +337,23 @@ export function evaluate(b: Board, n: number, locks?: Locks | null): Evaluation 
     branches++;
     const p = s.probabilities();
     for (let i = 0; i < p.length; i++) joint[i] += w * p[i]!;
-    for (let q = 0; q < n; q++) { const r = s.reduced(q); rho[q]!.re += w * r.cRe; rho[q]!.im += w * r.cIm; }
-    if (w > best.w) { best.w = w; best.s = s; }
+    for (let q = 0; q < n; q++) {
+      const r = s.reduced(q);
+      rho[q]!.re += w * r.cRe;
+      rho[q]!.im += w * r.cIm;
+    }
+    if (w > best.w) {
+      best.w = w;
+      best.s = s;
+    }
   };
   const run = (s: QState, from: number, w: number): void => {
     for (let i = from; i < ops.length; i++) {
       const op = ops[i]!;
-      if (op.g !== 'm') { applyOp(s, op); continue; }
+      if (op.g !== 'm') {
+        applyOp(s, op);
+        continue;
+      }
       const k = lockKey(op.q, op.c);
       if (locks) {
         const o = locks[k] ?? 0;
@@ -254,8 +363,15 @@ export function evaluate(b: Board, n: number, locks?: Locks | null): Evaluation 
       }
       const p1 = s.prob1(op.q);
       lockW[k] = (lockW[k] ?? 0) + w * p1;
-      if (p1 > 1e-9) { const s1 = 1 - p1 > 1e-9 ? s.clone() : s; s1.collapse(op.q, 1); run(s1, i + 1, w * p1); }
-      if (1 - p1 > 1e-9) { s.collapse(op.q, 0); run(s, i + 1, w * (1 - p1)); }
+      if (p1 > 1e-9) {
+        const s1 = 1 - p1 > 1e-9 ? s.clone() : s;
+        s1.collapse(op.q, 1);
+        run(s1, i + 1, w * p1);
+      }
+      if (1 - p1 > 1e-9) {
+        s.collapse(op.q, 0);
+        run(s, i + 1, w * (1 - p1));
+      }
       return;
     }
     finish(s, w);
@@ -289,7 +405,10 @@ export function rawLineErrors(b: Board, n: number): number[] {
   const keep = Array.from({ length: n }, () => 1);
   for (const op of ops) {
     const e = GATES[op.g].err;
-    if (op.g === 'm') { keep[op.q] = 1 - e; continue; } // a lock resets the line's history
+    if (op.g === 'm') {
+      keep[op.q] = 1 - e;
+      continue;
+    } // a lock resets the line's history
     keep[op.q]! *= 1 - e;
     if (op.g === 'cx') keep[op.t!]! *= 1 - e;
   }
@@ -309,13 +428,18 @@ export function firedLines(b: Board, n: number, q: number): number[] {
     const from = out[i]!;
     for (let c = 0; c < BOARD_COLS; c++) {
       const cell = b.lines[from]?.[c];
-      if (cell?.g === 'cx' && cell.t !== undefined && cell.t < n && !seen.has(cell.t)) { seen.add(cell.t); out.push(cell.t); }
+      if (cell?.g === 'cx' && cell.t !== undefined && cell.t < n && !seen.has(cell.t)) {
+        seen.add(cell.t);
+        out.push(cell.t);
+      }
     }
   }
   return out;
 }
 
-export function hasLock(b: Board, q: number): boolean { return b.lines[q]!.some((c) => c?.g === 'm'); }
+export function hasLock(b: Board, q: number): boolean {
+  return b.lines[q]!.some((c) => c?.g === 'm');
+}
 
 /** Colour steps (0..7) a line has been tuned by, or null when it carries no colour. */
 export function tuneSteps(ev: Evaluation, q: number): number | null {
@@ -332,7 +456,14 @@ export function lineHue(b: Board, ev: Evaluation, q: number, bit: 0 | 1): number
   return hueWrap(base + (st ?? 0));
 }
 
-export interface CastLine { q: number; bit: 0 | 1; hue: number; misfire: boolean; locked: boolean; link: boolean }
+export interface CastLine {
+  q: number;
+  bit: 0 | 1;
+  hue: number;
+  misfire: boolean;
+  locked: boolean;
+  link: boolean;
+}
 
 /** Sample one cast of line `q` from an attuned evaluation. `rand` returns [0,1). */
 export function castLines(b: Board, ev: Evaluation, q: number, errors: number[], rand: () => number): CastLine[] {
@@ -341,7 +472,14 @@ export function castLines(b: Board, ev: Evaluation, q: number, errors: number[],
     let bit: 0 | 1 = (idx >> line) & 1 ? 1 : 0;
     const misfire = rand() < (errors[line] ?? 0);
     if (misfire) bit = bit ? 0 : 1;
-    return { q: line, bit, hue: misfire ? FLUX : lineHue(b, ev, line, bit), misfire, locked: hasLock(b, line), link: line !== q };
+    return {
+      q: line,
+      bit,
+      hue: misfire ? FLUX : lineHue(b, ev, line, bit),
+      misfire,
+      locked: hasLock(b, line),
+      link: line !== q,
+    };
   });
 }
 
@@ -367,8 +505,16 @@ export interface LinePreview {
   active: boolean;
   summary: string;
 }
-export interface JointPreview { lines: number[]; outcomes: Array<{ bits: Array<0 | 1>; p: number }> }
-export interface Preview { lines: LinePreview[]; joints: JointPreview[]; ev: Evaluation; gates: number }
+export interface JointPreview {
+  lines: number[];
+  outcomes: Array<{ bits: Array<0 | 1>; p: number }>;
+}
+export interface Preview {
+  lines: LinePreview[];
+  joints: JointPreview[];
+  ev: Evaluation;
+  gates: number;
+}
 
 export function oddsWord(p: number): string {
   if (p <= 0.005) return 'never';
@@ -393,7 +539,11 @@ function formLabel(a: AbilityId | null, bit: 0 | 1, hue: number): string {
 /** Everything the Board shows, from a board and (optionally) its attuned locks. */
 export function boardPreview(b: Board, n: number, locks: Locks | null): Preview {
   n = Math.max(1, Math.min(MAX_QUBITS, n));
-  const attuned = !!locks && compile(b, n).filter((o) => o.g === 'm').every((o) => lockKey(o.q, o.c) in locks);
+  const attuned =
+    !!locks &&
+    compile(b, n)
+      .filter((o) => o.g === 'm')
+      .every((o) => lockKey(o.q, o.c) in locks);
   const ev = evaluate(b, n, attuned ? locks : null);
   const raw = rawLineErrors(b, n);
   const err = lineErrors(b, n);
@@ -402,15 +552,33 @@ export function boardPreview(b: Board, n: number, locks: Locks | null): Preview 
   fires.forEach((f, q) => f.forEach((t) => firedBy[t]!.push(q)));
   const lines: LinePreview[] = [];
   for (let q = 0; q < n; q++) {
-    const pI = ev.p1[q]!, e = err[q]!;
+    const pI = ev.p1[q]!,
+      e = err[q]!;
     const pB = pI * (1 - e) + (1 - pI) * e;
-    const hueA = lineHue(b, ev, q, 0), hueB = lineHue(b, ev, q, 1);
+    const hueA = lineHue(b, ev, q, 0),
+      hueB = lineHue(b, ev, q, 1);
     const lockOps = compile(b, n).filter((o) => o.g === 'm' && o.q === q);
     const lastLock = lockOps[lockOps.length - 1];
-    const locked: LinePreview['locked'] = !lastLock ? null : attuned ? (locks![lockKey(lastLock.q, lastLock.c)] ?? 0) : 'pending';
+    const locked: LinePreview['locked'] = !lastLock
+      ? null
+      : attuned
+        ? (locks![lockKey(lastLock.q, lastLock.c)] ?? 0)
+        : 'pending';
     const lp: LinePreview = {
-      q, ability: b.abilities[q] ?? null, pB, pBIdeal: pI, hueA, hueB, tuned: tuneSteps(ev, q) !== null,
-      stability: 1 - e, rawStability: 1 - raw[q]!, locked, fires: fires[q]!, firedBy: firedBy[q]!, active: q < ACTIVE_LINES, summary: '',
+      q,
+      ability: b.abilities[q] ?? null,
+      pB,
+      pBIdeal: pI,
+      hueA,
+      hueB,
+      tuned: tuneSteps(ev, q) !== null,
+      stability: 1 - e,
+      rawStability: 1 - raw[q]!,
+      locked,
+      fires: fires[q]!,
+      firedBy: firedBy[q]!,
+      active: q < ACTIVE_LINES,
+      summary: '',
     };
     lp.summary = summarize(b, lp);
     lines.push(lp);
@@ -427,10 +595,15 @@ export function boardPreview(b: Board, n: number, locks: Locks | null): Preview 
       const pr = ev.joint[i]!;
       if (pr < 1e-12) continue;
       let key = 0;
-      group.forEach((g, k) => { if (i & (1 << g)) key |= 1 << k; });
+      group.forEach((g, k) => {
+        if (i & (1 << g)) key |= 1 << k;
+      });
       m.set(key, (m.get(key) ?? 0) + pr);
     }
-    const outcomes = [...m.entries()].filter(([, p]) => p > 0.002).sort((a, c) => c[1] - a[1]).slice(0, 6)
+    const outcomes = [...m.entries()]
+      .filter(([, p]) => p > 0.002)
+      .sort((a, c) => c[1] - a[1])
+      .slice(0, 6)
       .map(([key, p]) => ({ bits: group.map((_, k) => ((key >> k) & 1 ? 1 : 0) as 0 | 1), p }));
     joints.push({ lines: group, outcomes });
   }
@@ -439,9 +612,13 @@ export function boardPreview(b: Board, n: number, locks: Locks | null): Preview 
 
 function summarize(b: Board, l: LinePreview): string {
   const a = l.ability;
-  if (!a) return l.fires.length ? 'No ability here yet, but it still passes its Link along.' : 'Drag an ability onto this orb to use it.';
+  if (!a)
+    return l.fires.length
+      ? 'No ability here yet, but it still passes its Link along.'
+      : 'Drag an ability onto this orb to use it.';
   const name = ABILITIES[a].name;
-  const A = formLabel(a, 0, l.hueA), B = formLabel(a, 1, l.hueB);
+  const A = formLabel(a, 0, l.hueA),
+    B = formLabel(a, 1, l.hueB);
   const parts: string[] = [];
   if (l.locked === 0 || l.locked === 1) parts.push(`Locked in: ${l.locked ? B : A}, with extra power.`);
   else if (l.pBIdeal <= 0.005) parts.push(`${name}: always ${A}.`);
@@ -449,7 +626,10 @@ function summarize(b: Board, l: LinePreview): string {
   else parts.push(`${name}: ${A} or ${B}; the second form comes ${oddsWord(l.pBIdeal)}.`);
   if (l.locked === 'pending') parts.push('Its Lock-in is decided when you attune.');
   if (l.tuned && l.locked === null) parts.push(`Tuned towards ${ELEMENTS[l.hueA]!.name}.`);
-  if (l.fires.length) parts.push(`Also fires ${l.fires.map((t) => (b.abilities[t] ? ABILITIES[b.abilities[t]!].name : 'an empty orb')).join(' and ')}.`);
+  if (l.fires.length)
+    parts.push(
+      `Also fires ${l.fires.map((t) => (b.abilities[t] ? ABILITIES[b.abilities[t]!].name : 'an empty orb')).join(' and ')}.`,
+    );
   if (!l.active && !l.firedBy.length) parts.push('This is a support orb: Link an active orb to it to make it fire.');
   if (l.stability < 0.75) parts.push('Very unstable: add Error Correction runes or use fewer gates.');
   else if (l.stability < 0.9) parts.push('A little unstable.');
@@ -473,7 +653,10 @@ export function rewardsForLevel(level: number): { gates: GateId[]; runes: number
 /** The largest amplitudes as ket notation, e.g. "0.707|00⟩ + 0.707|11⟩". Bit strings read line n-1 … line 0. */
 export function ketString(s: QState, max = 6): string {
   const items: Array<{ i: number; p: number }> = [];
-  for (let i = 0; i < s.size; i++) { const p = s.re[i]! ** 2 + s.im[i]! ** 2; if (p > 1e-6) items.push({ i, p }); }
+  for (let i = 0; i < s.size; i++) {
+    const p = s.re[i]! ** 2 + s.im[i]! ** 2;
+    if (p > 1e-6) items.push({ i, p });
+  }
   items.sort((a, c) => c.p - a.p);
   const shown = items.slice(0, max).sort((a, c) => a.i - c.i);
   const body = shown.map(({ i }) => `${fmtAmp(s.re[i]!, s.im[i]!)}|${i.toString(2).padStart(s.n, '0')}⟩`).join(' + ');

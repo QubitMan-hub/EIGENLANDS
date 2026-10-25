@@ -9,7 +9,8 @@ export function seaCache(seed: number, gx: number, gy: number): WorldObj | null 
   const x = gx * 96 + 24 + Math.floor(hash2(seed, gx, gy, 1701) * 48);
   const y = gy * 96 + 24 + Math.floor(hash2(seed, gx, gy, 1702) * 48);
   if (Math.hypot(x, y) < 230 || y >= 39000) return null;
-  for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (tileAt(seed, x + i, y + j) !== T.DEEP_WATER) return null;
+  for (let j = -1; j <= 1; j++)
+    for (let i = -1; i <= 1; i++) if (tileAt(seed, x + i, y + j) !== T.DEEP_WATER) return null;
   return { x, y, kind: 'deco', sub: 'sea_cache', static: true, data: { ruin: `sea${gx}_${gy}`, ocean: true } };
 }
 export function oceanObjectsIn(seed: number, cx: number, cy: number): WorldObj[] {

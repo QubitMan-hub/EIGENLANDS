@@ -6,6 +6,9 @@
     "packages/*"
   ],
   "scripts": {
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "dev:server": "npm run dev -w @eigenlands/server",
@@ -16,5 +19,11 @@
     "build:pages": "VITE_SOLO=1 npm run build -w @eigenlands/client",
     "preview:pages": "npm run build:pages && cd packages/client && vite preview --base ${VITE_BASE:-/} --port 5240",
     "e2e:solo": "node e2e/solo.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@typescript-eslint/parser": "^8.72.0",
+    "eslint": "^10.13.0",
+    "prettier": "^3.9.10"
   }
 }

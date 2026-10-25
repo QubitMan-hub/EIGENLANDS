@@ -2,16 +2,16 @@
 
 Open **Field crafting** (default **C**) and craft building pieces from wood, stone and fiber. No recipe discovery or town station is required. Clear trees and rocks on wilderness land, select a piece in the quick-bar, aim at a nearby tile and **Use** (default **Space**, or the touch Use button). Your personalized bindings also work.
 
-| Piece | Cost | Purpose |
-|---|---|---|
-| Timber Floor | 2 wood | Foundation or upper floorboards |
-| Flagstone Floor | 3 stone | Stone foundation or upper floor |
-| Timber Wall | 3 wood + 1 fiber | Framed plaster wall |
-| Stone Wall | 5 stone | Solid masonry wall |
-| Timber Door | 4 wood | Owner-operated, collision-aware entrance |
-| Slate Roof | 2 stone + 1 wood | Connected pitched roof panels |
-| Thatched Roof | 3 fiber + 1 wood | Warm straw roof panels |
-| Timber Stairs | 10 wood + 2 stone | Paired stairs, including an upper landing |
+| Piece           | Cost              | Purpose                                   |
+| --------------- | ----------------- | ----------------------------------------- |
+| Timber Floor    | 2 wood            | Foundation or upper floorboards           |
+| Flagstone Floor | 3 stone           | Stone foundation or upper floor           |
+| Timber Wall     | 3 wood + 1 fiber  | Framed plaster wall                       |
+| Stone Wall      | 5 stone           | Solid masonry wall                        |
+| Timber Door     | 4 wood            | Owner-operated, collision-aware entrance  |
+| Slate Roof      | 2 stone + 1 wood  | Connected pitched roof panels             |
+| Thatched Roof   | 3 fiber + 1 wood  | Warm straw roof panels                    |
+| Timber Stairs   | 10 wood + 2 stone | Paired stairs, including an upper landing |
 
 Lay floors first. Arrange an arbitrary floor plan, then add walls, doors and roofs. Walls and roofs can share a foundation; furniture, chests and crafting stations use a separate layer. The **Rotate** button appears only while a wall, door, roof or stair piece is selected. It has a 44px minimum touch target. A translucent preview shows the aimed piece; the server checks placement and ownership before consuming it.
 

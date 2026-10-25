@@ -3,20 +3,40 @@
  * `PlayerRef` is the only way systems touch a connected player; `VillageSystem` is what the room calls for NPCs.
  */
 import type {
-  ChunkStore, DeedKind, DialogueChatMsg, DialogueMsg, EquipState, Inventory, NpcState, QuestLog, QuestMsg, ShopMsg, ShopViewMsg, SkillXp, Stack, Weather, WorldState,
+  ChunkStore,
+  DeedKind,
+  DialogueChatMsg,
+  DialogueMsg,
+  EquipState,
+  Inventory,
+  NpcState,
+  QuestLog,
+  QuestMsg,
+  ShopMsg,
+  ShopViewMsg,
+  SkillXp,
+  Stack,
+  Weather,
+  WorldState,
 } from '@eigenlands/shared';
 
 export interface FriendRec {
-  pts: number; talked: number; gifted: number;
+  pts: number;
+  talked: number;
+  gifted: number;
   /** last item id gifted to this NPC (NPC memory) */
   lastGift?: string;
   /** deeds this NPC already commented on ("kind:day") */
   noted?: string[];
 }
-export interface Buff { until: number; power: number }
+export interface Buff {
+  until: number;
+  power: number;
+}
 
 /** Persisted, private per-character data (characters.data JSONB). */
 export interface PlayerData {
+  worldGeneration?: number;
   needs: import('@eigenlands/shared').TravelNeeds;
   inv: Inventory;
   coins: number;
@@ -35,7 +55,8 @@ export interface PlayerData {
   prog: { hearts: number; bosses: string[]; shrines: string[]; ruins: string[] };
 }
 
-export type DirtyPart = 'inv' | 'coins' | 'skills' | 'recipes' | 'equip' | 'friends' | 'buffs' | 'stats' | 'quests' | 'needs';
+export type DirtyPart =
+  'inv' | 'coins' | 'skills' | 'recipes' | 'equip' | 'friends' | 'buffs' | 'stats' | 'quests' | 'needs';
 
 export interface PlayerRef {
   /** colyseus session id */

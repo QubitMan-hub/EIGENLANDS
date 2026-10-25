@@ -16,10 +16,23 @@ it('hit feedback pauses effects without freezing unrelated remote movement', () 
 it('starts strike poses on the predicted input, recovers, and offers a reduced-motion pose', () => {
   vi.spyOn(performance, 'now').mockReturnValue(1000);
   const deps = {
-    fx: () => ({ burst: () => {}, dash: () => {} }), weapon: () => ({ ranged: true, hue: -1 }), sound: () => {},
+    fx: () => ({ burst: () => {}, dash: () => {} }),
+    weapon: () => ({ ranged: true, hue: -1 }),
+    sound: () => {},
   } as unknown as CombatDeps;
-  const view = new CombatView(deps, {} as Graphics), actor = {} as CombatActor;
-  const ev: StepEvents = { attacked: true, dashed: false, heavy: false, combo: 0, skill: false, counter: false, level: 0, chargeFull: false, chargeReady: false };
+  const view = new CombatView(deps, {} as Graphics),
+    actor = {} as CombatActor;
+  const ev: StepEvents = {
+    attacked: true,
+    dashed: false,
+    heavy: false,
+    combo: 0,
+    skill: false,
+    counter: false,
+    level: 0,
+    chargeFull: false,
+    chargeReady: false,
+  };
   view.onLocalStep(ev, newPlayerSim(0, 0), actor);
   expect(view.attackFrame(actor, 1000, false)).toBe(0);
   expect(view.attackFrame(actor, 1060, false)).toBe(1);
@@ -33,20 +46,45 @@ it('starts strike poses on the predicted input, recovers, and offers a reduced-m
 it('matches two late confirmations to two predicted hits without repeating their impact effects', () => {
   vi.spyOn(performance, 'now').mockReturnValue(1000);
   const impact = vi.fn();
-  const enemy = { id: 'enemy', type: 'enemy', root: { visible: true }, kind: 0, lx: 0.6, ly: 0, flash: 0, punch: 0 } as CombatActor;
+  const enemy = {
+    id: 'enemy',
+    type: 'enemy',
+    root: { visible: true },
+    kind: 0,
+    lx: 0.6,
+    ly: 0,
+    flash: 0,
+    punch: 0,
+  } as CombatActor;
   const deps = {
     fx: () => ({ swing: () => {}, impact, kick: () => {}, damage: () => {} }),
-    weapon: () => ({ ranged: false, hue: -1 }), sound: () => {}, reduced: () => false,
-    views: () => [enemy], myId: () => 'self',
+    weapon: () => ({ ranged: false, hue: -1 }),
+    sound: () => {},
+    reduced: () => false,
+    views: () => [enemy],
+    myId: () => 'self',
   } as unknown as CombatDeps;
-  const view = new CombatView(deps, {} as Graphics), sim = newPlayerSim(0, 0);
-  sim.faceX = 1; sim.faceY = 0;
-  const ev: StepEvents = { attacked: true, dashed: false, heavy: false, combo: 0, skill: false, counter: false, level: 0, chargeFull: false, chargeReady: false };
+  const view = new CombatView(deps, {} as Graphics),
+    sim = newPlayerSim(0, 0);
+  sim.faceX = 1;
+  sim.faceY = 0;
+  const ev: StepEvents = {
+    attacked: true,
+    dashed: false,
+    heavy: false,
+    combo: 0,
+    skill: false,
+    counter: false,
+    level: 0,
+    chargeFull: false,
+    chargeReady: false,
+  };
   view.onLocalStep(ev, sim, {} as CombatActor);
   view.onLocalStep(ev, sim, {} as CombatActor);
   expect(impact).toHaveBeenCalledTimes(2);
   const hit = { kind: 'hit' as const, x: 0.6, y: 0, id: 'enemy', by: 'self', v: 8, w: 0 };
-  view.onFx(hit, () => enemy); view.onFx(hit, () => enemy);
+  view.onFx(hit, () => enemy);
+  view.onFx(hit, () => enemy);
   expect(impact).toHaveBeenCalledTimes(2);
 });
 

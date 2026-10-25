@@ -6,11 +6,21 @@ import { boot, hasToast, spawn, tp, until, type Probe } from './p2';
 const SEED = 20260101;
 let app: App;
 let p: Probe;
-beforeAll(async () => { app = await boot(); p = await spawn(app, 'Spelunker'); });
-afterAll(async () => { await app?.close(); });
+beforeAll(async () => {
+  app = await boot();
+  p = await spawn(app, 'Spelunker');
+});
+afterAll(async () => {
+  await app?.close();
+});
 
 function firstMouth(): CaveMouth {
-  for (let r = 1; r < 5; r++) for (let gy = -r; gy <= r; gy++) for (let gx = -r; gx <= r; gx++) { const m = caveOfCell(SEED, gx, gy); if (m) return m; }
+  for (let r = 1; r < 5; r++)
+    for (let gy = -r; gy <= r; gy++)
+      for (let gx = -r; gx <= r; gx++) {
+        const m = caveOfCell(SEED, gx, gy);
+        if (m) return m;
+      }
   throw new Error('no cave found');
 }
 

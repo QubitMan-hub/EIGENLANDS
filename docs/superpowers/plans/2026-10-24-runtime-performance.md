@@ -9,6 +9,6 @@ Evidence before edits: controlled production-solo touch/DPR2 storm trace in /tmp
 - [x] Add saved Auto/Economy/High visual settings and gentle/off/full weather. Auto starts lighter on touch/limited devices; pixel scale, lightweight terrain materials and lower canvas fill cost preserve legibility. Keep actors, inputs and telegraphs responsive independently of ambient detail.
 - [x] Inspect and correct actual input/dash/combat timing or queue problems found in traces; don't change combat balance to conceal rendering stalls.
 - [x] Repeat the same benchmark, actual solo/multiplayer movement/combat/chunk loops, construction reloads and batched desktop/mobile visual checks. Unit tests, full suite/typechecks/both builds; exact limits and remaining physical-device testing documented.
-Integration gate after local verification: inline review, accurate remaining-work notes, PR attach attempt, both final-head CI runs then merge under persistent authorization. GitHub records the final outcome.
+      Integration gate after local verification: inline review, accurate remaining-work notes, PR attach attempt, both final-head CI runs then merge under persistent authorization. GitHub records the final outcome.
 
 Measured cold stalls justified the two single-flight workers described in the report; both reuse existing art/world generators, retain synchronous fallback and have bounded failure timeouts. No dependencies added.

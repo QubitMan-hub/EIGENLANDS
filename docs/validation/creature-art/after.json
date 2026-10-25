@@ -1,0 +1,57 @@
+{
+  "pixels": 1035966,
+  "outsidePalette": 0,
+  "partialAlpha": 0,
+  "frames": 5112,
+  "layouts": {
+    "boar": {
+      "width": 35,
+      "height": 22,
+      "anchor": {
+        "x": 0.5142857142857142,
+        "y": 0.9090909090909091
+      }
+    },
+    "stag": {
+      "width": 31,
+      "height": 40,
+      "anchor": {
+        "x": 0.5161290322580645,
+        "y": 0.9
+      }
+    },
+    "badger": {
+      "width": 42,
+      "height": 32,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.875
+      }
+    },
+    "wolf": {
+      "width": 64,
+      "height": 64,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.734375
+      }
+    }
+  },
+  "portraits": [
+    {
+      "width": 35,
+      "height": 22,
+      "normalized": true
+    },
+    {
+      "width": 42,
+      "height": 32,
+      "normalized": true
+    },
+    {
+      "width": 31,
+      "height": 40,
+      "normalized": true
+    }
+  ]
+}

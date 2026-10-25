@@ -38,7 +38,11 @@ export class TradeWindow {
   private unsub: () => void;
   private tick: number;
 
-  constructor(private profile: Profile, private tip: Tooltip, private acts: TradeActs) {
+  constructor(
+    private profile: Profile,
+    private tip: Tooltip,
+    private acts: TradeActs,
+  ) {
     this.coins.min = '0';
     this.coins.step = '1';
     this.coins.setAttribute('aria-label', 'Coins to offer');
@@ -47,7 +51,9 @@ export class TradeWindow {
       this.offerCoins = v;
       this.queueSend();
     });
-    this.coins.addEventListener('change', () => { this.coins.value = String(this.offerCoins); });
+    this.coins.addEventListener('change', () => {
+      this.coins.value = String(this.offerCoins);
+    });
     this.confirmBtn.addEventListener('click', () => this.acts.confirm());
     this.mineGrid.addEventListener('dragover', (e) => e.preventDefault());
     this.mineGrid.addEventListener('drop', (e) => {
@@ -55,20 +61,49 @@ export class TradeWindow {
       const f = Number(e.dataTransfer?.getData('text/plain'));
       if (Number.isInteger(f)) this.add(f, false);
     });
-    this.el = h('div', { class: 'trade' },
+    this.el = h(
+      'div',
+      { class: 'trade' },
       this.status,
-      h('div', { class: 'trade-cols' },
-        h('section', { class: 'trade-pack' }, h('h4', { text: 'Your pack' }), this.pack,
-          h('div', { class: 'small dim', text: 'Click or drag an item into your offer. Shift-click or right-click adds one at a time.' })),
-        h('section', { class: 'trade-side mine' }, h('h4', { text: 'Your offer' }), this.mineGrid,
-          h('label', { class: 'coin-row' }, 'Coins', this.coins), this.myConf),
-        h('section', { class: 'trade-side theirs' }, this.theirTitle, this.theirsGrid, this.theirCoins, this.theirConf)),
-      h('div', { class: 'trade-btns' }, this.confirmBtn, h('button', { class: 'danger', text: 'Cancel trade', on: { click: () => this.acts.cancel() } })));
+      h(
+        'div',
+        { class: 'trade-cols' },
+        h(
+          'section',
+          { class: 'trade-pack' },
+          h('h4', { text: 'Your pack' }),
+          this.pack,
+          h('div', {
+            class: 'small dim',
+            text: 'Click or drag an item into your offer. Shift-click or right-click adds one at a time.',
+          }),
+        ),
+        h(
+          'section',
+          { class: 'trade-side mine' },
+          h('h4', { text: 'Your offer' }),
+          this.mineGrid,
+          h('label', { class: 'coin-row' }, 'Coins', this.coins),
+          this.myConf,
+        ),
+        h('section', { class: 'trade-side theirs' }, this.theirTitle, this.theirsGrid, this.theirCoins, this.theirConf),
+      ),
+      h(
+        'div',
+        { class: 'trade-btns' },
+        this.confirmBtn,
+        h('button', { class: 'danger', text: 'Cancel trade', on: { click: () => this.acts.cancel() } }),
+      ),
+    );
     this.unsub = profile.onChange(() => this.render());
     this.tick = window.setInterval(() => this.renderStatus(), 250);
   }
 
-  destroy(): void { this.unsub(); clearInterval(this.tick); if (this.sendT) clearTimeout(this.sendT); }
+  destroy(): void {
+    this.unsub();
+    clearInterval(this.tick);
+    if (this.sendT) clearTimeout(this.sendT);
+  }
 
   private remaining(slot: number): number {
     const s = this.profile.inv[slot];
@@ -79,7 +114,10 @@ export class TradeWindow {
     const s = this.profile.inv[slot];
     if (!s || !this.st) return;
     const cur = this.offer.get(slot) ?? 0;
-    if (!cur && this.offer.size >= TRADE_MAX_ITEMS) { this.flash(`You can offer up to ${TRADE_MAX_ITEMS} stacks.`); return; }
+    if (!cur && this.offer.size >= TRADE_MAX_ITEMS) {
+      this.flash(`You can offer up to ${TRADE_MAX_ITEMS} stacks.`);
+      return;
+    }
     const n = one ? Math.min(s.n, cur + 1) : s.n;
     if (n === cur) return;
     this.offer.set(slot, n);
@@ -89,7 +127,8 @@ export class TradeWindow {
   private take(slot: number, one: boolean): void {
     const cur = this.offer.get(slot) ?? 0;
     if (!cur) return;
-    if (one && cur > 1) this.offer.set(slot, cur - 1); else this.offer.delete(slot);
+    if (one && cur > 1) this.offer.set(slot, cur - 1);
+    else this.offer.delete(slot);
     this.queueSend();
   }
 
@@ -99,13 +138,20 @@ export class TradeWindow {
     if (this.sendT) clearTimeout(this.sendT);
     this.sendT = window.setTimeout(() => {
       this.sendT = null;
-      this.acts.offer([...this.offer].map(([slot, n]) => ({ slot, n })), this.offerCoins);
+      this.acts.offer(
+        [...this.offer].map(([slot, n]) => ({ slot, n })),
+        this.offerCoins,
+      );
       this.dirty = false;
     }, 120);
   }
 
   private flashAt = -1e9;
-  private flash(text: string): void { this.flashAt = performance.now(); this.status.textContent = text; this.status.className = 'trade-status warn'; }
+  private flash(text: string): void {
+    this.flashAt = performance.now();
+    this.status.textContent = text;
+    this.status.className = 'trade-status warn';
+  }
 
   /** A TRADE_STATE for the open trade. */
   set(st: TradeStateMsg): void {
@@ -125,8 +171,10 @@ export class TradeWindow {
   private renderOffer(grid: HTMLElement, o: TradeOffer | undefined, mine: boolean): void {
     clear(grid);
     const items: Array<{ slot: number; stack: Stack }> = mine
-      ? [...this.offer].map(([slot, n]) => ({ slot, stack: { ...(this.profile.inv[slot] ?? { id: 'stone' }), n } as Stack })).filter((x) => this.profile.inv[x.slot])
-      : o?.items ?? [];
+      ? [...this.offer]
+          .map(([slot, n]) => ({ slot, stack: { ...(this.profile.inv[slot] ?? { id: 'stone' }), n } as Stack }))
+          .filter((x) => this.profile.inv[x.slot])
+      : (o?.items ?? []);
     for (let i = 0; i < TRADE_MAX_ITEMS; i++) {
       const it = items[i];
       const slot = h('div', { class: `slot${it ? ' full' : ''}` });
@@ -136,12 +184,38 @@ export class TradeWindow {
         if (mine) {
           slot.title = 'Click to take back (shift/right-click: one)';
           slot.addEventListener('click', (e) => this.take(it.slot, e.shiftKey));
-          slot.addEventListener('contextmenu', (e) => { e.preventDefault(); this.take(it.slot, true); });
+          slot.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            this.take(it.slot, true);
+          });
           const max = this.profile.inv[it.slot]?.n ?? 1;
           if (max > 1) {
-            slot.append(h('div', { class: 'pm-step' },
-              h('button', { text: '−', title: 'One less', on: { click: (e) => { e.stopPropagation(); this.take(it.slot, true); } } }),
-              h('button', { text: '+', title: 'One more', on: { click: (e) => { e.stopPropagation(); this.add(it.slot, true); } } })));
+            slot.append(
+              h(
+                'div',
+                { class: 'pm-step' },
+                h('button', {
+                  text: '−',
+                  title: 'One less',
+                  on: {
+                    click: (e) => {
+                      e.stopPropagation();
+                      this.take(it.slot, true);
+                    },
+                  },
+                }),
+                h('button', {
+                  text: '+',
+                  title: 'One more',
+                  on: {
+                    click: (e) => {
+                      e.stopPropagation();
+                      this.add(it.slot, true);
+                    },
+                  },
+                }),
+              ),
+            );
           }
         }
       }
@@ -160,11 +234,17 @@ export class TradeWindow {
       if (s && left > 0) {
         const cell = iconCell({ ...s, n: left });
         cell.draggable = true;
-        cell.addEventListener('dragstart', (e) => { e.dataTransfer?.setData('text/plain', String(i)); this.tip.hide(); });
+        cell.addEventListener('dragstart', (e) => {
+          e.dataTransfer?.setData('text/plain', String(i));
+          this.tip.hide();
+        });
         slot.append(cell);
         this.tip.attach(slot, () => tooltipFor(s));
         slot.addEventListener('click', (e) => this.add(i, e.shiftKey));
-        slot.addEventListener('contextmenu', (e) => { e.preventDefault(); this.add(i, true); });
+        slot.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          this.add(i, true);
+        });
       } else if (s) slot.append(iconCell(s));
       this.pack.append(slot);
     }

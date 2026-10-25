@@ -7,13 +7,25 @@ import type { GameRoom } from '../src/rooms/GameRoom';
 import { guest, httpUrl, resetDb, sleep, startApp, until, wsUrl } from './helpers';
 
 let app: App;
-beforeAll(async () => { await resetDb(); app = await startApp(); });
-afterAll(async () => { await app?.close(); });
+beforeAll(async () => {
+  await resetDb();
+  app = await startApp();
+});
+afterAll(async () => {
+  await app?.close();
+});
 
 const B0 = regionBounds({ rx: 0, ry: 0 });
 const serverRoom = (r: Room) => matchMaker.getLocalRoomById(r.roomId) as unknown as GameRoom;
 
-interface Conn { r: Room<any>; handoffs: HandoffMsg[]; ghosts: GhostsMsg[]; tiles: any[]; notices: string[]; left: number[] }
+interface Conn {
+  r: Room<any>;
+  handoffs: HandoffMsg[];
+  ghosts: GhostsMsg[];
+  tiles: any[];
+  notices: string[];
+  left: number[];
+}
 async function connect(token: string, opts: Record<string, unknown>, roomId?: string): Promise<Conn> {
   const c = new Client(wsUrl(app));
   const r = roomId ? await c.joinById(roomId, { token, ...opts }) : await c.joinOrCreate('world', { token, ...opts });
@@ -32,7 +44,8 @@ async function into10(token: string, name: string, x: number): Promise<Conn> {
   const a = await connect(token, { name, shard: '0,0' });
   await until(() => serverRoom(a.r).players.has(a.r.sessionId));
   const sp = serverRoom(a.r).players.get(a.r.sessionId)!;
-  sp.sim.x = x; sp.sim.y = -4.5; // a dry row across the east border
+  sp.sim.x = x;
+  sp.sim.y = -4.5; // a dry row across the east border
   await until(() => a.handoffs.length > 0, 4000);
   const h = a.handoffs[0]!;
   expect(h.shard).toBe('1,0');
@@ -51,7 +64,8 @@ describe('shards', () => {
     expect(ra.shard).toBe('0,0');
     const sp = ra.players.get(a.r.sessionId)!;
     // inside the margin: no handoff yet (hysteresis)
-    sp.sim.x = B0.x1 + 1; sp.sim.y = -4.5; // a dry row across the east border
+    sp.sim.x = B0.x1 + 1;
+    sp.sim.y = -4.5; // a dry row across the east border
     await sleep(300);
     expect(a.handoffs).toHaveLength(0);
     sp.sim.x = B0.x1 + 3;
@@ -83,7 +97,8 @@ describe('shards', () => {
   });
 
   it('players near a border see each other as ghosts across it', async () => {
-    const ga = await guest(app), gb = await guest(app);
+    const ga = await guest(app),
+      gb = await guest(app);
     const b = await into10(gb.token, 'East', B0.x1 + 4);
     const a = await connect(ga.token, { name: 'West', shard: '0,0' });
     const ra = serverRoom(a.r);
@@ -93,25 +108,33 @@ describe('shards', () => {
     await until(() => a.ghosts.some((m) => m.list.some((gh) => gh.name === 'East')), 4000);
     // walking away from the border makes the ghost disappear
     ra.players.get(a.r.sessionId)!.sim.x = 0.5;
-    await until(() => { const last = b.ghosts[b.ghosts.length - 1]; return !!last && !last.list.some((gh) => gh.name === 'West'); }, 4000);
-    await a.r.leave(); await b.r.leave();
+    await until(() => {
+      const last = b.ghosts[b.ghosts.length - 1];
+      return !!last && !last.list.some((gh) => gh.name === 'West');
+    }, 4000);
+    await a.r.leave();
+    await b.r.leave();
   });
 
   it('tile edits near a border are relayed to the neighbouring shard; foreign tiles cannot be edited', async () => {
-    const ga = await guest(app), gb = await guest(app);
+    const ga = await guest(app),
+      gb = await guest(app);
     const b = await into10(gb.token, 'Mason', B0.x1 + 4);
     const a = await connect(ga.token, { name: 'Watcher', shard: '0,0' });
-    const ra = serverRoom(a.r), rb = serverRoom(b.r);
+    const ra = serverRoom(a.r),
+      rb = serverRoom(b.r);
     await until(() => ra.players.has(a.r.sessionId));
     ra.players.get(a.r.sessionId)!.sim.x = B0.x1 - 6;
-    const tx = B0.x1 + 2, ty = 0;
+    const tx = B0.x1 + 2,
+      ty = 0;
     rb.setTile(tx, ty, T.FENCE);
     await until(() => ra.store.getTile(tx, ty) === T.FENCE, 3000);
     await until(() => a.tiles.some((t) => t.tx === tx && t.ty === ty && t.tile === T.FENCE), 3000);
     // shard 0,0 refuses world edits aimed at shard 1,0's tiles
     expect(ra.owns(tx, ty)).toBe(false);
     expect(ra.owns(B0.x1 - 1, 0)).toBe(true);
-    await a.r.leave(); await b.r.leave();
+    await a.r.leave();
+    await b.r.leave();
   });
 
   it('one live session per account across shards', async () => {
@@ -136,39 +159,74 @@ describe('shards', () => {
     await until(() => k.handoffs.length > 0, 4000);
     expect(k.handoffs[0]).toMatchObject({ shard: '0,0', roomId: owner.roomId });
     // following the redirect lands in the owner
-    const j = await connect((await guest(app)).token, { name: 'Late2', shard: '0,0', ticket: k.handoffs[0]!.ticket }, owner.roomId);
+    const j = await connect(
+      (await guest(app)).token,
+      { name: 'Late2', shard: '0,0', ticket: k.handoffs[0]!.ticket },
+      owner.roomId,
+    );
     await until(() => owner.players.has(j.r.sessionId));
     await Promise.all([a.r.leave(), j.r.leave(), k.r.leave().catch(() => {})]);
   });
 });
 
-describe('player-built floors in real sharded rooms',()=>{
- it('keeps stairs, their landings and edits under one authority through both transitions',async()=>{
-  const g=await guest(app),a=await connect(g.token,{name:'Builder',shard:'0,0'}),room=serverRoom(a.r);
-  await until(()=>room.players.has(a.r.sessionId));const p=room.players.get(a.r.sessionId)!;
-  p.sim.x=100.5;p.sim.y=100.5;room.setTile(100,100,T.GRASS);
-  p.data.inv[0]={id:'timber_floor',n:1};p.toolReadyAt=0;a.r.send(MSG.USE,{slot:0,tx:100,ty:100});
-  await until(()=>!!room.store.structureAt(100,100));
-  p.data.inv[0]={id:'timber_stairs',n:1};p.toolReadyAt=0;a.r.send(MSG.USE,{slot:0,tx:100,ty:100});
-  await until(()=>room.store.structureAt(100,-79900)?.data.stairs==='down');
-  a.r.send(MSG.OPEN,{tx:100,ty:100});await until(()=>p.sim.y===-79899.5);await sleep(300);
-  expect(room.owns(100,-79900)).toBe(true);expect(a.handoffs).toHaveLength(0);
-  a.r.send(MSG.OPEN,{tx:100,ty:-79900});await until(()=>p.sim.y===100.5);
-  expect(a.handoffs).toHaveLength(0);await a.r.leave();
- });
+describe('player-built floors in real sharded rooms', () => {
+  it('keeps stairs, their landings and edits under one authority through both transitions', async () => {
+    const g = await guest(app),
+      a = await connect(g.token, { name: 'Builder', shard: '0,0' }),
+      room = serverRoom(a.r);
+    await until(() => room.players.has(a.r.sessionId));
+    const p = room.players.get(a.r.sessionId)!;
+    p.sim.x = 100.5;
+    p.sim.y = 100.5;
+    room.setTile(100, 100, T.GRASS);
+    p.data.inv[0] = { id: 'timber_floor', n: 1 };
+    p.toolReadyAt = 0;
+    a.r.send(MSG.USE, { slot: 0, tx: 100, ty: 100 });
+    await until(() => !!room.store.structureAt(100, 100));
+    p.data.inv[0] = { id: 'timber_stairs', n: 1 };
+    p.toolReadyAt = 0;
+    a.r.send(MSG.USE, { slot: 0, tx: 100, ty: 100 });
+    await until(() => room.store.structureAt(100, -79900)?.data.stairs === 'down');
+    a.r.send(MSG.OPEN, { tx: 100, ty: 100 });
+    await until(() => p.sim.y === -79899.5);
+    await sleep(300);
+    expect(room.owns(100, -79900)).toBe(true);
+    expect(a.handoffs).toHaveLength(0);
+    a.r.send(MSG.OPEN, { tx: 100, ty: -79900 });
+    await until(() => p.sim.y === 100.5);
+    expect(a.handoffs).toHaveLength(0);
+    await a.r.leave();
+  });
 });
 
-it('relays built collision, furniture and independent deletions across real region borders',async()=>{
- const ga=await guest(app),gb=await guest(app),right=await into10(gb.token,'East builder',B0.x1+4),left=await connect(ga.token,{name:'West visitor',shard:'0,0'});
- const ra=serverRoom(left.r),rb=serverRoom(right.r),x=B0.x1+1,y=0;
- await until(()=>ra.players.has(left.r.sessionId));ra.players.get(left.r.sessionId)!.sim.x=B0.x1-1.5;
- rb.setTile(x,y,T.GRASS);await ra.ensureChunk(Math.floor(x/32),0);
- const floor={x,y,kind:'structure' as const,sub:'cell',owner:gb.accountId,data:{floor:'timber_floor'}};
- rb.objects.put(floor);await until(()=>!!ra.store.structureAt(x,y));
- rb.objects.put({...floor,data:{...floor.data,wall:'stone_wall'}});await until(()=>ra.store.solidAt(x,y));
- rb.objects.put({x,y,kind:'furniture',sub:'rug',owner:gb.accountId});await until(()=>!!ra.store.objectAt(x,y));
- rb.objects.remove(x,y,true);await until(()=>!ra.store.structureAt(x,y));expect(ra.store.objectAt(x,y)?.sub).toBe('rug');expect(ra.store.solidAt(x,y)).toBe(false);
- // Refreshing the foreign snapshot must not resurrect an earlier wall or erase a live rug.
- await ra.ensureChunk(Math.floor(x/32),0);expect(ra.store.structureAt(x,y)).toBeUndefined();expect(ra.store.objectAt(x,y)?.sub).toBe('rug');
- await left.r.leave();await right.r.leave();
+it('relays built collision, furniture and independent deletions across real region borders', async () => {
+  const ga = await guest(app),
+    gb = await guest(app),
+    right = await into10(gb.token, 'East builder', B0.x1 + 4),
+    left = await connect(ga.token, { name: 'West visitor', shard: '0,0' });
+  const ra = serverRoom(left.r),
+    rb = serverRoom(right.r),
+    x = B0.x1 + 1,
+    y = 0;
+  await until(() => ra.players.has(left.r.sessionId));
+  ra.players.get(left.r.sessionId)!.sim.x = B0.x1 - 1.5;
+  rb.setTile(x, y, T.GRASS);
+  await ra.ensureChunk(Math.floor(x / 32), 0);
+  const floor = { x, y, kind: 'structure' as const, sub: 'cell', owner: gb.accountId, data: { floor: 'timber_floor' } };
+  rb.objects.put(floor);
+  await until(() => !!ra.store.structureAt(x, y));
+  rb.objects.put({ ...floor, data: { ...floor.data, wall: 'stone_wall' } });
+  await until(() => ra.store.solidAt(x, y));
+  rb.objects.put({ x, y, kind: 'furniture', sub: 'rug', owner: gb.accountId });
+  await until(() => !!ra.store.objectAt(x, y));
+  rb.objects.remove(x, y, true);
+  await until(() => !ra.store.structureAt(x, y));
+  expect(ra.store.objectAt(x, y)?.sub).toBe('rug');
+  expect(ra.store.solidAt(x, y)).toBe(false);
+  // Refreshing the foreign snapshot must not resurrect an earlier wall or erase a live rug.
+  await ra.ensureChunk(Math.floor(x / 32), 0);
+  expect(ra.store.structureAt(x, y)).toBeUndefined();
+  expect(ra.store.objectAt(x, y)?.sub).toBe('rug');
+  await left.r.leave();
+  await right.r.leave();
 });

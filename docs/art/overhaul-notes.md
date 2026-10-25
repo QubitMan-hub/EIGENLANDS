@@ -76,7 +76,6 @@ Screenshots from this continuation: `/tmp/eigenlands-combat/actions.png`, `/tmp/
 
 The extra real two-client test passed authoritative strike presentation on the observer, with both simulated clients kept active during testing. The initial attempt missed the short pose while switching browser tabs; explicitly focusing the sender for input and observer for rendering, with background throttling disabled in the harness, retained the same pose assertion and passed. A fresh architecture run also passed day/night panes, light registration, clipping and cutaways for both ridge directions and every material style.
 
-
 ## Equipment, wilderness and quantum continuation
 
 All seven existing weapons now have held sprites in eight directions: a steel blade, a swept-limb crossbow and five elemental staves. Shared near-hand anchors keep equipment attached through idle, walking, running and striking. Player sheets now include four crossbow aim/recoil poses and four casting/recovery poses (30 columns total); NPC sheets remain ten columns. The crossbow support hand meets the stock. The existing server simulation still decides damage, cooldowns and projectiles. An appended, empty-by-default schema field carries equipment appearance; ranged shot effects carry the shooter's ID, allowing observers to show the correct action. There is no database or save-format migration. Adjacent-shard ghost silhouettes retain their existing presentation.
@@ -93,11 +92,9 @@ Captures: `/tmp/eigenlands-equipment.png`, `/tmp/eigenlands-wilderness.png`, and
 
 At this stage, functional multi-floor buildings were still open (implemented in the latest continuation below), alongside a bespoke overhaul of every biome/room/enemy/boss, new interactive discovery systems, or physical-device profiling. Those remaining items require further implementation or hardware access; they are not represented by placeholder stairs or claims of completion.
 
-
 Continuation validation: 372 tests passed (45 client, 202 server, 125 shared); all workspace typechecks and both production builds passed. Equipment and wilderness galleries, architecture checks, two-client combat/equipment presentation with 150 ms simulated latency, mobile landscape/rotation, and solo movement/combat/save/reload/takeover/deletion checks passed. Solo reported no console problems. The server test suite still emits existing unregistered-message notices and NaN-poise warnings from training dummies configured with infinite poise; this run does not claim a warning-free suite.
 
 A final mobile regression reproduced Play requesting fullscreen after the player selected Continue in portrait. Play now respects that choice, while the explicit landscape button still requests landscape. The updated mobile check failed before the fix (one request instead of zero) and passed on the final solo build. Native physical-device orientation behaviour remains unverified.
-
 
 ## Ore, natural distribution and the Qubitman figure
 
@@ -111,9 +108,7 @@ Generation regressions cover tree spacing, connected same-mineral cave deposits,
 
 This continuation improves the requested resource art, natural distribution and statue; the larger remaining-scope items above are still open. No external artwork, dependencies, purchases or save reset were introduced.
 
-
 Final pre-merge checks: all 377 unit tests passed (45 client, 202 server, 130 shared), all workspace typechecks and both builds passed. Mobile landscape and full solo persistence passed without console problems. Two-client combat/equipment checks passed with 150 ms simulated latency. The short-pose check initially timed out because it observed only after input dispatch; the harness now records actual rendered frame IDs through the existing ticker before input and asserts the same strike/shooting poses. It does not change combat timing or bypass gameplay. Resource bounds checks passed after correcting the plinth's clipped bottom edge.
-
 
 ## Reference-led guardian and ecology continuation
 
@@ -146,7 +141,6 @@ Six held tools share the existing body grip and pose atlas. Hotbar selection is 
 Validation: all 391 tests passed (45 client, 211 server, 135 shared), all workspace typechecks passed, and multiplayer/solo builds passed. New server tests cover full-bag reward retry, authoritative rune-trail positions, escort requirements and expiry, boarding/disembarking at all four piers, held-tool validation and one-time salvage. The full-day movement simulation includes all 50 residents. Shared checks protect Hadamere's original spots, coastal ground, furnishings and hull-wide harbour channels. Existing synthetic combat-dummy and injected-failure diagnostics remain in the server suite.
 
 `node e2e/world-upgrade.mjs` checks 4,416 animation frames, texture reuse, 40 distinct resident sprites, completed-shrine props/shadows/lights and eight rendered scenes. Screenshots are in `/tmp/eigenlands-world-upgrade`. Solo movement/combat/inventory, save/reload, tab takeover, deletion and fresh start passed with no console problems. Mobile landscape/portrait fallback, control bounds and resized lighting passed. Multiplayer smoke movement/combat/settings/reload passed with no console problems; its first run was invalidated by a development hot reload and was rerun. Validation runs that combine software-rendered browsers with real-time server suites can exhaust CPU scheduling; the final full suite was run separately.
-
 
 ## Functional floors, submerged trials and UI continuation
 

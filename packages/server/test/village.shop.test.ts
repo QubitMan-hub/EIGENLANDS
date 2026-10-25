@@ -79,7 +79,9 @@ describe('shop buying', () => {
 describe('shop selling and the market', () => {
   it('only buys listed kinds, pays with the NPC bonus and slides the price as supply grows', async () => {
     const { village, p } = await setup();
-    p.give('melon', 20); p.give('sword', 1); p.give('wood', 3);
+    p.give('melon', 20);
+    p.give('sword', 1);
+    p.give('wood', 3);
     const view = village.shop(p, { npcId: 'tobin', action: 'open' })!;
     expect(view.sell[0]).toBe(sellPrice('melon', 0));
     expect(view.sell[1]).toBeUndefined(); // weapons are not bought here
@@ -133,7 +135,10 @@ describe('shop selling and the market', () => {
     expect(v2.supply('melon')).toBe(40);
     // 24 game hours later supply has mostly recovered
     let tick = 0;
-    for (let h = 0; h < 24; h++) { clock.advanceMs(60 * 60 * 1000 / 60); tick = run(v2, clock, 1, tick); }
+    for (let h = 0; h < 24; h++) {
+      clock.advanceMs((60 * 60 * 1000) / 60);
+      tick = run(v2, clock, 1, tick);
+    }
     expect(v2.supply('melon')).toBeLessThan(12);
     expect(ITEMS.melon).toBeTruthy();
   });

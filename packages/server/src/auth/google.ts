@@ -1,6 +1,9 @@
 import { OAuth2Client } from 'google-auth-library';
 
-export interface GoogleIdentity { sub: string; email: string | null }
+export interface GoogleIdentity {
+  sub: string;
+  email: string | null;
+}
 export type GoogleVerifier = (idToken: string) => Promise<GoogleIdentity>;
 
 /** Verifies a Google Sign-In ID token (OIDC) against Google's public keys and our client id. */

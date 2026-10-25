@@ -18,7 +18,9 @@ export class Presence {
     }
   }
 
-  get usingRedis(): boolean { return this.redis !== null; }
+  get usingRedis(): boolean {
+    return this.redis !== null;
+  }
 
   async set(accountId: string, sessionId: string): Promise<void> {
     this.mem.set(accountId, sessionId);
@@ -29,7 +31,8 @@ export class Presence {
   }
   async clear(accountId: string, sessionId: string): Promise<void> {
     if (this.mem.get(accountId) === sessionId) this.mem.delete(accountId);
-    if (this.redis && (await this.redis.get(`presence:${accountId}`)) === sessionId) await this.redis.del(`presence:${accountId}`);
+    if (this.redis && (await this.redis.get(`presence:${accountId}`)) === sessionId)
+      await this.redis.del(`presence:${accountId}`);
   }
   async onlineCount(): Promise<number> {
     if (!this.redis) return this.mem.size;

@@ -7,7 +7,9 @@ import { boot, count, dev, give, sleep, spawn, tp, until } from './p2';
 import { httpUrl } from './helpers';
 
 let app: App;
-afterAll(async () => { await app?.close(); });
+afterAll(async () => {
+  await app?.close();
+});
 
 describe('dev commands (enabled)', () => {
   it('tp, give, coins, level, friend, learn and time work', async () => {
@@ -41,7 +43,7 @@ describe('dev commands (enabled)', () => {
   });
 
   it('/metrics still works', async () => {
-    const m = await (await fetch(`${httpUrl(app)}/metrics`)).json() as any;
+    const m = (await (await fetch(`${httpUrl(app)}/metrics`)).json()) as any;
     expect(m.tickBudgetMs).toBe(50);
     expect(m.players).toBeGreaterThanOrEqual(1);
   });
@@ -60,7 +62,9 @@ describe('dev commands (disabled by default)', () => {
     expect(count(p, 'gold_ingot')).toBe(0);
     expect(p.sp.data.coins).toBe(100);
     expect(p.sp.sim.x).toBe(before);
-    expect(loadConfig({ DEV_COMMANDS: '1', NODE_ENV: 'production', SESSION_SECRET: 'x' } as any).devCommands).toBe(false);
+    expect(loadConfig({ DEV_COMMANDS: '1', NODE_ENV: 'production', SESSION_SECRET: 'x' } as any).devCommands).toBe(
+      false,
+    );
     expect(loadConfig({ DEV_COMMANDS: '1' } as any).devCommands).toBe(true);
     expect(loadConfig({} as any).devCommands).toBe(false);
   });

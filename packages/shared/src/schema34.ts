@@ -1,7 +1,17 @@
 import { Schema, type } from '@colyseus/schema';
 
 /** Spell kinds synced to clients (Phase 3 abilities). */
-export const SPELL = { BOLT: 0, RING: 1, ECHO: 2, TETHER: 3, SHIELD: 4, WARD: 5, MIRROR: 6, BLINK: 7, RESIDUE: 8 } as const;
+export const SPELL = {
+  BOLT: 0,
+  RING: 1,
+  ECHO: 2,
+  TETHER: 3,
+  SHIELD: 4,
+  WARD: 5,
+  MIRROR: 6,
+  BLINK: 7,
+  RESIDUE: 8,
+} as const;
 
 /** A visible ability effect: bolts, rings, Echoes, tethers, shields. Interest-managed like other entities. */
 export class SpellState extends Schema {

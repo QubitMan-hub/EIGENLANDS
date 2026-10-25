@@ -1,6 +1,16 @@
 import {
-  CHUNK_SIZE, GHOST_MARGIN, MSG, MSG34, handoffTarget, nearbyShards, regionBounds, shardY,
-  type Ghost, type GhostsMsg, type HandoffMsg, type ObjMsg,
+  CHUNK_SIZE,
+  GHOST_MARGIN,
+  MSG,
+  MSG34,
+  handoffTarget,
+  nearbyShards,
+  regionBounds,
+  shardY,
+  type Ghost,
+  type GhostsMsg,
+  type HandoffMsg,
+  type ObjMsg,
 } from '@eigenlands/shared';
 import type { GameRoom } from '../../rooms/GameRoom';
 import type { ServerPlayer } from '../../rooms/player';
@@ -48,16 +58,22 @@ export class ShardModule implements Module {
 
   join(p: ServerPlayer): void {
     this.accountSubs.get(p.accountId)?.();
-    this.accountSubs.set(p.accountId, runtime34().bus.subscribe(`player:${p.accountId}`, (m) => {
-      const msg = m as { t?: string; sid?: string; room?: string };
-      if (msg.t !== 'kick' || msg.room === this.room.roomId) return; // same-room duplicates are handled at join
-      const cur = this.room.playerByAccount(p.accountId);
-      if (cur && cur.id !== msg.sid) void this.kick(cur);
-    }));
+    this.accountSubs.set(
+      p.accountId,
+      runtime34().bus.subscribe(`player:${p.accountId}`, (m) => {
+        const msg = m as { t?: string; sid?: string; room?: string };
+        if (msg.t !== 'kick' || msg.room === this.room.roomId) return; // same-room duplicates are handled at join
+        const cur = this.room.playerByAccount(p.accountId);
+        if (cur && cur.id !== msg.sid) void this.kick(cur);
+      }),
+    );
   }
 
   leave(p: ServerPlayer): void {
-    if (this.room.playerByAccount(p.accountId) === p) { this.accountSubs.get(p.accountId)?.(); this.accountSubs.delete(p.accountId); }
+    if (this.room.playerByAccount(p.accountId) === p) {
+      this.accountSubs.get(p.accountId)?.();
+      this.accountSubs.delete(p.accountId);
+    }
     this.handing.delete(p.id);
     this.hadGhosts.delete(p.id);
   }
@@ -78,7 +94,10 @@ export class ShardModule implements Module {
       const target = handoffTarget(this.room.region, p.sim.x, p.sim.y);
       if (target) void this.handoff(p, target);
     }
-    if (this.tickN % 2 === 0) { this.publishGhosts(now); this.sendGhosts(now); }
+    if (this.tickN % 2 === 0) {
+      this.publishGhosts(now);
+      this.sendGhosts(now);
+    }
   }
 
   /** Save the player and send them to `target`. */
@@ -88,11 +107,23 @@ export class ShardModule implements Module {
     p.queue.length = 0;
     try {
       const carry = await this.room.detach(p, 'handoff');
-      const owner = await runtime34().locks.owner(target).catch(() => null);
-      const m: HandoffMsg = { shard: target, ticket: signTicket(p.accountId, target, carry, runtime().config.sessionSecret), ...(owner ? { roomId: owner } : {}) };
+      const owner = await runtime34()
+        .locks.owner(target)
+        .catch(() => null);
+      const m: HandoffMsg = {
+        shard: target,
+        ticket: signTicket(p.accountId, target, carry, runtime().config.sessionSecret),
+        ...(owner ? { roomId: owner } : {}),
+      };
       p.client.send(MSG34.HANDOFF, m);
       // the client leaves on its own; make sure the socket does not linger if it never does
-      setTimeout(() => { try { p.client.leave(4002); } catch { /* already gone */ } }, 10_000);
+      setTimeout(() => {
+        try {
+          p.client.leave(4002);
+        } catch {
+          /* already gone */
+        }
+      }, 10_000);
     } catch (e) {
       console.error('handoff failed', e);
       p.client.leave(4003);
@@ -106,13 +137,41 @@ export class ShardModule implements Module {
     const b = regionBounds(this.room.region);
     for (const p of this.room.players.values()) {
       if (this.handing.has(p.id)) continue;
-      const x = p.sim.x, y = p.sim.y;
-      if (x - b.x0 > GHOST_MARGIN && b.x1 - x > GHOST_MARGIN && shardY(y) - b.y0 > GHOST_MARGIN && b.y1 - shardY(y) > GHOST_MARGIN) continue;
+      const x = p.sim.x,
+        y = p.sim.y;
+      if (
+        x - b.x0 > GHOST_MARGIN &&
+        b.x1 - x > GHOST_MARGIN &&
+        shardY(y) - b.y0 > GHOST_MARGIN &&
+        b.y1 - shardY(y) > GHOST_MARGIN
+      )
+        continue;
       const s = p.state;
-      const g: Ghost = { id: `g:${p.accountId}`, name: s.name, x, y, faceX: s.faceX, faceY: s.faceY, look: s.look, level: s.level, cls: s.cls, hp: s.hp, maxHp: s.maxHp, flags: s.flags };
-      for (const n of nearbyShards(this.room.region, x, y)) { let l = out.get(n); if (!l) { l = []; out.set(n, l); } l.push(g); }
+      const g: Ghost = {
+        id: `g:${p.accountId}`,
+        name: s.name,
+        x,
+        y,
+        faceX: s.faceX,
+        faceY: s.faceY,
+        look: s.look,
+        level: s.level,
+        cls: s.cls,
+        hp: s.hp,
+        maxHp: s.maxHp,
+        flags: s.flags,
+      };
+      for (const n of nearbyShards(this.room.region, x, y)) {
+        let l = out.get(n);
+        if (!l) {
+          l = [];
+          out.set(n, l);
+        }
+        l.push(g);
+      }
     }
-    for (const [shard, list] of out) runtime34().bus.publish(`shard:${shard}`, { t: 'ghosts', from: this.room.shard, at: now, list });
+    for (const [shard, list] of out)
+      runtime34().bus.publish(`shard:${shard}`, { t: 'ghosts', from: this.room.shard, at: now, list });
   }
 
   private sendGhosts(now: number): void {
@@ -120,11 +179,14 @@ export class ShardModule implements Module {
     const all: Ghost[] = [];
     for (const v of this.ghosts.values()) all.push(...v.list);
     for (const p of this.room.players.values()) {
-      const list = all.filter((g) => Math.hypot(g.x - p.sim.x, g.y - p.sim.y) <= GHOST_VIEW && g.id !== `g:${p.accountId}`);
+      const list = all.filter(
+        (g) => Math.hypot(g.x - p.sim.x, g.y - p.sim.y) <= GHOST_VIEW && g.id !== `g:${p.accountId}`,
+      );
       if (!list.length && !this.hadGhosts.has(p.id)) continue;
       const m: GhostsMsg = { t: now, list };
       p.client.send(MSG34.GHOSTS, m);
-      if (list.length) this.hadGhosts.add(p.id); else this.hadGhosts.delete(p.id);
+      if (list.length) this.hadGhosts.add(p.id);
+      else this.hadGhosts.delete(p.id);
     }
   }
 
@@ -133,20 +195,31 @@ export class ShardModule implements Module {
   tileChanged(x: number, y: number, tile: number): void {
     if (this.room.unsharded || !this.room.owns(x, y)) return;
     const b = regionBounds(this.room.region);
-    if (x - b.x0 > RELAY_MARGIN && b.x1 - x > RELAY_MARGIN && shardY(y) - b.y0 > RELAY_MARGIN && b.y1 - shardY(y) > RELAY_MARGIN) return;
-    for (const n of nearbyShards(this.room.region, x, y, RELAY_MARGIN)) runtime34().bus.publish(`shard:${n}`, { t: 'tile', x, y, tile });
+    if (
+      x - b.x0 > RELAY_MARGIN &&
+      b.x1 - x > RELAY_MARGIN &&
+      shardY(y) - b.y0 > RELAY_MARGIN &&
+      b.y1 - shardY(y) > RELAY_MARGIN
+    )
+      return;
+    for (const n of nearbyShards(this.room.region, x, y, RELAY_MARGIN))
+      runtime34().bus.publish(`shard:${n}`, { t: 'tile', x, y, tile });
   }
 
-  objectChanged(m:ObjMsg):void {
-    if(this.room.unsharded||!this.room.owns(m.x,m.y))return;
-    for(const n of nearbyShards(this.room.region,m.x,m.y,RELAY_MARGIN)) runtime34().bus.publish(`shard:${n}`,{t:'object',m});
+  objectChanged(m: ObjMsg): void {
+    if (this.room.unsharded || !this.room.owns(m.x, m.y)) return;
+    for (const n of nearbyShards(this.room.region, m.x, m.y, RELAY_MARGIN))
+      runtime34().bus.publish(`shard:${n}`, { t: 'object', m });
   }
 
   private onBus(m: ShardBusMsg): void {
     if (!m || typeof m !== 'object') return;
-    if (m.t === 'ghosts' && typeof m.from === 'string' && Array.isArray(m.list)) this.ghosts.set(m.from, { at: Date.now(), list: m.list });
-    else if(m.t==='object'&&Number.isInteger(m.m?.x)&&Number.isInteger(m.m?.y))this.room.applyForeignObject(m.m);
-    else if (m.t === 'tile' && Number.isInteger(m.x) && Number.isInteger(m.y) && Number.isInteger(m.tile)) this.room.applyForeignTile(m.x, m.y, m.tile);
+    if (m.t === 'ghosts' && typeof m.from === 'string' && Array.isArray(m.list))
+      this.ghosts.set(m.from, { at: Date.now(), list: m.list });
+    else if (m.t === 'object' && Number.isInteger(m.m?.x) && Number.isInteger(m.m?.y))
+      this.room.applyForeignObject(m.m);
+    else if (m.t === 'tile' && Number.isInteger(m.x) && Number.isInteger(m.y) && Number.isInteger(m.tile))
+      this.room.applyForeignTile(m.x, m.y, m.tile);
   }
 
   async dispose(): Promise<void> {

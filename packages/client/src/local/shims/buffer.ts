@@ -10,14 +10,25 @@ const td = new TextDecoder();
 
 function norm(enc: unknown): Enc {
   const e = String(enc ?? 'utf8').toLowerCase();
-  if (e === 'utf8' || e === 'utf-8' || e === 'hex' || e === 'base64' || e === 'base64url' || e === 'latin1' || e === 'binary' || e === 'ascii') return e;
+  if (
+    e === 'utf8' ||
+    e === 'utf-8' ||
+    e === 'hex' ||
+    e === 'base64' ||
+    e === 'base64url' ||
+    e === 'latin1' ||
+    e === 'binary' ||
+    e === 'ascii'
+  )
+    return e;
   throw new TypeError(`Unknown encoding: ${String(enc)}`);
 }
 
 function bytesOf(s: string, enc: Enc): Uint8Array {
   switch (enc) {
     case 'hex': {
-      const n = s.length >> 1, out = new Uint8Array(n);
+      const n = s.length >> 1,
+        out = new Uint8Array(n);
       let i = 0;
       for (; i < n; i++) {
         const v = parseInt(s.substr(i * 2, 2), 16);
@@ -26,9 +37,14 @@ function bytesOf(s: string, enc: Enc): Uint8Array {
       }
       return out.subarray(0, i);
     }
-    case 'base64': case 'base64url': {
+    case 'base64':
+    case 'base64url': {
       // lenient like Node: ignore invalid characters and padding, accept both alphabets
-      let t = s.split('=')[0]!.replace(/[^A-Za-z0-9+/\-_]/g, '').replace(/-/g, '+').replace(/_/g, '/');
+      let t = s
+        .split('=')[0]!
+        .replace(/[^A-Za-z0-9+/\-_]/g, '')
+        .replace(/-/g, '+')
+        .replace(/_/g, '/');
       if (t.length % 4 === 1) t = t.slice(0, -1);
       while (t.length % 4) t += '=';
       const bin = atob(t);
@@ -36,12 +52,15 @@ function bytesOf(s: string, enc: Enc): Uint8Array {
       for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
       return out;
     }
-    case 'latin1': case 'binary': case 'ascii': {
+    case 'latin1':
+    case 'binary':
+    case 'ascii': {
       const out = new Uint8Array(s.length);
       for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i) & 0xff;
       return out;
     }
-    default: return te.encode(s);
+    default:
+      return te.encode(s);
   }
 }
 
@@ -52,13 +71,15 @@ function stringOf(b: Uint8Array, enc: Enc): string {
       for (let i = 0; i < b.length; i++) s += (b[i]! < 16 ? '0' : '') + b[i]!.toString(16);
       return s;
     }
-    case 'base64': case 'base64url': {
+    case 'base64':
+    case 'base64url': {
       let bin = '';
       for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode(...b.subarray(i, i + 0x8000));
       const s = btoa(bin);
       return enc === 'base64' ? s : s.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     }
-    case 'latin1': case 'binary': {
+    case 'latin1':
+    case 'binary': {
       let s = '';
       for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode(...b.subarray(i, i + 0x8000));
       return s;
@@ -68,7 +89,8 @@ function stringOf(b: Uint8Array, enc: Enc): string {
       for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]! & 0x7f);
       return s;
     }
-    default: return td.decode(b);
+    default:
+      return td.decode(b);
   }
 }
 
@@ -77,7 +99,10 @@ export class Buffer extends Uint8Array {
 
   static from(value: unknown, encOrOffset?: unknown, length?: number): Buffer {
     if (typeof value === 'string') return Buffer.wrap(bytesOf(value, norm(encOrOffset)));
-    if (value instanceof ArrayBuffer || (typeof SharedArrayBuffer !== 'undefined' && value instanceof SharedArrayBuffer)) {
+    if (
+      value instanceof ArrayBuffer ||
+      (typeof SharedArrayBuffer !== 'undefined' && value instanceof SharedArrayBuffer)
+    ) {
       const off = typeof encOrOffset === 'number' ? encOrOffset : 0;
       return new Buffer(value as ArrayBuffer, off, length ?? (value as ArrayBuffer).byteLength - off);
     }
@@ -87,14 +112,25 @@ export class Buffer extends Uint8Array {
       b.set(src);
       return b;
     }
-    if (Array.isArray(value)) { const b = new Buffer(value.length); for (let i = 0; i < value.length; i++) b[i] = Number(value[i]) & 0xff; return b; }
-    if (value && typeof value === 'object' && (value as { type?: string }).type === 'Buffer' && Array.isArray((value as { data?: unknown }).data)) {
+    if (Array.isArray(value)) {
+      const b = new Buffer(value.length);
+      for (let i = 0; i < value.length; i++) b[i] = Number(value[i]) & 0xff;
+      return b;
+    }
+    if (
+      value &&
+      typeof value === 'object' &&
+      (value as { type?: string }).type === 'Buffer' &&
+      Array.isArray((value as { data?: unknown }).data)
+    ) {
       return Buffer.from((value as { data: number[] }).data);
     }
     throw new TypeError('The first argument must be a string, Buffer, ArrayBuffer, Array, or array-like object.');
   }
 
-  private static wrap(u: Uint8Array): Buffer { return new Buffer(u.buffer as ArrayBuffer, u.byteOffset, u.byteLength); }
+  private static wrap(u: Uint8Array): Buffer {
+    return new Buffer(u.buffer as ArrayBuffer, u.byteOffset, u.byteLength);
+  }
 
   static alloc(size: number, fill?: unknown, enc?: unknown): Buffer {
     const b = new Buffer(size);
@@ -102,10 +138,23 @@ export class Buffer extends Uint8Array {
     return b;
   }
 
-  static allocUnsafe(size: number): Buffer { return new Buffer(size); }
-  static allocUnsafeSlow(size: number): Buffer { return new Buffer(size); }
-  static isBuffer(v: unknown): v is Buffer { return v instanceof Buffer; }
-  static isEncoding(e: unknown): boolean { try { norm(e); return true; } catch { return false; } }
+  static allocUnsafe(size: number): Buffer {
+    return new Buffer(size);
+  }
+  static allocUnsafeSlow(size: number): Buffer {
+    return new Buffer(size);
+  }
+  static isBuffer(v: unknown): v is Buffer {
+    return v instanceof Buffer;
+  }
+  static isEncoding(e: unknown): boolean {
+    try {
+      norm(e);
+      return true;
+    } catch {
+      return false;
+    }
+  }
 
   static byteLength(v: unknown, enc?: unknown): number {
     if (typeof v === 'string') return bytesOf(v, norm(enc)).length;
@@ -134,9 +183,18 @@ export class Buffer extends Uint8Array {
 
   // Node's fill also accepts strings and byte arrays (repeated as a pattern)
   override fill(value: unknown, start = 0, end = this.length, enc?: unknown): this {
-    if (typeof start !== 'number') { enc = start; start = 0; end = this.length; }
+    if (typeof start !== 'number') {
+      enc = start;
+      start = 0;
+      end = this.length;
+    }
     if (typeof value === 'number') return super.fill(value & 0xff, start, end);
-    const pat = typeof value === 'string' ? bytesOf(value, norm(enc)) : ArrayBuffer.isView(value) ? new Uint8Array(value.buffer, value.byteOffset, value.byteLength) : null;
+    const pat =
+      typeof value === 'string'
+        ? bytesOf(value, norm(enc))
+        : ArrayBuffer.isView(value)
+          ? new Uint8Array(value.buffer, value.byteOffset, value.byteLength)
+          : null;
     if (!pat || !pat.length) return super.fill(0, start, end);
     for (let i = start, j = 0; i < end; i++, j = (j + 1) % pat.length) this[i] = pat[j]!;
     return this;
@@ -146,9 +204,13 @@ export class Buffer extends Uint8Array {
     return stringOf(this.subarray(Math.max(0, start), Math.min(this.length, end)), norm(enc));
   }
 
-  equals(other: Uint8Array): boolean { return Buffer.compare(this, other) === 0; }
+  equals(other: Uint8Array): boolean {
+    return Buffer.compare(this, other) === 0;
+  }
 
-  compare(other: Uint8Array): number { return Buffer.compare(this, other); }
+  compare(other: Uint8Array): number {
+    return Buffer.compare(this, other);
+  }
 
   copy(target: Uint8Array, targetStart = 0, sourceStart = 0, sourceEnd = this.length): number {
     const n = Math.max(0, Math.min(sourceEnd, this.length) - sourceStart);
@@ -165,7 +227,9 @@ export class Buffer extends Uint8Array {
     return m;
   }
 
-  toJSON(): { type: 'Buffer'; data: number[] } { return { type: 'Buffer', data: Array.from(this) }; }
+  toJSON(): { type: 'Buffer'; data: number[] } {
+    return { type: 'Buffer', data: Array.from(this) };
+  }
 }
 
 /** Defines `globalThis.Buffer` (only if absent). @colyseus/schema's Encoder allocates its buffers with it. */

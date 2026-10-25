@@ -20,19 +20,38 @@ export class QState {
 
   clone(): QState {
     const s = new QState(this.n);
-    s.re.set(this.re); s.im.set(this.im);
+    s.re.set(this.re);
+    s.im.set(this.im);
     return s;
   }
 
-  get size(): number { return this.re.length; }
+  get size(): number {
+    return this.re.length;
+  }
 
   /** Apply a 2x2 unitary [[a,b],[c,d]] (complex, given as re/im pairs) to qubit q. */
-  apply1(q: number, ar: number, ai: number, br: number, bi: number, cr: number, ci: number, dr: number, di: number): void {
-    const bit = 1 << q, N = this.size, re = this.re, im = this.im;
+  apply1(
+    q: number,
+    ar: number,
+    ai: number,
+    br: number,
+    bi: number,
+    cr: number,
+    ci: number,
+    dr: number,
+    di: number,
+  ): void {
+    const bit = 1 << q,
+      N = this.size,
+      re = this.re,
+      im = this.im;
     for (let i = 0; i < N; i++) {
       if (i & bit) continue;
       const j = i | bit;
-      const x0r = re[i]!, x0i = im[i]!, x1r = re[j]!, x1i = im[j]!;
+      const x0r = re[i]!,
+        x0i = im[i]!,
+        x1r = re[j]!,
+        x1i = im[j]!;
       re[i] = ar * x0r - ai * x0i + br * x1r - bi * x1i;
       im[i] = ar * x0i + ai * x0r + br * x1i + bi * x1r;
       re[j] = cr * x0r - ci * x0i + dr * x1r - di * x1i;
@@ -40,24 +59,44 @@ export class QState {
     }
   }
 
-  h(q: number): void { const s = Math.SQRT1_2; this.apply1(q, s, 0, s, 0, s, 0, -s, 0); }
-  x(q: number): void { this.apply1(q, 0, 0, 1, 0, 1, 0, 0, 0); }
+  h(q: number): void {
+    const s = Math.SQRT1_2;
+    this.apply1(q, s, 0, s, 0, s, 0, -s, 0);
+  }
+  x(q: number): void {
+    this.apply1(q, 0, 0, 1, 0, 1, 0, 0, 0);
+  }
   /** Phase gate diag(1, e^{iθ}) (Z = π, S = π/2, T = π/4). */
-  phase(q: number, theta: number): void { this.apply1(q, 1, 0, 0, 0, 0, 0, Math.cos(theta), Math.sin(theta)); }
-  z(q: number): void { this.phase(q, Math.PI); }
-  s(q: number): void { this.phase(q, Math.PI / 2); }
-  t(q: number): void { this.phase(q, Math.PI / 4); }
+  phase(q: number, theta: number): void {
+    this.apply1(q, 1, 0, 0, 0, 0, 0, Math.cos(theta), Math.sin(theta));
+  }
+  z(q: number): void {
+    this.phase(q, Math.PI);
+  }
+  s(q: number): void {
+    this.phase(q, Math.PI / 2);
+  }
+  t(q: number): void {
+    this.phase(q, Math.PI / 4);
+  }
 
   /** CNOT: flip `target` where `control` is 1. */
   cx(control: number, target: number): void {
     if (control === target) throw new Error('cx needs two different qubits');
-    const cb = 1 << control, tb = 1 << target, N = this.size, re = this.re, im = this.im;
+    const cb = 1 << control,
+      tb = 1 << target,
+      N = this.size,
+      re = this.re,
+      im = this.im;
     for (let i = 0; i < N; i++) {
       if (!(i & cb) || i & tb) continue;
       const j = i | tb;
-      const r = re[i]!, m = im[i]!;
-      re[i] = re[j]!; im[i] = im[j]!;
-      re[j] = r; im[j] = m;
+      const r = re[i]!,
+        m = im[i]!;
+      re[i] = re[j]!;
+      im[i] = im[j]!;
+      re[j] = r;
+      im[j] = m;
     }
   }
 
@@ -82,8 +121,13 @@ export class QState {
     }
     const k = 1 / Math.sqrt(p);
     for (let i = 0; i < this.size; i++) {
-      if (((i & bit) !== 0) === !!outcome) { this.re[i] = this.re[i]! * k; this.im[i] = this.im[i]! * k; }
-      else { this.re[i] = 0; this.im[i] = 0; }
+      if (((i & bit) !== 0) === !!outcome) {
+        this.re[i] = this.re[i]! * k;
+        this.im[i] = this.im[i]! * k;
+      } else {
+        this.re[i] = 0;
+        this.im[i] = 0;
+      }
     }
     return p;
   }
@@ -105,11 +149,17 @@ export class QState {
   /** Reduced density matrix of qubit q: [ρ00, ρ11, Re ρ10, Im ρ10] where ρ10 = Σ a(..1..) conj(a(..0..)). */
   reduced(q: number): { p0: number; p1: number; cRe: number; cIm: number } {
     const bit = 1 << q;
-    let p0 = 0, p1 = 0, cRe = 0, cIm = 0;
+    let p0 = 0,
+      p1 = 0,
+      cRe = 0,
+      cIm = 0;
     for (let i = 0; i < this.size; i++) {
       if (i & bit) continue;
       const j = i | bit;
-      const ar = this.re[i]!, ai = this.im[i]!, br = this.re[j]!, bi = this.im[j]!;
+      const ar = this.re[i]!,
+        ai = this.im[i]!,
+        br = this.re[j]!,
+        bi = this.im[j]!;
       p0 += ar * ar + ai * ai;
       p1 += br * br + bi * bi;
       // b * conj(a)
@@ -136,17 +186,22 @@ export class QState {
 export function cumulative(p: Float64Array): Float64Array {
   const c = new Float64Array(p.length);
   let s = 0;
-  for (let i = 0; i < p.length; i++) { s += p[i]!; c[i] = s; }
+  for (let i = 0; i < p.length; i++) {
+    s += p[i]!;
+    c[i] = s;
+  }
   return c;
 }
 
 export function sampleIndex(cdf: Float64Array, r: number): number {
   const total = cdf[cdf.length - 1]!;
   const x = r * total;
-  let lo = 0, hi = cdf.length - 1;
+  let lo = 0,
+    hi = cdf.length - 1;
   while (lo < hi) {
     const mid = (lo + hi) >> 1;
-    if (cdf[mid]! > x) hi = mid; else lo = mid + 1;
+    if (cdf[mid]! > x) hi = mid;
+    else lo = mid + 1;
   }
   // skip zero-probability states that share a cumulative value
   while (lo > 0 && cdf[lo]! === cdf[lo - 1]!) lo--;

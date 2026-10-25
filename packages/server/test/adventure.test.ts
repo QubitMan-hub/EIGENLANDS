@@ -4,31 +4,72 @@ import type { App } from '../src/app';
 import { boot3, clearEnemies, dev, flatten, setLevel, spawn3, sleep, tp, until, type P3 } from './p3helpers';
 
 let app: App;
-beforeAll(async () => { app = await boot3(); });
-afterAll(async () => { await app?.close(); });
+beforeAll(async () => {
+  app = await boot3();
+});
+afterAll(async () => {
+  await app?.close();
+});
 
 const give = (p: P3, id: string, n = 1) => dev(p, { cmd: 'give', id, n });
 const has = (p: P3, id: string) => p.sp.data.inv.some((s) => s?.id === id);
-const events = <T>(p: P3, type: string): T[] => { const l: T[] = []; p.r.onMessage(type, (m: T) => l.push(m)); return l; };
+const events = <T>(p: P3, type: string): T[] => {
+  const l: T[] = [];
+  p.r.onMessage(type, (m: T) => l.push(m));
+  return l;
+};
 
 describe('bosses', () => {
+  it('calls Veyr through the real inventory authority, consumes one beacon and persists its unique reward', async () => {
+    const p = await spawn3(app, 'Storm challenger');
+    await setLevel(p, 22);
+    await tp(p, -320.5, 320.5);
+    flatten(p.room, -320, 320, 16);
+    clearEnemies(p.room);
+    await give(p, 'storm_beacon', 2);
+    await until(() => has(p, 'storm_beacon'));
+    p.r.send(MSG.USE, { slot: p.sp.data.inv.findIndex((s) => s?.id === 'storm_beacon'), tx: -321, ty: 320 });
+    await until(() => [...p.room.enemies.values()].some((e) => e.def.kind === 33));
+    expect(p.sp.data.inv.find((s) => s?.id === 'storm_beacon')?.n).toBe(1);
+    const e = [...p.room.enemies.values()].find((e) => e.def.kind === 33)!;
+    e.hp = 1;
+    p.room.hitEnemy(e, 999999, p.sp, 1, 0, 0);
+    await until(() => has(p, 'storm_heart') && p.sp.data.prog.bosses.includes('veyr'));
+    const credentials = { token: p.token, accountId: p.accountId };
+    await p.r.leave();
+    await sleep(300);
+    const rejoined = await spawn3(app, 'Storm challenger', credentials);
+    expect(rejoined.sp.data.prog.bosses).toContain('veyr');
+    expect(has(rejoined, 'storm_heart')).toBe(true);
+    await rejoined.r.leave();
+  });
   it('a crown calls the Sovereign far from home, it is refused near the village or at low level, and defeating it pays out and records the kill', async () => {
     const p = await spawn3(app, 'Slayer');
     const evs = events<BossEvent>(p, MSG34.BOSS_EV);
     await give(p, 'slime_crown', 2);
     await until(() => has(p, 'slime_crown'), 2000);
-    const use = () => p.r.send(MSG.USE, { slot: p.sp.data.inv.findIndex((s) => s?.id === 'slime_crown'), tx: Math.floor(p.sp.sim.x), ty: Math.floor(p.sp.sim.y) });
+    const use = () =>
+      p.r.send(MSG.USE, {
+        slot: p.sp.data.inv.findIndex((s) => s?.id === 'slime_crown'),
+        tx: Math.floor(p.sp.sim.x),
+        ty: Math.floor(p.sp.sim.y),
+      });
     // too weak
-    await tp(p, -300.5, 300.5); flatten(p.room, -300, 300, 12);
-    use(); await sleep(300);
+    await tp(p, -300.5, 300.5);
+    flatten(p.room, -300, 300, 12);
+    use();
+    await sleep(300);
     expect([...p.room.enemies.values()].some((e) => e.def.boss)).toBe(false);
     await setLevel(p, 12);
     // near the spawn shrine: refused
-    await tp(p, 10.5, 10.5); use(); await sleep(300);
+    await tp(p, 10.5, 10.5);
+    use();
+    await sleep(300);
     expect([...p.room.enemies.values()].some((e) => e.def.boss)).toBe(false);
     expect(p.sp.data.inv.find((s) => s?.id === 'slime_crown')?.n).toBe(2);
     // far away: works
-    await tp(p, -300.5, 300.5); clearEnemies(p.room);
+    await tp(p, -300.5, 300.5);
+    clearEnemies(p.room);
     use();
     await until(() => [...p.room.enemies.values()].some((e) => e.def.boss), 3000);
     const boss = [...p.room.enemies.values()].find((e) => e.def.boss)!;
@@ -41,7 +82,8 @@ describe('bosses', () => {
     await until(() => evs.some((e) => e.kind === 'phase'), 3000);
     expect(p.room.enemies.size).toBeGreaterThan(n0);
     // kill it
-    boss.hp = 1; p.room.hitEnemy(boss, 999999, p.sp, 1, 0, 0);
+    boss.hp = 1;
+    p.room.hitEnemy(boss, 999999, p.sp, 1, 0, 0);
     await until(() => has(p, 'slime_core') && has(p, 'heart_crystal'), 3000);
     expect(p.sp.data.prog.bosses).toContain('slime_king');
     await until(() => evs.some((e) => e.kind === 'defeated' && e.first), 2000);
@@ -65,7 +107,8 @@ describe('shrines', () => {
     const sh = near.find((s) => s.type === 'sequence') ?? near[0]!;
     if (sh.type !== 'sequence') return; // the seed has only gauntlets in range; covered below
     const evs = events<ShrineEvent>(p, MSG34.SHRINE_EV);
-    await tp(p, sh.x + 0.5, sh.y + 1.5); await setLevel(p, 5);
+    await tp(p, sh.x + 0.5, sh.y + 1.5);
+    await setLevel(p, 5);
     p.r.send(MSG.OPEN, { tx: sh.x, ty: sh.y });
     await until(() => evs.some((e) => e.kind === 'show'), 3000);
     const show = evs.find((e) => e.kind === 'show') as Extract<ShrineEvent, { kind: 'show' }>;

@@ -15,7 +15,8 @@ describe('continuous movement presentation', () => {
   });
   it('holds the bounded predicted endpoint without snapping backward when a packet is late', () => {
     const i = new Interpolator<ReturnType<typeof pose>>();
-    i.push('mob', 1000, pose(0)); i.push('mob', 1050, pose(1));
+    i.push('mob', 1000, pose(0));
+    i.push('mob', 1050, pose(1));
     const before = i.sample('mob', 1149)!.x;
     const after = i.sample('mob', 1151)!.x;
     expect(after).toBeGreaterThanOrEqual(before);
@@ -24,18 +25,22 @@ describe('continuous movement presentation', () => {
   });
   it('never extrapolates a teleport into a second leap', () => {
     const i = new Interpolator<ReturnType<typeof pose>>();
-    i.push('mob', 1000, pose(0)); i.push('mob', 1050, pose(100));
+    i.push('mob', 1000, pose(0));
+    i.push('mob', 1050, pose(100));
     expect(i.sample('mob', 1075)!.x).toBe(100);
   });
   it('eases to a stop while staying inside the authoritative position interval', () => {
     const i = new Interpolator<ReturnType<typeof pose>>();
-    i.push('mob', 1000, pose(0)); i.push('mob', 1050, pose(1)); i.push('mob', 1100, pose(1));
+    i.push('mob', 1000, pose(0));
+    i.push('mob', 1050, pose(1));
+    i.push('mob', 1100, pose(1));
     expect(1 - i.sample('mob', 1049)!.x).toBeLessThan(0.002);
     for (let t = 1000; t <= 1200; t++) expect(i.sample('mob', t)!.x).toBeGreaterThanOrEqual(0);
     for (let t = 1000; t <= 1200; t++) expect(i.sample('mob', t)!.x).toBeLessThanOrEqual(1);
   });
   it('slews clock corrections rather than jumping when a faster packet arrives', () => {
-    const c = new ServerClock(); c.observe(10000, 0, 1000);
+    const c = new ServerClock();
+    c.observe(10000, 0, 1000);
     const before = c.offset;
     c.observe(10100, 2, 1050);
     expect(c.offset - before).toBeLessThanOrEqual(2.5);

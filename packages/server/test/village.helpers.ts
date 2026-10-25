@@ -1,6 +1,16 @@
 import {
-  ChunkStore, DAY_MS, WORLD_EPOCH_MS, WorldState, addStack, dayNumber, emptyInventory, gameHour, mulberry32, seasonOfDay,
-  weatherForDay, type Weather,
+  ChunkStore,
+  DAY_MS,
+  WORLD_EPOCH_MS,
+  WorldState,
+  addStack,
+  dayNumber,
+  emptyInventory,
+  gameHour,
+  mulberry32,
+  seasonOfDay,
+  weatherForDay,
+  type Weather,
 } from '@eigenlands/shared';
 import type { DirtyPart, PlayerData, PlayerRef, VillageHost } from '../src/systems/types';
 import { emptyEquip } from '../src/systems/profile';
@@ -18,8 +28,12 @@ export class FakeClock {
   season = () => seasonOfDay(this.day());
   weather = (): Weather => this.forced ?? weatherForDay(SEED, this.day());
   /** jump to a given day-offset and in-game hour */
-  set(dayOffset: number, hour: number): void { this.t = WORLD_EPOCH_MS + (40 + dayOffset) * DAY_MS + (((hour - 6 + 24) % 24) / 24) * DAY_MS; }
-  advanceMs(ms: number): void { this.t += ms; }
+  set(dayOffset: number, hour: number): void {
+    this.t = WORLD_EPOCH_MS + (40 + dayOffset) * DAY_MS + (((hour - 6 + 24) % 24) / 24) * DAY_MS;
+  }
+  advanceMs(ms: number): void {
+    this.t += ms;
+  }
 }
 
 export class FakePlayer implements PlayerRef {
@@ -28,12 +42,31 @@ export class FakePlayer implements PlayerRef {
   name = 'Tester';
   x = 0;
   y = 0;
-  data: PlayerData = { needs:{mode:'cozy',food:100,water:100}, inv: emptyInventory(), coins: 0, skills: { farming: 0, mining: 0, foraging: 0, fishing: 0, crafting: 0 }, recipes: new Set(), equip: emptyEquip(), friends: {}, buffs: {}, quests: {}, deeds: {}, events: [], prog: { hearts: 0, bosses: [], shrines: [], ruins: [] } };
+  data: PlayerData = {
+    needs: { mode: 'cozy', food: 100, water: 100 },
+    inv: emptyInventory(),
+    coins: 0,
+    skills: { farming: 0, mining: 0, foraging: 0, fishing: 0, crafting: 0 },
+    recipes: new Set(),
+    equip: emptyEquip(),
+    friends: {},
+    buffs: {},
+    quests: {},
+    deeds: {},
+    events: [],
+    prog: { hearts: 0, bosses: [], shrines: [], ruins: [] },
+  };
   dirtied = new Set<DirtyPart>();
   toasts: string[] = [];
-  dirty(...parts: DirtyPart[]): void { parts.forEach((p) => this.dirtied.add(p)); }
-  toast(text: string): void { this.toasts.push(text); }
-  give(id: string, n: number): void { addStack(this.data.inv, { id, n }); }
+  dirty(...parts: DirtyPart[]): void {
+    parts.forEach((p) => this.dirtied.add(p));
+  }
+  toast(text: string): void {
+    this.toasts.push(text);
+  }
+  give(id: string, n: number): void {
+    addStack(this.data.inv, { id, n });
+  }
 }
 
 export function makeHost(clock = new FakeClock()) {
@@ -41,10 +74,16 @@ export function makeHost(clock = new FakeClock()) {
   const players: FakePlayer[] = [];
   const state = new WorldState();
   const host: VillageHost = {
-    seed: SEED, store: new ChunkStore(SEED), state, clock, rand: mulberry32(7),
+    seed: SEED,
+    store: new ChunkStore(SEED),
+    state,
+    clock,
+    rand: mulberry32(7),
     players: () => players,
     loadBlob: async <T>(k: string) => (blobs.has(k) ? (JSON.parse(JSON.stringify(blobs.get(k))) as T) : null),
-    saveBlob: async (k, v) => { blobs.set(k, JSON.parse(JSON.stringify(v))); },
+    saveBlob: async (k, v) => {
+      blobs.set(k, JSON.parse(JSON.stringify(v)));
+    },
   };
   return { host, clock, blobs, players, state };
 }
@@ -58,12 +97,16 @@ export async function makeVillage(opts?: VillageOptions, clock = new FakeClock()
 
 /** Run `ticks` server ticks, advancing the clock 50 ms each. */
 export function run(village: Village, clock: FakeClock, ticks: number, startTick = 0): number {
-  for (let i = 0; i < ticks; i++) { clock.advanceMs(50); village.tick(startTick + i + 1); }
+  for (let i = 0; i < ticks; i++) {
+    clock.advanceMs(50);
+    village.tick(startTick + i + 1);
+  }
   return startTick + ticks;
 }
 
 /** Stand a player right next to an NPC. */
 export function nextTo(p: FakePlayer, village: Village, id: string): void {
   const n = village.npc(id)!;
-  p.x = n.x + 1; p.y = n.y;
+  p.x = n.x + 1;
+  p.y = n.y;
 }

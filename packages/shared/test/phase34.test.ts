@@ -1,23 +1,76 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ABILITIES, ACTIVE_LINES, BOARD_COLS, CLASSES, ELEMENTS, FLUX, GATES, MAX_QUBITS, QState, QUBITPEDIA, TUTORIAL, TUTORIAL_SKIP_GATES,
-  allowedAbilities, attuneLocks, boardPreview, castLines, checkBoard, cleanChat, cumulative, emptyBoard, emptyGateCounts, evaluate,
-  firedLines, foldWord, handoffTarget, inRegion, ketString, lineErrors, lineHue, nearbyShards, parseShard, qubitsForLevel,
-  rawLineErrors, regionBounds, regionOf, repetitionError, rewardsForLevel, sampleIndex, shardAt, shardId, tuneSteps, validBoard,
-  validLocks, CODEX_BY_ID, isSpammy, REGION_TILES, type Board, type GateCounts, type GateId,
+  ABILITIES,
+  ACTIVE_LINES,
+  BOARD_COLS,
+  CLASSES,
+  ELEMENTS,
+  FLUX,
+  GATES,
+  MAX_QUBITS,
+  QState,
+  QUBITPEDIA,
+  TUTORIAL,
+  TUTORIAL_SKIP_GATES,
+  allowedAbilities,
+  attuneLocks,
+  boardPreview,
+  castLines,
+  checkBoard,
+  cleanChat,
+  cumulative,
+  emptyBoard,
+  emptyGateCounts,
+  evaluate,
+  firedLines,
+  foldWord,
+  handoffTarget,
+  inRegion,
+  ketString,
+  lineErrors,
+  lineHue,
+  nearbyShards,
+  parseShard,
+  qubitsForLevel,
+  rawLineErrors,
+  regionBounds,
+  regionOf,
+  repetitionError,
+  rewardsForLevel,
+  sampleIndex,
+  shardAt,
+  shardId,
+  tuneSteps,
+  validBoard,
+  validLocks,
+  CODEX_BY_ID,
+  isSpammy,
+  REGION_TILES,
+  type Board,
+  type GateCounts,
+  type GateId,
 } from '../src';
 
 /** Deterministic PRNG for sampling tests. */
 function rng(seed = 1): () => number {
   let s = seed >>> 0;
-  return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 2 ** 32; };
+  return () => {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return s / 2 ** 32;
+  };
 }
 const close = (a: number, b: number, eps = 1e-9) => expect(Math.abs(a - b)).toBeLessThan(eps);
 const lots = (): GateCounts => ({ h: 20, x: 20, z: 20, s: 20, t: 20, cx: 20, m: 20 });
 function board(lines: Array<Array<GateId | [GateId, number] | null>>, abilities: Board['abilities'] = []): Board {
   const b = emptyBoard();
-  lines.forEach((l, q) => l.forEach((g, c) => { if (g) b.lines[q]![c] = Array.isArray(g) ? { g: g[0], t: g[1] } : { g }; }));
-  abilities.forEach((a, q) => { b.abilities[q] = a; });
+  lines.forEach((l, q) =>
+    l.forEach((g, c) => {
+      if (g) b.lines[q]![c] = Array.isArray(g) ? { g: g[0], t: g[1] } : { g };
+    }),
+  );
+  abilities.forEach((a, q) => {
+    b.abilities[q] = a;
+  });
   return b;
 }
 
@@ -31,23 +84,40 @@ describe('quantum simulator', () => {
   });
 
   it('interference: H Z H = X and H T H gives cos²(π/8)', () => {
-    const a = new QState(1); a.h(0); a.z(0); a.h(0);
+    const a = new QState(1);
+    a.h(0);
+    a.z(0);
+    a.h(0);
     close(a.prob1(0), 1);
-    const b = new QState(1); b.h(0); b.t(0); b.h(0);
+    const b = new QState(1);
+    b.h(0);
+    b.t(0);
+    b.h(0);
     close(1 - b.prob1(0), Math.cos(Math.PI / 8) ** 2);
-    const c = new QState(1); c.h(0); c.s(0); c.h(0);
+    const c = new QState(1);
+    c.h(0);
+    c.s(0);
+    c.h(0);
     close(c.prob1(0), 0.5);
   });
 
   it('phase gates are invisible on a basis state', () => {
-    const s = new QState(1); s.z(0); s.t(0); s.s(0);
+    const s = new QState(1);
+    s.z(0);
+    s.t(0);
+    s.s(0);
     close(s.prob1(0), 0);
   });
 
   it('Bell state: perfectly correlated, locally colourless', () => {
-    const s = new QState(2); s.h(0); s.cx(0, 1);
+    const s = new QState(2);
+    s.h(0);
+    s.cx(0, 1);
     const p = s.probabilities();
-    close(p[0]!, 0.5); close(p[3]!, 0.5); close(p[1]!, 0); close(p[2]!, 0);
+    close(p[0]!, 0.5);
+    close(p[3]!, 0.5);
+    close(p[1]!, 0);
+    close(p[2]!, 0);
     const r = s.reduced(0);
     close(Math.hypot(r.cRe, r.cIm), 0);
     const bl = s.bloch(1);
@@ -55,7 +125,9 @@ describe('quantum simulator', () => {
   });
 
   it('collapse renormalises and an impossible outcome prepares it anyway', () => {
-    const s = new QState(2); s.h(0); s.cx(0, 1);
+    const s = new QState(2);
+    s.h(0);
+    s.cx(0, 1);
     const pr = s.collapse(0, 1);
     close(pr, 0.5);
     close(s.prob1(1), 1);
@@ -66,7 +138,9 @@ describe('quantum simulator', () => {
   });
 
   it('reduced density matrix gives the phase as an angle', () => {
-    const s = new QState(1); s.h(0); s.t(0);
+    const s = new QState(1);
+    s.h(0);
+    s.t(0);
     const r = s.reduced(0);
     close(Math.atan2(r.cIm, r.cRe), Math.PI / 4);
     close(Math.hypot(r.cRe, r.cIm), 0.5);
@@ -111,7 +185,7 @@ describe('circuit board', () => {
     expect(ELEMENTS[ABILITIES.split_shot.forms[1].hue]!.id).toBe((ABILITIES.split_shot.forms[0].hue + 4) % 8);
   });
 
-  it('every ability\'s form B is the opposite element of form A', () => {
+  it("every ability's form B is the opposite element of form A", () => {
     for (const a of Object.values(ABILITIES)) expect(a.forms[1].hue).toBe((a.forms[0].hue + 4) % 8);
   });
 
@@ -146,7 +220,10 @@ describe('circuit board', () => {
     expect(pv.joints).toHaveLength(1);
     const j = pv.joints[0]!;
     expect(j.outcomes).toHaveLength(2);
-    for (const o of j.outcomes) { expect(o.bits[0]).toBe(o.bits[1]); close(o.p, 0.5); }
+    for (const o of j.outcomes) {
+      expect(o.bits[0]).toBe(o.bits[1]);
+      close(o.p, 0.5);
+    }
     // entangled lines carry no local colour
     expect(pv.lines[0]!.tuned).toBe(false);
     // sampled casts always match on a perfect board
@@ -186,7 +263,8 @@ describe('circuit board', () => {
   it('a Lock on one half of a pair decides the partner too', () => {
     const b = board([['h', ['cx', 1], 'm'], []], ['split_shot', 'wavefront']);
     const ev = evaluate(b, 2, { '0:2': 1 });
-    close(ev.p1[0]!, 1); close(ev.p1[1]!, 1);
+    close(ev.p1[0]!, 1);
+    close(ev.p1[1]!, 1);
   });
 
   it('measurement destroys interference (decoherence)', () => {
@@ -207,7 +285,8 @@ describe('circuit board', () => {
     expect(lineErrors(prot, 1)[0]!).toBeLessThan(e2 / 10);
     const linked = board([[['cx', 1]], []]);
     const le = rawLineErrors(linked, 2);
-    close(le[0]!, GATES.cx.err); close(le[1]!, GATES.cx.err);
+    close(le[0]!, GATES.cx.err);
+    close(le[1]!, GATES.cx.err);
     // a Lock resets the line's history
     const locked = board([['h', 'z', 'h', 't', 'm']], ['glimmer']);
     close(rawLineErrors(locked, 1)[0]!, GATES.m.err);
@@ -232,12 +311,19 @@ describe('circuit board', () => {
     expect(checkBoard(board([[['cx', 1]], ['h']]), rules)).toContain('empty spot');
     expect(checkBoard(board([[['cx', 5]]]), rules)).toContain('another unlocked orb');
     expect(checkBoard({ ...board([[]]), runes: [2, 0, ...Array(10).fill(0)] }, rules)).toContain('runes');
-    const fiveLocks = board([['m', 'm', 'm'], ['m', 'm']]);
+    const fiveLocks = board([
+      ['m', 'm', 'm'],
+      ['m', 'm'],
+    ]);
     expect(checkBoard(fiveLocks, rules)).toContain('Lock');
   });
 
   it('validBoard never trusts its input', () => {
-    const bad = { lines: [[{ g: 'h' }, { g: 'nope' }, { g: 'cx', t: 0 }, { g: 'cx', t: 99 }, 'x', null, { g: 'cx', t: 3 }]], abilities: ['glimmer', 'hack', 5], runes: [9, 1, -1] };
+    const bad = {
+      lines: [[{ g: 'h' }, { g: 'nope' }, { g: 'cx', t: 0 }, { g: 'cx', t: 99 }, 'x', null, { g: 'cx', t: 3 }]],
+      abilities: ['glimmer', 'hack', 5],
+      runes: [9, 1, -1],
+    };
     const b = validBoard(bad);
     expect(b.lines).toHaveLength(MAX_QUBITS);
     expect(b.lines[0]).toHaveLength(BOARD_COLS);
@@ -249,7 +335,7 @@ describe('circuit board', () => {
     expect(b.abilities.slice(0, 3)).toEqual(['glimmer', null, null]);
     expect(b.runes.slice(0, 3)).toEqual([0, 1, 0]);
     expect(validBoard(null).lines).toHaveLength(MAX_QUBITS);
-    expect(validLocks({ '0:1': 1, '0:2': 2, 'x': 1, '99:1': 0 })).toEqual({ '0:1': 1 });
+    expect(validLocks({ '0:1': 1, '0:2': 2, x: 1, '99:1': 0 })).toEqual({ '0:1': 1 });
   });
 
   it('support lines are explained and active lines are the first four', () => {
@@ -261,14 +347,23 @@ describe('circuit board', () => {
 
   it('a full 12-orb board previews quickly', () => {
     const b = emptyBoard();
-    for (let q = 0; q < 12; q++) { b.lines[q]![0] = { g: 'h' }; b.lines[q]![2] = { g: 't' }; }
+    for (let q = 0; q < 12; q++) {
+      b.lines[q]![0] = { g: 'h' };
+      b.lines[q]![2] = { g: 't' };
+    }
     for (let q = 0; q < 11; q++) b.lines[q]![1 + (q % 2 ? 2 : 0)] = q % 2 ? null : { g: 'cx', t: q + 1 };
-    b.lines[0]![5] = { g: 'm' }; b.lines[3]![6] = { g: 'm' }; b.lines[7]![7] = { g: 'm' };
+    b.lines[0]![5] = { g: 'm' };
+    b.lines[3]![6] = { g: 'm' };
+    b.lines[7]![7] = { g: 'm' };
     const t0 = performance.now();
     const pv = boardPreview(b, 12, null);
     expect(performance.now() - t0).toBeLessThan(500);
     expect(pv.ev.branches).toBeLessThanOrEqual(8);
-    close(pv.ev.joint.reduce((a, p) => a + p, 0), 1, 1e-6);
+    close(
+      pv.ev.joint.reduce((a, p) => a + p, 0),
+      1,
+      1e-6,
+    );
   });
 
   it('orbs unlock by level, plus the tutorial bonus', () => {
@@ -288,7 +383,9 @@ describe('circuit board', () => {
   });
 
   it('Expert View ket notation', () => {
-    const s = new QState(2); s.h(0); s.cx(0, 1);
+    const s = new QState(2);
+    s.h(0);
+    s.cx(0, 1);
     expect(ketString(s)).toBe('0.707|00⟩ + 0.707|11⟩');
   });
 });
@@ -318,7 +415,14 @@ describe('tutorial', () => {
         const need = emptyGateCounts();
         for (const g of step.goal.pattern) need[g]++;
         for (const g of Object.keys(need) as GateId[]) expect(have[g]).toBeGreaterThanOrEqual(need[g]);
-        expect(checkBoard(board([step.goal.pattern], ['glimmer']), { qubits: 1, gates: have, runes: 0, allowed: ['glimmer'] })).toBeNull();
+        expect(
+          checkBoard(board([step.goal.pattern], ['glimmer']), {
+            qubits: 1,
+            gates: have,
+            runes: 0,
+            allowed: ['glimmer'],
+          }),
+        ).toBeNull();
       }
       for (const c of step.codex ?? []) expect(CODEX_BY_ID[c]).toBeTruthy();
     }

@@ -2,7 +2,13 @@ import { Container, Graphics, RenderTexture, Sprite, Texture, type Renderer } fr
 import { PALETTE, TILE_SIZE } from '@eigenlands/shared';
 import { makeCanvas } from '../art/draw';
 
-export interface Light { x: number; y: number; radius: number; color: number; intensity: number }
+export interface Light {
+  x: number;
+  y: number;
+  radius: number;
+  color: number;
+  intensity: number;
+}
 
 const hex = (r: number, g: number, b: number) =>
   (Math.round(Math.min(1, r) * 255) << 16) | (Math.round(Math.min(1, g) * 255) << 8) | Math.round(Math.min(1, b) * 255);
@@ -29,7 +35,7 @@ export class Lighting {
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, 128, 128);
     this.glow = Texture.from(canvas);
-    this.rt = RenderTexture.create({ width: 16, height: 16, resolution:.5 });
+    this.rt = RenderTexture.create({ width: 16, height: 16, resolution: 0.5 });
     // Pixi must invalidate the submitted sprite quad when this render target resizes.
     this.rt.dynamic = true;
     this.sprite = new Sprite(this.rt);
@@ -39,17 +45,22 @@ export class Lighting {
 
   /** Size of the lightmap in world pixels (one lightmap texel per world pixel). */
   resize(wPx: number, hPx: number): void {
-    wPx = Math.ceil(wPx); hPx = Math.ceil(hPx);
+    wPx = Math.ceil(wPx);
+    hPx = Math.ceil(hPx);
     if (wPx === this.w && hPx === this.h) return;
-    this.w = wPx; this.h = hPx;
-    this.rt.resize(wPx, hPx,.5);
-    this.ambientHex=-1;
+    this.w = wPx;
+    this.h = hPx;
+    this.rt.resize(wPx, hPx, 0.5);
+    this.ambientHex = -1;
     this.rt.source.scaleMode = 'linear';
   }
 
   render(ambient: [number, number, number], lights: Light[]): void {
-    const color=hex(ambient[0],ambient[1],ambient[2]);
-    if(color!==this.ambientHex){this.ambientHex=color;this.base.clear().rect(0,0,this.w,this.h).fill(color);}
+    const color = hex(ambient[0], ambient[1], ambient[2]);
+    if (color !== this.ambientHex) {
+      this.ambientHex = color;
+      this.base.clear().rect(0, 0, this.w, this.h).fill(color);
+    }
     while (this.pool.length < lights.length) {
       const s = new Sprite(this.glow);
       s.anchor.set(0.5);
@@ -62,13 +73,17 @@ export class Lighting {
       const l = lights[i];
       s.visible = !!l;
       if (!l) continue;
-      s.x = l.x; s.y = l.y;
-      s.width = l.radius * 22.6 * 2; s.height = l.radius * 11.3 * 2; // a round pool of light on the ground is an ellipse in iso
+      s.x = l.x;
+      s.y = l.y;
+      s.width = l.radius * 22.6 * 2;
+      s.height = l.radius * 11.3 * 2; // a round pool of light on the ground is an ellipse in iso
       s.tint = l.color;
       s.alpha = l.intensity;
     }
     this.renderer.render({ container: this.scene, target: this.rt, clear: false });
   }
 
-  static colorOf(paletteIndex: number): number { return paletteInt(paletteIndex); }
+  static colorOf(paletteIndex: number): number {
+    return paletteInt(paletteIndex);
+  }
 }
