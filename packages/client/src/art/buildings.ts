@@ -110,6 +110,68 @@ const STYLES: Style[] = [
     trim: C.e1,
   },
 ];
+const REALM_STYLES: Style[] = [
+  // 4 Aurelion: honey stone, blue slate, gilt trim
+  {
+    wall: [C.e3, C.e4, C.e5, C.e6, C.pale],
+    timber: [C.e0, C.e1, C.e2, C.e3],
+    kind: 'stone',
+    shutter: [C.w1, C.w2, C.w3, C.w4],
+    roof: [C.w0, C.w1, C.w2, C.w3, C.w4],
+    roofKind: 'slate',
+    trim: C.e6,
+  },
+  // 5 Sylvaris: living wood, moss thatch
+  {
+    wall: [C.e0, C.e1, C.e2, C.g1, C.g2],
+    timber: [C.e0, C.e1, C.e2, C.e3],
+    kind: 'siding',
+    shutter: [C.g3, C.g4, C.g5, C.g6],
+    roof: [C.g0, C.g1, C.g2, C.g3, C.g4, C.g5],
+    roofKind: 'thatch',
+    trim: C.g3,
+  },
+  // 6 Khar-Dum: dark riveted stone, iron roofs
+  {
+    wall: [C.night, C.slate, C.steel, C.mist, C.fog],
+    timber: [C.slate, C.steel, C.mist, C.fog],
+    kind: 'stone',
+    shutter: [C.r1, C.r2, C.r3, C.r4],
+    roof: [C.ink, C.night, C.slate, C.steel, C.mist],
+    roofKind: 'slate',
+    trim: C.r3,
+  },
+  // 7 Raijin: lacquered red timber, dark curved tile
+  {
+    wall: [C.pale, C.white, C.fog, C.white, C.white],
+    timber: [C.r1, C.r2, C.r3, C.r4],
+    kind: 'plaster',
+    shutter: [C.r2, C.r3, C.r4, C.r5],
+    roof: [C.ink, C.night, C.slate, C.steel, C.mist],
+    roofKind: 'tile',
+    trim: C.r3,
+  },
+  // 8 Thalassara: coral plaster, pearl and teal tile
+  {
+    wall: [C.r4, C.r5, C.r6, C.pale, C.white],
+    timber: [C.w1, C.w2, C.w3, C.w4],
+    kind: 'plaster',
+    shutter: [C.w2, C.w3, C.w4, C.w5],
+    roof: [C.w1, C.w2, C.w3, C.w4, C.w5, C.w6],
+    roofKind: 'tile',
+    trim: C.pale,
+  },
+  // 9 Nethrakar: obsidian walls, crimson trim and roofs
+  {
+    wall: [C.ink, C.night, C.slate, C.night, C.slate],
+    timber: [C.r0, C.r1, C.r2, C.r3],
+    kind: 'stone',
+    shutter: [C.q1, C.q2, C.q3, C.q4],
+    roof: [C.r0, C.r1, C.r2, C.r3, C.r4],
+    roofKind: 'tile',
+    trim: C.r4,
+  },
+];
 const GRANITE: Ramp = [C.slate, C.steel, C.mist, C.fog, C.pale];
 const GLASS_DAY: Ramp = [C.w1, C.w2, C.w3, C.w5, C.w6];
 const GLASS_NIGHT: Ramp = [C.r4, C.r5, C.r6, C.r7, C.r7];
@@ -194,7 +256,13 @@ const SEA_STYLE: Style = {
   trim: C.pale,
 };
 const styleFor = (b: Building) =>
-  buildingRealm(b) === 'cave' ? CAVE_STYLE : buildingRealm(b) === 'sea' ? SEA_STYLE : STYLES[b.style % 4]!;
+  buildingRealm(b) === 'cave'
+    ? CAVE_STYLE
+    : buildingRealm(b) === 'sea'
+      ? SEA_STYLE
+      : b.style >= 4
+        ? REALM_STYLES[(b.style - 4) % 6]!
+        : STYLES[b.style % 4]!;
 
 function wallMat(b: Building, st: Style, seed: number, interior: boolean, capC: number): Mat {
   const x1 = b.x + b.w,

@@ -33,6 +33,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     authRatePerSec: Number(env.AUTH_RATE ?? 2),
     authBurst: Number(env.AUTH_BURST ?? 20),
     devCommands: env.DEV_COMMANDS === '1' && env.NODE_ENV !== 'production',
-    newWorldGeneration: env.NEW_WORLD_GENERATION === '2' ? 2 : env.NEW_WORLD_GENERATION === '3' ? 3 : env.NEW_WORLD_GENERATION === '4' ? 4 : 5,
+    newWorldGeneration:
+      env.NEW_WORLD_GENERATION === '2'
+        ? 2
+        : env.NEW_WORLD_GENERATION === '3'
+          ? 3
+          : env.NEW_WORLD_GENERATION === '4'
+            ? 4
+            : 5,
   };
 }

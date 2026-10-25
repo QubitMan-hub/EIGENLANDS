@@ -4,6 +4,7 @@ import {
   GIFT_POINTS,
   ITEMS,
   DELVER_MERCHANTS,
+  realmNpcs,
   NPCS,
   delverSpots,
   NpcState,
@@ -90,11 +91,13 @@ export class Village implements VillageSystem {
     opts: VillageOptions = {},
   ) {
     this.ai = new AiDialogue(opts);
-    this.spots = Object.assign({}, ...townsFor(host.seed).map((t) => t.spots));
+    const gen = host.store.generation;
+    this.spots = Object.assign({}, ...townsFor(host.seed, gen).map((t) => t.spots));
     // revision 4 adds the travelling merchants and the delver camps they trade from
     const modern = host.store.generation >= 4;
     if (modern) Object.assign(this.spots, delverSpots(host.seed));
-    const all = modern ? [...NPCS, ...DELVER_MERCHANTS] : NPCS;
+    const all =
+      gen >= 5 ? [...NPCS, ...DELVER_MERCHANTS, ...realmNpcs()] : modern ? [...NPCS, ...DELVER_MERCHANTS] : NPCS;
     this.defs = opts.npcIds ? all.filter((n) => opts.npcIds!.includes(n.id)) : all;
   }
 

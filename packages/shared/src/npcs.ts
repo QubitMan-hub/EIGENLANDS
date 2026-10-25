@@ -2,6 +2,7 @@ import { CAVE_RESIDENTS, CAVE_TOWNS } from './undercroft';
 import { PORT_RESIDENTS, PORTS } from './settlements';
 import type { Weather } from './weather';
 import { ITEMS, type ItemKind } from './items';
+import { realmNpcs } from './realm-npcs';
 
 export interface ScheduleBlock {
   h0: number;
@@ -964,6 +965,7 @@ export const DELVER_MERCHANTS: NpcDef[] = (
   };
 });
 for (const m of DELVER_MERCHANTS) NPC_BY_ID[m.id] = m;
+for (const m of realmNpcs()) NPC_BY_ID[m.id] = m;
 
 // ── friendship
 export const POINTS_PER_HEART = 40;
@@ -1039,5 +1041,5 @@ export const isWorking = (doing: string): boolean =>
 export const hoursText = (h: [number, number]): string =>
   `${String(h[0]).padStart(2, '0')}:00-${String(h[1] % 24).padStart(2, '0')}:00`;
 
-export const SHOP_NPCS = [...NPCS, ...DELVER_MERCHANTS].filter((n) => n.shop).map((n) => n.id);
+export const SHOP_NPCS = [...NPCS, ...DELVER_MERCHANTS, ...realmNpcs()].filter((n) => n.shop).map((n) => n.id);
 export const itemExists = (id: string): boolean => !!ITEMS[id];

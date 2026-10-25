@@ -1,7 +1,7 @@
 import { Rectangle, Texture } from 'pixi.js';
-import { DELVER_MERCHANTS, NPCS as VILLAGE_NPCS } from '@eigenlands/shared';
+import { DELVER_MERCHANTS, NPCS as VILLAGE_NPCS, realmNpcs } from '@eigenlands/shared';
 
-const NPCS = [...VILLAGE_NPCS, ...DELVER_MERCHANTS];
+const NPCS = [...VILLAGE_NPCS, ...DELVER_MERCHANTS, ...realmNpcs()];
 import { appearanceOf, outfitFromAppearance } from './appearance';
 import {
   blob,
@@ -258,6 +258,137 @@ OUTFITS.push(
 
 const rmp = (a: number[]) => a as Ramp;
 /** One distinctive look per village NPC (ids from shared NPCS). */
+/** Kingdom residents (revision 5): realm colours and uniforms, varied by role and a stable per-id hash. */
+const REALM_LOOK: Record<string, { a: Ramp; b: Ramp; trim: number; hair: Ramp[]; skin: Ramp[]; styles: HairStyle[] }> =
+  {
+    aurelion: {
+      a: rmp([C.w1, C.w2, C.w3, C.w4, C.w5]),
+      b: rmp([C.e3, C.e4, C.e5, C.e6]),
+      trim: C.e6,
+      hair: [HAIR.blond, HAIR.brown, HAIR.red],
+      skin: [SKIN_LIGHT, SKIN_MID],
+      styles: ['short', 'swept', 'braids', 'long', 'bun'],
+    },
+    sylvaris: {
+      a: rmp([C.g1, C.g2, C.g3, C.g4, C.g5]),
+      b: rmp([C.e1, C.e2, C.e3, C.e4]),
+      trim: C.g6,
+      hair: [HAIR.brown, HAIR.white, HAIR.violet, HAIR.blond],
+      skin: [SKIN_LIGHT, SKIN_MID, SKIN_DARK],
+      styles: ['long', 'braids', 'ponytail', 'curly', 'bun'],
+    },
+    khardum: {
+      a: rmp([C.slate, C.steel, C.mist, C.fog]),
+      b: rmp([C.r0, C.r1, C.r2, C.r3]),
+      trim: C.e6,
+      hair: [HAIR.red, HAIR.brown, HAIR.black],
+      skin: [SKIN_MID, SKIN_LIGHT],
+      styles: ['braids', 'spiky', 'short', 'ponytail'],
+    },
+    raijin: {
+      a: rmp([C.r1, C.r2, C.r3, C.r4, C.r5]),
+      b: rmp([C.night, C.slate, C.steel, C.mist]),
+      trim: C.white,
+      hair: [HAIR.black, HAIR.black, HAIR.brown],
+      skin: [SKIN_LIGHT, SKIN_MID],
+      styles: ['topknot', 'twintail', 'short', 'ponytail', 'bun'],
+    },
+    thalassara: {
+      a: rmp([C.w2, C.w3, C.w4, C.w5, C.w6]),
+      b: rmp([C.e3, C.e4, C.e5, C.e6]),
+      trim: C.pale,
+      hair: [HAIR.white, HAIR.black, HAIR.violet, HAIR.brown],
+      skin: [SKIN_DARK, SKIN_MID, SKIN_LIGHT],
+      styles: ['curly', 'long', 'braids', 'swept', 'ponytail'],
+    },
+    nethrakar: {
+      a: rmp([C.night, C.slate, C.q0, C.q1, C.q2]),
+      b: rmp([C.r1, C.r2, C.r3, C.r4]),
+      trim: C.r5,
+      hair: [HAIR.white, HAIR.black, HAIR.violet, HAIR.red],
+      skin: [SKIN_DARK, SKIN_MID],
+      styles: ['swept', 'long', 'spiky', 'topknot'],
+    },
+  };
+function realmOutfit(n: { id: string; realm?: string; role?: string }, i: number): Outfit {
+  const k = REALM_LOOK[n.realm ?? 'aurelion']!;
+  let h = 0;
+  for (const c of n.id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const pick = <T>(a: T[], o = 0): T => a[(h + o) % a.length]!;
+  const role = n.role ?? 'hand';
+  const hair = pick(k.hair, 3);
+  const base: Outfit = {
+    shirt: k.a,
+    pants: rmp([C.e0, C.e1, C.e2, C.e3]),
+    hair,
+    skin: pick(k.skin, 5),
+    boots: rmp([C.e0, C.e1, C.e2, C.e3]),
+    hairStyle: pick(k.styles, 7),
+    eyes: pick([C.e2, C.g4, C.w5, C.r5, C.q4, C.e3], 11),
+    trim: k.trim,
+  };
+  const soldierArms = { plate: rmp([C.slate, C.steel, C.mist, C.fog, C.pale]), cape: k.b, pants: k.b };
+  switch (role) {
+    case 'ruler':
+      return { ...base, shirt: k.a, dress: 'robe', mantle: k.b, cape: k.b, sash: rmp([C.e5, C.e6, C.e7]), trim: C.e7 };
+    case 'court':
+      return {
+        ...base,
+        dress: 'coat',
+        mantle: k.b,
+        sash: rmp([C.e4, C.e5, C.e6]),
+        ...(h % 3 === 0 ? { glasses: true } : {}),
+      };
+    case 'commander':
+      return {
+        ...base,
+        ...soldierArms,
+        hat: k.b,
+        hatStyle: 'brim',
+        sash: rmp([C.e5, C.e6, C.e7]),
+        beard: i % 2 ? hair : undefined,
+      };
+    case 'guard':
+    case 'soldier':
+      return { ...base, ...soldierArms, hat: k.a, hatStyle: 'cap', ...(h % 4 === 0 ? { moustache: true } : {}) };
+    case 'archer':
+      return { ...base, hat: k.a, hatStyle: 'hood', cape: k.a, pants: k.b };
+    case 'innkeeper':
+      return { ...base, apron: rmp([C.pale, C.white, C.fog]), shirt: k.b, ...(h % 2 ? { moustache: true } : {}) };
+    case 'smith':
+      return {
+        ...base,
+        apron: rmp([C.e0, C.e1, C.e2, C.night]),
+        shirt: rmp([C.night, C.slate, C.steel]),
+        beard: n.realm === 'khardum' || h % 3 === 0 ? hair : undefined,
+      };
+    case 'merchant':
+      return { ...base, vest: k.b, hat: k.b, hatStyle: 'beret', scarf: k.a };
+    case 'herbalist':
+      return {
+        ...base,
+        dress: 'robe',
+        hat: rmp([C.g1, C.g2, C.g3, C.g4]),
+        hatStyle: 'hood',
+        scarf: rmp([C.g2, C.g3, C.g4]),
+      };
+    case 'scholar':
+      return { ...base, dress: 'robe', glasses: true, shirt: rmp([C.q0, C.q1, C.q2, C.q3]) };
+    case 'elder':
+      return { ...base, hair: HAIR.white, dress: 'mantle', mantle: k.b, beard: h % 2 ? HAIR.white : undefined };
+    case 'farmer':
+    case 'hand':
+    default:
+      return {
+        ...base,
+        shirt: k.b,
+        hat: rmp([C.e3, C.e4, C.e5, C.e6]),
+        hatStyle: 'brim',
+        apron: i % 3 ? undefined : k.a,
+      };
+  }
+}
+
 export const NPC_LOOKS: Record<string, Outfit> = {
   // the mayor: silver bun, spectacles, a long violet coat with gold lapels and a rose scarf
   orla: {
@@ -1425,31 +1556,33 @@ export function buildActorSheets(): Sheets {
       const eyeCols = [C.e2, C.g4, C.w5, C.r5, C.q4, C.e3];
       const look: Outfit =
         NPC_LOOKS[id] ??
-        (n.settlement
-          ? {
-              shirt: cloth[i % 8]!,
-              pants: cloth[(i + 4 + Math.floor(i / 8)) % 8]!,
-              hair: hairs[(i * 3) % hairs.length]!,
-              skin: skins[(i + Math.floor(i / 5)) % skins.length]!,
-              boots: [C.e0, C.e1, C.e2, C.e3],
-              hairStyle: hairStyles[(i + Math.floor(i / 7)) % hairStyles.length]!,
-              eyes: eyeCols[(i * 5) % eyeCols.length]!,
-              trim: trims[(i * 7) % trims.length]!,
-              dress: dresses[(i + Math.floor(i / 3)) % dresses.length],
-              ...(i % 8 === 5 ? { plate: rmp([C.slate, C.steel, C.mist, C.fog, C.pale]) } : {}),
-              ...(i % 8 === 4 ? { mantle: cloth[(i + 1) % 8]! } : {}),
-              ...(i % 8 === 2 || i % 8 === 7 ? { cape: cloth[(i + 5) % 8]! } : {}),
-              ...(i % 6 === 1 ? { sash: rmp([C.e1, C.e2, trims[(i * 7) % trims.length]!]) } : {}),
-              ...(i % 3 !== 0
-                ? { hat: cloth[(i + 2 + Math.floor(i / 6)) % 8]!, hatStyle: hatStyles[(i + Math.floor(i / 8)) % 6]! }
-                : { scarf: cloth[(i + 3) % 8]! }),
-              ...(i % 4 === 0 && !(i % 8 === 4 || i % 8 === 5) ? { apron: cloth[(i + 5) % 8]! } : {}),
-              ...(i % 5 === 0 ? { glasses: true } : {}),
-              ...(['Oren', 'Bram', 'Garrick', 'Harlan', 'Toren'].includes(n.name.split(' ')[0]!)
-                ? { beard: hairs[i % hairs.length]! }
-                : {}),
-            }
-          : OUTFITS[i % COSMETIC_OUTFITS]!);
+        (n.realm
+          ? realmOutfit(n, i)
+          : n.settlement
+            ? {
+                shirt: cloth[i % 8]!,
+                pants: cloth[(i + 4 + Math.floor(i / 8)) % 8]!,
+                hair: hairs[(i * 3) % hairs.length]!,
+                skin: skins[(i + Math.floor(i / 5)) % skins.length]!,
+                boots: [C.e0, C.e1, C.e2, C.e3],
+                hairStyle: hairStyles[(i + Math.floor(i / 7)) % hairStyles.length]!,
+                eyes: eyeCols[(i * 5) % eyeCols.length]!,
+                trim: trims[(i * 7) % trims.length]!,
+                dress: dresses[(i + Math.floor(i / 3)) % dresses.length],
+                ...(i % 8 === 5 ? { plate: rmp([C.slate, C.steel, C.mist, C.fog, C.pale]) } : {}),
+                ...(i % 8 === 4 ? { mantle: cloth[(i + 1) % 8]! } : {}),
+                ...(i % 8 === 2 || i % 8 === 7 ? { cape: cloth[(i + 5) % 8]! } : {}),
+                ...(i % 6 === 1 ? { sash: rmp([C.e1, C.e2, trims[(i * 7) % trims.length]!]) } : {}),
+                ...(i % 3 !== 0
+                  ? { hat: cloth[(i + 2 + Math.floor(i / 6)) % 8]!, hatStyle: hatStyles[(i + Math.floor(i / 8)) % 6]! }
+                  : { scarf: cloth[(i + 3) % 8]! }),
+                ...(i % 4 === 0 && !(i % 8 === 4 || i % 8 === 5) ? { apron: cloth[(i + 5) % 8]! } : {}),
+                ...(i % 5 === 0 ? { glasses: true } : {}),
+                ...(['Oren', 'Bram', 'Garrick', 'Harlan', 'Toren'].includes(n.name.split(' ')[0]!)
+                  ? { beard: hairs[i % hairs.length]! }
+                  : {}),
+              }
+            : OUTFITS[i % COSMETIC_OUTFITS]!);
       tex = Texture.from(personSheet([look], 700 + i * 37, WALK_FRAMES + 1));
       tex.source.scaleMode = 'nearest';
       npcBases.set(id, tex);

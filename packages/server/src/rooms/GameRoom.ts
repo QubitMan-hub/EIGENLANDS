@@ -7,6 +7,8 @@ import {
   MSG34,
   NPCS,
   delverRounds,
+  realmNpcs,
+  REALM_SITE_BY_ID,
   PORTS,
   CAVE_TOWNS,
   chunkOf,
@@ -255,6 +257,12 @@ export class GameRoom extends WorldRoom {
     if (this.store.generation >= 4)
       for (const r of delverRounds(this.seed))
         if (r.camps.length && (this.unsharded || r.shard === this.shard)) ids.push(r.id);
+    // kingdom residents belong to the shard their settlement plot stands in (revision 5)
+    if (this.store.generation >= 5)
+      for (const n of realmNpcs()) {
+        const site = REALM_SITE_BY_ID[n.site!];
+        if (site && (this.unsharded || shardAt(site.cx, site.cy) === this.shard)) ids.push(n.id);
+      }
     if (!ids.length) return nullVillage();
     const prefix = this.unsharded || shardAt(t.cx, t.cy) === this.shard ? '' : `${this.shard}:`;
     return createVillage(
