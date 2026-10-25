@@ -14,6 +14,7 @@ export * from './protocol';
 export * from './schema';
 export * from './items';
 export * from './appearance';
+export * from './generation-registry';
 export * from './nodes';
 export * from './town';
 export * from './weather';
@@ -61,3 +62,4 @@ export * from './construction';
 
 export * from './undercroft';
 export * from './mines';
+export * from './caves2';

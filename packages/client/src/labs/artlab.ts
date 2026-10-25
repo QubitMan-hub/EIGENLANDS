@@ -1,3 +1,4 @@
+import { railSprite, minecartSprite } from '../art/mining';
 import { constructionCanvas } from '../art/construction';
 import { BUILD_PIECES, type BuildPiece } from '@eigenlands/shared';
 import { Critters } from '../art/critters';
@@ -173,6 +174,8 @@ if (mode === 'construction') {
   mode === 'equipment' ||
   mode === 'wilderness' ||
   mode === 'resources' ||
+  mode === 'caveores' ||
+  mode === 'rails' ||
   mode === 'foliage' ||
   mode === 'fauna' ||
   mode === 'portfolks'
@@ -272,6 +275,61 @@ if (mode === 'construction') {
           place(sp.tex, sp.ax, sp.ay, x, y);
         }
     }
+  } else if (mode === 'rails') {
+    label('Undercroft 2: rails (straight, curves, junction, buffers) and the cart', 4, 8);
+    const cases: Array<[string, number, number]> = [
+      ['EW', 5, 0],
+      ['NS', 10, 0],
+      ['E-S', 3, 0],
+      ['S-W', 6, 0],
+      ['W-N', 12, 0],
+      ['N-E', 9, 0],
+      ['T', 7, 0],
+      ['end E', 1, 1],
+      ['end N', 8, 2],
+    ];
+    cases.forEach(([name, mask, end], i) => {
+      const x = 50 + (i % 5) * 80,
+        y = 70 + Math.floor(i / 5) * 90;
+      root.addChild(new Graphics().poly([x, y - 8, x + 16, y, x, y + 8, x - 16, y]).fill(0x4a3a30));
+      const sp = railSprite(mask, end);
+      place(sp.tex, sp.ax, sp.ay, x, y);
+      label(name, x - 14, y + 14);
+    });
+    const cart = minecartSprite(0, true, 5);
+    place(cart.tex, cart.ax, cart.ay, 130, 260);
+    // a short L-shaped line laid out tile by tile
+    const line: Array<[number, number, number, number]> = [
+      [0, 0, 1, 1],
+      [1, 0, 5, 0],
+      [2, 0, 5, 0],
+      [3, 0, 3, 0],
+      [3, 1, 10, 0],
+      [3, 2, 10, 0],
+      [3, 3, 8, 2],
+    ];
+    for (const [i, j, mask, end] of line) {
+      const x = 330 + (i - j) * 16,
+        y = 230 + (i + j) * 8;
+      const sp = railSprite(mask, end);
+      place(sp.tex, sp.ax, sp.ay, x, y);
+    }
+  } else if (mode === 'caveores') {
+    const art = buildObjectArt(season);
+    const kinds = Object.keys(art.cave).filter((k) => k.startsWith('cave_') || k === 'stalagmite' || k === 'glowcap');
+    label('Undercroft 2: veins embedded in rock, floor finds', 4, 8);
+    kinds.forEach((kind, r) => {
+      label(kind, 4, 50 + r * 44);
+      const fr = FRAMES_PER_VARIANT[kind] ?? 1,
+        n = art.cave[kind]!.length;
+      for (let i = 0; i < n; i++) {
+        const sp = art.cave[kind]![i]!,
+          x = 110 + (i % (3 * fr)) * 40 + Math.floor(i / (3 * fr)) * 0,
+          y = 56 + r * 44;
+        root.addChild(new Graphics().poly([x, y - 8, x + 16, y, x, y + 8, x - 16, y]).fill(0x343740));
+        place(sp.tex, sp.ax, sp.ay, x, y);
+      }
+    });
   } else if (mode === 'wilderness') {
     Object.entries(buildSceneryArt()).forEach(([kind, list], row) => {
       label(kind.replace('wild_', ''), 4, 24 + row * 40);

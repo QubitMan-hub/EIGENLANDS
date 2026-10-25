@@ -11,6 +11,7 @@ import {
 } from './undercroft';
 export { CAVE_OY } from './undercroft';
 import { mineLoopAt, mineRailAt, mineRailMask } from './mines';
+import { caveFeatureObjects2 } from './caves2';
 import { mineralDeposit } from './distribution';
 import { CHUNK_SIZE } from './constants';
 import type { WorldObj } from './objects';
@@ -31,76 +32,8 @@ import { HOME_VALE, biomeAt, landmarkTileAt, type Biome } from './worldgen';
 /** True for tiles on the cave plane. */
 export const isCaveY = (y: number): boolean => y >= CAVE_OY - 512;
 
-export interface CaveMouth {
-  id: string;
-  x: number;
-  y: number;
-  biome: Biome;
-}
-
-const CELL = 72;
-const cache = new Map<string, CaveMouth | null>();
-
-/** The cave mouth of one 72x72 surface cell, if it has one. */
-export function caveOfCell(seed: number, gx: number, gy: number): CaveMouth | null {
-  const key = `${seed}:${gx},${gy}`;
-  const hit = cache.get(key);
-  if (hit !== undefined) return hit;
-  let out: CaveMouth | null = null;
-  if (hash2(seed, gx, gy, 961) < 0.5) {
-    const t = townFor(seed);
-    for (let k = 0; k < 12 && !out; k++) {
-      const x = gx * CELL + 8 + Math.floor(hash2(seed, gx * 17 + k, gy, 962) * (CELL - 16));
-      const y = gy * CELL + 8 + Math.floor(hash2(seed, gx, gy * 17 + k, 963) * (CELL - 16));
-      if (Math.hypot(x, y) < HOME_VALE * 0.55 || (x > t.x0 - 8 && x < t.x1 + 8 && y > t.y0 - 8 && y < t.y1 + 8))
-        continue;
-      if (townAt(seed, x, y)) continue;
-      let clear = true;
-      for (let j = -1; j <= 2 && clear; j++)
-        for (let i = -1; i <= 1 && clear; i++) if (isSolid(landmarkTileAt(seed, x + i, y + j))) clear = false;
-      if (!clear) continue;
-      const r = ruinOfCell(seed, Math.floor(x / 96), Math.floor(y / 96));
-      if (r && Math.hypot(r.x - x, r.y - y) < 9) continue;
-      out = { id: `cv${gx}_${gy}`, x, y, biome: biomeAt(seed, x, y) };
-    }
-  }
-  if (cache.size > 4000) cache.clear();
-  cache.set(key, out);
-  return out;
-}
-
-const shafts = new Map<string, CaveMouth | null>();
-export function caveShaftOfCell(seed: number, gx: number, gy: number): CaveMouth | null {
-  const key = `${seed}:${gx},${gy}`;
-  if (shafts.has(key)) return shafts.get(key)!;
-  let out: CaveMouth | null = null;
-  if (!caveOfCell(seed, gx, gy))
-    for (let k = 12; k < 48 && !out; k++) {
-      const x = gx * 72 + 8 + Math.floor(hash2(seed, gx * 17 + k, gy, 962) * 56),
-        y = gy * 72 + 8 + Math.floor(hash2(seed, gx, gy * 17 + k, 963) * 56);
-      if (Math.hypot(x, y) < HOME_VALE * 0.55 || townAt(seed, x, y)) continue;
-      let clear = true;
-      for (let j = -1; j <= 2; j++)
-        for (let i = -1; i <= 1; i++) if (isSolid(landmarkTileAt(seed, x + i, y + j))) clear = false;
-      if (clear) out = { id: `sx${gx}_${gy}`, x, y, biome: biomeAt(seed, x, y) };
-    }
-  if (shafts.size > 2048) shafts.clear();
-  shafts.set(key, out);
-  return out;
-}
-
-function mouthsNear(seed: number, x: number, y: number, r: number): CaveMouth[] {
-  const out: CaveMouth[] = [];
-  for (let gy = Math.floor((y - r) / CELL); gy <= Math.floor((y + r) / CELL); gy++) {
-    for (let gx = Math.floor((x - r) / CELL); gx <= Math.floor((x + r) / CELL); gx++) {
-      const m = caveOfCell(seed, gx, gy);
-      if (m) out.push(m);
-      const secondary = caveShaftOfCell(seed, gx, gy);
-      if (secondary) out.push(secondary);
-    }
-  }
-  return out;
-}
+export { caveOfCell, caveShaftOfCell, mouthsNear, type CaveMouth } from './cavemouths';
+import { mouthsNear, caveOfCell, caveShaftOfCell, type CaveMouth } from './cavemouths';
 
 const noise = new Map<number, Simplex2D>();
 /** Wide connected routes and authored discoveries; deposits replace rock, never the dry route core. */
@@ -183,7 +116,7 @@ function cascadeAt(seed: number, r: ReturnType<typeof caveRegion>) {
 }
 
 /** Static objects of chunk (cx, cy): cave mouths on the surface; ladders and forgotten caches below. */
-export function caveObjectsIn(seed: number, cx: number, cy: number): WorldObj[] {
+export function caveObjectsIn(seed: number, cx: number, cy: number, generation = 2): WorldObj[] {
   const out: WorldObj[] = [];
   const x0 = cx * CHUNK_SIZE,
     y0 = cy * CHUNK_SIZE;
@@ -206,7 +139,8 @@ export function caveObjectsIn(seed: number, cx: number, cy: number): WorldObj[] 
     if (inChunk(m.x, m.y + CAVE_OY))
       out.push({ x: m.x, y: m.y + CAVE_OY, kind: 'deco', sub: 'cave_ladder', static: true, data: { cave: m.id } });
   }
-  if (below) {
+  if (below && generation >= 4) out.push(...caveFeatureObjects2(seed, cx, cy));
+  else if (below) {
     for (let gy = Math.floor(sy / 72); gy <= Math.floor((sy + 31) / 72); gy++)
       for (let gx = Math.floor(x0 / 72); gx <= Math.floor((x0 + 31) / 72); gx++) {
         const r = caveRegion(seed, gx, gy),

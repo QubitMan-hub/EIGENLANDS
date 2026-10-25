@@ -2,7 +2,16 @@
  * Boss encounters, Terraria style: each boss is called with a crafted summoning item, and what it drops is the
  * ingredient for the next boss's item, so they form a chain. Player level scales their health and damage.
  */
-export type BossId = 'slime_king' | 'warden' | 'colossus' | 'bellkeeper' | 'veyr';
+export type BossId =
+  | 'slime_king'
+  | 'warden'
+  | 'colossus'
+  | 'bellkeeper'
+  | 'veyr'
+  | 'geode_tyrant'
+  | 'cinder_wyrm'
+  | 'rime_sovereign'
+  | 'tide_leviathan';
 export interface BossDef {
   id: BossId;
   name: string;
@@ -21,6 +30,50 @@ export interface BossDef {
   loot: string;
 }
 export const BOSSES: Record<BossId, BossDef> = {
+  geode_tyrant: {
+    id: 'geode_tyrant',
+    name: 'The Geode Tyrant',
+    kind: 40,
+    item: 'deep_sigil',
+    level: 14,
+    townGap: 30,
+    phases: [0.66, 0.33],
+    intro: 'Prisms split the dark. The vault itself has been growing a king.',
+    loot: 'Heart Crystal, Qubit Crystals and silver. Bring a Deep Sigil to a surveyed arena in the Prism Vaults.',
+  },
+  cinder_wyrm: {
+    id: 'cinder_wyrm',
+    name: 'The Cinder Wyrm',
+    kind: 41,
+    item: 'deep_sigil',
+    level: 16,
+    townGap: 30,
+    phases: [0.7, 0.35],
+    intro: 'The lava stills. Something long and old unwinds from the black rock.',
+    loot: 'Heart Crystal, Qubit Crystals and gold. Bring a Deep Sigil to a surveyed arena in the Cinder Hollows.',
+  },
+  rime_sovereign: {
+    id: 'rime_sovereign',
+    name: 'The Rime Sovereign',
+    kind: 42,
+    item: 'deep_sigil',
+    level: 18,
+    townGap: 30,
+    phases: [0.66, 0.33],
+    intro: 'Frost climbs the seal. A crown of ice lifts from the floor, and the hall remembers a queen.',
+    loot: 'Heart Crystal, Qubit Crystals and silver. Bring a Deep Sigil to a surveyed arena in the Rime Cathedral.',
+  },
+  tide_leviathan: {
+    id: 'tide_leviathan',
+    name: 'The Stillwater Leviathan',
+    kind: 43,
+    item: 'deep_sigil',
+    level: 20,
+    townGap: 30,
+    phases: [0.66, 0.33],
+    intro: 'The moat goes black and perfectly still. Then a lantern opens beneath it.',
+    loot: 'Heart Crystal, Qubit Crystals and gold. Bring a Deep Sigil to a surveyed arena in the Stillwater Deeps.',
+  },
   veyr: {
     id: 'veyr',
     name: 'Veyr, the Stormbound Colossus',
@@ -78,7 +131,24 @@ export const BOSSES: Record<BossId, BossDef> = {
   },
 };
 export const BOSS_BY_KIND: Record<number, BossDef> = Object.fromEntries(Object.values(BOSSES).map((b) => [b.kind, b]));
-export const BOSS_BY_ITEM: Record<string, BossDef> = Object.fromEntries(Object.values(BOSSES).map((b) => [b.item, b]));
+export const BOSS_BY_ITEM: Record<string, BossDef> = Object.fromEntries(
+  // the Deep Sigil belongs to the Bellkeeper; the other arena bosses answer it by biome (see ARENA_BOSS)
+  Object.values(BOSSES)
+    .filter(
+      (b) =>
+        b.id !== 'geode_tyrant' && b.id !== 'cinder_wyrm' && b.id !== 'rime_sovereign' && b.id !== 'tide_leviathan',
+    )
+    .map((b) => [b.item, b]),
+);
+/** Which boss a Deep Sigil calls in a revision-4 arena of each cave biome. */
+export const ARENA_BOSS: Record<'limestone' | 'glowmoss' | 'crystal' | 'basalt' | 'frost' | 'drowned', BossId> = {
+  limestone: 'bellkeeper',
+  glowmoss: 'bellkeeper',
+  crystal: 'geode_tyrant',
+  basalt: 'cinder_wyrm',
+  frost: 'rime_sovereign',
+  drowned: 'tide_leviathan',
+};
 
 export type BossEvent =
   | { kind: 'start'; boss: BossId; name: string; intro: string }

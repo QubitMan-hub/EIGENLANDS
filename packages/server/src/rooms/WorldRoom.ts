@@ -1,5 +1,5 @@
 import { generationMeta, tileAt, isSolid, validAppearance } from '@eigenlands/shared';
-import { caveRegionAt, highGroundRange } from '@eigenlands/shared';
+import { caveBiomeAt, caveRegionAt, highGroundRange } from '@eigenlands/shared';
 import { Client, Room, ServerError } from 'colyseus';
 import { StateView } from '@colyseus/schema';
 import {
@@ -1542,7 +1542,8 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
             this.rand(),
             habitat,
             isCaveY(y),
-            isCaveY(y) ? caveRegionAt(this.seed, x, y).biome : undefined,
+            isCaveY(y) ? caveBiomeAt(this.seed, x, y) : undefined,
+            this.store.generation >= 4,
           ),
           def = ENEMY_DEFS[kind];
         const cost = def.budget ?? 1;
@@ -1729,6 +1730,10 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
 
   /** boss summoning (the Phase 3/4 room provides the boss module) */
   summonBoss(_p: ServerPlayer, _itemId: string, _x: number, _y: number): boolean {
+    return false;
+  }
+  /** a vault chest was opened; true = it is still locked by a trial */
+  vaultGuard(_p: ServerPlayer, _o: WorldObj): boolean {
     return false;
   }
   toggleShip(_p: ServerPlayer): void {}

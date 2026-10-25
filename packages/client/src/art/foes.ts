@@ -50,7 +50,17 @@ export type CritterKind =
   | 'pool_lurker'
   | 'vault_guardian'
   | 'spore_matriarch'
-  | 'bellkeeper';
+  | 'bellkeeper'
+  | 'amber_gnawer'
+  | 'lantern_hound'
+  | 'geode_golem'
+  | 'cinder_drake'
+  | 'frost_wraith'
+  | 'tide_eel'
+  | 'geode_tyrant'
+  | 'cinder_wyrm'
+  | 'rime_sovereign'
+  | 'tide_leviathan';
 
 interface Def {
   w: number;
@@ -852,6 +862,208 @@ function caveFauna(form: number): Def {
   };
 }
 
+/**
+ * Undercroft 2 creatures: one signature monster per cave biome and four boss forms. Each is a short hand-built rig (body
+ * volumes, a head, limbs or a tail) animated by the same idle / move / windup / attack / hurt / death clock as the
+ * older cave fauna.
+ *  0 amber gnawer, 1 lantern hound, 2 geode golem, 3 cinder drake, 4 frost wraith, 5 tide eel,
+ *  6 geode tyrant, 7 cinder wyrm, 8 rime sovereign, 9 tide leviathan
+ */
+function caveBeast(form: number): Def {
+  const boss = form >= 6,
+    big = boss ? 1.9 : 1;
+  return {
+    w: boss ? 96 : 52,
+    h: boss ? 96 : 48,
+    ay: boss ? 86 : 40,
+    shadow: boss ? [20, 8] : [8, 3.5],
+    n: { idle: 4, move: 6, windup: 4, attack: 3, hurt: 2, death: 5 },
+    draw(s, a, k, t) {
+      const moving = a === 'move',
+        wind = a === 'windup',
+        dead = a === 'death',
+        bite = a === 'attack';
+      const sw = Math.sin(t * TAU),
+        kind = form % 6;
+      const R = (c: number, n = 3) => M(ramp(c, n, 2, { hue: 9 }));
+      const ivory = M(ramp(ART_RGB.e6, 2, 1)),
+        iron = M(ramp(ART_RGB.slate, 2, 2), { shiny: true });
+      const eye = (c: number) => M(ramp(c, 2, 1), { glow: true });
+      const sink = dead ? t * 6 * big : 0;
+      s.push(I3, [0, 0, 0], [bite ? (1 - t) * 3 * big : 0, 0, -sink]);
+      if (kind === 0) {
+        // armoured burrower: segmented plates, shovel claws, chisel incisors
+        const plate = R(ART_RGB.e4),
+          hide = R(ART_RGB.e1);
+        const z = 4 * big + (moving ? 0.4 * sw : 0);
+        for (let i = 0; i < 4; i++)
+          s.ell([(-5 + i * 3.4) * big, 0, z + (i === 1 ? 1 : 0)], [2.4 * big, 4 * big, 3 * big], i % 2 ? plate : hide);
+        const lift = wind ? 3 : 0;
+        s.ell([8 * big, 0, z + 1 + lift], [3.2 * big, 2.8 * big, 2.4 * big], hide);
+        for (const side of [-1, 1]) {
+          s.cap(
+            [10 * big, side * 0.8, z + lift],
+            [11.5 * big, side * 0.8, z - 2.6 + lift - (bite ? 1 : 0)],
+            0.7 * big,
+            0.25,
+            ivory,
+          );
+          s.cap(
+            [6 * big, side * 3, z - 1],
+            [9 * big + (moving ? sw * side : 0), side * 4.8, 0.8],
+            1.2 * big,
+            0.7 * big,
+            ivory,
+          );
+          s.cap(
+            [-3 * big, side * 3.5, z - 1],
+            [-3 * big - (moving ? sw * side : 0), side * 5, 0.8],
+            1.1 * big,
+            0.6 * big,
+            hide,
+          );
+          s.sph([9 * big, side * 1.7, z + 2 + lift], 0.6, eye(ART_RGB.e7));
+        }
+      } else if (kind === 1) {
+        // glow-hound: lean fungal canine with an angler lure lit over its brow
+        const fur = R(ART_RGB.g2),
+          dark = R(ART_RGB.g0);
+        const z = 5 * big + (moving ? 0.5 * Math.abs(sw) : 0);
+        s.ell([0, 0, z], [6 * big, 2.8 * big, 3 * big], fur);
+        s.ell([-6 * big, 0, z + 1], [3 * big, 1.6 * big, 1.6 * big], dark);
+        const lift = wind ? 3 : 0;
+        s.ell([6.5 * big, 0, z + 2 + lift], [3 * big, 2.2 * big, 2.2 * big], fur);
+        s.cap(
+          [8.5 * big, 0, z + 1.5 + lift],
+          [11 * big, 0, z + 1 + lift - (bite ? 1.5 : 0)],
+          1.1 * big,
+          0.6 * big,
+          dark,
+        );
+        s.cap([5 * big, 0, z + 4 + lift], [3 * big, 0, z + 9 * big], 0.35, 0.3, dark);
+        s.sph([3 * big, 0, z + 9.8 * big], (wind || bite ? 1.7 : 1.3) * big, eye(ART_RGB.w6));
+        for (const side of [-1, 1]) {
+          for (const [x, ph] of [
+            [4, 0],
+            [-4, 0.5],
+          ] as const) {
+            const st = moving ? Math.sin(t * TAU + (ph + (side > 0 ? 0.5 : 0)) * TAU) * 2 : 0;
+            s.cap([x * big, side * 2, z - 1], [x * big + st, side * 2.8, 0.8], 1 * big, 0.5 * big, dark);
+          }
+          s.sph([8 * big, side * 1.3, z + 3 + lift], 0.55, eye(ART_RGB.w6));
+        }
+      } else if (kind === 2) {
+        // living crystal: a rough stone body bristling with faceted prisms
+        const stone = R(ART_RGB.slate, 3),
+          gem = M(ramp(ART_RGB.q5, 3, 2, { hue: 10 }), { glow: true, shiny: true });
+        const z = 9 * big + (moving ? 0.6 * Math.abs(sw) : 0);
+        s.ell([0, 0, z], [5.5 * big, 5 * big, 7 * big], stone);
+        s.ell([1, 0, z + 8 * big], [3 * big, 3 * big, 2.6 * big], stone);
+        for (const side of [-1, 1]) {
+          const arm = wind ? 8 : bite ? -2 : 0;
+          s.cap(
+            [0, side * 5 * big, z + 4 * big],
+            [3 * big, side * 7.5 * big, z - 3 * big + arm],
+            2.2 * big,
+            1.6 * big,
+            stone,
+          );
+          s.sph([3.4 * big, side * 7.5 * big, z - 4 * big + arm], 2.1 * big, gem);
+          s.cap(
+            [0, side * 2.4 * big, z - 5 * big],
+            [moving ? sw * 2 * side : 0, side * 3 * big, 1],
+            2 * big,
+            1.2 * big,
+            stone,
+          );
+          s.sph([4.2 * big, side * 1.2, z + 8.8 * big], 0.8, eye(ART_RGB.q7));
+        }
+        for (let i = 0; i < 6; i++) {
+          const ang = i * 1.05;
+          s.cap(
+            [-2 * big, Math.cos(ang) * 3.5 * big, z + 3 * big],
+            [-3 * big - i * 0.4, Math.cos(ang) * 6 * big, z + (9 + (i % 3) * 2.5) * big],
+            1.3 * big,
+            0.12,
+            gem,
+          );
+        }
+      } else if (kind === 3) {
+        // ember lizard: charcoal hide, cracks of firelight, a long tail
+        const hide = R(ART_RGB.night, 3),
+          scale = R(ART_RGB.r1, 3),
+          fire = M(ramp(ART_RGB.e6, 3, 2), { glow: true });
+        const z = 4.6 * big + (moving ? 0.4 * Math.abs(sw) : 0);
+        s.ell([0, 0, z], [6 * big, 3 * big, 3 * big], hide);
+        for (let i = 0; i < 5; i++) s.sph([(-3 + i * 2.2) * big, 0, z + 3 * big], 0.9 * big, i % 2 ? fire : scale);
+        s.cap([-6 * big, 0, z], [-12 * big, 0, z - 1 + sw * 1.4], 2 * big, 0.5, hide);
+        const lift = wind ? 4 : 0;
+        s.cap([5 * big, 0, z + 1], [8 * big, 0, z + 4 + lift], 1.8 * big, 1.4 * big, hide);
+        s.ell([10 * big, 0, z + 4 + lift], [3 * big, 2 * big, 1.8 * big], hide);
+        if (wind || bite) s.sph([12.8 * big, 0, z + 3.6 + lift], 1.5 * big, fire);
+        for (const side of [-1, 1]) {
+          s.sph([10.4 * big, side * 1.4, z + 5 + lift], 0.55, eye(ART_RGB.e7));
+          for (const [x, ph] of [
+            [3, 0],
+            [-3, 0.5],
+          ] as const) {
+            const st = moving ? Math.sin(t * TAU + (ph + (side > 0 ? 0.5 : 0)) * TAU) * 2 : 0;
+            s.cap([x * big, side * 2.6, z - 1], [x * big + st, side * 4.6, 0.8], 1 * big, 0.5 * big, scale);
+          }
+        }
+      } else if (kind === 4) {
+        // hooded wraith: tattered cone of cold, hands trailing frost
+        const cloth = M(ramp(ART_RGB.w3, 3, 2, { hue: 8 })),
+          rime = M(ramp(ART_RGB.pale, 2, 1), { glow: true });
+        const z = (10 + 1.6 * Math.sin(t * TAU)) * big - sink;
+        s.cap([0, 0, z - 8 * big], [0, 0, z + 5 * big], 2.2 * big, 5 * big, cloth);
+        s.cap([0, 0, z - 12 * big], [-2 * big, sw, z - 6 * big], 0.2, 2.6 * big, cloth);
+        s.ell([0.5, 0, z + 7 * big], [3.4 * big, 3 * big, 3.6 * big], cloth);
+        for (const side of [-1, 1]) {
+          const reach = wind ? 6 : bite ? 8 : 2;
+          s.cap(
+            [0, side * 4 * big, z + 2 * big],
+            [(3 + reach) * big, side * 6 * big, z - 1 * big + (wind ? 4 : 0)],
+            1.1 * big,
+            0.5 * big,
+            cloth,
+          );
+          s.sph([(3.4 + reach) * big, side * 6 * big, z + (wind ? 3 : -1) * big], 1.1 * big, rime);
+          s.sph([3.6 * big, side * 1.3, z + 7.4 * big], 0.7, eye(ART_RGB.w7));
+        }
+      } else {
+        // eel: a long sine-waved body of overlapping rings with a fanned dorsal and snapping jaw
+        const skin = R(ART_RGB.w1, 3),
+          belly = R(ART_RGB.w4, 2);
+        const segs = 9;
+        for (let i = 0; i < segs; i++) {
+          const x = (6 - i * 2.4) * big,
+            y = Math.sin(t * TAU * (moving ? 1 : 0.4) - i * 0.7) * 2.4 * big * (moving ? 1 : 0.5),
+            r = (3.2 - i * 0.26) * big;
+          s.sph([x, y, 4 * big + (i === 0 && wind ? 2 : 0)], r, i % 2 ? skin : belly);
+          if (i > 0 && i < segs - 1)
+            s.cap([x, y, 4 * big + r * 0.7], [x - 0.8 * big, y, 4 * big + r * 1.8], 0.3, 0.1, belly);
+        }
+        const open = wind || bite ? 1.8 : 0.4;
+        s.cap([6 * big, 0, 4 * big + open], [10.5 * big, 0, 4 * big + open], 1.1 * big, 0.5 * big, skin);
+        s.cap([6 * big, 0, 4 * big - open], [10.2 * big, 0, 4 * big - open], 1 * big, 0.4 * big, belly);
+        for (const side of [-1, 1]) {
+          s.sph([7 * big, side * 1.6 * big, 5.4 * big], 0.6, eye(ART_RGB.e7));
+          s.cap(
+            [8 * big, side * 0.7, 4 * big + open + 0.6],
+            [9.3 * big, side * 0.7, 4 * big + open - 0.8],
+            0.25,
+            0.1,
+            ivory,
+          );
+        }
+      }
+      void iron;
+      s.pop();
+    },
+  };
+}
+
 const DEFS: Record<CritterKind, Def> = {
   echo_bat: caveFauna(0),
   spore_sage: caveFauna(1),
@@ -862,6 +1074,16 @@ const DEFS: Record<CritterKind, Def> = {
   vault_guardian: caveFauna(6),
   spore_matriarch: caveFauna(7),
   bellkeeper: caveFauna(8),
+  amber_gnawer: caveBeast(0),
+  lantern_hound: caveBeast(1),
+  geode_golem: caveBeast(2),
+  cinder_drake: caveBeast(3),
+  frost_wraith: caveBeast(4),
+  tide_eel: caveBeast(5),
+  geode_tyrant: caveBeast(6),
+  cinder_wyrm: caveBeast(7),
+  rime_sovereign: caveBeast(8),
+  tide_leviathan: caveBeast(9),
   reed_stalker: encounterDef(false),
   cinder_moth: encounterDef(true),
   fox: wildDef('fox'),
@@ -981,8 +1203,20 @@ export function buildFoeSheets(): FoeSheets {
     'spore_matriarch',
     'bellkeeper',
   ] as const;
+  const newCave = [
+    'amber_gnawer',
+    'lantern_hound',
+    'geode_golem',
+    'cinder_drake',
+    'frost_wraith',
+    'tide_eel',
+    'geode_tyrant',
+    'cinder_wyrm',
+    'rime_sovereign',
+    'tide_leviathan',
+  ] as const;
   const name = (k: number): CritterKind => {
-    const cave = caveNames[k - 24];
+    const cave = caveNames[k - 24] ?? newCave[k - 34];
     if (cave) return cave;
     if (k === 22) return 'reed_stalker';
     if (k === 23) return 'cinder_moth';

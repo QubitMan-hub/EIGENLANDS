@@ -1,4 +1,4 @@
-import { caveRegionAt } from '@eigenlands/shared';
+import { caveBiomeAt } from '@eigenlands/shared';
 import { TERRAIN_PAD, terrainWindow } from './terrain-window';
 import {
   BufferImageSource,
@@ -179,7 +179,7 @@ export class Terrain {
                 frost: 'taiga',
                 drowned: 'swamp',
               } as const
-            )[caveRegionAt(seed, tx, ty).biome]
+            )[caveBiomeAt(seed, tx, ty)]
           : biomeAt(seed, tx, ty);
         let ground = TILE_DEFS[tile]?.ground ?? 3;
         if (biome === 'desert' && ground === G.GRASS) ground = G.SAND; // scrub and cacti stand on the dunes

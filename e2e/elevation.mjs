@@ -89,7 +89,7 @@ try {
   const st = () => page.evaluate(() => window.__eigen.state());
   const dev = (m) => page.evaluate((m) => window.__eigen.game.net.dev(m), m);
   const s0 = await st();
-  if (s0.generation !== 3) throw new Error(`expected a revision-3 world, got ${s0.generation}`);
+  if (s0.generation < 3) throw new Error(`expected a revision-3+ world, got ${s0.generation}`);
   // teleport to the nearest path point 40 tiles from the summit so the walk is short but real
   const start = path[Math.max(0, path.length - (mobile ? 12 : 45))];
   await dev({ cmd: 'tp', x: start[0] + 0.5, y: start[1] + 0.5 });

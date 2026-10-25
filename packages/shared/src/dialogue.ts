@@ -3,7 +3,7 @@
  * Pure data + a pure line composer, used by the server (dialogue) and the client (ambient chatter, statue lore).
  */
 import type { Weather } from './weather';
-import { NPCS, NPC_BY_ID, tierOf, hearts, type NpcDef } from './npcs';
+import { DELVER_MERCHANTS, NPCS, NPC_BY_ID, tierOf, hearts, type NpcDef } from './npcs';
 
 /** Things the player did recently that villagers can remember and comment on. */
 export type DeedKind =
@@ -1747,6 +1747,74 @@ for (const n of NPCS.filter((n) => n.settlement)) {
         { text: 'I will make time for this.', reply: 'Then let us start with a cup together.', pts: 20 },
         { text: 'Tell me more.', reply: 'There is a long story behind that light. Walk with me.', pts: 10 },
         { text: 'I should keep moving.', reply: 'Of course. Take a little light for the road.', pts: 0 },
+      ],
+    })),
+  };
+}
+
+// Travelling merchants: a short, shared trader's voice, flavoured by each one's bio.
+for (const n of DELVER_MERCHANTS) {
+  const first = n.name.split(' ')[0]!;
+  V[n.id] = {
+    greet: {
+      morning: [`Morning's trade is the best trade. ${first}'s cart is open.`],
+      day: ['Browse, haggle, buy. In that order, ideally.'],
+      evening: ['Last trades before the fire is banked.'],
+      night: ['Keep your voice down. The deep listens.'],
+    },
+    again: ['Back so soon? The stock has not changed, but my mood might have.'],
+    chat: [
+      [n.bio, 'The camps are lonelier than the towns, but the people are honest. Mostly.'],
+      [
+        'You walk like someone who has learned to listen to the rock.',
+        'I keep a map in my head of every camp. Do not ask to see it.',
+      ],
+      [
+        'I would walk the whole deep twice over to find a customer like you.',
+        'Take the long tunnels. They are kinder than they look.',
+      ],
+    ],
+    bye: ['Safe tunnels.'],
+    accept: ['Good. Do not let the dark talk you out of it.'],
+    decline: ['Another round, then.'],
+    thanks: ['Honest work, honestly done. Here.'],
+    about: [
+      n.bio,
+      `${n.bio} I stop at three camps a day, and I never stay for the third song.`,
+      'I used to think the deep was a place to hide. Now I think it is a place to be useful.',
+    ],
+    town: 'The camps run in a ring around the home vale: a fire, a cart, a bedroll. We keep the lamps lit for each other.',
+    qubitman: [
+      'They say QubitMan once lit a crystal that could be seen from every camp at once. I believe it. I have seen the glow.',
+    ],
+    rumorIn: ['Word along the tunnels: {rumor}'],
+    noRumor: 'The tunnels are quiet. Quiet is a rumour in itself.',
+    memory: ['I still have the {item} you gave me on the cart.'],
+    deeds: {
+      quest: ['People talk about a job done well, even down here.'],
+      fish: ['A catch of {what}? Trade it up top; down here it is a legend.'],
+    },
+    barks: {
+      work: ['Fresh stock!', 'Mind the cart.', 'Prices are fixed. Tempers are not.'],
+      free: ['A tune for the fire.', 'The deep is quiet tonight.', 'One more camp and a bedroll.'],
+    },
+    closed: 'The cart is shut. Come find me at the next camp.',
+    events: [2, 4, 7].map((hearts, i) => ({
+      hearts,
+      title: `${first}: ${['A shared fire', 'The long tunnel', 'The last camp'][i]}`,
+      pages: [
+        n.bio,
+        [
+          `${first} offers you a tin cup. “It is bad tea. It is the best I have.”`,
+          `${first} sketches a tunnel in the dust. “I have walked this a hundred times and it still surprises me.”`,
+          `${first} tips the cart onto its stand. “This is the last camp of the round. The fire here is always warm.”`,
+        ][i]!,
+        ['“Stay for a cup?”', '“Do you ever get lost?”', '“Will you walk the round with me one day?”'][i]!,
+      ],
+      choices: [
+        { text: 'Gladly.', reply: 'Then we are agreed. Sit.', pts: 20 },
+        { text: 'Tell me more.', reply: 'The rock has long memories. Walk with me.', pts: 10 },
+        { text: 'I should keep moving.', reply: 'Of course. The tunnels wait for nobody.', pts: 0 },
       ],
     })),
   };

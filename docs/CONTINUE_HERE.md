@@ -1,3 +1,9 @@
+# Current continuation: Undercroft 2, caves rebuilt (world revision 4, 2026-10-25)
+
+See [UNDERCROFT.md](UNDERCROFT.md#undercroft-2-world-revision-4). Rev 4 = rev-3 surface + `caveTileAt2` (organic, warped, biome-continuous, vein ores, cave terraces), haulage mine lines with steerable carts and buffers, delver camps with four travelling merchants (`DELVER_MERCHANTS`, village system adds them only at gen >= 4), sealed/echo vault shrines with trials (`features/caves` `guard()` + plates), six biome monsters and four new arena bosses (`ARENA_BOSS`). New worlds default to 4 (`config.newWorldGeneration`); saved worlds keep their revision. Registry `generation-registry.ts` lets seed-only callers (client terrain, spawn tables) see the world's revision. Touchpoints if you extend it: `shared/src/{caves2,mines,cavemouths,undercroft}.ts`, `client/src/art/{caveores,caves,mining,foes}.ts`, shader `caveRockTone`. Not done: more full cave towns, per-boss loot, physical-device checks, a second audit of tall-sprite collision footprints (tents/carts were fitted to one tile; the legacy mouth/ladder sprites still overhang their single collision tile).
+
+---
+
 # Current continuation: sprint, camera distance, title diorama, shared material (2026-10-25)
 
 Sprint lives in the shared sim (`PlayerSim.stamina/staminaT/sprint`, `InputCmd.sprint`, ACK fields, constants `SPRINT_*`/`STAMINA_*`); the stamina vial is now sprint stamina and the two dash charges are studs on its plinth. Zoom is `Settings.zoom` + `Game.relayout()`. `ui/title-scene.ts` draws the title island. Remaining purple/navy pieces were moved to the bronze/ink tokens in circuit/social/voice/dialogue CSS (`ui/p2style.ts`). Not done: Shift-sprint/Space-dodge default layout from the plan (conflicts with saved bindings), click-to-move beyond the right-button mode, camera handling for interiors/large bosses audit, physical-device checks.

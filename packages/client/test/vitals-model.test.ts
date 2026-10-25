@@ -134,17 +134,20 @@ describe('status registry', () => {
   });
 });
 
-describe('vial layout', () => {
-  it('keeps every vial inside the canvas on one ground line', () => {
+describe('bar layout', () => {
+  it('stacks every horizontal bar inside the canvas without overlap', () => {
     const all = vitalsLayout(['health', 'mana', 'stamina', 'food', 'water']);
+    let prevBottom = 0;
     for (const p of all.places) {
-      expect(p.cx - (p.w + 1)).toBeGreaterThanOrEqual(0);
-      expect(p.cx + p.w + 1).toBeLessThanOrEqual(all.width);
-      expect(p.bottom).toBe(all.height - 1);
+      expect(p.x).toBeGreaterThanOrEqual(0);
+      expect(p.x + p.w).toBeLessThanOrEqual(all.width);
+      expect(p.y).toBeGreaterThan(prevBottom - 1);
+      expect(p.y + p.h).toBeLessThanOrEqual(all.height);
+      prevBottom = p.y + p.h;
     }
     const ledger = vitalsLayout(['health', 'stamina']);
-    expect(ledger.width).toBeLessThan(all.width);
-    // 2:1 art at 2× must fit the 216px ledger
-    expect(all.width * 2).toBeLessThanOrEqual(216);
+    expect(ledger.height).toBeLessThan(all.height);
+    // 2:1 art at 2× must leave room for the readout inside the 216px ledger
+    expect(all.width * 2).toBeLessThanOrEqual(176);
   });
 });

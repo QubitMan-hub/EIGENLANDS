@@ -8,9 +8,10 @@ import { Simplex2D } from './simplex';
 import { T } from './tiles';
 import { townTileAt } from './town';
 import { sanctuaryAt } from './sanctuary';
-import { LEGACY_GENERATION, type WorldGeneration } from './world-version';
+import { LEGACY_GENERATION, isWorldGeneration, type WorldGeneration } from './world-version';
 import { biome3, chunkLevels, climate3, surfaceTile3 } from './terrain3';
 import { CAVE_OY, caveTileAt, isCaveY } from './caves';
+import { caveLevels, caveTileAt2 } from './caves2';
 
 /**
  * Biomes, in a fixed order (the index is packed into the client's terrain texture).
@@ -77,14 +78,8 @@ export interface ClimateSample {
   flux: number;
 }
 
-// Which revision a seed's world uses, for callers that have a seed but no store (renderer, spawning, labels). A
-// ChunkStore registers its revision when it is created; seeds never registered behave as revision 2, so every
-// legacy-placement caller (towns, shrines, ruins, caves, camps) is unaffected unless it asks for revision 3.
-const activeGenerations = new Map<number, WorldGeneration>();
-export function setActiveGeneration(seed: number, generation: WorldGeneration): void {
-  activeGenerations.set(seed, generation);
-}
-export const activeGeneration = (seed: number): WorldGeneration => activeGenerations.get(seed) ?? LEGACY_GENERATION;
+export { setActiveGeneration, activeGeneration } from './generation-registry';
+import { activeGeneration } from './generation-registry';
 /** Climate and biome fields are shared by revisions 1 and 2; revision 3 has its own. */
 const family = (generation: WorldGeneration): 2 | 3 => (generation >= 3 ? 3 : 2);
 
@@ -238,7 +233,8 @@ function surfaceTileAt(seed: number, x: number, y: number, legacy: boolean, gene
   const gen = legacy ? 1 : generation;
   const sanctuary = sanctuaryTileAt(seed, x, y);
   if (sanctuary !== null) return sanctuary;
-  if (isCaveY(y)) return townTileAt(seed, x, y) ?? caveTileAt(seed, x, y, legacy);
+  if (isCaveY(y))
+    return townTileAt(seed, x, y) ?? (!legacy && gen >= 4 ? caveTileAt2(seed, x, y) : caveTileAt(seed, x, y, legacy));
   const tt = townTileAt(seed, x, y);
   if (tt !== null) return tt;
   if (isUpperY(y)) return T.UPPER_VOID;
@@ -443,6 +439,7 @@ export function generateLevels(
   generation: WorldGeneration = LEGACY_GENERATION,
 ): Uint8Array {
   if (generation < 3) return new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
+  if (generation >= 4 && isCaveY(cy * CHUNK_SIZE)) return caveLevels(seed, cx, cy);
   const key = `${generation}:${seed}:${cx},${cy}`,
     cached = generatedLevels.get(key);
   if (cached) {
@@ -502,7 +499,7 @@ export function hasPreparedWorldChunk(
 }
 export function acceptPreparedWorldChunk(p: PreparedWorldChunk): void {
   if (
-    (p.generation !== 1 && p.generation !== 2 && p.generation !== 3) ||
+    !isWorldGeneration(p.generation) ||
     p.tiles.length !== CHUNK_SIZE * CHUNK_SIZE ||
     p.levels.length !== CHUNK_SIZE * CHUNK_SIZE ||
     p.climate.length !== CHUNK_SIZE * CHUNK_SIZE * 4 ||

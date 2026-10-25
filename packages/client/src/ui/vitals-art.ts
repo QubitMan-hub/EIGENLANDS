@@ -1,18 +1,15 @@
 /**
- * Isometric vial painter for the vitals HUD. Each gauge is a small glass-and-metal prism built with the same Iso kit
- * the props use: 2:1 projection, a lit left face, a shaded right face, a top face, nearest-neighbour pixels and the
- * fixed 48-colour palette. Fill height is the gauge value, so the readout is a block rising out of a plinth, the same
- * visual language as the world's elevation.
+ * Horizontal bar painter for the vitals HUD: each gauge is a beveled brass/stone trough filled left to right, drawn
+ * with nearest-neighbour pixels from the fixed 48-colour palette (lit top-left edge, shaded bottom-right edge).
  */
 import { C } from '@eigenlands/shared';
-import { Iso } from '../art/isokit';
-import { rasterPixels, type Ctx } from '../art/shade';
+import { put as spx, rasterPixels, type Ctx } from '../art/shade';
 import type { GaugeId, NeedTone } from './vitals-model';
 
 interface VialStyle {
-  /** footprint edge in tile units (screen width = 2w) */
+  /** bar length in art px */
   w: number;
-  /** glass height in px */
+  /** bar thickness in art px */
   h: number;
   /** liquid, dark → light: shaded, shadow, base, lit, highlight */
   liquid: readonly number[];
@@ -21,12 +18,13 @@ interface VialStyle {
   ticks: number;
 }
 
+/** Horizontal gauges: a recessed trough with a brass or stone frame, filled left to right. */
 export const VIAL_STYLES: Record<GaugeId, VialStyle> = {
-  health: { w: 9, h: 22, liquid: [C.r0, C.r0, C.r1, C.r2, C.r3], frame: [C.e2, C.e4, C.e6], ticks: 3 },
-  mana: { w: 6, h: 26, liquid: [C.q1, C.q2, C.q3, C.q4, C.q7], frame: [C.steel, C.mist, C.pale], ticks: 3 },
-  stamina: { w: 6, h: 18, liquid: [C.g1, C.g2, C.g3, C.g5, C.g6], frame: [C.slate, C.steel, C.fog], ticks: 1 },
-  food: { w: 5, h: 14, liquid: [C.e3, C.e4, C.r5, C.r6, C.r7], frame: [C.e1, C.e3, C.e5], ticks: 0 },
-  water: { w: 5, h: 14, liquid: [C.w1, C.w2, C.w3, C.w4, C.w6], frame: [C.steel, C.mist, C.fog], ticks: 0 },
+  health: { w: 70, h: 9, liquid: [C.r0, C.r1, C.r2, C.r3, C.r5], frame: [C.e2, C.e4, C.e6], ticks: 3 },
+  mana: { w: 70, h: 8, liquid: [C.q1, C.q2, C.q3, C.q4, C.q7], frame: [C.steel, C.mist, C.pale], ticks: 3 },
+  stamina: { w: 70, h: 8, liquid: [C.g1, C.g2, C.g3, C.g5, C.g6], frame: [C.slate, C.steel, C.fog], ticks: 1 },
+  food: { w: 70, h: 6, liquid: [C.e3, C.e4, C.r5, C.r6, C.r7], frame: [C.e1, C.e3, C.e5], ticks: 0 },
+  water: { w: 70, h: 6, liquid: [C.w1, C.w2, C.w3, C.w4, C.w6], frame: [C.steel, C.mist, C.fog], ticks: 0 },
 };
 
 export interface VialSpec {
@@ -39,7 +37,7 @@ export interface VialSpec {
   low: boolean;
   tone: NeedTone;
   aura: 'shield' | 'ward' | 'mirror' | null;
-  /** dash charges lit on the plinth (stamina vial only) */
+  /** dash charges lit on the frame (stamina bar only) */
   pips: number;
   pipMax: number;
   /** class resource is full (ultimate ready) */
@@ -50,137 +48,96 @@ export interface VialSpec {
 
 export interface VialPlace {
   id: GaugeId;
-  /** screen centre of the prism and of its plinth's bottom corner */
-  cx: number;
-  bottom: number;
+  /** top-left of the bar in canvas px */
+  x: number;
+  y: number;
   w: number;
   h: number;
 }
 
-const PLINTH = 2;
-const GAP = 5;
-const SPIRE = 5;
+const GAP = 3;
+const PAD = 1;
 
-/** Left-to-right row of vials on a shared ground line; pure so the DOM labels can follow it. */
+/** Top-to-bottom stack of bars; pure so the DOM labels (one row each, `pitch` px tall) can follow it. */
 export function vitalsLayout(ids: readonly GaugeId[]): { width: number; height: number; places: VialPlace[] } {
-  let x = 1;
+  let y = PAD;
   const places: VialPlace[] = [];
-  let tallest = 0;
+  let widest = 0;
   for (const id of ids) {
     const s = VIAL_STYLES[id];
-    const half = s.w + 1;
-    places.push({ id, cx: x + half, bottom: 0, w: s.w, h: s.h });
-    x += half * 2 + GAP;
-    tallest = Math.max(tallest, PLINTH + s.h + (id === 'mana' ? SPIRE : 0) + 1);
+    places.push({ id, x: PAD, y, w: s.w, h: s.h + 2 });
+    y += s.h + 2 + GAP;
+    widest = Math.max(widest, s.w);
   }
-  const maxFoot = Math.max(...ids.map((i) => VIAL_STYLES[i].w + 1), 0);
-  const height = tallest + maxFoot + 3;
-  for (const p of places) p.bottom = height - 1;
-  return { width: Math.max(1, x - GAP + 1), height, places };
+  return { width: widest + PAD * 2, height: Math.max(1, y - GAP + PAD), places };
 }
 
 const at = (r: readonly number[], i: number) => r[Math.max(0, Math.min(r.length - 1, i))]!;
 
-function paintVial(ctx: Ctx, place: VialPlace, v: VialSpec): void {
+function paintBar(ctx: Ctx, place: VialPlace, v: VialSpec): void {
   const s = VIAL_STYLES[v.id];
-  const { w, h } = s;
-  // The prism's nearest bottom corner sits at (u,v)=(w+1,w+1), so the plinth footprint's bottom is the ground line.
-  const iso = new Iso(ctx, place.cx, place.bottom - (w + 1));
+  const { w } = s,
+    h = place.h;
+  const x0 = place.x,
+    y0 = place.y;
+  const px = (x: number, y: number, c: number, ww = 1, hh = 1) => spx(ctx, x0 + x, y0 + y, c, ww, hh);
   const [fShade, fLit, fHi] = s.frame;
   const pulse = v.t > 0 && v.low ? (Math.sin(v.t * 7) > 0 ? 1 : 0) : v.low ? 1 : 0;
   const frameShade = pulse ? C.r2 : fShade,
     frameLit = pulse ? C.r4 : fLit,
     frameHi = pulse ? C.r6 : fHi;
-  const z0 = PLINTH;
-  // carved stone plinth, one tile-step larger than the glass
-  iso.box(-1, -1, 0, w + 2, w + 2, PLINTH, {
-    top: (a, b) => (a < 0.1 || b < 0.1 ? C.mist : C.steel),
-    left: (_a, b) => (b > 0.7 ? C.slate : C.steel),
-    right: (_a, b) => (b > 0.7 ? C.night : C.slate),
-  });
-  for (let i = 0; i < v.pipMax; i++) iso.dot(1 + i * 3.5, w + 1, 0.5, i < v.pips ? C.g6 : C.night, 2, 1); // dash charges, set into the plinth's lit face
-  const trailTop = v.trail * (h - 2.8),
-    fillTop = v.shown * (h - 2.8);
-  const liquidAt = (lit: boolean, inner: number): number => {
-    if (v.flash > 0.45) return lit ? C.white : C.pale;
+  // frame: lit top/left, shaded bottom/right, corner studs
+  px(0, 0, frameLit, w, h);
+  px(0, 0, frameHi, w, 1);
+  px(0, 0, frameHi, 1, h);
+  px(0, h - 1, frameShade, w, 1);
+  px(w - 1, 0, frameShade, 1, h);
+  // trough
+  const iw = w - 4,
+    ih = h - 4,
+    ix = 2,
+    iy = 2;
+  px(ix - 1, iy - 1, C.ink, iw + 2, ih + 2);
+  px(ix, iy, C.night, iw, ih);
+  const trailW = Math.round(v.trail * iw),
+    fillW = Math.round(v.shown * iw);
+  if (trailW > fillW) px(ix + fillW, iy, v.flash > 0 ? C.white : C.pale, trailW - fillW, ih);
+  if (fillW > 0) {
     const dull = v.tone === 'low' ? 1 : 0;
-    const base = lit ? 3 : 1;
-    if (inner > fillTop - 1.1) return at(s.liquid, lit ? 4 - dull : 2); // meniscus
-    return at(s.liquid, base - dull + (inner < 2 ? -0 : 0));
-  };
-  const window = (lit: boolean): ((a: number, b: number) => number) => {
-    return (a, b) => {
-      const edgePx = Math.min(a, 1 - a) * w;
-      const hz = b * h;
-      if (edgePx < 1) return lit ? (a < 0.5 ? frameHi : frameLit) : a < 0.5 ? frameLit : frameShade; // corner posts
-      if (hz < 1.2) return lit ? frameShade : C.night;
-      if (hz > h - 1.6) return lit ? frameHi : frameLit;
-      const inner = hz - 1.2;
-      let col: number;
-      if (inner <= fillTop) col = liquidAt(lit, inner);
-      else if (inner <= trailTop) col = lit ? C.pale : C.fog;
-      else col = lit ? C.night : C.ink;
-      // glass glint on the lit face
-      if (lit && edgePx > 1.4 && edgePx < 2.4 && inner > 2 && inner < h - 5 && inner > fillTop)
-        col = col === C.night ? C.slate : col;
-      // gradation marks
-      for (let k = 1; k <= s.ticks; k++) {
-        const th = ((h - 2.8) * k) / (s.ticks + 1);
-        if (Math.abs(inner - th) < 0.5 && edgePx < 3.2)
-          col = inner <= fillTop ? at(s.liquid, lit ? 1 : 0) : lit ? C.slate : C.night;
-      }
-      // leather band on the food flask
-      if (v.id === 'food' && hz > h * 0.5 && hz < h * 0.5 + 2) col = lit ? C.e3 : C.e1;
-      return col;
-    };
-  };
-  iso.left(0, w, z0, w, h, window(true));
-  iso.right(w, 0, z0, w, h, window(false));
-  // top face: rim around the liquid surface
-  iso.top(0, 0, z0 + h, w, w, (a, b) => {
-    const rim = a * w < 1 || a * w > w - 1 || b * w < 1 || b * w > w - 1;
-    if (rim) return v.id === 'water' || v.id === 'mana' ? frameHi : frameLit;
-    if (v.shown <= 0.01) return C.night;
-    return v.flash > 0.45 ? C.white : at(s.liquid, 4 - (v.tone === 'low' ? 1 : 0));
-  });
-  // corner rivets
-  for (const [du, dv] of [
-    [0, 0],
-    [w, 0],
-    [0, w],
-    [w, w],
-  ] as const)
-    iso.dot(du, dv, z0 + h + 0.4, frameHi);
-  // mana spire: a cut crystal that sparks when the resource is full
-  if (v.id === 'mana') {
-    const cu = w / 2;
-    for (let i = 0; i < SPIRE; i++) iso.dot(cu, cu, z0 + h + 1 + i, i === SPIRE - 1 ? C.q7 : i % 2 ? C.q4 : C.q3);
-    if (v.ready) {
-      const k = v.t > 0 ? Math.floor(v.t * 5) % 3 : 0;
-      iso.dot(cu - 2 + k, cu - 2 + k, z0 + h + SPIRE + 1 + (k % 2), C.white);
-      iso.dot(cu + 1, cu + 1, z0 + h + SPIRE - 1, C.q7);
-    }
+    const body = v.flash > 0.45 ? C.pale : at(s.liquid, 2 - dull),
+      lit = v.flash > 0.45 ? C.white : at(s.liquid, 3 - dull),
+      shade = at(s.liquid, 1 - dull);
+    px(ix, iy, body, fillW, ih);
+    px(ix, iy, lit, fillW, 1); // lit upper edge
+    if (ih > 4) px(ix, iy + ih - 1, shade, fillW, 1); // shaded lower edge
+    if (fillW > 1) px(ix + fillW - 1, iy, at(s.liquid, 4), 1, ih); // meniscus at the leading edge
   }
-  // circuit aura: a glass cage of lines over the vial
+  // gradation marks
+  for (let k = 1; k <= s.ticks; k++) {
+    const tx = ix + Math.round((iw * k) / (s.ticks + 1));
+    px(tx, iy, tx < ix + fillW ? at(s.liquid, 0) : C.slate, 1, ih);
+  }
+  // dash charges: studs set into the right end of the frame
+  for (let i = 0; i < v.pipMax; i++) px(w - 5 - i * 4, 0, i < v.pips ? C.g6 : C.night, 2, 1);
+  // class resource full: a spark rides the leading edge
+  if (v.id === 'mana' && v.ready) {
+    const k = v.t > 0 ? Math.floor(v.t * 5) % 3 : 0;
+    px(ix + iw - 2 - k, iy - 1, C.white);
+    px(ix + iw - 1, iy + 1 + (k % 2), C.q7);
+  }
+  // circuit aura: a glass outline around the health bar
   if (v.aura) {
     const col = v.aura === 'shield' ? C.w6 : v.aura === 'ward' ? C.r6 : C.white;
     const blink = v.t > 0 && v.aura === 'mirror' && Math.floor(v.t * 6) % 2 === 0;
-    const zt = z0 + h + 3;
     const c = blink ? C.pale : col;
-    iso.line3(-1, -1, zt, w + 1, -1, zt, c);
-    iso.line3(w + 1, -1, zt, w + 1, w + 1, zt, c);
-    iso.line3(w + 1, w + 1, zt, -1, w + 1, zt, c);
-    iso.line3(-1, w + 1, zt, -1, -1, zt, c);
-    for (const [du, dv] of [
-      [-1, w + 1],
-      [w + 1, w + 1],
-      [w + 1, -1],
-    ] as const)
-      for (let z = z0 + 2; z < zt; z += 3) iso.dot(du, dv, z, c);
+    px(-1, -1, c, w + 2, 1);
+    px(-1, h, c, w + 2, 1);
+    px(-1, -1, c, 1, h + 2);
+    px(w, -1, c, 1, h + 2);
   }
 }
 
-/** Paint every vial onto `ctx` (a canvas of the layout's size); the canvas is cleared by the raster upload. */
+/** Paint every bar onto `ctx` (a canvas of the layout's size); the canvas is cleared by the raster upload. */
 export function renderVitals(
   ctx: Ctx,
   size: { width: number; height: number },
@@ -188,6 +145,6 @@ export function renderVitals(
   specs: Readonly<Record<GaugeId, VialSpec>>,
 ): void {
   rasterPixels(ctx, size.width, size.height, () => {
-    for (const p of places) paintVial(ctx, p, specs[p.id]);
+    for (const p of places) paintBar(ctx, p, specs[p.id]);
   });
 }

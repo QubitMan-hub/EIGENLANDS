@@ -1,4 +1,14 @@
-import { sanctuaryAt, isCaveY, isDiveY, isUpperY, caveRegionAt, caveTownAt } from '@eigenlands/shared';
+import {
+  ARENA_BOSS,
+  BOSSES,
+  sanctuaryAt,
+  isCaveY,
+  isDiveY,
+  isUpperY,
+  caveBiomeAt,
+  caveRegionAt,
+  caveTownAt,
+} from '@eigenlands/shared';
 /**
  * Bosses: called with a crafted item, scaled to the summoner's level, with phases and scripted specials on top of the
  * ordinary enemy AI (leap / charge / slam). Killing one pays out through the normal drop table (guaranteed here) and
@@ -36,8 +46,22 @@ const KEY: Record<BossId, EnemyKind> = {
   colossus: 'colossus',
   bellkeeper: 'bellkeeper',
   veyr: 'veyr',
+  geode_tyrant: 'geode_tyrant',
+  cinder_wyrm: 'cinder_wyrm',
+  rime_sovereign: 'rime_sovereign',
+  tide_leviathan: 'tide_leviathan',
 };
-const SPECIAL_EVERY: Record<BossId, number> = { slime_king: 9, warden: 8, colossus: 7, bellkeeper: 8, veyr: 9 };
+const SPECIAL_EVERY: Record<BossId, number> = {
+  slime_king: 9,
+  warden: 8,
+  colossus: 7,
+  bellkeeper: 8,
+  veyr: 9,
+  geode_tyrant: 8,
+  cinder_wyrm: 7,
+  rime_sovereign: 8,
+  tide_leviathan: 8,
+};
 
 export class BossModule implements Module {
   private runs = new Map<string, Run>();
@@ -52,8 +76,11 @@ export class BossModule implements Module {
   // ───────────────────────── summoning ─────────────────────────
 
   summon(p: ServerPlayer, itemId: string, x: number, y: number): boolean {
-    const def = BOSS_BY_ITEM[itemId];
+    let def = BOSS_BY_ITEM[itemId];
     if (!def) return false;
+    // revision-4 arenas answer the Deep Sigil with the boss of their cave biome
+    if (def.id === 'bellkeeper' && isCaveY(y) && this.room.store.generation >= 4)
+      def = BOSSES[ARENA_BOSS[caveBiomeAt(this.room.seed, x, y)]];
     if (def.id === 'veyr') {
       if (isCaveY(y) || isDiveY(y) || isUpperY(y)) {
         p.toast('The Storm Beacon needs open sky.', 'bad');
@@ -72,7 +99,7 @@ export class BossModule implements Module {
         }
       }
     }
-    if (def.id === 'bellkeeper') {
+    if (def.item === 'deep_sigil') {
       const r = caveRegionAt(this.room.seed, x, y);
       if (!isCaveY(y) || r.feature !== 'arena' || caveTownAt(x, y) || Math.hypot(x - r.x, y - r.y) > 10) {
         p.toast(
@@ -186,6 +213,43 @@ export class BossModule implements Module {
       );
       r.rage = r.phase > 1;
       this.spawnAdds(r, r.phase === 1 ? 'echo_bat' : 'prism_beetle', 2);
+    } else if (id === 'geode_tyrant') {
+      say(
+        r.phase === 1
+          ? 'Prisms bud along its back. Scarabs hatch from the facets.'
+          : 'The Tyrant shatters its own crown. Shards rain on the floor.',
+      );
+      r.rage = r.phase > 1;
+      if (r.rage) e.speedMult = 1.25;
+      this.spawnAdds(r, 'prism_beetle', 2);
+    } else if (id === 'cinder_wyrm') {
+      say(
+        r.phase === 1
+          ? 'Embers pour from its jaws. A drake answers the heat.'
+          : 'The Wyrm coils tight, scales glowing white. The floor itself begins to run.',
+      );
+      r.rage = r.phase > 1;
+      if (r.rage) {
+        e.speedMult = 1.3;
+        e.windMult = 0.85;
+      }
+      this.spawnAdds(r, 'cinder_drake', 1);
+    } else if (id === 'rime_sovereign') {
+      say(
+        r.phase === 1
+          ? 'Frost climbs the walls. Wraiths rise from the rime.'
+          : 'The crown cracks open. Cold breath fills the hall.',
+      );
+      r.rage = r.phase > 1;
+      this.spawnAdds(r, 'frost_wraith', r.phase === 1 ? 2 : 1);
+    } else if (id === 'tide_leviathan') {
+      say(
+        r.phase === 1
+          ? 'The moat boils. Eels race the surface.'
+          : 'The Leviathan rolls beneath the seal. Stay off the dark water.',
+      );
+      r.rage = r.phase > 1;
+      this.spawnAdds(r, 'tide_eel', 2);
     } else if (id === 'veyr') {
       say(
         r.phase === 1
@@ -289,6 +353,81 @@ export class BossModule implements Module {
           },
         });
       }
+    } else if (id === 'geode_tyrant' || id === 'cinder_wyrm' || id === 'rime_sovereign' || id === 'tide_leviathan') {
+      // Every arena boss telegraphs fixed impact sites with a generous windup, then recovers in place.
+      const dirx = target.sim.x - e.x,
+        diry = target.sim.y - e.y,
+        len = Math.hypot(dirx, diry) || 1;
+      const ux = dirx / len,
+        uy = diry / len;
+      let sites: Array<{ x: number; y: number; delay: number; w: number }> = [];
+      if (id === 'geode_tyrant') {
+        // Shard volley: a ring of prisms bursts around the target, one after another
+        const n = r.rage ? 8 : 6;
+        sites = Array.from({ length: n }, (_, i) => {
+          const a = (i / n) * Math.PI * 2;
+          return {
+            x: target.sim.x + Math.cos(a) * 3,
+            y: target.sim.y + Math.sin(a) * 3,
+            delay: 1.4 + i * 0.16,
+            w: 1.4,
+          };
+        });
+      } else if (id === 'cinder_wyrm') {
+        // Lava sweep: a rolling line of eruptions marches from the Wyrm toward its target
+        const n = r.rage ? 8 : 6;
+        sites = Array.from({ length: n }, (_, i) => ({
+          x: e.x + ux * (2.4 + i * 2.2),
+          y: e.y + uy * (2.4 + i * 2.2),
+          delay: 1.2 + i * 0.26,
+          w: 1.5,
+        }));
+      } else if (id === 'rime_sovereign') {
+        // Glacial rings: two expanding rings around the Sovereign
+        for (const [radius, delay] of [
+          [3.4, 1.3],
+          [6.2, 1.9],
+        ] as const)
+          for (let i = 0; i < 8; i++) {
+            const a = (i / 8) * Math.PI * 2 + (radius > 4 ? Math.PI / 8 : 0);
+            sites.push({ x: e.x + Math.cos(a) * radius, y: e.y + Math.sin(a) * radius, delay, w: 1.5 });
+          }
+      } else {
+        // Tidal maw: strikes cross the target's position, widening as the Leviathan rages
+        const reach = r.rage ? 3.4 : 2.8;
+        sites = [
+          [0, 0],
+          [reach, 0],
+          [-reach, 0],
+          [0, reach],
+          [0, -reach],
+        ].map(([dx, dy], i) => ({ x: target.sim.x + dx!, y: target.sim.y + dy!, delay: 1.4 + i * 0.12, w: 1.6 }));
+      }
+      const last = Math.max(...sites.map((q) => q.delay));
+      e.mode = 'windup';
+      e.t = last;
+      e.lockX = target.sim.x;
+      e.lockY = target.sim.y;
+      r.later.push({
+        at: this.t + last - 0.1,
+        fn: () => {
+          if (e.mode === 'windup') {
+            e.mode = 'recover';
+            e.t = 2;
+            e.cd = 2;
+          }
+        },
+      });
+      sites.forEach((q, i) => {
+        if (this.room.store.solidAt(Math.floor(q.x), Math.floor(q.y))) return;
+        this.room.fx({ kind: 'bomb', x: q.x, y: q.y, v: q.delay, w: q.w, id: `${e.id}sp${i}` });
+        r.later.push({
+          at: this.t + q.delay,
+          fn: () => {
+            if (this.room.enemies.has(e.id)) this.room.enemyStrike(e, q.x, q.y, q.w, 0.85);
+          },
+        });
+      });
     } else if (id === 'bellkeeper') {
       // Echo toll: three fixed, clearly marked impact sites. Move out, then punish its recovery.
       const points = [{ x: target.sim.x, y: target.sim.y }, ...[-1, 1].map((side) => ({ x: e.x + side * 4, y: e.y }))];

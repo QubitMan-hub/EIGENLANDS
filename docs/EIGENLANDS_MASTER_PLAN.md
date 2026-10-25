@@ -12,6 +12,8 @@ Source: [complete user request](design/master-request.md). Both pasted uploads a
 - [!] BUG / BLOCKED — No physical low-end Android/iOS devices or cross-network hardware are attached. Browser emulation cannot verify native performance/orientation.
 - [!] BUG / BLOCKED — Uploaded external art archives have no specific reuse license. Existing matching repository sheets and new original art remain usable; do not import unverified artwork.
 
+- [x] IMPLEMENTED & TESTED — Undercroft 2 (world revision 4): organic warped caves with continuous biomes, embedded vein ores, cave terraces, steerable haulage mine lines with buffers, delver camps with four travelling merchants, sealed/echo vault shrines with trials, six biome monsters and four new arena bosses. Flood-fill connectivity, terrace-cliff, feature-spread and server trial/boss/merchant tests pass. Not done: additional full cave towns, boss-specific loot, device performance proof.
+
 Implementation references: `packages/client/src/art`, `game`, `ui`, `features`; `packages/shared/src`; `packages/server/src`. Dependencies: preserve shared authoritative rules, chunk/shard persistence and existing saves. Evidence: the latest continuation passed all 405 workspace tests (52 client, 215 server, 138 shared), typechecks and both production builds, plus solo/multiplayer and mobile browser checks. Only individually listed slices are complete; the full master overhaul remains IN PROGRESS.
 
 ## Implementation map and remaining dependencies

@@ -1,6 +1,7 @@
 import { sceneryAt, type SceneryKind } from './scenery';
 import { Container, Sprite, type Texture } from 'pixi.js';
 import {
+  isSolid,
   C,
   NODES,
   CHUNK_SIZE,
@@ -18,6 +19,7 @@ import {
 import { depth, isoX, isoY, occluded } from './iso';
 import { WindField, CALM } from './windfield';
 import { FRAMES_PER_VARIANT, type ObjectArt, type ObjSprite } from '../art/objects';
+import { CAVE_ORE_KINDS } from '../art/caveores';
 
 const hexOf = (i: number) => parseInt(PALETTE[i]!.slice(1), 16);
 /** cast shadows are deep navy, quantum echoes pink (qubit things) or cyan (flux ground) */
@@ -184,7 +186,13 @@ export class ObjectViews {
     }
     const frames = FRAMES_PER_VARIANT[kind] ?? 1;
     const nvar = Math.max(1, Math.floor(list.length / frames));
-    const variant = Math.floor(hash2(this.store.seed, tx, ty, 99) * nvar);
+    let variant = Math.floor(hash2(this.store.seed, tx, ty, 99) * nvar);
+    if (underground && CAVE_ORE_KINDS.has(kind)) {
+      // only faces that border open cave are drawn; the rest stay hidden behind the wall in front
+      const open = (x: number, y: number) => !isSolid(this.store.getTile(x, y));
+      const mask = (open(tx, ty + 1) ? 1 : 0) | (open(tx + 1, ty) ? 2 : 0);
+      variant = mask * 3 + (variant % 3);
+    }
     return {
       s: list[variant * frames]!,
       variant,
@@ -282,6 +290,16 @@ export class ObjectViews {
       if (o) m.set(idx, o);
     }
     // a changed fence tile changes how its neighbours connect
+    // a mined tile exposes the faces of the cave veins around it
+    if (!noPropagate && isCaveY(ty)) {
+      for (const [nx, ny] of [
+        [tx, ty - 1],
+        [tx - 1, ty],
+      ] as const) {
+        const nk = TILE_DEFS[this.store.getTile(nx, ny)]?.obj;
+        if (nk && CAVE_ORE_KINDS.has(nk)) this.refreshTile(nx, ny, true);
+      }
+    }
     if (!noPropagate && (kind === 'fence' || old?.kind === 'fence')) {
       for (const [nx, ny] of [
         [tx, ty - 1],

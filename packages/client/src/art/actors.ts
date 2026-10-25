@@ -1,5 +1,7 @@
 import { Rectangle, Texture } from 'pixi.js';
-import { NPCS } from '@eigenlands/shared';
+import { DELVER_MERCHANTS, NPCS as VILLAGE_NPCS } from '@eigenlands/shared';
+
+const NPCS = [...VILLAGE_NPCS, ...DELVER_MERCHANTS];
 import { appearanceOf, outfitFromAppearance } from './appearance';
 import {
   blob,

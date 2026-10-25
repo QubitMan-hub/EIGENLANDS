@@ -380,7 +380,17 @@ export const ENEMY_DEFS: Record<
   | 'vault_guardian'
   | 'spore_matriarch'
   | 'bellkeeper'
-  | 'veyr',
+  | 'veyr'
+  | 'amber_gnawer'
+  | 'lantern_hound'
+  | 'geode_golem'
+  | 'cinder_drake'
+  | 'frost_wraith'
+  | 'tide_eel'
+  | 'geode_tyrant'
+  | 'cinder_wyrm'
+  | 'rime_sovereign'
+  | 'tide_leviathan',
   EnemyDef
 > = {
   slime: {
@@ -1108,6 +1118,237 @@ export const ENEMY_DEFS: Record<
       { item: 'coal', min: 4, max: 8, chance: 1 },
     ],
   },
+  // ── Undercroft 2: one signature monster per cave biome, then the four arena bosses ──
+  amber_gnawer: {
+    kind: 34,
+    name: 'Amber Gnawer',
+    hp: 62,
+    speed: 2,
+    radius: 0.45,
+    damage: 9,
+    sight: 7,
+    windup: 0.9,
+    strikeRange: 2.4,
+    xp: 30,
+    ai: 'leap',
+    armor: true,
+    poise: 22,
+    staggerTime: 1.4,
+    cooldown: 2.2,
+    budget: 2,
+    drops: [
+      { item: 'coal', min: 1, max: 3, chance: 1 },
+      { item: 'copper_ore', min: 1, max: 2, chance: 0.5 },
+    ],
+  },
+  lantern_hound: {
+    kind: 35,
+    name: 'Lantern Hound',
+    hp: 40,
+    speed: 2.9,
+    radius: 0.4,
+    damage: 7,
+    sight: 10,
+    windup: 0.8,
+    strikeRange: 3,
+    xp: 26,
+    ai: 'harrier',
+    poise: 8,
+    staggerTime: 1,
+    cooldown: 2.4,
+    budget: 1.5,
+    drops: [
+      { item: 'healing_herb', min: 1, max: 2, chance: 0.8 },
+      { item: 'fiber', min: 1, max: 2, chance: 0.6 },
+    ],
+  },
+  geode_golem: {
+    kind: 36,
+    name: 'Geode Golem',
+    hp: 130,
+    speed: 1.2,
+    radius: 0.6,
+    damage: 14,
+    sight: 8,
+    windup: 1.4,
+    strikeRange: 6,
+    xp: 55,
+    ai: 'brute',
+    armor: true,
+    poise: 40,
+    staggerTime: 1.8,
+    cooldown: 3,
+    aoe: 1.1,
+    budget: 3.5,
+    drops: [
+      { item: 'qubit_crystal', min: 1, max: 2, chance: 0.7 },
+      { item: 'silver_ore', min: 1, max: 2, chance: 0.6 },
+    ],
+  },
+  cinder_drake: {
+    kind: 37,
+    name: 'Cinder Drake',
+    hp: 56,
+    speed: 1.9,
+    radius: 0.5,
+    damage: 10,
+    sight: 10,
+    windup: 1.1,
+    strikeRange: 7,
+    xp: 38,
+    ai: 'caster',
+    poise: 12,
+    staggerTime: 1.2,
+    cooldown: 3,
+    budget: 2.5,
+    drops: [
+      { item: 'coal', min: 2, max: 3, chance: 1 },
+      { item: 'iron_ore', min: 1, max: 2, chance: 0.6 },
+    ],
+  },
+  frost_wraith: {
+    kind: 38,
+    name: 'Rime Wraith',
+    hp: 44,
+    speed: 2.4,
+    radius: 0.4,
+    damage: 9,
+    sight: 9,
+    windup: 1,
+    strikeRange: 3.3,
+    xp: 34,
+    ai: 'ambusher',
+    poise: 6,
+    staggerTime: 1,
+    cooldown: 2.6,
+    budget: 2,
+    drops: [{ item: 'silver_ore', min: 1, max: 2, chance: 0.6 }],
+  },
+  tide_eel: {
+    kind: 39,
+    name: 'Stillwater Eel',
+    hp: 50,
+    speed: 2.6,
+    radius: 0.4,
+    damage: 11,
+    sight: 8,
+    windup: 1,
+    strikeRange: 6,
+    xp: 32,
+    ai: 'boar',
+    poise: 10,
+    staggerTime: 1,
+    cooldown: 2.8,
+    budget: 2,
+    drops: [
+      { item: 'slime_gel', min: 1, max: 2, chance: 0.9 },
+      { item: 'copper_ore', min: 1, max: 2, chance: 0.5 },
+    ],
+  },
+  geode_tyrant: {
+    kind: 40,
+    name: 'The Geode Tyrant',
+    boss: true,
+    hp: 1250,
+    speed: 1.4,
+    radius: 1.3,
+    damage: 18,
+    sight: 18,
+    windup: 1.3,
+    strikeRange: 7,
+    xp: 800,
+    ai: 'brute',
+    armor: true,
+    poise: 170,
+    staggerTime: 1.9,
+    resist: 0.1,
+    cooldown: 2,
+    aoe: 1.6,
+    budget: 99,
+    drops: [
+      { item: 'heart_crystal', min: 1, max: 1, chance: 1 },
+      { item: 'qubit_crystal', min: 4, max: 6, chance: 1 },
+      { item: 'silver_ingot', min: 2, max: 4, chance: 1 },
+    ],
+  },
+  cinder_wyrm: {
+    kind: 41,
+    name: 'The Cinder Wyrm',
+    boss: true,
+    hp: 1350,
+    speed: 1.7,
+    radius: 1.3,
+    damage: 19,
+    sight: 18,
+    windup: 1.2,
+    strikeRange: 7,
+    xp: 850,
+    ai: 'brute',
+    armor: true,
+    poise: 160,
+    staggerTime: 1.8,
+    resist: 0.1,
+    cooldown: 2,
+    aoe: 1.6,
+    budget: 99,
+    drops: [
+      { item: 'heart_crystal', min: 1, max: 1, chance: 1 },
+      { item: 'qubit_crystal', min: 3, max: 5, chance: 1 },
+      { item: 'gold_ingot', min: 3, max: 5, chance: 1 },
+    ],
+  },
+  rime_sovereign: {
+    kind: 42,
+    name: 'The Rime Sovereign',
+    boss: true,
+    hp: 1300,
+    speed: 1.6,
+    radius: 1.2,
+    damage: 18,
+    sight: 18,
+    windup: 1.25,
+    strikeRange: 7,
+    xp: 880,
+    ai: 'brute',
+    armor: true,
+    poise: 150,
+    staggerTime: 2,
+    resist: 0.1,
+    cooldown: 2.1,
+    aoe: 1.6,
+    budget: 99,
+    drops: [
+      { item: 'heart_crystal', min: 1, max: 1, chance: 1 },
+      { item: 'qubit_crystal', min: 4, max: 6, chance: 1 },
+      { item: 'silver_ingot', min: 3, max: 5, chance: 1 },
+    ],
+  },
+  tide_leviathan: {
+    kind: 43,
+    name: 'The Stillwater Leviathan',
+    boss: true,
+    hp: 1450,
+    speed: 1.5,
+    radius: 1.4,
+    damage: 20,
+    sight: 18,
+    windup: 1.3,
+    strikeRange: 7,
+    xp: 900,
+    ai: 'brute',
+    armor: true,
+    poise: 175,
+    staggerTime: 1.9,
+    resist: 0.1,
+    cooldown: 2,
+    aoe: 1.7,
+    budget: 99,
+    drops: [
+      { item: 'heart_crystal', min: 1, max: 1, chance: 1 },
+      { item: 'qubit_crystal', min: 4, max: 6, chance: 1 },
+      { item: 'gold_ingot', min: 3, max: 5, chance: 1 },
+    ],
+  },
 };
 export const ENEMY_BY_KIND: EnemyDef[] = [
   ENEMY_DEFS.slime,
@@ -1144,6 +1385,16 @@ export const ENEMY_BY_KIND: EnemyDef[] = [
   ENEMY_DEFS.spore_matriarch,
   ENEMY_DEFS.bellkeeper,
   ENEMY_DEFS.veyr,
+  ENEMY_DEFS.amber_gnawer,
+  ENEMY_DEFS.lantern_hound,
+  ENEMY_DEFS.geode_golem,
+  ENEMY_DEFS.cinder_drake,
+  ENEMY_DEFS.frost_wraith,
+  ENEMY_DEFS.tide_eel,
+  ENEMY_DEFS.geode_tyrant,
+  ENEMY_DEFS.cinder_wyrm,
+  ENEMY_DEFS.rime_sovereign,
+  ENEMY_DEFS.tide_leviathan,
 ];
 export type EnemyKindName = keyof typeof ENEMY_DEFS;
 
@@ -1174,7 +1425,45 @@ export function spawnTable(
   biome: Biome = 'meadow',
   cave = false,
   cavern: CaveBiome = 'limestone',
+  modern = false,
 ): Array<{ kind: EnemyKindName; w: number }> {
+  if (cave && modern) {
+    // Undercroft 2: each cave biome has its own signature monster alongside the common cave fauna
+    const kinds: Record<CaveBiome, Array<[EnemyKindName, number, number]>> = {
+      limestone: [
+        ['echo_bat', 2, 1],
+        ['amber_gnawer', 3, 3],
+        ['blind_ram', 1, 4],
+      ],
+      glowmoss: [
+        ['echo_bat', 1, 1],
+        ['lantern_hound', 3, 2],
+        ['spore_sage', 2, 3],
+      ],
+      crystal: [
+        ['echo_bat', 1, 1],
+        ['geode_golem', 2, 5],
+        ['prism_beetle', 2, 3],
+      ],
+      basalt: [
+        ['cinder_drake', 3, 4],
+        ['blind_ram', 2, 3],
+        ['prism_beetle', 1, 4],
+      ],
+      frost: [
+        ['frost_wraith', 3, 3],
+        ['rime_skitter', 2, 2],
+        ['echo_bat', 1, 1],
+      ],
+      drowned: [
+        ['tide_eel', 3, 3],
+        ['pool_lurker', 2, 2],
+        ['spore_sage', 1, 3],
+      ],
+    };
+    const ok = kinds[cavern].filter(([, , min]) => level >= min).map(([kind, w]) => ({ kind, w }));
+    return ok.length ? ok : [{ kind: 'echo_bat', w: 1 }];
+  }
   if (cave) {
     const kinds: Record<CaveBiome, EnemyKindName[]> = {
       limestone: ['echo_bat', 'blind_ram'],
@@ -1256,8 +1545,9 @@ export function pickSpawn(
   biome: Biome = 'meadow',
   cave = false,
   cavern: CaveBiome = 'limestone',
+  modern = false,
 ): EnemyKindName {
-  const t = spawnTable(level, night, biome, cave, cavern);
+  const t = spawnTable(level, night, biome, cave, cavern, modern);
   const total = t.reduce((a, b) => a + b.w, 0);
   let r = roll * total;
   for (const e of t) {

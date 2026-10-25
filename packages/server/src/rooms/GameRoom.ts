@@ -6,6 +6,7 @@ import {
   MSG,
   MSG34,
   NPCS,
+  delverRounds,
   PORTS,
   CAVE_TOWNS,
   chunkOf,
@@ -76,6 +77,7 @@ export class GameRoom extends WorldRoom {
   sailing!: SailingModule;
   voice!: VoiceModule;
   bosses!: BossModule;
+  caves!: CaveModule;
   shrines!: ShrineModule;
   shardMod!: ShardModule;
   private modules: Module[] = [];
@@ -116,13 +118,14 @@ export class GameRoom extends WorldRoom {
     this.voice = new VoiceModule(this);
     this.bosses = new BossModule(this);
     this.shrines = new ShrineModule(this);
+    this.caves = new CaveModule(this);
     this.modules = [
       this.shardMod,
       this.circuit,
       this.social,
       this.shadows,
       this.bosses,
-      new CaveModule(this),
+      this.caves,
       this.shrines,
       this.sailing,
       this.voice,
@@ -248,6 +251,10 @@ export class GameRoom extends WorldRoom {
       const port = [...PORTS, ...CAVE_TOWNS].find((p) => p.id === n.settlement);
       return this.unsharded || shardAt(port?.cx ?? t.cx, port?.cy ?? t.cy) === this.shard;
     }).map((n) => n.id);
+    // travelling merchants belong to the shard of their round (revision 4 only)
+    if (this.store.generation >= 4)
+      for (const r of delverRounds(this.seed))
+        if (r.camps.length && (this.unsharded || r.shard === this.shard)) ids.push(r.id);
     if (!ids.length) return nullVillage();
     const prefix = this.unsharded || shardAt(t.cx, t.cy) === this.shard ? '' : `${this.shard}:`;
     return createVillage(
@@ -394,6 +401,9 @@ export class GameRoom extends WorldRoom {
 
   summonBoss(p: ServerPlayer, itemId: string, x: number, y: number): boolean {
     return this.bosses?.summon(p, itemId, x, y) ?? false;
+  }
+  vaultGuard(p: ServerPlayer, o: WorldObj): boolean {
+    return this.caves?.guard(p, o) ?? false;
   }
   toggleShip(p: ServerPlayer): void {
     this.sailing?.toggle(p);

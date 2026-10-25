@@ -1,4 +1,4 @@
-import { mineLoopAt } from './mines';
+import { mineLineAt, mineLoopAt } from './mines';
 import { buildTile, type BuildCell } from './construction';
 import { oceanObjectsIn } from './ocean';
 import { sanctuaryObjectsIn, isDiveY } from './sanctuaries';
@@ -169,7 +169,7 @@ export class ChunkStore {
     }
     const town = this.townByChunk.get(chunkKey(cx, cy)) ?? [];
     const wild = isCaveY(cy * CHUNK_SIZE)
-      ? [...caveObjectsIn(this.seed, cx, cy), ...shrineObjectsIn(this.seed, cx, cy)]
+      ? [...caveObjectsIn(this.seed, cx, cy, this.generation), ...shrineObjectsIn(this.seed, cx, cy)]
       : isDiveY(cy * CHUNK_SIZE)
         ? sanctuaryObjectsIn(this.seed, cx, cy)
         : [
@@ -177,7 +177,7 @@ export class ChunkStore {
             ...oceanObjectsIn(this.seed, cx, cy),
             ...shrineObjectsIn(this.seed, cx, cy),
             ...ruinObjectsIn(this.seed, cx, cy),
-            ...caveObjectsIn(this.seed, cx, cy),
+            ...caveObjectsIn(this.seed, cx, cy, this.generation),
           ];
     const placed = this.generation >= 3 ? wild.filter((o) => this.seaSiteStillAtSea(o)) : wild;
     return placed.length ? [...town, ...placed] : town;
@@ -229,7 +229,8 @@ export class ChunkStore {
     {
       sea: (x: number, y: number): boolean => this.seaSolidAt(x, y),
       level: (x: number, y: number): number => this.levelAt(x, y),
-      mine: (x: number, y: number) => mineLoopAt(this.seed, x, y),
+      mine: (x: number, y: number) =>
+        this.generation >= 4 ? mineLineAt(this.seed, x, y) : mineLoopAt(this.seed, x, y),
     },
   );
   /** cannonballs and bolts fly over water but stop at land, walls and trees */

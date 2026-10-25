@@ -661,24 +661,34 @@ body:has(#settings:not([hidden])) #voice-chip {
 .vitals {
   --vs: 2;
   display: grid;
-  gap: 1px;
+  grid-template-columns: auto auto;
+  grid-template-areas: 'bars labels' 'chips chips' 'list list';
+  column-gap: 6px;
+  row-gap: 3px;
   justify-items: start;
+  align-items: start;
 }
 .vitals-canvas {
+  grid-area: bars;
   display: block;
   width: calc(var(--vw, 1) * var(--vs) * 1px);
   height: calc(var(--vh, 1) * var(--vs) * 1px);
   image-rendering: pixelated;
 }
 .vitals-labels {
+  grid-area: labels;
   display: flex;
+  flex-direction: column;
+  /* one row per bar: art rows scale with the canvas, so the readouts line up with their troughs */
+  gap: calc(var(--gap, 3) * var(--vs) * 1px);
+  padding-top: calc(1px * var(--vs));
 }
 .v-label {
-  width: calc(var(--cell) * var(--vs) * 1px);
+  height: calc(var(--row) * var(--vs) * 1px);
   display: flex;
-  gap: 2px;
+  gap: 3px;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   font:
     700 10px ui-monospace,
     monospace;
@@ -716,6 +726,7 @@ body:has(#settings:not([hidden])) #voice-chip {
   margin-right: 1px;
 }
 .status-row {
+  grid-area: chips;
   display: flex;
   flex-wrap: wrap;
   gap: 0 6px;
@@ -781,6 +792,8 @@ body:has(#settings:not([hidden])) #voice-chip {
   outline-offset: 1px;
 }
 .status-list {
+  grid-area: list;
+  grid-area: list;
   pointer-events: auto;
   list-style: none;
   margin: 3px 0 0;

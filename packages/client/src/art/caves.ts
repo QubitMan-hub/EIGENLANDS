@@ -4,11 +4,11 @@ import { C, makeCanvas, polish, undithered } from './shade';
 import type { ObjSpriteDef } from './worldobjs';
 /** Native 2:1 mine architecture. Ground contact is always (8,8,0). */
 export function caveArchitecture(sub: string): ObjSpriteDef {
-  const animated = ['glow_mushrooms', 'cave_waterfall', 'magma_fall'].includes(sub);
+  const animated = ['glow_mushrooms', 'cave_waterfall', 'magma_fall', 'campfire', 'trial_brazier'].includes(sub);
   return {
     frames: Array.from({ length: animated ? 4 : 1 }, (_, f) => caveFrame(sub, f)),
-    fps: animated ? (sub === 'glow_mushrooms' ? 4 : 2) : 0,
-    noShadow: ['cave_seal', 'cave_waterfall', 'magma_fall'].includes(sub),
+    fps: animated ? (sub === 'glow_mushrooms' ? 4 : sub === 'campfire' || sub === 'trial_brazier' ? 7 : 2) : 0,
+    noShadow: ['cave_seal', 'cave_waterfall', 'magma_fall', 'vault_plate'].includes(sub),
   };
 }
 function caveFrame(sub: string, f: number) {
@@ -55,6 +55,90 @@ function caveFrame(sub: string, f: number) {
       p.box(0, 0, 0, 16, 16, 2, stone);
       p.top(3, 3, 2.1, 10, 10, C.ink);
       for (let i = 0; i < 4; i++) p.box(4 + i * 2, 4, 2, 1, 8, 1, { top: C.r4, left: C.r2, right: C.r1 });
+    } else if (sub === 'campfire') {
+      // ring of stones, crossed logs, a flame that leans and flickers over four frames
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        p.box(8 + Math.cos(a) * 6 - 1.5, 8 + Math.sin(a) * 6 - 1.5, 0, 3, 3, 2 + (i % 2), stone);
+      }
+      p.box(3, 7, 0, 10, 2, 2, wood);
+      p.box(7, 3, 2, 2, 10, 2, wood);
+      p.top(5, 5, 0.1, 6, 6, C.ink);
+      const lean = [0, 1, 0, -1][f]!,
+        rise = [11, 13, 12, 14][f]!;
+      p.cyl(8, 8, 3, 3.2, rise - 5, [C.r1, C.r3, C.r4, C.e5, C.e6]);
+      p.cyl(8 + lean * 0.6, 8, 5, 1.8, rise - 3, [C.e4, C.e5, C.e6, C.e7, C.white]);
+      p.dot(8 + lean, 8, rise + 3, C.e7);
+    } else if (sub === 'delver_tent') {
+      // canvas lean-to on a pole frame, a bedroll and a lantern under the eave
+      const canvasM = mat([C.e1, C.e2, C.e3, C.e4, C.e5, C.e6], { noise: 0.1 });
+      // one tile footprint: two end frames, a ridge pole and canvas hung either side of it
+      p.box(0, 0, 0, 2, 2, 17, wood);
+      p.box(14, 0, 0, 2, 2, 17, wood);
+      p.box(0, 14, 0, 2, 2, 17, wood);
+      p.box(14, 14, 0, 2, 2, 17, wood);
+      for (let k = 0; k < 8; k++) {
+        const z = 2 + k * 1.9,
+          w = Math.max(2, 16 - k * 1.8);
+        p.box(0, (16 - w) / 2, z, 16, w, 1.9, canvasM);
+      }
+      p.box(2, 3, 0, 11, 4, 1.6, mat([C.r1, C.r2, C.r3, C.r4, C.r5]));
+      p.box(2.5, 3.5, 1.6, 4, 3, 1.2, mat([C.pale, C.fog, C.mist, C.steel]));
+      p.box(11, 12, 0, 2.5, 2.5, 2.5, wood);
+      p.box(11.3, 12.3, 2.5, 1.9, 1.9, 2.5, { top: C.e7, left: C.e6, right: C.e4 });
+    } else if (sub === 'merchant_cart') {
+      // two-wheeled cart under a striped awning, crates and a hanging lantern: the travelling merchant's stall
+      p.box(0, 2, 5, 18, 12, 2, wood);
+      for (const [u, v] of [
+        [2, 1],
+        [14, 1],
+        [2, 15],
+        [14, 15],
+      ] as const)
+        p.box(u, v, 0, 2, 2, 5, wood);
+      p.cyl(3, 1, 0, 4.5, 2, IRONM);
+      p.cyl(3, 15, 0, 4.5, 2, IRONM);
+      p.box(2, 4, 7, 5, 5, 4, mat([C.e2, C.e3, C.e4, C.e5]));
+      p.box(9, 4, 7, 6, 4, 3, mat([C.g1, C.g2, C.g3, C.g4]));
+      p.box(4, 10, 7, 9, 3, 2, mat([C.q1, C.q2, C.q3, C.q4]));
+      for (const u of [0, 16]) p.box(u, 2, 7, 2, 2, 20, wood);
+      for (let k = 0; k < 6; k++)
+        p.box(
+          -1 + k * 3.4,
+          1,
+          27 - (k % 2),
+          3.4,
+          14,
+          1.5,
+          mat(k % 2 ? [C.pale, C.fog, C.mist, C.steel] : [C.r2, C.r3, C.r4, C.r5]),
+        );
+      p.box(8, 1, 22, 1.5, 1.5, 5, iron);
+      p.box(7.2, 0.4, 19, 3, 3, 3, { top: C.e7, left: C.e6, right: C.e4 });
+    } else if (sub === 'cave_lamp') {
+      p.box(5, 5, 0, 6, 6, 3, stone);
+      p.box(7, 7, 3, 2, 2, 22, iron);
+      p.box(4, 6, 24, 8, 4, 1.5, iron);
+      p.box(5.5, 6.5, 25.5, 5, 3, 5, { top: C.e7, left: C.e6, right: C.e4 });
+      p.box(5, 6, 31, 6, 4, 1.5, iron);
+    } else if (sub === 'buffer_stop') {
+      // sleeper-mounted timber buffer with a spring-coloured bumper: the rail line ends here
+      p.box(-2, 6, 0, 20, 4, 2, wood);
+      p.box(0, 3, 2, 3, 10, 9, wood);
+      p.box(13, 3, 2, 3, 10, 9, wood);
+      p.box(2, 4, 4, 11, 8, 5, wood);
+      p.box(2.5, 4.5, 9, 10, 7, 1.5, { top: C.r4, left: C.r2, right: C.r1 });
+    } else if (sub === 'trial_brazier') {
+      p.box(3, 3, 0, 10, 10, 3, stone);
+      p.box(5, 5, 3, 6, 6, 8, stone);
+      p.box(3, 3, 11, 10, 10, 3, iron);
+      const rise = [8, 10, 9, 11][f]!;
+      p.cyl(8, 8, 14, 3.2, rise - 2, [C.q1, C.q3, C.q4, C.q5, C.q6]);
+      p.cyl(8, 8, 15, 1.8, rise, [C.q5, C.q6, C.q7, C.white, C.white]);
+    } else if (sub === 'vault_plate') {
+      // engraved pressure plate flush with the vault floor
+      p.top(1, 1, 0.2, 14, 14, (s, t) =>
+        Math.abs(s - 0.5) + Math.abs(t - 0.5) < 0.22 ? C.q4 : Math.min(s, t, 1 - s, 1 - t) < 0.09 ? C.q2 : C.slate,
+      );
     } else if (sub === 'sea_arch') {
       const coral = mat([C.w0, C.w1, C.w2, C.w3, C.w5]),
         shell = mat([C.slate, C.steel, C.mist, C.pale]);
