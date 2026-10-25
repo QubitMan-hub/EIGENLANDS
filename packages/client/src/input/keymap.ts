@@ -6,6 +6,7 @@ export type Action =
   | 'attack'
   | 'skill'
   | 'dash'
+  | 'sprint'
   | 'interact'
   | 'inventory'
   | 'journal'
@@ -51,6 +52,7 @@ export const ACTIONS: Action[] = [
   'attack',
   'skill',
   'dash',
+  'sprint',
   'interact',
   'inventory',
   'journal',
@@ -67,6 +69,7 @@ export const ACTION_LABELS: Record<Action, string> = {
   attack: 'Attack',
   skill: 'Skill shot',
   dash: 'Dash (dodge)',
+  sprint: 'Sprint (hold)',
   interact: 'Use item / talk / open',
   inventory: 'Pack',
   journal: 'Journal',
@@ -96,6 +99,7 @@ export const DEFAULT_KEYS: KeyMap = {
   attack: ['KeyJ', 'KeyZ'],
   skill: ['KeyK'],
   dash: ['ShiftLeft', 'ShiftRight'],
+  sprint: ['KeyX'],
   interact: ['Space'],
   inventory: ['KeyI', 'Tab'],
   journal: ['KeyL'],
@@ -142,7 +146,12 @@ export function loadKeys(storage: Pick<Storage, 'getItem'> | null = safeStorage(
       const reserved = new Set(['KeyQ', 'KeyE', 'KeyR', 'KeyF', 'KeyX', 'KeyK']);
       if (
         unchanged &&
-        !ACTIONS.some((a) => !group.includes(a as keyof typeof legacy) && out[a].some((k) => reserved.has(k)))
+        !ACTIONS.some(
+          (a) =>
+            !group.includes(a as keyof typeof legacy) &&
+            !(a === 'sprint' && JSON.stringify(out.sprint) === JSON.stringify(DEFAULT_KEYS.sprint)) && // the untouched sprint default may share the old skill alias
+            out[a].some((k) => reserved.has(k)),
+        )
       )
         for (const a of group) out[a] = [...DEFAULT_KEYS[a]];
       // Migrate only the old untouched dodge/use pair, never custom or unbound controls.

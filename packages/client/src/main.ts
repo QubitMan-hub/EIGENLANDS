@@ -15,8 +15,9 @@ import {
   signOut,
   type AuthState,
 } from './net/session';
+import { mountTitleScene } from './ui/title-scene';
 import { buildAppearancePicker, loadLook, saveLook } from './ui/appearance-picker';
-import { HTML, SettingsUI, applySettings, loadSettings } from './ui/ui';
+import { HTML, SettingsUI, ZOOM_LEVELS, applySettings, loadSettings, saveSettings } from './ui/ui';
 
 /** single-player build (GitHub Pages): the world runs and is saved in this browser, see src/local/ */
 const SOLO = IS_SOLO;
@@ -78,6 +79,22 @@ async function boot(): Promise<void> {
   applySettings(settings, game.audio);
   await game.init(canvas);
 
+  // = / − step the camera distance (the same setting as Settings → Camera distance)
+  window.addEventListener('keydown', (e) => {
+    const t = e.target as HTMLElement | null;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable))
+      return;
+    if (e.ctrlKey || e.metaKey || e.altKey || $('login').hidden === false) return;
+    const dir =
+      e.code === 'Equal' || e.code === 'NumpadAdd' ? -1 : e.code === 'Minus' || e.code === 'NumpadSubtract' ? 1 : 0;
+    if (!dir) return;
+    const i = Math.max(0, Math.min(ZOOM_LEVELS.length - 1, ZOOM_LEVELS.indexOf(settings.zoom) + dir));
+    if (ZOOM_LEVELS[i] === settings.zoom) return;
+    settings.zoom = ZOOM_LEVELS[i]!;
+    saveSettings(settings);
+    game.relayout();
+  });
+
   let auth: AuthState | null = null;
   const msg = (t: string) => {
     $('login-msg').textContent = t;
@@ -95,6 +112,7 @@ async function boot(): Promise<void> {
     () => {
       input.setMovementMode(settings.movementMode);
       applySettings(settings, game.audio);
+      game.relayout();
     },
   );
   ui.bind({
@@ -161,7 +179,13 @@ async function boot(): Promise<void> {
     saveLook(look);
     if (auth && game.net) game.net.send(MSG.APPEARANCE, { app: packAppearance(a) });
   };
-  $('look-title').append(buildAppearancePicker(look.app, picked));
+  const scene = mountTitleScene($('login'), look.app);
+  $('look-title').append(
+    buildAppearancePicker(look.app, (a) => {
+      picked(a);
+      scene.setLook(a);
+    }),
+  );
   $('btn-settings').addEventListener('click', () =>
     $('look-settings').replaceChildren(buildAppearancePicker(look.app, picked)),
   );

@@ -192,7 +192,7 @@ Implemented in `packages/client/src/ui/vitals*.ts` (model, isometric painter, DO
   - [x] IMPLEMENTED & TESTED — Subtle magical effects: spire sparks only while the resource is full (ultimate ready).
   - [x] IMPLEMENTED & TESTED — Readable consumption and regeneration: same trail/recovery motion as health.
 - [x] IMPLEMENTED & TESTED — **Stamina**
-  - [x] IMPLEMENTED & TESTED — Exertion feedback: the green vial is the dash resource (whole charges plus the recharging one), draining on a dash and refilling smoothly. There is no sprint stamina in the game yet, so none is drawn.
+  - [x] IMPLEMENTED & TESTED — Exertion feedback: the green vial is sprint stamina (added with §4), draining while you run and refilling after a rest, with the two dash charges shown as studs on its plinth.
   - [x] IMPLEMENTED & TESTED — Never obscures movement or combat: the ledger stays in the top-left, 94×46 logical pixels of art, nothing over the playfield; the old under-feet dash pips are unchanged.
 - [x] IMPLEMENTED & TESTED — **Hunger and thirst**
   - [x] IMPLEMENTED & TESTED — Visible and instantly understandable: amber flask and cyan vial with food/water icons, shown only in Adventure travel mode (Cozy pauses depletion, so nothing is drawn).
@@ -245,8 +245,8 @@ Evidence: 9 new unit tests (themes distinct and complete, phase marks, camps, el
 ## 3.3 Complete Interface Overhaul
 
 - [ ] NOT STARTED — Redesign and unify:
-- [ ] NOT STARTED — Main menu and title screen.
-- [ ] NOT STARTED — Character creation and class selection.
+- [~] IN PROGRESS — Main menu and title screen: title now has a floating isometric island diorama (ledge cliff, shrine ring, torches, tree) with your wanderer standing on it, updating live as you customise (`ui/title-scene.ts`); hidden on narrow or short screens. The menu card itself is unchanged apart from the wardrobe.
+- [~] IN PROGRESS — Character creation and class selection: appearance creator done (§3.1 PR); class selection still lives in the Circuit Board's Choose path tab and was not redesigned.
 - [ ] NOT STARTED — Inventory and equipment.
 - [ ] NOT STARTED — Crafting and recipe book.
 - [ ] NOT STARTED — Cooking and alchemy interfaces.
@@ -258,12 +258,12 @@ Evidence: 9 new unit tests (themes distinct and complete, phase marks, camps, el
 - [ ] NOT STARTED — Building mode and placement previews.
 - [ ] NOT STARTED — Dialogue interfaces.
 - [ ] NOT STARTED — Multiplayer lobby and invitations.
-- [ ] NOT STARTED — Party frames.
+- [~] IN PROGRESS — Party frames: social/party/voice panels moved onto the shared square bronze/ink material (radii, navy colours, the voice chip); layout not redesigned.
 - [~] IN PROGRESS — Map and minimap.
 - [ ] NOT STARTED — Quantum progression board.
 - [ ] NOT STARTED — Skill trees.
 - [~] IN PROGRESS — Death, respawn, victory, and level-up screens: the defeat ribbon (ember frame, cause of death, isometric countdown slab) and the level-up celebration card are done; victory still uses the boss banner unchanged.
-- [ ] NOT STARTED — Settings and keybindings.
+- [~] IN PROGRESS — Settings and keybindings: sprint is a new remappable action, camera distance is a new setting; the window layout itself is unchanged.
 - [~] IN PROGRESS — Notifications, tooltips, and interaction prompts: toasts and prompts moved to the bronze/ink material (pickup pedestals, gilt rare finds, celebration cards); tooltips are unchanged.
 
 ### Guild UI
@@ -305,10 +305,10 @@ Slice delivered 2026-10-25: legacy navy/rounded styles in `style.css` (toasts, c
 ### Movement
 
 - [ ] NOT STARTED — Smooth responsive WASD controls mapped correctly to isometric movement.
-- [ ] NOT STARTED — Normalized diagonal speed.
+- [x] IMPLEMENTED & TESTED — Normalized diagonal speed: `sanitizeCmd` clamps the movement vector to unit length; a shared test checks diagonal sprint speed equals straight sprint speed.
 - [ ] NOT STARTED — Precise collision and pathing.
 - [ ] NOT STARTED — Excellent character animation transitions.
-- [ ] NOT STARTED — Responsive sprinting and dodging.
+- [x] IMPLEMENTED & TESTED — Responsive sprinting and dodging: hold X (remappable; thumb stick at its rim on touch; stick pushed fully on a gamepad) to run 1.4× faster on a server-authoritative stamina pool (3.3 s of running, refills after 0.6 s rest, 1.4 s if you run dry). It is part of the shared sim, so prediction, ACK reconciliation and server agree exactly (shared tests incl. an ACK round trip; solo e2e holds X and watches stamina fall and refill). Dodge is the existing Shift dash with its double charge; the plan's Shift-sprint/Space-dodge table was not adopted because Shift and Space are already bound (dash, interact) in saved layouts.
 - [ ] NOT STARTED — Optional click-to-move where appropriate.
 - [ ] NOT STARTED — No stuck characters or awkward movement.
 
@@ -323,7 +323,7 @@ Slice delivered 2026-10-25: legacy navy/rounded styles in `style.css` (toasts, c
 ### Camera
 
 - [ ] NOT STARTED — Smooth camera following.
-- [ ] NOT STARTED — Configurable zoom.
+- [x] IMPLEMENTED & TESTED — Configurable zoom: Settings → Camera distance (close/normal/far) and the = / − keys; steps keep whole-pixel scales so art never blurs.
 - [ ] NOT STARTED — Proper handling of buildings, interiors, obstacles, and large bosses.
 - [ ] NOT STARTED — No jitter or incorrect rendering order.
 - [ ] NOT STARTED — Optional camera effects and shake.

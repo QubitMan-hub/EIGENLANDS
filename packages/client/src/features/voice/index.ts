@@ -6,9 +6,9 @@ import { isoX, isoY } from '../../game/iso';
 import type { ClientModule, ExtAction, P34Deps } from '../types';
 
 const CSS = `
-#voice-chip{position:fixed;left:12px;top:92px;z-index:28;display:flex;gap:8px;align-items:center;padding:4px 10px 4px 8px;border-radius:14px;
-  font:600 12px system-ui,sans-serif;color:#cfe6ff;background:#0b0c1acc;border:1px solid #3b4a7a;cursor:pointer;user-select:none;max-width:260px}
-#voice-chip .vc-dot{width:9px;height:9px;border-radius:50%;background:#5a6180;flex:none;transition:background .1s,box-shadow .1s}
+#voice-chip{position:fixed;left:12px;top:92px;z-index:28;display:flex;gap:8px;align-items:center;padding:4px 10px 4px 8px;border-radius:0;
+  font:600 12px ui-monospace,monospace;color:#d5e1cf;background:#17201fed;border:1px solid #786646;border-left:4px solid #bca06b;box-shadow:0 2px 0 #101719aa;cursor:pointer;user-select:none;max-width:260px}
+#voice-chip .vc-dot{width:8px;height:8px;border-radius:0;background:#786646;flex:none;border-radius:0;transform:rotate(45deg);transition:background .1s,box-shadow .1s}
 #voice-chip.on .vc-dot{background:#5af0d0}
 #voice-chip.talk .vc-dot{box-shadow:0 0 8px 3px #5af0d0}
 #voice-chip.muted .vc-dot{background:#d44a4a}

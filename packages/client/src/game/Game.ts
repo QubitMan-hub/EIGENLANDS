@@ -83,7 +83,7 @@ import { P34Client } from '../features';
 import type { KeyMap } from '../input/keymap';
 import type { Net, NetHandlers } from '../net/session';
 import { Predictor } from '../net/prediction';
-import type { Settings } from '../ui/ui';
+import { ZOOM_TILES, type Settings } from '../ui/ui';
 import {
   depth,
   isoX,
@@ -118,7 +118,7 @@ import {
   ITEMS,
   MSG34,
   DASH_CHARGES,
-  DASH_COOLDOWN,
+  STAMINA_MAX,
   SHADOW_RANKS,
   WEAPONS,
   setMeleeWeapon,
@@ -131,7 +131,6 @@ import { TargetFrame } from '../ui/targetframe';
 import { VitalsHud } from '../ui/vitals';
 import { levelMoment } from '../ui/moments';
 import { enemyChips, factionOf, poiseLabel } from '../ui/enemy-model';
-import { staminaFraction } from '../ui/vitals-model';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const pc = (i: number) => parseInt(PALETTE[i]!.slice(1), 16);
@@ -545,6 +544,11 @@ export class Game {
     this.requestDiff(cx, cy);
   }
 
+  /** Re-fit the camera, e.g. after the zoom setting changes. */
+  relayout(): void {
+    this.layout();
+  }
+
   private layout(): void {
     const w = window.innerWidth,
       h = window.innerHeight;
@@ -552,7 +556,8 @@ export class Game {
     // Landscape phones need phone-sized artwork too. Width alone classified
     // them as desktops and quadrupled the terrain fill cost at a tiny zoom.
     const phone = matchMedia('(pointer: coarse)').matches && Math.min(w, h) < 600;
-    const target = phone ? (this.economy ? (w > h ? 8 : 6) : w > h ? 12 : 9) : w < 700 ? 9 : 18;
+    const base = phone ? (this.economy ? (w > h ? 8 : 6) : w > h ? 12 : 9) : w < 700 ? 9 : 18;
+    const target = base * ZOOM_TILES[this.settings().zoom];
     this.scale = Math.max(1, Math.floor((w * dpr) / (32 * target))) / dpr;
     this.world.scale.set(this.scale);
     this.lighting.sprite.scale.set(this.scale);
@@ -1856,7 +1861,8 @@ export class Game {
           maxHp: s.maxHp,
           mana: this.ext.circuit.resource(),
           stamina: {
-            frac: staminaFraction(sim.dashN, sim.dashCd, DASH_COOLDOWN, DASH_CHARGES),
+            frac: sim.stamina / STAMINA_MAX,
+            value: sim.stamina,
             charges: sim.dashN,
             max: DASH_CHARGES,
           },
@@ -1941,6 +1947,8 @@ export class Game {
       chunks: this.terrain?.count,
       entities: this.views.size,
       hp: this.self?.hp,
+      stamina: this.predictor?.sim.stamina,
+      sprinting: this.predictor?.sim.sprint === 1,
       level: this.self?.level,
       scale: this.scale,
       dead: this.dead,

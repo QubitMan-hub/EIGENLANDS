@@ -428,6 +428,9 @@ export const ACK_FIELDS = [
   'slipT',
   'boat',
   'cart',
+  'stamina',
+  'staminaT',
+  'sprint',
 ] as const satisfies ReadonlyArray<keyof PlayerSim>;
 export const ACK_BYTES = 8 + ACK_FIELDS.length * 4;
 export interface Ack {
@@ -456,6 +459,7 @@ export function decodeAck(buf: Uint8Array): Ack {
   sim.dashN = Math.round(sim.dashN);
   sim.hold = Math.round(sim.hold);
   sim.boat = Math.round(sim.boat);
+  sim.sprint = Math.round(sim.sprint);
   return { seq: dv.getUint32(0, true), tick: dv.getUint32(4, true), sim };
 }
 
