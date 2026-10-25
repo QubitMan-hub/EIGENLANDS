@@ -230,7 +230,7 @@ switch (panel) {
       hp: 60,
       maxHp: 60,
       mana: { v: 100, max: 100, name: 'Coherence' },
-      stamina: { frac: 1, charges: 2, max: 2 },
+      stamina: { frac: 1, value: 100, charges: 2, max: 2 },
       needs: null,
       auras: [],
       buffs: {},
@@ -241,7 +241,11 @@ switch (panel) {
       ['Full · mana ready', base({}), null],
       [
         'Wounded 17/60 · mana low · 1 dash',
-        base({ hp: 17, mana: { v: 22, max: 100, name: 'Coherence' }, stamina: { frac: 0.62, charges: 1, max: 2 } }),
+        base({
+          hp: 17,
+          mana: { v: 22, max: 100, name: 'Coherence' },
+          stamina: { frac: 0.62, value: 62, charges: 1, max: 2 },
+        }),
         null,
       ],
       [

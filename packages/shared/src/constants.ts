@@ -13,6 +13,17 @@ export const CLIFF = 2;
 /** Range multiplier for a shooter standing on high ground: +5% per level, up to six levels. */
 export const highGroundRange = (level: number): number => 1 + 0.05 * Math.min(Math.max(level, 0), 6);
 export const PLAYER_SPEED = 4.5; // tiles / s
+/** Sprint: hold to run faster on a stamina pool that drains while running and refills after a short rest. */
+export const SPRINT_MULT = 1.4;
+export const STAMINA_MAX = 100;
+/** stamina per second spent while sprinting / regained while not */
+export const SPRINT_DRAIN = 30;
+export const STAMINA_REGEN = 18;
+/** seconds after sprinting before stamina refills; running dry doubles it so you cannot chain-sprint on fumes */
+export const STAMINA_DELAY = 0.6;
+export const EXHAUST_DELAY = 1.4;
+/** stamina needed to begin a sprint (continuing needs only > 0) */
+export const SPRINT_MIN = 10;
 /** a sloop under sail outruns a walker */
 export const BOAT_SPEED_MULT = 1.55;
 export const PLAYER_RADIUS = 0.3;

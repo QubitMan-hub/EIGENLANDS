@@ -1,3 +1,9 @@
+# Current continuation: sprint, camera distance, title diorama, shared material (2026-10-25)
+
+Sprint lives in the shared sim (`PlayerSim.stamina/staminaT/sprint`, `InputCmd.sprint`, ACK fields, constants `SPRINT_*`/`STAMINA_*`); the stamina vial is now sprint stamina and the two dash charges are studs on its plinth. Zoom is `Settings.zoom` + `Game.relayout()`. `ui/title-scene.ts` draws the title island. Remaining purple/navy pieces were moved to the bronze/ink tokens in circuit/social/voice/dialogue CSS (`ui/p2style.ts`). Not done: Shift-sprint/Space-dodge default layout from the plan (conflicts with saved bindings), click-to-move beyond the right-button mode, camera handling for interiors/large bosses audit, physical-device checks.
+
+---
+
 # Current continuation: interface feedback slice of §3.3 (2026-10-25)
 
 Legacy navy/rounded CSS in `style.css` now uses the slate/bronze tokens (`--slate`, `--bronze`, `--bronze-lt`, `--ember`); `features/circuit/circuit.css` and `features/social/social.css` still carry the old purple theme and are the next target. New: `ui/moments.ts` (celebration cards, parser for the server's toast text — a brittle contract; a typed server event would be better), pickup pedestals and rare-find glint in `ui/toast.ts`, defeat ribbon with countdown slab. Lab: `uilab.html?panel=feedback&level=7`. Not done: title/menu restyle, crafting/cooking/farming/shop/dialogue/building screens, guild and rank UI (no such systems), tooltips, hover states.

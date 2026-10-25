@@ -26,7 +26,8 @@ export interface VitalsFrame {
   maxHp: number;
   /** class resource (mana); null when the class has none yet */
   mana: { v: number; max: number; name: string } | null;
-  stamina: { frac: number; charges: number; max: number };
+  /** sprint stamina as a fraction and a 0..100 value; dash charges ride on the plinth as pips */
+  stamina: { frac: number; value: number; charges: number; max: number };
   needs: { food: number; water: number } | null;
   auras: StatusInput['auras'];
   buffs: StatusInput['buffs'];
@@ -157,6 +158,8 @@ export class VitalsHud {
         low,
         tone,
         aura: id === 'health' ? auraTop : null,
+        pips: id === 'stamina' ? f.stamina.charges : 0,
+        pipMax: id === 'stamina' ? f.stamina.max : 0,
         ready,
         t: reduced ? 0 : this.t,
       };
@@ -165,7 +168,7 @@ export class VitalsHud {
       this.ids
         .map((id) => {
           const s = specs[id];
-          return `${id}:${Math.round(s.shown * 60)}:${Math.round(s.trail * 60)}:${s.tone}:${s.low ? 1 : 0}:${s.ready ? 1 : 0}`;
+          return `${id}:${Math.round(s.shown * 60)}:${Math.round(s.trail * 60)}:${s.tone}:${s.low ? 1 : 0}:${s.ready ? 1 : 0}:${s.pips}`;
         })
         .join('|') + `|${auraTop}`;
     const frameDue = this.t - this.lastPaint >= 0.07 || this.lastPaint < 0;
@@ -227,10 +230,10 @@ export class VitalsHud {
       );
     set(
       'stamina',
-      `${f.stamina.charges}/${f.stamina.max}`,
-      f.stamina.charges,
-      f.stamina.max,
-      `Dash charges ${f.stamina.charges} of ${f.stamina.max}. One recharges at a time.`,
+      String(Math.round(f.stamina.value)),
+      Math.round(f.stamina.value),
+      100,
+      `Stamina ${Math.round(f.stamina.value)} of 100. Hold sprint to run; dash charges ${f.stamina.charges} of ${f.stamina.max} (studs on the plinth).`,
     );
     if (f.needs) {
       set(
