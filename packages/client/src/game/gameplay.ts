@@ -44,6 +44,7 @@ import { VillageOverlay, type NpcScreen } from '../ui/overlay';
 import { buildBoard, buildLore } from '../ui/village';
 import { buildStation } from '../ui/station';
 import { Toasts } from '../ui/toast';
+import { Moments } from '../ui/moments';
 import { Windows } from '../ui/windows';
 import { Profile } from './profile';
 import { describeUse, fishingTarget, targetTile, type UseInfo } from './targeting';
@@ -83,6 +84,7 @@ export class Gameplay {
   readonly tip = new Tooltip();
   readonly wins = new Windows();
   readonly toasts = new Toasts();
+  readonly moments = new Moments();
   readonly hotbar: Hotbar;
   readonly rhythm: RhythmOverlay;
   readonly village: VillageOverlay;
@@ -114,6 +116,7 @@ export class Gameplay {
   private firstSteps: ReturnType<typeof buildFirstSteps>;
 
   constructor(private d: GameplayDeps) {
+    this.toasts.moments = this.moments;
     this.rotateBuild.hidden = true;
     for (const type of ['keydown', 'keyup'])
       this.rotateBuild.addEventListener(type, (e) => {

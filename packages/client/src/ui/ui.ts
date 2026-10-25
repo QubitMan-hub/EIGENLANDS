@@ -199,7 +199,7 @@ export const HTML = `
   </div>
 </div>
 <div id="lost" class="overlay" hidden><div class="panel lostbox"><h2 id="lost-title">Connection lost</h2><p id="lost-msg" class="small"></p><button id="btn-reload" class="primary">Reconnect</button></div></div>
-<div id="dead" class="overlay soft" hidden><div class="panel deadbox"><h2>Wavefunction collapsed</h2><p class="small">You were defeated. Respawning at the shrine&hellip; Tip: dash through a glowing red warning to dodge it.</p></div></div>
+<div id="dead" class="overlay soft" hidden><div class="panel deadbox"><h2>Wavefunction collapsed</h2><p class="small">You were defeated. Respawning at the shrine&hellip; Tip: dash through a glowing red warning to dodge it.</p><div class="dead-wait" aria-hidden="true"><i id="dead-bar"></i></div></div></div>
 `;
 
 export class SettingsUI {

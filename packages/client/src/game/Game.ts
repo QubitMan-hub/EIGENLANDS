@@ -129,6 +129,7 @@ import { Critters } from '../art/critters';
 import { Ships } from '../art/ships';
 import { TargetFrame } from '../ui/targetframe';
 import { VitalsHud } from '../ui/vitals';
+import { levelMoment } from '../ui/moments';
 import { enemyChips, factionOf, poiseLabel } from '../ui/enemy-model';
 import { staminaFraction } from '../ui/vitals-model';
 
@@ -819,6 +820,7 @@ export class Game {
         this.sound('dash', f.x, f.y);
         break;
       case 'levelup':
+        if (f.id === this.myId && f.v) this.gameplay.moments.show(levelMoment(f.v));
         this.fx.ring(f.x, f.y, 38);
         this.fx.burst(f.x, f.y, [38, 39, 22], 12);
         this.fx.number(f.x, f.y - 1, `LEVEL ${f.v}!`, 38);
@@ -1828,6 +1830,7 @@ export class Game {
       const p = $('dead').querySelector('p');
       const txt = `${this.combat.killedBy ? `Felled by a ${this.combat.killedBy}. ` : ''}Respawning at the shrine in ${left}… Tip: dash through a red warning just before it fills for a Phase Slip.`;
       if (p && p.textContent !== txt) p.textContent = txt;
+      $('dead-bar').style.width = `${Math.max(0, Math.min(100, ((now - this.deadAt) / 3000) * 100))}%`;
     }
     let nearest = Infinity;
     for (const v of this.views.values())

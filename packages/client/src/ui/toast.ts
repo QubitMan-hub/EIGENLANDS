@@ -1,11 +1,21 @@
 import { ITEMS, itemName, type Stack } from '@eigenlands/shared';
 import { itemIconUrl } from '../art/icons';
 import { h } from './dom';
+import { pedestal } from './vitals';
+import { momentFromToast, isRareStack, type MomentSink } from './moments';
+
+function pedestalIcon(id: string, tone: 'need' | 'aura'): HTMLElement {
+  const el = h('span', { class: 'pedestal' }, h('img', { class: 'ico', src: itemIconUrl(id) }));
+  el.style.setProperty('--ped', `url(${pedestal(tone)})`);
+  return el;
+}
 
 /** Bottom-left feed: item pickups (merged), messages. Also announces to screen readers. */
 export class Toasts {
   private root = h('div', { id: 'toasts' });
   private recent = new Map<string, { el: HTMLElement; n: number; at: number }>();
+  /** Celebrations (level-ups, quest completions…) are announced beside the plain toast. */
+  moments: MomentSink | null = null;
   constructor() {
     this.root.setAttribute('aria-live', 'polite');
     document.body.append(this.root);
@@ -25,8 +35,8 @@ export class Toasts {
       }
       const el = h(
         'div',
-        { class: 'toast item' },
-        h('img', { class: 'ico', src: itemIconUrl(item.id) }),
+        { class: `toast item${isRareStack(item) ? ' rare' : ''}` },
+        pedestalIcon(item.id, isRareStack(item) ? 'need' : 'aura'),
         h('span', { class: 'tn', text: `+${item.n}` }),
         h('span', { text: item.p?.qname ? itemName(item) : (ITEMS[item.id]?.name ?? item.id) }),
       );
@@ -34,6 +44,8 @@ export class Toasts {
       this.push(el);
       return;
     }
+    const moment = this.moments ? momentFromToast(text) : null;
+    if (moment) this.moments!.show(moment);
     this.push(h('div', { class: `toast ${kind}`, text }));
   }
   private push(el: HTMLElement): void {

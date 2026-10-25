@@ -406,9 +406,37 @@ button.big {
   text-align: center;
   max-width: 380px;
 }
+.deadbox {
+  position: relative;
+  border-color: #874840;
+  box-shadow:
+    inset 0 0 0 2px #17201f,
+    inset 0 0 0 3px #61333e,
+    0 4px 0 #101719aa;
+}
 .deadbox h2 {
-  color: #ff8a8a;
+  margin: 0;
+  color: #df84a5;
   font-family: var(--pix);
+  font-size: 15px;
+  letter-spacing: 2px;
+}
+/* a thin isometric slab fills while the shrine pulls you back */
+.dead-wait {
+  height: 8px;
+  margin: 2px 6px 0;
+  background: #101719;
+  border: 1px solid #61333e;
+  clip-path: polygon(0 50%, 12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
+}
+.dead-wait i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: #bca06b;
+}
+.reduced-motion .dead-wait i {
+  transition: none;
 }
 label.tog {
   display: flex;
@@ -804,4 +832,13 @@ body:has(#settings:not([hidden])) #voice-chip {
   .v-label.low b::before {
     margin-right: 0;
   }
+}
+
+/* interaction prompts share the ledger's material */
+.node-hint {
+  background: #17201fed;
+  border: 1px solid #786646;
+  border-left: 4px solid #bca06b;
+  box-shadow: 0 3px 0 #101719aa;
+  color: #f1e4c7;
 }

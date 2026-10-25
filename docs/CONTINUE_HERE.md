@@ -1,3 +1,9 @@
+# Current continuation: interface feedback slice of §3.3 (2026-10-25)
+
+Legacy navy/rounded CSS in `style.css` now uses the slate/bronze tokens (`--slate`, `--bronze`, `--bronze-lt`, `--ember`); `features/circuit/circuit.css` and `features/social/social.css` still carry the old purple theme and are the next target. New: `ui/moments.ts` (celebration cards, parser for the server's toast text — a brittle contract; a typed server event would be better), pickup pedestals and rare-find glint in `ui/toast.ts`, defeat ribbon with countdown slab. Lab: `uilab.html?panel=feedback&level=7`. Not done: title/menu restyle, crafting/cooking/farming/shop/dialogue/building screens, guild and rank UI (no such systems), tooltips, hover states.
+
+---
+
 # Current continuation: monster and boss health bars (§3.2) (2026-10-25)
 
 Camps, elite modifiers and status chips live in `ui/enemy-model.ts`; creature bars are isometric slabs (`game/worldbar.ts`); the target frame has a camp gem and chips; each boss has a themed pixel frame (`ui/boss-frames.ts`, `ui/bossbar.ts`). Adding a boss means adding one entry to `BOSS_THEMES` (a test enforces it). Not done: per-boss mechanic indicators (server sends none), elemental resistances (do not exist).
