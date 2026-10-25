@@ -18,7 +18,7 @@ beforeAll(async () => {
   flatten(p.room, X, Y, 8);
   for (let dy = -1; dy <= 1; dy++) for (let dx = 3; dx <= 4; dx++) p.room.setTile(X + dx, Y + dy, T.WATER);
 });
-afterAll(async () => { await app.close(); });
+afterAll(async () => { await app?.close(); });
 
 describe('fishing', () => {
   const lastBeat = (m: RhythmStartMsg) => m.plan.startAt + m.plan.intervalMs * m.plan.count;

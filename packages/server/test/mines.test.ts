@@ -6,7 +6,7 @@ let app:App,p:Probe,q:Probe,m:MineLoop;
 beforeAll(async()=>{app=await boot();p=await spawn(app,'Miner');q=await spawn(app,'Friend');
  for(let gy=-4;gy<=4&&!m;gy++)for(let gx=-4;gx<=4&&!m;gx++){const r=caveRegion(20260101,gx,gy),loop=mineLoopAt(20260101,r.x,r.y);if(loop)m=loop;}
 });
-afterAll(async()=>app.close());
+afterAll(async()=>app?.close());
 it('requires a nearby real depot, syncs the rider to a second client, and safely steps off',async()=>{
  const target={tx:m.x,ty:m.y};p.r.send(MSG.OPEN,target);await new Promise(r=>setTimeout(r,80));expect(p.sp.sim.cart).toBe(0);
  await tp(p,m.x+.5,m.y+1.5);await tp(q,m.x+2.5,m.y+1.5);

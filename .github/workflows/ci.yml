@@ -21,3 +21,46 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+  server-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Build the production server image
+        run: docker build -t eigenlands-render:test .
+      - name: Create isolated test credentials
+        run: |
+          node --input-type=module - <<'JS'
+          import {writeFileSync} from 'node:fs';
+          import {randomBytes} from 'node:crypto';
+          writeFileSync(`${process.env.RUNNER_TEMP}/render-test.env`, `POSTGRES_PASSWORD=${randomBytes(32).toString('hex')}\nSESSION_SECRET=${randomBytes(48).toString('hex')}\n`, {mode:0o600});
+          JS
+      - name: Boot the database and game
+        run: docker compose --env-file "$RUNNER_TEMP/render-test.env" -f deploy/render/compose.test.yml up -d --no-build --wait --wait-timeout 120
+      - name: Verify production shutdown, saved progress and backup restoration
+        env:
+          TSX_TSCONFIG_PATH: packages/server/tsconfig.json
+        run: node --import tsx e2e/render-deployment.mjs "$RUNNER_TEMP/render-test.env"
+      - name: Clean up disposable test volumes
+        if: always()
+        run: docker compose --env-file "$RUNNER_TEMP/render-test.env" -f deploy/render/compose.test.yml down --volumes
+  solo-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npx playwright-core install --with-deps chromium
+      - run: npm run build:pages
+      - name: Start solo preview
+        working-directory: packages/client
+        run: ../../node_modules/.bin/vite preview --host 127.0.0.1 --port 5240 --strictPort > /tmp/solo-preview.log 2>&1 &
+      - name: Verify browser solo mode and saved progress
+        run: |
+          export CHROME="$(node --input-type=module -e "import {chromium} from 'playwright-core'; process.stdout.write(chromium.executablePath())")"
+          npm run e2e:solo -- http://127.0.0.1:5240/ /tmp/solo-shots

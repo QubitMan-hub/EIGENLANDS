@@ -13,7 +13,7 @@ const room = (): WorldRoom => matchMaker.getLocalRoomById(lastRoomId()) as unkno
 const SEED = 20260101;
 
 beforeAll(async () => { await resetDb(); tuning.toolCooldownMs = 0; app = await startApp(); });
-afterAll(async () => { await app.close(); });
+afterAll(async () => { await app?.close(); });
 
 describe('movement netcode', () => {
   it('server result matches the shared sim the client predicts with', async () => {

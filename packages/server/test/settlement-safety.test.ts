@@ -6,7 +6,7 @@ import type { App } from '../src/app';
 import { guest, join, lastRoomId, me, resetDb, startApp, until } from './helpers';
 let app:App,r:any,w:WorldRoom,p:any;
 beforeAll(async()=>{await resetDb();app=await startApp();r=await join(app,(await guest(app)).token,'Ward tester');r.onMessage('*',()=>{});await until(()=>!!me(r));w=matchMaker.getLocalRoomById(lastRoomId()) as unknown as WorldRoom;p=w.players.get(r.sessionId)!;});
-afterAll(async()=>{await r.leave();await app.close();});
+afterAll(async()=>{await r.leave();await app?.close();});
 it('protects towns from melee/projectile damage, prevents fighting out, and removes intruders without rewards',async()=>{
  const t=townFor(w.seed);p.sim.x=t.x1+2.5;p.sim.y=t.cy+.5;p.invuln=0;
  const enemy=w.spawnEnemy('wisp',t.x1+6.5,t.cy+.5,false);const hp=p.hp,xp=p.xp,coins=p.data.coins;

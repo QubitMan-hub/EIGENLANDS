@@ -6,6 +6,8 @@ export interface Config {
   googleClientId: string | null;
   worldSeed: number;
   allowedOrigin: string;
+  /** Exactly one trusted reverse proxy, used only behind the private deployment ingress. */
+  trustProxy: boolean;
   autosaveMs: number;
   authRatePerSec: number;
   authBurst: number;
@@ -24,6 +26,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     googleClientId: env.GOOGLE_CLIENT_ID ?? null,
     worldSeed: Number(env.WORLD_SEED ?? 20260101),
     allowedOrigin: env.ALLOWED_ORIGIN ?? '*',
+    trustProxy: env.TRUST_PROXY === '1',
     autosaveMs: Number(env.AUTOSAVE_MS ?? 30000),
     authRatePerSec: Number(env.AUTH_RATE ?? 2),
     authBurst: Number(env.AUTH_BURST ?? 20),

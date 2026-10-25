@@ -6,7 +6,7 @@ import {loadPlayerData,newPlayerData,serializePlayerData} from '../src/systems/p
 import {tickTravelNeeds} from '../src/systems/travel-needs';
 let app:any,r:any,w:any,p:any,token:string;
 beforeAll(async()=>{await resetDb();app=await startApp();token=(await guest(app)).token;r=await join(app,token,'Traveller');r.onMessage('*',()=>{});await until(()=>!!me(r));w=matchMaker.getLocalRoomById(lastRoomId());p=w.players.get(r.sessionId);});
-afterAll(async()=>{await r.leave();await app.close();});
+afterAll(async()=>{await r.leave();await app?.close();});
 it('defaults to Cozy, validates mode-only requests and pauses towns/death while wilderness exhaustion stays nonlethal',async()=>{
  expect(p.data.needs).toEqual({mode:'cozy',food:100,water:100});const safe=townFor(w.seed);p.sim.x=safe.cx;p.sim.y=safe.cy;r.send(MSG.TRAVEL_MODE,{mode:'bogus',food:0});await sleep(100);expect(p.data.needs.mode).toBe('cozy');
  r.send(MSG.TRAVEL_MODE,{mode:'adventure',food:1,water:1});await until(()=>p.data.needs.mode==='adventure');expect(p.data.needs.food).toBe(100);

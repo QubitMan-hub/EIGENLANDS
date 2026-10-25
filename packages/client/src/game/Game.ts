@@ -1,3 +1,4 @@
+import { FrameRateWindow } from './frame-rate';
 import { T, CAVE_BIOME_NAMES, caveRegionAt } from '@eigenlands/shared';
 import { ClickMining } from './click-mining';
 import { WorldPreparer } from './world-preparer';
@@ -126,7 +127,8 @@ export class Game {
   private selfXp = 0;
   private scale = 3;
   private acc = 0;
-  private fps = 60;
+  private fps = 0;
+  private frameRate = new FrameRateWindow();
   private rtt = 0;
   private lastStream = 0;
   private lastHud = 0;
@@ -567,7 +569,7 @@ export class Game {
     // Pixi caps deltaMS on slow frames; use wall time for an honest FPS readout.
     const frameInterval = this.lastFrameAt ? now - this.lastFrameAt : dtMs;
     this.lastFrameAt = now;
-    this.fps = this.fps * 0.95 + (1000 / Math.max(1, frameInterval)) * 0.05;
+    this.fps = this.frameRate.sample(now);
     const dt = Math.min(frameInterval, 250) / 1000;
     if (!this.predictor || !this.connected) return;
 

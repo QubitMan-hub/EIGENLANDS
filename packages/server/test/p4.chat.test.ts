@@ -7,7 +7,7 @@ import { bootP4, hasSys, joinP4, partyUp, relaxP4, sleep, until, waitSys, type P
 
 let app: App;
 beforeAll(async () => { app = await bootP4(); });
-afterAll(async () => { await app.close(); });
+afterAll(async () => { await app?.close(); });
 
 const leave = async (...ps: P4[]) => { for (const p of ps) await p.r.leave().catch(() => {}); await sleep(80); };
 const said = (p: P4, ch: string, text: string) => p.chat.some((c) => c.ch === ch && c.text === text);

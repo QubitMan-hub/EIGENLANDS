@@ -80,7 +80,9 @@ export default defineConfig({
   base: process.env.VITE_BASE ?? '/',
   server: { port: 5173, host: true },
   worker: { format: 'es' },
-  build: { target: 'es2022', sourcemap: false, chunkSizeWarningLimit: 1500 },
+  build: { target: 'es2022', sourcemap: false, chunkSizeWarningLimit: 1500,
+    rollupOptions: { output: { manualChunks: (id) => id.includes('/node_modules/pixi.js/') ? 'vendor-pixi' : undefined } },
+  },
   esbuild: { tsconfigRaw: { compilerOptions: { experimentalDecorators: true, useDefineForClassFields: false } } },
   plugins: SOLO ? [solo()] : [noSolo()],
   // the solo build reads VITE_SOLO through import.meta.env (also when only VITE_LOCAL is set)

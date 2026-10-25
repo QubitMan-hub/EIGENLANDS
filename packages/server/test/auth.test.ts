@@ -42,7 +42,7 @@ describe('auth http api', () => {
     return { sub: t.slice(5), email: 'p@example.com' };
   };
   beforeAll(async () => { await resetDb(); app = await startApp({ googleVerify: fakeGoogle }); });
-  afterAll(async () => { await app.close(); });
+  afterAll(async () => { await app?.close(); });
 
   const call = (path: string, init: RequestInit = {}) => fetch(`${httpUrl(app)}/api/auth${path}`, { ...init, headers: { 'content-type': 'application/json', ...(init.headers ?? {}) } });
 

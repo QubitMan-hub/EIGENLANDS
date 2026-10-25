@@ -64,27 +64,36 @@ export async function createApp(opts: AppOptions = {}): Promise<App> {
 
   const app = express();
   app.disable('x-powered-by');
+  if (config.trustProxy) app.set('trust proxy', 1);
   app.use(cors({ origin: config.allowedOrigin }));
   app.get('/healthz', (_req, res) => res.json({ ok: true, redis: presence.usingRedis }));
+  app.get('/readyz', async (_req, res) => {
+    try { await pool.query('SELECT 1'); res.json({ ok: true }); }
+    catch { res.status(503).json({ ok: false }); }
+  });
   app.get('/metrics', (_req, res) => res.json({ ...metrics, tickBudgetMs: 50, uptimeS: Math.round(process.uptime()), rssMb: Math.round(process.memoryUsage().rss / 1e6) }));
   app.use('/api/shard', shardRouter({ repo, secret: config.sessionSecret }));
   app.use('/api/auth', authRouter({ repo, secret: config.sessionSecret, googleVerify, googleClientId: config.googleClientId, ratePerSec: config.authRatePerSec, burst: config.authBurst }));
 
   const http = createServer(app);
-  const game = new Server({ transport: new WebSocketTransport({ server: http, maxPayload: 16 * 1024 }), greet: false });
+  // main.ts owns process shutdown; a second framework exit handler can interrupt database saves.
+  const game = new Server({ transport: new WebSocketTransport({ server: http, maxPayload: 16 * 1024 }), greet: false, gracefullyShutdown: false });
   game.define(JOIN_ROOM, GameRoom).filterBy(['shard']);
   await game.listen(config.port);
   const addr = http.address();
   const port = typeof addr === 'object' && addr ? addr.port : config.port;
 
+  let closing: Promise<void> | null = null;
   return {
     config, repo, presence, game, http, port,
-    async close() {
-      await game.gracefullyShutdown(false).catch(() => {});
-      await presence.close();
-      await bus.close();
-      lockRedis?.disconnect();
-      await pool.end().catch(() => {});
+    close() {
+      return closing ??= (async () => {
+        await game.gracefullyShutdown(false).catch(() => {});
+        await presence.close();
+        await bus.close();
+        lockRedis?.disconnect();
+        await pool.end().catch(() => {});
+      })();
     },
   };
 }

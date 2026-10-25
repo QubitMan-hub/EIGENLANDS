@@ -1,0 +1,218 @@
+{
+  "source": "main e3012a1",
+  "results": [
+    {
+      "seed": 7,
+      "sampling": {
+        "min": -384,
+        "max": 382,
+        "step": 2,
+        "warning": "Region areas are 4-connected sampled surface-land components; sampling may miss tiny features. Height image is existing continuous climate height, not gameplay levels."
+      },
+      "landPercent": 36.602,
+      "tilePercent": {
+        "Grass": 22.698,
+        "Water": 14.541,
+        "Deep water": 48.857,
+        "Sand": 9.37,
+        "Tall grass": 1.374,
+        "Tree": 1.221,
+        "Rock": 0.269,
+        "Forageable": 0.502,
+        "Gold outcrop": 0.037,
+        "Flowers": 0.46,
+        "Copper outcrop": 0.094,
+        "Phase bloom": 0.065,
+        "Silver outcrop": 0.058,
+        "Iron outcrop": 0.055,
+        "Qubit crystal": 0.043,
+        "Path": 0.172,
+        "Torch": 0.003,
+        "Wall": 0.098,
+        "Floor": 0.061,
+        "Doorway": 0.008,
+        "Fence": 0.003,
+        "Tilled soil": 0.014
+      },
+      "landBiomePercent": {
+        "meadow": 25.837,
+        "autumn": 10.398,
+        "corrupted": 7.734,
+        "forest": 8.138,
+        "taiga": 19.314,
+        "desert": 7.769,
+        "swamp": 11.524,
+        "enchanted": 9.286
+      },
+      "sampledRegionCount": 2998,
+      "meanRegionTiles": 72.01067378252168,
+      "minRegionTiles": 4,
+      "regionsUnder400Tiles": 2900,
+      "walks": [
+        {
+          "y": -120,
+          "changesPer1000Tiles": 89
+        },
+        {
+          "y": -80,
+          "changesPer1000Tiles": 74
+        },
+        {
+          "y": 0,
+          "changesPer1000Tiles": 72
+        },
+        {
+          "y": 80,
+          "changesPer1000Tiles": 92
+        },
+        {
+          "y": 120,
+          "changesPer1000Tiles": 88
+        }
+      ],
+      "meanChangesPer1000Tiles": 83
+    },
+    {
+      "seed": 1337,
+      "sampling": {
+        "min": -384,
+        "max": 382,
+        "step": 2,
+        "warning": "Region areas are 4-connected sampled surface-land components; sampling may miss tiny features. Height image is existing continuous climate height, not gameplay levels."
+      },
+      "landPercent": 36.521,
+      "tilePercent": {
+        "Deep water": 49.059,
+        "Water": 14.42,
+        "Grass": 22.087,
+        "Sand": 9.995,
+        "Tree": 1.217,
+        "Forageable": 0.51,
+        "Tall grass": 1.299,
+        "Flowers": 0.427,
+        "Copper outcrop": 0.073,
+        "Rock": 0.266,
+        "Phase bloom": 0.073,
+        "Silver outcrop": 0.068,
+        "Torch": 0.004,
+        "Gold outcrop": 0.041,
+        "Iron outcrop": 0.054,
+        "Path": 0.168,
+        "Qubit crystal": 0.056,
+        "Wall": 0.098,
+        "Floor": 0.061,
+        "Doorway": 0.008,
+        "Fence": 0.003,
+        "Tilled soil": 0.014
+      },
+      "landBiomePercent": {
+        "enchanted": 10.384,
+        "taiga": 15.764,
+        "autumn": 9.61,
+        "corrupted": 8.369,
+        "meadow": 28.372,
+        "desert": 10.215,
+        "forest": 7.051,
+        "swamp": 10.235
+      },
+      "sampledRegionCount": 2914,
+      "meanRegionTiles": 73.92175703500344,
+      "minRegionTiles": 4,
+      "regionsUnder400Tiles": 2817,
+      "walks": [
+        {
+          "y": -120,
+          "changesPer1000Tiles": 68
+        },
+        {
+          "y": -80,
+          "changesPer1000Tiles": 67
+        },
+        {
+          "y": 0,
+          "changesPer1000Tiles": 87
+        },
+        {
+          "y": 80,
+          "changesPer1000Tiles": 72
+        },
+        {
+          "y": 120,
+          "changesPer1000Tiles": 100
+        }
+      ],
+      "meanChangesPer1000Tiles": 78.8
+    },
+    {
+      "seed": 20260101,
+      "sampling": {
+        "min": -384,
+        "max": 382,
+        "step": 2,
+        "warning": "Region areas are 4-connected sampled surface-land components; sampling may miss tiny features. Height image is existing continuous climate height, not gameplay levels."
+      },
+      "landPercent": 37.042,
+      "tilePercent": {
+        "Deep water": 49.247,
+        "Water": 13.712,
+        "Grass": 22.867,
+        "Sand": 9.608,
+        "Flowers": 0.437,
+        "Tall grass": 1.346,
+        "Tree": 1.236,
+        "Forageable": 0.481,
+        "Phase bloom": 0.086,
+        "Iron outcrop": 0.054,
+        "Rock": 0.303,
+        "Copper outcrop": 0.099,
+        "Silver outcrop": 0.062,
+        "Path": 0.173,
+        "Qubit crystal": 0.077,
+        "Gold outcrop": 0.028,
+        "Wall": 0.098,
+        "Floor": 0.061,
+        "Doorway": 0.008,
+        "Fence": 0.003,
+        "Tilled soil": 0.014,
+        "Torch": 0.001
+      },
+      "landBiomePercent": {
+        "meadow": 26.349,
+        "swamp": 10.482,
+        "enchanted": 11.022,
+        "taiga": 16.856,
+        "forest": 8.898,
+        "autumn": 9.196,
+        "desert": 8.493,
+        "corrupted": 8.704
+      },
+      "sampledRegionCount": 2848,
+      "meanRegionTiles": 76.71348314606742,
+      "minRegionTiles": 4,
+      "regionsUnder400Tiles": 2750,
+      "walks": [
+        {
+          "y": -120,
+          "changesPer1000Tiles": 87
+        },
+        {
+          "y": -80,
+          "changesPer1000Tiles": 67
+        },
+        {
+          "y": 0,
+          "changesPer1000Tiles": 68
+        },
+        {
+          "y": 80,
+          "changesPer1000Tiles": 104
+        },
+        {
+          "y": 120,
+          "changesPer1000Tiles": 76
+        }
+      ],
+      "meanChangesPer1000Tiles": 80.4
+    }
+  ]
+}

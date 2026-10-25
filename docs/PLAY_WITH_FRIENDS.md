@@ -4,6 +4,10 @@ The browser can now switch between **Solo world** and **Play with friends** on t
 
 Open **Play with friends**, enter the game server's address, then select **Join server** and **Play**. Copy the invite from that menu or Settings. Friends opening that link join the same persistent world with their own characters. The shared server intentionally has one day, weather and clock for everyone. Parties and chat are available through the existing menus. Solo characters are not automatically imported into an online world.
 
+## Free Render trial alternative
+
+The [Render guide](RENDER_FREE.md) and root `render.yaml` deploy a $0 Singapore testing server and database. It can run while the owner's computer is off, but the free service sleeps when idle and its database expires after 30 days. The local 21-player free-CPU test exceeded its performance budget; this is not a promise of smooth 20-friend play or permanent saved progress.
+
 ## What Cloudflare can host for free
 
 Cloudflare Pages (or the existing GitHub Pages site) can serve the static browser build. This repository's existing authoritative multiplayer backend is a **Node.js / Colyseus server with PostgreSQL**, not a Worker. Pages alone cannot host that process. Porting it to Durable Objects would be a separate backend migration.

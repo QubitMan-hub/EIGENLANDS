@@ -105,7 +105,7 @@ function computeClimate(seed: number, x: number, y: number): ClimateSample {
   };
 }
 
-const biomeCache = new Map<number, Biome>();
+const biomeCache = new Map<number, Map<string, Biome>>();
 /** Which biome a tile belongs to: climate (temperature, moisture, quantum flux) with ragged, noise-jittered borders. */
 export function biomeAt(seed: number, x: number, y: number): Biome {
   if (isCaveY(y)) y -= CAVE_OY;                                    // the Undercroft takes the biome of the land above
@@ -113,12 +113,19 @@ export function biomeAt(seed: number, x: number, y: number): Biome {
     const cx=Math.floor(x/CHUNK_SIZE),cy=Math.floor(y/CHUNK_SIZE),prepared=climateBlocks.get(`${seed}:${cx},${cy}`)?.biomes;
     if(prepared)return BIOMES[prepared[(y-cy*CHUNK_SIZE)*CHUNK_SIZE+x-cx*CHUNK_SIZE]!]!;
   }
-  const k = ((x & 0xffff) << 16) ^ (y & 0xffff) ^ (seed << 3);
-  const hit = biomeCache.get(k);
+  let cache = biomeCache.get(seed);
+  if (!cache) {
+    cache = new Map();
+    biomeCache.set(seed, cache);
+    if (biomeCache.size > 8) biomeCache.delete(biomeCache.keys().next().value!);
+  }
+  // Full coordinates also preserve fractional samples. Seed and coordinate bits never alias.
+  const k = `${x},${y}`;
+  const hit = cache.get(k);
   if (hit) return hit;
   const b = computeBiome(seed, x, y);
-  if (biomeCache.size > 200_000) biomeCache.clear();
-  biomeCache.set(k, b);
+  if (cache.size >= 25000) cache.delete(cache.keys().next().value!);
+  cache.set(k, b);
   return b;
 }
 

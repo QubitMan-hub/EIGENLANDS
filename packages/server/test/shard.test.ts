@@ -8,7 +8,7 @@ import { guest, httpUrl, resetDb, sleep, startApp, until, wsUrl } from './helper
 
 let app: App;
 beforeAll(async () => { await resetDb(); app = await startApp(); });
-afterAll(async () => { await app.close(); });
+afterAll(async () => { await app?.close(); });
 
 const B0 = regionBounds({ rx: 0, ry: 0 });
 const serverRoom = (r: Room) => matchMaker.getLocalRoomById(r.roomId) as unknown as GameRoom;

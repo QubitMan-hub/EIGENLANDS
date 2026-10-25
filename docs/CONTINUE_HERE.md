@@ -1,3 +1,23 @@
+# Current continuation: world-metric/cache fixes and overhaul baseline
+
+The latest pasted request adds a full versioned worldgen/elevation/art/tooling overhaul. Its exact completed and unfinished scope is in [WORLDGEN_OVERHAUL_REMAINING.md](WORLDGEN_OVERHAUL_REMAINING.md). Do not claim the full rebuild is finished. This batch corrects one-second FPS and seed/full-coordinate biome caching, adds regressions, separates Pixi into a vendor chunk, adds solo-browser CI and three-seed top-down audit artifacts. The before/after cache-fix topology/statistics are identical for the three sampled maps. Real erosion, new biome regions, gameplay elevation, art-rule migration, lint/format rollout and memory-store server-test fallback remain open. Validation for this batch: 568 workspace tests, typechecks, both builds, actual solo browser replay and production Docker save/restart/restore smoke pass. Current server tests still use real PostgreSQL; failed setups exposed missing-database teardown errors and selected app teardowns are now guarded.
+
+The already-authorized strictly-free Render preparation remains part of this branch. No Render account/API is connected; final owner action is the authenticated blueprint deploy link after merging. Persistent prior push/merge authorization remains, with both final-head CI runs required. Keep all work inline, no subagents.
+
+---
+
+# Current continuation: strictly free Render multiplayer trial (2026-10-25)
+
+The user first considered Oracle, then explicitly chose Render and **$0 only**, accepting temporary testing with sleep/database expiry. No Oracle or Render account credentials are available. Do not create paid resources. See [RENDER_FREE.md](RENDER_FREE.md), root `render.yaml` and the latest [remaining-work entry](REMAINING_WORK.md). The authenticated deploy link is the remaining owner action; after a backend URL exists, verify real browser joining and optionally set `VITE_SERVER_URL` on the repository.
+
+The blueprint contains exactly one free Singapore Docker service and one free Singapore PostgreSQL database, with no Redis, disks, workers or cron services. The server/shared production image runs non-root, preserves the TypeScript/decorator config, and starts on Render's port. Readiness checks PostgreSQL. Single-hop proxy trust is explicit. A tested shutdown race is fixed by one signal-handler owner and idempotent `App.close()`; connected-player saves now survive actual container recreation. The disposable local Compose smoke also verifies session/name/position/inventory and pg_dump/pg_restore.
+
+Local validation: 564 workspace tests (126 client, 261 server, 177 shared), typechecks, both builds, Render's published blueprint schema, production image and deployment smoke. New CI `server-image` runs the Docker persistence proof. Keep both final-head push/PR CI green before merging.
+
+**Do not claim smooth 21-player support.** With both local game/Postgres hard-capped to 0.1 CPU and 512/256 MiB, all 21 joined but sampled average tick time peaked near 61.7 ms, 231/945 ticks exceeded budget and p95 RTT was about 666 ms. Five clients had roughly 4.5 ms peak sampled average but 6/599 overruns. Both strict performance gates failed. Reports in `docs/validation/` preserve evidence. Live Render capacity, cold-start timing and regional latency remain unverified. Free PostgreSQL expires after 30 days; manual export is required to retain important trial data.
+
+---
+
 # Current continuation: cave infrastructure and browser co-op (2026-10-25)
 
 Built inline on `feat/cave-infrastructure-and-browser-coop`, without subagents or imported artwork. See [REMAINING_WORK.md](REMAINING_WORK.md#cave-infrastructure-and-browser-co-op-2026-10-25) for exact scope and [PLAY_WITH_FRIENDS.md](PLAY_WITH_FRIENDS.md) for browser controls and free Cloudflare Tunnel hosting.
