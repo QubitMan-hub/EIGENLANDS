@@ -219,3 +219,226 @@ body:has(#modal:not([hidden]), #settings:not([hidden]), #dead:not([hidden]), #lo
   background: #000;
   border-color: #fff;
 }
+
+/* ── creature frame: camp gem, camp-coloured accent, chips with one-line explanations ── */
+.tf-head {
+  align-items: center;
+}
+.tf-gem {
+  flex: none;
+  width: 16px;
+  height: 14px;
+  margin-right: 2px;
+  background: center / 16px 14px no-repeat;
+  image-rendering: pixelated;
+}
+.tf-name {
+  flex: 1;
+}
+#target-frame {
+  border-left-width: 4px;
+}
+#target-frame[data-faction='hostile'] {
+  border-left-color: #ae574b;
+}
+#target-frame[data-faction='neutral'] {
+  border-left-color: #cba67c;
+}
+#target-frame[data-faction='passive'] {
+  border-left-color: #78965e;
+}
+#target-frame[data-faction='ally'] {
+  border-left-color: #69aab0;
+}
+/* elites wear a gilt double frame */
+#target-frame[data-faction='elite'] {
+  border-color: #dd985f;
+  border-left-color: #eed093;
+  box-shadow:
+    inset 0 0 0 2px #17201f,
+    inset 0 0 0 3px #874840;
+}
+.tf-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 4px;
+  margin-top: 5px;
+}
+.tf-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 4px;
+  border: 1px solid #4b5648;
+  background: #101719;
+  font-size: 10px;
+  line-height: 1.3;
+  color: #c5ceb9;
+}
+.tf-chip svg {
+  fill: currentColor;
+}
+.tf-chip.tone-warn {
+  color: #e2b16d;
+  border-color: #874840;
+}
+.tf-chip.tone-good {
+  color: #bbca8a;
+  border-color: #45694c;
+}
+
+/* ── legendary boss frame: themed pixel art behind DOM text, whole-number scaling ── */
+html body #boss-bar {
+  --bs: 2;
+  width: calc(var(--bw) * var(--bs) * 1px);
+  height: calc(var(--bh) * var(--bs) * 1px);
+  padding: 0;
+  border: 0;
+  background: none;
+  left: 50%;
+  right: auto;
+  top: 8px;
+  transform: translateX(-50%);
+  font-size: 11px;
+}
+.bb-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+#boss-bar .bb-head {
+  position: absolute;
+  left: calc(var(--wx) * var(--bs) * 1px);
+  right: calc(12px * var(--bs));
+  top: calc(5px * var(--bs));
+  height: calc(16px * var(--bs));
+  margin: 0;
+  align-items: flex-start;
+}
+.bb-names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+#boss-bar .bb-name {
+  font: 11px/1.15 var(--pix);
+  color: #f1e4c7;
+  text-shadow: 0 1px #101719;
+  white-space: nowrap;
+}
+.bb-title {
+  font-size: 9px;
+  line-height: 1.2;
+  color: var(--bb-accent, #c5ceb9);
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+#boss-bar .bb-phase {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.bb-chips {
+  position: absolute;
+  right: calc(12px * var(--bs));
+  top: calc((var(--wy) + var(--wh) + 2) * var(--bs) * 1px);
+  display: flex;
+  gap: 3px;
+}
+.bb-chips .tf-chip {
+  font-size: 9px;
+  padding: 0 3px;
+}
+#boss-bar .enc-health {
+  position: absolute;
+  left: calc(var(--wx) * var(--bs) * 1px);
+  top: calc(var(--wy) * var(--bs) * 1px);
+  width: calc(var(--ww) * var(--bs) * 1px);
+  height: calc(var(--wh) * var(--bs) * 1px);
+  border: 0;
+  background: none;
+}
+#boss-bar .enc-trail {
+  background: var(--bb-trail, #e5c191);
+}
+#boss-bar .enc-fill {
+  background: var(--bb-fill, #a83c48);
+  border-top: calc(var(--bs) * 1px) solid var(--bb-edge, #d26b70);
+}
+#boss-bar .enc-number {
+  font-size: 9px;
+}
+#boss-bar .bb-tick {
+  background: #101719;
+}
+.bb-armor {
+  position: absolute;
+  left: calc(var(--wx) * var(--bs) * 1px);
+  top: calc((var(--wy) + var(--wh) + 4) * var(--bs) * 1px);
+  width: calc(74px * var(--bs));
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  font-size: 9px;
+  color: #e5c191;
+}
+.bb-armor[hidden] {
+  display: none;
+}
+.bb-armor-track {
+  flex: 1;
+  height: calc(2px * var(--bs));
+  background: #10191d;
+}
+.bb-armor-track i {
+  display: block;
+  height: 100%;
+  background: #d4b572;
+}
+#boss-bar .bb-sub {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  margin-top: 3px;
+  text-align: center;
+  color: #f1e4c7;
+  text-shadow:
+    0 1px #101719,
+    1px 0 #101719,
+    -1px 0 #101719;
+}
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 600px),
+  (max-width: 600px) and (orientation: portrait) {
+  html body #boss-bar {
+    --bs: 1;
+    top: 6px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+  }
+  #boss-bar .bb-name {
+    font-size: 8px;
+  }
+  .bb-title,
+  #boss-bar .enc-number,
+  .bb-armor {
+    font-size: 7px;
+  }
+  .bb-chips .tf-chip b {
+    display: none;
+  }
+}
+.hc #boss-bar .bb-sub {
+  background: #000;
+}
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 600px) and (max-width: 760px) {
+  html body #boss-bar {
+    left: calc(max(12px, env(safe-area-inset-left)) + 202px);
+    transform: none;
+  }
+}

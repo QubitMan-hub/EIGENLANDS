@@ -38,6 +38,8 @@ const MOVE_STRIDE: number[] = [0, 0.25, 0.18, 0, 0, 0.42, 0];
 import type { Sheets } from '../art/actors';
 import { DIR_LEFT, dirOf, ATTACK_FRAME, WALK_FRAMES } from '../art/actors';
 import type { Fx } from './fx';
+import { drawWorldBar } from './worldbar';
+import { eliteMods, factionOf } from '../ui/enemy-model';
 import { ISO_HH, ISO_HW, isoX, isoY, screenDir } from './iso';
 
 const pc = (i: number) => parseInt(PALETTE[i]!.slice(1), 16);
@@ -60,6 +62,8 @@ export interface CombatActor {
   flash: number;
   punch: number;
   ghostT: number;
+  /** smoothed health fraction behind the world bar's fill */
+  trail?: number;
   held?: Sprite;
   /** hull sprite under a sailing player */
   ship?: Sprite;
@@ -852,15 +856,24 @@ export class CombatView {
         g.rect(Math.round(Math.cos(a) * 6) - 1, Math.round(-20 * big + Math.sin(a) * 2) - 1, 2, 2).fill(pc(38));
       }
     }
-    const top = kind === 33 ? -76 : kind === 5 ? -27 : kind === 3 ? -30 : kind === 8 ? -26 : -18;
+    const top = Math.min(
+      kind === 33 ? -76 : kind === 5 ? -27 : kind === 3 ? -30 : kind === 8 ? -26 : -18,
+      -Math.abs(v.sprite.height) - 4,
+    );
     if (s && def && !def.passive && (s.hp < s.maxHp || s.elite)) {
-      g.rect(-8, top, 16, 3).fill(pc(1));
-      g.rect(-7, top + 1, Math.max(0, 14 * (s.hp / s.maxHp)), 1).fill(pc(s.elite ? 37 : 35));
-    }
-    if (s && def?.armor) {
-      // armour (poise) bar
-      g.rect(-8, top + 3, 16, 2).fill(pc(1));
-      g.rect(-7, top + 3, Math.max(0, 14 * (s.poise / 100)), 1).fill(pc(st === 5 ? 38 : 6));
+      const frac = s.hp / Math.max(1, s.maxHp);
+      // the pale trail holds what was just lost, then drains; reduced motion keeps it equal to the fill
+      v.trail = this.d.reduced() ? frac : Math.max(frac, Math.min(1, (v.trail ?? frac) - dt * 0.55));
+      drawWorldBar(g, {
+        top: top + 2,
+        hp: frac,
+        trail: v.trail,
+        faction: factionOf(def, s.elite, false),
+        pips: eliteMods(s.elite).length,
+        armor: def.armor ? Math.max(0, Math.min(1, s.poise / 100)) : null,
+        staggered: st === 5,
+        t: this.d.reduced() ? 0 : t,
+      });
     }
     if (isShadow && s && st !== 6) {
       const rc = bonded ? 0xc1b17d : [0x9a9ec0, 0x7aa8ff, 0xb07aff, 0xff7ad0, 0xffd36a][Math.min(4, s.rank ?? 0)]!;

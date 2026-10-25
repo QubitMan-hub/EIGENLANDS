@@ -1,4 +1,10 @@
-# Current continuation: isometric vitals HUD (§3.1) and character creation (2026-10-25)
+# Current continuation: monster and boss health bars (§3.2) (2026-10-25)
+
+Camps, elite modifiers and status chips live in `ui/enemy-model.ts`; creature bars are isometric slabs (`game/worldbar.ts`); the target frame has a camp gem and chips; each boss has a themed pixel frame (`ui/boss-frames.ts`, `ui/bossbar.ts`). Adding a boss means adding one entry to `BOSS_THEMES` (a test enforces it). Not done: per-boss mechanic indicators (server sends none), elemental resistances (do not exist).
+
+---
+
+# Previous continuation: isometric vitals HUD (§3.1) and character creation (2026-10-25)
 
 Inline, no subagents. Two linked slices.
 

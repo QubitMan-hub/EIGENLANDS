@@ -14,7 +14,7 @@ import {
 import { keyLabel } from '../../input/keymap';
 import { isoX, isoY } from '../../game/iso';
 import { h } from '../../ui/dom';
-import { HealthMeter } from '../../ui/healthmeter';
+import { BossBar } from '../../ui/bossbar';
 import { selectBoss, bossPhase, type Encounter } from '../../ui/encounter-model';
 import type { ClientModule, P34Deps } from '../types';
 
@@ -29,13 +29,7 @@ interface Flash {
 
 /** Bosses (health bar, banners, roars) and Resonance Shrines (beams, puzzle flashes, prompts, the compass). */
 export class AdventureClient implements ClientModule {
-  private bar: HTMLElement;
-  private name: HTMLElement;
-  private sub: HTMLElement;
-  private health = new HealthMeter();
-  private phase = h('span', { class: 'bb-phase' });
-  private tickIdentity = '';
-  private ticks: HTMLElement;
+  private bossBar = new BossBar();
   private banner: HTMLElement;
   private bannerUntil = 0;
   private announcement: { kind: number; text: string; until: number } | null = null;
@@ -54,23 +48,10 @@ export class AdventureClient implements ClientModule {
   private compassAt = -1e9;
 
   constructor(private d: P34Deps) {
-    this.name = h('div', { class: 'bb-name' });
-    this.sub = h('div', { class: 'bb-sub' });
-    this.ticks = h('div', { class: 'bb-ticks' });
-    this.health.root.append(this.ticks);
-    this.bar = h(
-      'div',
-      { id: 'boss-bar' },
-      h('div', { class: 'bb-head' }, this.name, this.phase),
-      this.health.root,
-      this.sub,
-    );
-    this.bar.hidden = true;
     this.banner = h('div', { id: 'adv-banner' });
     this.banner.hidden = true;
     this.banner.setAttribute('role', 'status');
-    this.sub.setAttribute('aria-live', 'polite');
-    document.body.append(this.bar, this.banner);
+    document.body.append(this.banner);
     this.gfx.zIndex = 9e8;
     this.d.fxLayer().addChild(this.gfx);
   }
@@ -124,7 +105,8 @@ export class AdventureClient implements ClientModule {
   onState(s: any): void {
     this.bosses = [];
     s?.enemies?.forEach?.((e: Omit<Encounter, 'id'>, id: string) => {
-      if (BOSS_BY_KIND[e.kind]) this.bosses.push({ id, kind: e.kind, hp: e.hp, maxHp: e.maxHp, x: e.x, y: e.y });
+      if (BOSS_BY_KIND[e.kind])
+        this.bosses.push({ id, kind: e.kind, hp: e.hp, maxHp: e.maxHp, x: e.x, y: e.y, poise: e.poise, st: e.st });
     });
   }
 
@@ -184,25 +166,17 @@ export class AdventureClient implements ClientModule {
     const me = this.d.me();
     // boss bar
     const b = (this.boss = selectBoss(this.bosses, me, this.d.target()?.id ?? null));
-    this.bar.hidden = !b || this.d.dead();
     this.banner.hidden = now >= this.bannerUntil || !!b || this.d.dead();
-    if (b) {
+    if (b && !this.d.dead()) {
       const def = BOSS_BY_KIND[b.kind]!;
-      this.name.textContent = def.name;
-      this.health.update(b.id, def.name, b.hp, b.maxHp);
-      this.phase.textContent = `Phase ${bossPhase(b.kind, b.hp, b.maxHp)} / ${def.phases.length + 1}`;
       const note =
         this.announcement?.kind === b.kind && this.announcement.until > now
           ? this.announcement.text
           : now < this.bannerUntil
             ? (this.banner.textContent ?? 'Boss encounter')
             : 'Boss encounter';
-      if (this.sub.textContent !== note) this.sub.textContent = note;
-      if (this.tickIdentity !== `${b.id}:${b.kind}`) {
-        this.tickIdentity = `${b.id}:${b.kind}`;
-        this.ticks.replaceChildren(...def.phases.map((ph) => h('i', { class: 'bb-tick', style: `left:${ph * 100}%` })));
-      }
-    }
+      this.bossBar.update(b, def, note, this.d.settings().reducedMotion ? 0 : now / 1000);
+    } else this.bossBar.hide();
     if (!me) return;
     // nearby shrines (recomputed twice a second)
     if (now - this.nearAt > 500) {
@@ -291,7 +265,7 @@ export class AdventureClient implements ClientModule {
   }
 
   hint(): string | null {
-    if (this.boss && !this.bar.hidden) return null;
+    if (this.boss && !this.bossBar.root.hidden) return null;
     if (this.prompt) return this.prompt;
     // compass: the closest unsolved shrine within reach of your senses
     const me = this.d.me();

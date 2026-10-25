@@ -7,6 +7,7 @@ import { Application, Container, Graphics, Sprite, Text, type Texture } from 'pi
 import { ANIMS, critter, critterFrames, critterShadow, type CritterKind } from '../art/foes';
 import { softShadow } from '../art/sprite';
 import { buildActorSheets, OUTFITS, PERSON_H, PERSON_W, WALK_FRAMES } from '../art/actors';
+import { drawWorldBar } from '../game/worldbar';
 import { NPCS, packAppearance, APPEARANCE_COUNTS } from '@eigenlands/shared';
 
 const q = new URLSearchParams(location.search);
@@ -114,6 +115,28 @@ if (mode === 'npcs') {
   const d = Number(q.get('dir') ?? 0);
   root.addChild(new Graphics().rect(0, 0, 4000, 4000).fill(0x3f5a34));
   NPCS.forEach((n, i) => place(sheets.npc(n.id, d, 0), 16 + (i % 12) * 22, 36 + Math.floor(i / 12) * 36, [6, 2]));
+}
+if (mode === 'bars') {
+  // world-space creature bars: camp colours, elite pips, armour slab, trail (&scale=)
+  root.addChild(new Graphics().rect(0, 0, 4000, 4000).fill(0x3f5a34));
+  (['hostile', 'neutral', 'passive', 'ally', 'elite'] as const).forEach((faction, i) => {
+    for (const [j, hp] of [1, 0.6, 0.25].entries()) {
+      const g = new Graphics();
+      g.x = 20 + i * 28;
+      g.y = 16 + j * 22;
+      drawWorldBar(g, {
+        top: 0,
+        hp,
+        trail: Math.min(1, hp + 0.2),
+        faction,
+        pips: faction === 'elite' ? j + 1 : 0,
+        armor: j === 1 ? 0.6 : null,
+        staggered: j === 2,
+        t: 0,
+      });
+      root.addChild(g);
+    }
+  });
 }
 if (mode === 'lineup') {
   // everyone standing on a strip of ground, idle, facing the camera (or &dir=)

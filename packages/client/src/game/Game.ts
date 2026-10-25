@@ -21,7 +21,6 @@ import {
   UPPER_OY,
   MSG,
   ChunkStore,
-  ELITE_NAMES,
   ENEMY_BY_KIND,
   INTEREST_RADIUS,
   NPC_BY_ID,
@@ -130,6 +129,7 @@ import { Critters } from '../art/critters';
 import { Ships } from '../art/ships';
 import { TargetFrame } from '../ui/targetframe';
 import { VitalsHud } from '../ui/vitals';
+import { enemyChips, factionOf, poiseLabel } from '../ui/enemy-model';
 import { staminaFraction } from '../ui/vitals-model';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -1303,17 +1303,8 @@ export class Game {
       this.targetFrame.update(null);
       return;
     } // The encounter bar owns boss information.
-    const tags =
-      v.type === 'enemy'
-        ? [
-            def?.passive ? 'Passive' : def?.neutral ? 'Neutral' : 'Hostile',
-            ...Object.entries(ELITE_NAMES)
-              .filter(([bit]) => (p.elite & Number(bit)) !== 0)
-              .map(([, n]) => n),
-            ...(p.night ? ['Night'] : []),
-            ...(p.st === 2 ? ['Preparing strike'] : p.st === 5 ? ['Staggered'] : p.st === 4 ? ['Recovering'] : []),
-          ]
-        : ['Ally'];
+    const ally = v.type === 'player';
+    const faction = factionOf(def ?? undefined, ally ? 0 : p.elite, ally);
     this.targetFrame.update({
       id: v.id,
       name: v.type === 'enemy' ? (def?.name ?? 'Creature') : p.name || 'Player',
@@ -1321,8 +1312,12 @@ export class Game {
       hp: p.hp,
       maxHp: p.maxHp,
       kind: v.type,
-      tags,
+      faction,
+      chips: ally
+        ? enemyChips({ faction, elite: 0, st: 0, night: false })
+        : enemyChips({ faction, def: def ?? undefined, elite: p.elite, st: p.st, night: p.night }),
       poise: def?.poise ? p.poise : null,
+      poiseLabel: poiseLabel(def ?? undefined),
       dist: Math.hypot(smp.x - me.x, smp.y - me.y),
     });
   }
