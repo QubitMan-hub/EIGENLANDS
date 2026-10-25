@@ -13,7 +13,7 @@ beforeAll(async () => {
   await tp(p, X + 0.5, Y + 0.5);
   flatten(p.room, X, Y, 6);
 });
-afterAll(async () => { await app.close(); });
+afterAll(async () => { await app?.close(); });
 
 describe('rate limits and validation', () => {
   it('flooding USE is dropped past the burst; the server stays responsive', async () => {

@@ -8,7 +8,7 @@ import { bootP4, countOf, giveP4, hasSys, joinP4, lastTrade, sleep, slotOfP4, tp
 let app: App;
 let realCommit: typeof import('../src/db/repo34').Repo34.prototype.commitTrade;
 beforeAll(async () => { app = await bootP4(); realCommit = runtime34().repo34.commitTrade; });
-afterAll(async () => { await app.close(); });
+afterAll(async () => { await app?.close(); });
 afterEach(() => { runtime34().repo34.commitTrade = realCommit; tradeTuning.confirmDelayMs = 0; });
 
 const T = (p: P4, m: unknown) => p.r.send(MSG34.TRADE, m);

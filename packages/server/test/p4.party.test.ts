@@ -6,7 +6,7 @@ import { bootP4, hasSys, joinP4, lastParty, partyUp, sleep, until, waitSys, type
 
 let app: App;
 beforeAll(async () => { app = await bootP4(); });
-afterAll(async () => { await app.close(); });
+afterAll(async () => { await app?.close(); });
 
 const leave = async (...ps: P4[]) => { for (const p of ps) await p.r.leave().catch(() => {}); await sleep(80); };
 

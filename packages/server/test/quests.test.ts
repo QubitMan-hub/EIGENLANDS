@@ -31,7 +31,7 @@ beforeAll(async () => {
   p = await spawn(app, 'Questor');
   setDay(p.room, 1, 12.2);
 });
-afterAll(async () => { await app.close(); });
+afterAll(async () => { await app?.close(); });
 
 describe('story quests through dialogue', () => {
   it('Orla offers the welcome quest; talking to three villagers completes it; turning in pays out', async () => {

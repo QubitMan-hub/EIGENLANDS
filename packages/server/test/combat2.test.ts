@@ -16,7 +16,7 @@ const room = (): WorldRoom => matchMaker.getLocalRoomById(lastRoomId()) as unkno
 let anchor: Room<any>;
 // an idle client keeps the room alive between tests (a disposed room re-creating its shard lock can bounce joins)
 beforeAll(async () => { await resetDb(); app = await startApp(); anchor = await join(app, (await guest(app)).token, 'Anchor'); await until(() => !!me(anchor)); });
-afterAll(async () => { await anchor.leave(); await app.close(); });
+afterAll(async () => { await anchor.leave(); await app?.close(); });
 
 interface Probe { r: Room<any>; w: WorldRoom; sp: ServerPlayer; fx: FxMsg[]; seq: number }
 

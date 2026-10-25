@@ -1,0 +1,45 @@
+# $0 trial only: sleeps when idle; the free database expires after 30 days.
+# No paid service, disk, Redis, worker or scheduled job is provisioned.
+services:
+  - type: web
+    name: eigenlands-server
+    runtime: docker
+    plan: free
+    region: singapore
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    autoDeployTrigger: checksPass
+    healthCheckPath: /readyz
+    maxShutdownDelaySeconds: 60
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=320
+      - key: PORT
+        value: '10000'
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: WORLD_SEED
+        value: '20260101'
+      - key: ALLOWED_ORIGIN
+        value: https://qubitman-hub.github.io
+      - key: AUTOSAVE_MS
+        value: '10000'
+      - key: TRUST_PROXY
+        value: '1'
+      - key: DATABASE_URL
+        fromDatabase:
+          name: eigenlands-db
+          property: connectionString
+
+databases:
+  - name: eigenlands-db
+    plan: free
+    region: singapore
+    postgresMajorVersion: '16'
+    databaseName: eigenlands
+    user: eigen
+    # Only the server's private connection is enabled. Temporarily allow your IP for exports.
+    ipAllowList: []

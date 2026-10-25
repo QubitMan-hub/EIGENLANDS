@@ -74,3 +74,15 @@ Underground rock/mineral nodes now use 32×16 geological blocks at the cave wall
 Ruins and grove mining districts have connected haulage loops. Use a depot to board; hold movement to ride, release to brake, Use to step off. Rails and carts are native isometric geometry. These are local mine circuits, not an across-world railway or a player-built rail crafting system. Track edits/construction can block a cart; dismounting remains available. Reconnecting on a track returns you safely on foot.
 
 The Pages build supports real online servers and friend invites as well as its original solo world. New solo worlds own their saved calendar offset; old saves are preserved. Public multiplayer hosting remains a host action, with free Cloudflare Tunnel instructions in [PLAY_WITH_FRIENDS.md](PLAY_WITH_FRIENDS.md). No public backend or tunnel was provisioned by this change. Large real-device sessions, phone thermals and internet latency profiles remain open validation work.
+
+## Free Render trial deployment (2026-10-25)
+
+The owner chose **Render, strictly $0**, accepting idle sleep and the 30-day database expiry. Root `render.yaml` provisions only a free Singapore web service and free Singapore PostgreSQL. [RENDER_FREE.md](RENDER_FREE.md) contains the authenticated deploy link, frontend joining steps and manual save-export instructions. No Render account/API access is connected here; the live service must still be created from that link, and its public backend URL is needed for live verification and optional frontend prefill.
+
+The production image/readiness/proxy setup and connected-player save/restore test are implemented. A real container-recreation test exposed and fixed competing process-shutdown handlers that could drop recent progress. CI now verifies the Docker image, reconnect persistence and a real SQL dump/restore. The load tool reports failures correctly rather than printing success after missing joins.
+
+**Performance remains unresolved for 20 friends on Render Free.** A 21-client local 0.1-CPU run joined everyone but exceeded tick and latency budgets; even a smaller five-client run recorded occasional overruns. Reports are under `docs/validation/render-free-*.json`. These are local simulations of tight resource limits, not actual Render or Asia–Australia measurements. No paid upgrade, always-on promise or permanent backup service is included.
+
+## Latest pasted world-overhaul request
+
+See [WORLDGEN_OVERHAUL_REMAINING.md](WORLDGEN_OVERHAUL_REMAINING.md) for the full acceptance checklist and exact omissions. FPS/cache correctness, bundle splitting, solo CI and three-seed map/statistics baselines are implemented; the new worldgen/elevation/art architecture is not finished.

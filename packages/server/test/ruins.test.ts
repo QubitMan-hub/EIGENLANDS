@@ -7,7 +7,7 @@ const SEED = 20260101;
 let app: App;
 let p: Probe;
 beforeAll(async () => { app = await boot(); p = await spawn(app, 'Explorer'); });
-afterAll(async () => { await app.close(); });
+afterAll(async () => { await app?.close(); });
 
 function firstRuin(): RuinSite {
   for (let r = 1; r < 6; r++) for (let gy = -r; gy <= r; gy++) for (let gx = -r; gx <= r; gx++) {

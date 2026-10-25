@@ -19,7 +19,7 @@ beforeAll(async () => {
   await tp(other, X + 3.5, Y + 0.5);
   flatten(p.room, X, Y, 8);
 });
-afterAll(async () => { await app.close(); });
+afterAll(async () => { await app?.close(); });
 
 describe('the crop lifecycle', () => {
   it('till, plant, water, grow over watered days and harvest', async () => {

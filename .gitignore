@@ -11,3 +11,6 @@ dump.rdb
 coverage
 *.tsbuildinfo
 .vite
+
+# Deployment snapshots contain private player data.
+*.dump

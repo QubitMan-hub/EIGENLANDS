@@ -1,0 +1,28 @@
+{
+  "environment": "Local x86_64 Docker test, not the live Render platform",
+  "limits": {
+    "gameCpu": 0.1,
+    "gameMemoryMiB": 512,
+    "nodeHeapMiB": 320,
+    "postgresCpu": 0.1,
+    "postgresMemoryMiB": 256
+  },
+  "report": {
+    "requested": 5,
+    "joined": 5,
+    "failed": 0,
+    "unexpectedDisconnects": 0,
+    "durationSeconds": 30.003,
+    "movedClients": 5,
+    "minClientAcks": 599,
+    "rttP50Ms": 0.41343400000005204,
+    "rttP95Ms": 67.66147700000147,
+    "maxSampledTickAverageMs": 4.5316373530965155,
+    "overBudgetTicks": 6,
+    "observedTicks": 599,
+    "maxSampledRssMb": 134,
+    "ackPayloadBytesPerSecond": 8784.45488784455,
+    "passed": false
+  },
+  "codeStage": "Render deployment/shutdown fix, before subsequent FPS and biome-cache correctness changes"
+}

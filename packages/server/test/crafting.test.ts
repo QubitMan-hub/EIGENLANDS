@@ -15,7 +15,7 @@ beforeAll(async () => {
   await tp(p, X + 0.5, Y + 0.5);
   flatten(p.room, X, Y, 8);
 });
-afterAll(async () => { await app.close(); });
+afterAll(async () => { await app?.close(); });
 
 const place = async (item: string, dx: number, dy: number) => { await give(p, item, 1); await use(p, item, X + dx, Y + dy); };
 const craft = async (station: string, recipe: string, n = 1, tx = 0, ty = 0) => { p.r.send(MSG.CRAFT, { station, recipe, n, tx, ty }); await sleep(120); };

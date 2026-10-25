@@ -42,6 +42,10 @@ docs/
 .github/    CI and GitHub Pages workflows
 ```
 
+## Free Render multiplayer trial
+
+Use the [$0 Render deployment guide](docs/RENDER_FREE.md) and root `render.yaml` for a Singapore server with PostgreSQL. Free services sleep when idle and the free database expires after 30 days; this is temporary testing, not permanent hosting.
+
 ## Run it
 Requires Node 22+, PostgreSQL 16 and Redis 7 (`docker compose up -d` provides both).
 ```bash

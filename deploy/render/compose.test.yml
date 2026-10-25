@@ -1,0 +1,44 @@
+# Local deployment proof; this file does not create cloud resources.
+name: eigenlands-render-test
+services:
+  postgres:
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: eigenlands
+      POSTGRES_USER: eigen
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Provide a private test env file}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U eigen -d eigenlands']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: 256m
+  game:
+    image: eigenlands-render:test
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 60s
+    depends_on:
+      postgres: {condition: service_healthy}
+    environment:
+      NODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=320
+      PORT: '10000'
+      DATABASE_URL: postgres://eigen:${POSTGRES_PASSWORD}@postgres:5432/eigenlands
+      SESSION_SECRET: ${SESSION_SECRET:?Provide a private test env file}
+      WORLD_SEED: '20260101'
+      ALLOWED_ORIGIN: http://127.0.0.1:5240
+      TRUST_PROXY: '1'
+      AUTOSAVE_MS: '10000'
+    ports: [127.0.0.1:2667:10000]
+    mem_limit: 512m
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:10000/readyz',{signal:AbortSignal.timeout(3000)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+      retries: 8
+volumes:
+  pgdata:
