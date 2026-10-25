@@ -32,6 +32,7 @@ interface View {
   ck: string;
   /** signature of what is drawn (so upsert only rebuilds when it changed) */
   sig: string;
+  opened?: number;
 }
 
 const sigOf = (o: WorldObj): string => {
@@ -57,6 +58,10 @@ export class WorldObjViews {
 
   constructor(private store: ChunkStore, private shadowLayer: Container, private layer: Container) {}
 
+  animateChest(x:number,y:number,now=performance.now()):void {
+    const v=this.views.get(`${x},${y}`);if(v?.def.interactive)v.opened=now;
+  }
+
   get count(): number { return this.views.size; }
   setSeason(season: SeasonIdx): void { this.season = season; }
 
@@ -76,10 +81,10 @@ export class WorldObjViews {
     // iso billboard: feet on the tile's ground centre
     root.x = Math.round(isoX(o.x + 0.5, o.y + 0.5));
     // crops stand in tilled soil, which the terrain draws a little below the turf
-    root.y = Math.round(isoY(o.x + 0.5, o.y + 0.5)) - (o.kind === 'crop' ? GROUND_Z.soil : o.sub === 'sea_cache' ? GROUND_Z.water : 0);
+    root.y = Math.round(isoY(o.x + 0.5, o.y + 0.5)) - (o.kind === 'crop' ? GROUND_Z.soil : o.sub === 'sea_cache'||['cave_waterfall','magma_fall','sea_arch'].includes(o.sub)&&[T.WATER,T.DEEP_WATER,T.LAVA].some(t=>t===this.store.getTile(o.x,o.y)) ? GROUND_Z.water : 0);
     // rugs sit on the ground: behind anything standing on the tile; crops just under entities of the same tile
     const dz = depth(o.x + 0.5, o.y + 0.5);
-    root.zIndex = o.kind === 'furniture' && o.sub === 'rug' ? dz - 1e6 : o.kind === 'crop' ? dz - 6 : dz;
+    root.zIndex = (o.kind === 'furniture' && o.sub === 'rug'||o.sub==='cave_seal') ? dz - 1e6 : o.kind === 'crop' ? dz - 6 : dz;
     const shadow = new Sprite(f.tex);
     shadow.anchor.copyFrom(root.anchor);
     shadow.tint = SHADOW;
@@ -176,7 +181,8 @@ export class WorldObjViews {
       if (hidden) { v.shadow.visible = false; return; }
       const d = v.def;
       if (d.frames.length > 1) {
-        const f = reduced ? 0 : Math.floor(t * d.fps + v.phase) % d.frames.length;
+        const age=v.opened===undefined?Infinity:(now-v.opened)/1000;
+        const f = d.interactive ? age<.24?(reduced?3:Math.min(3,1+Math.floor(age/.08))):age<1.8?3:age<2.04&&!reduced?Math.max(0,2-Math.floor((age-1.8)/.08)):0 : reduced ? 0 : Math.floor(t * d.fps + v.phase) % d.frames.length;
         const frame = d.frames[f]!, tex = frame.tex;
         v.root.anchor.set(frame.ax / tex.width, frame.ay / tex.height);
         v.shadow.anchor.copyFrom(v.root.anchor);

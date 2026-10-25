@@ -40,3 +40,25 @@ This release adds six ambient enemies, two guardian kinds and **one** new phased
 `packages/shared/test/undercroft-network.test.ts` checks old mouth coordinates, inter-district connectivity, room sizes, exits/landing safety, occupied/abandoned wards, homes/quests, shrine placement, spawn progression and saved edits. `packages/server/test/undercroft.test.ts` exercises actual lift/treasure authority, cave shrine objects, arena summoning/phases/rewards, and vent timing/invulnerability. The existing safety tests now distinguish occupied towns from abandoned ones.
 
 `node e2e/undercroft-art.mjs` reviews native architecture and 72 creature poses, including a distinct-image check for all nine models. `node --import tsx e2e/undercroft.mjs <base-url> <output-dir>` exercises production gameplay in solo or multiplayer and captures entrances, six habitats, settlements, a challenge, the boss and mobile navigation. Runtime logs and screenshots are written under `/tmp/cave-*` during development, not shipped as assets.
+
+## Material and architecture pass
+
+Cinder chambers now contain impassable luminous magma pools, with dry survey paths preserved. Native water and magma cascades, clustered luminous mushrooms and warm/cool local lights provide focal points. Magma lights use a sparse four-tile grid rather than a light per hot pixel. Pools/cascades and fungi freeze their cosmetic animation under reduced motion.
+
+Resonant arenas have engraved flagstones, a broad brass-inlaid ritual seal, four hanging-bell pylons and a water or volcanic moat crossed by wide survey bridges. The seal sits behind actors and adds no invisible collision. The Bellkeeper is larger, with hollow iron armor, an inset skull, hooked claws, hanging chains and a flared bell body. Its collision radius follows the larger footprint; health/rewards and readable encounter phases remain intact. Its cached sheet uses a compact 96×96 frame and fewer redundant looping frames.
+
+Cave settlement buildings have low ribbed stone barrel vaults, round windows, no surface chimneys/dormers, and stone workshop/shop floors; inns retain warm timber floors. Surface houses keep their established gables and materials. Submerged sanctuary chambers use teal masonry, engraved floors and shell-like arches. The building painter also supports shell-vault architecture for buildings on the submerged plane; this does not introduce a new underwater housing settlement or change player-selected construction materials.
+
+Wooden storage chests, metal-bound vault caches and salvaged sea chests use four physically hinged lid poses in both wall orientations. A successful authoritative storage/cache interaction tells nearby clients to open the chest, hold briefly and close. Failed or repeated cache claims do not grant loot or replay a success animation. Reduced motion snaps between the open and closed poses. The animation is transient; inventories, ownership and once-per-character treasure records remain in the existing persistence systems.
+
+Reference images supplied for this pass informed material layering, focal lighting and mechanical detail only. All new art is original procedural geometry; no reference artwork is copied. Review scripts: `e2e/cave-materials-art.mjs` and `node --import tsx e2e/cave-materials.mjs <base-url> <output-dir>`.
+
+## Ground texture repair
+
+The previous floor painter thresholded low-frequency smooth noise into entire dark/light regions. That produced the oval islands shown in player reports; dirt paths used the same rule, Economy grass drew ellipses, and thresholded cloud shadows were incorrectly visible underground.
+
+Floors and paths now use world-anchored angular chips, short branching cracks and small grit clusters. Broad variation changes brightness continuously by at most about two percent instead of filling a contour with another palette color. Cave wall crowns/faces use the same bounded micro-detail rules with short bedding seams. Loose ground materials feather only near their actual boundaries; habitat colors blend only between adjacent tiles of the same material. Height, collision, shores, paved roads and deliberate architecture remain authoritative. Clouds affect open sky only and use a gentle continuous ramp.
+
+The repair also removes oval Economy grass clumps, broad meadow/sand/snow color islands and painted water-reflection patches. Volcanic fissures use piecewise-linear facets, while true water-depth bands and shoreline foam stay tied to real water. No larger texture atlas or extra rendering pass is added.
+
+`node --import tsx e2e/terrain-materials.mjs` renders the real shader through the existing art lab, compares to the last merged terrain rules, measures connected high-contrast regions in isolated basalt/dirt/rock samples, and verifies camera anchoring in both quality modes. It creates and removes a temporary comparison module. In the recorded basalt sample, the largest strong-contrast region changed from 4,825 pixels to five in Economy; this measures texture structure, not a universal frame-rate improvement. Screenshots/logs: `/tmp/terrain-materials*`.

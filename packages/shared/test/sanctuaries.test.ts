@@ -9,7 +9,7 @@ it('diving sites lead to deterministic enclosed shrines with an exit and solid r
     expect(oceanGate(1337, gx, gy)).toEqual(gate);
     const sh = shrineOfId(1337, `os${gx}_${gy}`)!;
     expect(sh.y).toBe(gate.y + DIVE_OY);
-    expect(sanctuaryTileAt(1337, sh.x, sh.y)).toBe(T.PATH);
+    expect(sanctuaryTileAt(1337, sh.x, sh.y)).toBe(T.VAULT_FLOOR);
     expect(sanctuaryTileAt(1337, sh.x + 11, sh.y)).toBe(T.CAVE_WALL);
   }
   expect(n).toBeGreaterThan(0);

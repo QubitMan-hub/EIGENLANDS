@@ -1,3 +1,15 @@
+# Current continuation: cave art and procedural ground texture repair (2026-10-25)
+
+Built inline on `codex/cave-art-identity`. Original geometry only; supplied references are inspiration, not imported assets. See [UNDERCROFT.md](UNDERCROFT.md#material-and-architecture-pass) and [REMAINING_WORK.md](REMAINING_WORK.md).
+
+Adds luminous magma pools/cascades, water cascades, clustered glowing mushrooms, stone-vault cave architecture, distinct submerged masonry and shell arches, larger skeletal Bellkeeper art and an engraved arena with a bridged moat, ritual inlays and hanging bell pylons. Lava/arena tile IDs are appended to preserve existing IDs. Dry routes, ladder landings, building footprints, mining edits and normal surface art remain intact. Chest open/hold/close poses follow successful server events; reduced motion uses endpoint poses. Magma lights are spatially sampled; all new sprites use cached native geometry. Player-chosen modular building materials do not magically change by realm.
+
+The follow-up floor report is addressed at the shader layer: filled smooth-noise contour patches are replaced by angular world-anchored chips/fractures and low-amplitude continuous variation; real boundary palettes are feathered without changing geometry. Dirt, meadow, sand, snow, Economy grass, water reflections and cave walls receive the same cleanup. Cloud masks no longer reach indoor planes. The real-shader comparison measures connected color regions and proves camera stability in both modes.
+
+Validation scripts: `node --import tsx e2e/terrain-materials.mjs`, `e2e/cave-materials-art.mjs` and `node --import tsx e2e/cave-materials.mjs`. Validation: all 553 workspace tests, typechecks and both production builds pass. The real-shader comparison passes bounded color regions and camera anchoring in both modes; solo/multiplayer and actual touch/reduced-motion replays pass the chest cycle, materials, architecture and boss arena. Final-head CI is recorded on the pull request. Development captures/logs: `/tmp/cave-materials-*`, `/tmp/cave-identity-*`.
+
+---
+
 # Current continuation: Undercroft survey network (2026-10-25)
 
 Implemented inline on `codex/undercroft-overhaul`, without subagents. See [UNDERCROFT.md](UNDERCROFT.md) for controls, cave content, save compatibility, test scripts and exact scope. The original gathering/interior work below remains intact.

@@ -2,6 +2,14 @@
 
 This is the practical remaining-work index. The full original requirements and detailed checklist remain in [master request](design/master-request.md) and [master plan](EIGENLANDS_MASTER_PLAN.md). Completed implementation and verification history: [continuation notes](CONTINUE_HERE.md).
 
+## Ground texture repair
+
+Implemented: removal of filled noise-contour blobs from caves/paths and related terrain, bounded angular pixel clusters, narrow material/habitat edge blending, world-anchored detail in both quality modes, and indoor cloud-shadow exclusion. The real-shader comparison measures large color regions before/after and camera anchoring. See [root cause and proof](UNDERCROFT.md#ground-texture-repair). Physical phone GPU/thermal profiling remains separate.
+
+## Cave materials and identity
+
+Implemented: original magma/water cascades, impassable lava pools with bounded lighting, glowing mushroom clusters, hinged storage/vault/sea chests driven by authoritative interactions, low stone-vault cave buildings, distinct submerged masonry/arches, and a larger skeletal Bellkeeper with a carved, moated arena. See [material pass and limits](UNDERCROFT.md#material-and-architecture-pass). Player-selected building materials remain literal; no new underwater housing settlement is implied.
+
 ## Undercroft overhaul
 
 Implemented: broad interconnected districts/caverns, original mouth compatibility, secondary shafts, supply exits, six visual habitats, dry lake crossings, secret caches, ruins, five shrine challenge types, warned steam vents, six cave enemies, two guardian kinds, one three-phase Bellkeeper, two occupied underground towns (16 residents, shops and quests), two abandoned towns, and Atlas exit/entry tracking. [Player guide, implementation scope and limitations](UNDERCROFT.md).

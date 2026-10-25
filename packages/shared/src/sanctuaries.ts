@@ -39,7 +39,7 @@ export function sanctuaryTileAt(seed: number, x: number, y: number): number | nu
     const pad = sh.pillars.some(([px, py]) => Math.max(Math.abs(dx - px), Math.abs(dy - py)) <= 1);
     if (!pad && !(Math.abs(dx) <= 1 && dy >= -1 && dy <= 8)) return T.DEEP_WATER;
   }
-  return Math.abs(dx) <= 1 || Math.abs(dy) <= 1 || sh.pillars.some(([px, py]) => Math.abs(dx - px) + Math.abs(dy - py) <= 1) ? T.PATH : T.CAVE_FLOOR;
+  return T.VAULT_FLOOR;
 }
 export function sanctuaryObjectsIn(seed: number, cx: number, cy: number): WorldObj[] {
   const diving = isDiveY(cy * 32), out: WorldObj[] = [];
@@ -51,6 +51,7 @@ export function sanctuaryObjectsIn(seed: number, cx: number, cy: number): WorldO
     if (!diving) add(p.x, p.y, 'dive_gate', { to: { x: p.x + .5, y: p.y + DIVE_OY + 7.5 } });
     else {
       const sh = oceanShrine(seed, gx, gy)!;
+      add(sh.x,sh.y-8,'sea_arch',{});
       add(sh.x, sh.y + 7, 'dive_exit', { to: { x: p.x + .5, y: p.y + .5 } });
       add(sh.x, sh.y, 'shrine_altar', { shrine: sh.id, type: sh.type });
       sh.pillars.forEach(([dx, dy], idx) => add(sh.x + dx, sh.y + dy, 'shrine_pillar', { shrine: sh.id, idx, type: sh.type }));

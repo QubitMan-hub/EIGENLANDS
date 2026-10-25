@@ -76,7 +76,7 @@ export type FxKind = 'hit' | 'swing' | 'shot' | 'dash' | 'die' | 'levelup' | 'te
   | 'bomb'      // a volatile elite is about to burst (v = fuse s, w = radius)
   | 'crash'     // a charging brute hit a wall (id = enemy)
   | 'form'      // Shapeshifter strike form (v: 0 wolf, 1 bear)
-  | 'shadow' | 'jump';   // jump: x/y origin, dx/dy landing, 650ms visual arc
+  | 'shadow' | 'chest' | 'jump';   // jump: x/y origin, dx/dy landing, 650ms visual arc
 export interface FxMsg {
   kind: FxKind; x: number; y: number; v?: number; dx?: number; dy?: number; id?: string;
   /** Combat weapon or successful harvesting tool for matching remote poses; absent on older effects. */

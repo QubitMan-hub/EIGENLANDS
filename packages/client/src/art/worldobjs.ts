@@ -7,7 +7,7 @@ import { Texture } from 'pixi.js';
 import { CROPS, cropStage, type CropData, type CropDef, type WorldObj, mulberry32 } from '@eigenlands/shared';
 import type { ObjSprite } from './objects';
 import type { Facing } from './isokit';
-import { PROPS, ruinIso } from './props';
+import { PROPS, ruinIso, treasureChest } from './props';
 import { TOWN_DECO as TOWN_ART } from './town';
 import { blob, C, line, makeCanvas, poly, polish, put, R, ramp4, slab, dk, lt, undithered, type Ctx, type Ramp } from './shade';
 
@@ -15,6 +15,8 @@ export interface ObjSpriteDef {
   frames: ObjSprite[];
   /** animation speed in frames per second (0 = static) */
   fps: number;
+  /** Poses advance once on an authoritative chest interaction, then close. */
+  interactive?: boolean;
   /** no cast shadow (flat on the ground, tiny, or low crops) */
   noShadow?: boolean;
   /** gentle wind sway amount (skew radians) */
@@ -365,6 +367,10 @@ function propSub(o: WorldObj): string | null {
 
 export function worldObjDef(o: WorldObj, facing: Facing = 'sw'): ObjSpriteDef {
   if (o.kind === 'crop') return cropDef(o.data as unknown as CropData | undefined, o.sub);
+  if(['ruin_cache','sea_cache'].includes(o.sub)){
+    const theme=o.sub==='sea_cache'?'sea':'vault',key=`treasure:${theme}:${facing}`;
+    let d=objCache.get(key);if(!d){d={frames:frames(4,f=>treasureChest(facing,f,theme)),fps:0,interactive:true};objCache.set(key,d);}return d;
+  }
   const ps = propSub(o);
   if (ps) {
     const k = `prop:${ps}:${facing}`;
@@ -377,7 +383,7 @@ export function worldObjDef(o: WorldObj, facing: Facing = 'sw'): ObjSpriteDef {
   let d = objCache.get(key);
   if (!d) {
     if (ruinBiome) d = ruinDef(o.sub, ruinBiome);
-    else if (['cave_mouth','cave_ladder','cave_lift','cave_vent','cave_altar'].includes(o.sub)) d = caveArchitecture(o.sub);
+    else if (['cave_mouth','cave_ladder','cave_lift','cave_vent','cave_altar','glow_mushrooms','cave_waterfall','magma_fall','cave_seal','bell_pylon','sea_arch'].includes(o.sub)) d = caveArchitecture(o.sub);
     else if ((o.kind === 'deco' || o.kind === 'sign' || o.kind === 'furniture') && TOWN_DECO[o.sub]) d = TOWN_DECO[o.sub]!();
     else if (o.kind === 'station') d = PROPS.crate!(facing);
     else if (o.kind === 'sprinkler') d = sprinkler(o.sub === 'sprinkler2', !!(o.data as { watering?: boolean } | undefined)?.watering);
