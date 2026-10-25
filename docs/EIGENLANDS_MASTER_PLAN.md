@@ -22,7 +22,7 @@ The full source checklist below is a conservative acceptance list. Broad aesthet
 | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Art, ecology, forty coastal residents, four settlements, sailing, equipment | IN PROGRESS overall; prior PRs #2–#4, client/art, shared/settlements, server sailing/village                                                                                           | Bespoke per-biome/room/boss pass, more creature families and weapon families                                                                                                                                                                                                                                                                                                                 | Prior 391-test baseline and art/play captures recorded in art/overhaul-notes.md                                                                                                  |
 | Functional floors and underwater challenges                                 | IMPLEMENTED & TESTED slice; shared/floors.ts, sanctuaries.ts; containers.ts, shrine module, Game.ts                                                                                    | Merged PR #5; broader authored interior variety and integrated architectural backdrops remain                                                                                                                                                                                                                                                                                                | Three shared tests and four authoritative integration checks; genuine collision spaces, no decorative-only stairs                                                                |
-| HUD and pack                                                                | IN PROGRESS; ui/hud.css, inventory.ts, inventory-query.ts, windows.ts                                                                                                                  | Journal-only tutorial/quest guidance, compact Menu and equipment comparisons implemented; compact enemy/boss headers and live Journal Journey added; survival data before survival bars and broader progression content remain                                                                                                                                                               | Inventory query and equipment preview rules; desktop/landscape Journal/menu, ring comparisons, search/category/sort/actions/focus and prop bounds checked                        |
+| HUD and pack                                                                | IN PROGRESS; ui/hud.css, inventory.ts, inventory-query.ts, windows.ts                                                                                                                  | Journal-only tutorial/quest guidance, compact Menu and equipment comparisons implemented; compact enemy/boss headers and live Journal Journey added; player vitals ledger (isometric health/mana/stamina/food/water vials and expandable statuses, §3.1) implemented; survival data (temperature, injuries) and broader progression content remain                                           | Inventory query and equipment preview rules; desktop/landscape Journal/menu, ring comparisons, search/category/sort/actions/focus and prop bounds checked                        |
 | Navigation and maps                                                         | IN PROGRESS; client/features/atlas, input/keymap, existing predictor and iso camera                                                                                                    | Atlas/minimap foundation works; durable IndexedDB history beyond 512 resident chunks is implemented in the current continuation; future kingdom/realm content and other key conflicts remain; discovered quest and authorized distant party destinations are verified and merged in PR #9 (3d61674), with all 421 tests, typechecks, both builds and solo/multiplayer browser checks passing | Local fog, saved waypoints/preferences, pan/zoom, layer isolation and no generation on pan checked; M defaults to map, legacy default voice moves to N, custom bindings retained |
 | Survival and meaningful progression                                         | IN PROGRESS; opt-in Cozy/Adventure hunger/thirst, food nutrition, waterskins/wells and private real HUD meters                                                                         | Temperature/exposure, injuries, purification, nutritional variety, bandages and Hardcore remain; preserve existing saves                                                                                                                                                                                                                                                                     | Pure rules, real item/range/authority, legacy migration, persistence and browser checks recorded in CONTINUE_HERE.md                                                             |
 | Building and farming                                                        | IMPLEMENTED & TESTED construction slice: eight craftable structural pieces, arbitrary two-floor plans, roofs/cutaways, doors, stairs, owned collision and separate persisted furniture | Deeper livestock/crafting loops; arbitrary-height towers, co-owners and cross-region edit expansion                                                                                                                                                                                                                                                                                          | Real crafting/solo upstairs reload, sharded stair authority, live neighboring collision and ownership/refund tests; see PLAYER_BUILDING.md                                       |
@@ -168,36 +168,42 @@ The full source checklist below is a conservative acceptance list. Broad aesthet
 
 ## 3.1 Player Health, Mana, Stamina, Hunger & Thirst
 
-- [ ] NOT STARTED — Completely redesign the player HUD.
-- [ ] NOT STARTED — Create visually extraordinary yet readable health, mana, stamina, food, and thirst indicators.
-- [ ] NOT STARTED — Consider a cohesive combination of:
-- [ ] NOT STARTED — Carefully designed ornamental frames.
-- [ ] NOT STARTED — Subtle metal, carved stone, leather, rune, or fantasy-material detailing.
-- [ ] NOT STARTED — Pixel-perfect bar fills and borders.
-- [ ] NOT STARTED — Distinctive silhouettes.
-- [ ] NOT STARTED — Beautiful but restrained highlights.
-- [ ] NOT STARTED — Smooth, informative animations.
-- [ ] NOT STARTED — Contextual status effects.
-- [ ] NOT STARTED — **Health bar**
-- [ ] NOT STARTED — Distinct visual identity.
-- [ ] NOT STARTED — Satisfying damage feedback.
-- [ ] NOT STARTED — Smooth health loss and recovery animations.
-- [ ] NOT STARTED — Clear low-health warning.
-- [ ] NOT STARTED — Readable numerical values where useful.
-- [ ] NOT STARTED — Status effects and shields displayed intelligently.
-- [ ] NOT STARTED — **Mana / magic**
-- [ ] NOT STARTED — Thematically distinct from health.
-- [ ] NOT STARTED — Subtle magical effects.
-- [ ] NOT STARTED — Readable resource consumption and regeneration.
-- [ ] NOT STARTED — **Stamina**
-- [ ] NOT STARTED — Clear sprinting, dodging, and exertion feedback.
-- [ ] NOT STARTED — Never obscure movement or combat.
-- [ ] NOT STARTED — **Hunger and thirst**
-- [ ] NOT STARTED — Both visible and instantly understandable.
-- [ ] NOT STARTED — Beautiful, compact fantasy-style icons and bars.
-- [ ] NOT STARTED — Clear warnings without constantly interrupting gameplay.
-- [ ] NOT STARTED — Add temperature, injuries, buffs, debuffs, and other conditions through a clean expandable status system.
-- [ ] NOT STARTED — Do not cram everything into an oversized HUD.
+Implemented in `packages/client/src/ui/vitals*.ts` (model, isometric painter, DOM controller), wired from `Game.hud()`. Art lab: `labs/uilab.html?panel=vitals` (`&hit=1`, `&open=1`, `&reduced=1`). Impeccable skill: not installed in this environment, so the limitation is recorded and the work followed the equivalent review rules below.
+
+- [x] IMPLEMENTED & TESTED — Completely redesign the player HUD. The old bar stack, the separate Food/Water progress meters and the plain buff text are gone; one ledger now holds name, level, coins, the vial row, a thin XP rule and the status row.
+- [x] IMPLEMENTED & TESTED — Create visually extraordinary yet readable health, mana, stamina, food and thirst indicators. Each is an isometric glass-and-metal prism built with the props' own `Iso` kit (2:1 projection, lit left face, shaded right face, top face, fixed 48-colour palette, nearest-neighbour pixels), standing on a carved-stone plinth; fill height is the value. Numbers sit under each vial with a pixel icon.
+- [x] IMPLEMENTED & TESTED — Cohesive combination of the following:
+  - [x] IMPLEMENTED & TESTED — Ornamental frames: bronze-bound ledger with rivets and per-gauge frame metals.
+  - [x] IMPLEMENTED & TESTED — Metal, carved stone, leather and rune detailing: bronze health frame, steel mana frame with a crystal spire, iron stamina frame, leather-banded food flask, steel water vial, stone plinths.
+  - [x] IMPLEMENTED & TESTED — Pixel-perfect fills and borders: rendered at logical size and scaled by whole numbers only (2× desktop, 1× compact landscape).
+  - [x] IMPLEMENTED & TESTED — Distinctive silhouettes: five different footprints and heights, so the gauges differ by shape and position as well as hue (colour-blind safe).
+  - [x] IMPLEMENTED & TESTED — Restrained highlights: one meniscus line, one glint, no glow washes.
+  - [x] IMPLEMENTED & TESTED — Smooth, informative animations (`GaugeMotion`, unit-tested): instant fill drop, white hit flash, pale trail that drains after a hold, eased recovery; reduced motion snaps everything and disables pulses.
+  - [x] IMPLEMENTED & TESTED — Contextual status effects: see the status system below.
+- [x] IMPLEMENTED & TESTED — **Health**
+  - [x] IMPLEMENTED & TESTED — Distinct identity: the largest, brick-red prism in bronze.
+  - [x] IMPLEMENTED & TESTED — Satisfying damage feedback: flash plus draining trail (the existing screen vignette is kept).
+  - [x] IMPLEMENTED & TESTED — Smooth loss and recovery animation.
+  - [x] IMPLEMENTED & TESTED — Clear low-health warning below 30 %: frame pulses ember, number gains `!` and warm colour; static under reduced motion.
+  - [x] IMPLEMENTED & TESTED — Readable numbers (`60/60`) with an accessible progressbar and title.
+  - [x] IMPLEMENTED & TESTED — Status effects and shields displayed intelligently: Circuit shield/ward/mirror auras wrap the health vial in a glass cage (colour per type) and also appear in the status row.
+- [x] IMPLEMENTED & TESTED — **Mana / magic**
+  - [x] IMPLEMENTED & TESTED — Thematically distinct: violet liquid, steel frame, crystal spire. It shows the real class resource (Coherence, Bond …) and is hidden for the Wanderer, who has none yet.
+  - [x] IMPLEMENTED & TESTED — Subtle magical effects: spire sparks only while the resource is full (ultimate ready).
+  - [x] IMPLEMENTED & TESTED — Readable consumption and regeneration: same trail/recovery motion as health.
+- [x] IMPLEMENTED & TESTED — **Stamina**
+  - [x] IMPLEMENTED & TESTED — Exertion feedback: the green vial is the dash resource (whole charges plus the recharging one), draining on a dash and refilling smoothly. There is no sprint stamina in the game yet, so none is drawn.
+  - [x] IMPLEMENTED & TESTED — Never obscures movement or combat: the ledger stays in the top-left, 94×46 logical pixels of art, nothing over the playfield; the old under-feet dash pips are unchanged.
+- [x] IMPLEMENTED & TESTED — **Hunger and thirst**
+  - [x] IMPLEMENTED & TESTED — Visible and instantly understandable: amber flask and cyan vial with food/water icons, shown only in Adventure travel mode (Cozy pauses depletion, so nothing is drawn).
+  - [x] IMPLEMENTED & TESTED — Compact fantasy icons and vials.
+  - [x] IMPLEMENTED & TESTED — Warnings without interruption: at 20 or below the vial dulls, the number gains `!` and a Hungry/Thirsty chip appears; no toast, no flashing, no sound.
+- [~] IN PROGRESS — Add temperature, injuries, buffs, debuffs and other conditions through a clean expandable status system. The system exists and is tested: a registry (`STATUS_DEFS`) turns server buffs, circuit auras and low needs into isometric pedestal chips (four shown, `+n` folds the rest, click or tap expands a described list with timers). Buffs (Regeneration, Might, Ward, Lantern), auras and needs are live. Temperature (Chilled, Overheated) and injuries (Bleeding, Fracture, Poison) are registered but **not simulated by the game yet** (survival is master-plan §8); the HUD shows them the moment the server reports them as buffs and never invents them. Hunger and thirst have no penalty at zero yet, so "Out of food/water" is informational.
+- [x] IMPLEMENTED & TESTED — Do not cram everything into an oversized HUD: five vials fit a 216 px ledger; statuses fold; Cozy mode and the Wanderer show fewer.
+
+Design review applied (Impeccable equivalent): no cards, gradients, glass or rounded rectangles; square swatches and chips; one typography pair (Silkscreen headings, monospace numbers); numbers never rely on colour alone; targets 44 px on touch; focus rings; `prefers`-style reduced-motion setting honoured.
+
+Evidence: 33 new unit tests (model, layout, appearance), art-lab captures at 2× and 4×, real browser play in the single-player build on desktop (1280×720) and touch landscape (844×390). Not done: physical-device checks, recorded damage animation in a live fight (the lab drives the same code with a synthetic hit).
 
 ## 3.2 Monster & Boss Health Bars
 

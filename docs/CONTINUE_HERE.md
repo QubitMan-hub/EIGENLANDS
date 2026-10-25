@@ -1,3 +1,15 @@
+# Current continuation: isometric vitals HUD (§3.1) and character creation (2026-10-25)
+
+Inline, no subagents. Two linked slices.
+
+**Vitals HUD.** `ui/vitals-model.ts` (pure: `GaugeMotion`, need thresholds, status registry `STATUS_DEFS`, `collectStatuses`), `ui/vitals-art.ts` (isometric vial painter on the `Iso` kit and fixed palette), `ui/vitals.ts` (DOM, labels, status chips), called from `Game.hud()`. Mana is the class resource (`ext.circuit.resource()`, hidden for Wanderers), stamina is dash charges, food/water show only in Adventure mode, auras come from `SpellRenderer.aurasOf`. Temperature and injury statuses are registered but only appear when the server reports a buff of that kind; survival simulation (master plan §8) is **not** built. Art lab: `labs/uilab.html?panel=vitals`.
+
+**Character creation.** `shared/src/appearance.ts` packs skin, hair style/colour, eyes, dress, dress colour and trim into one uint32 (`PlayerState.app`, `PlayerData.appearance`, `MSG.APPEARANCE`, 0 = never chosen so old characters are unchanged). `client/src/art/appearance.ts` maps indices to palette ramps; `actors.ts` gained robe/coat/mantle/plated cuts, trim, sash, four hair styles, iris colour, bandana and crown, and `Sheets.styled` (lazy per-appearance atlas, 64-entry LRU). `ui/appearance-picker.ts` is the title-screen and Settings wardrobe with a live preview. Worn outfits and armour keep their garment but take the player's skin, hair and eyes. All ten named NPCs were redrawn and generated villagers vary across the new options. Lab: `spritelab.html?lab=creator` and `?lab=npcs`.
+
+**Not done.** Temperature/injury/survival mechanics, sprint stamina, hunger penalties, hair/dress unlocks as rewards, per-piece dye, physical-device checks, and a recorded live-combat capture of the damage trail.
+
+---
+
 # Current continuation: world generation revision 3 and gameplay elevation (2026-10-25)
 
 Work stays inline without subagents. Read [WORLDGEN3.md](WORLDGEN3.md) first; [WORLDGEN_OVERHAUL_REMAINING.md](WORLDGEN_OVERHAUL_REMAINING.md) is still the authoritative unfinished scope. This slice delivers the version boundary and the first real implementation of the full rebuild; it does not claim the whole master request.

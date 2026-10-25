@@ -29,6 +29,7 @@ export const MSG = {
   INV_MOVE: 'inv_move', // InvMoveMsg
   INV_TRASH: 'inv_trash', // InvTrashMsg
   EQUIP: 'equip', // EquipMsg
+  APPEARANCE: 'appearance', // {app}: packed Appearance (cosmetic, validated)
   CRAFT: 'craft', // CraftMsg
   EXPERIMENT: 'experiment', // ExperimentMsg
   FORGE_PREVIEW: 'forge_preview', // ForgePreviewMsg -> FORGE_PREVIEW_R

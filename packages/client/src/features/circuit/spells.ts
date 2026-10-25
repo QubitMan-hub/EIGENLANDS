@@ -322,6 +322,18 @@ export class SpellRenderer {
     v.g.rect(-1, -24 * (1 - k) - 4, 2, 24 * (1 - k)).fill({ color: 0xffffff, alpha: 1 - k });
   }
 
+  /** Circuit auras (shield, ward, mirror) currently wrapped around `owner`, for the status row. */
+  aurasOf(owner: string): Array<'shield' | 'ward' | 'mirror'> {
+    const out: Array<'shield' | 'ward' | 'mirror'> = [];
+    for (const v of this.views.values()) {
+      if (v.dead || v.s.owner !== owner) continue;
+      if (v.kind === SPELL.SHIELD) out.push('shield');
+      else if (v.kind === SPELL.WARD) out.push('ward');
+      else if (v.kind === SPELL.MIRROR) out.push('mirror');
+    }
+    return out;
+  }
+
   count(): number {
     return this.views.size;
   }

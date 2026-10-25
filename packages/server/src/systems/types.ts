@@ -49,6 +49,8 @@ export interface PlayerData {
   quests: QuestLog;
   /** recent notable deeds, for NPC memory */
   deeds: Partial<Record<DeedKind, { day: number; what: string }>>;
+  /** packed cosmetic Appearance (0 = never chosen) */
+  appearance?: number;
   /** heart events already seen ("npc:index") */
   events: string[];
   /** adventure progress: Heart Crystals used, bosses defeated, shrines solved */

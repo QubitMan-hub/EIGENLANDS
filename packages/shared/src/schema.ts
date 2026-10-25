@@ -28,6 +28,8 @@ export class PlayerState extends Schema {
   @type('string') held = '';
   /** Minecart riding state, appended without renumbering existing fields. */
   @type('boolean') cart = false;
+  /** Packed Appearance (see appearance.ts); 0 = never chosen. Appended for schema field compatibility. */
+  @type('uint32') app = 0;
 }
 
 export class EnemyState extends Schema {

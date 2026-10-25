@@ -19,8 +19,10 @@ import { buildJourney } from '../ui/journey';
 import { buildJournal } from '../ui/journal';
 import { RhythmOverlay } from '../ui/rhythm';
 import { Toasts } from '../ui/toast';
+import { VitalsHud, type VitalsFrame } from '../ui/vitals';
 
-const panel = new URLSearchParams(location.search).get('panel') ?? 'inventory';
+const q2 = new URLSearchParams(location.search);
+const panel = q2.get('panel') ?? 'inventory';
 const profile = new Profile();
 const inv = Array.from({ length: 30 }, () => null) as ReturnType<typeof Array.prototype.fill>;
 const put = (i: number, id: string, n = 1, p?: object) => {
@@ -211,6 +213,87 @@ switch (panel) {
   case 'shelter':
     wins.show('c', 'Coop', buildShelter(shelterPanel, profile, { add: noop, feed: noop, collect: noop }));
     break;
+  case 'vitals': {
+    // ?panel=vitals&reduced=1&scale=1 — five HUD states side by side, each driven by the real model and painter
+    const reduced = q2.get('reduced') === '1';
+    document.documentElement.classList.toggle('reduced-motion', reduced);
+    if (q2.get('scale')) document.documentElement.style.setProperty('--lab-vs', q2.get('scale')!);
+    document.body.style.cssText =
+      'display:flex;flex-wrap:wrap;gap:24px;padding:24px;background:#1b2a22;align-items:flex-start';
+    const now = 1_000_000;
+    const base = (o: Partial<VitalsFrame>): VitalsFrame => ({
+      hp: 60,
+      maxHp: 60,
+      mana: { v: 100, max: 100, name: 'Coherence' },
+      stamina: { frac: 1, charges: 2, max: 2 },
+      needs: null,
+      auras: [],
+      buffs: {},
+      serverNow: now,
+      ...o,
+    });
+    const cases: Array<[string, VitalsFrame, ((v: VitalsHud) => void) | null]> = [
+      ['Full · mana ready', base({}), null],
+      [
+        'Wounded 17/60 · mana low · 1 dash',
+        base({ hp: 17, mana: { v: 22, max: 100, name: 'Coherence' }, stamina: { frac: 0.62, charges: 1, max: 2 } }),
+        null,
+      ],
+      [
+        'Adventure · hungry · shield + buffs',
+        base({
+          hp: 44,
+          needs: { food: 14, water: 62 },
+          auras: ['shield'],
+          buffs: {
+            regen: { until: now + 42_000, power: 2 },
+            might: { until: now + 170_000, power: 0.2 },
+            ward: { until: now + 95_000, power: 0.25 },
+          },
+        }),
+        null,
+      ],
+      [
+        'Many effects (folded) · empty water',
+        base({
+          hp: 30,
+          mana: null,
+          needs: { food: 80, water: 0 },
+          auras: ['ward', 'mirror'],
+          buffs: {
+            lantern: { until: now + 500_000, power: 1 },
+            regen: { until: now + 9_000, power: 1 },
+            chill: { until: now + 60_000, power: 1 },
+          },
+        }),
+        null,
+      ],
+    ];
+    const ledgers: VitalsHud[] = [];
+    for (const [title, frame, post] of cases) {
+      const box = h('div', {
+        class: 'orbinfo',
+        style:
+          'padding:10px 12px;background:#17201fed;border:1px solid #786646;border-left:4px solid #bca06b;width:216px',
+      });
+      box.append(h('b', { class: 'pname', text: title, style: 'font-size:10px' }), h('div'));
+      document.body.append(box);
+      const v = new VitalsHud(box.lastElementChild as HTMLElement);
+      box.lastElementChild!.id = '';
+      v.update(frame, 0, reduced);
+      post?.(v);
+      ledgers.push(v);
+    }
+    // a hit on the first ledger so the trail and flash are visible in captures (?hit=1)
+    if (q2.get('hit') === '1') {
+      ledgers[0]!.update(base({ hp: 38 }), 0.016, reduced);
+      ledgers[0]!.update(base({ hp: 38 }), 0.1, reduced);
+    }
+    // the folded list expands on click
+    if (q2.get('open') === '1')
+      (document.querySelectorAll('.status-row')[3]?.querySelector('button') as HTMLButtonElement)?.click();
+    break;
+  }
   case 'rhythm': {
     clock.observe(Date.now(), 1, performance.now());
     const r = new RhythmOverlay(

@@ -93,14 +93,9 @@ export const HTML = `
   <div id="hud-left">
     <div class="orbinfo">
       <b id="hud-name" class="pname">-</b>
-      <div id="orb" class="orbwrap" role="progressbar" aria-label="Health" aria-valuemin="0" aria-valuemax="60" aria-valuenow="60"></div>
-      <div class="xpbar" aria-hidden="true"><i id="xp-orb"></i></div>
       <div class="statrow"><span class="gate" id="hud-level">Lv 1</span><span class="coinrow">${iconSvg('coin', 16)}<span id="coins">0 coins</span></span></div>
-      <div id="needs-hud" hidden>
-        <label>Food <b id="needs-food-value">100</b><progress id="needs-food" aria-label="Food" max="100" value="100"></progress></label>
-        <label>Water <b id="needs-water-value">100</b><progress id="needs-water" aria-label="Water" max="100" value="100"></progress></label>
-      </div>
-      <div id="buffs"></div>
+      <div id="vitals" aria-label="Vitals"></div>
+      <div class="xpbar" aria-hidden="true"><i id="xp-orb"></i></div>
     </div>
     <div class="legacy" aria-hidden="true"><i id="hp-fill"></i><span id="hp-text"></span><i id="xp-fill"></i><span id="clock"></span></div>
   </div>
@@ -152,6 +147,7 @@ export const HTML = `
     <div class="menu panel">
       <label for="name">Name your wanderer</label>
       <input id="name" maxlength="16" autocomplete="off" placeholder="Wanderer" />
+      <details class="look-menu"><summary>Your wanderer</summary><div id="look-title"></div></details>
       <p id="play-mode" class="small"></p><p id="server-address" class="small"></p>
       <button id="btn-guest" class="primary big">${iconSvg('spark', 16)} Play</button>
       <details class="friends-menu"><summary>Play with friends</summary>
@@ -191,6 +187,7 @@ export const HTML = `
         <label class="tog"><input type="checkbox" id="s-mute"> Mute sound</label>
         <label>Volume <input type="range" id="s-vol" min="0" max="100"></label>
       </section>
+      <section><h3>Your wanderer</h3><div id="look-settings"></div></section>
       <section><h3>Account</h3><p id="acct-info" class="small"></p>
         <div id="g-upgrade"></div>
         <button id="btn-signout">Sign out</button>

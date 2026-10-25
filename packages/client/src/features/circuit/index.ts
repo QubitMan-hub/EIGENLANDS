@@ -126,6 +126,17 @@ export class CircuitClient implements ClientModule {
     }
   }
 
+  /** The class resource ("mana") for the vitals HUD; null for classes that have none yet. */
+  resource(): { v: number; max: number; name: string } | null {
+    const cls = this.progress.cls;
+    if (cls === 'wanderer') return null;
+    return { v: this.res.v, max: this.res.max, name: CLASSES[cls].resource.name };
+  }
+
+  auras(owner: string): Array<'shield' | 'ward' | 'mirror'> {
+    return this.spells.aurasOf(owner);
+  }
+
   handlers(): Record<string, (m: any) => void> {
     return {
       [MSG34.PROGRESS]: (m: ProgressMsg) => this.progress.apply(m),

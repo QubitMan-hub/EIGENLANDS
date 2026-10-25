@@ -7,7 +7,7 @@ import { Application, Container, Graphics, Sprite, Text, type Texture } from 'pi
 import { ANIMS, critter, critterFrames, critterShadow, type CritterKind } from '../art/foes';
 import { softShadow } from '../art/sprite';
 import { buildActorSheets, OUTFITS, PERSON_H, PERSON_W, WALK_FRAMES } from '../art/actors';
-import { NPCS } from '@eigenlands/shared';
+import { NPCS, packAppearance, APPEARANCE_COUNTS } from '@eigenlands/shared';
 
 const q = new URLSearchParams(location.search);
 const S = Number(q.get('scale') ?? 4);
@@ -85,6 +85,35 @@ if (mode === 'people') {
       frames.forEach((t, c) => place(t, 8 + c * fw + fw / 2, 12 + oy + (d + 1) * fh - 3, [6, 2]));
     }
   });
+}
+if (mode === 'creator') {
+  // rows = dress styles; cols = hair styles (colours cycle so every swatch shows up); &dir= facing, &frame=
+  const sheets = buildActorSheets();
+  const d = Number(q.get('dir') ?? 0),
+    f = Number(q.get('frame') ?? 0);
+  const g = new Graphics().rect(0, 0, 4000, 4000).fill(0x3f5a34);
+  root.addChild(g);
+  for (let r = 0; r < APPEARANCE_COUNTS.dress; r++)
+    for (let c = 0; c < Number(q.get('cols') ?? 10); c++) {
+      const n = r * 17 + c * 5;
+      const app = packAppearance({
+        skin: (r + c) % APPEARANCE_COUNTS.skin,
+        hairStyle: c,
+        hairColor: n % APPEARANCE_COUNTS.hairColor,
+        eyes: (n + 1) % APPEARANCE_COUNTS.eyes,
+        dress: r,
+        dressColor: (n + r) % APPEARANCE_COUNTS.dressColor,
+        trim: (n + 2) % APPEARANCE_COUNTS.trim,
+      });
+      place(sheets.styled(0, app, d, f), 16 + c * 22, 36 + r * 36, [6, 2]);
+    }
+}
+if (mode === 'npcs') {
+  // every NPC, idle, in rows of 12 (&dir= facing)
+  const sheets = buildActorSheets();
+  const d = Number(q.get('dir') ?? 0);
+  root.addChild(new Graphics().rect(0, 0, 4000, 4000).fill(0x3f5a34));
+  NPCS.forEach((n, i) => place(sheets.npc(n.id, d, 0), 16 + (i % 12) * 22, 36 + Math.floor(i / 12) * 36, [6, 2]));
 }
 if (mode === 'lineup') {
   // everyone standing on a strip of ground, idle, facing the camera (or &dir=)

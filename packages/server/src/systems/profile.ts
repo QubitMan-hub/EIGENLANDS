@@ -15,6 +15,7 @@ import {
   dayNumber,
   emptyInventory,
   pruneRequests,
+  validAppearance,
   validInventory,
   validSkills,
   type EquipSlotKey,
@@ -74,6 +75,7 @@ export function newPlayerData(season: number): PlayerData {
     quests: {},
     deeds: {},
     events: [],
+    appearance: 0,
     prog: { hearts: 0, bosses: [], shrines: [], ruins: [] },
   };
 }
@@ -192,6 +194,7 @@ export function loadPlayerData(raw: unknown, season: number, nowMs: number): Pla
     quests: validQuests(r.quests, dayNumber(nowMs)),
     deeds,
     events,
+    appearance: validAppearance(r.appearance),
     prog: validProg(r.prog),
   };
 }
@@ -226,6 +229,7 @@ export function serializePlayerData(d: PlayerData): Record<string, unknown> {
     quests: d.quests,
     deeds: d.deeds,
     events: d.events,
+    appearance: d.appearance ?? 0,
   };
 }
 
