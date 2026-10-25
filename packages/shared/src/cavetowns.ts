@@ -29,8 +29,8 @@ export function caveTowns(seed: number): Town[] {
    t.spots[`${n.id}.work`]=work;
    t.spots[`${n.id}.square`]={x:p.cx+(n.local%4-2)*4,y:p.cy+(n.local<4?-3:3)};
   });
-  for(const dx of[-26,-14,14,26])t.objects.push({x:p.cx+dx,y:p.cy+3,kind:'deco',sub:'lamp'});
-  t.objects.push({x:p.cx-4,y:p.cy+4,kind:'sign',sub:p.abandoned?'cave_archive':'sign',data:{text:`${p.name}. ${p.culture} ${p.abandoned?'Last survey: the roads were joined before the bells went silent. We sealed the lower vault with iron and two crystals. Bellfall heard the last chime; Stillwater buried its reply. The ward has failed. Beware what still answers the bell.':'These streets are warded. Rest, trade and follow the survey roads to the next cavern.'}`}});
+  for(const dx of[-26,26])t.objects.push({x:p.cx+dx,y:p.cy+2,kind:'deco',sub:'street_lamp'});
+  t.objects.push({x:t.buildings[0]!.doorX-2,y:t.buildings[0]!.doorY+1,kind:'sign',sub:p.abandoned?'cave_archive':'sign',data:{text:`${p.name}. ${p.culture} ${p.abandoned?'Last survey: the roads were joined before the bells went silent. We sealed the lower vault with iron and two crystals. Bellfall heard the last chime; Stillwater buried its reply. The ward has failed. Beware what still answers the bell.':'These streets are warded. Rest, trade and follow the survey roads to the next cavern.'}`}});
   if(p.abandoned)t.objects.push({x:p.cx+3,y:p.cy+5,kind:'deco',sub:'ruin_cache',data:{ruin:`${p.id}:archive`,biome:'enchanted',cave:true,depth:3,secret:true}});
   else t.objects.push({x:p.cx+3,y:p.cy+5,kind:'deco',sub:'cave_lift',data:{cave:`townlift:${p.id}`}});
   return t;

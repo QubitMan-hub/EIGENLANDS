@@ -1,3 +1,4 @@
+import { mineLoopAt } from './mines';
 import { buildTile, type BuildCell } from './construction';
 import { oceanObjectsIn } from './ocean';
 import { sanctuaryObjectsIn, isDiveY } from './sanctuaries';
@@ -151,7 +152,7 @@ export class ChunkStore {
   };
   solidAt: SolidQuery = Object.assign(
     (x: number, y: number): boolean => isSolid(this.getTile(x, y)) || this.solidObjs.has(`${x},${y}`),
-    { sea: (x: number, y: number): boolean => this.seaSolidAt(x, y) },
+    { sea: (x: number, y: number): boolean => this.seaSolidAt(x, y), mine: (x:number,y:number)=>mineLoopAt(this.seed,x,y) },
   );
   /** cannonballs and bolts fly over water but stop at land, walls and trees */
   shotBlockedAt = (x: number, y: number): boolean => {

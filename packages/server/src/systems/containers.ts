@@ -1,5 +1,5 @@
 import {
-  BIOMES, BIOME_NAMES, hash2, caveLanding, isCaveY, FARM_ANIMALS, ITEMS, MSG, QUBITMAN, RUIN_LORE, RUIN_NAMES, ruinLoot, type Biome, STATUE_REMARKS, STATION_SUBS, addStack, chunkOf, cloneStack, countItem, isRipe, removeItem, validInventory,
+  mineLoopAt, minePosition, BIOMES, BIOME_NAMES, hash2, caveLanding, isCaveY, FARM_ANIMALS, ITEMS, MSG, QUBITMAN, RUIN_LORE, RUIN_NAMES, ruinLoot, type Biome, STATUE_REMARKS, STATION_SUBS, addStack, chunkOf, cloneStack, countItem, isRipe, removeItem, validInventory,
   type ChestMsg, type Inventory, type OpenMsg, type PanelMsg, type ShelterMsg, type WorldObj,
 } from '@eigenlands/shared';
 import type { ServerPlayer } from '../rooms/player';
@@ -51,6 +51,14 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
   if (distToTile(p, msg.tx, msg.ty) > OPEN_REACH) { p.toast('Too far away.'); return; }
   await room.ensureChunk(chunkOf(msg.tx), chunkOf(msg.ty));
   if (p.deadT > 0 || distToTile(p, msg.tx, msg.ty) > OPEN_REACH) return;
+  if(p.sim.cart>0){
+    // A rider can always get out onto a dry track. Prefer the adjacent shoulder.
+    for(const[dx,dy]of[[1,0],[0,1],[-1,0],[0,-1]]){
+      const x=Math.floor(p.sim.x)+dx!,y=Math.floor(p.sim.y)+dy!;
+      if(!room.store.solidAt(x,y)){p.sim.x=x+.5;p.sim.y=y+.5;break;}
+    }
+    p.sim.cart=0;p.queue.length=0;p.toast('You step off the minecart.');return;
+  }
   if (await openConstruction(room, p, msg.tx, msg.ty)) return;
   const o = room.store.objectAt(msg.tx, msg.ty);
   if (!o) { forageAt(room, p, msg.tx, msg.ty); return; }
@@ -66,6 +74,13 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
     p.sim.boat = o.sub === 'dive_exit' && hasShip ? 1 : 0; p.sim.dashT = 0; p.queue.length = 0;
     p.toast(o.sub === 'stairs_up' ? 'You climb to the upper floor.' : o.sub === 'stairs_down' ? 'You return downstairs.' : o.sub === 'dive_gate' ? 'You descend into a dry chamber beneath the sea.' : 'You surface beside your sloop.');
     return;
+  }
+  if(o.static && o.sub==='minecart'){
+    const loop=mineLoopAt(room.seed,o.x,o.y);
+    if(!loop||loop.x!==o.x||loop.y!==o.y||room.store.solidAt(o.x,o.y))return;
+    const pos=minePosition(loop,0);p.sim.x=pos.x;p.sim.y=pos.y;p.sim.faceX=pos.fx;p.sim.faceY=pos.fy;
+    p.sim.cart=1;p.sim.boat=0;p.sim.dashT=0;p.sim.charge=0;p.sim.hold=0;p.queue.length=0;
+    p.toast('Minecart: hold movement to ride the circuit; release to brake. Use steps off.');return;
   }
   if (o.kind === 'crop') {
     const d = cropOf(o);

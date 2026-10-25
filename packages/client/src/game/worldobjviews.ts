@@ -73,8 +73,26 @@ export class WorldObjViews {
     return 'sw';
   }
 
+  private seatTurn(o:WorldObj):number|undefined {
+    if(o.sub!=='chair')return undefined;
+    const dirs=[[0,1],[-1,0],[0,-1],[1,0]];
+    for(let i=0;i<dirs.length;i++){
+      const[dx,dy]=dirs[i]!,near=this.store.objectAt(o.x+dx!,o.y+dy!);
+      if(near&&['table','desk','counter'].includes(near.sub))return i;
+    }
+    return undefined;
+  }
+  private signature(o:WorldObj):string {return o.sub==='chair'?`${sigOf(o)}:${this.seatTurn(o)}`:sigOf(o);}
+  private refreshSeats(o:WorldObj):void {
+    if(!['table','desk','counter'].includes(o.sub))return;
+    for(const[dx,dy]of[[0,1],[-1,0],[0,-1],[1,0]]){
+      const chair=this.store.objectAt(o.x+dx!,o.y+dy!);if(chair?.sub==='chair')this.upsert(chair);
+    }
+  }
+
   private make(o: WorldObj): View {
-    const def = worldObjDef(o, this.facing(o));
+    const seatTurn=this.seatTurn(o);
+    const def = worldObjDef(o, this.facing(o), seatTurn);
     const f = def.frames[0]!;
     const root = new Sprite(f.tex);
     root.anchor.set(f.ax / f.tex.width, f.ay / f.tex.height);
@@ -84,7 +102,7 @@ export class WorldObjViews {
     root.y = Math.round(isoY(o.x + 0.5, o.y + 0.5)) - (o.kind === 'crop' ? GROUND_Z.soil : o.sub === 'sea_cache'||['cave_waterfall','magma_fall','sea_arch'].includes(o.sub)&&[T.WATER,T.DEEP_WATER,T.LAVA].some(t=>t===this.store.getTile(o.x,o.y)) ? GROUND_Z.water : 0);
     // rugs sit on the ground: behind anything standing on the tile; crops just under entities of the same tile
     const dz = depth(o.x + 0.5, o.y + 0.5);
-    root.zIndex = (o.kind === 'furniture' && o.sub === 'rug'||o.sub==='cave_seal') ? dz - 1e6 : o.kind === 'crop' ? dz - 6 : dz;
+    root.zIndex = (o.kind === 'furniture' && o.sub === 'rug'||o.sub==='cave_seal'||o.sub==='mine_rail') ? dz - 1e6 : o.kind === 'crop' ? dz - 6 : dz;
     const shadow = new Sprite(f.tex);
     shadow.anchor.copyFrom(root.anchor);
     shadow.tint = SHADOW;
@@ -105,20 +123,21 @@ export class WorldObjViews {
       this.layer.addChild(echo);
     }
     const ck = chunkKey(Math.floor(o.x / CHUNK_SIZE), Math.floor(o.y / CHUNK_SIZE));
-    return { obj: o, def, root, shadow, echo, phase: hash2(this.store.seed, o.x, o.y, 77) * 6.28, ck, sig: sigOf(o) };
+    return { obj: o, def, root, shadow, echo, phase: hash2(this.store.seed, o.x, o.y, 77) * 6.28, ck, sig: this.signature(o) };
   }
 
   upsert(o: WorldObj): void {
     this.visibleBounds='';
     const key = `${o.x},${o.y}`;
     const old = this.views.get(key);
-    if (old && old.sig === sigOf(o)) { old.obj = o; return; }
+    if (old && old.sig === this.signature(o)) { old.obj = o; return; }
     if (old) this.drop(key, old);
     const v = this.make(o);
     this.views.set(key, v);
     let set = this.byChunk.get(v.ck);
     if (!set) { set = new Set(); this.byChunk.set(v.ck, set); }
     set.add(key);
+    this.refreshSeats(o);
   }
 
   private drop(key: string, v: View): void {
@@ -130,7 +149,7 @@ export class WorldObjViews {
   remove(x: number, y: number): void {
     const key = `${x},${y}`;
     const v = this.views.get(key);
-    if (v) this.drop(key, v);
+    if (v) { this.drop(key, v); this.refreshSeats(v.obj); }
   }
 
   buildChunk(cx: number, cy: number): void {

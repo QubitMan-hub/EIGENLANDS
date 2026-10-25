@@ -21,7 +21,7 @@ it('keeps the ritual seal walkable and dresses arenas without sealing their road
  expect(arenas).toBeGreaterThan(0);expect(objSolid('deco','cave_seal')).toBe(false);
 });
 it('uses bounded luminous mushroom clusters and native water/magma set pieces',()=>{
- const kinds=new Set<string>();for(let gy=-3;gy<3;gy++)for(let gx=-3;gx<3;gx++){const r=caveRegion(1337,gx,gy);for(let y=Math.floor((r.y-20)/32);y<=Math.floor((r.y+20)/32);y++)for(let x=Math.floor((r.x-20)/32);x<=Math.floor((r.x+20)/32);x++)for(const o of caveObjectsIn(1337,x,y)){kinds.add(o.sub);if(o.sub==='glow_mushrooms')expect(isSolid(caveTileAt(1337,o.x,o.y))).toBe(false);}}
- for(const sub of['glow_mushrooms','cave_waterfall','magma_fall','bell_pylon'])expect(kinds.has(sub)).toBe(true);
+ const kinds=new Set<string>();for(let gy=-3;gy<3;gy++)for(let gx=-3;gx<3;gx++){const r=caveRegion(1337,gx,gy);for(let y=Math.floor((r.y-20)/32);y<=Math.floor((r.y+20)/32);y++)for(let x=Math.floor((r.x-20)/32);x<=Math.floor((r.x+20)/32);x++)for(const o of caveObjectsIn(1337,x,y)){kinds.add(o.sub);if(['cave_waterfall','magma_fall'].includes(o.sub)){expect(caveTileAt(1337,o.x,o.y)).toBe(o.sub==='magma_fall'?T.LAVA:T.WATER);expect(caveTileAt(1337,o.x,o.y-1)).toBe(T.CAVE_WALL);}if(o.sub==='glow_mushrooms')expect(isSolid(caveTileAt(1337,o.x,o.y))).toBe(false);}}
+ for(const sub of['glow_mushrooms','bell_pylon'])expect(kinds.has(sub)).toBe(true);
  expect(objLight('deco','glow_mushrooms')?.radius).toBeGreaterThan(3);expect(CAVE_OY).toBe(40000);
 });

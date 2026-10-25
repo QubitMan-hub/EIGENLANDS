@@ -206,3 +206,11 @@ label { display: grid; gap: 4px; } label:has(input[type=checkbox]) { display: fl
 #build-rotate:hover { background:#35443d; }
 #build-rotate:focus-visible { outline:2px solid #f2d590; outline-offset:3px; }
 @media (max-height:500px) and (orientation:landscape) { html #build-rotate { bottom:65px; } html #target-hint { bottom:117px; } }
+
+.friends-menu { text-align:left; margin:8px 0; }
+.friends-menu summary { cursor:pointer; padding:8px 0; color:var(--ink); }
+.friends-menu[open] { border-top:1px solid #64706955; }
+.friends-menu button { margin-top:6px; width:100%; }
+#server-address:empty { display:none; }
+
+#server-address, #login-msg { overflow-wrap:anywhere; }

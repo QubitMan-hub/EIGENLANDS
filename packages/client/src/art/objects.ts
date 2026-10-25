@@ -1,5 +1,6 @@
 import { drawOutcrop, MINERALS } from './geology';
 import { Rectangle, Texture } from 'pixi.js';
+import { Iso } from './isokit';
 import { PALETTE, hash2, mulberry32 } from '@eigenlands/shared';
 import { buildSceneryArt } from './scenery';
 import type { SceneryKind } from '../game/scenery';
@@ -359,6 +360,29 @@ export function buildOre(kind: string, season: SeasonIdx): ObjSprite[] {
   return out;
 }
 
+/** Excavatable bedrock, matching the 32x16 diamond and the cave wall's 13px crown. */
+export function buildOreBlocks(kind: string): ObjSprite[] {
+  const out:ObjSprite[]=[];const frames=FRAMES_PER_VARIANT[kind]??1;
+  for(let variant=0;variant<3;variant++)for(let frame=0;frame<frames;frame++){
+    const {canvas,ctx}=makeCanvas(36,44),p=new Iso(ctx,18,26);
+    const vein=MINERALS[kind],rock=[C.ink,C.night,C.slate,C.steel,C.mist];
+    const paint=(face:number)=>(s:number,t:number)=>{
+      const u=face===2?16:s*16,v=face===1?16:face===2?s*16:t*16,z=face===0?13:t*13;
+      const field=u*.57+v*.34+z*.6+Math.sin(v*.75+z*.45)*.55;
+      const seam=Math.min(Math.abs(field-(9.4+variant*.6)),Math.abs(field-(17.8-variant*.5)),Math.abs(field-24.2));
+      const ore=seam<.9&&(Math.floor(u*.7)+Math.floor(v*.8)+Math.floor(z*.6))%5!==0;
+      const grain=Math.floor(u+z+v*.5)%7===0?-1:0;
+      const level=face===0?3:face===1?2:1;
+      if(vein&&ore)return vein[Math.min(4,level+1+(frame&&face===0&&grain<0?1:0)-(grain<0?1:0))]!;
+      const bedding=face!==0&&Math.floor(z)%4===0?-1:grain;
+      return rock[Math.max(0,level+bedding)]!;
+    };
+    p.box(0,0,0,16,16,13,{top:paint(0),left:paint(1),right:paint(2)});
+    out.push(toSprite(canvas,18,34,{rim:false}));
+  }
+  return out;
+}
+
 /** Qubit crystal: faceted glass shards growing from a stone, glowing from within (cyan or magenta); three shimmer frames. */
 export function buildCrystal(): ObjSprite[] {
   const out: ObjSprite[] = [];
@@ -477,7 +501,7 @@ export function buildObjectArt(season: SeasonIdx): ObjectArt {
     ore_silver: buildOre('ore_silver', season), ore_gold: buildOre('ore_gold', season),
     crystal: buildCrystal(), forage: buildForage(season), fence: buildFence(), qtree: buildQTree(season),
     biome: buildBiomeArt(season), scenery: buildSceneryArt(),
-    cave: { rock: buildRocks(1), ...Object.fromEntries(Object.keys(MINERALS).map(k => [k, buildOre(k, 1)])) },
+    cave: { rock: buildOreBlocks('rock'), ...Object.fromEntries(Object.keys(MINERALS).map(k => [k, buildOreBlocks(k)])) },
   };
 }
 

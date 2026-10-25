@@ -564,6 +564,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     const s = p.state;
     s.x = p.sim.x; s.y = p.sim.y; s.faceX = p.sim.faceX; s.faceY = p.sim.faceY;
     s.hp = p.hp; s.maxHp = p.maxHp; s.level = p.level; s.xp = p.xp; s.ack = p.lastSeq; s.look = lookOf(p);
+    s.cart = p.sim.cart > 0;
     s.weapon = this.weaponOf(p)?.id ?? '';
     s.held = ITEMS[p.data.inv[p.heldSlot]?.id ?? '']?.tool?.type ?? '';
     p.client.send(MSG.ACK, encodeAck({ seq: p.lastSeq, tick, sim: p.sim }));
@@ -579,6 +580,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
 
   /** The wielded weapon decides what an attack does: blades swing, crossbows and staves shoot, the Shapeshifter flips a coin. */
   private attackWith(p: ServerPlayer, cmd: InputCmd, ev: StepEvents, tick: number): void {
+    if (p.sim.cart) return;
     if (p.sim.boat) { this.fireCannon(p, cmd, ev); return; }
     const w = this.weaponOf(p);
     if (!w || w.cls === 'blade') { this.resolveMelee(p, cmd, ev, tick); return; }

@@ -1,3 +1,17 @@
+# Current continuation: cave infrastructure and browser co-op (2026-10-25)
+
+Built inline on `feat/cave-infrastructure-and-browser-coop`, without subagents or imported artwork. See [REMAINING_WORK.md](REMAINING_WORK.md#cave-infrastructure-and-browser-co-op-2026-10-25) for exact scope and [PLAY_WITH_FRIENDS.md](PLAY_WITH_FRIENDS.md) for browser controls and free Cloudflare Tunnel hosting.
+
+Native isometric sign fallbacks replace frontal cave boards; waymarks stand by real lifts and archives at the provisioner's entrance. Checked street approaches have dedicated iron lanterns; chairs have true rear uprights and four physical table-facing orientations. Underground stone/metals use geological blocks matching cave wall height; surface outcrops stay intact. Quiet water/magma and wall-fed-only cascades replace unsupported freestanding pillars.
+
+Dry mining circuits in ruins/groves have joined rails, actual predicted/server-authoritative riding, braking, collision and Use dismounting, with a stable passenger pose. Circuits remain within one shard; reconnects restore safe walking. This is not a player-crafted railway network. Existing ladders take precedence over generated decorations.
+
+The production Pages build can connect to real online servers and share invites while retaining its solo saves. Online credentials are scoped by server; previous dedicated-online default logins migrate once. New solo worlds have durable day-one clock offsets; existing calendars and online shared time are retained. No public backend or tunnel has been provisioned; the host must run it. Browser proof uses two independent contexts against the real local backend, including mutual visibility, synchronized riding, touch landscape and returning to the original solo account/calendar.
+
+Validation scripts: `node --import tsx e2e/mine-coop.mjs`, `node e2e/mine-art.mjs`, `node --import tsx e2e/cave-materials.mjs`. Local suites: 126 client, 258 server, 177 shared; final cave/cart server regression 8 tests. Typechecks and solo/online builds pass. Screenshots reviewed at `/tmp/mine-art/`, `/tmp/mine-coop/`, `/tmp/infrastructure-cave-world-final/`, `/tmp/infrastructure-cave-touch/`. Final integration status and CI run IDs are recorded on the pull request.
+
+---
+
 # Current continuation: cave art and procedural ground texture repair (2026-10-25)
 
 Built inline on `codex/cave-art-identity`. Original geometry only; supplied references are inspiration, not imported assets. See [UNDERCROFT.md](UNDERCROFT.md#material-and-architecture-pass) and [REMAINING_WORK.md](REMAINING_WORK.md).

@@ -9,13 +9,15 @@ import { NetSim } from './netsim';
 
 export { NetSim };
 
-export const SERVER_URL: string =
-  import.meta.env.VITE_SERVER_URL ?? `${location.protocol}//${location.hostname}:2567`;
+import { IS_SOLO, SERVER_URL, sessionKey, migrateDefaultSession } from './world-session';
+export { SERVER_URL };
+
+try { migrateDefaultSession(localStorage); } catch { /* storage may be unavailable */ }
 
 const store = {
-  get: (k: string) => { try { return localStorage.getItem(k); } catch { return null; } },
-  set: (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* private mode */ } },
-  del: (k: string) => { try { localStorage.removeItem(k); } catch { /* ignore */ } },
+  get: (k: string) => { try { return localStorage.getItem(sessionKey(k)); } catch { return null; } },
+  set: (k: string, v: string) => { try { localStorage.setItem(sessionKey(k), v); } catch { /* private mode */ } },
+  del: (k: string) => { try { localStorage.removeItem(sessionKey(k)); } catch { /* ignore */ } },
 };
 
 export interface AuthState { token: string; guest: boolean; accountId: string }
@@ -23,11 +25,11 @@ export interface AuthState { token: string; guest: boolean; accountId: string }
 /** Solo builds (GitHub Pages) answer the API inside the page: see src/local/api.ts. */
 const SOLO = import.meta.env.VITE_SOLO === '1';
 const xfetch = (url: string, init?: RequestInit): Promise<Response> =>
-  SOLO ? import('../local/api').then((m) => m.localFetch(url, init)) : fetch(url, init);
+  SOLO && IS_SOLO ? import('../local/api').then((m) => m.localFetch(url, init)) : fetch(url, init);
 
 async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const r = await xfetch(`${SERVER_URL}/api/auth${path}`, {
-    ...init, headers: { 'content-type': 'application/json', ...(init.headers ?? {}) },
+    signal: AbortSignal.timeout(8000), ...init, headers: { 'content-type': 'application/json', ...(init.headers ?? {}) },
   });
   if (!r.ok) throw new Error(((await r.json().catch(() => ({}))) as { error?: string }).error ?? `HTTP ${r.status}`);
   return (await r.json()) as T;

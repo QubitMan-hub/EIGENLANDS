@@ -30,6 +30,7 @@ import { describeUse, fishingTarget, targetTile, type UseInfo } from './targetin
 
 export interface GameplayDeps {
   net: () => Net;
+  ridingCart?: () => boolean;
   clock: ServerClock;
   audio: Audio;
   input: Input;
@@ -274,6 +275,7 @@ export class Gameplay {
     const p = this.d.player();
     if (this.fishing?.bite && performance.now() < this.fishing.until + 150) { net.fishHook(this.fishing.id); this.fishing.bite = false; this.clearBang(); return true; }
     const store = this.d.store();
+    if (this.d.ridingCart?.()) { net.open(Math.floor(p.x),Math.floor(p.y)); return true; }
     const selection = this.selected();
     if(selection&&ITEMS[selection.id]?.tool?.type==='rod'){
       if(this.fishing){this.toasts.add('Wait for the bite, then press '+binding(this.d.input.keys,'interact')+'.','info');return true;}
@@ -323,6 +325,7 @@ export class Gameplay {
   prompt(): { info: UseInfo | null; tx: number; ty: number; label: string | null } {
     const p = this.d.player();
     const store = this.d.store();
+    if(this.d.ridingCart?.())return {info:{kind:'open',label:'Step off the minecart',ok:true},tx:Math.floor(p.x),ty:Math.floor(p.y),label:`${binding(this.d.input.keys,'interact')}: Step off · hold movement to ride`};
     const npc = this.d.npcNear(p.x + p.fx * 0.8, p.y + p.fy * 0.8, 1.9) ?? this.d.npcNear(p.x, p.y, 1.3);
     const mouse = this.d.input.mouseActive ? this.d.input.mouseTile : null;
     const t = targetTile(p.x, p.y, p.fx, p.fy, mouse);

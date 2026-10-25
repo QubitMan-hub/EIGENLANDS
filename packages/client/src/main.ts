@@ -1,4 +1,5 @@
 import './style.css';
+import { IS_SOLO, HAS_SOLO, SERVER_URL, SERVER_ERROR, friendInvite, gameServerUrl } from './net/world-session';
 import { Game } from './game/Game';
 import { Input } from './input/input';
 import { loadKeys } from './input/keymap';
@@ -8,7 +9,7 @@ import {
 import { HTML, SettingsUI, applySettings, loadSettings } from './ui/ui';
 
 /** single-player build (GitHub Pages): the world runs and is saved in this browser, see src/local/ */
-const SOLO = import.meta.env.VITE_SOLO === '1';
+const SOLO = IS_SOLO;
 const SOLO_NOTE = 'Single-player preview: your world is saved in this browser.';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -25,6 +26,21 @@ async function boot(): Promise<void> {
   $<HTMLButtonElement>('btn-guest').disabled = true;
   $('btn-landscape').addEventListener('click', () => { void requestLandscape(true); });
   $('btn-portrait').addEventListener('click', () => document.documentElement.classList.add('portrait-allowed'));
+  $('play-mode').textContent = SOLO ? 'Solo world · saved in this browser' : 'Online world · shared with friends';
+  $('server-address').textContent = SOLO ? '' : new URL(SERVER_URL).host;
+  $('btn-solo').hidden = !HAS_SOLO || SOLO;
+  $('btn-solo').addEventListener('click',()=>{const url=new URL(location.href);url.searchParams.delete('server');location.href=url.href;});
+  $<HTMLInputElement>('friend-server').value = !SOLO && !SERVER_ERROR ? SERVER_URL : import.meta.env.VITE_SERVER_URL ?? '';
+  $('btn-join-server').addEventListener('click',()=>{
+    try { location.href=friendInvite(gameServerUrl($<HTMLInputElement>('friend-server').value,location.protocol)); }
+    catch(e){$('login-msg').textContent=(e as Error).message;}
+  });
+  $('btn-invite').hidden=SOLO;
+  $('btn-invite').addEventListener('click',async()=>{
+    try { await navigator.clipboard.writeText(friendInvite());$('login-msg').textContent='Invite link copied. Friends join the same server; each keeps their own character.'; }
+    catch { $('login-msg').textContent=friendInvite(); }
+  });
+  if(SERVER_ERROR){$('login-msg').textContent=SERVER_ERROR;return;}
   const settings = loadSettings();
   const canvas = $<HTMLCanvasElement>('game');
   const keys = loadKeys();
@@ -54,6 +70,14 @@ async function boot(): Promise<void> {
   }
   $('btn-reload').addEventListener('click', () => location.reload());
 
+  if(!SOLO){
+    const inviteButton=document.createElement('button');inviteButton.textContent='Copy friend invite';
+    inviteButton.addEventListener('click',async()=>{
+      try { await navigator.clipboard.writeText(friendInvite());inviteButton.textContent='Invite copied'; }
+      catch { inviteButton.textContent=friendInvite(); }
+    });
+    $('acct-info').after(inviteButton);
+  }
   setupTouch(input);
   $('btn-pack').addEventListener('click', () => game.gameplay.toggleInventory());
   $('btn-craft').addEventListener('click', () => game.gameplay.toggleFieldCraft());

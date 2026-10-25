@@ -266,7 +266,7 @@ export const JOIN_ROOM = 'world';
  */
 export const ACK_FIELDS = [
   'x', 'y', 'faceX', 'faceY', 'dashT', 'dashCd', 'dashDx', 'dashDy', 'atkCd', 'combo', 'comboT', 'skillCd',
-  'dashN', 'ifrT', 'hold', 'charge', 'atkBuf', 'slipT', 'boat',
+  'dashN', 'ifrT', 'hold', 'charge', 'atkBuf', 'slipT', 'boat', 'cart',
 ] as const satisfies ReadonlyArray<keyof PlayerSim>;
 export const ACK_BYTES = 8 + ACK_FIELDS.length * 4;
 export interface Ack { seq: number; tick: number; sim: PlayerSim }

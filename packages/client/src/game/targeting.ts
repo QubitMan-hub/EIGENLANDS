@@ -21,6 +21,7 @@ export function describeUse(sel: Stack | null, tile: number, obj: WorldObj | und
   if (cell?.data.stairs) return {kind:'open',label:cell.data.stairs==='up'?'Climb to upper floor':'Return downstairs',ok:true};
   if (cell?.data.wall==='timber_door') return {kind:'open',label:cell.data.open?'Close door (owner only)':'Open door (owner only)',ok:true};
   if (obj) {
+    if (obj.sub === 'minecart') return {kind:'open',label:'Ride the minecart · hold movement to travel',ok:true};
     if (obj.sub === 'stairs_up' || obj.sub === 'stairs_down') return { kind: 'open', label: obj.sub === 'stairs_up' ? 'Climb to upper floor' : 'Return downstairs', ok: true };
     if (obj.sub === 'dive_gate' || obj.sub === 'dive_exit') return { kind: 'open', label: obj.sub === 'dive_gate' ? 'Dive into the submerged sanctuary' : 'Return to your sloop', ok: true };
     if (obj.kind === 'crop') {

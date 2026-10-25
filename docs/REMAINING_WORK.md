@@ -64,3 +64,13 @@ Remaining cave expansion: stacked geological floors/coordinate migration, additi
 - External uploaded packs still lack a verified creator/reuse license. “Free package” alone does not establish redistribution/commercial rights. Continue using original procedural art and repository assets with recorded provenance until verified.
 - Review new assets at actual gameplay sizes, all facings, animation extremes and reduced motion. Avoid new persistent HUD panels; keep instructions in Journal or the appropriate modal.
 - Each next feature needs real solo/multiplayer persistence and gameplay proof, relevant tests/typechecks/builds, inline review (no subagents), and verified integration. Do not mark the entire master overhaul complete from a finished slice.
+
+## Cave infrastructure and browser co-op (2026-10-25)
+
+This batch replaces generic frontal signs with native isometric props, ties survey signs to actual lifts and moves settlement records beside the shop entrance. Dining chairs face adjacent tables and have proper rear uprights. Exterior lamps use wrought-iron geometry at checked street approaches rather than an arbitrary lamp grid.
+
+Underground rock/mineral nodes now use 32×16 geological blocks at the cave wall height; surface outcrops are preserved. Water foam/ripple density and magma glare/flow are reduced. Cascades require a real rear rock wall and pool; unsupported freestanding source pillars are removed. Dry routes and mining rules remain authoritative.
+
+Ruins and grove mining districts have connected haulage loops. Use a depot to board; hold movement to ride, release to brake, Use to step off. Rails and carts are native isometric geometry. These are local mine circuits, not an across-world railway or a player-built rail crafting system. Track edits/construction can block a cart; dismounting remains available. Reconnecting on a track returns you safely on foot.
+
+The Pages build supports real online servers and friend invites as well as its original solo world. New solo worlds own their saved calendar offset; old saves are preserved. Public multiplayer hosting remains a host action, with free Cloudflare Tunnel instructions in [PLAY_WITH_FRIENDS.md](PLAY_WITH_FRIENDS.md). No public backend or tunnel was provisioned by this change. Large real-device sessions, phone thermals and internet latency profiles remain open validation work.

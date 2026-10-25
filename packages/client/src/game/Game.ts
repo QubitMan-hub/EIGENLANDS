@@ -51,7 +51,7 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const pc = (i: number) => parseInt(PALETTE[i]!.slice(1), 16);
 
 interface Snap extends Pose {
-  hp: number; maxHp: number; flags: number; tele: number; kind: number; night: boolean; name: string; level: number; look: number; weapon: string; held: string;
+  hp: number; maxHp: number; flags: number; tele: number; kind: number; night: boolean; name: string; level: number; look: number; weapon: string; held: string; cart: boolean;
   /** combat 2.0 (enemies) */
   st: number; atk: number; tx: number; ty: number; poise: number; elite: number;
   /** Shadow Army rank (shadows only) */
@@ -183,7 +183,7 @@ export class Game {
     this.lighting = new Lighting(this.app.renderer);
     this.app.stage.addChild(this.lighting.sprite, this.weatherLayer, this.labelLayer);
     this.gameplay = new Gameplay({
-      net: () => this.net, clock: this.clock, audio: this.audio, input: this.input, store: () => this.store, season: () => this.seasonIdx,
+      net: () => this.net, ridingCart: () => this.predictor?.sim.cart > 0, clock: this.clock, audio: this.audio, input: this.input, store: () => this.store, season: () => this.seasonIdx,
       portrait: (id) => this.portraitUrl(id), selfPortrait: () => this.selfPortraitEl(),
       npcNear: (x, y, m) => this.npcNear(x, y, m),
       player: () => (this.predictor ? { x: this.predictor.sim.x, y: this.predictor.sim.y, fx: this.predictor.sim.faceX, fy: this.predictor.sim.faceY } : { x: 0, y: 0, fx: 0, fy: 1 }),
@@ -328,7 +328,7 @@ export class Game {
       this.interp.push(id, t, {
         x: e.x, y: e.y, faceX: e.faceX ?? 0, faceY: e.faceY ?? 1,
         hp: e.hp ?? 0, maxHp: e.maxHp ?? 0, flags: e.flags ?? 0, tele: e.tele ?? 0, kind: e.kind ?? 0,
-        night: !!e.night, name: e.name ?? '', level: e.level ?? 1, look: e.look ?? 0, weapon: e.weapon ?? '', held: e.held ?? '',
+        night: !!e.night, name: e.name ?? '', level: e.level ?? 1, look: e.look ?? 0, weapon: e.weapon ?? '', held: e.held ?? '', cart: !!e.cart,
         st: e.st ?? 0, atk: e.atk ?? 0, tx: e.tx ?? 0, ty: e.ty ?? 0, poise: e.poise ?? 100, elite: e.elite ?? 0, rank: e.rank ?? 0, bonded: !!e.bonded,
       });
       if (!this.views.has(id)) this.makeView(id, type, e);
@@ -827,6 +827,7 @@ export class Game {
       v.gfx.clear();
 
       if (v.type === 'player') {
+        const cart = isMe ? this.predictor.sim.cart > 0 : !!s?.cart;
         const dash = isMe ? this.predictor.sim.dashT > 0 : ((s?.flags ?? 0) & 1) !== 0;
         const deadP = isMe ? this.dead : ((s?.flags ?? 0) & 4) !== 0;
         const combatStrike = !deadP && !dash ? this.combat.attackFrame(v, now, reduced) : -1;
@@ -841,7 +842,7 @@ export class Game {
         const tool = isMe ? ITEMS[this.gameplay.selected()?.id ?? '']?.tool?.type : s?.held;
         const heldItem = harvesting ? use!.tool : strike < 0 && isHeldId(tool) ? tool : weapon;
         const family = harvesting ? (use!.tool === 'can' || use!.tool === 'rod' ? CAST_FRAME : ATTACK_FRAME) : weapon && WEAPONS[weapon].cls === 'crossbow' ? SHOT_FRAME : weapon && WEAPONS[weapon].cls === 'staff' ? CAST_FRAME : ATTACK_FRAME;
-        const frame = deadP ? -1 : strike >= 0 ? family + strike : walking
+        const frame = deadP || cart ? -1 : strike >= 0 ? family + strike : walking
           ? running ? RUN_FRAME + (Math.floor(v.travel / 0.21) % RUN_FRAMES) : 1 + (Math.floor(v.travel / 0.17) % (WALK_FRAMES - 1))
           : reduced ? -1 : 0;
         const look = s?.look ?? (isMe ? this.gameplay.profile.equip.outfit : v.outfit);
@@ -852,7 +853,8 @@ export class Game {
         v.sprite.scale.set(1);
         const boat = isMe ? this.predictor.sim.boat > 0 : ((s?.flags ?? 0) & 128) !== 0;
         this.combat.rig(v, boat, fx, fy, now / 1000);
-        if (heldItem && !boat && !deadP) {
+        this.combat.minecart(v,cart,fx,fy);
+        if (heldItem && !boat && !cart && !deadP) {
           if (!v.held) { v.held = new Sprite(); v.held.anchor.set(0.5, 0.75); v.held.y = 0; v.root.addChild(v.held); }
           const direction = dirOf(sd.x, sd.y);
           // Stable idle uses the body's resolved breath column, so the hand never drifts off the grip.

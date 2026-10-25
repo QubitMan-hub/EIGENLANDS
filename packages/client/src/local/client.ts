@@ -4,6 +4,7 @@
  * and the socket go to the in-page host (host.ts) instead of the network.
  */
 import { Client as SdkClient, MatchMakeError, Room, ServerError } from 'colyseus.js';
+import { IS_SOLO } from '../net/world-session';
 import type { ClientEnd } from './transport';
 
 export * from 'colyseus.js';
@@ -12,6 +13,7 @@ type CloseEvent = { code: number; reason: string };
 
 export class Client extends SdkClient {
   protected override async createMatchMakeRequest<T = any>(method: string, roomName: string, options: any = {}, rootSchema?: any): Promise<Room<T>> {
+    if (!IS_SOLO) return super.createMatchMakeRequest(method, roomName, options, rootSchema);
     const { getHost } = await import('./host');
     const host = await getHost();
     let seat;

@@ -1,3 +1,4 @@
+import { railSprite, minecartSprite } from './mining';
 import { caveArchitecture } from './caves';
 /**
  * Procedural sprites for world objects (crops, stations, shelters, sprinklers, chests, furniture, town deco).
@@ -7,7 +8,7 @@ import { Texture } from 'pixi.js';
 import { CROPS, cropStage, type CropData, type CropDef, type WorldObj, mulberry32 } from '@eigenlands/shared';
 import type { ObjSprite } from './objects';
 import type { Facing } from './isokit';
-import { PROPS, ruinIso, treasureChest } from './props';
+import { PROPS, ruinIso, treasureChest, diningChair } from './props';
 import { TOWN_DECO as TOWN_ART } from './town';
 import { blob, C, line, makeCanvas, poly, polish, put, R, ramp4, slab, dk, lt, undithered, type Ctx, type Ramp } from './shade';
 
@@ -358,14 +359,16 @@ function ruinDef(sub: string, biome: string): ObjSpriteDef {
   }
 }
 
-/** Which prop sub draws from the isometric prop set (furniture lamps stay street lamps). */
+/** All furniture and signs use native geometry; exterior lanterns have their own subtype. */
 function propSub(o: WorldObj): string | null {
-  const sub = o.kind === 'chest' ? 'chest' : o.sub;
-  if (!PROPS[sub] || (o.kind === 'furniture' && sub === 'lamp')) return null;
+  const sub = o.kind === 'chest' ? 'chest' : o.kind === 'sign' && !PROPS[o.sub] ? 'sign' : o.sub;
+  if (!PROPS[sub]) return null;
   return o.kind === 'deco' || o.kind === 'furniture' || o.kind === 'station' || o.kind === 'chest' || o.kind === 'sign' ? sub : null;
 }
 
-export function worldObjDef(o: WorldObj, facing: Facing = 'sw'): ObjSpriteDef {
+export function worldObjDef(o: WorldObj, facing: Facing = 'sw', seatTurn?: number): ObjSpriteDef {
+  if(o.sub==='mine_rail'||o.sub==='minecart'){const mask=Number(o.data?.mask??5),key=`mine:${o.sub}:${mask}`;let d=objCache.get(key);if(!d){d=still(o.sub==='mine_rail'?railSprite(mask):minecartSprite(0,true),{noShadow:o.sub==='mine_rail'});objCache.set(key,d);}return d;}
+  if(o.sub === 'chair' && seatTurn !== undefined){const key=`chair:${seatTurn&3}`;let d=objCache.get(key);if(!d){d=still(diningChair(seatTurn));objCache.set(key,d);}return d;}
   if (o.kind === 'crop') return cropDef(o.data as unknown as CropData | undefined, o.sub);
   if(['ruin_cache','sea_cache'].includes(o.sub)){
     const theme=o.sub==='sea_cache'?'sea':'vault',key=`treasure:${theme}:${facing}`;
@@ -389,7 +392,7 @@ export function worldObjDef(o: WorldObj, facing: Facing = 'sw'): ObjSpriteDef {
     else if (o.kind === 'sprinkler') d = sprinkler(o.sub === 'sprinkler2', !!(o.data as { watering?: boolean } | undefined)?.watering);
     else if (o.kind === 'shelter') d = PROPS[o.sub === 'barn' ? 'barn' : 'coop']!(facing);
     else if (o.kind === 'chest') d = chest();
-    else if (o.kind === 'sign') d = (TOWN_DECO[o.sub] ?? sign)();
+    else if (o.kind === 'sign') d = PROPS.sign!(facing);
     else d = TOWN_DECO[o.sub]?.() ?? SEATS[o.sub]?.() ?? PROPS.crate!(facing);
     objCache.set(key, d);
   }
