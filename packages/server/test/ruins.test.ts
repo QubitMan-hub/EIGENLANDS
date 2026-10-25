@@ -1,19 +1,35 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { BIOMES, MSG, RUIN_MONUMENT, biomeAt, ruinObjects, ruinOfCell, ruinObjectsIn, type RuinSite } from '@eigenlands/shared';
+import {
+  BIOMES,
+  MSG,
+  RUIN_MONUMENT,
+  biomeAt,
+  ruinObjects,
+  ruinOfCell,
+  ruinObjectsIn,
+  type RuinSite,
+} from '@eigenlands/shared';
 import type { App } from '../src/app';
 import { boot, hasToast, sleep, spawn, tp, until, type Probe } from './p2';
 
 const SEED = 20260101;
 let app: App;
 let p: Probe;
-beforeAll(async () => { app = await boot(); p = await spawn(app, 'Explorer'); });
-afterAll(async () => { await app?.close(); });
+beforeAll(async () => {
+  app = await boot();
+  p = await spawn(app, 'Explorer');
+});
+afterAll(async () => {
+  await app?.close();
+});
 
 function firstRuin(): RuinSite {
-  for (let r = 1; r < 6; r++) for (let gy = -r; gy <= r; gy++) for (let gx = -r; gx <= r; gx++) {
-    const s = ruinOfCell(SEED, gx, gy);
-    if (s && ruinObjects(SEED, s).some((o) => o.sub === 'ruin_cache')) return s;
-  }
+  for (let r = 1; r < 6; r++)
+    for (let gy = -r; gy <= r; gy++)
+      for (let gx = -r; gx <= r; gx++) {
+        const s = ruinOfCell(SEED, gx, gy);
+        if (s && ruinObjects(SEED, s).some((o) => o.sub === 'ruin_cache')) return s;
+      }
   throw new Error('no ruin found');
 }
 
@@ -26,7 +42,11 @@ describe('ruins', () => {
     const objs = ruinObjects(SEED, s);
     expect(objs.some((o) => o.sub === RUIN_MONUMENT[s.biome])).toBe(true);
     const cache = objs.find((o) => o.sub === 'ruin_cache')!;
-    expect(ruinObjectsIn(SEED, Math.floor(cache.x / 32), Math.floor(cache.y / 32)).some((o) => o.x === cache.x && o.y === cache.y)).toBe(true);
+    expect(
+      ruinObjectsIn(SEED, Math.floor(cache.x / 32), Math.floor(cache.y / 32)).some(
+        (o) => o.x === cache.x && o.y === cache.y,
+      ),
+    ).toBe(true);
     expect(ruinOfCell(SEED, 0, 0)).toBeNull(); // the home vale has no ruins
   });
 

@@ -3,7 +3,14 @@ import { mulberry32 } from './rng';
 const F2 = 0.5 * (Math.sqrt(3) - 1);
 const G2 = (3 - Math.sqrt(3)) / 6;
 const GRAD = [
-  [1, 1], [-1, 1], [1, -1], [-1, -1], [1, 0], [-1, 0], [0, 1], [0, -1],
+  [1, 1],
+  [-1, 1],
+  [1, -1],
+  [-1, -1],
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
 ];
 
 export class Simplex2D {
@@ -52,7 +59,10 @@ export class Simplex2D {
   }
 
   fbm(x: number, y: number, octaves: number): number {
-    let amp = 1, freq = 1, sum = 0, norm = 0;
+    let amp = 1,
+      freq = 1,
+      sum = 0,
+      norm = 0;
     for (let o = 0; o < octaves; o++) {
       sum += amp * this.noise(x * freq, y * freq);
       norm += amp;

@@ -1,5 +1,15 @@
 import {
-  EQUIP_SLOTS, ITEMS, equipmentLevel, addStack, armorTotals, cloneStack, moveSlot, type EquipMsg, type EquipSlotKey, type InvMoveMsg, type InvTrashMsg,
+  EQUIP_SLOTS,
+  ITEMS,
+  equipmentLevel,
+  addStack,
+  armorTotals,
+  cloneStack,
+  moveSlot,
+  type EquipMsg,
+  type EquipSlotKey,
+  type InvMoveMsg,
+  type InvTrashMsg,
 } from '@eigenlands/shared';
 import { fitsSlot } from './profile';
 import type { ServerPlayer } from '../rooms/player';
@@ -22,7 +32,12 @@ export function handleInvTrash(p: ServerPlayer, msg: InvTrashMsg): void {
 /** The look a character shows: a worn armour set (3+ pieces) or the chosen outfit. */
 export function lookOf(p: ServerPlayer): number {
   const e = p.data.equip;
-  const a = armorTotals({ head: e.head?.id ?? null, chest: e.chest?.id ?? null, legs: e.legs?.id ?? null, feet: e.feet?.id ?? null });
+  const a = armorTotals({
+    head: e.head?.id ?? null,
+    chest: e.chest?.id ?? null,
+    legs: e.legs?.id ?? null,
+    feet: e.feet?.id ?? null,
+  });
   return a.look !== null ? 8 + a.look : e.outfit;
 }
 
@@ -35,7 +50,10 @@ export function handleEquip(p: ServerPlayer, msg: EquipMsg): void {
     if (!EQUIP_SLOTS.includes(key)) return;
     const r = eq[key];
     if (!r) return;
-    if (addStack(p.data.inv, cloneStack(r)) > 0) { p.toast('Your pack is full.', 'bad'); return; }
+    if (addStack(p.data.inv, cloneStack(r)) > 0) {
+      p.toast('Your pack is full.', 'bad');
+      return;
+    }
     eq[key] = null;
     p.state.look = lookOf(p);
     p.dirty('inv', 'equip', 'stats');
@@ -55,7 +73,10 @@ export function handleEquip(p: ServerPlayer, msg: EquipMsg): void {
   const slot = msg.as as EquipSlotKey;
   if (!EQUIP_SLOTS.includes(slot) || !fitsSlot(slot, s)) return;
   const need = equipmentLevel(s.id);
-  if (p.level < need) { p.toast(`${def?.name ?? 'That'} needs level ${need}.`, 'bad'); return; }
+  if (p.level < need) {
+    p.toast(`${def?.name ?? 'That'} needs level ${need}.`, 'bad');
+    return;
+  }
   const old = eq[slot];
   eq[slot] = { id: s.id, n: 1, ...(s.p ? { p: s.p } : {}) };
   p.data.inv[msg.slot] = old; // swap: the previous piece lands in the freed slot

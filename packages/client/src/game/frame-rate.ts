@@ -17,12 +17,15 @@ export class FrameRateWindow {
     this.previous = now;
     this.times.push(now);
     while (this.head < this.times.length && this.times[this.head]! <= now - 1000) this.head++;
-    if (this.head > 128) { this.times = this.times.slice(this.head); this.head = 0; }
+    if (this.head > 128) {
+      this.times = this.times.slice(this.head);
+      this.head = 0;
+    }
     return this.rate(now);
   }
 
   private rate(now: number): number {
     const elapsed = Math.min(1000, now - this.started);
-    return elapsed > 0 ? (this.times.length - this.head) * 1000 / elapsed : 0;
+    return elapsed > 0 ? ((this.times.length - this.head) * 1000) / elapsed : 0;
   }
 }

@@ -8,6 +8,7 @@
 **Spec:** Existing atlas continuation in docs/CONTINUE_HERE.md and the user's ongoing overhaul request.
 
 ## Constraints and review focus
+
 - No new dependencies, no HUD panels, no terrain generation from map reads.
 - Preserve fog and the four coordinate planes; archived discovery must still resolve quest locations.
 - Async reads must not replace newly visited/edited cells; concurrent transactions merge exploration.
@@ -16,6 +17,7 @@
 - Browser storage remains local, quota-limited and user-clearable; this is not cloud backup.
 
 ## Tasks
+
 - [x] Extend model with validated page merging and changed-cell notifications; test unknown cells, edits, eviction and malformed records.
 - [x] Implement features/atlas/archive.ts with atomic page/mask writes, compact discovery index, bounded queue, retries, lazy reads and account erasure.
 - [x] Connect atlas lifecycle, discovery, viewport reads, recovery snapshots and deletion in main.ts; update atlas copy.

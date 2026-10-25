@@ -9,7 +9,10 @@ export function px(ctx: Ctx, x: number, y: number, c: number, w = 1, h = 1): voi
 }
 
 export function makeCanvas(w: number, h: number): { canvas: HTMLCanvasElement; ctx: Ctx } {
-  const canvas = typeof document !== 'undefined' ? document.createElement('canvas') : new OffscreenCanvas(w,h) as unknown as HTMLCanvasElement;
+  const canvas =
+    typeof document !== 'undefined'
+      ? document.createElement('canvas')
+      : (new OffscreenCanvas(w, h) as unknown as HTMLCanvasElement);
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d', { willReadFrequently: true })!;

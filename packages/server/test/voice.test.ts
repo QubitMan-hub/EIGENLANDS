@@ -4,8 +4,12 @@ import type { App } from '../src/app';
 import { boot3, sleep, spawn3, tp } from './p3helpers';
 
 let app: App;
-beforeAll(async () => { app = await boot3(); });
-afterAll(async () => { await app?.close(); });
+beforeAll(async () => {
+  app = await boot3();
+});
+afterAll(async () => {
+  await app?.close();
+});
 
 describe('proximity voice', () => {
   it('gain is flat up close and falls to silence', () => {
@@ -17,10 +21,12 @@ describe('proximity voice', () => {
   });
 
   it('relays handshakes between nearby players only, and rejects junk', async () => {
-    const a = await spawn3(app, 'Caller'), b = await spawn3(app, 'Listener');
+    const a = await spawn3(app, 'Caller'),
+      b = await spawn3(app, 'Listener');
     const got: VoiceIn[] = [];
     b.r.onMessage(MSG34.VOICE, (m: VoiceIn) => got.push(m));
-    await tp(a, 5.5, 5.5); await tp(b, 9.5, 5.5);
+    await tp(a, 5.5, 5.5);
+    await tp(b, 9.5, 5.5);
     a.r.send(MSG34.VOICE, { to: b.sid, d: { t: 'offer', sdp: 'v=0' } });
     await sleep(250);
     expect(got).toHaveLength(1);
@@ -37,6 +43,7 @@ describe('proximity voice', () => {
     a.r.send(MSG34.VOICE, { to: b.sid, d: { t: 'bye' } });
     await sleep(250);
     expect(got).toHaveLength(2);
-    await a.r.leave(); await b.r.leave();
+    await a.r.leave();
+    await b.r.leave();
   });
 });

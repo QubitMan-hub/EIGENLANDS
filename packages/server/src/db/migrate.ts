@@ -13,9 +13,13 @@ export async function migrate(pool: pg.Pool): Promise<string[]> {
   const applied: string[] = [];
   try {
     await client.query('SELECT pg_advisory_lock(7368425)');
-    await client.query('CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())');
+    await client.query(
+      'CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())',
+    );
     const done = new Set((await client.query('SELECT name FROM schema_migrations')).rows.map((r) => r.name as string));
-    for (const f of readdirSync(dir).filter((n) => n.endsWith('.sql')).sort()) {
+    for (const f of readdirSync(dir)
+      .filter((n) => n.endsWith('.sql'))
+      .sort()) {
       if (done.has(f)) continue;
       await client.query('BEGIN');
       try {
@@ -37,5 +41,13 @@ export async function migrate(pool: pg.Pool): Promise<string[]> {
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const pool = createPool(loadConfig().databaseUrl);
-  migrate(pool).then((a) => { console.log('applied', a); return pool.end(); }).catch((e) => { console.error(e); process.exit(1); });
+  migrate(pool)
+    .then((a) => {
+      console.log('applied', a);
+      return pool.end();
+    })
+    .catch((e) => {
+      console.error(e);
+      process.exit(1);
+    });
 }

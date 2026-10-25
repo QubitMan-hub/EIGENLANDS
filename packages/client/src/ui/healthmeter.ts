@@ -23,12 +23,18 @@ export class HealthMeter {
     const reset = id !== this.identity || value.hp > this.previous;
     this.root.classList.toggle('enc-reset', reset);
     this.fill.style.width = this.trail.style.width = `${value.percent}%`;
-    if (reset) { this.trail.getBoundingClientRect(); this.root.classList.remove('enc-reset'); }
+    if (reset) {
+      this.trail.getBoundingClientRect();
+      this.root.classList.remove('enc-reset');
+    }
     const text = `${value.hp} / ${value.max}`;
     if (this.number.textContent !== text) this.number.textContent = text;
     this.root.setAttribute('aria-label', `${name} health`);
     this.root.setAttribute('aria-valuenow', String(value.hp));
     this.root.setAttribute('aria-valuemax', String(value.max));
-    this.identity = id; this.previous = value.hp; this.maximum = value.max; this.label = name;
+    this.identity = id;
+    this.previous = value.hp;
+    this.maximum = value.max;
+    this.label = name;
   }
 }

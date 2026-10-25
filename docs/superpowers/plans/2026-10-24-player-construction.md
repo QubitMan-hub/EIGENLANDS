@@ -8,9 +8,11 @@ Execute inline with the existing authorized workflow; no subagents.
 **Spec:** ../specs/2026-10-24-player-construction-design.md
 
 ## Global constraints
+
 No subagents, imported artwork, dependencies, replacement simulation or destructive save migration. Native 32×16 tiles. Preserve existing controls and accessibility.
 
 ## Review focus
+
 Foreign edits and authored towns; cross-chunk reload; full inventory/refund atomicity; blocked/occupied stair exits; floor removal stranding visitors; source-of-truth collision matching the client; furniture under roofs; unloaded upper cells; reduced motion and culling.
 
 - [x] Shared model: add construction item/cell types and structural composition in ChunkStore; red/green geometry, cell validation and collision tests. Keep normal object keys intact.

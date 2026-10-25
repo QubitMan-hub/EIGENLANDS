@@ -10,17 +10,29 @@ export class Hotbar {
   onMove: (from: number, to: number) => void = () => {};
   private slots: HTMLElement[] = [];
 
-  constructor(private profile: Profile, private tooltip: Tooltip) {
+  constructor(
+    private profile: Profile,
+    private tooltip: Tooltip,
+  ) {
     for (let i = 0; i < HOTBAR; i++) {
       const s = h('div', { class: 'hslot', data: { i } }, h('span', { class: 'hkey', text: String((i + 1) % 10) }));
       s.addEventListener('pointerdown', () => this.select(i));
       s.addEventListener('dragover', (e) => e.preventDefault());
-      s.addEventListener('drop', (e) => { e.preventDefault(); const from = Number(e.dataTransfer?.getData('text/plain')); if (Number.isInteger(from)) this.onMove(from, i); });
-      this.tooltip.attach(s, () => { const st = this.profile.inv[i]; return st ? tooltipFor(st) : null; });
+      s.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const from = Number(e.dataTransfer?.getData('text/plain'));
+        if (Number.isInteger(from)) this.onMove(from, i);
+      });
+      this.tooltip.attach(s, () => {
+        const st = this.profile.inv[i];
+        return st ? tooltipFor(st) : null;
+      });
       this.slots.push(s);
       this.el.append(s);
     }
-    this.profile.onChange((c) => { if (c.has('inv')) this.render(); });
+    this.profile.onChange((c) => {
+      if (c.has('inv')) this.render();
+    });
     this.render();
   }
 
@@ -29,7 +41,9 @@ export class Hotbar {
     this.render();
     this.onSelect(this.selected);
   }
-  cycle(dir: number): void { this.select(this.selected + dir); }
+  cycle(dir: number): void {
+    this.select(this.selected + dir);
+  }
 
   render(): void {
     this.slots.forEach((s, i) => {
@@ -40,7 +54,9 @@ export class Hotbar {
         const cell = iconCell(st);
         s.append(cell);
         cell.draggable = true;
-        cell.addEventListener('dragstart', (e) => { e.dataTransfer?.setData('text/plain', String(i)); });
+        cell.addEventListener('dragstart', (e) => {
+          e.dataTransfer?.setData('text/plain', String(i));
+        });
       }
     });
   }

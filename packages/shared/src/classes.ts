@@ -8,7 +8,12 @@
 /** Palette indices of the 8 phase colours (same wheel as forging's material phases). */
 export const HUE_PALETTE = [35, 36, 38, 13, 47, 27, 43, 45] as const;
 
-export interface ElementDef { id: number; name: string; color: number; rider: string }
+export interface ElementDef {
+  id: number;
+  name: string;
+  color: number;
+  rider: string;
+}
 export const ELEMENTS: ElementDef[] = [
   { id: 0, name: 'Ember', color: 35, rider: 'Burns for 3 seconds.' },
   { id: 1, name: 'Spark', color: 36, rider: 'Extra damage against night creatures.' },
@@ -26,13 +31,23 @@ export type ClassId = 'wanderer' | 'superposer' | 'entangler';
 export const PLAYABLE_CLASSES: ClassId[] = ['superposer', 'entangler'];
 
 export type AbilityId =
-  | 'glimmer'
-  | 'split_shot' | 'echo_step' | 'wavefront' | 'prob_ward'
-  | 'tether' | 'pulse' | 'swap' | 'mend';
+  'glimmer' | 'split_shot' | 'echo_step' | 'wavefront' | 'prob_ward' | 'tether' | 'pulse' | 'swap' | 'mend';
 
 export type EffectKind =
-  | 'bolt' | 'ring' | 'blink' | 'blink_back' | 'shield' | 'mirror'
-  | 'link_enemy' | 'link_ally' | 'pulse_dmg' | 'pulse_heal' | 'pull' | 'swap' | 'heal' | 'ward';
+  | 'bolt'
+  | 'ring'
+  | 'blink'
+  | 'blink_back'
+  | 'shield'
+  | 'mirror'
+  | 'link_enemy'
+  | 'link_ally'
+  | 'pulse_dmg'
+  | 'pulse_heal'
+  | 'pull'
+  | 'swap'
+  | 'heal'
+  | 'ward';
 
 export interface AbilityForm {
   /** short player-facing name, e.g. "Frost twin-shot" */
@@ -78,7 +93,11 @@ const A = (d: AbilityDef): AbilityDef => d;
 
 export const ABILITIES: Record<AbilityId, AbilityDef> = {
   glimmer: A({
-    id: 'glimmer', cls: 'wanderer', name: 'Glimmer Bolt', cd: 1.2, glyph: '✦',
+    id: 'glimmer',
+    cls: 'wanderer',
+    name: 'Glimmer Bolt',
+    cd: 1.2,
+    glyph: '✦',
     desc: 'A spark of light thrown from your orb.',
     forms: [
       { name: 'Ember bolt', hue: 0, kind: 'bolt', dmg: 14, count: 1, range: 9, speed: 12 },
@@ -86,15 +105,34 @@ export const ABILITIES: Record<AbilityId, AbilityDef> = {
     ],
   }),
   split_shot: A({
-    id: 'split_shot', cls: 'superposer', name: 'Split Shot', cd: 1.4, glyph: '⟡',
+    id: 'split_shot',
+    cls: 'superposer',
+    name: 'Split Shot',
+    cd: 1.4,
+    glyph: '⟡',
     desc: 'One heavy bolt, or two light ones fanning apart.',
     forms: [
       { name: 'Ember heavy bolt', hue: 0, kind: 'bolt', dmg: 18, count: 1, range: 10, speed: 12 },
-      { name: 'Frost twin-shot', hue: 4, kind: 'bolt', dmg: 10, count: 2, spread: 12, range: 9, speed: 13, slow: 0.35, secs: 2 },
+      {
+        name: 'Frost twin-shot',
+        hue: 4,
+        kind: 'bolt',
+        dmg: 10,
+        count: 2,
+        spread: 12,
+        range: 9,
+        speed: 13,
+        slow: 0.35,
+        secs: 2,
+      },
     ],
   }),
   echo_step: A({
-    id: 'echo_step', cls: 'superposer', name: 'Echo Step', cd: 6, glyph: '⇶',
+    id: 'echo_step',
+    cls: 'superposer',
+    name: 'Echo Step',
+    cd: 6,
+    glyph: '⇶',
     desc: 'Blink ahead and leave a shimmering Echo of yourself behind.',
     forms: [
       { name: 'Spark step (Echo stays)', hue: 1, kind: 'blink', radius: 4, secs: 4 },
@@ -102,7 +140,11 @@ export const ABILITIES: Record<AbilityId, AbilityDef> = {
     ],
   }),
   wavefront: A({
-    id: 'wavefront', cls: 'superposer', name: 'Wavefront', cd: 5, glyph: '◎',
+    id: 'wavefront',
+    cls: 'superposer',
+    name: 'Wavefront',
+    cd: 5,
+    glyph: '◎',
     desc: 'A ring of force bursts out from you.',
     forms: [
       { name: 'Radiant push', hue: 2, kind: 'ring', dmg: 14, radius: 2.5, push: 7 },
@@ -110,7 +152,11 @@ export const ABILITIES: Record<AbilityId, AbilityDef> = {
     ],
   }),
   prob_ward: A({
-    id: 'prob_ward', cls: 'superposer', name: 'Probability Ward', cd: 9, glyph: '⛉',
+    id: 'prob_ward',
+    cls: 'superposer',
+    name: 'Probability Ward',
+    cd: 9,
+    glyph: '⛉',
     desc: 'A shield that might absorb a blow, or might send it back.',
     forms: [
       { name: 'Verdant shield', hue: 3, kind: 'shield', amount: 30, secs: 5 },
@@ -118,7 +164,11 @@ export const ABILITIES: Record<AbilityId, AbilityDef> = {
     ],
   }),
   tether: A({
-    id: 'tether', cls: 'entangler', name: 'Tether', cd: 2.5, glyph: '⌇',
+    id: 'tether',
+    cls: 'entangler',
+    name: 'Tether',
+    cd: 2.5,
+    glyph: '⌇',
     desc: 'Throw a thread that links whatever it touches to you.',
     forms: [
       { name: 'Void tether (foe)', hue: 6, kind: 'link_enemy', dmg: 8, range: 9, speed: 14, secs: 8 },
@@ -126,7 +176,11 @@ export const ABILITIES: Record<AbilityId, AbilityDef> = {
     ],
   }),
   pulse: A({
-    id: 'pulse', cls: 'entangler', name: 'Pulse', cd: 5, glyph: '⌁',
+    id: 'pulse',
+    cls: 'entangler',
+    name: 'Pulse',
+    cd: 5,
+    glyph: '⌁',
     desc: 'Send a pulse down every thread at once.',
     forms: [
       { name: 'Spark pulse (hurts foes)', hue: 1, kind: 'pulse_dmg', dmg: 16, radius: 14 },
@@ -134,7 +188,11 @@ export const ABILITIES: Record<AbilityId, AbilityDef> = {
     ],
   }),
   swap: A({
-    id: 'swap', cls: 'entangler', name: 'Swap', cd: 7, glyph: '⇄',
+    id: 'swap',
+    cls: 'entangler',
+    name: 'Swap',
+    cd: 7,
+    glyph: '⇄',
     desc: 'Use a thread to move: pull a foe in, or trade places.',
     forms: [
       { name: 'Flux pull', hue: 7, kind: 'pull', radius: 12 },
@@ -142,7 +200,11 @@ export const ABILITIES: Record<AbilityId, AbilityDef> = {
     ],
   }),
   mend: A({
-    id: 'mend', cls: 'entangler', name: 'Mend', cd: 8, glyph: '✚',
+    id: 'mend',
+    cls: 'entangler',
+    name: 'Mend',
+    cd: 8,
+    glyph: '✚',
     desc: 'Knit yourself back together, or brace for impact.',
     forms: [
       { name: 'Verdant mend', hue: 3, kind: 'heal', heal: 20 },
@@ -151,7 +213,11 @@ export const ABILITIES: Record<AbilityId, AbilityDef> = {
   }),
 };
 
-export interface SpecDef { id: string; name: string; desc: string }
+export interface SpecDef {
+  id: string;
+  name: string;
+  desc: string;
+}
 export interface ClassDef {
   id: ClassId;
   name: string;
@@ -169,7 +235,10 @@ export interface ClassDef {
 
 export const CLASSES: Record<ClassId, ClassDef> = {
   wanderer: {
-    id: 'wanderer', name: 'Wanderer', title: 'Not yet attuned', color: 6,
+    id: 'wanderer',
+    name: 'Wanderer',
+    title: 'Not yet attuned',
+    color: 6,
     blurb: 'You carry a single flickering orb. Lumen can teach you to use it.',
     resource: { name: 'Glow', color: 38, desc: 'Wanderers have no resource yet.' },
     abilities: ['glimmer'],
@@ -178,12 +247,28 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     specs: [],
   },
   superposer: {
-    id: 'superposer', name: 'Superposer', title: 'Exists in two places at once', color: 42,
-    blurb: 'Fights from two places at once and picks which one was real at the moment a blow lands. Fast, tricky, hard to pin down.',
-    resource: { name: 'Coherence', color: 44, desc: 'Builds when you cast split abilities and land hits. Fades when you stop fighting.' },
+    id: 'superposer',
+    name: 'Superposer',
+    title: 'Exists in two places at once',
+    color: 42,
+    blurb:
+      'Fights from two places at once and picks which one was real at the moment a blow lands. Fast, tricky, hard to pin down.',
+    resource: {
+      name: 'Coherence',
+      color: 44,
+      desc: 'Builds when you cast split abilities and land hits. Fades when you stop fighting.',
+    },
     abilities: ['split_shot', 'echo_step', 'wavefront', 'prob_ward'],
-    passive: { name: 'Two Places at Once', desc: 'While an Echo of you exists, a hit has an even chance to land on the Echo instead. You appear where it was.' },
-    ultimate: { name: 'Many Worlds', desc: 'Three Echoes surround you for 6 seconds and repeat every ability you cast.', secs: 6, glyph: '✺' },
+    passive: {
+      name: 'Two Places at Once',
+      desc: 'While an Echo of you exists, a hit has an even chance to land on the Echo instead. You appear where it was.',
+    },
+    ultimate: {
+      name: 'Many Worlds',
+      desc: 'Three Echoes surround you for 6 seconds and repeat every ability you cast.',
+      secs: 6,
+      glyph: '✺',
+    },
     specs: [
       { id: 'phantom', name: 'Phantom', desc: 'Echoes last 2 seconds longer and take hits for you more often.' },
       { id: 'splitter', name: 'Splitter', desc: 'Split Shot fires three bolts, and the heavy bolt hits harder.' },
@@ -191,15 +276,31 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     ],
   },
   entangler: {
-    id: 'entangler', name: 'Entangler', title: 'What happens to one happens to all', color: 47,
-    blurb: 'Links foes and friends with glowing threads. Damage on one foe echoes to every other linked foe; healing spreads between friends.',
+    id: 'entangler',
+    name: 'Entangler',
+    title: 'What happens to one happens to all',
+    color: 47,
+    blurb:
+      'Links foes and friends with glowing threads. Damage on one foe echoes to every other linked foe; healing spreads between friends.',
     resource: { name: 'Bond', color: 46, desc: 'Builds whenever damage or healing echoes along your threads.' },
     abilities: ['tether', 'pulse', 'swap', 'mend'],
-    passive: { name: 'Spooky Action', desc: 'Damage to a linked foe echoes to every other linked foe. Healing on a linked friend echoes to the others.' },
-    ultimate: { name: 'Bell State', desc: 'Pairs up every nearby foe for 6 seconds: whatever hits one, hits its partner just as hard.', secs: 6, glyph: '∞' },
+    passive: {
+      name: 'Spooky Action',
+      desc: 'Damage to a linked foe echoes to every other linked foe. Healing on a linked friend echoes to the others.',
+    },
+    ultimate: {
+      name: 'Bell State',
+      desc: 'Pairs up every nearby foe for 6 seconds: whatever hits one, hits its partner just as hard.',
+      secs: 6,
+      glyph: '∞',
+    },
     specs: [
       { id: 'weaver', name: 'Weaver', desc: 'Hold five links at once, and echoes are stronger.' },
-      { id: 'bondkeeper', name: 'Bondkeeper', desc: 'Healing echoes are stronger and Mend heals your whole nearby party.' },
+      {
+        id: 'bondkeeper',
+        name: 'Bondkeeper',
+        desc: 'Healing echoes are stronger and Mend heals your whole nearby party.',
+      },
       { id: 'paradox', name: 'Paradox', desc: 'Swap stuns, and is free right after a Tether lands.' },
     ],
   },

@@ -3,14 +3,29 @@
  * that follow what each villager is doing on their schedule, and contextual villager markers.
  */
 import {
-  NPC_BY_ID, barkFor, mulberry32, offerable, pendingEvent, questComplete, questDef, scheduleAt,
-  type QuestDef, type Weather,
+  NPC_BY_ID,
+  barkFor,
+  mulberry32,
+  offerable,
+  pendingEvent,
+  questComplete,
+  questDef,
+  scheduleAt,
+  type QuestDef,
+  type Weather,
 } from '@eigenlands/shared';
 import type { Profile } from '../game/profile';
 import { h } from './dom';
 import { ensureP2Styles } from './p2style';
 
-export interface NpcScreen { id: string; x: number; y: number; sx: number; sy: number; visible: boolean }
+export interface NpcScreen {
+  id: string;
+  x: number;
+  y: number;
+  sx: number;
+  sy: number;
+  visible: boolean;
+}
 export interface OverlayCtx {
   npcs: NpcScreen[];
   me: { x: number; y: number };
@@ -52,7 +67,10 @@ export class VillageOverlay {
   }
 
   private complete(d: QuestDef, progress: number[]): boolean {
-    return questComplete(d, { state: 'active', progress: d.objectives.map((o, i) => (o.type === 'deliver' ? this.profile.count(o.target) : progress[i] ?? 0)) });
+    return questComplete(d, {
+      state: 'active',
+      progress: d.objectives.map((o, i) => (o.type === 'deliver' ? this.profile.count(o.target) : (progress[i] ?? 0))),
+    });
   }
 
   frame(now: number, c: OverlayCtx): void {
@@ -67,28 +85,46 @@ export class VillageOverlay {
       const dist = Math.hypot(n.x - c.me.x, n.y - c.me.y);
       const show = n.visible && dist < 16;
       // quest marker
-      const m = show ? this.markState.get(n.id) ?? null : null;
+      const m = show ? (this.markState.get(n.id) ?? null) : null;
       let el = this.marks.get(n.id);
       if (m) {
-        if (!el) { el = h('div', { class: 'npc-mark' }); this.layer.append(el); this.marks.set(n.id, el); }
+        if (!el) {
+          el = h('div', { class: 'npc-mark' });
+          this.layer.append(el);
+          this.marks.set(n.id, el);
+        }
         el.className = `npc-mark ${m}`;
         el.textContent = m === 'offer' ? '!' : m === 'ready' ? '?' : '♥';
-        el.title = m === 'offer' ? 'Has a task for you' : m === 'ready' ? 'Waiting for your report' : 'Wants to talk to you';
-        el.style.left = `${n.sx}px`; el.style.top = `${n.sy - 4}px`;
+        el.title =
+          m === 'offer' ? 'Has a task for you' : m === 'ready' ? 'Waiting for your report' : 'Wants to talk to you';
+        el.style.left = `${n.sx}px`;
+        el.style.top = `${n.sy - 4}px`;
         seen.add(n.id);
       }
       // chatter bubble follows the speaker
       const b = this.bubbles.get(n.id);
       if (b) {
-        if (now > b.until || !show) { b.el.remove(); this.bubbles.delete(n.id); }
-        else { b.el.style.left = `${n.sx}px`; b.el.style.top = `${n.sy - (m ? 26 : 4)}px`; b.el.classList.toggle('fade', now > b.until - 400); }
+        if (now > b.until || !show) {
+          b.el.remove();
+          this.bubbles.delete(n.id);
+        } else {
+          b.el.style.left = `${n.sx}px`;
+          b.el.style.top = `${n.sy - (m ? 26 : 4)}px`;
+          b.el.classList.toggle('fade', now > b.until - 400);
+        }
       }
     }
-    for (const [id, el] of this.marks) if (!seen.has(id)) { el.remove(); this.marks.delete(id); }
+    for (const [id, el] of this.marks)
+      if (!seen.has(id)) {
+        el.remove();
+        this.marks.delete(id);
+      }
     // a new bubble every few seconds from someone close by
     if (now > this.nextBark && !c.hidden) {
       this.nextBark = now + 5000 + this.rand() * 7000;
-      const cands = c.npcs.filter((n) => n.visible && !this.bubbles.has(n.id) && Math.hypot(n.x - c.me.x, n.y - c.me.y) < 11);
+      const cands = c.npcs.filter(
+        (n) => n.visible && !this.bubbles.has(n.id) && Math.hypot(n.x - c.me.x, n.y - c.me.y) < 11,
+      );
       const n = cands[Math.floor(this.rand() * cands.length)];
       const def = n ? NPC_BY_ID[n.id] : undefined;
       if (n && def) {
@@ -96,7 +132,8 @@ export class VillageOverlay {
         const text = barkFor(n.id, doing, c.weather, this.rand);
         if (text) {
           const el = h('div', { class: 'npc-bubble', text });
-          el.style.left = `${n.sx}px`; el.style.top = `${n.sy}px`;
+          el.style.left = `${n.sx}px`;
+          el.style.top = `${n.sy}px`;
           this.layer.append(el);
           this.bubbles.set(n.id, { el, until: now + 3800 });
         }

@@ -6,9 +6,15 @@ describe('isometric projection', () => {
     expect(isoX(1, 0) - isoX(0, 0)).toBe(16);
     expect(isoY(1, 0) - isoY(0, 0)).toBe(8);
     expect(isoX(0, 1) - isoX(0, 0)).toBe(-16);
-    for (const [x, y] of [[0, 0], [3.5, -2.25], [-40, 17]] as const) {
-      const p = project(x, y), u = unproject(p.x, p.y);
-      expect(u.x).toBeCloseTo(x, 9); expect(u.y).toBeCloseTo(y, 9);
+    for (const [x, y] of [
+      [0, 0],
+      [3.5, -2.25],
+      [-40, 17],
+    ] as const) {
+      const p = project(x, y),
+        u = unproject(p.x, p.y);
+      expect(u.x).toBeCloseTo(x, 9);
+      expect(u.y).toBeCloseTo(y, 9);
     }
   });
   it('sorts nearer things on top and picks screen directions', () => {

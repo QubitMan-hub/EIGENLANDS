@@ -14,15 +14,26 @@ mkdirSync(out, { recursive: true });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const errors = [];
 const requests = [];
-const fail = (m) => { console.error('FAIL:', m); process.exitCode = 1; };
+const fail = (m) => {
+  console.error('FAIL:', m);
+  process.exitCode = 1;
+};
 
 const browser = await chromium.launch({
   executablePath: process.env.CHROME ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
-  args: ['--use-angle=swiftshader', '--use-gl=angle', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'],
+  args: [
+    '--use-angle=swiftshader',
+    '--use-gl=angle',
+    '--enable-unsafe-swiftshader',
+    '--ignore-gpu-blocklist',
+    '--no-sandbox',
+  ],
 });
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
 const page = await ctx.newPage();
-page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(`${m.type()}: ${m.text()}`); });
+page.on('console', (m) => {
+  if (m.type() === 'error' || m.type() === 'warning') errors.push(`${m.type()}: ${m.text()}`);
+});
 page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
 page.on('requestfailed', (r) => errors.push(`requestfailed: ${r.url()} ${r.failure()?.errorText}`));
 page.on('request', (r) => requests.push(r.url()));
@@ -41,7 +52,13 @@ await page.click('#btn-guest');
 await ready();
 await sleep(1500);
 const s0 = await st();
-console.log('spawned', { x: s0.x?.toFixed(2), y: s0.y?.toFixed(2), chunks: s0.chunks, shard: s0.shard, fps: s0.fps?.toFixed(0) });
+console.log('spawned', {
+  x: s0.x?.toFixed(2),
+  y: s0.y?.toFixed(2),
+  chunks: s0.chunks,
+  shard: s0.shard,
+  fps: s0.fps?.toFixed(0),
+});
 if (!(s0.chunks >= 9)) fail('expected >= 9 chunks drawn');
 await page.screenshot({ path: `${out}/2-spawn.png` });
 
@@ -53,21 +70,24 @@ await page.keyboard.up('KeyS');
 await sleep(300);
 const sS = await st();
 console.log('after S', { x: sS.x?.toFixed(2), y: sS.y?.toFixed(2) });
-if (!((sS.x - s0.x) + (sS.y - s0.y) > 0.5)) fail('player did not move screen-down');
+if (!(sS.x - s0.x + (sS.y - s0.y) > 0.5)) fail('player did not move screen-down');
 await page.keyboard.down('KeyD');
 await sleep(2000);
 await page.keyboard.up('KeyD');
 await sleep(400);
 const s1 = await st();
 console.log('after D', { x: s1.x?.toFixed(2), y: s1.y?.toFixed(2), correction: s1.correction, pending: s1.pending });
-const moved = (s1.x - sS.x) - (s1.y - sS.y);
-if (!(moved > 0.5)) fail(`player did not move screen-right (Δx=${(s1.x - sS.x).toFixed(2)} Δy=${(s1.y - sS.y).toFixed(2)})`);
+const moved = s1.x - sS.x - (s1.y - sS.y);
+if (!(moved > 0.5))
+  fail(`player did not move screen-right (Δx=${(s1.x - sS.x).toFixed(2)} Δy=${(s1.y - sS.y).toFixed(2)})`);
 // the server agrees: little or no correction and nothing left unacknowledged
 if (s1.pending > 6) fail(`inputs not acknowledged by the in-page server (pending=${s1.pending})`);
 
 // ── attack (melee + skill) ──
 await page.mouse.move(800, 300);
-await page.mouse.down(); await sleep(300); await page.mouse.up();
+await page.mouse.down();
+await sleep(300);
+await page.mouse.up();
 await page.keyboard.press('KeyK');
 await page.keyboard.press('ShiftLeft');
 await sleep(600);
@@ -77,7 +97,9 @@ await page.screenshot({ path: `${out}/3-combat.png` });
 await page.keyboard.press('KeyI');
 await sleep(500);
 const inv = await page.evaluate(() => {
-  const w = [...document.querySelectorAll('*')].find((e) => /^Pack$/.test(e.textContent?.trim() ?? '') && e.offsetParent !== null);
+  const w = [...document.querySelectorAll('*')].find(
+    (e) => /^Pack$/.test(e.textContent?.trim() ?? '') && e.offsetParent !== null,
+  );
   return { open: !!w, items: (window.__eigen.state().inv ?? []).filter(Boolean).length };
 });
 console.log('inventory', inv);
@@ -91,10 +113,21 @@ await sleep(2500);
 await page.keyboard.up('KeyS');
 const coins0 = (await st()).coins ?? 0;
 await page.evaluate(() => window.__eigen.game.net.dev({ cmd: 'coins', n: 123 }));
-await page.waitForFunction((c) => window.__eigen.state().coins === c + 123, coins0, { timeout: 5000 }).catch(() => fail('dev coins command had no effect'));
+await page
+  .waitForFunction((c) => window.__eigen.state().coins === c + 123, coins0, { timeout: 5000 })
+  .catch(() => fail('dev coins command had no effect'));
 await sleep(600);
 const s2 = await st();
-console.log('before reload', { x: s2.x?.toFixed(2), y: s2.y?.toFixed(2), coins: s2.coins, hp: s2.hp, level: s2.level, chunks: s2.chunks, enemies: s2.enemies, fps: s2.fps?.toFixed(0) });
+console.log('before reload', {
+  x: s2.x?.toFixed(2),
+  y: s2.y?.toFixed(2),
+  coins: s2.coins,
+  hp: s2.hp,
+  level: s2.level,
+  chunks: s2.chunks,
+  enemies: s2.enemies,
+  fps: s2.fps?.toFixed(0),
+});
 
 // ── reload: session resumes from the browser save ──
 await page.reload();
@@ -110,16 +143,21 @@ await page.screenshot({ path: `${out}/5-reload.png` });
 
 // ── a second tab takes the world over (like signing in elsewhere); the first tab is told so ──
 const page2 = await ctx.newPage();
-page2.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(`tab2 ${m.type()}: ${m.text()}`); });
+page2.on('console', (m) => {
+  if (m.type() === 'error' || m.type() === 'warning') errors.push(`tab2 ${m.type()}: ${m.text()}`);
+});
 page2.on('pageerror', (e) => errors.push(`tab2 pageerror: ${e.message}`));
 await page2.goto(url);
 await page2.waitForFunction(() => window.__eigen?.state().ready, null, { timeout: 30000 });
-await page.waitForSelector('#lost', { state: 'visible', timeout: 10000 }).catch(() => fail('first tab was not told about the takeover'));
+await page
+  .waitForSelector('#lost', { state: 'visible', timeout: 10000 })
+  .catch(() => fail('first tab was not told about the takeover'));
 const lostTitle = await page.textContent('#lost-title');
 const t2 = await page2.evaluate(() => window.__eigen.state());
 console.log('takeover', { firstTab: lostTitle, x: t2.x?.toFixed(2), y: t2.y?.toFixed(2), coins: t2.coins });
 if (lostTitle !== 'Signed in elsewhere') fail('first tab shows the wrong message');
-if (Math.hypot(t2.x - s3.x, t2.y - s3.y) > 1 || t2.coins !== s3.coins) fail('second tab did not get the saved character');
+if (Math.hypot(t2.x - s3.x, t2.y - s3.y) > 1 || t2.coins !== s3.coins)
+  fail('second tab did not get the saved character');
 await page2.close();
 await page.reload();
 await ready();
@@ -135,12 +173,23 @@ await sleep(1000);
 const after = await page.evaluate(async () => ({
   token: localStorage.getItem('eigen.token'),
   entered: !!window.__eigen,
-  keys: await new Promise((res) => { const r = indexedDB.open('eigenlands-solo'); r.onsuccess = () => { const t = r.result.transaction('kv').objectStore('kv').getAllKeys(); t.onsuccess = () => { res(t.result); r.result.close(); }; }; r.onerror = () => res(null); }),
+  keys: await new Promise((res) => {
+    const r = indexedDB.open('eigenlands-solo');
+    r.onsuccess = () => {
+      const t = r.result.transaction('kv').objectStore('kv').getAllKeys();
+      t.onsuccess = () => {
+        res(t.result);
+        r.result.close();
+      };
+    };
+    r.onerror = () => res(null);
+  }),
 }));
 console.log('after delete', after);
 if (after.token || after.entered) fail('still signed in after deleting data');
 // Boot may recreate world identity and day-one clock metadata; no player/world records may survive.
-if (!Array.isArray(after.keys) || after.keys.some(k => !['meta:secret', 'meta:clock-offset'].includes(k))) fail(`save not wiped (${JSON.stringify(after.keys)})`);
+if (!Array.isArray(after.keys) || after.keys.some((k) => !['meta:secret', 'meta:clock-offset'].includes(k)))
+  fail(`save not wiped (${JSON.stringify(after.keys)})`);
 await page.click('#btn-guest');
 await ready();
 const s4 = await st();
@@ -149,7 +198,9 @@ if (!(s4.hour >= 6 && s4.hour < 7)) fail('new world clock did not restart at daw
 if (Math.hypot(s4.x - s0.x, s4.y - s0.y) > 1) fail('new character did not start at the spawn point');
 
 // ── everything stayed in the browser ──
-const external = requests.filter((u) => !u.startsWith(new URL(url).origin) && !u.startsWith('data:') && !u.startsWith('blob:'));
+const external = requests.filter(
+  (u) => !u.startsWith(new URL(url).origin) && !u.startsWith('data:') && !u.startsWith('blob:'),
+);
 if (external.length) fail(`unexpected network requests: ${external.slice(0, 5).join(', ')}`);
 if (requests.some((u) => /:2567|\/api\//.test(u))) fail('the page tried to reach a game server');
 

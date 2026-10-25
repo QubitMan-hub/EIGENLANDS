@@ -14,11 +14,35 @@ import { MemoryPartyStore, PartyRegistry, RedisPartyStore, type PartyRec } from 
  */
 
 /** Live party-member data published by the member's shard at ~2 Hz on `party:<id>`. */
-export interface LiveInfo { a: string; n: string; l: number; c: ClassId; hp: number; mh: number; x: number; y: number; s: string; at: number }
+export interface LiveInfo {
+  a: string;
+  n: string;
+  l: number;
+  c: ClassId;
+  hp: number;
+  mh: number;
+  x: number;
+  y: number;
+  s: string;
+  at: number;
+}
 
-export interface DirEntry { accountId: string; name: string; shard: string; sid: string; at: number }
+export interface DirEntry {
+  accountId: string;
+  name: string;
+  shard: string;
+  sid: string;
+  at: number;
+}
 
-export interface Invite { partyId: string; from: string; fromId: string; fromLevel: number; fromCls: ClassId; exp: number }
+export interface Invite {
+  partyId: string;
+  from: string;
+  fromId: string;
+  fromLevel: number;
+  fromCls: ClassId;
+  exp: number;
+}
 
 /** Per-account chat moderation state (kept across handoffs). */
 export interface ChatLimits {
@@ -35,15 +59,10 @@ export interface ChatLimits {
 }
 
 /** Bus messages on `player:<accountId>` (the shard module uses `t: 'kick'` on the same channel). */
-export type PlayerBusMsg =
-  | { t: 'whisper'; msg: ChatMsg }
-  | { t: 'pinvite'; inv: Invite }
-  | { t: 'sys'; text: string };
+export type PlayerBusMsg = { t: 'whisper'; msg: ChatMsg } | { t: 'pinvite'; inv: Invite } | { t: 'sys'; text: string };
 
 /** Bus messages on `party:<id>`. */
-export type PartyBusMsg =
-  | { t: 'live'; list: LiveInfo[] }
-  | { t: 'chat'; msg: ChatMsg };
+export type PartyBusMsg = { t: 'live'; list: LiveInfo[] } | { t: 'chat'; msg: ChatMsg };
 
 /** What a room's social module must implement for the hub to fan messages out to it. */
 export interface HubRoom {
@@ -86,7 +105,9 @@ export class Directory {
     void this.redis.hset(DIR_KEY, ...args).catch(() => {});
   }
 
-  localByAccount(accountId: string): DirEntry | undefined { return this.local.get(accountId); }
+  localByAccount(accountId: string): DirEntry | undefined {
+    return this.local.get(accountId);
+  }
 
   async find(name: string): Promise<DirEntry | null> {
     const n = name.trim().toLowerCase();
@@ -98,7 +119,9 @@ export class Directory {
       if (!raw) return null;
       const e = JSON.parse(raw) as DirEntry;
       return e && typeof e.accountId === 'string' && Date.now() - e.at < DIR_STALE_MS ? e : null;
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }
 }
 
@@ -127,7 +150,9 @@ export class SocialHub {
       this.redis.on('error', () => {});
     }
     this.dir = new Directory(this.redis);
-    this.parties = new PartyRegistry(this.redis ? new RedisPartyStore(this.redis) : new MemoryPartyStore(), bus, (id) => this.partyChanged(id));
+    this.parties = new PartyRegistry(this.redis ? new RedisPartyStore(this.redis) : new MemoryPartyStore(), bus, (id) =>
+      this.partyChanged(id),
+    );
     this.subs.push(bus.subscribe('chat:global', (m) => this.onGlobal(m)));
     let n = 0;
     this.timer = setInterval(() => {
@@ -138,10 +163,16 @@ export class SocialHub {
     this.timer.unref?.();
   }
 
-  register(r: HubRoom): void { this.rooms.add(r); }
-  unregister(r: HubRoom): void { this.rooms.delete(r); }
+  register(r: HubRoom): void {
+    this.rooms.add(r);
+  }
+  unregister(r: HubRoom): void {
+    this.rooms.delete(r);
+  }
 
-  private partyChanged(id: string): void { for (const r of this.rooms) r.onPartyChanged(id); }
+  private partyChanged(id: string): void {
+    for (const r of this.rooms) r.onPartyChanged(id);
+  }
 
   private onGlobal(raw: unknown): void {
     const m = raw as { msg?: ChatMsg } | null;
@@ -167,7 +198,10 @@ export class SocialHub {
       done = true;
       const cur = this.watched.get(id);
       if (!cur) return;
-      if (--cur.n <= 0) { cur.off(); this.watched.delete(id); }
+      if (--cur.n <= 0) {
+        cur.off();
+        this.watched.delete(id);
+      }
     };
   }
 
@@ -181,14 +215,27 @@ export class SocialHub {
   }
 
   /** When did we start listening to this party (live data before then is unknown, not stale). */
-  watchedSince(id: string): number { return this.watched.get(id)?.since ?? Date.now(); }
+  watchedSince(id: string): number {
+    return this.watched.get(id)?.since ?? Date.now();
+  }
 
   limitsOf(accountId: string): ChatLimits {
     let l = this.limits.get(accountId);
     if (!l) {
       l = {
-        buckets: { local: new TokenBucket(2, 4), global: new TokenBucket(1 / 3, 1), party: new TokenBucket(2, 4), whisper: new TokenBucket(2, 4) },
-        warnAt: 0, recent: [], emoteAt: 0, reports: [], mutedUntil: 0, log: [], seen: Date.now(),
+        buckets: {
+          local: new TokenBucket(2, 4),
+          global: new TokenBucket(1 / 3, 1),
+          party: new TokenBucket(2, 4),
+          whisper: new TokenBucket(2, 4),
+        },
+        warnAt: 0,
+        recent: [],
+        emoteAt: 0,
+        reports: [],
+        mutedUntil: 0,
+        log: [],
+        seen: Date.now(),
       };
       this.limits.set(accountId, l);
     }
@@ -198,7 +245,10 @@ export class SocialHub {
 
   addInvite(target: string, inv: Invite): void {
     let m = this.invites.get(target);
-    if (!m) { m = new Map(); this.invites.set(target, m); }
+    if (!m) {
+      m = new Map();
+      this.invites.set(target, m);
+    }
     m.set(inv.partyId, inv);
   }
 
@@ -220,7 +270,10 @@ export class SocialHub {
   partyIdFor(accountId: string): string {
     const now = Date.now();
     const cur = this.pendingParty.get(accountId);
-    if (cur && cur.exp > now) { cur.exp = now + 70_000; return cur.id; }
+    if (cur && cur.exp > now) {
+      cur.exp = now + 70_000;
+      return cur.id;
+    }
     const id = `pt_${randomUUID().replace(/-/g, '').slice(0, 16)}`;
     this.pendingParty.set(accountId, { id, exp: now + 70_000 });
     return id;
@@ -229,9 +282,13 @@ export class SocialHub {
   /** Housekeeping: expire invites and stale limits, drop offline party members, hand leadership over. */
   private sweep(): void {
     const now = Date.now();
-    for (const [k, m] of this.invites) { for (const [id, i] of m) if (i.exp <= now) m.delete(id); if (!m.size) this.invites.delete(k); }
+    for (const [k, m] of this.invites) {
+      for (const [id, i] of m) if (i.exp <= now) m.delete(id);
+      if (!m.size) this.invites.delete(k);
+    }
     for (const [k, v] of this.pendingParty) if (v.exp <= now) this.pendingParty.delete(k);
-    for (const [k, l] of this.limits) if (now - l.seen > 15 * 60_000 && !this.dir.localByAccount(k)) this.limits.delete(k);
+    for (const [k, l] of this.limits)
+      if (now - l.seen > 15 * 60_000 && !this.dir.localByAccount(k)) this.limits.delete(k);
     for (const [k, l] of this.live) if (now - l.at > 10 * 60_000) this.live.delete(k);
     for (const [k, t] of this.tradeEnd) if (now - t > 60_000) this.tradeEnd.delete(k);
     for (const id of this.watched.keys()) {
@@ -269,6 +326,8 @@ export function hub(): SocialHub {
 }
 
 /** for tests */
-export function peekHub(): SocialHub | null { return current; }
+export function peekHub(): SocialHub | null {
+  return current;
+}
 
 export type { PartyRec };

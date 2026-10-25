@@ -2,69 +2,226 @@
 import { chromium } from 'playwright-core';
 import assert from 'node:assert/strict';
 import { mkdirSync } from 'node:fs';
-const base=process.argv[2]??'http://127.0.0.1:5240/',mobile=process.argv.includes('--mobile'),shots=process.argv.includes('--shots');
-const out=`/tmp/eigenlands-welcome-${new URL(base).port}-${mobile?'landscape':'desktop'}`;mkdirSync(out,{recursive:true});
-const browser=await chromium.launch({executablePath:process.env.CHROME??'/usr/bin/chromium',args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-background-timer-throttling']});
+const base = process.argv[2] ?? 'http://127.0.0.1:5240/',
+  mobile = process.argv.includes('--mobile'),
+  shots = process.argv.includes('--shots');
+const out = `/tmp/eigenlands-welcome-${new URL(base).port}-${mobile ? 'landscape' : 'desktop'}`;
+mkdirSync(out, { recursive: true });
+const browser = await chromium.launch({
+  executablePath: process.env.CHROME ?? '/usr/bin/chromium',
+  args: [
+    '--no-sandbox',
+    '--use-angle=swiftshader',
+    '--enable-unsafe-swiftshader',
+    '--disable-background-timer-throttling',
+  ],
+});
 let page;
-try{
- page=await browser.newPage({viewport:mobile?{width:844,height:390}:{width:1280,height:800},hasTouch:mobile});const errors=[];
- const press=key=>page.keyboard.press(key,{delay:220});
- const action=async(key,id)=>{for(let i=0;i<6;i++){await press(key);if(await page.evaluate(id=>window.__eigen.game.gameplay.acts[id],id))return;await page.waitForTimeout(400);}assert.ok(await page.evaluate(id=>window.__eigen.game.gameplay.acts[id],id),`Keyboard action ${id}`);};
- page.on('pageerror',e=>errors.push(e.message));const shot=async name=>{if(shots)await page.screenshot({path:`${out}/${name}.png`});};
- await page.goto(`${base}?dev=1&hour=12`);await page.waitForSelector('#g-off:not([hidden])');await page.fill('#name','New arrival');await page.click('#btn-guest');
- await page.waitForFunction(()=>window.__eigen?.state().ready,null,{timeout:60000});
- await page.evaluate(()=>window.__eigen.game.app.ticker.maxFPS=15);
- await page.waitForFunction(()=>window.__eigen.game.ext.circuit.progress.loaded);
- // Keep the story active: Lumen must not steal dodge/interaction input while walking.
- await press('KeyL');await page.getByRole('dialog',{name:'Journal',exact:true}).waitFor();await page.locator('.first-steps').waitFor();
- await shot('first-steps');await page.getByRole('button',{name:'Track Hadamere',exact:true}).click();
- await page.getByRole('dialog',{name:'World atlas',exact:true}).waitFor();
- const home=await page.evaluate(()=>window.__eigen.game.ext.atlas.navigation().point);
- assert.equal(await page.evaluate(([x,y])=>window.__eigen.game.ext.atlas.journal.tile(x,y),[home.x,home.y]),undefined,'Known destination does not chart terrain');await shot('town-route');
- await press('Escape');
- assert.equal(await page.locator('#p3-lumen').isVisible(),false,'Story stays inside Board');
- assert.equal(await page.evaluate(()=>{let reached=false;const seen=()=>{reached=true;};window.addEventListener('keydown',seen);window.dispatchEvent(new KeyboardEvent('keydown',{code:'Space',bubbles:true,cancelable:true}));window.removeEventListener('keydown',seen);window.dispatchEvent(new KeyboardEvent('keyup',{code:'Space',bubbles:true}));return reached;}),true,'Outdoor story must not consume dodge input');
- await page.keyboard.down('KeyD');await page.waitForFunction(()=>window.__eigen.game.gameplay.acts.moved);await page.keyboard.up('KeyD');
- await page.keyboard.down('KeyJ');await page.waitForFunction(()=>window.__eigen.game.gameplay.acts.attacked||window.__eigen.game.predictor.sim.charge>=.3);await page.keyboard.up('KeyJ');await page.waitForFunction(()=>window.__eigen.game.gameplay.acts.attacked);
- await action('ShiftLeft','dashed');
- await press('Digit2');await page.keyboard.down('KeyK');await page.waitForFunction(()=>window.__eigen.game.gameplay.acts.skillShot);await page.keyboard.up('KeyK');console.log('basic controls passed');
- await press('KeyI');await page.getByRole('dialog',{name:'Pack',exact:true}).waitFor();await press('Escape');
- await press('KeyB');await page.getByRole('dialog',{name:'Circuit Board',exact:true}).waitFor();await press('Escape');
- await press('KeyQ');if(await page.evaluate(()=>!!window.__eigen.game.input.armed))await page.locator('#game').click({position:{x:mobile?420:640,y:mobile?180:350}});await page.waitForFunction(()=>window.__eigen.game.gameplay.acts.orbCast,null,{timeout:10000});
- await page.evaluate(home=>window.__eigen.game.net.dev({cmd:'tp',x:home.x+.5,y:home.y+.5}),home);
- await page.waitForFunction(()=>window.__eigen.game.gameplay.acts.arrived,null,{timeout:30000});
- await page.waitForFunction(()=>!!window.__eigen.game.ext.atlas.state.npcs.get('orla'));
- console.log('orb cast and arrival passed');
- const orla=await page.evaluate(()=>{const p=window.__eigen.game.ext.atlas.state.npcs.get('orla');return {x:p.x,y:p.y};});
- await page.evaluate(p=>window.__eigen.game.net.dev({cmd:'tp',x:p.x+.7,y:p.y}),orla);
- await page.waitForFunction(p=>Math.hypot(window.__eigen.state().x-p.x,window.__eigen.state().y-p.y)<2,orla);
- await page.waitForTimeout(250);await action('Space','talked');await page.locator('.dialogue[data-npc="orla"]').waitFor();console.log('Orla dialogue opened');
- await page.locator('.dlg-box').click();await page.getByRole('button',{name:/A Warm Welcome/}).first().click();
- for(let i=0;i<5&&!await page.getByRole('button',{name:/do it/i}).isVisible();i++)await page.locator('.dlg-box').click();
- await page.getByRole('button',{name:/do it/i}).click();
- await page.waitForFunction(()=>window.__eigen.game.gameplay.profile.quests.welcome?.state==='active');console.log('Orla quest accepted');
- await press('Escape');await press('KeyL');await page.getByRole('dialog',{name:'Journal',exact:true}).waitFor();
- const quest=page.locator('.jq[data-quest="welcome"]');
- if(await quest.getByRole('button',{name:'Stop tracking',exact:true}).isVisible())await quest.getByRole('button',{name:'Stop tracking',exact:true}).click();
- await quest.getByRole('button',{name:'Track quest',exact:true}).click();assert.equal(await page.evaluate(()=>window.__eigen.game.ext.atlas.trackedQuest()),'welcome');
- await press('Escape');await page.waitForFunction(()=>document.querySelector('#townhint').textContent.includes('Odo'));await shot('tracked-town');
- // Force hostile arrivals: they cannot remain within the settlement ward or hurt an AFK visitor.
- const hp=await page.evaluate(()=>window.__eigen.state().hp);
- await page.evaluate(()=>window.__eigen.game.net.dev({cmd:'spawn',kind:'wisp',n:4,d:2}));await page.waitForTimeout(2000);
- assert.equal(await page.evaluate(()=>window.__eigen.state().hp),hp);assert.match(await page.locator('#townhint').innerText(),/Sanctuary/);
- const saved=await page.evaluate(()=>{const g=window.__eigen.game;g.gameplay.tutorialHint();g.ext.atlas.save();return {key:g.gameplay.tutorialKey,done:JSON.parse(localStorage.getItem(g.gameplay.tutorialKey))};});
- for(const id of ['moved','attacked','dashed','selected','openedPack','openedMap','arrived','talked','quest','journal','skillShot','openedCircuit','orbCast'])assert.ok(saved.done.includes(id),`Real tutorial action ${id}`);
- await page.reload();await page.waitForFunction(()=>window.__eigen?.state().ready&&window.__eigen.game.gameplay.profile.loaded,null,{timeout:60000});
- assert.equal(await page.evaluate(()=>window.__eigen.game.ext.atlas.trackedQuest()),'welcome');
- assert.deepEqual(await page.evaluate(key=>JSON.parse(localStorage.getItem(key)),saved.key),saved.done);
- await press('KeyL');await page.getByRole('button',{name:'Controls',exact:true}).click();
- assert.match(await page.getByRole('dialog',{name:'Journal',exact:true}).locator('.keyrow').filter({has:page.getByText('Orb ability 2',{exact:true})}).innerText(),/E/);
- assert.match(await page.getByRole('dialog',{name:'Journal',exact:true}).locator('.keyrow').filter({has:page.getByText('Use item / talk / open',{exact:true})}).innerText(),/X/);await shot('controls');
- await press('Escape');await page.evaluate(()=>window.__eigen.game.net.dev({cmd:'quest',id:'welcome',action:'done'}));
- await page.waitForFunction(()=>window.__eigen.game.ext.atlas.trackedQuest()===null);
- // Delivery readiness must follow actual pack contents and move the tracked pin to the giver.
- await page.evaluate(()=>window.__eigen.game.net.dev({cmd:'quest',id:'timber',action:'start'}));await page.waitForFunction(()=>window.__eigen.game.gameplay.profile.quests.timber?.state==='active');
- await page.evaluate(()=>{const a=window.__eigen.game.ext.atlas;a.trackQuest('timber');window.__eigen.game.net.dev({cmd:'give',id:'wood',n:12});});
- await page.waitForFunction(()=>window.__eigen.game.ext.atlas.navigation()?.id==='timber:return');
- assert.deepEqual(errors,[]);console.log('Welcome passed: actual controls/actions, Orla conversation and acceptance, tracked homes without fog reveal, sanctuary, persistence, completion and inventory-based return',out);
-}catch(e){if(page){await page.screenshot({path:`${out}/failure.png`});console.log('Failure state',await page.evaluate(()=>({window:window.__eigen?.game.gameplay.wins.name,acts:window.__eigen?.game.gameplay.acts,focus:document.activeElement?.tagName,sim:window.__eigen?.game.predictor?.sim,text:document.querySelector('[role=dialog]')?.textContent})));}throw e;}finally{await browser.close();}
+try {
+  page = await browser.newPage({
+    viewport: mobile ? { width: 844, height: 390 } : { width: 1280, height: 800 },
+    hasTouch: mobile,
+  });
+  const errors = [];
+  const press = (key) => page.keyboard.press(key, { delay: 220 });
+  const action = async (key, id) => {
+    for (let i = 0; i < 6; i++) {
+      await press(key);
+      if (await page.evaluate((id) => window.__eigen.game.gameplay.acts[id], id)) return;
+      await page.waitForTimeout(400);
+    }
+    assert.ok(await page.evaluate((id) => window.__eigen.game.gameplay.acts[id], id), `Keyboard action ${id}`);
+  };
+  page.on('pageerror', (e) => errors.push(e.message));
+  const shot = async (name) => {
+    if (shots) await page.screenshot({ path: `${out}/${name}.png` });
+  };
+  await page.goto(`${base}?dev=1&hour=12`);
+  await page.waitForSelector('#g-off:not([hidden])');
+  await page.fill('#name', 'New arrival');
+  await page.click('#btn-guest');
+  await page.waitForFunction(() => window.__eigen?.state().ready, null, { timeout: 60000 });
+  await page.evaluate(() => (window.__eigen.game.app.ticker.maxFPS = 15));
+  await page.waitForFunction(() => window.__eigen.game.ext.circuit.progress.loaded);
+  // Keep the story active: Lumen must not steal dodge/interaction input while walking.
+  await press('KeyL');
+  await page.getByRole('dialog', { name: 'Journal', exact: true }).waitFor();
+  await page.locator('.first-steps').waitFor();
+  await shot('first-steps');
+  await page.getByRole('button', { name: 'Track Hadamere', exact: true }).click();
+  await page.getByRole('dialog', { name: 'World atlas', exact: true }).waitFor();
+  const home = await page.evaluate(() => window.__eigen.game.ext.atlas.navigation().point);
+  assert.equal(
+    await page.evaluate(([x, y]) => window.__eigen.game.ext.atlas.journal.tile(x, y), [home.x, home.y]),
+    undefined,
+    'Known destination does not chart terrain',
+  );
+  await shot('town-route');
+  await press('Escape');
+  assert.equal(await page.locator('#p3-lumen').isVisible(), false, 'Story stays inside Board');
+  assert.equal(
+    await page.evaluate(() => {
+      let reached = false;
+      const seen = () => {
+        reached = true;
+      };
+      window.addEventListener('keydown', seen);
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', bubbles: true, cancelable: true }));
+      window.removeEventListener('keydown', seen);
+      window.dispatchEvent(new KeyboardEvent('keyup', { code: 'Space', bubbles: true }));
+      return reached;
+    }),
+    true,
+    'Outdoor story must not consume dodge input',
+  );
+  await page.keyboard.down('KeyD');
+  await page.waitForFunction(() => window.__eigen.game.gameplay.acts.moved);
+  await page.keyboard.up('KeyD');
+  await page.keyboard.down('KeyJ');
+  await page.waitForFunction(
+    () => window.__eigen.game.gameplay.acts.attacked || window.__eigen.game.predictor.sim.charge >= 0.3,
+  );
+  await page.keyboard.up('KeyJ');
+  await page.waitForFunction(() => window.__eigen.game.gameplay.acts.attacked);
+  await action('ShiftLeft', 'dashed');
+  await press('Digit2');
+  await page.keyboard.down('KeyK');
+  await page.waitForFunction(() => window.__eigen.game.gameplay.acts.skillShot);
+  await page.keyboard.up('KeyK');
+  console.log('basic controls passed');
+  await press('KeyI');
+  await page.getByRole('dialog', { name: 'Pack', exact: true }).waitFor();
+  await press('Escape');
+  await press('KeyB');
+  await page.getByRole('dialog', { name: 'Circuit Board', exact: true }).waitFor();
+  await press('Escape');
+  await press('KeyQ');
+  if (await page.evaluate(() => !!window.__eigen.game.input.armed))
+    await page.locator('#game').click({ position: { x: mobile ? 420 : 640, y: mobile ? 180 : 350 } });
+  await page.waitForFunction(() => window.__eigen.game.gameplay.acts.orbCast, null, { timeout: 10000 });
+  await page.evaluate((home) => window.__eigen.game.net.dev({ cmd: 'tp', x: home.x + 0.5, y: home.y + 0.5 }), home);
+  await page.waitForFunction(() => window.__eigen.game.gameplay.acts.arrived, null, { timeout: 30000 });
+  await page.waitForFunction(() => !!window.__eigen.game.ext.atlas.state.npcs.get('orla'));
+  console.log('orb cast and arrival passed');
+  const orla = await page.evaluate(() => {
+    const p = window.__eigen.game.ext.atlas.state.npcs.get('orla');
+    return { x: p.x, y: p.y };
+  });
+  await page.evaluate((p) => window.__eigen.game.net.dev({ cmd: 'tp', x: p.x + 0.7, y: p.y }), orla);
+  await page.waitForFunction(
+    (p) => Math.hypot(window.__eigen.state().x - p.x, window.__eigen.state().y - p.y) < 2,
+    orla,
+  );
+  await page.waitForTimeout(250);
+  await action('Space', 'talked');
+  await page.locator('.dialogue[data-npc="orla"]').waitFor();
+  console.log('Orla dialogue opened');
+  await page.locator('.dlg-box').click();
+  await page
+    .getByRole('button', { name: /A Warm Welcome/ })
+    .first()
+    .click();
+  for (let i = 0; i < 5 && !(await page.getByRole('button', { name: /do it/i }).isVisible()); i++)
+    await page.locator('.dlg-box').click();
+  await page.getByRole('button', { name: /do it/i }).click();
+  await page.waitForFunction(() => window.__eigen.game.gameplay.profile.quests.welcome?.state === 'active');
+  console.log('Orla quest accepted');
+  await press('Escape');
+  await press('KeyL');
+  await page.getByRole('dialog', { name: 'Journal', exact: true }).waitFor();
+  const quest = page.locator('.jq[data-quest="welcome"]');
+  if (await quest.getByRole('button', { name: 'Stop tracking', exact: true }).isVisible())
+    await quest.getByRole('button', { name: 'Stop tracking', exact: true }).click();
+  await quest.getByRole('button', { name: 'Track quest', exact: true }).click();
+  assert.equal(await page.evaluate(() => window.__eigen.game.ext.atlas.trackedQuest()), 'welcome');
+  await press('Escape');
+  await page.waitForFunction(() => document.querySelector('#townhint').textContent.includes('Odo'));
+  await shot('tracked-town');
+  // Force hostile arrivals: they cannot remain within the settlement ward or hurt an AFK visitor.
+  const hp = await page.evaluate(() => window.__eigen.state().hp);
+  await page.evaluate(() => window.__eigen.game.net.dev({ cmd: 'spawn', kind: 'wisp', n: 4, d: 2 }));
+  await page.waitForTimeout(2000);
+  assert.equal(await page.evaluate(() => window.__eigen.state().hp), hp);
+  assert.match(await page.locator('#townhint').innerText(), /Sanctuary/);
+  const saved = await page.evaluate(() => {
+    const g = window.__eigen.game;
+    g.gameplay.tutorialHint();
+    g.ext.atlas.save();
+    return { key: g.gameplay.tutorialKey, done: JSON.parse(localStorage.getItem(g.gameplay.tutorialKey)) };
+  });
+  for (const id of [
+    'moved',
+    'attacked',
+    'dashed',
+    'selected',
+    'openedPack',
+    'openedMap',
+    'arrived',
+    'talked',
+    'quest',
+    'journal',
+    'skillShot',
+    'openedCircuit',
+    'orbCast',
+  ])
+    assert.ok(saved.done.includes(id), `Real tutorial action ${id}`);
+  await page.reload();
+  await page.waitForFunction(() => window.__eigen?.state().ready && window.__eigen.game.gameplay.profile.loaded, null, {
+    timeout: 60000,
+  });
+  assert.equal(await page.evaluate(() => window.__eigen.game.ext.atlas.trackedQuest()), 'welcome');
+  assert.deepEqual(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), saved.key), saved.done);
+  await press('KeyL');
+  await page.getByRole('button', { name: 'Controls', exact: true }).click();
+  assert.match(
+    await page
+      .getByRole('dialog', { name: 'Journal', exact: true })
+      .locator('.keyrow')
+      .filter({ has: page.getByText('Orb ability 2', { exact: true }) })
+      .innerText(),
+    /E/,
+  );
+  assert.match(
+    await page
+      .getByRole('dialog', { name: 'Journal', exact: true })
+      .locator('.keyrow')
+      .filter({ has: page.getByText('Use item / talk / open', { exact: true }) })
+      .innerText(),
+    /X/,
+  );
+  await shot('controls');
+  await press('Escape');
+  await page.evaluate(() => window.__eigen.game.net.dev({ cmd: 'quest', id: 'welcome', action: 'done' }));
+  await page.waitForFunction(() => window.__eigen.game.ext.atlas.trackedQuest() === null);
+  // Delivery readiness must follow actual pack contents and move the tracked pin to the giver.
+  await page.evaluate(() => window.__eigen.game.net.dev({ cmd: 'quest', id: 'timber', action: 'start' }));
+  await page.waitForFunction(() => window.__eigen.game.gameplay.profile.quests.timber?.state === 'active');
+  await page.evaluate(() => {
+    const a = window.__eigen.game.ext.atlas;
+    a.trackQuest('timber');
+    window.__eigen.game.net.dev({ cmd: 'give', id: 'wood', n: 12 });
+  });
+  await page.waitForFunction(() => window.__eigen.game.ext.atlas.navigation()?.id === 'timber:return');
+  assert.deepEqual(errors, []);
+  console.log(
+    'Welcome passed: actual controls/actions, Orla conversation and acceptance, tracked homes without fog reveal, sanctuary, persistence, completion and inventory-based return',
+    out,
+  );
+} catch (e) {
+  if (page) {
+    await page.screenshot({ path: `${out}/failure.png` });
+    console.log(
+      'Failure state',
+      await page.evaluate(() => ({
+        window: window.__eigen?.game.gameplay.wins.name,
+        acts: window.__eigen?.game.gameplay.acts,
+        focus: document.activeElement?.tagName,
+        sim: window.__eigen?.game.predictor?.sim,
+        text: document.querySelector('[role=dialog]')?.textContent,
+      })),
+    );
+  }
+  throw e;
+} finally {
+  await browser.close();
+}

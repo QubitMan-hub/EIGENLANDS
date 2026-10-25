@@ -7,6 +7,7 @@ in the browser or share a world with other players.
 **Play now (single-player, in the browser):** deployed from `main` to GitHub Pages by `.github/workflows/pages.yml`.
 
 ## Features
+
 - **World** – infinite deterministic chunks from a seed, GPU isometric terrain with smooth blending, day/night, seasons, weather.
 - **Village life** – the town of Hadamere with ten NPCs on schedules, dialogue, gifts, shops with dynamic prices, a quest chain, and the QubitMan statue.
 - **Crafting** – tools, stations, discovery recipes, farming with superposition crops, fishing, and Interference Forging (a rhythm minigame).
@@ -17,19 +18,21 @@ in the browser or share a world with other players.
 - **Accessibility** – remappable keys, colour-blind modes, text size, reduced motion, high-contrast HUD, sound captions.
 
 ## Controls
-| | |
-|---|---|
-| Move | `W A S D` / arrows (screen-relative), or Settings → Controls → Movement controls → Mouse: hold right button toward the cursor, release to stop. Movement keys remain available. |
-| Attack | left click (aims at the cursor) |
-| Select target | left click an enemy or party mate · `Esc` clears |
-| Abilities | `Q E R F`: directional abilities show an aim line, then left click confirms at the cursor; same key or `Esc` cancels. Self abilities are instant. Touch/gamepad cast directly. `V` ultimate |
-| Aim / mouse steering | Hold right mouse for the aim cone; Mouse movement mode also steers. Camera stays centered. |
-| Gather | Select an axe/pickaxe, then left-click trees/rocks to approach and gather. Click ripe crops/forage to harvest, or use a hoe/can on ground. Movement or Dodge cancels. |
-| Fish | Select a rod, stand near water and press your interaction key (default Space); press again when a bite appears. |
-| Dash | `Shift` (either side): two charges, each recharges in four seconds. Save them for combat warnings. |
-| Use / talk / enter caves | `Space` · Pack `I` · Craft `C` · Journal `L` · Circuit Board `B` · Party `P` · Chat `Enter` |
+
+|                          |                                                                                                                                                                                             |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Move                     | `W A S D` / arrows (screen-relative), or Settings → Controls → Movement controls → Mouse: hold right button toward the cursor, release to stop. Movement keys remain available.             |
+| Attack                   | left click (aims at the cursor)                                                                                                                                                             |
+| Select target            | left click an enemy or party mate · `Esc` clears                                                                                                                                            |
+| Abilities                | `Q E R F`: directional abilities show an aim line, then left click confirms at the cursor; same key or `Esc` cancels. Self abilities are instant. Touch/gamepad cast directly. `V` ultimate |
+| Aim / mouse steering     | Hold right mouse for the aim cone; Mouse movement mode also steers. Camera stays centered.                                                                                                  |
+| Gather                   | Select an axe/pickaxe, then left-click trees/rocks to approach and gather. Click ripe crops/forage to harvest, or use a hoe/can on ground. Movement or Dodge cancels.                       |
+| Fish                     | Select a rod, stand near water and press your interaction key (default Space); press again when a bite appears.                                                                             |
+| Dash                     | `Shift` (either side): two charges, each recharges in four seconds. Save them for combat warnings.                                                                                          |
+| Use / talk / enter caves | `Space` · Pack `I` · Craft `C` · Journal `L` · Circuit Board `B` · Party `P` · Chat `Enter`                                                                                                 |
 
 ## Repository layout
+
 ```
 packages/
   shared/   deterministic game code used by client and server (sim, worldgen, rules, protocol, schema)
@@ -47,21 +50,27 @@ docs/
 Use the [$0 Render deployment guide](docs/RENDER_FREE.md) and root `render.yaml` for a Singapore server with PostgreSQL. Free services sleep when idle and the free database expires after 30 days; this is temporary testing, not permanent hosting.
 
 ## Run it
+
 Requires Node 22+, PostgreSQL 16 and Redis 7 (`docker compose up -d` provides both).
+
 ```bash
 cp .env.example .env            # optional; defaults work with docker-compose
 npm install
 npm run dev:server              # http://localhost:2567 (runs migrations on start)
 npm run dev:client              # http://localhost:5173
 ```
+
 No database? Build the single-player variant, which runs the real server room inside the page:
+
 ```bash
 npm run preview:pages           # http://localhost:5240
 ```
+
 Handy flags: `?hour=12` pins the clock, `?dev=1` enables dev commands in solo builds, `F3` shows fps and netcode stats.
 Art lab: `http://localhost:5173/labs/artlab.html`, UI lab: `/labs/uilab.html`.
 
 ## Tests and tools
+
 ```bash
 npm test                      # shared + server (needs Postgres/Redis) + client unit tests
 npm run typecheck
@@ -69,8 +78,10 @@ npm run e2e                   # headless Chromium smoke test against the dev ser
 npm run e2e:solo              # same against the Pages build (npm run preview:pages first)
 npm run loadtest -- 100 20    # bot load test; the server exposes GET /metrics
 ```
+
 Google sign-in: set `GOOGLE_CLIENT_ID` on the server (the client reads it from `/api/auth/config`); without it the game is guest-only.
 
 ## Status and known limits
+
 Not verified in CI: real Google OAuth (tested through an injectable verifier), 60 fps on real GPUs and phones,
 1,000 players per shard, and play at 150 ms real-world ping. See `docs/design/` for what each phase promises.

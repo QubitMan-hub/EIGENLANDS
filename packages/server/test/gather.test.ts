@@ -1,11 +1,27 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { FORAGE_BY_SEASON, T } from '@eigenlands/shared';
 import type { App } from '../src/app';
-import { boot, count, give, hasToast, nextDay, setDay, sleep, slotOf, spawn, tp, until, use, flatten, type Probe } from './p2';
+import {
+  boot,
+  count,
+  give,
+  hasToast,
+  nextDay,
+  setDay,
+  sleep,
+  slotOf,
+  spawn,
+  tp,
+  until,
+  use,
+  flatten,
+  type Probe,
+} from './p2';
 
 let app: App;
 let p: Probe;
-const X = 100, Y = 100; // player stands on tile (100,100) centre; fixtures go on the tiles right of it
+const X = 100,
+  Y = 100; // player stands on tile (100,100) centre; fixtures go on the tiles right of it
 
 beforeAll(async () => {
   app = await boot();
@@ -14,7 +30,9 @@ beforeAll(async () => {
   await tp(p, X + 0.5, Y + 0.5);
   flatten(p.room, X, Y, 8);
 });
-afterAll(async () => { await app?.close(); });
+afterAll(async () => {
+  await app?.close();
+});
 
 describe('trees, rocks and ore', () => {
   it('an axe fells a tree in a few swings, drops wood, gives xp, leaves a stump and the tree regrows', async () => {
@@ -27,7 +45,8 @@ describe('trees, rocks and ore', () => {
     expect(p.tiles.some((t) => t.tx === X + 1 && t.ty === Y && t.tile === T.STUMP)).toBe(true);
     expect((p.room as any).respawns.has(`${X + 1},${Y}`)).toBe(true);
     // respawn: a day later the stump has regrown
-    p.sp.sim.x = X + 0.5; p.sp.sim.y = Y + 0.5;
+    p.sp.sim.x = X + 0.5;
+    p.sp.sim.y = Y + 0.5;
     await nextDay(p.room);
     await until(() => p.room.store.getTile(X + 1, Y) === T.TREE, 4000);
   });
@@ -44,7 +63,10 @@ describe('trees, rocks and ore', () => {
     // a tier-2 pickaxe works
     await give(p, 'pickaxe', 1, { tier: 2 });
     const slot = p.sp.data.inv.findIndex((s) => s?.id === 'pickaxe' && s.p?.tier === 2);
-    for (let i = 0; i < 4; i++) { p.r.send('use', { slot, tx: X + 1, ty: Y + 1 }); await sleep(60); }
+    for (let i = 0; i < 4; i++) {
+      p.r.send('use', { slot, tx: X + 1, ty: Y + 1 });
+      await sleep(60);
+    }
     await until(() => p.room.store.getTile(X + 1, Y + 1) === T.GRASS);
     expect(count(p, 'iron_ore')).toBeGreaterThanOrEqual(2);
   });
@@ -56,7 +78,8 @@ describe('trees, rocks and ore', () => {
     expect(count(p, 'stone')).toBeGreaterThanOrEqual(2);
     // fill every free slot with unique items, then try again
     // nothing the rock could drop may be mergeable, otherwise it would still fit
-    for (let i = 0; i < 30; i++) if (['stone', 'coal', 'copper_ore'].includes(p.sp.data.inv[i]?.id ?? '')) p.sp.data.inv[i] = null;
+    for (let i = 0; i < 30; i++)
+      if (['stone', 'coal', 'copper_ore'].includes(p.sp.data.inv[i]?.id ?? '')) p.sp.data.inv[i] = null;
     await give(p, 'ring_hp', 30, { stat: 'hp', val: 1 });
     await until(() => p.sp.data.inv.every(Boolean));
     try {

@@ -22,31 +22,31 @@ export const MSG = {
   NOTICE: 'notice',
   ACK: 'ack',
   // ── Phase 2 (client -> server)
-  HOLD: 'hold',               // {slot}: select the tool held from the hotbar
+  HOLD: 'hold', // {slot}: select the tool held from the hotbar
   TRAVEL_MODE: 'travel_mode', // private preference only; meters are always authoritative
-  USE: 'use',                 // UseMsg: use hotbar item on a tile (tools, seeds, food, placeables...)
-  OPEN: 'open',               // OpenMsg: open a station / chest / shelter / sign at a tile
-  INV_MOVE: 'inv_move',       // InvMoveMsg
-  INV_TRASH: 'inv_trash',     // InvTrashMsg
-  EQUIP: 'equip',             // EquipMsg
-  CRAFT: 'craft',             // CraftMsg
-  EXPERIMENT: 'experiment',   // ExperimentMsg
+  USE: 'use', // UseMsg: use hotbar item on a tile (tools, seeds, food, placeables...)
+  OPEN: 'open', // OpenMsg: open a station / chest / shelter / sign at a tile
+  INV_MOVE: 'inv_move', // InvMoveMsg
+  INV_TRASH: 'inv_trash', // InvTrashMsg
+  EQUIP: 'equip', // EquipMsg
+  CRAFT: 'craft', // CraftMsg
+  EXPERIMENT: 'experiment', // ExperimentMsg
   FORGE_PREVIEW: 'forge_preview', // ForgePreviewMsg -> FORGE_PREVIEW_R
   FORGE_START: 'forge_start', // ForgeStartMsg -> RHYTHM_START
   RHYTHM_DONE: 'rhythm_done', // RhythmDoneMsg -> RHYTHM_RESULT
-  FISH_HOOK: 'fish_hook',     // FishHookMsg: reacted to the bite -> RHYTHM_START
-  TALK: 'talk',               // TalkMsg -> DIALOGUE
-  GIFT: 'gift',               // GiftMsg -> DIALOGUE
-  SHOP: 'shop',               // ShopMsg -> SHOP_VIEW + PROFILE
-  CHEST: 'chest',             // ChestMsg -> PANEL
-  SHELTER: 'shelter',         // ShelterMsg -> PANEL
-  QUEST: 'quest',             // QuestMsg: accept / turn in -> DIALOGUE (npc) or PANEL (request board)
+  FISH_HOOK: 'fish_hook', // FishHookMsg: reacted to the bite -> RHYTHM_START
+  TALK: 'talk', // TalkMsg -> DIALOGUE
+  GIFT: 'gift', // GiftMsg -> DIALOGUE
+  SHOP: 'shop', // ShopMsg -> SHOP_VIEW + PROFILE
+  CHEST: 'chest', // ChestMsg -> PANEL
+  SHELTER: 'shelter', // ShelterMsg -> PANEL
+  QUEST: 'quest', // QuestMsg: accept / turn in -> DIALOGUE (npc) or PANEL (request board)
   DIALOGUE_CHAT: 'dialogue_chat', // DialogueChatMsg (optional AI layer) -> DIALOGUE
-  DEV: 'dev',                 // DevMsg: test/e2e helpers; ignored unless the server runs with DEV_COMMANDS=1
+  DEV: 'dev', // DevMsg: test/e2e helpers; ignored unless the server runs with DEV_COMMANDS=1
   // ── Phase 2 (server -> client)
-  PROFILE: 'profile',         // ProfileMsg (partial updates of private player data)
-  OBJ: 'obj',                 // ObjMsg: a world object appeared / changed / vanished
-  PANEL: 'panel',             // PanelMsg
+  PROFILE: 'profile', // ProfileMsg (partial updates of private player data)
+  OBJ: 'obj', // ObjMsg: a world object appeared / changed / vanished
+  PANEL: 'panel', // PanelMsg
   FORGE_PREVIEW_R: 'forge_preview_r',
   RHYTHM_START: 'rhythm_start',
   RHYTHM_RESULT: 'rhythm_result',
@@ -57,28 +57,75 @@ export const MSG = {
   TOAST: 'toast',
 } as const;
 
-export interface InputBatch { cmds: InputCmd[] }
-export interface EditMsg { tx: number; ty: number }
-export interface ChunkReq { cx: number; cy: number }
-export interface ChunkMsg { cx: number; cy: number; diff: Uint8Array; objs?: WorldObj[] }
-export interface TileMsg { tx: number; ty: number; tile: number }
+export interface InputBatch {
+  cmds: InputCmd[];
+}
+export interface EditMsg {
+  tx: number;
+  ty: number;
+}
+export interface ChunkReq {
+  cx: number;
+  cy: number;
+}
+export interface ChunkMsg {
+  cx: number;
+  cy: number;
+  diff: Uint8Array;
+  objs?: WorldObj[];
+}
+export interface TileMsg {
+  tx: number;
+  ty: number;
+  tile: number;
+}
 
-export type FxKind = 'hit' | 'swing' | 'shot' | 'dash' | 'die' | 'levelup' | 'telegraph' | 'hurt' | 'break'
-  | 'chop' | 'mine' | 'till' | 'plant' | 'water' | 'harvest' | 'splash' | 'cast' | 'catch' | 'heal' | 'craft' | 'place' | 'dust' | 'poof'
+export type FxKind =
+  | 'hit'
+  | 'swing'
+  | 'shot'
+  | 'dash'
+  | 'die'
+  | 'levelup'
+  | 'telegraph'
+  | 'hurt'
+  | 'break'
+  | 'chop'
+  | 'mine'
+  | 'till'
+  | 'plant'
+  | 'water'
+  | 'harvest'
+  | 'splash'
+  | 'cast'
+  | 'catch'
+  | 'heal'
+  | 'craft'
+  | 'place'
+  | 'dust'
+  | 'poof'
   // combat 2.0
-  | 'heavy'     // charged heavy strike (v = charge level 0..1, dx/dy facing)
-  | 'perfect'   // perfect dodge / phase slip (id = player)
-  | 'stagger'   // poise broken (id = enemy)
-  | 'slam'      // wall slam (id = enemy, v = bonus damage)
-  | 'orb'       // an enemy fired an orb (id = enemy, dx/dy direction)
-  | 'reflect'   // a player batted an orb back (id = player)
-  | 'blast'     // an area attack went off (v = radius)
-  | 'bomb'      // a volatile elite is about to burst (v = fuse s, w = radius)
-  | 'crash'     // a charging brute hit a wall (id = enemy)
-  | 'form'      // Shapeshifter strike form (v: 0 wolf, 1 bear)
-  | 'shadow' | 'chest' | 'jump';   // jump: x/y origin, dx/dy landing, 650ms visual arc
+  | 'heavy' // charged heavy strike (v = charge level 0..1, dx/dy facing)
+  | 'perfect' // perfect dodge / phase slip (id = player)
+  | 'stagger' // poise broken (id = enemy)
+  | 'slam' // wall slam (id = enemy, v = bonus damage)
+  | 'orb' // an enemy fired an orb (id = enemy, dx/dy direction)
+  | 'reflect' // a player batted an orb back (id = player)
+  | 'blast' // an area attack went off (v = radius)
+  | 'bomb' // a volatile elite is about to burst (v = fuse s, w = radius)
+  | 'crash' // a charging brute hit a wall (id = enemy)
+  | 'form' // Shapeshifter strike form (v: 0 wolf, 1 bear)
+  | 'shadow'
+  | 'chest'
+  | 'jump'; // jump: x/y origin, dx/dy landing, 650ms visual arc
 export interface FxMsg {
-  kind: FxKind; x: number; y: number; v?: number; dx?: number; dy?: number; id?: string;
+  kind: FxKind;
+  x: number;
+  y: number;
+  v?: number;
+  dx?: number;
+  dy?: number;
+  id?: string;
   /** Combat weapon or successful harvesting tool for matching remote poses; absent on older effects. */
   weapon?: string;
   /** hit weight: 0 light, 1 finisher, 2 heavy, 3 full heavy (hit-stop, shake, sound) */
@@ -92,6 +139,8 @@ export interface FxMsg {
 }
 
 export interface WelcomeMsg {
+  /** Absent on older servers: revision 1. */
+  generation?: import('./world-version').WorldGeneration;
   seed: number;
   serverNow: number;
   playerId: string;
@@ -125,25 +174,69 @@ export interface ProfileMsg {
   /** selected quick-bar slot is client-side; this is the server's last accepted USE slot (diagnostics) */
 }
 
-export interface UseMsg { slot: number; tx: number; ty: number; turn?: number }
-export interface OpenMsg { tx: number; ty: number }
-export interface InvMoveMsg { from: number; to: number }
-export interface InvTrashMsg { slot: number; n: number }
+export interface UseMsg {
+  slot: number;
+  tx: number;
+  ty: number;
+  turn?: number;
+}
+export interface OpenMsg {
+  tx: number;
+  ty: number;
+}
+export interface InvMoveMsg {
+  from: number;
+  to: number;
+}
+export interface InvTrashMsg {
+  slot: number;
+  n: number;
+}
 /** What a character wears and wields. */
 export interface EquipState {
-  ring1: Stack | null; ring2: Stack | null; outfit: number;
+  ring1: Stack | null;
+  ring2: Stack | null;
+  outfit: number;
   /** main hand: a staff or crossbow (null = the hotbar sword) */
   weapon: Stack | null;
-  head: Stack | null; chest: Stack | null; legs: Stack | null; feet: Stack | null;
+  head: Stack | null;
+  chest: Stack | null;
+  legs: Stack | null;
+  feet: Stack | null;
 }
 export const EQUIP_SLOTS = ['ring1', 'ring2', 'weapon', 'head', 'chest', 'legs', 'feet'] as const;
-export type EquipSlotKey = typeof EQUIP_SLOTS[number];
-export interface EquipMsg { slot: number; as: 'ring1' | 'ring2' | 'outfit' | 'weapon' | 'head' | 'chest' | 'legs' | 'feet' | `unequip_${EquipSlotKey}` }
-export interface CraftMsg { station: StationId; tx: number; ty: number; recipe: string; n: number }
-export interface ExperimentMsg { station: StationId; tx: number; ty: number; items: Array<{ slot: number; n: number }> }
-export interface ForgePreviewMsg { materials: string[] }
-export interface ForgePreviewReply { ok: boolean; preview?: ForgePreview; error?: string }
-export interface ForgeStartMsg { tx: number; ty: number; template: Template; slots: number[] }
+export type EquipSlotKey = (typeof EQUIP_SLOTS)[number];
+export interface EquipMsg {
+  slot: number;
+  as: 'ring1' | 'ring2' | 'outfit' | 'weapon' | 'head' | 'chest' | 'legs' | 'feet' | `unequip_${EquipSlotKey}`;
+}
+export interface CraftMsg {
+  station: StationId;
+  tx: number;
+  ty: number;
+  recipe: string;
+  n: number;
+}
+export interface ExperimentMsg {
+  station: StationId;
+  tx: number;
+  ty: number;
+  items: Array<{ slot: number; n: number }>;
+}
+export interface ForgePreviewMsg {
+  materials: string[];
+}
+export interface ForgePreviewReply {
+  ok: boolean;
+  preview?: ForgePreview;
+  error?: string;
+}
+export interface ForgeStartMsg {
+  tx: number;
+  ty: number;
+  template: Template;
+  slots: number[];
+}
 export interface RhythmStartMsg {
   id: string;
   kind: 'forge' | 'fish';
@@ -151,7 +244,10 @@ export interface RhythmStartMsg {
   plan: RhythmPlan;
   label: string;
 }
-export interface RhythmDoneMsg { id: string; hits: number[] }
+export interface RhythmDoneMsg {
+  id: string;
+  hits: number[];
+}
 export interface RhythmResultMsg {
   id: string;
   kind: 'forge' | 'fish';
@@ -161,17 +257,42 @@ export interface RhythmResultMsg {
   /** the produced item, if any */
   item?: Stack;
 }
-export interface FishCastMsg { tx: number; ty: number }
-export interface FishBiteMsg { id: string; windowMs: number }
-export interface FishHookMsg { id: string }
+export interface FishCastMsg {
+  tx: number;
+  ty: number;
+}
+export interface FishBiteMsg {
+  id: string;
+  windowMs: number;
+}
+export interface FishHookMsg {
+  id: string;
+}
 
 /** `topic` picks a dialogue branch: 'ask', 'ask:about|town|qubitman|rumor', 'quest:<id>', 'event:<n>', 'back', 'bye'. */
-export interface TalkMsg { npcId: string; topic?: string }
+export interface TalkMsg {
+  npcId: string;
+  topic?: string;
+}
 /** A response button. The client sends TALK {topic: id}, except 'accept:<quest>' / 'turnin:<quest>' which go as QUEST. */
-export interface DialogueChoice { id: string; text: string; kind?: 'quest' | 'ready' | 'ask' | 'event' | 'back' | 'accept' | 'turnin' }
-export interface QuestMsg { npcId: string; quest: string; action: 'accept' | 'turnin' }
-export interface GiftMsg { npcId: string; slot: number }
-export interface DialogueChatMsg { npcId: string; text: string }
+export interface DialogueChoice {
+  id: string;
+  text: string;
+  kind?: 'quest' | 'ready' | 'ask' | 'event' | 'back' | 'accept' | 'turnin';
+}
+export interface QuestMsg {
+  npcId: string;
+  quest: string;
+  action: 'accept' | 'turnin';
+}
+export interface GiftMsg {
+  npcId: string;
+  slot: number;
+}
+export interface DialogueChatMsg {
+  npcId: string;
+  text: string;
+}
 export interface DialogueMsg {
   npcId: string;
   name: string;
@@ -224,8 +345,18 @@ export interface ShopViewMsg {
   coins: number;
 }
 
-export interface ChestMsg { tx: number; ty: number; action: 'put' | 'take'; slot: number; n: number }
-export interface ShelterMsg { tx: number; ty: number; action: 'add' | 'feed' | 'collect' }
+export interface ChestMsg {
+  tx: number;
+  ty: number;
+  action: 'put' | 'take';
+  slot: number;
+  n: number;
+}
+export interface ShelterMsg {
+  tx: number;
+  ty: number;
+  action: 'add' | 'feed' | 'collect';
+}
 
 export interface PanelMsg {
   kind: 'station' | 'chest' | 'shelter' | 'sign' | 'lore' | 'board';
@@ -255,8 +386,17 @@ export interface BoardRequest {
   day: number;
 }
 
-export interface ObjMsg { x: number; y: number; obj: WorldObj | null; structure?: boolean }
-export interface ToastMsg { text: string; kind: 'info' | 'good' | 'bad' | 'item'; item?: Stack }
+export interface ObjMsg {
+  x: number;
+  y: number;
+  obj: WorldObj | null;
+  structure?: boolean;
+}
+export interface ToastMsg {
+  text: string;
+  kind: 'info' | 'good' | 'bad' | 'item';
+  item?: Stack;
+}
 
 export const JOIN_ROOM = 'world';
 
@@ -265,11 +405,33 @@ export const JOIN_ROOM = 'world';
  * Dynamic numeric state is listed here; weapon metadata is derived from equipment and retained during replay.
  */
 export const ACK_FIELDS = [
-  'x', 'y', 'faceX', 'faceY', 'dashT', 'dashCd', 'dashDx', 'dashDy', 'atkCd', 'combo', 'comboT', 'skillCd',
-  'dashN', 'ifrT', 'hold', 'charge', 'atkBuf', 'slipT', 'boat', 'cart',
+  'x',
+  'y',
+  'faceX',
+  'faceY',
+  'dashT',
+  'dashCd',
+  'dashDx',
+  'dashDy',
+  'atkCd',
+  'combo',
+  'comboT',
+  'skillCd',
+  'dashN',
+  'ifrT',
+  'hold',
+  'charge',
+  'atkBuf',
+  'slipT',
+  'boat',
+  'cart',
 ] as const satisfies ReadonlyArray<keyof PlayerSim>;
 export const ACK_BYTES = 8 + ACK_FIELDS.length * 4;
-export interface Ack { seq: number; tick: number; sim: PlayerSim }
+export interface Ack {
+  seq: number;
+  tick: number;
+  sim: PlayerSim;
+}
 
 export function encodeAck(a: Ack): Uint8Array {
   const out = new Uint8Array(ACK_BYTES);
@@ -284,7 +446,9 @@ export function decodeAck(buf: Uint8Array): Ack {
   if (buf.byteLength !== ACK_BYTES) throw new Error('bad ack size');
   const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
   const sim = {} as PlayerSim;
-  ACK_FIELDS.forEach((k, i) => { sim[k] = dv.getFloat32(8 + i * 4, true); });
+  ACK_FIELDS.forEach((k, i) => {
+    sim[k] = dv.getFloat32(8 + i * 4, true);
+  });
   sim.combo = Math.round(sim.combo);
   sim.dashN = Math.round(sim.dashN);
   sim.hold = Math.round(sim.hold);
@@ -296,12 +460,12 @@ export function decodeAck(buf: Uint8Array): Ack {
 export type DevMsg =
   | { cmd: 'tp'; x: number; y: number }
   | { cmd: 'give'; id: string; n: number; p?: import('./items').Props }
-  | { cmd: 'coins'; n: number }            // ADDS n coins (negative removes, floor 0)
-  | { cmd: 'time'; offsetMs: number }      // ADDS offsetMs to the world clock offset (one day = 1_440_000)
-  | { cmd: 'learn'; recipe: string }       // recipe id, or '*' for every recipe
-  | { cmd: 'friend'; npc: string; pts: number }  // sets friendship points
+  | { cmd: 'coins'; n: number } // ADDS n coins (negative removes, floor 0)
+  | { cmd: 'time'; offsetMs: number } // ADDS offsetMs to the world clock offset (one day = 1_440_000)
+  | { cmd: 'learn'; recipe: string } // recipe id, or '*' for every recipe
+  | { cmd: 'friend'; npc: string; pts: number } // sets friendship points
   | { cmd: 'level'; level: number }
-  | { cmd: 'quest'; id: string; action: 'start' | 'done' | 'reset' }  // force quest state (e2e)
+  | { cmd: 'quest'; id: string; action: 'start' | 'done' | 'reset' } // force quest state (e2e)
   /** combat testing: spawn n enemies of `kind` around the player (d tiles away), optionally elite / night variants */
   | { cmd: 'spawn'; kind: string; n?: number; elite?: number; night?: boolean; d?: number }
   /** defeat every enemy within d tiles as the player (drops, XP, Shadow residues) */

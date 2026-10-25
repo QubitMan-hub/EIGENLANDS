@@ -1,7 +1,10 @@
 // node e2e/ui.mjs panel out.png [w] [h]  — screenshots a UI-lab panel
 import { chromium } from 'playwright-core';
 const [panel, out, w = '1280', hh = '800'] = process.argv.slice(2);
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--no-sandbox'] });
+const b = await chromium.launch({
+  executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  args: ['--no-sandbox'],
+});
 const p = await b.newPage({ viewport: { width: +w, height: +hh } });
 const logs = [];
 p.on('console', (m) => logs.push(m.type() + ': ' + m.text()));

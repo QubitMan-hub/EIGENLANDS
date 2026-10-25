@@ -13,7 +13,13 @@ import { installBufferGlobal } from './shims/buffer';
 
 export { ErrorCode, Protocol };
 
-export enum ClientState { JOINING = 0, JOINED = 1, RECONNECTED = 2, LEAVING = 3, CLOSED = 4 }
+export enum ClientState {
+  JOINING = 0,
+  JOINED = 1,
+  RECONNECTED = 2,
+  LEAVING = 3,
+  CLOSED = 4,
+}
 
 /** Server end of an in-memory connection. */
 export interface HostEnd {
@@ -50,18 +56,32 @@ export class Delayed {
   active = true;
   paused = false;
   elapsedTime = 0;
-  constructor(public handler: (...a: unknown[]) => void, public args: unknown[], public time: number, private repeat: boolean) {}
+  constructor(
+    public handler: (...a: unknown[]) => void,
+    public args: unknown[],
+    public time: number,
+    private repeat: boolean,
+  ) {}
   tick(delta: number): void {
     if (this.paused || !this.active) return;
     this.elapsedTime += delta;
     if (this.elapsedTime < this.time) return;
     this.handler(...this.args);
-    if (this.repeat) this.elapsedTime -= this.time; else this.active = false;
+    if (this.repeat) this.elapsedTime -= this.time;
+    else this.active = false;
   }
-  clear(): void { this.active = false; }
-  reset(): void { this.elapsedTime = 0; }
-  pause(): void { this.paused = true; }
-  resume(): void { this.paused = false; }
+  clear(): void {
+    this.active = false;
+  }
+  reset(): void {
+    this.elapsedTime = 0;
+  }
+  pause(): void {
+    this.paused = true;
+  }
+  resume(): void {
+    this.paused = false;
+  }
 }
 
 export class Clock {
@@ -71,8 +91,13 @@ export class Clock {
   deltaTime = 0;
   private last = 0;
   private delayed: Delayed[] = [];
-  start(): void { this.running = true; this.last = this.currentTime = performance.now(); }
-  stop(): void { this.running = false; }
+  start(): void {
+    this.running = true;
+    this.last = this.currentTime = performance.now();
+  }
+  stop(): void {
+    this.running = false;
+  }
   tick(now = performance.now()): void {
     this.deltaTime = now - this.last;
     this.last = this.currentTime = now;
@@ -81,19 +106,30 @@ export class Clock {
     this.delayed = this.delayed.filter((d) => d.active);
   }
   setInterval(handler: (...a: any[]) => void, time: number, ...args: unknown[]): Delayed {
-    const d = new Delayed(handler, args, time, true); this.delayed.push(d); return d;
+    const d = new Delayed(handler, args, time, true);
+    this.delayed.push(d);
+    return d;
   }
   setTimeout(handler: (...a: any[]) => void, time: number, ...args: unknown[]): Delayed {
-    const d = new Delayed(handler, args, time, false); this.delayed.push(d); return d;
+    const d = new Delayed(handler, args, time, false);
+    this.delayed.push(d);
+    return d;
   }
-  duration(ms: number): Promise<void> { return new Promise((r) => this.setTimeout(r, ms)); }
-  clear(): void { for (const d of this.delayed) d.clear(); this.delayed = []; }
+  duration(ms: number): Promise<void> {
+    return new Promise((r) => this.setTimeout(r, ms));
+  }
+  clear(): void {
+    for (const d of this.delayed) d.clear();
+    this.delayed = [];
+  }
 }
 
 // ───────────────────────── client ─────────────────────────
 
 type AfterPatch = Array<[Client | 'broadcast', unknown[]]>;
-interface SendOptions { afterNextPatch?: boolean }
+interface SendOptions {
+  afterNextPatch?: boolean;
+}
 
 export class Client {
   state = ClientState.JOINING;
@@ -108,10 +144,17 @@ export class Client {
   /** @internal */
   _joinedAt = 0;
 
-  constructor(readonly sessionId: string, readonly ref: HostEnd) {}
+  constructor(
+    readonly sessionId: string,
+    readonly ref: HostEnd,
+  ) {}
 
-  get id(): string { return this.sessionId; }
-  get readyState(): number { return this.ref.open ? 1 : 3; }
+  get id(): string {
+    return this.sessionId;
+  }
+  get readyState(): number {
+    return this.ref.open ? 1 : 3;
+  }
 
   send(type: string | number, message?: unknown, options?: SendOptions): void {
     this.enqueueRaw(dataFrame(type, message), options);
@@ -122,8 +165,14 @@ export class Client {
   }
 
   enqueueRaw(data: Uint8Array, options?: SendOptions): void {
-    if (options?.afterNextPatch) { this._afterNextPatchQueue.push([this, [data]]); return; }
-    if (this.state === ClientState.JOINING) { this._enqueuedMessages?.push(data); return; }
+    if (options?.afterNextPatch) {
+      this._afterNextPatchQueue.push([this, [data]]);
+      return;
+    }
+    if (this.state === ClientState.JOINING) {
+      this._enqueuedMessages?.push(data);
+      return;
+    }
     this.raw(data);
   }
 
@@ -131,18 +180,28 @@ export class Client {
     if (this.ref.open) this.ref.send(data);
   }
 
-  error(code: number, message = ''): void { this.raw(errorFrame(code, message)); }
+  error(code: number, message = ''): void {
+    this.raw(errorFrame(code, message));
+  }
 
-  leave(code?: number, data?: string): void { this.ref.close(code, data); }
+  leave(code?: number, data?: string): void {
+    this.ref.close(code, data);
+  }
 
   /** @deprecated like the real client */
-  close(code?: number, data?: string): void { this.leave(code, data); }
+  close(code?: number, data?: string): void {
+    this.leave(code, data);
+  }
 
-  toJSON(): { sessionId: string; readyState: number } { return { sessionId: this.sessionId, readyState: this.readyState }; }
+  toJSON(): { sessionId: string; readyState: number } {
+    return { sessionId: this.sessionId, readyState: this.readyState };
+  }
 }
 
 export class ClientArray<C extends Client = Client> extends Array<C> {
-  getById(sessionId: string): C | undefined { return this.find((c) => c.sessionId === sessionId); }
+  getById(sessionId: string): C | undefined {
+    return this.find((c) => c.sessionId === sessionId);
+  }
   delete(client: C): boolean {
     const i = this.indexOf(client);
     if (i < 0) return false;
@@ -166,7 +225,9 @@ class SchemaSerializer {
   encodedViews?: Map<object, Uint8Array>;
   handshakeCache?: Uint8Array;
 
-  constructor() { this.fullEncodeBuffer = new Uint8Array(Encoder.BUFFER_SIZE); }
+  constructor() {
+    this.fullEncodeBuffer = new Uint8Array(Encoder.BUFFER_SIZE);
+  }
 
   reset(state: any): void {
     this.encoder = new Encoder(state);
@@ -183,14 +244,22 @@ class SchemaSerializer {
       this.needFullEncode = false;
     }
     if (this.hasFilters && client?.view) {
-      return this.encoder.encodeAllView(client.view, this.sharedOffsetCache.offset, { ...this.sharedOffsetCache }, this.fullEncodeBuffer as any);
+      return this.encoder.encodeAllView(
+        client.view,
+        this.sharedOffsetCache.offset,
+        { ...this.sharedOffsetCache },
+        this.fullEncodeBuffer as any,
+      );
     }
     return this.fullEncodeCache;
   }
 
   applyPatches(clients: Client[]): boolean {
     let n = clients.length;
-    if (n === 0) { this.encoder.discardChanges(); return false; }
+    if (n === 0) {
+      this.encoder.discardChanges();
+      return false;
+    }
     if (!this.encoder.hasChanges) {
       if (this.hasFilters) {
         const changed = clients.filter((c) => c.state === ClientState.JOINED && (c.view?.changes.size ?? 0) > 0);
@@ -208,7 +277,10 @@ class SchemaSerializer {
     this.encoder.sharedBuffer[0] = Protocol.ROOM_STATE_PATCH;
     const encodedChanges = this.encoder.encode(it);
     if (!this.hasFilters) {
-      while (n--) { const c = clients[n]!; if (c.state === ClientState.JOINED) c.raw(encodedChanges); }
+      while (n--) {
+        const c = clients[n]!;
+        if (c.state === ClientState.JOINED) c.raw(encodedChanges);
+      }
     } else {
       const sharedOffset = it.offset;
       while (n--) {
@@ -235,9 +307,17 @@ class SchemaSerializer {
 
 // ───────────────────────── room ─────────────────────────
 
-enum Internal { CREATING, CREATED, DISPOSING }
+enum Internal {
+  CREATING,
+  CREATED,
+  DISPOSING,
+}
 
-interface Seat { options: any; consumed: boolean; timer?: ReturnType<typeof setTimeout> }
+interface Seat {
+  options: any;
+  consumed: boolean;
+  timer?: ReturnType<typeof setTimeout>;
+}
 type Handler = { callback: (client: Client, a: any, b?: any) => void; validate?: (m: unknown) => unknown };
 
 /** Registry hook installed by the local host (host.ts) so rooms can unlist themselves when disposed. */
@@ -254,8 +334,22 @@ export abstract class Room<State extends object = any, Metadata = any> {
   roomName = '';
   roomId = '';
   seatReservationTime = 15;
-  listing: { roomId: string; name: string; metadata: Metadata | undefined; locked: boolean; private: boolean; clients: number; maxClients: number } = {
-    roomId: '', name: '', metadata: undefined, locked: false, private: false, clients: 0, maxClients: Infinity,
+  listing: {
+    roomId: string;
+    name: string;
+    metadata: Metadata | undefined;
+    locked: boolean;
+    private: boolean;
+    clients: number;
+    maxClients: number;
+  } = {
+    roomId: '',
+    name: '',
+    metadata: undefined,
+    locked: false,
+    private: false,
+    clients: 0,
+    maxClients: Infinity,
   };
   presence: unknown = undefined;
   /** @internal */
@@ -288,22 +382,37 @@ export abstract class Room<State extends object = any, Metadata = any> {
     };
   }
 
-  get state(): State { return this._state as State; }
+  get state(): State {
+    return this._state as State;
+  }
   set state(s: State) {
     this._state = s;
-    if (s) { this._serializer = new SchemaSerializer(); this._serializer.reset(s); }
+    if (s) {
+      this._serializer = new SchemaSerializer();
+      this._serializer.reset(s);
+    }
   }
 
-  get patchRate(): number | null { return this._patchRate; }
+  get patchRate(): number | null {
+    return this._patchRate;
+  }
   set patchRate(ms: number | null) {
     this._patchRate = ms;
     if (!this._inited) return;
-    if (this._patchInterval) { clearInterval(this._patchInterval); this._patchInterval = undefined; }
-    if (ms !== null && ms !== 0 && this._internalState !== Internal.DISPOSING) this._patchInterval = setInterval(() => this.broadcastPatch(), ms);
+    if (this._patchInterval) {
+      clearInterval(this._patchInterval);
+      this._patchInterval = undefined;
+    }
+    if (ms !== null && ms !== 0 && this._internalState !== Internal.DISPOSING)
+      this._patchInterval = setInterval(() => this.broadcastPatch(), ms);
   }
 
-  get metadata(): Metadata | undefined { return this.listing.metadata; }
-  get locked(): boolean { return this._locked; }
+  get metadata(): Metadata | undefined {
+    return this.listing.metadata;
+  }
+  get locked(): boolean {
+    return this._locked;
+  }
 
   // ── user hooks (overridden by game rooms) ──
   onCreate?(options: any): void | Promise<any>;
@@ -311,46 +420,92 @@ export abstract class Room<State extends object = any, Metadata = any> {
   onLeave?(client: Client, consented?: boolean): void | Promise<any>;
   onDispose?(): void | Promise<any>;
   onBeforePatch?(state: State): void;
-  onAuth(_client: Client, _options: any, _context?: any): any { return true; }
+  onAuth(_client: Client, _options: any, _context?: any): any {
+    return true;
+  }
 
   // ── API used by rooms ──
   setSimulationInterval(cb?: (deltaTime: number) => void, delay = DEFAULT_SIMULATION_INTERVAL): void {
     if (this._simulationInterval) clearInterval(this._simulationInterval);
     this._simulationInterval = undefined;
-    if (cb) this._simulationInterval = setInterval(() => { this.clock.tick(); cb(this.clock.deltaTime); }, delay);
+    if (cb)
+      this._simulationInterval = setInterval(() => {
+        this.clock.tick();
+        cb(this.clock.deltaTime);
+      }, delay);
   }
 
-  setPatchRate(ms: number | null): void { this.patchRate = ms; }
-  setState(s: State): void { this.state = s; }
-  setSeatReservationTime(seconds: number): this { this.seatReservationTime = seconds; return this; }
+  setPatchRate(ms: number | null): void {
+    this.patchRate = ms;
+  }
+  setState(s: State): void {
+    this.state = s;
+  }
+  setSeatReservationTime(seconds: number): this {
+    this.seatReservationTime = seconds;
+    return this;
+  }
 
   async setMetadata(meta: Partial<Metadata>): Promise<void> {
     if (!this.listing.metadata) this.listing.metadata = { ...meta } as Metadata;
     else Object.assign(this.listing.metadata as object, meta);
   }
 
-  async setPrivate(bool = true): Promise<void> { this.listing.private = bool; }
-  async lock(): Promise<void> { this._locked = true; this.listing.locked = true; }
-  async unlock(): Promise<void> { this._locked = false; this.listing.locked = false; }
+  async setPrivate(bool = true): Promise<void> {
+    this.listing.private = bool;
+  }
+  async lock(): Promise<void> {
+    this._locked = true;
+    this.listing.locked = true;
+  }
+  async unlock(): Promise<void> {
+    this._locked = false;
+    this.listing.locked = false;
+  }
 
   hasReachedMaxClients(): boolean {
-    return this.clients.length + Object.keys(this.reservedSeats).length >= this.maxClients || this._internalState === Internal.DISPOSING;
+    return (
+      this.clients.length + Object.keys(this.reservedSeats).length >= this.maxClients ||
+      this._internalState === Internal.DISPOSING
+    );
   }
 
-  hasReservedSeat(sessionId: string): boolean { return !!this.reservedSeats[sessionId] && !this.reservedSeats[sessionId]!.consumed; }
+  hasReservedSeat(sessionId: string): boolean {
+    return !!this.reservedSeats[sessionId] && !this.reservedSeats[sessionId]!.consumed;
+  }
 
-  onMessage<T = any>(type: string | number, callback: (client: Client, message: T) => void, validate?: (m: unknown) => T): () => void {
+  onMessage<T = any>(
+    type: string | number,
+    callback: (client: Client, message: T) => void,
+    validate?: (m: unknown) => T,
+  ): () => void {
     const key = String(type);
     this.onMessageHandlers[key] = { callback: callback as Handler['callback'], validate };
-    return () => { delete this.onMessageHandlers[key]; };
+    return () => {
+      delete this.onMessageHandlers[key];
+    };
   }
 
-  broadcast(type: string | number, message?: unknown, options: { except?: Client | Client[]; afterNextPatch?: boolean } = {}): void {
-    if (options.afterNextPatch) { this._afterNextPatchQueue.push(['broadcast', [type, message, { ...options, afterNextPatch: false }]]); return; }
-    this.broadcastFrame(message instanceof Uint8Array ? bytesFrame(type, message) : dataFrame(type, message), options.except);
+  broadcast(
+    type: string | number,
+    message?: unknown,
+    options: { except?: Client | Client[]; afterNextPatch?: boolean } = {},
+  ): void {
+    if (options.afterNextPatch) {
+      this._afterNextPatchQueue.push(['broadcast', [type, message, { ...options, afterNextPatch: false }]]);
+      return;
+    }
+    this.broadcastFrame(
+      message instanceof Uint8Array ? bytesFrame(type, message) : dataFrame(type, message),
+      options.except,
+    );
   }
 
-  broadcastBytes(type: string | number, message: Uint8Array, options: { except?: Client | Client[]; afterNextPatch?: boolean } = {}): void {
+  broadcastBytes(
+    type: string | number,
+    message: Uint8Array,
+    options: { except?: Client | Client[]; afterNextPatch?: boolean } = {},
+  ): void {
     this.broadcast(type, message, options);
   }
 
@@ -385,7 +540,9 @@ export abstract class Room<State extends object = any, Metadata = any> {
     if (this._internalState === Internal.CREATING) throw new Error('cannot disconnect during onCreate()');
     this._internalState = Internal.DISPOSING;
     this.autoDispose = true;
-    const done = new Promise<void>((resolve) => { this._afterDispose = resolve; });
+    const done = new Promise<void>((resolve) => {
+      this._afterDispose = resolve;
+    });
     if (this.clients.length > 0) for (const c of [...this.clients]) this.forciblyClose(c, closeCode);
     else void this.dispose();
     return done;
@@ -422,7 +579,9 @@ export abstract class Room<State extends object = any, Metadata = any> {
   }
 
   /** @internal */
-  get __disposing(): boolean { return this._internalState === Internal.DISPOSING; }
+  get __disposing(): boolean {
+    return this._internalState === Internal.DISPOSING;
+  }
 
   /** @internal MatchMaker reserveSeatFor */
   __reserveSeat(sessionId: string, options: any): boolean {
@@ -442,7 +601,9 @@ export abstract class Room<State extends object = any, Metadata = any> {
   /** @internal transport onConnection → room._onJoin; on failure the client gets an ERROR frame and is closed */
   async __connect(sessionId: string, ref: HostEnd): Promise<void> {
     const client = new Client(sessionId, ref);
-    ref.onclose = () => { client.state = ClientState.LEAVING; };
+    ref.onclose = () => {
+      client.state = ClientState.LEAVING;
+    };
     try {
       await this.onJoinInternal(client);
     } catch (e) {
@@ -455,7 +616,10 @@ export abstract class Room<State extends object = any, Metadata = any> {
   private async onJoinInternal(client: Client): Promise<void> {
     const sid = client.sessionId;
     client.reconnectionToken = generateId();
-    if (this._autoDisposeTimeout) { clearTimeout(this._autoDisposeTimeout); this._autoDisposeTimeout = undefined; }
+    if (this._autoDisposeTimeout) {
+      clearTimeout(this._autoDisposeTimeout);
+      this._autoDisposeTimeout = undefined;
+    }
     const seat = this.reservedSeats[sid];
     if (!seat || seat.consumed) throw new ServerError(ErrorCode.MATCHMAKE_EXPIRED, 'already consumed');
     seat.consumed = true;
@@ -464,7 +628,11 @@ export abstract class Room<State extends object = any, Metadata = any> {
     try {
       if (this.onAuth !== Room.prototype.onAuth) {
         try {
-          client.auth = await this.onAuth(client, seat.options, { token: seat.options?.token, headers: {}, ip: '127.0.0.1' });
+          client.auth = await this.onAuth(client, seat.options, {
+            token: seat.options?.token,
+            headers: {},
+            ip: '127.0.0.1',
+          });
           if (!client.auth) throw new ServerError(ErrorCode.AUTH_FAILED, 'onAuth failed');
         } catch (e) {
           delete this.reservedSeats[sid];
@@ -472,7 +640,8 @@ export abstract class Room<State extends object = any, Metadata = any> {
           throw e;
         }
       }
-      if (client.state === ClientState.LEAVING) throw new ServerError(Protocol.WS_CLOSE_GOING_AWAY, 'already disconnected');
+      if (client.state === ClientState.LEAVING)
+        throw new ServerError(Protocol.WS_CLOSE_GOING_AWAY, 'already disconnected');
       this.clients.push(client);
       if (this.onJoin) await this.onJoin(client, seat.options, client.auth);
       if ((client.state as ClientState) === ClientState.LEAVING) throw new Error('early_leave');
@@ -485,7 +654,9 @@ export abstract class Room<State extends object = any, Metadata = any> {
       throw e;
     }
     if (client.state === ClientState.JOINING) {
-      client.ref.onclose = (code) => { void this.onLeaveInternal(client, code); };
+      client.ref.onclose = (code) => {
+        void this.onLeaveInternal(client, code);
+      };
       client.ref.onmessage = (buf) => this.onMessageInternal(client, buf);
       client.raw(joinFrame(client.reconnectionToken, 'schema', this._serializer?.handshake()));
     }
@@ -512,7 +683,12 @@ export abstract class Room<State extends object = any, Metadata = any> {
         return;
       }
       if (h) h.callback(client, message);
-      else (this.onMessageHandlers['*'] ?? this.onMessageHandlers['__no_message_handler']!).callback(client, type, message);
+      else
+        (this.onMessageHandlers['*'] ?? this.onMessageHandlers['__no_message_handler']!).callback(
+          client,
+          type,
+          message,
+        );
     } else if (code === Protocol.JOIN_ROOM && client.state === ClientState.JOINING) {
       client.state = ClientState.JOINED;
       client._joinedAt = this.clock.elapsedTime;
@@ -560,7 +736,10 @@ export abstract class Room<State extends object = any, Metadata = any> {
     clearTimeout(this._autoDisposeTimeout);
     this._autoDisposeTimeout = undefined;
     if (!this.autoDispose) return;
-    this._autoDisposeTimeout = setTimeout(() => { this._autoDisposeTimeout = undefined; this.disposeIfEmpty(); }, seconds * 1000);
+    this._autoDisposeTimeout = setTimeout(() => {
+      this._autoDisposeTimeout = undefined;
+      this.disposeIfEmpty();
+    }, seconds * 1000);
   }
 
   private decrementClientCount(): void {
@@ -570,8 +749,12 @@ export abstract class Room<State extends object = any, Metadata = any> {
   }
 
   private disposeIfEmpty(): boolean {
-    const will = this._onLeaveConcurrent === 0 && this.autoDispose && this._autoDisposeTimeout === undefined
-      && this.clients.length === 0 && Object.keys(this.reservedSeats).length === 0;
+    const will =
+      this._onLeaveConcurrent === 0 &&
+      this.autoDispose &&
+      this._autoDisposeTimeout === undefined &&
+      this.clients.length === 0 &&
+      Object.keys(this.reservedSeats).length === 0;
     if (will) void this.dispose();
     return will;
   }
@@ -583,9 +766,18 @@ export abstract class Room<State extends object = any, Metadata = any> {
     this._disposed = (async () => {
       try {
         const r = this.onDispose?.();
-        if (this._patchInterval) { clearInterval(this._patchInterval); this._patchInterval = undefined; }
-        if (this._simulationInterval) { clearInterval(this._simulationInterval); this._simulationInterval = undefined; }
-        if (this._autoDisposeTimeout) { clearTimeout(this._autoDisposeTimeout); this._autoDisposeTimeout = undefined; }
+        if (this._patchInterval) {
+          clearInterval(this._patchInterval);
+          this._patchInterval = undefined;
+        }
+        if (this._simulationInterval) {
+          clearInterval(this._simulationInterval);
+          this._simulationInterval = undefined;
+        }
+        if (this._autoDisposeTimeout) {
+          clearTimeout(this._autoDisposeTimeout);
+          this._autoDisposeTimeout = undefined;
+        }
         this.clock.clear();
         this.clock.stop();
         await r;
@@ -601,14 +793,20 @@ export abstract class Room<State extends object = any, Metadata = any> {
 
 /** Not available in the browser: the solo host (host.ts) plays the part of Server + MatchMaker. */
 export class Server {
-  constructor() { throw new Error('colyseus Server is not available in the single-player browser build'); }
+  constructor() {
+    throw new Error('colyseus Server is not available in the single-player browser build');
+  }
 }
 
 /** Minimal matchMaker facade backed by the local host's room registry. */
 export const matchMaker = {
   rooms: new Map<string, Room>(),
-  getLocalRoomById(roomId: string): Room | undefined { return this.rooms.get(roomId); },
+  getLocalRoomById(roomId: string): Room | undefined {
+    return this.rooms.get(roomId);
+  },
   async query(conditions: Record<string, unknown> = {}): Promise<Array<Room['listing']>> {
-    return [...this.rooms.values()].map((r) => r.listing).filter((l) => Object.entries(conditions).every(([k, v]) => (l as Record<string, unknown>)[k] === v));
+    return [...this.rooms.values()]
+      .map((r) => r.listing)
+      .filter((l) => Object.entries(conditions).every(([k, v]) => (l as Record<string, unknown>)[k] === v));
   },
 };

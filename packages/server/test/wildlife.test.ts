@@ -5,7 +5,8 @@ import { createEnemy, stepEnemy, type Enemy } from '../src/game/enemies';
 const open = () => false;
 const hooks = { strike() {}, telegraph() {} };
 const run = (e: Enemy, target: { x: number; y: number }, secs: number) => {
-  for (let i = 0; i < secs * 20; i++) stepEnemy(e, 0.05, i, [{ id: 'p', x: target.x, y: target.y, alive: true }], open, () => 0.5, hooks);
+  for (let i = 0; i < secs * 20; i++)
+    stepEnemy(e, 0.05, i, [{ id: 'p', x: target.x, y: target.y, alive: true }], open, () => 0.5, hooks);
 };
 
 describe('wildlife', () => {

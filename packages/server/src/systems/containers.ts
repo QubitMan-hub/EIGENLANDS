@@ -1,6 +1,34 @@
 import {
-  mineLoopAt, minePosition, BIOMES, BIOME_NAMES, hash2, caveLanding, isCaveY, FARM_ANIMALS, ITEMS, MSG, QUBITMAN, RUIN_LORE, RUIN_NAMES, ruinLoot, type Biome, STATUE_REMARKS, STATION_SUBS, addStack, chunkOf, cloneStack, countItem, isRipe, removeItem, validInventory,
-  type ChestMsg, type Inventory, type OpenMsg, type PanelMsg, type ShelterMsg, type WorldObj,
+  mineLoopAt,
+  minePosition,
+  BIOMES,
+  BIOME_NAMES,
+  hash2,
+  caveLanding,
+  isCaveY,
+  FARM_ANIMALS,
+  ITEMS,
+  MSG,
+  QUBITMAN,
+  RUIN_LORE,
+  RUIN_NAMES,
+  ruinLoot,
+  type Biome,
+  STATUE_REMARKS,
+  STATION_SUBS,
+  addStack,
+  chunkOf,
+  cloneStack,
+  countItem,
+  isRipe,
+  removeItem,
+  validInventory,
+  type ChestMsg,
+  type Inventory,
+  type OpenMsg,
+  type PanelMsg,
+  type ShelterMsg,
+  type WorldObj,
 } from '@eigenlands/shared';
 import type { ServerPlayer } from '../rooms/player';
 import type { RoomApi } from './api';
@@ -14,8 +42,17 @@ import { boardPanel, questEvent, recordDeed } from './quests';
 function lorePanel(room: RoomApi, o: WorldObj): PanelMsg {
   const r = STATUE_REMARKS[Math.floor(room.rand() * STATUE_REMARKS.length)]!;
   return {
-    kind: 'lore', tx: o.x, ty: o.y, sub: o.sub,
-    lore: { title: QUBITMAN.title, plaque: QUBITMAN.plaque, epitaph: QUBITMAN.epitaph, pages: [...QUBITMAN.legend], remark: { npc: r[0], text: r[1] } },
+    kind: 'lore',
+    tx: o.x,
+    ty: o.y,
+    sub: o.sub,
+    lore: {
+      title: QUBITMAN.title,
+      plaque: QUBITMAN.plaque,
+      epitaph: QUBITMAN.epitaph,
+      pages: [...QUBITMAN.legend],
+      remark: { npc: r[0], text: r[1] },
+    },
   };
 }
 
@@ -34,9 +71,14 @@ function panelFor(o: WorldObj, p: ServerPlayer): PanelMsg | null {
   if (o.kind === 'shelter') {
     const d = o.data as { animals: number; fed: boolean; ready: number };
     const f = FARM_ANIMALS[o.sub as 'coop' | 'barn'];
-    return { kind: 'shelter', ...base, shelter: { type: o.sub as 'coop' | 'barn', animals: d.animals, max: f.max, fed: d.fed, ready: d.ready } };
+    return {
+      kind: 'shelter',
+      ...base,
+      shelter: { type: o.sub as 'coop' | 'barn', animals: d.animals, max: f.max, fed: d.fed, ready: d.ready },
+    };
   }
-  if (o.kind === 'sign') return { kind: 'sign', ...base, sign: String((o.data as { text?: string } | undefined)?.text ?? '') };
+  if (o.kind === 'sign')
+    return { kind: 'sign', ...base, sign: String((o.data as { text?: string } | undefined)?.text ?? '') };
   void p;
   return null;
 }
@@ -48,39 +90,85 @@ function sendPanel(p: ServerPlayer, o: WorldObj): void {
 
 export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): Promise<void> {
   if (!msg || !isInt(msg.tx, -1e6, 1e6) || !isInt(msg.ty, -1e6, 1e6) || p.deadT > 0) return;
-  if (distToTile(p, msg.tx, msg.ty) > OPEN_REACH) { p.toast('Too far away.'); return; }
+  if (distToTile(p, msg.tx, msg.ty) > OPEN_REACH) {
+    p.toast('Too far away.');
+    return;
+  }
   await room.ensureChunk(chunkOf(msg.tx), chunkOf(msg.ty));
   if (p.deadT > 0 || distToTile(p, msg.tx, msg.ty) > OPEN_REACH) return;
-  if(p.sim.cart>0){
+  if (p.sim.cart > 0) {
     // A rider can always get out onto a dry track. Prefer the adjacent shoulder.
-    for(const[dx,dy]of[[1,0],[0,1],[-1,0],[0,-1]]){
-      const x=Math.floor(p.sim.x)+dx!,y=Math.floor(p.sim.y)+dy!;
-      if(!room.store.solidAt(x,y)){p.sim.x=x+.5;p.sim.y=y+.5;break;}
+    for (const [dx, dy] of [
+      [1, 0],
+      [0, 1],
+      [-1, 0],
+      [0, -1],
+    ]) {
+      const x = Math.floor(p.sim.x) + dx!,
+        y = Math.floor(p.sim.y) + dy!;
+      if (!room.store.solidAt(x, y)) {
+        p.sim.x = x + 0.5;
+        p.sim.y = y + 0.5;
+        break;
+      }
     }
-    p.sim.cart=0;p.queue.length=0;p.toast('You step off the minecart.');return;
+    p.sim.cart = 0;
+    p.queue.length = 0;
+    p.toast('You step off the minecart.');
+    return;
   }
   if (await openConstruction(room, p, msg.tx, msg.ty)) return;
   const o = room.store.objectAt(msg.tx, msg.ty);
-  if (!o) { forageAt(room, p, msg.tx, msg.ty); return; }
-  if (o.static && ['stairs_up', 'stairs_down', 'dive_gate', 'dive_exit'].includes(o.sub)) {
-    const to = o.data?.to as { x?: unknown; y?: unknown } | undefined;
-    if (!to || typeof to.x !== 'number' || typeof to.y !== 'number' || !Number.isFinite(to.x) || !Number.isFinite(to.y)) return;
-    await room.ensureChunk(chunkOf(to.x), chunkOf(to.y));
-    if (o.sub === 'dive_gate' && countItem(p.data.inv, 'sloop') < 1) { p.toast('Bring a Sloop Charter so you can surface safely.', 'bad'); return; }
-    if (o.sub !== 'dive_exit' && room.store.solidAt(Math.floor(to.x), Math.floor(to.y))) { p.toast('The landing is blocked. Clear it before using the stairs.', 'bad'); return; }
-    const hasShip = countItem(p.data.inv, 'sloop') > 0;
-    p.sim.x = o.sub === 'dive_exit' && !hasShip ? .5 : to.x;
-    p.sim.y = o.sub === 'dive_exit' && !hasShip ? 4.5 : to.y;
-    p.sim.boat = o.sub === 'dive_exit' && hasShip ? 1 : 0; p.sim.dashT = 0; p.queue.length = 0;
-    p.toast(o.sub === 'stairs_up' ? 'You climb to the upper floor.' : o.sub === 'stairs_down' ? 'You return downstairs.' : o.sub === 'dive_gate' ? 'You descend into a dry chamber beneath the sea.' : 'You surface beside your sloop.');
+  if (!o) {
+    forageAt(room, p, msg.tx, msg.ty);
     return;
   }
-  if(o.static && o.sub==='minecart'){
-    const loop=mineLoopAt(room.seed,o.x,o.y);
-    if(!loop||loop.x!==o.x||loop.y!==o.y||room.store.solidAt(o.x,o.y))return;
-    const pos=minePosition(loop,0);p.sim.x=pos.x;p.sim.y=pos.y;p.sim.faceX=pos.fx;p.sim.faceY=pos.fy;
-    p.sim.cart=1;p.sim.boat=0;p.sim.dashT=0;p.sim.charge=0;p.sim.hold=0;p.queue.length=0;
-    p.toast('Minecart: hold movement to ride the circuit; release to brake. Use steps off.');return;
+  if (o.static && ['stairs_up', 'stairs_down', 'dive_gate', 'dive_exit'].includes(o.sub)) {
+    const to = o.data?.to as { x?: unknown; y?: unknown } | undefined;
+    if (!to || typeof to.x !== 'number' || typeof to.y !== 'number' || !Number.isFinite(to.x) || !Number.isFinite(to.y))
+      return;
+    await room.ensureChunk(chunkOf(to.x), chunkOf(to.y));
+    if (o.sub === 'dive_gate' && countItem(p.data.inv, 'sloop') < 1) {
+      p.toast('Bring a Sloop Charter so you can surface safely.', 'bad');
+      return;
+    }
+    if (o.sub !== 'dive_exit' && room.store.solidAt(Math.floor(to.x), Math.floor(to.y))) {
+      p.toast('The landing is blocked. Clear it before using the stairs.', 'bad');
+      return;
+    }
+    const hasShip = countItem(p.data.inv, 'sloop') > 0;
+    p.sim.x = o.sub === 'dive_exit' && !hasShip ? 0.5 : to.x;
+    p.sim.y = o.sub === 'dive_exit' && !hasShip ? 4.5 : to.y;
+    p.sim.boat = o.sub === 'dive_exit' && hasShip ? 1 : 0;
+    p.sim.dashT = 0;
+    p.queue.length = 0;
+    p.toast(
+      o.sub === 'stairs_up'
+        ? 'You climb to the upper floor.'
+        : o.sub === 'stairs_down'
+          ? 'You return downstairs.'
+          : o.sub === 'dive_gate'
+            ? 'You descend into a dry chamber beneath the sea.'
+            : 'You surface beside your sloop.',
+    );
+    return;
+  }
+  if (o.static && o.sub === 'minecart') {
+    const loop = mineLoopAt(room.seed, o.x, o.y);
+    if (!loop || loop.x !== o.x || loop.y !== o.y || room.store.solidAt(o.x, o.y)) return;
+    const pos = minePosition(loop, 0);
+    p.sim.x = pos.x;
+    p.sim.y = pos.y;
+    p.sim.faceX = pos.fx;
+    p.sim.faceY = pos.fy;
+    p.sim.cart = 1;
+    p.sim.boat = 0;
+    p.sim.dashT = 0;
+    p.sim.charge = 0;
+    p.sim.hold = 0;
+    p.queue.length = 0;
+    p.toast('Minecart: hold movement to ride the circuit; release to brake. Use steps off.');
+    return;
   }
   if (o.kind === 'crop') {
     const d = cropOf(o);
@@ -88,28 +176,57 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
     else p.toast(d.dead ? 'It has withered.' : 'It is still growing.');
     return;
   }
-  if ((o.kind === 'chest' || o.kind === 'shelter') && o.owner !== p.accountId) { p.toast("That isn't yours."); return; }
-  if (o.static && (o.sub === 'shrine_altar' || o.sub === 'shrine_pillar')) { room.shrineInteract?.(p, o); return; }
+  if ((o.kind === 'chest' || o.kind === 'shelter') && o.owner !== p.accountId) {
+    p.toast("That isn't yours.");
+    return;
+  }
+  if (o.static && (o.sub === 'shrine_altar' || o.sub === 'shrine_pillar')) {
+    room.shrineInteract?.(p, o);
+    return;
+  }
   if (o.static && (o.sub === 'statue' || o.sub === 'plaque')) {
     p.client.send(MSG.PANEL, lorePanel(room, o));
     questEvent(p, { type: 'read', target: 'statue', n: 1 });
     if (!p.data.deeds.statue) recordDeed(p, 'statue', 'the plaque', room.wclock.day());
     return;
   }
-  if(o.static&&o.sub==='cave_altar'){
-    if(countItem(p.data.inv,'deep_sigil')<1){p.toast('A resonant arena. Craft a Deep Sigil at a workbench, then return at level 12.');return;}
-    if(room.summonBoss?.(p,'deep_sigil',o.x-7,o.y+6)){removeItem(p.data.inv,'deep_sigil',1);p.dirty('inv');}return;
-  }
-  if (o.static && (o.sub === 'ruin_cache' || o.sub === 'sea_cache')) { openRuinCache(room, p, o); return; }
-  if (o.static && (o.sub === 'cave_mouth' || o.sub === 'cave_ladder' || o.sub === 'cave_lift')) { await climb(room, p, o); return; }
-  if (o.static && RUIN_LORE[o.sub]) {
-    const l = RUIN_LORE[o.sub]!;
-    p.client.send(MSG.PANEL, { kind: 'lore', tx: o.x, ty: o.y, sub: o.sub, lore: { title: RUIN_NAMES[o.sub] ?? 'Ruin', plaque: l.plaque, epitaph: l.epitaph, pages: [...l.pages] } });
+  if (o.static && o.sub === 'cave_altar') {
+    if (countItem(p.data.inv, 'deep_sigil') < 1) {
+      p.toast('A resonant arena. Craft a Deep Sigil at a workbench, then return at level 12.');
+      return;
+    }
+    if (room.summonBoss?.(p, 'deep_sigil', o.x - 7, o.y + 6)) {
+      removeItem(p.data.inv, 'deep_sigil', 1);
+      p.dirty('inv');
+    }
     return;
   }
-  if (o.static && o.sub === 'board') { p.client.send(MSG.PANEL, boardPanel(p, room.wclock.day(), room.seed, { x: o.x, y: o.y })); return; }
-  if(o.kind==='sign'&&['cave_archive','cave_waymark'].includes(o.sub))questEvent(p,{type:'read',target:o.sub,n:1});
-  if(o.kind==='chest')room.fx({kind:'chest',x:o.x+.5,y:o.y+.5});
+  if (o.static && (o.sub === 'ruin_cache' || o.sub === 'sea_cache')) {
+    openRuinCache(room, p, o);
+    return;
+  }
+  if (o.static && (o.sub === 'cave_mouth' || o.sub === 'cave_ladder' || o.sub === 'cave_lift')) {
+    await climb(room, p, o);
+    return;
+  }
+  if (o.static && RUIN_LORE[o.sub]) {
+    const l = RUIN_LORE[o.sub]!;
+    p.client.send(MSG.PANEL, {
+      kind: 'lore',
+      tx: o.x,
+      ty: o.y,
+      sub: o.sub,
+      lore: { title: RUIN_NAMES[o.sub] ?? 'Ruin', plaque: l.plaque, epitaph: l.epitaph, pages: [...l.pages] },
+    });
+    return;
+  }
+  if (o.static && o.sub === 'board') {
+    p.client.send(MSG.PANEL, boardPanel(p, room.wclock.day(), room.seed, { x: o.x, y: o.y }));
+    return;
+  }
+  if (o.kind === 'sign' && ['cave_archive', 'cave_waymark'].includes(o.sub))
+    questEvent(p, { type: 'read', target: o.sub, n: 1 });
+  if (o.kind === 'chest') room.fx({ kind: 'chest', x: o.x + 0.5, y: o.y + 0.5 });
   sendPanel(p, o);
 }
 
@@ -117,8 +234,14 @@ function ownedAt(room: RoomApi, p: ServerPlayer, tx: unknown, ty: unknown, kind:
   if (!isInt(tx, -1e6, 1e6) || !isInt(ty, -1e6, 1e6)) return null;
   const o = room.store.objectAt(tx, ty);
   if (!o || o.kind !== kind || o.static) return null;
-  if (o.owner !== p.accountId) { p.toast("That isn't yours."); return null; }
-  if (distToTile(p, tx, ty) > OPEN_REACH) { p.toast('Too far away.'); return null; }
+  if (o.owner !== p.accountId) {
+    p.toast("That isn't yours.");
+    return null;
+  }
+  if (distToTile(p, tx, ty) > OPEN_REACH) {
+    p.toast('Too far away.');
+    return null;
+  }
   return o;
 }
 
@@ -135,7 +258,10 @@ export function handleChest(room: RoomApi, p: ServerPlayer, msg: ChestMsg): void
   const moving = { ...cloneStack(s), n };
   const left = addStack(to, moving);
   const moved = n - left;
-  if (moved <= 0) { p.toast(msg.action === 'put' ? 'The chest is full.' : 'Your pack is full.', 'bad'); return; }
+  if (moved <= 0) {
+    p.toast(msg.action === 'put' ? 'The chest is full.' : 'Your pack is full.', 'bad');
+    return;
+  }
   s.n -= moved;
   if (s.n <= 0) from[msg.slot] = null;
   o.data = { ...(o.data ?? {}), slots: slots.slice(0, 30) };
@@ -151,20 +277,41 @@ export function handleShelter(room: RoomApi, p: ServerPlayer, msg: ShelterMsg): 
   const d = o.data as { animals: number; fed: boolean; ready: number };
   const f = FARM_ANIMALS[o.sub as 'coop' | 'barn'];
   if (msg.action === 'add') {
-    if (d.animals >= f.max) { p.toast('It is full.'); return; }
-    if (!removeItem(p.data.inv, f.animal, 1)) { p.toast(`You need a ${ITEMS[f.animal]?.name.toLowerCase()}.`); return; }
+    if (d.animals >= f.max) {
+      p.toast('It is full.');
+      return;
+    }
+    if (!removeItem(p.data.inv, f.animal, 1)) {
+      p.toast(`You need a ${ITEMS[f.animal]?.name.toLowerCase()}.`);
+      return;
+    }
     d.animals += 1;
     p.dirty('inv');
   } else if (msg.action === 'feed') {
-    if (d.animals <= 0) { p.toast('There is nobody to feed.'); return; }
-    if (d.fed) { p.toast('They are already fed today.'); return; }
-    if (countItem(p.data.inv, 'hay') < d.animals) { p.toast(`You need ${d.animals} hay.`, 'bad'); return; }
+    if (d.animals <= 0) {
+      p.toast('There is nobody to feed.');
+      return;
+    }
+    if (d.fed) {
+      p.toast('They are already fed today.');
+      return;
+    }
+    if (countItem(p.data.inv, 'hay') < d.animals) {
+      p.toast(`You need ${d.animals} hay.`, 'bad');
+      return;
+    }
     removeItem(p.data.inv, 'hay', d.animals);
     d.fed = true;
     p.dirty('inv');
   } else {
-    if (d.ready <= 0) { p.toast(`No ${f.product} yet.`); return; }
-    if (!giveStacks(p, [{ id: f.product, n: d.ready }])) { p.toast('Your pack is full.', 'bad'); return; }
+    if (d.ready <= 0) {
+      p.toast(`No ${f.product} yet.`);
+      return;
+    }
+    if (!giveStacks(p, [{ id: f.product, n: d.ready }])) {
+      p.toast('Your pack is full.', 'bad');
+      return;
+    }
     d.ready = 0;
     addSkillXp(p, 'farming', 3);
   }
@@ -172,19 +319,43 @@ export function handleShelter(room: RoomApi, p: ServerPlayer, msg: ShelterMsg): 
   sendPanel(p, o);
 }
 
-
 /** A ruin's treasure cache: every traveller may open each one once. */
 function openRuinCache(room: RoomApi, p: ServerPlayer, o: WorldObj): void {
   const d = (o.data ?? {}) as { ruin?: string; biome?: string; cave?: boolean; depth?: number; secret?: boolean };
   const id = typeof d.ruin === 'string' ? d.ruin : `${o.x},${o.y}`;
-  if (p.data.prog.ruins.includes(id)) { p.toast('Only dust and old wax left. You have already searched this cache.'); return; }
+  if (p.data.prog.ruins.includes(id)) {
+    p.toast('Only dust and old wax left. You have already searched this cache.');
+    return;
+  }
   const biome = (BIOMES as readonly string[]).includes(d.biome ?? '') ? (d.biome as Biome) : 'meadow';
   const ocean = o.sub === 'sea_cache';
-  const loot = d.cave ? [{id:'iron_ore',n:2+Math.min(4,d.depth??1)},{id:d.secret?'qubit_crystal':'healing_potion',n:d.secret?1:2},{id:'coal',n:3}] : ocean ? [{ id: 'doubloon', n: 2 + Math.floor(hash2(room.seed, o.x, o.y, 1703) * 4) }, { id: 'cloth', n: 2 }, { id: hash2(room.seed, o.x, o.y, 1704) < 0.15 ? 'qubit_crystal' : 'plank', n: 1 }] : ruinLoot(room.seed, id, biome, room.rand);
-  if (!giveStacks(p, loot)) { p.toast('Your pack is too full to carry the cache\'s contents.', 'bad'); return; }
+  const loot = d.cave
+    ? [
+        { id: 'iron_ore', n: 2 + Math.min(4, d.depth ?? 1) },
+        { id: d.secret ? 'qubit_crystal' : 'healing_potion', n: d.secret ? 1 : 2 },
+        { id: 'coal', n: 3 },
+      ]
+    : ocean
+      ? [
+          { id: 'doubloon', n: 2 + Math.floor(hash2(room.seed, o.x, o.y, 1703) * 4) },
+          { id: 'cloth', n: 2 },
+          { id: hash2(room.seed, o.x, o.y, 1704) < 0.15 ? 'qubit_crystal' : 'plank', n: 1 },
+        ]
+      : ruinLoot(room.seed, id, biome, room.rand);
+  if (!giveStacks(p, loot)) {
+    p.toast("Your pack is too full to carry the cache's contents.", 'bad');
+    return;
+  }
   p.data.prog.ruins.push(id);
   p.dirty('inv');
-  p.toast(ocean ? 'You recovered a sealed voyager’s cache from the deep sea!' : isCaveY(o.y) ? 'You found a forgotten miner\'s cache in the Undercroft!' : `You found a forgotten cache in the ${BIOME_NAMES[biome]}!`, 'good');
+  p.toast(
+    ocean
+      ? 'You recovered a sealed voyager’s cache from the deep sea!'
+      : isCaveY(o.y)
+        ? "You found a forgotten miner's cache in the Undercroft!"
+        : `You found a forgotten cache in the ${BIOME_NAMES[biome]}!`,
+    'good',
+  );
   room.fx({ kind: 'chest', x: o.x + 0.5, y: o.y + 0.5 });
 }
 
@@ -195,7 +366,9 @@ async function climb(room: RoomApi, p: ServerPlayer, o: WorldObj): Promise<void>
   const to = typeof id === 'string' ? caveLanding(room.seed, id, down) : null;
   if (!to) return;
   await room.ensureChunk(chunkOf(Math.floor(to.x)), chunkOf(Math.floor(to.y)));
-  p.sim.x = to.x; p.sim.y = to.y; p.sim.dashT = 0;
+  p.sim.x = to.x;
+  p.sim.y = to.y;
+  p.sim.dashT = 0;
   p.queue.length = 0;
   p.toast(down ? 'You climb down into the Undercroft. Mind the dark.' : 'You climb back up into the daylight.');
   room.fx({ kind: 'craft', x: to.x, y: to.y });

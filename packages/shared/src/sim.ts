@@ -1,14 +1,30 @@
 import {
-  ATTACK_BUFFER, CHARGE_FULL, CHARGE_MIN, CHARGE_MOVE_MULT, COMBO_WINDOW, DASH_CHARGES, DASH_COOLDOWN, DASH_SPEED, DASH_TIME,
-  BOAT_SPEED_MULT, IFRAME_TIME, PLAYER_RADIUS, PLAYER_SPEED, SKILL_COOLDOWN, SWING_MOVE_MULT, TICK_DT,
+  ATTACK_BUFFER,
+  CHARGE_FULL,
+  CHARGE_MIN,
+  CHARGE_MOVE_MULT,
+  COMBO_WINDOW,
+  DASH_CHARGES,
+  DASH_COOLDOWN,
+  DASH_SPEED,
+  DASH_TIME,
+  BOAT_SPEED_MULT,
+  IFRAME_TIME,
+  PLAYER_RADIUS,
+  PLAYER_SPEED,
+  SKILL_COOLDOWN,
+  SWING_MOVE_MULT,
+  TICK_DT,
 } from './constants';
 import { minePosition, type MineLoop } from './mines';
 import { meleeFamily, meleeTap, meleeHeavy, type MeleeFamily } from './combat';
 
 /** Fixed-rate simulation stays real-time after a render/IO stall; never replay an unbounded suspension. */
-export function simulationBudget(remainder:number,elapsedMs:number):{steps:number;remainder:number}{
-  const total=remainder+Math.max(0,Math.min(Number.isFinite(elapsedMs)?elapsedMs:0,250)),stepMs=TICK_DT*1000;
-  const steps=Math.min(5,Math.floor(total/stepMs));return{steps,remainder:total-steps*stepMs};
+export function simulationBudget(remainder: number, elapsedMs: number): { steps: number; remainder: number } {
+  const total = remainder + Math.max(0, Math.min(Number.isFinite(elapsedMs) ? elapsedMs : 0, 250)),
+    stepMs = TICK_DT * 1000;
+  const steps = Math.min(5, Math.floor(total / stepMs));
+  return { steps, remainder: total - steps * stepMs };
 }
 
 /**
@@ -87,20 +103,46 @@ export interface StepEvents {
 }
 
 /** `sea` (when present) is the collision query of a ship: land and obstacles are solid, open water is not. */
-export type SolidQuery = ((tx: number, ty: number) => boolean) & { sea?: (tx: number, ty: number) => boolean; mine?: (x:number,y:number)=>MineLoop|null };
+export type SolidQuery = ((tx: number, ty: number) => boolean) & {
+  sea?: (tx: number, ty: number) => boolean;
+  mine?: (x: number, y: number) => MineLoop | null;
+};
 
 /** Switching families cannot carry a finisher/charge across weapons or erase recovery. */
 export function setMeleeWeapon(p: PlayerSim, id: unknown): void {
   const next = meleeFamily(id);
-  if (next !== meleeFamily(p.melee)) { p.combo=0;p.comboT=0;p.atkBuf=0;p.charge=0;p.hold=0; }
+  if (next !== meleeFamily(p.melee)) {
+    p.combo = 0;
+    p.comboT = 0;
+    p.atkBuf = 0;
+    p.charge = 0;
+    p.hold = 0;
+  }
   p.melee = next;
 }
 
 export function newPlayerSim(x: number, y: number): PlayerSim {
   return {
-    x, y, faceX: 0, faceY: 1, dashT: 0, dashCd: 0, dashDx: 0, dashDy: 0,
-    atkCd: 0, combo: 0, comboT: 0, skillCd: 0,
-    dashN: DASH_CHARGES, ifrT: 0, hold: 0, charge: 0, atkBuf: 0, slipT: 0, boat: 0, cart: 0,
+    x,
+    y,
+    faceX: 0,
+    faceY: 1,
+    dashT: 0,
+    dashCd: 0,
+    dashDx: 0,
+    dashDy: 0,
+    atkCd: 0,
+    combo: 0,
+    comboT: 0,
+    skillCd: 0,
+    dashN: DASH_CHARGES,
+    ifrT: 0,
+    hold: 0,
+    charge: 0,
+    atkBuf: 0,
+    slipT: 0,
+    boat: 0,
+    cart: 0,
   };
 }
 
@@ -123,19 +165,30 @@ export function sanitizeCmd(raw: Partial<InputCmd>): InputCmd {
   let dx = clamp(num(raw.dx), -1, 1);
   let dy = clamp(num(raw.dy), -1, 1);
   const len = Math.hypot(dx, dy);
-  if (len > 1) { dx /= len; dy /= len; }
+  if (len > 1) {
+    dx /= len;
+    dy /= len;
+  }
   let ax = clamp(num(raw.aimX), -1, 1);
   let ay = clamp(num(raw.aimY), -1, 1);
   const al = Math.hypot(ax, ay);
-  if (al > 1e-6) { ax /= al; ay /= al; } else { ax = 0; ay = 0; }
+  if (al > 1e-6) {
+    ax /= al;
+    ay /= al;
+  } else {
+    ax = 0;
+    ay = 0;
+  }
   return {
     seq: Math.max(0, Math.floor(num(raw.seq))),
-    dx, dy,
+    dx,
+    dy,
     dash: raw.dash === true,
     attack: raw.attack === true,
     hold: raw.hold === true,
     skill: raw.skill === true,
-    aimX: ax, aimY: ay,
+    aimX: ax,
+    aimY: ay,
     viewTick: Math.max(0, Math.floor(num(raw.viewTick))),
   };
 }
@@ -152,11 +205,10 @@ function overlapsSolid(x: number, y: number, r: number, solid: SolidQuery): bool
 }
 
 /** Move a circle-ish AABB by (dx,dy), resolving each axis independently, in sub-steps so it can never tunnel. */
-export function moveBody(
-  pos: { x: number; y: number }, dx: number, dy: number, r: number, solid: SolidQuery,
-): void {
+export function moveBody(pos: { x: number; y: number }, dx: number, dy: number, r: number, solid: SolidQuery): void {
   const n = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 0.25));
-  const sx = dx / n, sy = dy / n;
+  const sx = dx / n,
+    sy = dy / n;
   for (let i = 0; i < n; i++) {
     if (sx !== 0) {
       const nx = pos.x + sx;
@@ -189,19 +241,41 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepE
   const sailing = p.boat > 0 && !!land.sea;
   const solid: SolidQuery = sailing ? land.sea! : land;
   const ev: StepEvents = {
-    dashed: false, attacked: false, combo: 0, skill: false, heavy: false, level: 0, counter: false, chargeReady: false, chargeFull: false,
+    dashed: false,
+    attacked: false,
+    combo: 0,
+    skill: false,
+    heavy: false,
+    level: 0,
+    counter: false,
+    chargeReady: false,
+    chargeFull: false,
   };
 
-  if(p.cart>0){
-    const loop=land.mine?.(p.x,p.y);
-    if(!loop){p.cart=0;return ev;}
-    p.dashT=0;p.hold=0;p.charge=0;p.atkBuf=0;
-    p.atkCd=down(p.atkCd);p.skillCd=down(p.skillCd);p.ifrT=down(p.ifrT);
+  if (p.cart > 0) {
+    const loop = land.mine?.(p.x, p.y);
+    if (!loop) {
+      p.cart = 0;
+      return ev;
+    }
+    p.dashT = 0;
+    p.hold = 0;
+    p.charge = 0;
+    p.atkBuf = 0;
+    p.atkCd = down(p.atkCd);
+    p.skillCd = down(p.skillCd);
+    p.ifrT = down(p.ifrT);
     // Holding any movement control drives the circuit. Letting go brakes immediately.
-    if(cmd.dx!==0||cmd.dy!==0){
-      const progress=(p.cart-1+6.8*TICK_DT)%(2*(loop.w+loop.h));
-      const pos=minePosition(loop,progress);
-      if(!overlapsSolid(pos.x,pos.y,.42,land)){p.x=pos.x;p.y=pos.y;p.faceX=pos.fx;p.faceY=pos.fy;p.cart=progress+1;}
+    if (cmd.dx !== 0 || cmd.dy !== 0) {
+      const progress = (p.cart - 1 + 6.8 * TICK_DT) % (2 * (loop.w + loop.h));
+      const pos = minePosition(loop, progress);
+      if (!overlapsSolid(pos.x, pos.y, 0.42, land)) {
+        p.x = pos.x;
+        p.y = pos.y;
+        p.faceX = pos.fx;
+        p.faceY = pos.fy;
+        p.cart = progress + 1;
+      }
     }
     return ev;
   }
@@ -221,7 +295,10 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepE
   p.atkBuf = down(p.atkBuf);
   if (p.comboT > 0) {
     p.comboT = down(p.comboT);
-    if (p.comboT <= 0) { p.comboT = 0; p.combo = 0; }
+    if (p.comboT <= 0) {
+      p.comboT = 0;
+      p.combo = 0;
+    }
   }
 
   const moving = cmd.dx !== 0 || cmd.dy !== 0;
@@ -231,7 +308,12 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepE
     p.faceY = cmd.dy / l;
   }
   const hasAim = cmd.aimX !== 0 || cmd.aimY !== 0;
-  const aim = () => { if (hasAim) { p.faceX = cmd.aimX; p.faceY = cmd.aimY; } };
+  const aim = () => {
+    if (hasAim) {
+      p.faceX = cmd.aimX;
+      p.faceY = cmd.aimY;
+    }
+  };
 
   // dash (always available while a charge remains: cancels swing recovery and a held charge)
   if (cmd.dash && p.dashT <= 0 && p.dashN >= 1 && !sailing) {
@@ -247,17 +329,28 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepE
     ev.dashed = true;
   }
 
-  const counter = () => { if (p.slipT > 0) { ev.counter = true; p.slipT = 0; } };
+  const counter = () => {
+    if (p.slipT > 0) {
+      ev.counter = true;
+      p.slipT = 0;
+    }
+  };
 
   // heavy strike: released after charging
   const held = cmd.hold;
   if (!held && p.hold && p.charge >= CHARGE_MIN && p.dashT <= 0 && p.atkCd <= 0) {
     aim();
     const level = chargeLevel(p.charge);
-    const h = meleeHeavy(p.melee,level);
-    ev.attacked = true; ev.heavy = true; ev.level = level; ev.combo = 0;
+    const h = meleeHeavy(p.melee, level);
+    ev.attacked = true;
+    ev.heavy = true;
+    ev.level = level;
+    ev.combo = 0;
     p.atkCd = h.recovery;
-    p.combo = 0; p.comboT = 0; p.charge = 0; p.atkBuf = 0;
+    p.combo = 0;
+    p.comboT = 0;
+    p.charge = 0;
+    p.atkBuf = 0;
     counter();
     if (!p.ranged) moveBody(p, p.faceX * h.lunge, p.faceY * h.lunge, PLAYER_RADIUS, solid);
   }
@@ -266,7 +359,7 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepE
   if (cmd.attack) p.atkBuf = ATTACK_BUFFER;
   if (!ev.attacked && p.atkBuf > 0 && p.atkCd <= 0 && p.dashT <= 0) {
     aim();
-    const hit = meleeTap(p.melee,p.combo);
+    const hit = meleeTap(p.melee, p.combo);
     ev.attacked = true;
     ev.combo = p.combo;
     p.atkCd = hit.recovery;
@@ -293,7 +386,7 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepE
     p.skillCd = SKILL_COOLDOWN;
   }
 
-  let vx = 0, vy = 0;
+  let vx: number, vy: number;
   if (p.dashT > 0) {
     vx = p.dashDx * DASH_SPEED;
     vy = p.dashDy * DASH_SPEED;

@@ -1,10 +1,23 @@
 import {
-  clonePlayerSim, newPlayerSim, sanitizeCmd, stepPlayer,
-  type Ack, type InputCmd, type PlayerSim, type SolidQuery, type StepEvents,
+  clonePlayerSim,
+  newPlayerSim,
+  sanitizeCmd,
+  stepPlayer,
+  type Ack,
+  type InputCmd,
+  type PlayerSim,
+  type SolidQuery,
+  type StepEvents,
 } from '@eigenlands/shared';
 
 export interface LocalInput {
-  dx: number; dy: number; dash: boolean; attack: boolean; skill: boolean; aimX: number; aimY: number;
+  dx: number;
+  dy: number;
+  dash: boolean;
+  attack: boolean;
+  skill: boolean;
+  aimX: number;
+  aimY: number;
   /** attack button held (charge); older callers may omit it */
   hold?: boolean;
 }
@@ -23,7 +36,11 @@ export class Predictor {
   private err = { x: 0, y: 0 };
   lastCorrection = 0;
 
-  constructor(x: number, y: number, private solid: SolidQuery) {
+  constructor(
+    x: number,
+    y: number,
+    private solid: SolidQuery,
+  ) {
     this.sim = newPlayerSim(x, y);
     this.prev = { x, y };
   }
@@ -38,20 +55,27 @@ export class Predictor {
   }
 
   reconcile(ack: Ack): number {
-    const bx = this.sim.x, by = this.sim.y;
-    const {ranged,melee}=this.sim;
-    this.sim = {...clonePlayerSim(ack.sim),ranged,melee};
+    const bx = this.sim.x,
+      by = this.sim.y;
+    const { ranged, melee } = this.sim;
+    this.sim = { ...clonePlayerSim(ack.sim), ranged, melee };
     this.pending = this.pending.filter((c) => c.seq > ack.seq);
     for (const c of this.pending) stepPlayer(this.sim, c, this.solid);
-    const ex = bx - this.sim.x, ey = by - this.sim.y;
+    const ex = bx - this.sim.x,
+      ey = by - this.sim.y;
     const dist = Math.hypot(ex, ey);
     this.lastCorrection = dist;
-    if (dist > 3) { this.err.x = 0; this.err.y = 0; this.prev = { x: this.sim.x, y: this.sim.y }; }
-    else if (dist > 0.002) {
+    if (dist > 3) {
+      this.err.x = 0;
+      this.err.y = 0;
+      this.prev = { x: this.sim.x, y: this.sim.y };
+    } else if (dist > 0.002) {
       // Move both ends of the render interval, then compensate with the offset.
       // Moving only the current sim made an ACK visibly kick the previous pose.
-      this.prev.x -= ex; this.prev.y -= ey;
-      this.err.x += ex; this.err.y += ey;
+      this.prev.x -= ex;
+      this.prev.y -= ey;
+      this.err.x += ex;
+      this.err.y += ey;
     }
     return dist;
   }
@@ -66,7 +90,8 @@ export class Predictor {
 
   update(dt: number): void {
     const k = Math.exp(-dt * 12);
-    this.err.x *= k; this.err.y *= k;
+    this.err.x *= k;
+    this.err.y *= k;
   }
 
   /** Position to draw: interpolate between the last two fixed steps, plus the decaying correction. */

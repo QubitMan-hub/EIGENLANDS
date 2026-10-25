@@ -81,4 +81,4 @@ export interface ClientModule {
   fire?(a: ExtAction): void;
 }
 
-export type ExtAction = typeof EXT_ACTIONS[number];
+export type ExtAction = (typeof EXT_ACTIONS)[number];

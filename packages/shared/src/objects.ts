@@ -1,7 +1,8 @@
 import { C } from './palette';
 
 /** Things placed on top of the tile grid. Persisted per chunk (crops, stations...) or static (town furnishing). */
-export type WorldObjKind = 'crop' | 'station' | 'sprinkler' | 'shelter' | 'chest' | 'furniture' | 'sign' | 'deco' | 'structure';
+export type WorldObjKind =
+  'crop' | 'station' | 'sprinkler' | 'shelter' | 'chest' | 'furniture' | 'sign' | 'deco' | 'structure';
 
 export interface WorldObj {
   x: number;
@@ -18,28 +19,32 @@ export interface WorldObj {
 
 /** Objects that block movement. Crops, rugs and sprinklers can be walked over. */
 export function objSolid(kind: WorldObjKind, sub: string): boolean {
-  if (['mine_rail','minecart','cave_seal','stairs_up', 'stairs_down', 'dive_gate', 'dive_exit'].includes(sub)) return false;
+  if (['mine_rail', 'minecart', 'cave_seal', 'stairs_up', 'stairs_down', 'dive_gate', 'dive_exit'].includes(sub))
+    return false;
   if (kind === 'crop' || kind === 'sprinkler') return false;
   if (sub === 'sea_cache' || sub === 'rug' || sub === 'shrine_altar' || sub === 'shrine_pillar') return false; // resonance projections leave no invisible collision after completion
   return true;
 }
 
-export interface ObjLight { radius: number; color: number }
+export interface ObjLight {
+  radius: number;
+  color: number;
+}
 export function objLight(kind: WorldObjKind, sub: string): ObjLight | null {
   if (['dive_gate', 'dive_exit', 'coral_column'].includes(sub)) return { radius: 4, color: C.w6 };
-  if(sub==='glow_mushrooms')return{radius:4.5,color:C.w6};
-  if(sub==='bell_pylon')return{radius:4,color:C.q4};
-  if(sub==='magma_fall')return{radius:3.5,color:C.r5};
-  if(sub==='cave_waterfall')return{radius:2,color:C.w4};
+  if (sub === 'glow_mushrooms') return { radius: 4.5, color: C.w6 };
+  if (sub === 'bell_pylon') return { radius: 4, color: C.q4 };
+  if (sub === 'magma_fall') return { radius: 3.5, color: C.r5 };
+  if (sub === 'cave_waterfall') return { radius: 2, color: C.w4 };
   if (sub === 'lamp' || sub === 'street_lamp') return { radius: 5.5, color: C.e6 };
   if (sub === 'hearth') return { radius: 5, color: C.r5 };
   if (sub === 'candles') return { radius: 3.5, color: C.e6 };
   if (sub === 'cauldron') return { radius: 2, color: C.q7 };
   if (sub === 'ruin_crystal') return { radius: 4, color: C.q7 };
   if (sub === 'cave_mouth') return { radius: 3, color: C.e6 };
-  if (sub === 'cave_lift') return {radius:6,color:C.e6};
-  if(sub==='cave_altar')return {radius:5,color:C.q5};
-  if (sub === 'cave_ladder') return { radius: 6, color: C.pale };          // daylight down the shaft
+  if (sub === 'cave_lift') return { radius: 6, color: C.e6 };
+  if (sub === 'cave_altar') return { radius: 5, color: C.q5 };
+  if (sub === 'cave_ladder') return { radius: 6, color: C.pale }; // daylight down the shaft
   if (sub === 'ruin_monolith') return { radius: 4, color: C.q5 };
   if (sub === 'statue') return { radius: 6, color: C.q5 };
   if (sub === 'shrine_altar') return { radius: 5, color: C.q5 };
@@ -53,7 +58,10 @@ export function objLight(kind: WorldObjKind, sub: string): ObjLight | null {
 
 export const objKey = (x: number, y: number): number => x * 4194304 + y + 2097152 * 0; // unique for |coords| < 2M
 
-export const FARM_ANIMALS = { coop: { max: 4, animal: 'chicken', product: 'egg' }, barn: { max: 4, animal: 'cow', product: 'milk' } } as const;
+export const FARM_ANIMALS = {
+  coop: { max: 4, animal: 'chicken', product: 'egg' },
+  barn: { max: 4, animal: 'cow', product: 'milk' },
+} as const;
 
 /** Crops within this Chebyshev radius of a Phase Lantern are protected from the season (greenhouse effect). */
 export const LANTERN_RADIUS = 2;

@@ -1,4 +1,4 @@
-import {validGraphics,validWeather,type GraphicsMode,type WeatherDetail} from '../game/visual-budget';
+import { validGraphics, validWeather, type GraphicsMode, type WeatherDetail } from '../game/visual-budget';
 import './fonts';
 import './hud.css';
 import { iconSvg } from './icons';
@@ -21,14 +21,36 @@ export interface Settings {
 const KEY = 'eigen.settings';
 export function loadSettings(): Settings {
   const d: Settings = {
-    graphics: 'auto', weatherDetail: 'gentle',
+    graphics: 'auto',
+    weatherDetail: 'gentle',
     movementMode: 'keyboard',
     reducedMotion: matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false,
-    textScale: 1, colorblind: 'off', muted: false, captions: false, volume: 0.5, highContrastHud: false,
+    textScale: 1,
+    colorblind: 'off',
+    muted: false,
+    captions: false,
+    volume: 0.5,
+    highContrastHud: false,
   };
-  try { const s = { ...d, ...(JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<Settings>) }; return { ...s, movementMode: validMovementMode(s.movementMode), graphics: validGraphics(s.graphics), weatherDetail:validWeather(s.weatherDetail) }; } catch { return d; }
+  try {
+    const s = { ...d, ...(JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<Settings>) };
+    return {
+      ...s,
+      movementMode: validMovementMode(s.movementMode),
+      graphics: validGraphics(s.graphics),
+      weatherDetail: validWeather(s.weatherDetail),
+    };
+  } catch {
+    return d;
+  }
 }
-export function saveSettings(s: Settings): void { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* ignore */ } }
+export function saveSettings(s: Settings): void {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(s));
+  } catch {
+    /* ignore */
+  }
+}
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -45,7 +67,8 @@ const SHIFT = {
 } as const;
 
 export function colorblindMatrix(kind: 'protan' | 'deutan' | 'tritan'): string {
-  const S = SIM[kind], M = SHIFT[kind];
+  const S = SIM[kind],
+    M = SHIFT[kind];
   const out: number[] = [];
   for (let r = 0; r < 3; r++) {
     for (let c = 0; c < 3; c++) {
@@ -198,12 +221,21 @@ export class SettingsUI {
       $('hud-menu').hidePopover();
       $('btn-menu').focus();
     };
-    $('hud-btns').addEventListener('click', e => {
-      if ((e.target as HTMLElement).closest('button')) dismissMenu();
-    }, { capture: true });
-    window.addEventListener('keydown', e => {
-      if ((['inventory', 'journal', 'craft', 'map', 'board'] as const).some(a => this.keys[a].includes(e.code))) dismissMenu();
-    }, { capture: true });
+    $('hud-btns').addEventListener(
+      'click',
+      (e) => {
+        if ((e.target as HTMLElement).closest('button')) dismissMenu();
+      },
+      { capture: true },
+    );
+    window.addEventListener(
+      'keydown',
+      (e) => {
+        if ((['inventory', 'journal', 'craft', 'map', 'board'] as const).some((a) => this.keys[a].includes(e.code)))
+          dismissMenu();
+      },
+      { capture: true },
+    );
     const s = this.settings;
     $<HTMLSelectElement>('s-graphics').value = s.graphics;
     $<HTMLSelectElement>('s-weather').value = s.weatherDetail;
@@ -229,20 +261,47 @@ export class SettingsUI {
       saveSettings(s);
       this.apply();
     };
-    for (const id of ['s-graphics', 's-weather', 's-movement', 's-motion', 's-text', 's-cb', 's-hc', 's-cap', 's-mute', 's-vol']) $(id).addEventListener('input', upd);
+    for (const id of [
+      's-graphics',
+      's-weather',
+      's-movement',
+      's-motion',
+      's-text',
+      's-cb',
+      's-hc',
+      's-cap',
+      's-mute',
+      's-vol',
+    ])
+      $(id).addEventListener('input', upd);
     $('btn-signout').addEventListener('click', handlers.signOut);
     $('btn-delete').addEventListener('click', () => {
-      if (confirm('Delete your account, character and all saved data? This cannot be undone.')) handlers.deleteAccount();
+      if (confirm('Delete your account, character and all saved data? This cannot be undone.'))
+        handlers.deleteAccount();
     });
-    $('btn-settings').addEventListener('click', () => { $('acct-info').textContent = handlers.accountInfo(); this.renderKeys(); this.show(true); });
+    $('btn-settings').addEventListener('click', () => {
+      $('acct-info').textContent = handlers.accountInfo();
+      this.renderKeys();
+      this.show(true);
+    });
     $('btn-close').addEventListener('click', () => this.show(false));
-    document.getElementById('btn-title-settings')?.addEventListener('click', () => { $('acct-info').textContent = handlers.accountInfo(); this.renderKeys(); this.show(true); });
-    window.addEventListener('keydown', (e) => { if (e.code === 'Escape' && !$('settings').hidden) this.show(false); });
+    document.getElementById('btn-title-settings')?.addEventListener('click', () => {
+      $('acct-info').textContent = handlers.accountInfo();
+      this.renderKeys();
+      this.show(true);
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Escape' && !$('settings').hidden) this.show(false);
+    });
     this.renderKeys();
   }
 
-  show(on: boolean): void { $('settings').hidden = !on; }
-  get open(): boolean { return !$('settings').hidden; }
+  show(on: boolean): void {
+    $('settings').hidden = !on;
+  }
+  get open(): boolean {
+    return !$('settings').hidden;
+  }
 
   private renderKeys(): void {
     const box = $('keys');
@@ -257,7 +316,11 @@ export class SettingsUI {
       btn.addEventListener('click', () => {
         btn.textContent = 'press a key…';
         this.captureKey((code) => {
-          if (code !== 'Escape') { this.keys = rebind(this.keys, a as Action, code); saveKeys(this.keys); this.onKeys(this.keys); }
+          if (code !== 'Escape') {
+            this.keys = rebind(this.keys, a as Action, code);
+            saveKeys(this.keys);
+            this.onKeys(this.keys);
+          }
           this.renderKeys();
         });
       });
@@ -278,11 +341,59 @@ export function applySettings(s: Settings, audio: { muted: boolean; volume: numb
 }
 
 export interface Acts {
-  moved: boolean; attacked: boolean; dashed: boolean; selected: boolean; chopped: boolean; mined: boolean; tilled: boolean;
-  planted: boolean; watered: boolean; crafted: boolean; talked: boolean; fished: boolean; forged: boolean; harvested: boolean; openedPack: boolean;
-  quest: boolean; journal: boolean; statue: boolean; board: boolean; sold: boolean; openedMap: boolean; arrived: boolean; openedCircuit: boolean; orbCast: boolean; skillShot: boolean;
+  moved: boolean;
+  attacked: boolean;
+  dashed: boolean;
+  selected: boolean;
+  chopped: boolean;
+  mined: boolean;
+  tilled: boolean;
+  planted: boolean;
+  watered: boolean;
+  crafted: boolean;
+  talked: boolean;
+  fished: boolean;
+  forged: boolean;
+  harvested: boolean;
+  openedPack: boolean;
+  quest: boolean;
+  journal: boolean;
+  statue: boolean;
+  board: boolean;
+  sold: boolean;
+  openedMap: boolean;
+  arrived: boolean;
+  openedCircuit: boolean;
+  orbCast: boolean;
+  skillShot: boolean;
 }
-export const freshActs = (): Acts => ({ moved: false, attacked: false, dashed: false, selected: false, chopped: false, mined: false, tilled: false, planted: false, watered: false, crafted: false, talked: false, fished: false, forged: false, harvested: false, openedPack: false, quest: false, journal: false, statue: false, board: false, sold: false, openedMap: false, arrived: false, openedCircuit: false, orbCast: false, skillShot: false });
+export const freshActs = (): Acts => ({
+  moved: false,
+  attacked: false,
+  dashed: false,
+  selected: false,
+  chopped: false,
+  mined: false,
+  tilled: false,
+  planted: false,
+  watered: false,
+  crafted: false,
+  talked: false,
+  fished: false,
+  forged: false,
+  harvested: false,
+  openedPack: false,
+  quest: false,
+  journal: false,
+  statue: false,
+  board: false,
+  sold: false,
+  openedMap: false,
+  arrived: false,
+  openedCircuit: false,
+  orbCast: false,
+  skillShot: false,
+});
 
 /** One hint at a time, in order. Steps already done (and persisted) are skipped. */
 export const TUTORIAL: ReadonlyArray<{ id: keyof Acts; text: string }> = [
@@ -290,16 +401,40 @@ export const TUTORIAL: ReadonlyArray<{ id: keyof Acts; text: string }> = [
   { id: 'attacked', text: 'Attack with {attack}, or click. Chain three hits for a heavy finisher.' },
   { id: 'dashed', text: 'Dash with {dash}. You cannot be hurt while dashing — dodge red warnings.' },
   { id: 'selected', text: 'Pick a tool: press 1–0, scroll the wheel, or tap the quick-bar. Slot 1 is your axe.' },
-  { id: 'chopped', text: 'Face a tree and hold {interact} with the axe selected to chop it. Wood is the start of everything.' },
-  { id: 'mined', text: 'Select the pickaxe (slot 2) and hold {interact} on a grey boulder to mine stone. Ore outcrops need better pickaxes.' },
-  { id: 'crafted', text: 'Press {craft} for field crafting. A Workbench needs 10 wood and 4 stone — then place it with {interact}.' },
+  {
+    id: 'chopped',
+    text: 'Face a tree and hold {interact} with the axe selected to chop it. Wood is the start of everything.',
+  },
+  {
+    id: 'mined',
+    text: 'Select the pickaxe (slot 2) and hold {interact} on a grey boulder to mine stone. Ore outcrops need better pickaxes.',
+  },
+  {
+    id: 'crafted',
+    text: 'Press {craft} for field crafting. A Workbench needs 10 wood and 4 stone — then place it with {interact}.',
+  },
   { id: 'tilled', text: 'Select the hoe (slot 3) and press {interact} on grass to till soil.' },
   { id: 'planted', text: 'Select seeds and press {interact} on tilled soil to plant. Mind the season!' },
   { id: 'watered', text: 'Select the watering can and water your crop every day (rain does it for you).' },
-  { id: 'talked', text: 'The village of Hadamere is nearby: follow the arrow next to the clock (top right). Walk up to a villager and press {interact} to talk. Mayor Orla welcomes newcomers.' },
-  { id: 'quest', text: 'Villagers with a yellow ! have tasks. In a conversation, pick the quest and choose "I\'ll do it!". Your objectives and progress are in the Journal (Quests tab).' },
+  {
+    id: 'talked',
+    text: 'The village of Hadamere is nearby: follow the arrow next to the clock (top right). Walk up to a villager and press {interact} to talk. Mayor Orla welcomes newcomers.',
+  },
+  {
+    id: 'quest',
+    text: 'Villagers with a yellow ! have tasks. In a conversation, pick the quest and choose "I\'ll do it!". Your objectives and progress are in the Journal (Quests tab).',
+  },
   { id: 'openedPack', text: 'Press {inventory} to open your pack (equip rings and outfits there).' },
-  { id: 'journal', text: 'Press {journal} for your Journal: quests, skills, friends, recipes, and a "How to…" guide for every system.' },
-  { id: 'statue', text: 'The statue in the middle of the plaza is QubitMan, Hadamere\'s legendary founder. Walk up to it and press {interact} to read his plaque.' },
-  { id: 'board', text: 'The notice board on the plaza is the request board: three new paid jobs every morning. Press {interact} at it.' },
+  {
+    id: 'journal',
+    text: 'Press {journal} for your Journal: quests, skills, friends, recipes, and a "How to…" guide for every system.',
+  },
+  {
+    id: 'statue',
+    text: "The statue in the middle of the plaza is QubitMan, Hadamere's legendary founder. Walk up to it and press {interact} to read his plaque.",
+  },
+  {
+    id: 'board',
+    text: 'The notice board on the plaza is the request board: three new paid jobs every morning. Press {interact} at it.',
+  },
 ];

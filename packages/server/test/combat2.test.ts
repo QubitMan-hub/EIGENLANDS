@@ -2,7 +2,16 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { matchMaker } from 'colyseus';
 import type { Room } from 'colyseus.js';
 import {
-  ATK, CRIT_MULT, ELITE, ENEMY_DEFS, MSG, T, TICK_MS, heavyHit, type FxMsg, type InputCmd,
+  ATK,
+  CRIT_MULT,
+  ELITE,
+  ENEMY_DEFS,
+  MSG,
+  T,
+  TICK_MS,
+  heavyHit,
+  type FxMsg,
+  type InputCmd,
 } from '@eigenlands/shared';
 import type { App } from '../src/app';
 import type { WorldRoom } from '../src/rooms/WorldRoom';
@@ -15,10 +24,24 @@ const room = (): WorldRoom => matchMaker.getLocalRoomById(lastRoomId()) as unkno
 
 let anchor: Room<any>;
 // an idle client keeps the room alive between tests (a disposed room re-creating its shard lock can bounce joins)
-beforeAll(async () => { await resetDb(); app = await startApp(); anchor = await join(app, (await guest(app)).token, 'Anchor'); await until(() => !!me(anchor)); });
-afterAll(async () => { await anchor.leave(); await app?.close(); });
+beforeAll(async () => {
+  await resetDb();
+  app = await startApp();
+  anchor = await join(app, (await guest(app)).token, 'Anchor');
+  await until(() => !!me(anchor));
+});
+afterAll(async () => {
+  await anchor.leave();
+  await app?.close();
+});
 
-interface Probe { r: Room<any>; w: WorldRoom; sp: ServerPlayer; fx: FxMsg[]; seq: number }
+interface Probe {
+  r: Room<any>;
+  w: WorldRoom;
+  sp: ServerPlayer;
+  fx: FxMsg[];
+  seq: number;
+}
 
 async function probe(name: string): Promise<Probe> {
   const r = await join(app, (await guest(app)).token, name);
@@ -30,29 +53,60 @@ async function probe(name: string): Promise<Probe> {
   const w = room();
   const sp = w.players.get(r.sessionId)!;
   // a private open arena far from everyone else
-  const ax = 200 + Math.floor(Math.random() * 400), ay = 200 + Math.floor(Math.random() * 400);
+  const ax = 200 + Math.floor(Math.random() * 400),
+    ay = 200 + Math.floor(Math.random() * 400);
   await w.ensureChunk(Math.floor(ax / 32), Math.floor(ay / 32));
   for (let y = ay - 8; y <= ay + 8; y++) for (let x = ax - 10; x <= ax + 10; x++) w.store.setTile(x, y, T.GRASS);
-  sp.sim.x = ax + 0.5; sp.sim.y = ay + 0.5; sp.invuln = 0;
+  sp.sim.x = ax + 0.5;
+  sp.sim.y = ay + 0.5;
+  sp.invuln = 0;
   await sleep(TICK_MS * 2);
   return { r, w, sp, fx, seq: 1 };
 }
 
 function send(p: Probe, o: Partial<InputCmd> = {}): void {
-  p.r.send(MSG.INPUT, { cmds: [{ seq: p.seq++, dx: 0, dy: 0, dash: false, attack: false, hold: false, skill: false, aimX: 0, aimY: 0, viewTick: 0, ...o }] });
+  p.r.send(MSG.INPUT, {
+    cmds: [
+      {
+        seq: p.seq++,
+        dx: 0,
+        dy: 0,
+        dash: false,
+        attack: false,
+        hold: false,
+        skill: false,
+        aimX: 0,
+        aimY: 0,
+        viewTick: 0,
+        ...o,
+      },
+    ],
+  });
 }
 async function ticks(p: Probe, n: number, o: Partial<InputCmd> = {}): Promise<void> {
-  for (let i = 0; i < n; i++) { send(p, o); await sleep(TICK_MS); }
+  for (let i = 0; i < n; i++) {
+    send(p, o);
+    await sleep(TICK_MS);
+  }
 }
-function still(e: Enemy, sight = 0.1): Enemy { e.def = { ...e.def, speed: 0, sight }; return e; }
-function kill(w: WorldRoom, e: Enemy): void { w.enemies.delete(e.id); w.state.enemies.delete(e.id); }
-function clear(w: WorldRoom): void { for (const e of [...w.enemies.values()]) kill(w, e); }
+function still(e: Enemy, sight = 0.1): Enemy {
+  e.def = { ...e.def, speed: 0, sight };
+  return e;
+}
+function kill(w: WorldRoom, e: Enemy): void {
+  w.enemies.delete(e.id);
+  w.state.enemies.delete(e.id);
+}
+function clear(w: WorldRoom): void {
+  for (const e of [...w.enemies.values()]) kill(w, e);
+}
 
 describe('player moves', () => {
   it('hold-release unleashes a heavy strike that staggers and hits harder than a slash', async () => {
     const p = await probe('Heavy');
     const e = still(p.w.spawnEnemy('slime', p.sp.sim.x + 1.6, p.sp.sim.y, false));
-    e.resist = 0; e.maxHp = e.hp = 500;
+    e.resist = 0;
+    e.maxHp = e.hp = 500;
     send(p, { attack: true, hold: true, aimX: 1 });
     await ticks(p, 22, { hold: true, aimX: 1 });
     expect(p.sp.sim.charge).toBeGreaterThan(0.3);
@@ -70,7 +124,9 @@ describe('player moves', () => {
   it('crits multiply damage and are reported; a phase slip makes the next swing a guaranteed critical counter', async () => {
     const p = await probe('Critter');
     const e = still(p.w.spawnEnemy('slime', p.sp.sim.x + 1, p.sp.sim.y, false));
-    e.resist = 0; e.maxHp = e.hp = 500; e.maxPoise = e.poise = 999;
+    e.resist = 0;
+    e.maxHp = e.hp = 500;
+    e.maxPoise = e.poise = 999;
     p.w.rand = () => 0.99; // no random crits
     p.sp.sim.slipT = 1.2;
     let hp0 = e.hp;
@@ -92,12 +148,16 @@ describe('player moves', () => {
 
   it('knockback into a wall slams for bonus damage', async () => {
     const p = await probe('Slammer');
-    const x = Math.floor(p.sp.sim.x), y = Math.floor(p.sp.sim.y);
+    const x = Math.floor(p.sp.sim.x),
+      y = Math.floor(p.sp.sim.y);
     for (let dy = -3; dy <= 3; dy++) p.w.store.setTile(x + 3, y + dy, T.ROCK);
     const e = still(p.w.spawnEnemy('slime', p.sp.sim.x + 1.4, p.sp.sim.y, false));
     e.maxHp = e.hp = 500;
     p.w.rand = () => 0.99;
-    for (let i = 0; i < 3; i++) { send(p, { attack: true, aimX: 1 }); await ticks(p, 12); }
+    for (let i = 0; i < 3; i++) {
+      send(p, { attack: true, aimX: 1 });
+      await ticks(p, 12);
+    }
     await until(() => p.fx.some((f) => f.kind === 'slam' && f.id === e.id), 2000);
     p.w.rand = Math.random;
     kill(p.w, e);
@@ -109,7 +169,8 @@ describe('poise and armour', () => {
   it('light hits barely dent an armoured brute; a finisher breaks poise only once it is worn down; staggering interrupts the windup', async () => {
     const p = await probe('Breaker');
     const b = still(p.w.spawnEnemy('brute', p.sp.sim.x + 1.2, p.sp.sim.y, false));
-    b.resist = 0; b.maxHp = b.hp = 999;
+    b.resist = 0;
+    b.maxHp = b.hp = 999;
     p.w.rand = () => 0.99;
     const hp0 = b.hp;
     send(p, { attack: true, aimX: 1 });
@@ -118,7 +179,11 @@ describe('poise and armour', () => {
     expect(b.poise).toBe(b.maxPoise);
     expect(b.flinchT).toBe(0);
     // windup, then hit it with weight >= 1 until poise breaks
-    b.mode = 'windup'; b.atk = ATK.SLAM; b.t = 5; b.poise = 10; b.poiseT = 0;
+    b.mode = 'windup';
+    b.atk = ATK.SLAM;
+    b.t = 5;
+    b.poise = 10;
+    b.poiseT = 0;
     await ticks(p, 8);
     send(p, { attack: true, aimX: 1 });
     await ticks(p, 8);
@@ -157,18 +222,42 @@ describe('perfect dodge', () => {
     const lag = 4; // 200 ms behind: ~150 ms ping plus interpolation
     // stream inputs whose viewTick trails the server by `lag` ticks
     const stream = (o: Partial<InputCmd> = {}) => send(p, { viewTick: p.w.state.tick - lag, ...o });
-    await until(() => { stream(); return e.mode === 'windup'; }, 4000, TICK_MS);
+    await until(
+      () => {
+        stream();
+        return e.mode === 'windup';
+      },
+      4000,
+      TICK_MS,
+    );
     // wait until the strike already happened on the server, then dash: the client is still seeing the windup
-    await until(() => { stream(); return e.mode === 'recover'; }, 3000, TICK_MS);
+    await until(
+      () => {
+        stream();
+        return e.mode === 'recover';
+      },
+      3000,
+      TICK_MS,
+    );
     stream({ dash: true, dy: 1 });
-    for (let i = 0; i < 8; i++) { stream(); await sleep(TICK_MS); }
+    for (let i = 0; i < 8; i++) {
+      stream();
+      await sleep(TICK_MS);
+    }
     expect(p.sp.hp).toBe(p.sp.maxHp);
     kill(p.w, e);
     // control: same lag, no dash -> hit
     const e2 = p.w.spawnEnemy('slime', p.sp.sim.x + 2, p.sp.sim.y, false);
     e2.def = { ...e2.def, speed: 0, strikeRange: 8, windup: 0.6 };
     await sleep(600);
-    await until(() => { stream(); return p.sp.hp < p.sp.maxHp; }, 4000, TICK_MS);
+    await until(
+      () => {
+        stream();
+        return p.sp.hp < p.sp.maxHp;
+      },
+      4000,
+      TICK_MS,
+    );
     kill(p.w, e2);
     await p.r.leave();
   });
@@ -209,7 +298,8 @@ describe('new enemies', () => {
   it('a brute telegraphs a charge lane and crashes into a wall, staggering itself', async () => {
     const p = await probe('Matador');
     clear(p.w);
-    const x = Math.floor(p.sp.sim.x), y = Math.floor(p.sp.sim.y);
+    const x = Math.floor(p.sp.sim.x),
+      y = Math.floor(p.sp.sim.y);
     for (let dy = -4; dy <= 4; dy++) p.w.store.setTile(x - 2, y + dy, T.ROCK);
     const b = p.w.spawnEnemy('brute', p.sp.sim.x + 5, p.sp.sim.y, false);
     await until(() => b.mode === 'windup', 3000);
@@ -227,14 +317,18 @@ describe('new enemies', () => {
     const p = await probe('Mobbed');
     clear(p.w);
     p.sp.invuln = 99;
-    const es = [0, 1, 2, 3, 4].map((i) => p.w.spawnEnemy('slime', p.sp.sim.x + 3 + i * 0.05, p.sp.sim.y + 0.05 * i, false));
+    const es = [0, 1, 2, 3, 4].map((i) =>
+      p.w.spawnEnemy('slime', p.sp.sim.x + 3 + i * 0.05, p.sp.sim.y + 0.05 * i, false),
+    );
     let maxEngaged = 0;
     for (let i = 0; i < 60; i++) {
       await sleep(TICK_MS);
       maxEngaged = Math.max(maxEngaged, es.filter((e) => e.mode === 'windup').length);
     }
     expect(maxEngaged).toBeLessThanOrEqual(2);
-    for (let i = 0; i < es.length; i++) for (let j = i + 1; j < es.length; j++) expect(Math.hypot(es[i]!.x - es[j]!.x, es[i]!.y - es[j]!.y)).toBeGreaterThan(0.3);
+    for (let i = 0; i < es.length; i++)
+      for (let j = i + 1; j < es.length; j++)
+        expect(Math.hypot(es[i]!.x - es[j]!.x, es[i]!.y - es[j]!.y)).toBeGreaterThan(0.3);
     es.forEach((e) => kill(p.w, e));
     await p.r.leave();
   });
@@ -259,18 +353,24 @@ describe('new enemies', () => {
     const p = await probe('Spawner');
     clear(p.w);
     p.sp.level = 1;
-    for (let y = Math.floor(p.sp.sim.y) - 40; y <= p.sp.sim.y + 40; y++) for (let x = Math.floor(p.sp.sim.x) - 40; x <= p.sp.sim.x + 40; x++) p.w.store.setTile(x,y,T.GRASS);
+    for (let y = Math.floor(p.sp.sim.y) - 40; y <= p.sp.sim.y + 40; y++)
+      for (let x = Math.floor(p.sp.sim.x) - 40; x <= p.sp.sim.x + 40; x++) p.w.store.setTile(x, y, T.GRASS);
     for (let i = 0; i < 20; i++) (p.w as any).ambientSpawn(i * 60000);
     const kinds = new Set([...p.w.enemies.values()].filter((e) => !e.def.passive).map((e) => e.def.name));
     expect(kinds.size).toBeGreaterThan(0);
     expect([...kinds].every((k) => k === 'Wisp Slime' || k === 'Glint Hopper')).toBe(true);
     let budget = 0;
-    for (const e of p.w.enemies.values()) if (Math.hypot(e.x - p.sp.sim.x, e.y - p.sp.sim.y) < 40) budget += e.def.budget ?? 1;
+    for (const e of p.w.enemies.values())
+      if (Math.hypot(e.x - p.sp.sim.x, e.y - p.sp.sim.y) < 40) budget += e.def.budget ?? 1;
     expect(budget).toBeLessThanOrEqual(4); // level-one night reserve; newcomer species remain restricted
     clear(p.w);
     p.sp.level = 8;
     const seen = new Set<string>();
-    for (let i = 0; i < 40; i++) { (p.w as any).ambientSpawn(2000000 + i * 60000); for (const e of p.w.enemies.values()) seen.add(e.def.name); clear(p.w); }
+    for (let i = 0; i < 40; i++) {
+      (p.w as any).ambientSpawn(2000000 + i * 60000);
+      for (const e of p.w.enemies.values()) seen.add(e.def.name);
+      clear(p.w);
+    }
     expect(seen.size).toBeGreaterThan(0); // rare species depend on this arena's biome; shared habitat tests cover their tables
     await p.r.leave();
   });

@@ -9,7 +9,16 @@ const SERVER_SRC = resolve(__dirname, '../server/src');
 const posix = (p: string) => p.split(sep).join('/');
 
 /** Node-only packages the server code may import; never usable in the page. */
-const NODE_ONLY = new Set(['pg', 'express', 'cors', 'google-auth-library', '@colyseus/ws-transport', '@colyseus/core', 'ws', 'colyseus.js/node']);
+const NODE_ONLY = new Set([
+  'pg',
+  'express',
+  'cors',
+  'google-auth-library',
+  '@colyseus/ws-transport',
+  '@colyseus/core',
+  'ws',
+  'colyseus.js/node',
+]);
 const STUB = '\0solo-node-stub:';
 
 /**
@@ -50,9 +59,14 @@ export default make(${JSON.stringify(name)});`,
       const file = posix(id.split('?')[0]!);
       if (!file.startsWith(posix(SERVER_SRC) + '/') || !/\.[cm]?ts$/.test(file)) return null;
       const head: string[] = [];
-      const declares = (n: string) => new RegExp(`(?:const|let|var|class|function)\\s+${n}\\b|import\\s+${n}\\b|import\\s*(?:type\\s*)?\\{[^}]*\\b${n}\\b[^}]*\\}`).test(code);
-      if (/\bprocess\.\w/.test(code) && !declares('process')) head.push(`import process from ${JSON.stringify(posix(resolve(LOCAL, 'shims/process.ts')))};`);
-      if (/\bBuffer\b/.test(code) && !declares('Buffer')) head.push(`import { Buffer } from ${JSON.stringify(posix(resolve(LOCAL, 'shims/buffer.ts')))};`);
+      const declares = (n: string) =>
+        new RegExp(
+          `(?:const|let|var|class|function)\\s+${n}\\b|import\\s+${n}\\b|import\\s*(?:type\\s*)?\\{[^}]*\\b${n}\\b[^}]*\\}`,
+        ).test(code);
+      if (/\bprocess\.\w/.test(code) && !declares('process'))
+        head.push(`import process from ${JSON.stringify(posix(resolve(LOCAL, 'shims/process.ts')))};`);
+      if (/\bBuffer\b/.test(code) && !declares('Buffer'))
+        head.push(`import { Buffer } from ${JSON.stringify(posix(resolve(LOCAL, 'shims/buffer.ts')))};`);
       return head.length ? { code: head.join('\n') + '\n' + code, map: null } : null;
     },
   };
@@ -72,7 +86,11 @@ function noSolo(): Plugin {
       const abs = posix(resolve(importer, '..', source));
       return abs.startsWith(posix(LOCAL) + '/') ? ID : null;
     },
-    load(id) { return id === ID ? 'export const localFetch = () => { throw new Error("single-player mode is not part of this build"); };' : null; },
+    load(id) {
+      return id === ID
+        ? 'export const localFetch = () => { throw new Error("single-player mode is not part of this build"); };'
+        : null;
+    },
   };
 }
 
@@ -80,8 +98,13 @@ export default defineConfig({
   base: process.env.VITE_BASE ?? '/',
   server: { port: 5173, host: true },
   worker: { format: 'es' },
-  build: { target: 'es2022', sourcemap: false, chunkSizeWarningLimit: 1500,
-    rollupOptions: { output: { manualChunks: (id) => id.includes('/node_modules/pixi.js/') ? 'vendor-pixi' : undefined } },
+  build: {
+    target: 'es2022',
+    sourcemap: false,
+    chunkSizeWarningLimit: 1500,
+    rollupOptions: {
+      output: { manualChunks: (id) => (id.includes('/node_modules/pixi.js/') ? 'vendor-pixi' : undefined) },
+    },
   },
   esbuild: { tsconfigRaw: { compilerOptions: { experimentalDecorators: true, useDefineForClassFields: false } } },
   plugins: SOLO ? [solo()] : [noSolo()],

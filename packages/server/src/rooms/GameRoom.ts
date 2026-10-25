@@ -2,8 +2,29 @@ import { CaveModule } from '../features/caves';
 import { matchMaker, type Client } from 'colyseus';
 import type { Schema } from '@colyseus/schema';
 import {
-  CLASS_INDEX, MSG, MSG34, NPCS, PORTS, CAVE_TOWNS, chunkOf, encodeDiff, inRegion, parseShard, regionBounds, shardAt, shardId, townFor,
-  type ObjMsg, type ChunkReq, type HandoffMsg, type Region, type ShardInfoMsg, type SpellState, type StrikeShape, type WeaponShot, type WorldObj,
+  CLASS_INDEX,
+  MSG,
+  MSG34,
+  NPCS,
+  PORTS,
+  CAVE_TOWNS,
+  chunkOf,
+  encodeDiff,
+  inRegion,
+  parseShard,
+  regionBounds,
+  shardAt,
+  shardId,
+  townFor,
+  type ObjMsg,
+  type ChunkReq,
+  type HandoffMsg,
+  type Region,
+  type ShardInfoMsg,
+  type SpellState,
+  type StrikeShape,
+  type WeaponShot,
+  type WorldObj,
 } from '@eigenlands/shared';
 import type { Enemy } from '../game/enemies';
 import { TokenBucket } from '../rate';
@@ -29,7 +50,13 @@ import { WorldRoom } from './WorldRoom';
 const disposing = new Map<string, Promise<void>>();
 
 const BUCKETS: Record<BucketName, [number, number]> = {
-  cast: [8, 12], board: [2, 4], party: [2, 5], chat: [2, 4], voice: [40, 80], trade: [4, 8], emote: [1, 3],
+  cast: [8, 12],
+  board: [2, 4],
+  party: [2, 5],
+  chat: [2, 4],
+  voice: [40, 80],
+  trade: [4, 8],
+  emote: [1, 3],
 };
 
 /**
@@ -54,7 +81,10 @@ export class GameRoom extends WorldRoom {
   private modules: Module[] = [];
   private buckets = new Map<string, Map<BucketName, TokenBucket>>();
   /** read-only copies of neighbouring shards' chunks (diff loaded, objects cached) */
-  private foreign = new Map<string, { at: number; objs: WorldObj[]; pr: Promise<void> | null; live: Map<string, ObjMsg> }>();
+  private foreign = new Map<
+    string,
+    { at: number; objs: WorldObj[]; pr: Promise<void> | null; live: Map<string, ObjMsg> }
+  >();
   private lockTimer: ReturnType<typeof setInterval> | null = null;
 
   async onCreate(options: JoinOpts = {}): Promise<void> {
@@ -69,7 +99,10 @@ export class GameRoom extends WorldRoom {
       return !!r && !r.disposed;
     });
     if (owner !== this.roomId) this.redirectTo = owner;
-    else this.lockTimer = setInterval(() => { void locks.refresh(this.shard, this.roomId).catch(() => {}); }, 5000);
+    else
+      this.lockTimer = setInterval(() => {
+        void locks.refresh(this.shard, this.roomId).catch(() => {});
+      }, 5000);
     await this.setMetadata({ shard: this.shard });
 
     await super.onCreate();
@@ -83,7 +116,17 @@ export class GameRoom extends WorldRoom {
     this.voice = new VoiceModule(this);
     this.bosses = new BossModule(this);
     this.shrines = new ShrineModule(this);
-    this.modules = [this.shardMod, this.circuit, this.social, this.shadows, this.bosses, new CaveModule(this), this.shrines, this.sailing, this.voice];
+    this.modules = [
+      this.shardMod,
+      this.circuit,
+      this.social,
+      this.shadows,
+      this.bosses,
+      new CaveModule(this),
+      this.shrines,
+      this.sailing,
+      this.voice,
+    ];
     const reg: Registrar = {
       on: <M>(type: string, bucket: BucketName, fn: (p: ServerPlayer, msg: M) => void | Promise<void>) => {
         this.onMessage(type, (client: Client, msg: M) => {
@@ -92,7 +135,9 @@ export class GameRoom extends WorldRoom {
           try {
             const r = fn(p, msg);
             if (r instanceof Promise) r.catch((e) => console.error(`${type} failed`, e));
-          } catch (e) { console.error(`${type} failed`, e); }
+          } catch (e) {
+            console.error(`${type} failed`, e);
+          }
         });
       },
     };
@@ -101,20 +146,33 @@ export class GameRoom extends WorldRoom {
 
   private bucket(sid: string, name: BucketName): TokenBucket {
     let m = this.buckets.get(sid);
-    if (!m) { m = new Map(); this.buckets.set(sid, m); }
+    if (!m) {
+      m = new Map();
+      this.buckets.set(sid, m);
+    }
     let b = m.get(name);
-    if (!b) { const [rate, burst] = BUCKETS[name]; b = new TokenBucket(rate, burst); m.set(name, b); }
+    if (!b) {
+      const [rate, burst] = BUCKETS[name];
+      b = new TokenBucket(rate, burst);
+      m.set(name, b);
+    }
     return b;
   }
 
   async onJoin(client: Client, options: JoinOpts & { name?: string }, auth: { accountId: string }): Promise<void> {
     if (this.redirectTo) {
-      const m: HandoffMsg = { shard: this.shard, roomId: this.redirectTo, ticket: signTicket(auth.accountId, this.shard, {}, runtime().config.sessionSecret) };
+      const m: HandoffMsg = {
+        shard: this.shard,
+        roomId: this.redirectTo,
+        ticket: signTicket(auth.accountId, this.shard, {}, runtime().config.sessionSecret),
+      };
       client.send(MSG34.HANDOFF, m);
       setTimeout(() => client.leave(4002), 2000);
       return;
     }
-    const carry = options?.ticket ? verifyTicket(options.ticket, auth.accountId, this.shard, runtime().config.sessionSecret) : null;
+    const carry = options?.ticket
+      ? verifyTicket(options.ticket, auth.accountId, this.shard, runtime().config.sessionSecret)
+      : null;
     // one live session per account across every shard
     this.shardMod.claimAccount(auth.accountId, client.sessionId);
     await super.onJoin(client, options, auth);
@@ -128,7 +186,9 @@ export class GameRoom extends WorldRoom {
 
   async onLeave(client: Client): Promise<void> {
     const p = this.players.get(client.sessionId);
-    if (p) for (const m of this.modules) await Promise.resolve(m.leave?.(p, 'leave')).catch((e) => console.error('leave failed', e));
+    if (p)
+      for (const m of this.modules)
+        await Promise.resolve(m.leave?.(p, 'leave')).catch((e) => console.error('leave failed', e));
     this.buckets.delete(client.sessionId);
     await super.onLeave(client);
   }
@@ -137,7 +197,8 @@ export class GameRoom extends WorldRoom {
   async detach(p: ServerPlayer, reason: 'handoff' | 'kick'): Promise<Carry> {
     const carry: Carry = {};
     for (const m of this.modules) m.carry?.(p, carry);
-    for (const m of this.modules) await Promise.resolve(m.leave?.(p, reason)).catch((e) => console.error('leave failed', e));
+    for (const m of this.modules)
+      await Promise.resolve(m.leave?.(p, reason)).catch((e) => console.error('leave failed', e));
     this.buckets.delete(p.id);
     await this.removePlayer(p, true);
     return carry;
@@ -152,14 +213,21 @@ export class GameRoom extends WorldRoom {
 
   async onDispose(): Promise<void> {
     if (this.lockTimer) clearInterval(this.lockTimer);
-    if (this.redirectTo) { this.disposed = true; return; }
+    if (this.redirectTo) {
+      this.disposed = true;
+      return;
+    }
     const done = (async () => {
       await super.onDispose();
       for (const m of this.modules) await m.dispose?.().catch((e) => console.error('dispose failed', e));
-      await runtime34().locks.release(this.shard, this.roomId).catch(() => {});
+      await runtime34()
+        .locks.release(this.shard, this.roomId)
+        .catch(() => {});
     })();
     disposing.set(this.shard, done);
-    try { await done; } finally {
+    try {
+      await done;
+    } finally {
       this.disposed = true;
       if (disposing.get(this.shard) === done) disposing.delete(this.shard);
     }
@@ -167,24 +235,40 @@ export class GameRoom extends WorldRoom {
 
   // ───────────────────────── shard ownership ─────────────────────────
 
-  owns(x: number, y: number): boolean { return this.unsharded || inRegion(this.region, x, y); }
-  ownsChunk(cx: number, cy: number): boolean { return this.owns(cx * 32, cy * 32); }
+  owns(x: number, y: number): boolean {
+    return this.unsharded || inRegion(this.region, x, y);
+  }
+  ownsChunk(cx: number, cy: number): boolean {
+    return this.owns(cx * 32, cy * 32);
+  }
 
   protected makeVillage(host: VillageHost): VillageSystem {
     const t = townFor(host.seed);
-    const ids = NPCS.filter(n => {
-      const port = [...PORTS, ...CAVE_TOWNS].find(p => p.id === n.settlement);
+    const ids = NPCS.filter((n) => {
+      const port = [...PORTS, ...CAVE_TOWNS].find((p) => p.id === n.settlement);
       return this.unsharded || shardAt(port?.cx ?? t.cx, port?.cy ?? t.cy) === this.shard;
-    }).map(n => n.id);
+    }).map((n) => n.id);
     if (!ids.length) return nullVillage();
     const prefix = this.unsharded || shardAt(t.cx, t.cy) === this.shard ? '' : `${this.shard}:`;
-    return createVillage({ ...host, hire: (player, id) => { const p = this.players.get(player.id); return p ? this.shadows.hire(p, id) : 'The guild is unavailable.'; }, loadBlob: key => host.loadBlob(prefix + key), saveBlob: (key, value) => host.saveBlob(prefix + key, value) }, { npcIds: ids });
+    return createVillage(
+      {
+        ...host,
+        hire: (player, id) => {
+          const p = this.players.get(player.id);
+          return p ? this.shadows.hire(p, id) : 'The guild is unavailable.';
+        },
+        loadBlob: (key) => host.loadBlob(prefix + key),
+        saveBlob: (key, value) => host.saveBlob(prefix + key, value),
+      },
+      { npcIds: ids },
+    );
   }
 
   /** World edits (anything aimed at a tile) are only accepted for this shard's own tiles. */
   protected hookAccepts(_p: ServerPlayer, msg: unknown): boolean {
     const m = msg as { tx?: unknown; ty?: unknown } | null;
-    if (m && typeof m === 'object' && typeof m.tx === 'number' && typeof m.ty === 'number') return this.owns(m.tx, m.ty);
+    if (m && typeof m === 'object' && typeof m.tx === 'number' && typeof m.ty === 'number')
+      return this.owns(m.tx, m.ty);
     return true;
   }
 
@@ -197,46 +281,75 @@ export class GameRoom extends WorldRoom {
   private ensureForeign(cx: number, cy: number, maxAgeMs = Infinity): Promise<void> {
     const k = `${cx},${cy}`;
     const f = this.foreign.get(k);
-    if (f && (f.pr || f.at > 0 && Date.now() - f.at < maxAgeMs)) return f.pr ?? Promise.resolve();
+    if (f && (f.pr || (f.at > 0 && Date.now() - f.at < maxAgeMs))) return f.pr ?? Promise.resolve();
     const rec = f ?? { at: 0, objs: [], pr: null, live: new Map<string, ObjMsg>() };
     const repo = runtime().repo;
-    rec.pr = Promise.all([repo.loadChunkDiff(this.seed, cx, cy), repo.loadObjects(this.seed, cx, cy)]).then(([diff, objs]) => {
-      // tiles relayed live by the owner shard win over the stored copy
-      const live = this.store.get(cx, cy).diff;
-      this.store.applyDiff(cx, cy, new Map([...diff, ...live]));
-      // Live object relays win over a stored snapshot, just like live terrain diffs.
-      for(const old of rec.objs) { if(old.kind==='structure')this.store.removeStructure(old.x,old.y);else if(!old.static)this.store.removeObject(old.x,old.y); }
-      const merged=new Map(objs.map(o=>[`${o.kind==='structure'?'s:':''}${o.x},${o.y}`,o]));
-      for(const[k,m]of rec.live)if(m.obj)merged.set(k,m.obj);else merged.delete(k);
-      rec.objs=[...merged.values()];for(const o of rec.objs)this.store.putObject(o);
-      rec.at = Date.now(); rec.pr = null;
-    }).catch((e) => { rec.pr = null; throw e; });
+    rec.pr = Promise.all([repo.loadChunkDiff(this.seed, cx, cy), repo.loadObjects(this.seed, cx, cy)])
+      .then(([diff, objs]) => {
+        // tiles relayed live by the owner shard win over the stored copy
+        const live = this.store.get(cx, cy).diff;
+        this.store.applyDiff(cx, cy, new Map([...diff, ...live]));
+        // Live object relays win over a stored snapshot, just like live terrain diffs.
+        for (const old of rec.objs) {
+          if (old.kind === 'structure') this.store.removeStructure(old.x, old.y);
+          else if (!old.static) this.store.removeObject(old.x, old.y);
+        }
+        const merged = new Map(objs.map((o) => [`${o.kind === 'structure' ? 's:' : ''}${o.x},${o.y}`, o]));
+        for (const [k, m] of rec.live)
+          if (m.obj) merged.set(k, m.obj);
+          else merged.delete(k);
+        rec.objs = [...merged.values()];
+        for (const o of rec.objs) this.store.putObject(o);
+        rec.at = Date.now();
+        rec.pr = null;
+      })
+      .catch((e) => {
+        rec.pr = null;
+        throw e;
+      });
     this.foreign.set(k, rec);
     return rec.pr;
   }
 
   protected async onChunkReq(client: Client, msg: ChunkReq): Promise<void> {
-    if (!Number.isInteger(msg?.cx) || !Number.isInteger(msg?.cy) || this.ownsChunk(msg.cx, msg.cy)) return super.onChunkReq(client, msg);
+    if (!Number.isInteger(msg?.cx) || !Number.isInteger(msg?.cy) || this.ownsChunk(msg.cx, msg.cy))
+      return super.onChunkReq(client, msg);
     const p = this.players.get(client.sessionId);
     if (!p || !p.chunkBucket.take()) return;
-    const pcx = chunkOf(Math.floor(p.sim.x)), pcy = chunkOf(Math.floor(p.sim.y));
+    const pcx = chunkOf(Math.floor(p.sim.x)),
+      pcy = chunkOf(Math.floor(p.sim.y));
     if (Math.abs(msg.cx - pcx) > 3 || Math.abs(msg.cy - pcy) > 3) return;
     await this.ensureForeign(msg.cx, msg.cy, 5000);
-    const objs: WorldObj[] = [...this.store.townObjectsIn(msg.cx, msg.cy), ...(this.foreign.get(`${msg.cx},${msg.cy}`)?.objs ?? [])];
+    const objs: WorldObj[] = [
+      ...this.store.townObjectsIn(msg.cx, msg.cy),
+      ...(this.foreign.get(`${msg.cx},${msg.cy}`)?.objs ?? []),
+    ];
     client.send(MSG.CHUNK, { cx: msg.cx, cy: msg.cy, diff: encodeDiff(this.store.get(msg.cx, msg.cy).diff), objs });
   }
 
-  protected hookObjectChanged(m:ObjMsg):void { this.shardMod?.objectChanged(m); }
+  protected hookObjectChanged(m: ObjMsg): void {
+    this.shardMod?.objectChanged(m);
+  }
 
   /** Read-only collision/transport cache. Foreign edits are still refused at hookAccepts. */
-  applyForeignObject(m:ObjMsg):void {
-    if(this.owns(m.x,m.y))return;
-    const ck=`${chunkOf(m.x)},${chunkOf(m.y)}`;
-    let rec=this.foreign.get(ck);if(!rec){rec={at:0,objs:[],pr:null,live:new Map()};this.foreign.set(ck,rec);}
-    const structural=!!m.structure||m.obj?.kind==='structure',k=`${structural?'s:':''}${m.x},${m.y}`;
-    rec.live.set(k,m);rec.objs=rec.objs.filter(o=>!(o.x===m.x&&o.y===m.y&&(o.kind==='structure')===structural));
-    if(m.obj){rec.objs.push(m.obj);this.store.putObject(m.obj);}else if(structural)this.store.removeStructure(m.x,m.y);else this.store.removeObject(m.x,m.y);
-    for(const p of this.nearby(m.x,m.y,3*32))p.client.send(MSG.OBJ,m);
+  applyForeignObject(m: ObjMsg): void {
+    if (this.owns(m.x, m.y)) return;
+    const ck = `${chunkOf(m.x)},${chunkOf(m.y)}`;
+    let rec = this.foreign.get(ck);
+    if (!rec) {
+      rec = { at: 0, objs: [], pr: null, live: new Map() };
+      this.foreign.set(ck, rec);
+    }
+    const structural = !!m.structure || m.obj?.kind === 'structure',
+      k = `${structural ? 's:' : ''}${m.x},${m.y}`;
+    rec.live.set(k, m);
+    rec.objs = rec.objs.filter((o) => !(o.x === m.x && o.y === m.y && (o.kind === 'structure') === structural));
+    if (m.obj) {
+      rec.objs.push(m.obj);
+      this.store.putObject(m.obj);
+    } else if (structural) this.store.removeStructure(m.x, m.y);
+    else this.store.removeObject(m.x, m.y);
+    for (const p of this.nearby(m.x, m.y, 3 * 32)) p.client.send(MSG.OBJ, m);
   }
 
   /** A tile changed in a neighbouring shard (relayed over the bus). */
@@ -248,7 +361,9 @@ export class GameRoom extends WorldRoom {
 
   // ───────────────────────── hooks → modules ─────────────────────────
 
-  protected hookTileChanged(x: number, y: number, tile: number): void { this.shardMod?.tileChanged(x, y, tile); }
+  protected hookTileChanged(x: number, y: number, tile: number): void {
+    this.shardMod?.tileChanged(x, y, tile);
+  }
 
   protected hookTick(now: number): void {
     for (const p of this.players.values()) {
@@ -270,12 +385,22 @@ export class GameRoom extends WorldRoom {
     return true;
   }
 
-  summonBoss(p: ServerPlayer, itemId: string, x: number, y: number): boolean { return this.bosses?.summon(p, itemId, x, y) ?? false; }
-  toggleShip(p: ServerPlayer): void { this.sailing?.toggle(p); }
-  shrineInteract(p: ServerPlayer, o: WorldObj): void { this.shrines?.interact(p, o); }
+  summonBoss(p: ServerPlayer, itemId: string, x: number, y: number): boolean {
+    return this.bosses?.summon(p, itemId, x, y) ?? false;
+  }
+  toggleShip(p: ServerPlayer): void {
+    this.sailing?.toggle(p);
+  }
+  shrineInteract(p: ServerPlayer, o: WorldObj): void {
+    this.shrines?.interact(p, o);
+  }
 
-  protected hookTargets(): Array<{ id: string; x: number; y: number; alive: boolean }> { return this.shadows?.targets() ?? []; }
-  protected hookStrike(e: Enemy, shape: StrikeShape, dmg: number): void { this.shadows?.strikeShadows(e, shape, dmg); }
+  protected hookTargets(): Array<{ id: string; x: number; y: number; alive: boolean }> {
+    return this.shadows?.targets() ?? [];
+  }
+  protected hookStrike(e: Enemy, shape: StrikeShape, dmg: number): void {
+    this.shadows?.strikeShadows(e, shape, dmg);
+  }
 
   protected hookKilled(e: Enemy, killer: ServerPlayer | undefined): void {
     for (const m of this.modules) m.killed?.(e, killer);
@@ -283,7 +408,10 @@ export class GameRoom extends WorldRoom {
 
   protected hookIncomingDamage(p: ServerPlayer, dmg: number, e: Enemy): number {
     let d = dmg;
-    for (const m of this.modules) { if (d <= 0) break; if (m.incomingDamage) d = m.incomingDamage(p, d, e); }
+    for (const m of this.modules) {
+      if (d <= 0) break;
+      if (m.incomingDamage) d = m.incomingDamage(p, d, e);
+    }
     return d;
   }
 
@@ -295,9 +423,13 @@ export class GameRoom extends WorldRoom {
     this.damageEnemy(e, Math.max(1, Math.round(dmg)), by, dx, dy, kb);
   }
 
-  grantXp(p: ServerPlayer, xp: number): void { if (xp > 0) this.giveXp(p, Math.round(xp)); }
+  grantXp(p: ServerPlayer, xp: number): void {
+    if (xp > 0) this.giveXp(p, Math.round(xp));
+  }
 
-  playerByAccount(accountId: string): ServerPlayer | undefined { return this.byAccount.get(accountId); }
+  playerByAccount(accountId: string): ServerPlayer | undefined {
+    return this.byAccount.get(accountId);
+  }
 
   playerByName(name: string): ServerPlayer | undefined {
     const n = name.trim().toLowerCase();

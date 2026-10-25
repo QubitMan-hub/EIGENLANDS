@@ -1,18 +1,55 @@
 import {
-  DAY_MS, GIFT_EXTRA, GIFT_POINTS, ITEMS, NPCS, NpcState, RECIPES, SEASONS, TALK_POINTS, addStack, buildingAt, buyPrice, canAdd, composeTalk, decaySupply,
-  fill, findPath, giftTaste, hearts, isWorking, objectiveText, offerable, pendingEvent, questComplete, questDef, scheduleAt, sellPrice, shopOpen, tierOf, townsFor, voiceOf,
-  type DeedKind, type DialogueChatMsg, type DialogueChoice, type DialogueMsg, type NpcDef, type QuestMsg, type ShopMsg, type ShopViewMsg, type Supply,
+  DAY_MS,
+  GIFT_EXTRA,
+  GIFT_POINTS,
+  ITEMS,
+  NPCS,
+  NpcState,
+  RECIPES,
+  SEASONS,
+  TALK_POINTS,
+  addStack,
+  buildingAt,
+  buyPrice,
+  canAdd,
+  composeTalk,
+  decaySupply,
+  fill,
+  findPath,
+  giftTaste,
+  hearts,
+  isWorking,
+  objectiveText,
+  offerable,
+  pendingEvent,
+  questComplete,
+  questDef,
+  scheduleAt,
+  sellPrice,
+  shopOpen,
+  tierOf,
+  townsFor,
+  voiceOf,
+  type DeedKind,
+  type DialogueChatMsg,
+  type DialogueChoice,
+  type DialogueMsg,
+  type NpcDef,
+  type QuestMsg,
+  type ShopMsg,
+  type ShopViewMsg,
+  type Supply,
 } from '@eigenlands/shared';
 import type { FriendRec, PlayerRef, VillageHost, VillageSystem } from '../types';
 import { acceptQuest, questEvent, syncQuests, turnInQuest } from '../quests';
 import { AiDialogue, type AiOptions } from './ai';
 import { RumorBook } from './rumors';
 
-const WALK_SPEED = 1.8;                 // tiles / second
+const WALK_SPEED = 1.8; // tiles / second
 const TICK_DT = 0.05;
-const TALK_RANGE = 6;                   // tiles between player and NPC for talk/gift/shop
+const TALK_RANGE = 6; // tiles between player and NPC for talk/gift/shop
 const TALK_FREEZE_MS = 8000;
-const EAR_RANGE = 4;                    // rumor exchange distance
+const EAR_RANGE = 4; // rumor exchange distance
 const HOUR_MS = DAY_MS / 24;
 const SAVE_EVERY_MS = 3000;
 
@@ -30,7 +67,9 @@ interface Runner {
   flags: number;
 }
 
-export interface VillageOptions extends AiOptions { npcIds?: string[] }
+export interface VillageOptions extends AiOptions {
+  npcIds?: string[];
+}
 
 export class Village implements VillageSystem {
   private runners = new Map<string, Runner>();
@@ -44,32 +83,63 @@ export class Village implements VillageSystem {
   private defs: NpcDef[];
   private spots: Record<string, { x: number; y: number }>;
 
-  constructor(private host: VillageHost, opts: VillageOptions = {}) {
+  constructor(
+    private host: VillageHost,
+    opts: VillageOptions = {},
+  ) {
     this.ai = new AiDialogue(opts);
-    this.spots = Object.assign({}, ...townsFor(host.seed).map(t => t.spots));
-    this.defs = opts.npcIds ? NPCS.filter(n => opts.npcIds!.includes(n.id)) : NPCS;
+    this.spots = Object.assign({}, ...townsFor(host.seed).map((t) => t.spots));
+    this.defs = opts.npcIds ? NPCS.filter((n) => opts.npcIds!.includes(n.id)) : NPCS;
   }
 
-  get aiEnabled(): boolean { return this.ai.enabled; }
+  get aiEnabled(): boolean {
+    return this.ai.enabled;
+  }
   /** test/diagnostic accessors */
-  supply(item: string): number { return this.market[item] ?? 0; }
-  rumorBook(): RumorBook { return this.rumors; }
-  npc(id: string): NpcState | undefined { return this.host.state.npcs.get(id); }
+  supply(item: string): number {
+    return this.market[item] ?? 0;
+  }
+  rumorBook(): RumorBook {
+    return this.rumors;
+  }
+  npc(id: string): NpcState | undefined {
+    return this.host.state.npcs.get(id);
+  }
 
   // ───────────────────────── lifecycle ─────────────────────────
 
   async init(): Promise<void> {
     const m = await this.host.loadBlob<Supply>('market');
-    if (m && typeof m === 'object') this.market = Object.fromEntries(Object.entries(m).filter(([, v]) => typeof v === 'number' && v > 0)) as Supply;
+    if (m && typeof m === 'object')
+      this.market = Object.fromEntries(Object.entries(m).filter(([, v]) => typeof v === 'number' && v > 0)) as Supply;
     this.rumors.load(await this.host.loadBlob<unknown>('rumors'));
-    const hour = this.host.clock.hour(), weather = this.host.clock.weather();
+    const hour = this.host.clock.hour(),
+      weather = this.host.clock.weather();
     for (const def of this.defs) {
       const block = scheduleAt(def, hour, weather);
       const sp = this.spots[block.spot] ?? this.spots[def.home]!;
       const st = new NpcState();
-      st.id = def.id; st.look = def.look; st.x = sp.x + 0.5; st.y = sp.y + 0.5; st.faceX = 0; st.faceY = 1; st.flags = 0;
+      st.id = def.id;
+      st.look = def.look;
+      st.x = sp.x + 0.5;
+      st.y = sp.y + 0.5;
+      st.faceX = 0;
+      st.faceY = 1;
+      st.flags = 0;
       this.host.state.npcs.set(def.id, st);
-      const r: Runner = { def, st, x: st.x, y: st.y, spot: block.spot, path: [], pi: 0, fails: 0, talkUntil: 0, face: { x: 0, y: 1 }, flags: 0 };
+      const r: Runner = {
+        def,
+        st,
+        x: st.x,
+        y: st.y,
+        spot: block.spot,
+        path: [],
+        pi: 0,
+        fails: 0,
+        talkUntil: 0,
+        face: { x: 0, y: 1 },
+        flags: 0,
+      };
       this.runners.set(def.id, r);
       this.setFlags(r);
     }
@@ -85,8 +155,14 @@ export class Village implements VillageSystem {
     const now = this.host.clock.now();
     if (!force && now - this.lastSave < SAVE_EVERY_MS) return;
     this.lastSave = now;
-    if (this.marketDirty || force) { this.marketDirty = false; await this.host.saveBlob('market', this.market); }
-    if (this.rumorDirty || force) { this.rumorDirty = false; await this.host.saveBlob('rumors', this.rumors.list); }
+    if (this.marketDirty || force) {
+      this.marketDirty = false;
+      await this.host.saveBlob('market', this.market);
+    }
+    if (this.rumorDirty || force) {
+      this.rumorDirty = false;
+      await this.host.saveBlob('rumors', this.rumors.list);
+    }
   }
 
   // ───────────────────────── movement ─────────────────────────
@@ -107,7 +183,10 @@ export class Village implements VillageSystem {
       this.lastHour = h;
       this.hourly(hours);
     }
-    if (this.marketDirty || this.rumorDirty) void this.flush().catch(() => { /* retried next time */ });
+    if (this.marketDirty || this.rumorDirty)
+      void this.flush().catch(() => {
+        /* retried next time */
+      });
   }
 
   private reschedule(r: Runner): void {
@@ -125,15 +204,27 @@ export class Village implements VillageSystem {
   private teleport(r: Runner): void {
     const sp = this.spots[r.spot];
     if (!sp) return;
-    r.x = sp.x + 0.5; r.y = sp.y + 0.5; r.path = []; r.pi = 0; r.fails = 0;
+    r.x = sp.x + 0.5;
+    r.y = sp.y + 0.5;
+    r.path = [];
+    r.pi = 0;
+    r.fails = 0;
   }
 
   private plan(r: Runner): void {
     const sp = this.spots[r.spot];
     if (!sp) return;
-    const sx = Math.floor(r.x), sy = Math.floor(r.y);
-    if (Math.hypot(sp.x + 0.5 - r.x, sp.y + 0.5 - r.y) > 40) { this.teleport(r); return; }
-    if (sx === sp.x && sy === sp.y) { r.path = [[sp.x, sp.y]]; r.pi = 0; return; }
+    const sx = Math.floor(r.x),
+      sy = Math.floor(r.y);
+    if (Math.hypot(sp.x + 0.5 - r.x, sp.y + 0.5 - r.y) > 40) {
+      this.teleport(r);
+      return;
+    }
+    if (sx === sp.x && sy === sp.y) {
+      r.path = [[sp.x, sp.y]];
+      r.pi = 0;
+      return;
+    }
     const path = findPath(sx, sy, sp.x, sp.y, this.host.store.solidAt, 6000);
     if (!path) {
       // boxed in (e.g. a player built something): after a few failures just appear at the spot
@@ -141,7 +232,8 @@ export class Village implements VillageSystem {
       return;
     }
     r.fails = 0;
-    r.path = path; r.pi = 0;
+    r.path = path;
+    r.pi = 0;
   }
 
   private step(r: Runner, now: number): void {
@@ -151,13 +243,24 @@ export class Village implements VillageSystem {
     } else if (r.pi < r.path.length) {
       const [wx, wy] = r.path[r.pi]!;
       if (this.host.store.solidAt(wx, wy)) {
-        r.path = []; r.pi = 0;
+        r.path = [];
+        r.pi = 0;
         this.plan(r);
       } else {
-        const tx = wx + 0.5, ty = wy + 0.5;
-        const dx = tx - r.x, dy = ty - r.y, d = Math.hypot(dx, dy);
+        const tx = wx + 0.5,
+          ty = wy + 0.5;
+        const dx = tx - r.x,
+          dy = ty - r.y,
+          d = Math.hypot(dx, dy);
         const stepLen = WALK_SPEED * TICK_DT;
-        if (d <= stepLen) { r.x = tx; r.y = ty; r.pi++; } else { r.x += (dx / d) * stepLen; r.y += (dy / d) * stepLen; }
+        if (d <= stepLen) {
+          r.x = tx;
+          r.y = ty;
+          r.pi++;
+        } else {
+          r.x += (dx / d) * stepLen;
+          r.y += (dy / d) * stepLen;
+        }
         if (d > 1e-4) r.face = { x: dx / d, y: dy / d };
         walking = true;
       }
@@ -171,24 +274,33 @@ export class Village implements VillageSystem {
   }
 
   private setFlags(r: Runner, walking = false, talking = false): void {
-    const tx = Math.floor(r.x), ty = Math.floor(r.y);
+    const tx = Math.floor(r.x),
+      ty = Math.floor(r.y);
     const b = buildingAt(this.host.seed, tx, ty);
     // inside = under the roof (everything except the south wall row, where the door stands)
     const inside = !!b && ty < b.y + b.h - 1;
     const f = (walking ? 1 : 0) | (inside ? 2 : 0) | (talking ? 4 : 0);
-    if (f !== r.flags) { r.flags = f; r.st.flags = f; }
+    if (f !== r.flags) {
+      r.flags = f;
+      r.st.flags = f;
+    }
   }
 
   // ───────────────────────── hourly world step ─────────────────────────
 
   private hourly(hours: number): void {
-    if (Object.keys(this.market).length) { this.market = decaySupply(this.market, hours); this.marketDirty = true; }
+    if (Object.keys(this.market).length) {
+      this.market = decaySupply(this.market, hours);
+      this.marketDirty = true;
+    }
     if (this.rumors.gossipHears()) this.rumorDirty = true;
     const list = [...this.runners.values()];
     for (let a = 0; a < list.length; a++) {
       for (let b = a + 1; b < list.length; b++) {
-        const A = list[a]!, B = list[b]!;
-        if (Math.hypot(A.x - B.x, A.y - B.y) <= EAR_RANGE && this.rumors.exchange(A.def.id, B.def.id, this.host.rand)) this.rumorDirty = true;
+        const A = list[a]!,
+          B = list[b]!;
+        if (Math.hypot(A.x - B.x, A.y - B.y) <= EAR_RANGE && this.rumors.exchange(A.def.id, B.def.id, this.host.rand))
+          this.rumorDirty = true;
       }
     }
   }
@@ -202,7 +314,6 @@ export class Village implements VillageSystem {
     this.rumorDirty = true;
   }
 
-
   // ───────────────────────── dialogue ─────────────────────────
 
   private near(p: PlayerRef, r: Runner): boolean {
@@ -215,7 +326,9 @@ export class Village implements VillageSystem {
 
   private freeze(r: Runner, p: PlayerRef): void {
     r.talkUntil = this.host.clock.now() + TALK_FREEZE_MS;
-    const dx = p.x - r.x, dy = p.y - r.y, d = Math.hypot(dx, dy) || 1;
+    const dx = p.x - r.x,
+      dy = p.y - r.y,
+      d = Math.hypot(dx, dy) || 1;
     r.face = { x: dx / d, y: dy / d };
   }
 
@@ -235,26 +348,40 @@ export class Village implements VillageSystem {
       out.push({ id, title: d.title, state: questComplete(d, st) ? 'ready' : 'active' });
     }
     for (const d of offerable(def.id, log)) out.push({ id: d.id, title: d.title, state: 'offer' });
-    return out.sort((a, b) => ['ready', 'offer', 'active'].indexOf(a.state) - ['ready', 'offer', 'active'].indexOf(b.state));
+    return out.sort(
+      (a, b) => ['ready', 'offer', 'active'].indexOf(a.state) - ['ready', 'offer', 'active'].indexOf(b.state),
+    );
   }
 
   private mainChoices(p: PlayerRef, def: NpcDef): DialogueChoice[] {
     const ch: DialogueChoice[] = this.questList(p, def).map((q) => ({
-      id: `quest:${q.id}`, kind: q.state === 'ready' ? 'ready' : 'quest',
+      id: `quest:${q.id}`,
+      kind: q.state === 'ready' ? 'ready' : 'quest',
       text: q.state === 'ready' ? `★ ${q.title} (done!)` : q.state === 'offer' ? `! ${q.title}` : `… ${q.title}`,
     }));
-    if (def.settlement && def.shop && this.host.hire) ch.push({ id: 'hire', text: 'Guild escort · 250 coins / 30 min · companion slot', kind: 'ask' });
+    if (def.settlement && def.shop && this.host.hire)
+      ch.push({ id: 'hire', text: 'Guild escort · 250 coins / 30 min · companion slot', kind: 'ask' });
     ch.push({ id: 'ask', text: 'Ask about…', kind: 'ask' });
     return ch;
   }
 
-  private message(p: PlayerRef, r: Runner, rec: FriendRec, text: string, extra: Partial<DialogueMsg> = {}): DialogueMsg {
+  private message(
+    p: PlayerRef,
+    r: Runner,
+    rec: FriendRec,
+    text: string,
+    extra: Partial<DialogueMsg> = {},
+  ): DialogueMsg {
     const def = r.def;
     const hour = this.host.clock.hour();
     const open = shopOpen(def, hour);
     return {
-      npcId: def.id, name: def.name, title: def.title, text,
-      hearts: hearts(rec.pts), pts: rec.pts,
+      npcId: def.id,
+      name: def.name,
+      title: def.title,
+      text,
+      hearts: hearts(rec.pts),
+      pts: rec.pts,
       doing: scheduleAt(def, hour, this.host.clock.weather()).doing,
       canShop: !!def.shop && open,
       canGift: rec.gifted !== this.host.clock.day(),
@@ -292,8 +419,16 @@ export class Village implements VillageSystem {
     const doing = scheduleAt(r.def, c.hour(), c.weather()).doing;
     const deed = this.deedFor(p, r, rec);
     const out = composeTalk(r.def, {
-      pts: rec.pts, hour: c.hour(), season: c.season(), weather: c.weather(), first, atWork: isWorking(doing), rand: this.host.rand,
-      deed, lastGift: rec.lastGift ? ITEMS[rec.lastGift]?.name.toLowerCase() ?? null : null, outfit: p.data.equip?.outfit,
+      pts: rec.pts,
+      hour: c.hour(),
+      season: c.season(),
+      weather: c.weather(),
+      first,
+      atWork: isWorking(doing),
+      rand: this.host.rand,
+      deed,
+      lastGift: rec.lastGift ? (ITEMS[rec.lastGift]?.name.toLowerCase() ?? null) : null,
+      outfit: p.data.equip?.outfit,
     });
     if (out.usedDeed && deed) rec.noted = [...(rec.noted ?? []), deed.key].slice(-6);
     return out.text;
@@ -305,7 +440,11 @@ export class Village implements VillageSystem {
     const day = this.host.clock.day();
     const rec = this.friend(p, npcId);
     const first = rec.talked !== day;
-    if (first) { rec.pts += TALK_POINTS; rec.talked = day; p.dirty('friends'); }
+    if (first) {
+      rec.pts += TALK_POINTS;
+      rec.talked = day;
+      p.dirty('friends');
+    }
     this.freeze(r, p);
     p.data.quests ??= {};
     questEvent(p, { type: 'talk', target: npcId, n: 1 }, this.host.seed);
@@ -326,7 +465,9 @@ export class Village implements VillageSystem {
     if (ev) {
       const idx = Number(ev.id.split(':')[1]);
       return this.message(p, r, rec, ev.ev.pages[0]!, {
-        event: `${'♥'.repeat(Math.min(3, Math.ceil(ev.ev.hearts / 3)))} ${ev.ev.title}`, pages: ev.ev.pages.slice(1), mood: 'surprised',
+        event: `${'♥'.repeat(Math.min(3, Math.ceil(ev.ev.hearts / 3)))} ${ev.ev.title}`,
+        pages: ev.ev.pages.slice(1),
+        mood: 'surprised',
         choices: ev.ev.choices.map((c, i) => ({ id: `event:${idx}:${i}`, text: c.text, kind: 'event' as const })),
       });
     }
@@ -338,7 +479,11 @@ export class Village implements VillageSystem {
       const mine = this.rumors.heardBy(npcId).filter((x) => x.who !== p.name);
       if (mine.length) {
         rumor = mine[Math.floor(rand() * mine.length)]!.text;
-        text += ' ' + (v ? fill(pickOne(v.rumorIn, rand), { rumor }) : `I heard that ${rumor.charAt(0).toLowerCase()}${rumor.slice(1)}`);
+        text +=
+          ' ' +
+          (v
+            ? fill(pickOne(v.rumorIn, rand), { rumor })
+            : `I heard that ${rumor.charAt(0).toLowerCase()}${rumor.slice(1)}`);
       }
     }
     return this.message(p, r, rec, text, rumor ? { rumor } : {});
@@ -352,7 +497,7 @@ export class Village implements VillageSystem {
       { id: 'ask:town', text: 'Tell me about this settlement.', kind: 'ask' },
       { id: 'ask:qubitman', text: 'Who is QubitMan?', kind: 'ask' },
       { id: 'ask:rumor', text: 'Heard any rumors?', kind: 'ask' },
-      { id: 'back', text: 'That\'s all.', kind: 'back' },
+      { id: 'back', text: "That's all.", kind: 'back' },
     ].filter((c) => c.id !== `ask:${what}`) as DialogueChoice[];
     let text = v ? pickOne(v.again, rand) : 'What would you like to know?';
     if (v) {
@@ -361,10 +506,16 @@ export class Village implements VillageSystem {
       else if (what === 'qubitman') text = pickOne(v.qubitman, rand);
       else if (what === 'rumor') {
         const mine = this.rumors.heardBy(r.def.id).filter((x) => x.who !== p.name);
-        text = mine.length ? fill(pickOne(v.rumorIn, rand), { rumor: mine[Math.floor(rand() * mine.length)]!.text }) : v.noRumor;
+        text = mine.length
+          ? fill(pickOne(v.rumorIn, rand), { rumor: mine[Math.floor(rand() * mine.length)]!.text })
+          : v.noRumor;
       }
     }
-    if (what === 'about' && tierOf(rec.pts) < 2) text += tierOf(rec.pts) === 0 ? '\n\n(Become better friends to learn more.)' : '\n\n(There is more to their story. Keep being a friend.)';
+    if (what === 'about' && tierOf(rec.pts) < 2)
+      text +=
+        tierOf(rec.pts) === 0
+          ? '\n\n(Become better friends to learn more.)'
+          : '\n\n(There is more to their story. Keep being a friend.)';
     return this.message(p, r, rec, text, { choices: menu });
   }
 
@@ -376,20 +527,31 @@ export class Village implements VillageSystem {
     const st = p.data.quests[id];
     const list = (prog: number[]) => d.objectives.map((o, i) => `• ${objectiveText(o, prog[i] ?? 0)}`).join('\n');
     if (!st) {
-      if (!offerable(r.def.id, p.data.quests).some((x) => x.id === id)) return this.message(p, r, rec, 'Not yet. Come back later.');
+      if (!offerable(r.def.id, p.data.quests).some((x) => x.id === id))
+        return this.message(p, r, rec, 'Not yet. Come back later.');
       const reward = `Reward: ${d.rewards.coins} coins${(d.rewards.items ?? []).map((s) => `, ${s.n} ${ITEMS[s.id]?.name}`).join('')}${d.rewards.recipe ? ', a recipe' : ''}`;
-      return this.message(p, r, rec, d.lines.offer || d.summary, { pages: [`${list([])}\n\n${reward}`], choices: [{ id: `accept:${id}`, text: 'I\'ll do it!', kind: 'accept' }, back] });
+      return this.message(p, r, rec, d.lines.offer || d.summary, {
+        pages: [`${list([])}\n\n${reward}`],
+        choices: [{ id: `accept:${id}`, text: "I'll do it!", kind: 'accept' }, back],
+      });
     }
     if (st.state === 'done') return this.message(p, r, rec, v ? pickOne(v.thanks, this.host.rand) : 'Thanks again!');
-    if (questComplete(d, st)) return this.message(p, r, rec, `${list(st.progress)}\n\nAll done! Ready to hand it over?`, { choices: [{ id: `turnin:${id}`, text: 'Here you go.', kind: 'turnin' }, back] });
-    return this.message(p, r, rec, `${d.lines.progress || d.summary}\n\n${list(st.progress)}`, { choices: [{ id: 'back', text: 'I\'m on it.', kind: 'back' }] });
+    if (questComplete(d, st))
+      return this.message(p, r, rec, `${list(st.progress)}\n\nAll done! Ready to hand it over?`, {
+        choices: [{ id: `turnin:${id}`, text: 'Here you go.', kind: 'turnin' }, back],
+      });
+    return this.message(p, r, rec, `${d.lines.progress || d.summary}\n\n${list(st.progress)}`, {
+      choices: [{ id: 'back', text: "I'm on it.", kind: 'back' }],
+    });
   }
 
   private eventChoice(p: PlayerRef, r: Runner, rec: FriendRec, topic: string): DialogueMsg {
     const [, a, b] = topic.split(':');
-    const idx = Number(a), ci = Number(b);
+    const idx = Number(a),
+      ci = Number(b);
     const ev = pendingEvent(r.def.id, rec.pts, p.data.events ?? []);
-    if (!ev || Number(ev.id.split(':')[1]) !== idx) return this.message(p, r, rec, voiceOf(r.def.id) ? pickOne(voiceOf(r.def.id)!.again, this.host.rand) : '…');
+    if (!ev || Number(ev.id.split(':')[1]) !== idx)
+      return this.message(p, r, rec, voiceOf(r.def.id) ? pickOne(voiceOf(r.def.id)!.again, this.host.rand) : '…');
     const c = ev.ev.choices[ci];
     if (!c) return this.message(p, r, rec, '…');
     (p.data.events ??= []).push(ev.id);
@@ -409,19 +571,37 @@ export class Village implements VillageSystem {
     p.data.quests ??= {};
     this.freeze(r, p);
     const d = questDef(msg.quest, this.host.seed);
-    if (!d || d.giver !== msg.npcId) return this.message(p, r, rec, 'I don\'t know anything about that.');
+    if (!d || d.giver !== msg.npcId) return this.message(p, r, rec, "I don't know anything about that.");
     const today = this.host.clock.day();
     if (msg.action === 'accept') {
-      if (d.daily) return this.message(p, r, rec, 'Take it from the request board in the plaza, would you? Orla likes things done properly.');
+      if (d.daily)
+        return this.message(
+          p,
+          r,
+          rec,
+          'Take it from the request board in the plaza, would you? Orla likes things done properly.',
+        );
       const res = acceptQuest(p, msg.quest, today, this.host.seed);
       if (!res.ok) return this.message(p, r, rec, res.text);
       const st = p.data.quests[msg.quest]!;
-      return this.message(p, r, rec, `${v ? pickOne(v.accept, rand) : 'Thank you!'}\n\n${d.objectives.map((o, i) => `• ${objectiveText(o, st.progress[i] ?? 0)}`).join('\n')}`, { mood: 'happy' });
+      return this.message(
+        p,
+        r,
+        rec,
+        `${v ? pickOne(v.accept, rand) : 'Thank you!'}\n\n${d.objectives.map((o, i) => `• ${objectiveText(o, st.progress[i] ?? 0)}`).join('\n')}`,
+        { mood: 'happy' },
+      );
     }
     if (msg.action === 'turnin') {
       const res = turnInQuest(p, msg.quest, this.host.seed, today);
       if (!res.ok) return this.message(p, r, rec, res.text);
-      return this.message(p, r, rec, `${d.lines.done || (v ? pickOne(v.thanks, rand) : 'Thank you!')}\n\n(Received: ${res.text})`, { mood: 'happy' });
+      return this.message(
+        p,
+        r,
+        rec,
+        `${d.lines.done || (v ? pickOne(v.thanks, rand) : 'Thank you!')}\n\n(Received: ${res.text})`,
+        { mood: 'happy' },
+      );
     }
     return null;
   }
@@ -432,9 +612,15 @@ export class Village implements VillageSystem {
     const day = this.host.clock.day();
     const rec = this.friend(p, npcId);
     const stack = Number.isInteger(slot) ? p.data.inv[slot] : null;
-    if (!stack) { p.toast('Nothing to give.', 'bad'); return this.message(p, r, rec, this.scriptedLine(p, r, rec, false), { gift: { taste: 'neutral', delta: 0 } }); }
+    if (!stack) {
+      p.toast('Nothing to give.', 'bad');
+      return this.message(p, r, rec, this.scriptedLine(p, r, rec, false), { gift: { taste: 'neutral', delta: 0 } });
+    }
     this.freeze(r, p);
-    if (rec.gifted === day) return this.message(p, r, rec, pickOne(r.def.lines.gift.again, this.host.rand), { gift: { taste: 'neutral', delta: 0 } });
+    if (rec.gifted === day)
+      return this.message(p, r, rec, pickOne(r.def.lines.gift.again, this.host.rand), {
+        gift: { taste: 'neutral', delta: 0 },
+      });
     const taste = giftTaste(r.def, stack.id);
     const delta = GIFT_POINTS[taste];
     const itemName = ITEMS[stack.id]?.name ?? stack.id;
@@ -447,10 +633,19 @@ export class Village implements VillageSystem {
     p.data.quests ??= {};
     questEvent(p, { type: 'gift', target: npcId, n: 1 }, this.host.seed);
     syncQuests(p, this.host.seed);
-    if (taste === 'love') { this.rumor('gift_love', p.name, r.def.name); p.data.deeds.gift_love = { day, what: r.def.name.split(' ')[0]! }; }
-    const pool = [...r.def.lines.gift[taste], ...(GIFT_EXTRA[npcId]?.[taste] ?? []).map((t) => fill(t, { item: itemName.toLowerCase() }))];
+    if (taste === 'love') {
+      this.rumor('gift_love', p.name, r.def.name);
+      p.data.deeds.gift_love = { day, what: r.def.name.split(' ')[0]! };
+    }
+    const pool = [
+      ...r.def.lines.gift[taste],
+      ...(GIFT_EXTRA[npcId]?.[taste] ?? []).map((t) => fill(t, { item: itemName.toLowerCase() })),
+    ];
     const text = pickOne(pool, this.host.rand);
-    return this.message(p, r, rec, text, { gift: { taste, delta }, mood: taste === 'love' || taste === 'like' ? 'happy' : taste === 'hate' ? 'sad' : 'neutral' });
+    return this.message(p, r, rec, text, {
+      gift: { taste, delta },
+      mood: taste === 'love' || taste === 'like' ? 'happy' : taste === 'hate' ? 'sad' : 'neutral',
+    });
   }
 
   async chat(p: PlayerRef, msg: DialogueChatMsg): Promise<DialogueMsg | null> {
@@ -461,7 +656,10 @@ export class Village implements VillageSystem {
     const c = this.host.clock;
     this.freeze(r, p);
     const ai = await this.ai.reply(p.accountId, r.def, msg.text, {
-      season: SEASONS[c.season()] ?? 'Spring', weather: c.weather(), hour: c.hour(), hearts: hearts(rec.pts),
+      season: SEASONS[c.season()] ?? 'Spring',
+      weather: c.weather(),
+      hour: c.hour(),
+      hearts: hearts(rec.pts),
       doing: scheduleAt(r.def, c.hour(), c.weather()).doing,
     });
     // any failure (disabled, rate limited, timeout, bad output) falls back to the scripted line
@@ -484,10 +682,18 @@ export class Village implements VillageSystem {
     const season = this.host.clock.season();
     const shop = def.shop;
     const sell: Record<number, number> = {};
-    if (shop) p.data.inv.forEach((s, i) => { if (s && this.canBuyKind(def, s.id)) sell[i] = this.unitSell(def, s.id); });
+    if (shop)
+      p.data.inv.forEach((s, i) => {
+        if (s && this.canBuyKind(def, s.id)) sell[i] = this.unitSell(def, s.id);
+      });
     return {
-      npcId: def.id, name: shop?.name ?? def.name, coins: p.data.coins, sell,
-      stock: (shop?.stock ?? []).filter((s) => !s.seasons || s.seasons.includes(season)).map((s) => ({ item: s.item, price: buyPrice(s.item, s.markup) })),
+      npcId: def.id,
+      name: shop?.name ?? def.name,
+      coins: p.data.coins,
+      sell,
+      stock: (shop?.stock ?? [])
+        .filter((s) => !s.seasons || s.seasons.includes(season))
+        .map((s) => ({ item: s.item, price: buyPrice(s.item, s.markup) })),
     };
   }
 
@@ -500,24 +706,44 @@ export class Village implements VillageSystem {
       const rec = this.friend(p, def.id);
       const recipe = RECIPES.find((x) => x.id === msg.item);
       if (!recipe || recipe.learn !== `npc:${def.id}`) p.toast('They cannot teach that.', 'bad');
-      else if (hearts(rec.pts) < 4) p.toast(`${def.name} will teach you once you are better friends (4 hearts).`, 'bad');
+      else if (hearts(rec.pts) < 4)
+        p.toast(`${def.name} will teach you once you are better friends (4 hearts).`, 'bad');
       else if (p.data.recipes.has(recipe.id)) p.toast('You already know that.', 'info');
-      else { p.data.recipes.add(recipe.id); p.dirty('recipes'); p.toast(`${def.name} taught you a recipe: ${ITEMS[recipe.out.id]?.name ?? recipe.id}!`, 'good'); }
+      else {
+        p.data.recipes.add(recipe.id);
+        p.dirty('recipes');
+        p.toast(`${def.name} taught you a recipe: ${ITEMS[recipe.out.id]?.name ?? recipe.id}!`, 'good');
+      }
       return this.view(p, def);
     }
     if (!def.shop) return null;
-    if (!shopOpen(def, this.host.clock.hour())) { p.toast(voiceOf(def.id)?.closed ?? 'The shop is closed.', 'info'); return null; }
-    if (msg.action === 'open') { this.freeze(r, p); return this.view(p, def); }
+    if (!shopOpen(def, this.host.clock.hour())) {
+      p.toast(voiceOf(def.id)?.closed ?? 'The shop is closed.', 'info');
+      return null;
+    }
+    if (msg.action === 'open') {
+      this.freeze(r, p);
+      return this.view(p, def);
+    }
     const n = msg.n === undefined ? 1 : msg.n;
     if (!Number.isInteger(n) || n < 1 || n > 99) return this.view(p, def);
     if (msg.action === 'buy') {
       const season = this.host.clock.season();
       const entry = def.shop.stock.find((s) => s.item === msg.item && (!s.seasons || s.seasons.includes(season)));
-      if (!entry) { p.toast('Not for sale right now.', 'bad'); return this.view(p, def); }
+      if (!entry) {
+        p.toast('Not for sale right now.', 'bad');
+        return this.view(p, def);
+      }
       const cost = buyPrice(entry.item, entry.markup) * n;
-      if (p.data.coins < cost) { p.toast('You cannot afford that.', 'bad'); return this.view(p, def); }
+      if (p.data.coins < cost) {
+        p.toast('You cannot afford that.', 'bad');
+        return this.view(p, def);
+      }
       const stack = { id: entry.item, n };
-      if (!canAdd(p.data.inv, stack)) { p.toast('Your pack is full.', 'bad'); return this.view(p, def); }
+      if (!canAdd(p.data.inv, stack)) {
+        p.toast('Your pack is full.', 'bad');
+        return this.view(p, def);
+      }
       addStack(p.data.inv, stack);
       p.data.coins -= cost;
       p.dirty('inv', 'coins');
@@ -527,8 +753,14 @@ export class Village implements VillageSystem {
     }
     if (msg.action === 'sell') {
       const stack = Number.isInteger(msg.slot) ? p.data.inv[msg.slot as number] : null;
-      if (!stack || stack.n < n) { p.toast('You do not have that many.', 'bad'); return this.view(p, def); }
-      if (!this.canBuyKind(def, stack.id)) { p.toast(`${def.name} is not interested in that.`, 'bad'); return this.view(p, def); }
+      if (!stack || stack.n < n) {
+        p.toast('You do not have that many.', 'bad');
+        return this.view(p, def);
+      }
+      if (!this.canBuyKind(def, stack.id)) {
+        p.toast(`${def.name} is not interested in that.`, 'bad');
+        return this.view(p, def);
+      }
       let total = 0;
       for (let i = 0; i < n; i++) total += this.unitSell(def, stack.id, i); // price slides as the market saturates
       const id = stack.id;

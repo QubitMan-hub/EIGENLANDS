@@ -1,6 +1,84 @@
-import {chromium} from 'playwright-core';import assert from 'node:assert/strict';import {mkdirSync,writeFileSync,readFileSync} from 'node:fs';
-const out=process.argv[2]??'/tmp/roof-before';mkdirSync(out,{recursive:true});const b=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
-try{const p=await b.newPage({viewport:{width:1280,height:1500}});await p.goto('http://127.0.0.1:5174/labs/artlab.html?lab=construction');await p.waitForFunction(()=>window.__lab?.ready);await p.screenshot({path:`${out}/construction-gallery.png`,fullPage:true});
- const report=await p.evaluate(async()=>{const{buildBuildingArt}=await import('/src/art/buildings.ts');const fixtures=[['hall',9,7,0],['inn',6,9,1],['farmhouse',7,6,2],['library',6,8,3],['store',6,4,1],['bakery',5,7,0]];const hash=tex=>{if(!tex)return null;const r=tex.source.resource,c=r instanceof HTMLCanvasElement?r:document.createElement('canvas');if(c!==r){c.width=r.width;c.height=r.height;c.getContext('2d').drawImage(r,0,0);}const a=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let h=2166136261;for(const b of a)h=Math.imul(h^b,16777619);return{w:c.width,h:c.height,hash:h>>>0};};const worker=(await import('/src/art/building-worker-client.ts')).buildingArtWorker();const report=[];for(const [id,w,h,style]of fixtures){const b={id,kind:id==='library'||id==='bakery'?'house':id,x:25,y:31,w,h,doorX:28,doorY:31+h-1,style},t=performance.now(),art=buildBuildingArt(b),remote=await worker.request(b);if(!remote)throw new Error('Worker artwork unavailable');const signature=a=>({roof:hash(a.roof.tex),night:hash(a.roof.night),walls:a.walls.map(p=>[hash(p.day),hash(p.night),hash(p.cut)])});if(JSON.stringify(signature(art))!==JSON.stringify(signature(remote)))throw new Error(`Worker pixel mismatch: ${id}`);report.push({id,ms:performance.now()-t,...signature(art)});}return report;});
- const expected=JSON.parse(readFileSync(new URL('./fixtures/building-pixels.json',import.meta.url),'utf8'));assert.deepEqual(report.map(({ms,...rest})=>rest),expected,'pixel-identical day/night roofs and wall cutaways');
- writeFileSync(`${out}/rasters.json`,JSON.stringify(report,null,2));console.log(JSON.stringify(report.map(({id,ms,roof,night})=>({id,ms,roof,night})),null,2));}finally{await b.close();}
+import { chromium } from 'playwright-core';
+import assert from 'node:assert/strict';
+import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+const out = process.argv[2] ?? '/tmp/roof-before';
+mkdirSync(out, { recursive: true });
+const b = await chromium.launch({
+  executablePath: '/usr/bin/chromium',
+  args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
+});
+try {
+  const p = await b.newPage({ viewport: { width: 1280, height: 1500 } });
+  await p.goto('http://127.0.0.1:5174/labs/artlab.html?lab=construction');
+  await p.waitForFunction(() => window.__lab?.ready);
+  await p.screenshot({ path: `${out}/construction-gallery.png`, fullPage: true });
+  const report = await p.evaluate(async () => {
+    const { buildBuildingArt } = await import('/src/art/buildings.ts');
+    const fixtures = [
+      ['hall', 9, 7, 0],
+      ['inn', 6, 9, 1],
+      ['farmhouse', 7, 6, 2],
+      ['library', 6, 8, 3],
+      ['store', 6, 4, 1],
+      ['bakery', 5, 7, 0],
+    ];
+    const hash = (tex) => {
+      if (!tex) return null;
+      const r = tex.source.resource,
+        c = r instanceof HTMLCanvasElement ? r : document.createElement('canvas');
+      if (c !== r) {
+        c.width = r.width;
+        c.height = r.height;
+        c.getContext('2d').drawImage(r, 0, 0);
+      }
+      const a = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+      let h = 2166136261;
+      for (const b of a) h = Math.imul(h ^ b, 16777619);
+      return { w: c.width, h: c.height, hash: h >>> 0 };
+    };
+    const worker = (await import('/src/art/building-worker-client.ts')).buildingArtWorker();
+    const report = [];
+    for (const [id, w, h, style] of fixtures) {
+      const b = {
+          id,
+          kind: id === 'library' || id === 'bakery' ? 'house' : id,
+          x: 25,
+          y: 31,
+          w,
+          h,
+          doorX: 28,
+          doorY: 31 + h - 1,
+          style,
+        },
+        t = performance.now(),
+        art = buildBuildingArt(b),
+        remote = await worker.request(b);
+      if (!remote) throw new Error('Worker artwork unavailable');
+      const signature = (a) => ({
+        roof: hash(a.roof.tex),
+        night: hash(a.roof.night),
+        walls: a.walls.map((p) => [hash(p.day), hash(p.night), hash(p.cut)]),
+      });
+      if (JSON.stringify(signature(art)) !== JSON.stringify(signature(remote)))
+        throw new Error(`Worker pixel mismatch: ${id}`);
+      report.push({ id, ms: performance.now() - t, ...signature(art) });
+    }
+    return report;
+  });
+  const expected = JSON.parse(readFileSync(new URL('./fixtures/building-pixels.json', import.meta.url), 'utf8'));
+  assert.deepEqual(
+    report.map(({ ms, ...rest }) => rest),
+    expected,
+    'pixel-identical day/night roofs and wall cutaways',
+  );
+  writeFileSync(`${out}/rasters.json`, JSON.stringify(report, null, 2));
+  console.log(
+    JSON.stringify(
+      report.map(({ id, ms, roof, night }) => ({ id, ms, roof, night })),
+      null,
+      2,
+    ),
+  );
+} finally {
+  await b.close();
+}

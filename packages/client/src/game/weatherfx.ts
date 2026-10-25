@@ -3,10 +3,24 @@ import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { C, PALETTE, windScreenX, type Weather, type Wind } from '@eigenlands/shared';
 import { makeCanvas } from '../art/draw';
 
-const MAX_RAIN = 144, MAX_SNOW = 96, MAX_SPLASH = 16, MAX_LEAF = 24;
-const LEAF_TINT: Record<number, number[]> = { 0: [0xffb8d8, 0xffd6e8, 0xf49ac1], 1: [0x7ccf4a, 0x5fae3a], 2: [0xe07a3a, 0xc4432a, 0xf0b040, 0x9a5a28], 3: [] };
+const MAX_RAIN = 144,
+  MAX_SNOW = 96,
+  MAX_SPLASH = 16,
+  MAX_LEAF = 24;
+const LEAF_TINT: Record<number, number[]> = {
+  0: [0xffb8d8, 0xffd6e8, 0xf49ac1],
+  1: [0x7ccf4a, 0x5fae3a],
+  2: [0xe07a3a, 0xc4432a, 0xf0b040, 0x9a5a28],
+  3: [],
+};
 
-interface Drop { s: Sprite; x: number; y: number; v: number; d: number }
+interface Drop {
+  s: Sprite;
+  x: number;
+  y: number;
+  v: number;
+  d: number;
+}
 
 /**
  * Screen-space weather: rain (slanted streaks + ground splashes), storm (heavier rain and lightning flashes),
@@ -37,45 +51,152 @@ export class WeatherFx {
   constructor(parent: Container) {
     parent.addChild(this.root);
     this.root.addChild(this.tint);
-    const mk = (w: number, h: number, f: (ctx: CanvasRenderingContext2D) => void) => { const { canvas, ctx } = makeCanvas(w, h); f(ctx); const t = Texture.from(canvas); t.source.scaleMode = 'nearest'; return t; };
-    this.streak = mk(2, 6, (c) => { c.fillStyle = PALETTE[C.w5]!; for (let i = 0; i < 6; i++) c.fillRect(Math.floor(1 - i / 6), i, 1, 1); c.fillStyle = PALETTE[C.w6]!; c.fillRect(1, 0, 1, 1); });
-    this.flake = mk(3, 3, (c) => { c.fillStyle = PALETTE[C.white]!; c.fillRect(1, 0, 1, 3); c.fillRect(0, 1, 3, 1); });
-    this.ring = mk(7, 3, (c) => { c.fillStyle = PALETTE[C.w6]!; c.fillRect(1, 0, 5, 1); c.fillRect(0, 1, 1, 1); c.fillRect(6, 1, 1, 1); c.fillRect(1, 2, 5, 1); });
-    this.leafTex = mk(4, 3, (c) => { c.fillStyle = '#ffffff'; c.fillRect(0, 1, 3, 1); c.fillRect(1, 0, 2, 1); c.fillRect(2, 2, 2, 1); });
+    const mk = (w: number, h: number, f: (ctx: CanvasRenderingContext2D) => void) => {
+      const { canvas, ctx } = makeCanvas(w, h);
+      f(ctx);
+      const t = Texture.from(canvas);
+      t.source.scaleMode = 'nearest';
+      return t;
+    };
+    this.streak = mk(2, 6, (c) => {
+      c.fillStyle = PALETTE[C.w5]!;
+      for (let i = 0; i < 6; i++) c.fillRect(Math.floor(1 - i / 6), i, 1, 1);
+      c.fillStyle = PALETTE[C.w6]!;
+      c.fillRect(1, 0, 1, 1);
+    });
+    this.flake = mk(3, 3, (c) => {
+      c.fillStyle = PALETTE[C.white]!;
+      c.fillRect(1, 0, 1, 3);
+      c.fillRect(0, 1, 3, 1);
+    });
+    this.ring = mk(7, 3, (c) => {
+      c.fillStyle = PALETTE[C.w6]!;
+      c.fillRect(1, 0, 5, 1);
+      c.fillRect(0, 1, 1, 1);
+      c.fillRect(6, 1, 1, 1);
+      c.fillRect(1, 2, 5, 1);
+    });
+    this.leafTex = mk(4, 3, (c) => {
+      c.fillStyle = '#ffffff';
+      c.fillRect(0, 1, 3, 1);
+      c.fillRect(1, 0, 2, 1);
+      c.fillRect(2, 2, 2, 1);
+    });
     // fog: tileable value-noise veil
     const fog = mk(128, 128, (c) => {
       const img = c.createImageData(128, 128);
-      const v = (x: number, y: number, s: number) => { const n = (a: number, b: number) => { let h = (a * 374761393 + b * 668265263 + s * 1274126177) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967295; }; const G = 128 / s; const gx = x / G, gy = y / G; const x0 = Math.floor(gx) % s, y0 = Math.floor(gy) % s; const fx = gx - Math.floor(gx), fy = gy - Math.floor(gy); const ux = fx * fx * (3 - 2 * fx), uy = fy * fy * (3 - 2 * fy); const x1 = (x0 + 1) % s, y1 = (y0 + 1) % s; return (n(x0, y0) * (1 - ux) + n(x1, y0) * ux) * (1 - uy) + (n(x0, y1) * (1 - ux) + n(x1, y1) * ux) * uy; };
-      for (let y = 0; y < 128; y++) for (let x = 0; x < 128; x++) { const a = 0.55 * v(x, y, 4) + 0.3 * v(x, y, 8) + 0.15 * v(x, y, 16); const i = (y * 128 + x) * 4; img.data[i] = 168; img.data[i + 1] = 181; img.data[i + 2] = 178; img.data[i + 3] = Math.max(0, Math.min(255, Math.round((a - 0.35) * 330))); }
+      const v = (x: number, y: number, s: number) => {
+        const n = (a: number, b: number) => {
+          let h = (a * 374761393 + b * 668265263 + s * 1274126177) | 0;
+          h = Math.imul(h ^ (h >>> 13), 1274126177);
+          return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
+        };
+        const G = 128 / s;
+        const gx = x / G,
+          gy = y / G;
+        const x0 = Math.floor(gx) % s,
+          y0 = Math.floor(gy) % s;
+        const fx = gx - Math.floor(gx),
+          fy = gy - Math.floor(gy);
+        const ux = fx * fx * (3 - 2 * fx),
+          uy = fy * fy * (3 - 2 * fy);
+        const x1 = (x0 + 1) % s,
+          y1 = (y0 + 1) % s;
+        return (n(x0, y0) * (1 - ux) + n(x1, y0) * ux) * (1 - uy) + (n(x0, y1) * (1 - ux) + n(x1, y1) * ux) * uy;
+      };
+      for (let y = 0; y < 128; y++)
+        for (let x = 0; x < 128; x++) {
+          const a = 0.55 * v(x, y, 4) + 0.3 * v(x, y, 8) + 0.15 * v(x, y, 16);
+          const i = (y * 128 + x) * 4;
+          img.data[i] = 168;
+          img.data[i + 1] = 181;
+          img.data[i + 2] = 178;
+          img.data[i + 3] = Math.max(0, Math.min(255, Math.round((a - 0.35) * 330)));
+        }
       c.putImageData(img, 0, 0);
     });
-    for (let i = 0; i < 2; i++) { const s = new Sprite(fog); s.alpha = 0; s.visible = false; this.veil.push(s); this.root.addChild(s); }
+    for (let i = 0; i < 2; i++) {
+      const s = new Sprite(fog);
+      s.alpha = 0;
+      s.visible = false;
+      this.veil.push(s);
+      this.root.addChild(s);
+    }
     this.root.addChild(this.flash);
-    for (let i = 0; i < MAX_RAIN; i++) { const s = new Sprite(this.streak); s.visible = false; this.root.addChild(s); this.rain.push({ s, x: 0, y: 0, v: 0, d: 0 }); }
-    for (let i = 0; i < MAX_SNOW; i++) { const s = new Sprite(this.flake); s.visible = false; this.root.addChild(s); this.snow.push({ s, x: 0, y: 0, v: 0, d: 0 }); }
-    for (let i = 0; i < MAX_LEAF; i++) { const s = new Sprite(this.leafTex); s.visible = false; this.root.addChild(s); this.leaves.push({ s, x: Math.random() * 1000, y: Math.random() * 700, v: 0.6 + Math.random() * 0.8, d: Math.random() * 6 }); }
-    for (let i = 0; i < MAX_SPLASH; i++) { const s = new Sprite(this.ring); s.visible = false; s.anchor.set(0.5); this.root.addChild(s); this.splash.push({ s, life: 0 }); }
+    for (let i = 0; i < MAX_RAIN; i++) {
+      const s = new Sprite(this.streak);
+      s.visible = false;
+      this.root.addChild(s);
+      this.rain.push({ s, x: 0, y: 0, v: 0, d: 0 });
+    }
+    for (let i = 0; i < MAX_SNOW; i++) {
+      const s = new Sprite(this.flake);
+      s.visible = false;
+      this.root.addChild(s);
+      this.snow.push({ s, x: 0, y: 0, v: 0, d: 0 });
+    }
+    for (let i = 0; i < MAX_LEAF; i++) {
+      const s = new Sprite(this.leafTex);
+      s.visible = false;
+      this.root.addChild(s);
+      this.leaves.push({
+        s,
+        x: Math.random() * 1000,
+        y: Math.random() * 700,
+        v: 0.6 + Math.random() * 0.8,
+        d: Math.random() * 6,
+      });
+    }
+    for (let i = 0; i < MAX_SPLASH; i++) {
+      const s = new Sprite(this.ring);
+      s.visible = false;
+      s.anchor.set(0.5);
+      this.root.addChild(s);
+      this.splash.push({ s, life: 0 });
+    }
   }
 
   /** viewW/viewH in CSS px; hour is the in-game hour (reserved: storms are more dramatic at night) */
-  update(dt: number, weather: Weather, viewW: number, viewH: number, reduced: boolean, hour: number, wind?: Wind, season = 1, economy=false, detail:WeatherDetail='gentle'): void {
+  update(
+    dt: number,
+    weather: Weather,
+    viewW: number,
+    viewH: number,
+    reduced: boolean,
+    hour: number,
+    wind?: Wind,
+    season = 1,
+    economy = false,
+    detail: WeatherDetail = 'gentle',
+  ): void {
     this.t += dt;
     const ws = wind ? windScreenX(wind) * wind.strength : 0;
     if (viewW !== this.w || viewH !== this.h) {
-      this.w = viewW; this.h = viewH;
-      for (const v of this.veil) { v.width = viewW + 256; v.height = viewH + 256; }
-      for (const p of [...this.rain, ...this.snow]) { p.x = Math.random() * viewW; p.y = Math.random() * viewH; }
+      this.w = viewW;
+      this.h = viewH;
+      for (const v of this.veil) {
+        v.width = viewW + 256;
+        v.height = viewH + 256;
+      }
+      for (const p of [...this.rain, ...this.snow]) {
+        p.x = Math.random() * viewW;
+        p.y = Math.random() * viewH;
+      }
     }
     const raining = weather === 'rain' || weather === 'storm';
     const snowing = weather === 'snow';
     const heavy = weather === 'storm';
-    const budget=weatherBudget(weather,detail,economy,reduced,viewW,viewH);
-    const nRain=budget.rain,nSnow=budget.snow,scale=Math.max(1,Math.min(2,Math.round(viewW/640)));
-    const tintKey=`${weather}:${detail}:${economy}:${viewW}:${viewH}`;
-    if(tintKey!==this.tintKey){
-      this.tintKey=tintKey;this.tint.clear();
-      if(detail!=='off'&&raining)this.tint.rect(0,0,viewW,viewH).fill({color:0x253a5e,alpha:detail==='full'?.1:.045});
-      else if(detail!=='off'&&snowing)this.tint.rect(0,0,viewW,viewH).fill({color:0xa8b5b2,alpha:.035});
+    const budget = weatherBudget(weather, detail, economy, reduced, viewW, viewH);
+    const nRain = budget.rain,
+      nSnow = budget.snow,
+      scale = Math.max(1, Math.min(2, Math.round(viewW / 640)));
+    const tintKey = `${weather}:${detail}:${economy}:${viewW}:${viewH}`;
+    if (tintKey !== this.tintKey) {
+      this.tintKey = tintKey;
+      this.tint.clear();
+      if (detail !== 'off' && raining)
+        this.tint.rect(0, 0, viewW, viewH).fill({ color: 0x253a5e, alpha: detail === 'full' ? 0.1 : 0.045 });
+      else if (detail !== 'off' && snowing) this.tint.rect(0, 0, viewW, viewH).fill({ color: 0xa8b5b2, alpha: 0.035 });
     }
 
     this.rain.forEach((p, i) => {
@@ -84,12 +205,16 @@ export class WeatherFx {
       if (!on) return;
       const speed = (heavy ? 900 : 650) * (reduced ? 0.4 : 1);
       p.s.scale.set(scale);
-      p.x += speed * (-0.12 + ws * 0.4) * dt; p.y += speed * dt;
+      p.x += speed * (-0.12 + ws * 0.4) * dt;
+      p.y += speed * dt;
       if (p.y > viewH || p.x < -20) {
         if (!reduced && Math.random() < 0.18) this.spawnSplash(p.x, viewH * (0.35 + Math.random() * 0.65));
-        p.x = Math.random() * (viewW + 160); p.y = -20 - Math.random() * 60;
+        p.x = Math.random() * (viewW + 160);
+        p.y = -20 - Math.random() * 60;
       }
-      p.s.x = Math.round(p.x); p.s.y = Math.round(p.y); p.s.alpha = (detail==='full'?.28:.15)+(i%4)*.035;
+      p.s.x = Math.round(p.x);
+      p.s.y = Math.round(p.y);
+      p.s.alpha = (detail === 'full' ? 0.28 : 0.15) + (i % 4) * 0.035;
     });
     this.snow.forEach((p, i) => {
       const on = i < nSnow;
@@ -97,16 +222,26 @@ export class WeatherFx {
       if (!on) return;
       p.s.scale.set(Math.max(1, scale - 1) + (i % 3 === 0 ? 1 : 0));
       const fall = (reduced ? 18 : 46) + (i % 5) * 9;
-      p.y += fall * dt; p.d += dt;
+      p.y += fall * dt;
+      p.d += dt;
       p.x += Math.sin(p.d * 1.3 + i) * (reduced ? 6 : 22) * dt + (ws * 70 - 6) * dt;
-      if (p.y > viewH) { p.y = -6; p.x = Math.random() * viewW; }
-      if (p.x < -6) p.x = viewW + 4; else if (p.x > viewW + 6) p.x = -4;
-      p.s.x = Math.round(p.x); p.s.y = Math.round(p.y); p.s.alpha = 0.6 + (i % 3) * 0.15;
+      if (p.y > viewH) {
+        p.y = -6;
+        p.x = Math.random() * viewW;
+      }
+      if (p.x < -6) p.x = viewW + 4;
+      else if (p.x > viewW + 6) p.x = -4;
+      p.s.x = Math.round(p.x);
+      p.s.y = Math.round(p.y);
+      p.s.alpha = 0.6 + (i % 3) * 0.15;
     });
     // wind-blown leaves and petals (spring blossom, summer greens, autumn reds); calm weather and winter have none
     const calmish = weather === 'clear' || weather === 'cloudy';
     const tints = LEAF_TINT[season] ?? [];
-    const nLeaf = !calmish || reduced || !wind || !tints.length ? 0 : Math.min(budget.leaves, Math.round(wind.strength * (season === 2 ? 70 : season === 0 ? 46 : 18)));
+    const nLeaf =
+      !calmish || reduced || !wind || !tints.length
+        ? 0
+        : Math.min(budget.leaves, Math.round(wind.strength * (season === 2 ? 70 : season === 0 ? 46 : 18)));
     this.leaves.forEach((p, i) => {
       const on = i < nLeaf;
       p.s.visible = on;
@@ -122,51 +257,77 @@ export class WeatherFx {
         p.x = ws >= 0 ? -8 : viewW + 8;
         if (Math.abs(ws) < 0.05) p.x = Math.random() * viewW;
       }
-      p.s.x = Math.round(p.x); p.s.y = Math.round(p.y); p.s.alpha = 0.85;
+      p.s.x = Math.round(p.x);
+      p.s.y = Math.round(p.y);
+      p.s.alpha = 0.85;
     });
     for (const sp of this.splash) {
-      if (sp.life <= 0) { sp.s.visible = false; continue; }
-      sp.life -= dt; sp.s.alpha = Math.max(0, sp.life / 0.3); sp.s.scale.set(scale * (1.6 - sp.life * 2)); sp.s.visible = sp.life > 0;
+      if (sp.life <= 0) {
+        sp.s.visible = false;
+        continue;
+      }
+      sp.life -= dt;
+      sp.s.alpha = Math.max(0, sp.life / 0.3);
+      sp.s.scale.set(scale * (1.6 - sp.life * 2));
+      sp.s.visible = sp.life > 0;
     }
 
     const fogOn = weather === 'fog';
     this.veil.forEach((v, i) => {
-      v.visible = fogOn && detail!=='off';
+      v.visible = fogOn && detail !== 'off';
       if (!v.visible) return;
       const drift = reduced ? 0 : this.t * (i ? -7 : 5);
-      v.x = -((drift + i * 90) % 128) - 64; v.y = -((i ? drift * 0.3 : -drift * 0.2) % 128) - 64;
-      v.alpha = detail==='full'?.32:.16;
+      v.x = -((drift + i * 90) % 128) - 64;
+      v.y = -((i ? drift * 0.3 : -drift * 0.2) % 128) - 64;
+      v.alpha = detail === 'full' ? 0.32 : 0.16;
     });
 
     // lightning
-    let flashAlpha=0;
+    let flashAlpha = 0;
     if (budget.flash) {
       this.nextFlash -= dt;
-      if (this.nextFlash <= 0) { this.flashT = 0.35; this.nextFlash = 7 + Math.random() * 9 + (hour > 19 || hour < 5 ? 0 : 3); }
+      if (this.nextFlash <= 0) {
+        this.flashT = 0.35;
+        this.nextFlash = 7 + Math.random() * 9 + (hour > 19 || hour < 5 ? 0 : 3);
+      }
       if (this.flashT > 0) {
         this.flashT -= dt;
-        const k = this.flashT > 0.25 ? 1 : this.flashT > 0.18 ? 0.2 : this.flashT > 0.1 ? 0.7 : this.flashT / 0.1 * 0.2;
-        flashAlpha=.12*k;
+        const k =
+          this.flashT > 0.25 ? 1 : this.flashT > 0.18 ? 0.2 : this.flashT > 0.1 ? 0.7 : (this.flashT / 0.1) * 0.2;
+        flashAlpha = 0.12 * k;
       }
     }
-    if(flashAlpha!==this.flashAlpha){this.flashAlpha=flashAlpha;this.flash.clear();if(flashAlpha>0)this.flash.rect(0,0,viewW,viewH).fill({color:0xd6f0ea,alpha:flashAlpha});}
+    if (flashAlpha !== this.flashAlpha) {
+      this.flashAlpha = flashAlpha;
+      this.flash.clear();
+      if (flashAlpha > 0) this.flash.rect(0, 0, viewW, viewH).fill({ color: 0xd6f0ea, alpha: flashAlpha });
+    }
   }
 
   private spawnSplash(x: number, y: number): void {
     const sp = this.splash.find((s) => s.life <= 0);
     if (!sp) return;
-    sp.life = 0.3; sp.s.x = Math.round(x); sp.s.y = Math.round(y); sp.s.visible = true;
+    sp.life = 0.3;
+    sp.s.x = Math.round(x);
+    sp.s.y = Math.round(y);
+    sp.s.visible = true;
   }
 
   /** multiplier applied to the lightmap ambient colour (overcast/storm darkening) */
   ambient(weather: Weather): [number, number, number] {
     switch (weather) {
-      case 'cloudy': return [0.92, 0.93, 0.95];
-      case 'rain': return [0.8, 0.83, 0.9];
-      case 'storm': return [0.8, 0.83, 0.9];
-      case 'snow': return [0.95, 0.97, 1.0];
-      case 'fog': return [0.9, 0.92, 0.95];
-      default: return [1, 1, 1];
+      case 'cloudy':
+        return [0.92, 0.93, 0.95];
+      case 'rain':
+        return [0.8, 0.83, 0.9];
+      case 'storm':
+        return [0.8, 0.83, 0.9];
+      case 'snow':
+        return [0.95, 0.97, 1.0];
+      case 'fog':
+        return [0.9, 0.92, 0.95];
+      default:
+        return [1, 1, 1];
     }
   }
 }

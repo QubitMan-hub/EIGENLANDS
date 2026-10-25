@@ -1,6 +1,7 @@
 import type pg from 'pg';
 
 /** Phase 3/4 persistence: progression, trades, chat reports, moderation flags. */
+export type ProgressStore = Pick<Repo34, Exclude<keyof Repo34, 'pool'>>;
 export class Repo34 {
   constructor(readonly pool: pg.Pool) {}
 
@@ -35,20 +36,36 @@ export class Repo34 {
    * Throws (and changes nothing) if any part fails.
    */
   async commitTrade(t: {
-    a: string; b: string; aData: unknown; bData: unknown;
-    aItems: unknown; bItems: unknown; aCoins: number; bCoins: number;
+    a: string;
+    b: string;
+    aData: unknown;
+    bData: unknown;
+    aItems: unknown;
+    bItems: unknown;
+    aCoins: number;
+    bCoins: number;
   }): Promise<void> {
     const c = await this.pool.connect();
     try {
       await c.query('BEGIN');
-      for (const [acct, data] of [[t.a, t.aData], [t.b, t.bData]] as const) {
-        const r = await c.query('UPDATE characters SET data = $2, updated_at = now() WHERE account_id = $1', [acct, JSON.stringify(data)]);
+      for (const [acct, data] of [
+        [t.a, t.aData],
+        [t.b, t.bData],
+      ] as const) {
+        const r = await c.query('UPDATE characters SET data = $2, updated_at = now() WHERE account_id = $1', [
+          acct,
+          JSON.stringify(data),
+        ]);
         if (r.rowCount !== 1) throw new Error('trade: character missing');
       }
-      await c.query(
-        'INSERT INTO trades (a, b, a_items, b_items, a_coins, b_coins) VALUES ($1,$2,$3,$4,$5,$6)',
-        [t.a, t.b, JSON.stringify(t.aItems), JSON.stringify(t.bItems), t.aCoins, t.bCoins],
-      );
+      await c.query('INSERT INTO trades (a, b, a_items, b_items, a_coins, b_coins) VALUES ($1,$2,$3,$4,$5,$6)', [
+        t.a,
+        t.b,
+        JSON.stringify(t.aItems),
+        JSON.stringify(t.bItems),
+        t.aCoins,
+        t.bCoins,
+      ]);
       await c.query('COMMIT');
     } catch (e) {
       await c.query('ROLLBACK').catch(() => {});
@@ -58,7 +75,13 @@ export class Repo34 {
     }
   }
 
-  async report(reporter: string, targetName: string, target: string | null, reason: string, context: unknown): Promise<void> {
+  async report(
+    reporter: string,
+    targetName: string,
+    target: string | null,
+    reason: string,
+    context: unknown,
+  ): Promise<void> {
     await this.pool.query(
       'INSERT INTO chat_reports (reporter, target_name, target, reason, context) VALUES ($1,$2,$3,$4,$5)',
       [reporter, targetName, target, reason, JSON.stringify(context)],
@@ -81,7 +104,9 @@ export class Repo34 {
 
   /** Character id lookup by exact name (case-insensitive) for whispers, invites and reports. */
   async accountByName(name: string): Promise<{ accountId: string; name: string } | null> {
-    const r = await this.pool.query('SELECT account_id, name FROM characters WHERE lower(name) = lower($1) LIMIT 1', [name]);
+    const r = await this.pool.query('SELECT account_id, name FROM characters WHERE lower(name) = lower($1) LIMIT 1', [
+      name,
+    ]);
     return r.rows[0] ? { accountId: r.rows[0].account_id, name: r.rows[0].name } : null;
   }
 }

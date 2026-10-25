@@ -23,20 +23,32 @@ mkdirSync(out, { recursive: true });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const errors = [];
 let failed = 0;
-const fail = (m) => { console.error('FAIL:', m); failed++; process.exitCode = 1; };
+const fail = (m) => {
+  console.error('FAIL:', m);
+  failed++;
+  process.exitCode = 1;
+};
 const ok = (m) => console.log('  ok', m);
 const check = (cond, m) => (cond ? ok(m) : fail(m));
 const url = (extra = '') => `${base}${base.includes('?') ? '&' : '?'}hour=12${MOCK ? '&p3mock=1' : ''}${extra}`;
 
 const browser = await chromium.launch({
   executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
-  args: ['--use-angle=swiftshader', '--use-gl=angle', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'],
+  args: [
+    '--use-angle=swiftshader',
+    '--use-gl=angle',
+    '--enable-unsafe-swiftshader',
+    '--ignore-gpu-blocklist',
+    '--no-sandbox',
+  ],
 });
 
 async function open(viewport, opts = {}) {
   const ctx = await browser.newContext({ viewport, ...opts });
   const page = await ctx.newPage();
-  page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(`${m.type()}: ${m.text()}`); });
+  page.on('console', (m) => {
+    if (m.type() === 'error' || m.type() === 'warning') errors.push(`${m.type()}: ${m.text()}`);
+  });
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
   await page.goto(url());
   await page.fill('#name', opts.name ?? 'Orbwright');
@@ -68,10 +80,14 @@ async function center(page, sel) {
 }
 
 async function drag(page, from, to) {
-  const a = await center(page, from), b = await center(page, to);
+  const a = await center(page, from),
+    b = await center(page, to);
   await page.mouse.move(a.x, a.y);
   await page.mouse.down();
-  for (let i = 1; i <= 8; i++) { await page.mouse.move(a.x + ((b.x - a.x) * i) / 8, a.y + ((b.y - a.y) * i) / 8); await sleep(16); }
+  for (let i = 1; i <= 8; i++) {
+    await page.mouse.move(a.x + ((b.x - a.x) * i) / 8, a.y + ((b.y - a.y) * i) / 8);
+    await sleep(16);
+  }
   await page.mouse.up();
   await sleep(120);
 }
@@ -85,7 +101,10 @@ async function openBoard(page) {
   await sleep(150);
 }
 async function closeBoard(page) {
-  if ((await st(page)).boardOpen) { await page.keyboard.press('Escape'); await sleep(150); }
+  if ((await st(page)).boardOpen) {
+    await page.keyboard.press('Escape');
+    await sleep(150);
+  }
 }
 async function attune(page) {
   await page.click('.cb-attune');
@@ -93,31 +112,42 @@ async function attune(page) {
   await sleep(200);
 }
 async function castQ(page, n, gap = 1500) {
-  for (let i = 0; i < n; i++) { await page.keyboard.press('KeyQ'); await sleep(gap); }
+  for (let i = 0; i < n; i++) {
+    await page.keyboard.press('KeyQ');
+    await sleep(gap);
+  }
 }
 async function clearLine(page, q) {
-  for (let c = 0; c < 8; c++) if (await page.locator(`${cell(q, c)}.full, ${cell(q, c)}.end`).count()) { await page.click(cell(q, c), { button: 'right' }); await sleep(60); }
+  for (let c = 0; c < 8; c++)
+    if (await page.locator(`${cell(q, c)}.full, ${cell(q, c)}.end`).count()) {
+      await page.click(cell(q, c), { button: 'right' });
+      await sleep(60);
+    }
 }
 async function waitStep(page, step, ms = 5000) {
-  await page.waitForFunction((s) => window.__eigen.state().p34.circuit.step >= s, step, { timeout: ms }).catch(async () => {
-    const s = await st(page);
-    fail(`tutorial did not reach step ${step} (at ${s.step}, dialog ${JSON.stringify(s.dialog)}, last sent ${JSON.stringify(s.sent.slice(-3))}, last cast ${JSON.stringify(s.lastCast)})`);
-  });
+  await page
+    .waitForFunction((s) => window.__eigen.state().p34.circuit.step >= s, step, { timeout: ms })
+    .catch(async () => {
+      const s = await st(page);
+      fail(
+        `tutorial did not reach step ${step} (at ${s.step}, dialog ${JSON.stringify(s.dialog)}, last sent ${JSON.stringify(s.sent.slice(-3))}, last cast ${JSON.stringify(s.lastCast)})`,
+      );
+    });
 }
 
 // ───────────────────────── desktop ─────────────────────────
 console.log(`p3 e2e (${MOCK ? 'mock server module' : 'real server'}) -> ${out}`);
 const { page } = await open({ width: 1280, height: 720 });
 
-check(await page.locator('#p3-abar .p3-slot').count() === 5, 'ability bar has 4 orb slots + ultimate');
-check(await page.locator('#btn-board').count() === 1, 'HUD Board button present');
+check((await page.locator('#p3-abar .p3-slot').count()) === 5, 'ability bar has 4 orb slots + ultimate');
+check((await page.locator('#btn-board').count()) === 1, 'HUD Board button present');
 
 // both modes walk the same story; without the server's Circuit module only the UI-side checks can run
 await page.waitForFunction(() => window.__eigen.state().p34.circuit.loaded, null, { timeout: 6000 }).catch(() => {});
 if (!(await st(page)).loaded) {
   await page.keyboard.press('KeyB');
   await page.waitForSelector('.cb-root .cb-lines');
-  check(await page.locator('.cb-gem').count() === 7, 'gate palette lists all 7 gates');
+  check((await page.locator('.cb-gem').count()) === 7, 'gate palette lists all 7 gates');
   await shot(page, 'r2-board-no-server');
   await page.keyboard.press('Escape');
   await sleep(200);
@@ -183,7 +213,10 @@ if (!(await st(page)).loaded) {
   await sleep(300);
   await shot(page, 'm05-interference');
   const bars = await page.locator('.cb-line[data-q="0"] .cb-bar b').allTextContents();
-  check(parseInt(bars[1]) >= 95, `Split→Tune→Split preview reads (almost) always form B (${bars.join(' / ')}, the rest is gate noise)`);
+  check(
+    parseInt(bars[1]) >= 95,
+    `Split→Tune→Split preview reads (almost) always form B (${bars.join(' / ')}, the rest is gate noise)`,
+  );
   await attune(page);
   await closeBoard(page);
   await castQ(page, 2);
@@ -203,7 +236,9 @@ if (!(await st(page)).loaded) {
   await shot(page, 'm06-choose-path');
   await page.click('[data-focus="pc:superposer"]');
   await page.click('[data-focus="pc-yes:superposer"]');
-  await page.waitForFunction(() => window.__eigen.state().p34.circuit.cls === 'superposer', null, { timeout: 4000 }).catch(() => fail('class not chosen'));
+  await page
+    .waitForFunction(() => window.__eigen.state().p34.circuit.cls === 'superposer', null, { timeout: 4000 })
+    .catch(() => fail('class not chosen'));
   check((await sentTypes(page)).includes('p3_choose'), 'class confirm sends p3_choose');
   await waitStep(page, 6);
   await finishDialog(page);
@@ -258,13 +293,13 @@ if (!(await st(page)).loaded) {
   await page.click('.cb-toggle');
   await sleep(250);
   await shot(page, 'm13-expert');
-  check(await page.locator('.cb-ketline').count() === 1, 'Expert View shows the ket string');
+  check((await page.locator('.cb-ketline').count()) === 1, 'Expert View shows the ket string');
   await page.click('.cb-toggle');
   await page.click('[data-focus="tab:codex"]');
   await sleep(200);
   await shot(page, 'm14-qubitpedia');
-  check(await page.locator('.cb-cx-item:not(.locked)').count() >= 3, 'Qubitpedia lists discovered entries');
-  check(await page.locator('.cb-cx-item.locked').count() >= 1, 'undiscovered entries show as ???');
+  check((await page.locator('.cb-cx-item:not(.locked)').count()) >= 3, 'Qubitpedia lists discovered entries');
+  check((await page.locator('.cb-cx-item.locked').count()) >= 1, 'undiscovered entries show as ???');
   await page.click('[data-focus="tab:path"]');
   await sleep(200);
   await shot(page, 'm15-path');
@@ -285,18 +320,32 @@ if (!(await st(page)).loaded) {
   const s16 = await st(page);
   check(s16.spells > 0, `spells are rendered (${s16.spellKinds.join(',')})`);
   // reduced motion still renders
-  await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('eigen.settings') || '{}'); s.reducedMotion = true; s.textScale = 1.5; localStorage.setItem('eigen.settings', JSON.stringify(s)); });
+  await page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem('eigen.settings') || '{}');
+    s.reducedMotion = true;
+    s.textScale = 1.5;
+    localStorage.setItem('eigen.settings', JSON.stringify(s));
+  });
 }
 
 // ───────────────────────── phone (touch) ─────────────────────────
 if ((await st(page)).loaded) {
-  const { page: ph } = await open({ width: 390, height: 844 }, { hasTouch: true, isMobile: true, deviceScaleFactor: 2, name: 'Thumbs' });
+  const { page: ph } = await open(
+    { width: 390, height: 844 },
+    { hasTouch: true, isMobile: true, deviceScaleFactor: 2, name: 'Thumbs' },
+  );
   await ph.waitForFunction(() => window.__eigen.state().p34.circuit.loaded, null, { timeout: 5000 });
-  check(await ph.locator('#p3-abar.p3-touch').count() === 1, 'phone: ability buttons dock next to the touch controls');
+  check(
+    (await ph.locator('#p3-abar.p3-touch').count()) === 1,
+    'phone: ability buttons dock next to the touch controls',
+  );
   await sleep(1200);
   await shot(ph, 'p1-phone-lumen');
   // tap through Lumen, tap the board button
-  for (let i = 0; i < 8 && (await st(ph)).dialog !== null; i++) { await ph.tap('#p3-lumen .p3-lumen-next'); await sleep(150); }
+  for (let i = 0; i < 8 && (await st(ph)).dialog !== null; i++) {
+    await ph.tap('#p3-lumen .p3-lumen-next');
+    await sleep(150);
+  }
   await ph.tap('#btn-board');
   await ph.waitForSelector('.cb-root .cb-lines');
   await finishDialog(ph);

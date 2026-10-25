@@ -12,13 +12,22 @@ export * from 'colyseus.js';
 type CloseEvent = { code: number; reason: string };
 
 export class Client extends SdkClient {
-  protected override async createMatchMakeRequest<T = any>(method: string, roomName: string, options: any = {}, rootSchema?: any): Promise<Room<T>> {
+  protected override async createMatchMakeRequest<T = any>(
+    method: string,
+    roomName: string,
+    options: any = {},
+    rootSchema?: any,
+  ): Promise<Room<T>> {
     if (!IS_SOLO) return super.createMatchMakeRequest(method, roomName, options, rootSchema);
     const { getHost } = await import('./host');
     const host = await getHost();
     let seat;
     try {
-      seat = await host.matchmake(method, roomName, JSON.parse(JSON.stringify(options ?? {})) as Record<string, unknown>);
+      seat = await host.matchmake(
+        method,
+        roomName,
+        JSON.parse(JSON.stringify(options ?? {})) as Record<string, unknown>,
+      );
     } catch (e) {
       throw e instanceof MatchMakeError ? e : new MatchMakeError((e as Error)?.message ?? String(e), 4213);
     }
@@ -30,7 +39,10 @@ export class Client extends SdkClient {
     return new Promise((resolve, reject) => {
       const onError = (code: number, message?: string) => reject(new ServerError(code, message ?? ''));
       room.onError.once(onError);
-      (room as any).onJoin.once(() => { room.onError.remove(onError); resolve(room); });
+      (room as any).onJoin.once(() => {
+        room.onError.remove(onError);
+        resolve(room);
+      });
     });
   }
 }
@@ -39,7 +51,9 @@ export class Client extends SdkClient {
 function attach(room: Room, conn: ClientEnd): void {
   const r = room as any;
   r.connection = conn;
-  conn.events.onmessage = Room.prototype['onMessageCallback' as keyof Room].bind(room) as (e: { data: ArrayBuffer }) => void;
+  conn.events.onmessage = Room.prototype['onMessageCallback' as keyof Room].bind(room) as (e: {
+    data: ArrayBuffer;
+  }) => void;
   conn.events.onclose = (e: CloseEvent) => {
     if (!r.hasJoined) {
       console.warn?.(`Room connection was closed unexpectedly (${e.code}): ${e.reason}`);

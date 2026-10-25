@@ -1,25 +1,54 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
-  ATTUNE_COOLDOWN_MS, MSG34, RUNE_PRICE, TUTORIAL_DONE, allowedAbilities, emptyGateCounts, rewardsForLevel,
+  ATTUNE_COOLDOWN_MS,
+  MSG34,
+  RUNE_PRICE,
+  TUTORIAL_DONE,
+  allowedAbilities,
+  emptyGateCounts,
+  rewardsForLevel,
 } from '@eigenlands/shared';
 import type { App } from '../src/app';
 import { runtime34 } from '../src/features/runtime34';
 import { validProgress } from '../src/features/circuit';
 import { startApp } from './helpers';
 import {
-  attune, boot3, cast, dev, dev3, mkBoard, relax3, setClass, setLevel, sleep, spawn3, st, until,
+  attune,
+  boot3,
+  cast,
+  dev,
+  dev3,
+  mkBoard,
+  relax3,
+  setClass,
+  setLevel,
+  sleep,
+  spawn3,
+  st,
+  until,
 } from './p3helpers';
 
 let app: App;
-beforeAll(async () => { app = await boot3(); });
-afterAll(async () => { await app?.close(); });
+beforeAll(async () => {
+  app = await boot3();
+});
+afterAll(async () => {
+  await app?.close();
+});
 
 describe('new characters', () => {
   it('start as a Wanderer with Glimmer Bolt on orb 1, no gates and the story at its first step', async () => {
     const p = await spawn3(app, 'Newcomer');
     expect(p.progs[0]).toMatchObject({
-      cls: 'wanderer', spec: null, second: null, gates: emptyGateCounts(), runes: 0, qubits: 1, codex: [],
-      tutorial: { step: 0, count: 0, skipped: false }, locks: {},
+      cls: 'wanderer',
+      spec: null,
+      second: null,
+      gates: emptyGateCounts(),
+      runes: 0,
+      qubits: 1,
+      codex: [],
+      tutorial: { step: 0, count: 0, skipped: false },
+      locks: {},
     });
     expect(p.prog.board!.abilities[0]).toBe('glimmer');
     expect(p.prog.board!.abilities.slice(1).every((a) => a === null)).toBe(true);
@@ -41,8 +70,12 @@ describe('attuning', () => {
     expect(p.prog.runes).toBe(6);
     expect((await attune(p, mkBoard({ 1: ['h'] }, { 0: 'glimmer' }))).toast).toMatch(/not unlocked yet/);
     expect((await attune(p, mkBoard({}, { 0: 'split_shot' }))).toast).toMatch(/not one of your abilities/);
-    expect((await attune(p, mkBoard({ 0: ['m', 'm', 'm', 'm', 'm'] }, { 0: 'glimmer' }))).toast).toMatch(/At most 4 Lock-ins/);
-    expect((await attune(p, mkBoard({ 0: [['cx', 1]] }, { 0: 'glimmer' }))).toast).toMatch(/Link needs another unlocked orb/);
+    expect((await attune(p, mkBoard({ 0: ['m', 'm', 'm', 'm', 'm'] }, { 0: 'glimmer' }))).toast).toMatch(
+      /At most 4 Lock-ins/,
+    );
+    expect((await attune(p, mkBoard({ 0: [['cx', 1]] }, { 0: 'glimmer' }))).toast).toMatch(
+      /Link needs another unlocked orb/,
+    );
     expect((await attune(p, mkBoard({}, { 0: 'glimmer' }, { 0: 2, 1: 0 }))).ok).toBe(true);
     expect((await attune(p, mkBoard({}, { 0: 'glimmer' }, { 0: 3 }))).ok).toBe(true); // 3 runes is coerced to none (max 2)
     expect(st(p).pr.board.runes[0]).toBe(0);
@@ -115,16 +148,23 @@ describe('level rewards', () => {
     expect(p.prog.gates).toEqual(want);
     expect(p.prog.runes).toBe(1);
     expect(p.prog.qubits).toBe(2);
-    expect(p.toasts.slice(n0).map((t) => t.text)).toEqual(expect.arrayContaining([
-      'New gates: Split, Tune ¼, Flip', 'New Error Correction rune', 'A new orb awakens on your Board.',
-    ]));
+    expect(p.toasts.slice(n0).map((t) => t.text)).toEqual(
+      expect.arrayContaining([
+        'New gates: Split, Tune ¼, Flip',
+        'New Error Correction rune',
+        'A new orb awakens on your Board.',
+      ]),
+    );
     // nothing is granted twice
     await sleep(1200);
     expect(p.prog.gates).toEqual(want);
     expect(st(p).pr.rewardedLevel).toBe(4);
     await setLevel(p, 5);
     // Server progression changes can precede delivery of the separate toast message.
-    await until(() => p.toasts.some((t) => t.text === 'New gates: Flip, Split' || t.text === 'New gates: Link, Split'), 2000);
+    await until(
+      () => p.toasts.some((t) => t.text === 'New gates: Flip, Split' || t.text === 'New gates: Link, Split'),
+      2000,
+    );
     await p.r.leave();
   });
 });
@@ -153,10 +193,27 @@ describe('robustness', () => {
   it('junk payloads never crash the room and never change progress', async () => {
     const p = await spawn3(app, 'Fuzzer');
     const before = JSON.stringify(st(p).pr);
-    const junk: unknown[] = [null, 0, 'x', [], { board: 'x' }, { board: null }, { board: { lines: 'bad', abilities: [1, 2], runes: {} } },
-      { board: { lines: [[{ g: 'cx', t: 99 }]], abilities: ['__proto__'] } }, { line: 'a' }, { line: 1e9 }, { line: -1 }, { line: 0.5 },
-      { what: 'class', cls: '__proto__' }, { what: 'spec', spec: { a: 1 } }, { what: 'second' }, { action: 'nope' }, { cmd: 'tutorial', step: 1e9 },
-      { cmd: 'class', cls: 'toString' }, { cmd: 'res', v: 'lots' }];
+    const junk: unknown[] = [
+      null,
+      0,
+      'x',
+      [],
+      { board: 'x' },
+      { board: null },
+      { board: { lines: 'bad', abilities: [1, 2], runes: {} } },
+      { board: { lines: [[{ g: 'cx', t: 99 }]], abilities: ['__proto__'] } },
+      { line: 'a' },
+      { line: 1e9 },
+      { line: -1 },
+      { line: 0.5 },
+      { what: 'class', cls: '__proto__' },
+      { what: 'spec', spec: { a: 1 } },
+      { what: 'second' },
+      { action: 'nope' },
+      { cmd: 'tutorial', step: 1e9 },
+      { cmd: 'class', cls: 'toString' },
+      { cmd: 'res', v: 'lots' },
+    ];
     for (const type of [MSG34.ATTUNE, MSG34.CAST, MSG34.ULT, MSG34.CHOOSE, MSG34.BUY_RUNE, MSG34.TUTORIAL, 'p3_dev']) {
       for (const m of junk) p.r.send(type, m as never);
     }
@@ -192,11 +249,21 @@ describe('robustness', () => {
   });
 
   it('stored progress is validated, never trusted', () => {
-    const { pr } = validProgress({
-      cls: 'superposer', spec: 'weaver', second: 'superposer', gates: { h: -5, x: 1e9, cx: 'many' }, runes: 9999,
-      codex: ['qubit', 'qubit', 'bogus', 7], tutorial: { step: 99, count: -1, skipped: 'yes' }, rewardedLevel: 'x', qubitBonus: 7,
-      board: { lines: [[{ g: 'h' }]], abilities: ['split_shot', 'split_shot', 'glimmer'] },
-    }, 1);
+    const { pr } = validProgress(
+      {
+        cls: 'superposer',
+        spec: 'weaver',
+        second: 'superposer',
+        gates: { h: -5, x: 1e9, cx: 'many' },
+        runes: 9999,
+        codex: ['qubit', 'qubit', 'bogus', 7],
+        tutorial: { step: 99, count: -1, skipped: 'yes' },
+        rewardedLevel: 'x',
+        qubitBonus: 7,
+        board: { lines: [[{ g: 'h' }]], abilities: ['split_shot', 'split_shot', 'glimmer'] },
+      },
+      1,
+    );
     expect(pr.cls).toBe('superposer');
     expect(pr.spec).toBeNull();
     expect(pr.second).toBeNull();
@@ -242,7 +309,14 @@ describe('persistence', () => {
 
     app = await startApp({ config: { devCommands: true } });
     const q = await spawn3(app, 'Keeper', creds);
-    expect(q.progs[0]).toMatchObject({ cls: 'superposer', locks, gates: saved.gates, runes: saved.runes, codex: saved.codex, qubits: 2 });
+    expect(q.progs[0]).toMatchObject({
+      cls: 'superposer',
+      locks,
+      gates: saved.gates,
+      runes: saved.runes,
+      codex: saved.codex,
+      qubits: 2,
+    });
     expect(q.prog.board).toEqual(saved.board);
     for (let i = 0; i < 4; i++) {
       const l0 = (await cast(q, 0)).results[0]!;
@@ -252,7 +326,12 @@ describe('persistence', () => {
     await sleep(200);
 
     // a corrupted row is coerced into something valid on the next join
-    await runtime34().repo34.saveProgress(creds.accountId, { cls: 'nope', board: 'x', gates: [1, 2, 3], tutorial: null });
+    await runtime34().repo34.saveProgress(creds.accountId, {
+      cls: 'nope',
+      board: 'x',
+      gates: [1, 2, 3],
+      tutorial: null,
+    });
     const z = await spawn3(app, 'Keeper', creds);
     expect(z.progs[0]).toMatchObject({ cls: 'wanderer', runes: 0, tutorial: { step: 0, count: 0, skipped: false } });
     expect(z.prog.board!.abilities[0]).toBe('glimmer');

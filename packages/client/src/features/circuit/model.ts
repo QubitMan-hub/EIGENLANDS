@@ -4,23 +4,50 @@
  * so the UI can show why something does not fit. Unit-tested in test/p3model.test.ts.
  */
 import {
-  ABILITIES, BOARD_COLS, COHERENCE_MIN, GATES, MAX_LOCKS, MAX_QUBITS, MAX_RUNES_PER_LINE, cloneBoard, compile, evaluate,
-  lineHue, lockKey, placedGates, tuneSteps,
-  type AbilityId, type Board, type Cell, type Evaluation, type GateCounts, type GateId, type Locks,
+  ABILITIES,
+  BOARD_COLS,
+  COHERENCE_MIN,
+  GATES,
+  MAX_LOCKS,
+  MAX_QUBITS,
+  MAX_RUNES_PER_LINE,
+  cloneBoard,
+  compile,
+  evaluate,
+  lineHue,
+  lockKey,
+  placedGates,
+  tuneSteps,
+  type AbilityId,
+  type Board,
+  type Cell,
+  type Evaluation,
+  type GateCounts,
+  type GateId,
+  type Locks,
 } from '@eigenlands/shared';
 
 export type EditResult = { ok: true; board: Board } | { ok: false; why: string };
 /** Directional reach is the maximum possible form before the quantum outcome is measured. */
 export function abilityTargeting(a: AbilityId): { skill: boolean; enemy: boolean; ally: boolean; range: number } {
-  const forms = ABILITIES[a].forms, kinds = forms.map(f => f.kind);
-  const has = (...k: string[]) => kinds.some(x => k.includes(x));
-  const directional = forms.filter(f => ['bolt', 'blink', 'blink_back', 'link_enemy', 'link_ally'].includes(f.kind));
-  return { skill: !!directional.length, enemy: has('bolt', 'link_enemy', 'pull', 'swap'), ally: has('heal', 'link_ally', 'swap'), range: Math.max(0, ...directional.map(f => f.range ?? f.radius ?? 7)) };
+  const forms = ABILITIES[a].forms,
+    kinds = forms.map((f) => f.kind);
+  const has = (...k: string[]) => kinds.some((x) => k.includes(x));
+  const directional = forms.filter((f) => ['bolt', 'blink', 'blink_back', 'link_enemy', 'link_ally'].includes(f.kind));
+  return {
+    skill: !!directional.length,
+    enemy: has('bolt', 'link_enemy', 'pull', 'swap'),
+    ally: has('heal', 'link_ally', 'swap'),
+    range: Math.max(0, ...directional.map((f) => f.range ?? f.radius ?? 7)),
+  };
 }
 const ok = (board: Board): EditResult => ({ ok: true, board });
 const no = (why: string): EditResult => ({ ok: false, why });
 
-export interface Spot { q: number; c: number }
+export interface Spot {
+  q: number;
+  c: number;
+}
 
 /** What occupies a cell: a gate placed there, the far end of a Link from another line, or nothing. */
 export type Occupant = { kind: 'gate'; cell: Cell } | { kind: 'linkEnd'; from: number } | null;
@@ -59,15 +86,24 @@ export function linkTargets(b: Board, q: number, c: number, qubits: number): num
 const inRange = (q: number, c: number, qubits: number) => q >= 0 && q < qubits && c >= 0 && c < BOARD_COLS;
 
 /** Place gate `g` at (q, c). A Link needs `target`. Checks ownership, the unlocked orbs and free cells. */
-export function placeGate(b: Board, q: number, c: number, g: GateId, owned: GateCounts, qubits: number, target?: number): EditResult {
+export function placeGate(
+  b: Board,
+  q: number,
+  c: number,
+  g: GateId,
+  owned: GateCounts,
+  qubits: number,
+  target?: number,
+): EditResult {
   if (!inRange(q, c, qubits)) return no('That orb is not unlocked yet.');
   if (!isFree(b, q, c)) return no('That spot is taken. Remove the gate there first.');
   if (available(b, owned)[g] < 1) return no(`No ${GATES[g].name} gates left in your collection.`);
   if (g === 'm' && placedGates(b).m >= MAX_LOCKS) return no(`At most ${MAX_LOCKS} Lock-ins fit on one board.`);
   const nb = cloneBoard(b);
   if (g === 'cx') {
-    if (target === undefined || target === q || target < 0 || target >= qubits) return no('A Link needs another unlocked orb to connect to.');
-    if (!isFree(b, target, c)) return no('The Link\'s far end must land on an empty spot.');
+    if (target === undefined || target === q || target < 0 || target >= qubits)
+      return no('A Link needs another unlocked orb to connect to.');
+    if (!isFree(b, target, c)) return no("The Link's far end must land on an empty spot.");
     nb.lines[q]![c] = { g: 'cx', t: target };
   } else nb.lines[q]![c] = { g };
   return ok(nb);
@@ -78,7 +114,10 @@ export function removeAt(b: Board, q: number, c: number): { board: Board; freed:
   const o = occupant(b, q, c);
   if (!o) return { board: b, freed: null };
   const nb = cloneBoard(b);
-  if (o.kind === 'gate') { nb.lines[q]![c] = null; return { board: nb, freed: o.cell.g }; }
+  if (o.kind === 'gate') {
+    nb.lines[q]![c] = null;
+    return { board: nb, freed: o.cell.g };
+  }
   nb.lines[o.from]![c] = null;
   return { board: nb, freed: 'cx' };
 }
@@ -93,7 +132,7 @@ export function moveGate(b: Board, from: Spot, to: Spot, qubits: number): EditRe
   const o = occupant(b, from.q, from.c);
   if (!o) return no('Nothing to move there.');
   if (o.kind === 'linkEnd') {
-    if (to.c !== from.c) return no('A Link\'s far end stays in its column. Drag the Link itself to move it.');
+    if (to.c !== from.c) return no("A Link's far end stays in its column. Drag the Link itself to move it.");
     if (to.q === o.from) return no('A Link cannot connect an orb to itself.');
     if (!isFree(b, to.q, to.c)) return no('That spot is taken.');
     const nb = cloneBoard(b);
@@ -108,7 +147,7 @@ export function moveGate(b: Board, from: Spot, to: Spot, qubits: number): EditRe
   if (cell.g === 'cx') {
     const t = cell.t ?? -1;
     if (t === to.q || t < 0 || t >= qubits) return no('A Link cannot connect an orb to itself.');
-    if (!isFree(without, t, to.c)) return no('The Link\'s far end would land on a taken spot.');
+    if (!isFree(without, t, to.c)) return no("The Link's far end would land on a taken spot.");
     nb.lines[to.q]![to.c] = { g: 'cx', t };
   } else nb.lines[to.q]![to.c] = { g: cell.g };
   return ok(nb);
@@ -120,7 +159,10 @@ export function setAbility(b: Board, q: number, a: AbilityId | null, allowed: Ab
   if (a && !allowed.includes(a)) return no(`${ABILITIES[a].name} is not one of your abilities.`);
   const nb = cloneBoard(b);
   const prev = nb.abilities[q] ?? null;
-  if (a) { const other = nb.abilities.indexOf(a); if (other >= 0 && other !== q) nb.abilities[other] = prev; }
+  if (a) {
+    const other = nb.abilities.indexOf(a);
+    if (other >= 0 && other !== q) nb.abilities[other] = prev;
+  }
   nb.abilities[q] = a;
   return ok(nb);
 }
@@ -130,7 +172,12 @@ export function setRunes(b: Board, q: number, n: number, owned: number, qubits: 
   if (q < 0 || q >= qubits) return no('That orb is not unlocked yet.');
   n = Math.max(0, Math.min(MAX_RUNES_PER_LINE, Math.round(n)));
   const others = b.runes.reduce((s, r, i) => s + (i === q ? 0 : r), 0);
-  if (others + n > owned) return no(owned ? 'No Error Correction runes left. Buy one or take one off another orb.' : 'You have no Error Correction runes yet.');
+  if (others + n > owned)
+    return no(
+      owned
+        ? 'No Error Correction runes left. Buy one or take one off another orb.'
+        : 'You have no Error Correction runes yet.',
+    );
   const nb = cloneBoard(b);
   nb.runes[q] = n;
   return ok(nb);
@@ -140,7 +187,12 @@ export function setRunes(b: Board, q: number, n: number, owned: number, qubits: 
 export function fitBoard(b: Board, qubits: number, allowed: AbilityId[]): Board {
   const nb = cloneBoard(b);
   for (let q = 0; q < MAX_QUBITS; q++) {
-    if (q >= qubits) { nb.lines[q] = nb.lines[q]!.map(() => null); nb.abilities[q] = null; nb.runes[q] = 0; continue; }
+    if (q >= qubits) {
+      nb.lines[q] = nb.lines[q]!.map(() => null);
+      nb.abilities[q] = null;
+      nb.runes[q] = 0;
+      continue;
+    }
     if (nb.abilities[q] && !allowed.includes(nb.abilities[q]!)) nb.abilities[q] = null;
     nb.lines[q] = nb.lines[q]!.map((c) => (c?.g === 'cx' && (c.t === undefined || c.t >= qubits) ? null : c));
   }
@@ -156,11 +208,21 @@ export const boardsEqual = (a: Board, b: Board): boolean => JSON.stringify(a) ==
 
 /** True when every Lock-in on the board has a stored outcome (the board is attuned as it stands). */
 export function isAttuned(b: Board, n: number, locks: Locks | null): boolean {
-  return !!locks && compile(b, n).filter((o) => o.g === 'm').every((o) => lockKey(o.q, o.c) in locks);
+  return (
+    !!locks &&
+    compile(b, n)
+      .filter((o) => o.g === 'm')
+      .every((o) => lockKey(o.q, o.c) in locks)
+  );
 }
 
 /** One stretch of an orb's light rail: the chance of form B there and the colour of each form. */
-export interface RailSeg { p1: number; hueA: number; hueB: number; tuned: boolean }
+export interface RailSeg {
+  p1: number;
+  hueA: number;
+  hueB: number;
+  tuned: boolean;
+}
 
 /**
  * The state of every line between columns, for drawing the rails: `out[k][q]` is line q after columns 0..k-1
@@ -174,13 +236,21 @@ export function railStates(b: Board, n: number, locks: Locks | null): RailSeg[][
   for (let k = 0; k <= BOARD_COLS; k++) {
     // columns with nothing in them do not change the state: reuse the previous evaluation
     const colEmpty = k > 0 && b.lines.slice(0, n).every((l) => !l[k - 1]);
-    if (k > 0 && colEmpty && last >= 0) { out.push(out[last]!); continue; }
+    if (k > 0 && colEmpty && last >= 0) {
+      out.push(out[last]!);
+      continue;
+    }
     const t = cloneBoard(b);
     for (const line of t.lines) for (let c = k; c < BOARD_COLS; c++) line[c] = null;
     const ev = evaluate(t, n, lk);
-    out.push(Array.from({ length: n }, (_, q) => ({
-      p1: ev.p1[q]!, hueA: lineHue(t, ev, q, 0), hueB: lineHue(t, ev, q, 1), tuned: tuneSteps(ev, q) !== null,
-    })));
+    out.push(
+      Array.from({ length: n }, (_, q) => ({
+        p1: ev.p1[q]!,
+        hueA: lineHue(t, ev, q, 0),
+        hueB: lineHue(t, ev, q, 1),
+        tuned: tuneSteps(ev, q) !== null,
+      })),
+    );
     last = k;
   }
   return out;

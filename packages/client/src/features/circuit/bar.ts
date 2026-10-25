@@ -3,7 +3,15 @@
  * of its most likely form, key label and a cooldown sweep; the class resource bar; the Board button. On phones the
  * same bar docks next to the touch buttons as big round buttons.
  */
-import { ABILITIES, ACTIVE_LINES, CLASSES, RESOURCE_MAX, type AbilityId, type ClassId, type LinePreview } from '@eigenlands/shared';
+import {
+  ABILITIES,
+  ACTIVE_LINES,
+  CLASSES,
+  RESOURCE_MAX,
+  type AbilityId,
+  type ClassId,
+  type LinePreview,
+} from '@eigenlands/shared';
 import { h } from './el';
 import { iconSvg } from '../../ui/icons';
 import { elementIcon, elHex, elName, hex } from './art';
@@ -20,7 +28,15 @@ export interface BarSlotInfo {
   totalMs: number;
 }
 
-interface SlotEl { el: HTMLButtonElement; glyph: HTMLElement; el2: HTMLImageElement; key: HTMLElement; sweep: HTMLElement; num: HTMLElement; last: string }
+interface SlotEl {
+  el: HTMLButtonElement;
+  glyph: HTMLElement;
+  el2: HTMLImageElement;
+  key: HTMLElement;
+  sweep: HTMLElement;
+  num: HTMLElement;
+  last: string;
+}
 
 export class AbilityBar {
   readonly root = h('div', { id: 'p3-abar' });
@@ -40,25 +56,34 @@ export class AbilityBar {
     this.root.setAttribute('aria-label', 'Orb abilities');
     const row = h('div', { class: 'p3-slots' });
     for (let i = 0; i < ACTIVE_LINES; i++) {
-      const s = this.makeSlot(`p3-slot`, direct => this.act.cast(i, direct));
+      const s = this.makeSlot(`p3-slot`, (direct) => this.act.cast(i, direct));
       this.slots.push(s);
       row.append(s.el);
     }
-    this.ult = this.makeSlot('p3-slot p3-ult', direct => this.act.ult(direct));
+    this.ult = this.makeSlot('p3-slot p3-ult', (direct) => this.act.ult(direct));
     row.append(this.ult.el);
     this.res.append(this.resName, h('span', { class: 'p3-res-bar' }, this.resFill), this.resText);
     this.root.append(this.res, row);
-    this.boardBtn = h('button', { id: 'btn-board', class: 'gatebtn', title: 'Circuit Board (B)', on: { click: () => this.act.board() } });
+    this.boardBtn = h('button', {
+      id: 'btn-board',
+      class: 'gatebtn',
+      title: 'Circuit Board (B)',
+      on: { click: () => this.act.board() },
+    });
     this.boardBtn.innerHTML = iconSvg('bolt', 20);
     this.boardBtn.setAttribute('aria-label', 'Circuit Board (B)');
     const hud = document.getElementById('hud');
     (hud ?? document.body).append(this.root);
     const btns = document.getElementById('hud-btns');
-    if (btns) btns.append(this.boardBtn); else this.root.append(this.boardBtn);
+    if (btns) btns.append(this.boardBtn);
+    else this.root.append(this.boardBtn);
   }
 
   setArmed(q: number | null): void {
-    [...this.slots, this.ult].forEach((s, i) => { s.el.classList.toggle('aiming', q === i); s.el.setAttribute('aria-pressed', String(q === i)); });
+    [...this.slots, this.ult].forEach((s, i) => {
+      s.el.classList.toggle('aiming', q === i);
+      s.el.setAttribute('aria-pressed', String(q === i));
+    });
   }
 
   private makeSlot(cls: string, fire: (direct: boolean) => void): SlotEl {
@@ -69,14 +94,26 @@ export class AbilityBar {
     const num = h('span', { class: 'p3-cdn' });
     const el = h('button', { class: cls }, sweep, glyph, el2, key, num);
     // pointerdown so a tap fires at once on touch screens (no 300ms click delay, works while the stick is held)
-    el.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); fire(e.pointerType === 'touch' || e.pointerType === 'pen'); });
-    el.addEventListener('click', (e) => { if (e.detail === 0) fire(false); });
+    el.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      fire(e.pointerType === 'touch' || e.pointerType === 'pen');
+    });
+    el.addEventListener('click', (e) => {
+      if (e.detail === 0) fire(false);
+    });
     return { el, glyph, el2, key, sweep, num, last: '' };
   }
 
   /** Static content (abilities, element tint, keys). Cheap to call often: only touches the DOM when something changed. */
   setup(info: BarSlotInfo[], keys: string[], cls: ClassId, ultKey: string, level: number): void {
-    const sig = JSON.stringify([info.map((i) => [i.ability, i.unlocked, i.line?.pB.toFixed(2), i.line?.hueA, i.line?.hueB, i.line?.locked]), keys, cls, ultKey, level]);
+    const sig = JSON.stringify([
+      info.map((i) => [i.ability, i.unlocked, i.line?.pB.toFixed(2), i.line?.hueA, i.line?.hueB, i.line?.locked]),
+      keys,
+      cls,
+      ultKey,
+      level,
+    ]);
     if (sig === this.sig) return;
     this.sig = sig;
     info.forEach((inf, i) => {
@@ -87,14 +124,16 @@ export class AbilityBar {
       s.el.classList.toggle('locked', !inf.unlocked);
       s.key.textContent = keys[i] ?? '';
       if (!inf.unlocked) {
-        s.glyph.textContent = '🔒︎'; s.el2.hidden = true;
+        s.glyph.textContent = '🔒︎';
+        s.el2.hidden = true;
         s.el.title = `${orbName(i)} is still asleep. Orbs unlock as you level up.`;
         s.el.setAttribute('aria-label', `${orbName(i)}: locked`);
         s.el.style.removeProperty('--c');
         return;
       }
       if (!a || !lp) {
-        s.glyph.textContent = '+'; s.el2.hidden = true;
+        s.glyph.textContent = '+';
+        s.el2.hidden = true;
         s.el.title = `${orbName(i)} has no ability. Open the Circuit Board to put one on it.`;
         s.el.setAttribute('aria-label', `${orbName(i)}: empty, opens the Circuit Board`);
         s.el.style.removeProperty('--c');
@@ -111,7 +150,12 @@ export class AbilityBar {
       s.el.style.setProperty('--c2', elHex(likelyB ? lp.hueA : lp.hueB));
       s.el.classList.toggle('split', lp.pB > 0.02 && lp.pB < 0.98);
       s.el.classList.toggle('lockd', lp.locked === 0 || lp.locked === 1);
-      const odds = lp.pB <= 0.02 ? formName(a, 0, lp.hueA) : lp.pB >= 0.98 ? formName(a, 1, lp.hueB) : `${formName(a, 0, lp.hueA)} or ${formName(a, 1, lp.hueB)}`;
+      const odds =
+        lp.pB <= 0.02
+          ? formName(a, 0, lp.hueA)
+          : lp.pB >= 0.98
+            ? formName(a, 1, lp.hueB)
+            : `${formName(a, 0, lp.hueA)} or ${formName(a, 1, lp.hueB)}`;
       s.el.title = `${def.name} (${keys[i] ?? ''}): ${odds}`;
       s.el.setAttribute('aria-label', `${def.name}, ${odds}, key ${keys[i] ?? ''}`);
     });
@@ -123,7 +167,9 @@ export class AbilityBar {
     u.el2.hidden = true;
     u.key.textContent = ultKey;
     u.el.style.setProperty('--c', hex(c.resource.color));
-    u.el.title = hasUlt ? `${c.ultimate.name} (${ultKey}): ${c.ultimate.desc} Needs a full ${c.resource.name} bar.` : 'Choose a path to unlock an ultimate.';
+    u.el.title = hasUlt
+      ? `${c.ultimate.name} (${ultKey}): ${c.ultimate.desc} Needs a full ${c.resource.name} bar.`
+      : 'Choose a path to unlock an ultimate.';
     u.el.setAttribute('aria-label', hasUlt ? `Ultimate: ${c.ultimate.name}, key ${ultKey}` : 'Ultimate: locked');
     this.res.hidden = !hasUlt;
     this.resName.textContent = c.resource.name;
@@ -165,5 +211,7 @@ export class AbilityBar {
     window.setTimeout(() => s.el.classList.remove(kind), 600);
   }
 
-  get resourceMax(): number { return RESOURCE_MAX; }
+  get resourceMax(): number {
+    return RESOURCE_MAX;
+  }
 }

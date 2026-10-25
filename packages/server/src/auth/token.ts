@@ -15,11 +15,17 @@ export function verifyToken(token: unknown, secret: string, now = Date.now()): s
   if (!body || !sig) return null;
   const expect = createHmac('sha256', secret).update(body).digest();
   let got: Buffer;
-  try { got = Buffer.from(sig, 'base64url'); } catch { return null; }
+  try {
+    got = Buffer.from(sig, 'base64url');
+  } catch {
+    return null;
+  }
   if (got.length !== expect.length || !timingSafeEqual(got, expect)) return null;
   try {
     const p = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as { sub?: string; exp?: number };
     if (typeof p.sub !== 'string' || typeof p.exp !== 'number' || p.exp * 1000 < now) return null;
     return p.sub;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }

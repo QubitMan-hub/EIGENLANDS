@@ -6,7 +6,8 @@ import { shardAt } from '@eigenlands/shared';
 import { signToken, verifyToken } from '../../../server/src/auth/token';
 import { getHost, type LocalHost } from './host';
 
-const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+const json = (status: number, body: unknown) =>
+  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
 async function authed(h: LocalHost, headers: Headers): Promise<string | null> {
   const a = headers.get('authorization') ?? '';
@@ -18,15 +19,24 @@ export async function localFetch(input: string, init: RequestInit = {}): Promise
   const path = new URL(input, location.href).pathname.replace(/^.*?(\/api\/)/, '$1');
   const method = (init.method ?? 'GET').toUpperCase();
   const headers = new Headers(init.headers);
-  let body: Record<string, unknown> = {};
-  try { body = init.body ? JSON.parse(String(init.body)) as Record<string, unknown> : {}; } catch { return json(400, { error: 'bad request' }); }
+  let body: Record<string, unknown>;
+  try {
+    body = init.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
+  } catch {
+    return json(400, { error: 'bad request' });
+  }
   const h = await getHost();
   try {
     if (path === '/api/auth/config' && method === 'GET') return json(200, { googleClientId: null, solo: true });
     if (path === '/api/auth/guest' && method === 'POST') {
       const secret = typeof body.deviceSecret === 'string' ? body.deviceSecret : undefined;
       const { account, deviceSecret } = await h.repo.guestLogin(secret);
-      return json(200, { token: signToken(account.id, h.config.sessionSecret), deviceSecret, accountId: account.id, guest: true });
+      return json(200, {
+        token: signToken(account.id, h.config.sessionSecret),
+        deviceSecret,
+        accountId: account.id,
+        guest: true,
+      });
     }
     if (path === '/api/auth/google') return json(503, { error: 'google sign-in not configured' });
     if (path === '/api/auth/me' && method === 'GET') {

@@ -69,17 +69,27 @@ export const rankOf = (level: number): number => {
 export const rankName = (level: number): string => SHADOW_RANKS[rankOf(level)]!;
 
 /** How many shadows you can field at once. */
-export const shadowSlots = (playerLevel: number): number => (playerLevel < EXTRACT_LEVEL ? 0 : Math.min(8, 1 + Math.floor(playerLevel / 8)));
+export const shadowSlots = (playerLevel: number): number =>
+  playerLevel < EXTRACT_LEVEL ? 0 : Math.min(8, 1 + Math.floor(playerLevel / 8));
 
 export const shadowXpNeeded = (level: number): number => 18 + level * 12;
 
 const base = (kind: number): EnemyDef => ENEMY_BY_KIND[kind]!;
-export const canExtract = (kind: number): boolean => { const d = ENEMY_BY_KIND[kind]; return !!d && kind !== 21 && !d.passive && !d.sea; };
+export const canExtract = (kind: number): boolean => {
+  const d = ENEMY_BY_KIND[kind];
+  return !!d && kind !== 21 && !d.passive && !d.sea;
+};
 
 /** Shadow stats from the source creature, its level and rank. */
 export function shadowStats(kind: number, level: number): { hp: number; dmg: number; speed: number } {
-  const d = base(kind), r = rankOf(level), lv = 1 + 0.06 * (level - 1);
-  return { hp: Math.round(d.hp * lv * RANK_HP[r]! * 1.15), dmg: lv * RANK_DMG[r]!, speed: 1 + Math.min(0.25, level * 0.005) };
+  const d = base(kind),
+    r = rankOf(level),
+    lv = 1 + 0.06 * (level - 1);
+  return {
+    hp: Math.round(d.hp * lv * RANK_HP[r]! * 1.15),
+    dmg: lv * RANK_DMG[r]!,
+    speed: 1 + Math.min(0.25, level * 0.005),
+  };
 }
 
 /**
@@ -104,11 +114,21 @@ export function addShadowXp(rec: ShadowRec, xp: number, playerLevel: number): { 
   let levels = 0;
   rec.xp += xp;
   const cap = Math.min(MAX_SHADOW_LEVEL, playerLevel + 5);
-  while (rec.level < cap && rec.xp >= shadowXpNeeded(rec.level)) { rec.xp -= shadowXpNeeded(rec.level); rec.level++; levels++; }
+  while (rec.level < cap && rec.xp >= shadowXpNeeded(rec.level)) {
+    rec.xp -= shadowXpNeeded(rec.level);
+    rec.level++;
+    levels++;
+  }
   if (rec.level >= cap) rec.xp = Math.min(rec.xp, shadowXpNeeded(rec.level) - 1);
   return { levels, evolved: rankOf(rec.level) > r0 };
 }
 
 export function newShadow(id: string, kind: number, level: number): ShadowRec {
-  return { id, kind, name: `Shade ${base(kind).name.replace(/^(Wisp|Glint|Phase|Decoherent|Static|Wild|Dire) /, '')}`, level: Math.max(1, Math.min(MAX_SHADOW_LEVEL, Math.round(level))), xp: 0 };
+  return {
+    id,
+    kind,
+    name: `Shade ${base(kind).name.replace(/^(Wisp|Glint|Phase|Decoherent|Static|Wild|Dire) /, '')}`,
+    level: Math.max(1, Math.min(MAX_SHADOW_LEVEL, Math.round(level))),
+    xp: 0,
+  };
 }

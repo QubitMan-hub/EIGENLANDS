@@ -29,31 +29,51 @@ export const R = {
   gold: [C.e3, C.e4, C.e5, C.e6, C.e7] as Ramp,
 };
 
-const L = (() => { const v = [-0.55, -0.7, 0.45]; const n = Math.hypot(...v); return v.map((a) => a / n) as [number, number, number]; })();
+const L = (() => {
+  const v = [-0.55, -0.7, 0.45];
+  const n = Math.hypot(...v);
+  return v.map((a) => a / n) as [number, number, number];
+})();
 
 export const col = (i: number) => PALETTE[i]!;
 // Pixel rasters use one upload instead of thousands of Canvas state changes.
 // Colours are packed through the byte view, so native endianness stays correct.
-const packedPalette=new Uint32Array(PALETTE.length);
-const packedBytes=new Uint8Array(packedPalette.buffer);
-PALETTE.forEach((hex,i)=>{const n=parseInt(hex.slice(1),16);packedBytes.set([n>>>16,(n>>>8)&255,n&255,255],i*4);});
-let pixelTarget:Ctx|null=null,pixelWords:Uint32Array|null=null,pixelWidth=0,pixelHeight=0;
+const packedPalette = new Uint32Array(PALETTE.length);
+const packedBytes = new Uint8Array(packedPalette.buffer);
+PALETTE.forEach((hex, i) => {
+  const n = parseInt(hex.slice(1), 16);
+  packedBytes.set([n >>> 16, (n >>> 8) & 255, n & 255, 255], i * 4);
+});
+let pixelTarget: Ctx | null = null,
+  pixelWords: Uint32Array | null = null,
+  pixelWidth = 0,
+  pixelHeight = 0;
 /** For opaque, integer-pixel painters using put(); native Canvas drawing belongs outside this scope. */
-export function rasterPixels<T>(ctx:Ctx,w:number,h:number,paint:()=>T):T {
-  const prev=[pixelTarget,pixelWords,pixelWidth,pixelHeight] as const,img=ctx.createImageData(w,h);
-  pixelTarget=ctx;pixelWords=new Uint32Array(img.data.buffer);pixelWidth=w;pixelHeight=h;
-  try{return paint();}finally{
-    ctx.putImageData(img,0,0);
-    [pixelTarget,pixelWords,pixelWidth,pixelHeight]=prev;
+export function rasterPixels<T>(ctx: Ctx, w: number, h: number, paint: () => T): T {
+  const prev = [pixelTarget, pixelWords, pixelWidth, pixelHeight] as const,
+    img = ctx.createImageData(w, h);
+  pixelTarget = ctx;
+  pixelWords = new Uint32Array(img.data.buffer);
+  pixelWidth = w;
+  pixelHeight = h;
+  try {
+    return paint();
+  } finally {
+    ctx.putImageData(img, 0, 0);
+    [pixelTarget, pixelWords, pixelWidth, pixelHeight] = prev;
   }
 }
 export function put(ctx: Ctx, x: number, y: number, c: number, w = 1, h = 1): void {
-  x=Math.round(x);y=Math.round(y);
-  if(ctx===pixelTarget&&pixelWords){
-    if(x+w<=0||x>=pixelWidth||y+h<=0||y>=pixelHeight)return;
-    const color=packedPalette[c]!;
-    if(w===1&&h===1){if(x>=0&&y>=0&&x<pixelWidth&&y<pixelHeight)pixelWords[y*pixelWidth+x]=color;}
-    else for(let yy=Math.max(0,y);yy<Math.min(pixelHeight,y+h);yy++)pixelWords.fill(color,yy*pixelWidth+Math.max(0,x),yy*pixelWidth+Math.min(pixelWidth,x+w));
+  x = Math.round(x);
+  y = Math.round(y);
+  if (ctx === pixelTarget && pixelWords) {
+    if (x + w <= 0 || x >= pixelWidth || y + h <= 0 || y >= pixelHeight) return;
+    const color = packedPalette[c]!;
+    if (w === 1 && h === 1) {
+      if (x >= 0 && y >= 0 && x < pixelWidth && y < pixelHeight) pixelWords[y * pixelWidth + x] = color;
+    } else
+      for (let yy = Math.max(0, y); yy < Math.min(pixelHeight, y + h); yy++)
+        pixelWords.fill(color, yy * pixelWidth + Math.max(0, x), yy * pixelWidth + Math.min(pixelWidth, x + w));
     return;
   }
   ctx.fillStyle = PALETTE[c]!;
@@ -61,24 +81,43 @@ export function put(ctx: Ctx, x: number, y: number, c: number, w = 1, h = 1): vo
 }
 let noDither = false;
 /** Run `fn` with the shading helpers (blob, slab, cyl, limb, rampAt) in clean, undithered bands (painterly style). */
-export function undithered<T>(fn: () => T): T { const prev = noDither; noDither = true; try { return fn(); } finally { noDither = prev; } }
+export function undithered<T>(fn: () => T): T {
+  const prev = noDither;
+  noDither = true;
+  try {
+    return fn();
+  } finally {
+    noDither = prev;
+  }
+}
 function pick(ramp: Ramp, t: number, d: number): number {
   if (noDither) d = 0.5;
   const x = Math.min(1, Math.max(0, t)) * (ramp.length - 1);
   const lo = Math.floor(x);
   const fr = x - lo;
-  const k = fr <= 0.3 ? 0 : fr >= 0.7 ? 1 : (fr - 0.3) / 0.4;   // clean flat bands, ordered dither only in a narrow seam
+  const k = fr <= 0.3 ? 0 : fr >= 0.7 ? 1 : (fr - 0.3) / 0.4; // clean flat bands, ordered dither only in a narrow seam
   return ramp[Math.min(ramp.length - 1, lo + (k > d ? 1 : 0))]!;
 }
 
-export interface BlobOpts { seed?: number; noise?: number; bright?: number; edgeDark?: number; shape?: number }
+export interface BlobOpts {
+  seed?: number;
+  noise?: number;
+  bright?: number;
+  edgeDark?: number;
+  shape?: number;
+}
 
 /** Lambert-shaded ellipsoid with dithered ramp, per-pixel leafy noise and a darkened rim. */
 export function blob(ctx: Ctx, cx: number, cy: number, rx: number, ry: number, ramp: Ramp, o: BlobOpts = {}): void {
-  const seed = o.seed ?? 1, noise = o.noise ?? 0.25, bright = o.bright ?? 0, edge = o.edgeDark ?? 0.28, shape = o.shape ?? 2;
+  const seed = o.seed ?? 1,
+    noise = o.noise ?? 0.25,
+    bright = o.bright ?? 0,
+    edge = o.edgeDark ?? 0.28,
+    shape = o.shape ?? 2;
   for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) {
     for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
-      const nx = (x + 0.5 - cx) / rx, ny = (y + 0.5 - cy) / ry;
+      const nx = (x + 0.5 - cx) / rx,
+        ny = (y + 0.5 - cy) / ry;
       const dd = Math.pow(Math.abs(nx), shape) + Math.pow(Math.abs(ny), shape);
       if (dd > 1) continue;
       const nz = Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny));
@@ -103,19 +142,33 @@ export function slab(ctx: Ctx, x: number, y: number, w: number, h: number, ramp:
 export function line(ctx: Ctx, x0: number, y0: number, x1: number, y1: number, c: number): void {
   // Art callers use fractional model coordinates. Bresenham must step between
   // integer endpoints or it can run past the target and draw a stray streak.
-  x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
-  let dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), err = dx + dy;
-  const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+  x0 = Math.round(x0);
+  y0 = Math.round(y0);
+  x1 = Math.round(x1);
+  y1 = Math.round(y1);
+  let dx = Math.abs(x1 - x0),
+    dy = -Math.abs(y1 - y0),
+    err = dx + dy;
+  const sx = x0 < x1 ? 1 : -1,
+    sy = y0 < y1 ? 1 : -1;
   for (let guard = 0; guard < 200; guard++) {
     put(ctx, x0, y0, c);
     if (x0 === x1 && y0 === y1) break;
     const e2 = 2 * err;
-    if (e2 >= dy) { err += dy; x0 += sx; }
-    if (e2 <= dx) { err += dx; y0 += sy; }
+    if (e2 >= dy) {
+      err += dy;
+      x0 += sx;
+    }
+    if (e2 <= dx) {
+      err += dx;
+      y0 += sy;
+    }
   }
 }
 
-export function sheetCanvas(w: number, h: number) { return makeCanvas(w, h); }
+export function sheetCanvas(w: number, h: number) {
+  return makeCanvas(w, h);
+}
 
 // ───────── Phase 2 helpers ─────────
 /** Palette rows are dark->light ramps: step within the row. */
@@ -125,16 +178,30 @@ export const ramp4 = (c: number): Ramp => [dk(dk(c)), dk(c), c, lt(c)];
 export const ramp3 = (c: number): Ramp => [dk(c), c, lt(c)];
 
 /** Pixel-exact polygon fill (no anti-aliasing so only palette colours appear). `colorAt` picks the colour per pixel. */
-export function poly(ctx: Ctx, pts: Array<[number, number]>, colorAt: number | ((x: number, y: number) => number)): void {
-  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
-  for (const [x, y] of pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+export function poly(
+  ctx: Ctx,
+  pts: Array<[number, number]>,
+  colorAt: number | ((x: number, y: number) => number),
+): void {
+  let x0 = 1e9,
+    y0 = 1e9,
+    x1 = -1e9,
+    y1 = -1e9;
+  for (const [x, y] of pts) {
+    x0 = Math.min(x0, x);
+    y0 = Math.min(y0, y);
+    x1 = Math.max(x1, x);
+    y1 = Math.max(y1, y);
+  }
   for (let y = Math.floor(y0); y <= Math.ceil(y1); y++) {
     for (let x = Math.floor(x0); x <= Math.ceil(x1); x++) {
-      const px = x + 0.5, py = y + 0.5;
+      const px = x + 0.5,
+        py = y + 0.5;
       let inside = false;
       for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-        const [xi, yi] = pts[i]!, [xj, yj] = pts[j]!;
-        if ((yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside;
+        const [xi, yi] = pts[i]!,
+          [xj, yj] = pts[j]!;
+        if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside;
       }
       if (inside) put(ctx, x, y, typeof colorAt === 'number' ? colorAt : colorAt(x, y));
     }
@@ -147,10 +214,11 @@ export function outline(ctx: Ctx, w: number, h: number, c: number = C.night): vo
   const d = img.data;
   const solid = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && d[(y * w + x) * 4 + 3]! > 0;
   const mark: Array<[number, number]> = [];
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    if (solid(x, y)) continue;
-    if (solid(x - 1, y) || solid(x + 1, y) || solid(x, y - 1) || solid(x, y + 1)) mark.push([x, y]);
-  }
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      if (solid(x, y)) continue;
+      if (solid(x - 1, y) || solid(x + 1, y) || solid(x, y - 1) || solid(x, y + 1)) mark.push([x, y]);
+    }
   for (const [x, y] of mark) put(ctx, x, y, c);
 }
 
@@ -174,43 +242,82 @@ export function polish(ctx: Ctx, w: number, h: number, o: PolishOpts = {}): void
   const img = ctx.getImageData(0, 0, w, h);
   const d = img.data;
   const solid = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && d[(y * w + x) * 4 + 3]! > 0;
-  const idxAt = (x: number, y: number) => { const i = (y * w + x) * 4; return HEX_TO_IDX.get(rgbKey(d[i]!, d[i + 1]!, d[i + 2]!)) ?? -1; };
+  const idxAt = (x: number, y: number) => {
+    const i = (y * w + x) * 4;
+    return HEX_TO_IDX.get(rgbKey(d[i]!, d[i + 1]!, d[i + 2]!)) ?? -1;
+  };
   const sets: Array<[number, number, number]> = [];
   if (o.rim || o.fringe) {
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      if (!solid(x, y)) continue;
-      const c = idxAt(x, y);
-      if (c < 0) continue;
-      const lit = !solid(x - 1, y - 1) || !solid(x, y - 1) && !solid(x - 1, y);
-      const shaded = !solid(x + 1, y + 1) || (!solid(x + 1, y) && !solid(x, y + 1));
-      if (lit) sets.push([x, y, o.fringe && (x * 3 + y) % 5 === 0 ? C.q7 : lt(c)]);
-      else if (shaded && c !== C.night && c !== C.ink) sets.push([x, y, o.fringe && (x + y * 3) % 6 === 0 ? C.q5 : dk(c)]);
-    }
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        if (!solid(x, y)) continue;
+        const c = idxAt(x, y);
+        if (c < 0) continue;
+        const lit = !solid(x - 1, y - 1) || (!solid(x, y - 1) && !solid(x - 1, y));
+        const shaded = !solid(x + 1, y + 1) || (!solid(x + 1, y) && !solid(x, y + 1));
+        if (lit) sets.push([x, y, o.fringe && (x * 3 + y) % 5 === 0 ? C.q7 : lt(c)]);
+        else if (shaded && c !== C.night && c !== C.ink)
+          sets.push([x, y, o.fringe && (x + y * 3) % 6 === 0 ? C.q5 : dk(c)]);
+      }
   }
   for (const [x, y, c] of sets) put(ctx, x, y, c);
   if (o.ao) {
     const { ax, ay, rx } = o.ao;
-    for (let y = ay - 1; y <= ay + 3; y++) for (let x = Math.floor(ax - rx); x <= Math.ceil(ax + rx); x++) {
-      if (x < 0 || y < 0 || x >= w || y >= h || solid(x, y)) continue;
-      const dd = ((x - ax) / rx) ** 2 + ((y - ay) / 2.6) ** 2;
-      if (dd >= 1) continue;
-      // soft contact shadow: translucent ink, denser toward the centre (blends with any ground)
-      ctx.globalAlpha = dd < 0.35 ? 0.42 : dd < 0.7 ? 0.28 : 0.14;
-      put(ctx, x, y, C.ink);
-    }
+    for (let y = ay - 1; y <= ay + 3; y++)
+      for (let x = Math.floor(ax - rx); x <= Math.ceil(ax + rx); x++) {
+        if (x < 0 || y < 0 || x >= w || y >= h || solid(x, y)) continue;
+        const dd = ((x - ax) / rx) ** 2 + ((y - ay) / 2.6) ** 2;
+        if (dd >= 1) continue;
+        // soft contact shadow: translucent ink, denser toward the centre (blends with any ground)
+        ctx.globalAlpha = dd < 0.35 ? 0.42 : dd < 0.7 ? 0.28 : 0.14;
+        put(ctx, x, y, C.ink);
+      }
     ctx.globalAlpha = 1;
   }
 }
 
 // ───────── 3x5 pixel font ─────────
 const FONT: Record<string, string> = {
-  A: '010101111101101', B: '110101110101110', C: '011100100100011', D: '110101101101110', E: '111100110100111', F: '111100110100100',
-  G: '011100101101011', H: '101101111101101', I: '111010010010111', J: '001001001101010', K: '101101110101101', L: '100100100100111',
-  M: '101111111101101', N: '110101101101101', O: '010101101101010', P: '110101110100100', Q: '010101101111011', R: '110101110101101',
-  S: '011100010001110', T: '111010010010010', U: '101101101101111', V: '101101101101010', W: '101101111111101', X: '101101010101101',
-  Y: '101101010010010', Z: '111001010100111', '0': '111101101101111', '1': '010110010010111', '2': '110001010100111', '3': '110001010001110',
-  '4': '101101111001001', '5': '111100110001110', '6': '011100111101111', '7': '111001010010010', '8': '111101111101111', '9': '111101111001110',
-  ' ': '000000000000000', '-': '000000111000000', '.': '000000000000010', '!': '010010010000010',
+  A: '010101111101101',
+  B: '110101110101110',
+  C: '011100100100011',
+  D: '110101101101110',
+  E: '111100110100111',
+  F: '111100110100100',
+  G: '011100101101011',
+  H: '101101111101101',
+  I: '111010010010111',
+  J: '001001001101010',
+  K: '101101110101101',
+  L: '100100100100111',
+  M: '101111111101101',
+  N: '110101101101101',
+  O: '010101101101010',
+  P: '110101110100100',
+  Q: '010101101111011',
+  R: '110101110101101',
+  S: '011100010001110',
+  T: '111010010010010',
+  U: '101101101101111',
+  V: '101101101101010',
+  W: '101101111111101',
+  X: '101101010101101',
+  Y: '101101010010010',
+  Z: '111001010100111',
+  '0': '111101101101111',
+  '1': '010110010010111',
+  '2': '110001010100111',
+  '3': '110001010001110',
+  '4': '101101111001001',
+  '5': '111100110001110',
+  '6': '011100111101111',
+  '7': '111001010010010',
+  '8': '111101111101111',
+  '9': '111101111001110',
+  ' ': '000000000000000',
+  '-': '000000111000000',
+  '.': '000000000000010',
+  '!': '010010010000010',
 };
 export const fontWidth = (text: string): number => text.length * 4 - 1;
 /** Draw `text` in the 3x5 pixel font at (x,y) (top-left); returns the width used. */
@@ -234,8 +341,19 @@ export type TopFn = (s: number, t: number, x: number, y: number) => number;
  * Iso box whose FRONT (nearest) bottom corner is at (cx, by). `a` = screen half-span of the left (x-extent) side,
  * `b` = of the right side, `h` = height in px. Left face is the lit one, right face the shaded one.
  */
-export function isoBox(ctx: Ctx, cx: number, by: number, a: number, b: number, h: number, left: FaceFn | number, right: FaceFn | number, top: TopFn | number | null): void {
-  const F = (f: FaceFn | number, u: number, v: number, x: number, y: number) => (typeof f === 'number' ? f : f(u, v, x, y));
+export function isoBox(
+  ctx: Ctx,
+  cx: number,
+  by: number,
+  a: number,
+  b: number,
+  h: number,
+  left: FaceFn | number,
+  right: FaceFn | number,
+  top: TopFn | number | null,
+): void {
+  const F = (f: FaceFn | number, u: number, v: number, x: number, y: number) =>
+    typeof f === 'number' ? f : f(u, v, x, y);
   for (let x = Math.floor(cx - a); x < Math.ceil(cx + b); x++) {
     const px = x + 0.5;
     const isL = px <= cx;
@@ -248,16 +366,29 @@ export function isoBox(ctx: Ctx, cx: number, by: number, a: number, b: number, h
   }
   if (top === null) return;
   const ty = by - h;
-  for (let y = Math.floor(ty - (a + b) * 0.5 - 1); y <= Math.ceil(ty); y++) for (let x = Math.floor(cx - a); x < Math.ceil(cx + b); x++) {
-    const px = x + 0.5 - cx, py = y + 0.5 - ty;
-    const t = (px - 2 * py) / 2, s = (-2 * py - px) / 2;
-    if (s < 0 || t < 0 || s > a || t > b) continue;
-    put(ctx, x, y, typeof top === 'number' ? top : top(s / a, t / b, x, y));
-  }
+  for (let y = Math.floor(ty - (a + b) * 0.5 - 1); y <= Math.ceil(ty); y++)
+    for (let x = Math.floor(cx - a); x < Math.ceil(cx + b); x++) {
+      const px = x + 0.5 - cx,
+        py = y + 0.5 - ty;
+      const t = (px - 2 * py) / 2,
+        s = (-2 * py - px) / 2;
+      if (s < 0 || t < 0 || s > a || t > b) continue;
+      put(ctx, x, y, typeof top === 'number' ? top : top(s / a, t / b, x, y));
+    }
 }
 
 /** Upright cylinder (ellipse top, lit from the left). `ramp` dark->light. */
-export function cyl(ctx: Ctx, cx: number, topY: number, rx: number, ry: number, h: number, ramp: Ramp, topRamp?: Ramp, seed = 1): void {
+export function cyl(
+  ctx: Ctx,
+  cx: number,
+  topY: number,
+  rx: number,
+  ry: number,
+  h: number,
+  ramp: Ramp,
+  topRamp?: Ramp,
+  seed = 1,
+): void {
   for (let x = Math.floor(cx - rx); x < Math.ceil(cx + rx); x++) {
     const nx = (x + 0.5 - cx) / rx;
     if (Math.abs(nx) > 1) continue;
@@ -269,31 +400,51 @@ export function cyl(ctx: Ctx, cx: number, topY: number, rx: number, ry: number, 
     }
   }
   const tr = topRamp ?? ramp;
-  for (let y = Math.floor(topY - ry); y <= Math.ceil(topY + ry); y++) for (let x = Math.floor(cx - rx); x < Math.ceil(cx + rx); x++) {
-    const nx = (x + 0.5 - cx) / rx, ny = (y + 0.5 - topY) / ry;
-    const dd = nx * nx + ny * ny;
-    if (dd > 1) continue;
-    const t = 0.78 - 0.22 * nx - 0.2 * ny - (dd > 0.75 ? 0.22 : 0);
-    put(ctx, x, y, pick(tr, t, bayer(x, y)));
-  }
+  for (let y = Math.floor(topY - ry); y <= Math.ceil(topY + ry); y++)
+    for (let x = Math.floor(cx - rx); x < Math.ceil(cx + rx); x++) {
+      const nx = (x + 0.5 - cx) / rx,
+        ny = (y + 0.5 - topY) / ry;
+      const dd = nx * nx + ny * ny;
+      if (dd > 1) continue;
+      const t = 0.78 - 0.22 * nx - 0.2 * ny - (dd > 0.75 ? 0.22 : 0);
+      put(ctx, x, y, pick(tr, t, bayer(x, y)));
+    }
 }
 
 /** Thick limb: a Lambert-shaded capsule from (x0,y0) to (x1,y1) with radii r0 -> r1 (lit from the top-left). */
-export function limb(ctx: Ctx, x0: number, y0: number, x1: number, y1: number, r0: number, r1: number, ramp: Ramp, seed = 1, bright = 0): void {
-  const dx = x1 - x0, dy = y1 - y0, len2 = Math.max(1e-6, dx * dx + dy * dy), len = Math.sqrt(len2);
-  const px = -dy / len, py = dx / len;            // perpendicular (unit)
+export function limb(
+  ctx: Ctx,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  r0: number,
+  r1: number,
+  ramp: Ramp,
+  seed = 1,
+  bright = 0,
+): void {
+  const dx = x1 - x0,
+    dy = y1 - y0,
+    len2 = Math.max(1e-6, dx * dx + dy * dy),
+    len = Math.sqrt(len2);
+  const px = -dy / len,
+    py = dx / len; // perpendicular (unit)
   const R = Math.max(r0, r1);
   for (let y = Math.floor(Math.min(y0, y1) - R); y <= Math.ceil(Math.max(y0, y1) + R); y++) {
     for (let x = Math.floor(Math.min(x0, x1) - R); x <= Math.ceil(Math.max(x0, x1) + R); x++) {
-      const qx = x + 0.5 - x0, qy = y + 0.5 - y0;
+      const qx = x + 0.5 - x0,
+        qy = y + 0.5 - y0;
       const t = Math.max(0, Math.min(1, (qx * dx + qy * dy) / len2));
       const r = r0 + (r1 - r0) * t;
-      const cx = qx - dx * t, cy = qy - dy * t;
+      const cx = qx - dx * t,
+        cy = qy - dy * t;
       const dist = Math.hypot(cx, cy);
       if (dist > r) continue;
       // surface normal: across the limb plus bulge at the caps
       const side = (cx * px + cy * py) / r;
-      const nx = (cx / r), ny = (cy / r);
+      const nx = cx / r,
+        ny = cy / r;
       const nz = Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny));
       const lam = nx * L[0] + ny * L[1] + nz * L[2];
       const tt = 0.5 + 0.6 * lam + bright - 0.18 * Math.pow(Math.abs(side), 4) + (hash2(seed, x, y, 9) - 0.5) * 0.05;
@@ -311,19 +462,32 @@ export function pixelTextC(ctx: Ctx, text: string, cx: number, y: number, c: num
 
 // ───────── 5x7 engraving font (plaques, shop signs) ─────────
 const BIG: Record<string, string[]> = {
-  A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'], B: ['11110', '10001', '10001', '11110', '10001', '10001', '11110'],
-  C: ['01110', '10001', '10000', '10000', '10000', '10001', '01110'], D: ['11110', '10001', '10001', '10001', '10001', '10001', '11110'],
-  E: ['11111', '10000', '10000', '11110', '10000', '10000', '11111'], F: ['11111', '10000', '10000', '11110', '10000', '10000', '10000'],
-  G: ['01110', '10001', '10000', '10111', '10001', '10001', '01111'], H: ['10001', '10001', '10001', '11111', '10001', '10001', '10001'],
-  I: ['11111', '00100', '00100', '00100', '00100', '00100', '11111'], J: ['00111', '00010', '00010', '00010', '00010', '10010', '01100'],
-  K: ['10001', '10010', '10100', '11000', '10100', '10010', '10001'], L: ['10000', '10000', '10000', '10000', '10000', '10000', '11111'],
-  M: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'], N: ['10001', '11001', '10101', '10011', '10001', '10001', '10001'],
-  O: ['01110', '10001', '10001', '10001', '10001', '10001', '01110'], P: ['11110', '10001', '10001', '11110', '10000', '10000', '10000'],
-  Q: ['01110', '10001', '10001', '10001', '10101', '10010', '01101'], R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'],
-  S: ['01111', '10000', '10000', '01110', '00001', '00001', '11110'], T: ['11111', '00100', '00100', '00100', '00100', '00100', '00100'],
-  U: ['10001', '10001', '10001', '10001', '10001', '10001', '01110'], V: ['10001', '10001', '10001', '10001', '10001', '01010', '00100'],
-  W: ['10001', '10001', '10001', '10101', '10101', '10101', '01010'], X: ['10001', '10001', '01010', '00100', '01010', '10001', '10001'],
-  Y: ['10001', '10001', '01010', '00100', '00100', '00100', '00100'], Z: ['11111', '00001', '00010', '00100', '01000', '10000', '11111'],
+  A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
+  B: ['11110', '10001', '10001', '11110', '10001', '10001', '11110'],
+  C: ['01110', '10001', '10000', '10000', '10000', '10001', '01110'],
+  D: ['11110', '10001', '10001', '10001', '10001', '10001', '11110'],
+  E: ['11111', '10000', '10000', '11110', '10000', '10000', '11111'],
+  F: ['11111', '10000', '10000', '11110', '10000', '10000', '10000'],
+  G: ['01110', '10001', '10000', '10111', '10001', '10001', '01111'],
+  H: ['10001', '10001', '10001', '11111', '10001', '10001', '10001'],
+  I: ['11111', '00100', '00100', '00100', '00100', '00100', '11111'],
+  J: ['00111', '00010', '00010', '00010', '00010', '10010', '01100'],
+  K: ['10001', '10010', '10100', '11000', '10100', '10010', '10001'],
+  L: ['10000', '10000', '10000', '10000', '10000', '10000', '11111'],
+  M: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'],
+  N: ['10001', '11001', '10101', '10011', '10001', '10001', '10001'],
+  O: ['01110', '10001', '10001', '10001', '10001', '10001', '01110'],
+  P: ['11110', '10001', '10001', '11110', '10000', '10000', '10000'],
+  Q: ['01110', '10001', '10001', '10001', '10101', '10010', '01101'],
+  R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'],
+  S: ['01111', '10000', '10000', '01110', '00001', '00001', '11110'],
+  T: ['11111', '00100', '00100', '00100', '00100', '00100', '00100'],
+  U: ['10001', '10001', '10001', '10001', '10001', '10001', '01110'],
+  V: ['10001', '10001', '10001', '10001', '10001', '01010', '00100'],
+  W: ['10001', '10001', '10001', '10101', '10101', '10101', '01010'],
+  X: ['10001', '10001', '01010', '00100', '01010', '10001', '10001'],
+  Y: ['10001', '10001', '01010', '00100', '00100', '00100', '00100'],
+  Z: ['11111', '00001', '00010', '00100', '01000', '10000', '11111'],
   ' ': ['00000', '00000', '00000', '00000', '00000', '00000', '00000'],
 };
 export const bigTextWidth = (text: string): number => text.length * 6 - 1;
@@ -332,10 +496,12 @@ export function bigTextC(ctx: Ctx, text: string, cx: number, y: number, c: numbe
   let x = Math.round(cx - bigTextWidth(text) / 2);
   for (const ch of text.toUpperCase()) {
     const g = BIG[ch] ?? BIG[' ']!;
-    for (let j = 0; j < 7; j++) for (let i = 0; i < 5; i++) if (g[j]![i] === '1') {
-      put(ctx, x + i, y + j, c);
-      if (hi !== undefined && (j === 6 || g[j + 1]![i] !== '1')) put(ctx, x + i, y + j + 1, hi);
-    }
+    for (let j = 0; j < 7; j++)
+      for (let i = 0; i < 5; i++)
+        if (g[j]![i] === '1') {
+          put(ctx, x + i, y + j, c);
+          if (hi !== undefined && (j === 6 || g[j + 1]![i] !== '1')) put(ctx, x + i, y + j + 1, hi);
+        }
     x += 6;
   }
 }
@@ -344,34 +510,70 @@ export function bigTextC(ctx: Ctx, text: string, cx: number, y: number, c: numbe
 const RGBA = new Map<string, number>();
 function rgbaOf(style: string): number {
   let v = RGBA.get(style);
-  if (v === undefined) { const n = parseInt(style.slice(1), 16); v = (255 << 24) | ((n & 255) << 16) | (n & 0xff00) | ((n >> 16) & 255); RGBA.set(style, v); }
+  if (v === undefined) {
+    const n = parseInt(style.slice(1), 16);
+    v = (255 << 24) | ((n & 255) << 16) | (n & 0xff00) | ((n >> 16) & 255);
+    RGBA.set(style, v);
+  }
   return v;
 }
 export class PixBuf {
   fillStyle = '#000000';
   globalAlpha = 1;
   readonly px: Uint32Array;
-  constructor(readonly width: number, readonly height: number) { this.px = new Uint32Array(width * height); }
+  constructor(
+    readonly width: number,
+    readonly height: number,
+  ) {
+    this.px = new Uint32Array(width * height);
+  }
   fillRect(x: number, y: number, w: number, h: number): void {
     let c = rgbaOf(this.fillStyle as string);
     if (this.globalAlpha < 1) c = ((Math.round(255 * this.globalAlpha) << 24) | (c & 0xffffff)) >>> 0;
-    const x0 = Math.max(0, Math.round(x)), y0 = Math.max(0, Math.round(y)), x1 = Math.min(this.width, Math.round(x + w)), y1 = Math.min(this.height, Math.round(y + h));
+    const x0 = Math.max(0, Math.round(x)),
+      y0 = Math.max(0, Math.round(y)),
+      x1 = Math.min(this.width, Math.round(x + w)),
+      y1 = Math.min(this.height, Math.round(y + h));
     for (let j = y0; j < y1; j++) this.px.fill(c, j * this.width + x0, j * this.width + x1);
   }
-  clearRect(x: number, y: number, w: number, h: number): void { const s = this.fillStyle; this.fillStyle = '#000000'; const c = this.px; const x0 = Math.max(0, x), y0 = Math.max(0, y); for (let j = y0; j < Math.min(this.height, y + h); j++) c.fill(0, j * this.width + x0, j * this.width + Math.min(this.width, x + w)); this.fillStyle = s; }
-  getImageData(_x: number, _y: number, w: number, h: number): ImageData {
-    return { data: new Uint8ClampedArray(this.px.buffer, 0, w * h * 4), width: w, height: h, colorSpace: 'srgb' } as ImageData;
+  clearRect(x: number, y: number, w: number, h: number): void {
+    const s = this.fillStyle;
+    this.fillStyle = '#000000';
+    const c = this.px;
+    const x0 = Math.max(0, x),
+      y0 = Math.max(0, y);
+    for (let j = y0; j < Math.min(this.height, y + h); j++)
+      c.fill(0, j * this.width + x0, j * this.width + Math.min(this.width, x + w));
+    this.fillStyle = s;
   }
-  putImageData(img: ImageData, dx: number, dy: number): void { if (img.data.buffer !== this.px.buffer) new Uint8ClampedArray(this.px.buffer).set(img.data); void dx; void dy; }
-  get ctx(): Ctx { return this as unknown as Ctx; }
+  getImageData(_x: number, _y: number, w: number, h: number): ImageData {
+    return {
+      data: new Uint8ClampedArray(this.px.buffer, 0, w * h * 4),
+      width: w,
+      height: h,
+      colorSpace: 'srgb',
+    } as ImageData;
+  }
+  putImageData(img: ImageData, dx: number, dy: number): void {
+    if (img.data.buffer !== this.px.buffer) new Uint8ClampedArray(this.px.buffer).set(img.data);
+    void dx;
+    void dy;
+  }
+  get ctx(): Ctx {
+    return this as unknown as Ctx;
+  }
   /** copy into a real canvas context at (dx, dy) */
   blit(target: CanvasRenderingContext2D, dx: number, dy: number): void {
-    const img = target.createImageData(this.width, this.height); img.data.set(new Uint8Array(this.px.buffer)); target.putImageData(img, dx, dy);
+    const img = target.createImageData(this.width, this.height);
+    img.data.set(new Uint8Array(this.px.buffer));
+    target.putImageData(img, dx, dy);
   }
 }
 
 /** Pick a ramp entry for t in [0,1] with ordered dithering at (x,y). */
-export function rampAt(ramp: Ramp, t: number, x: number, y: number): number { return pick(ramp, t, bayer(x, y)); }
+export function rampAt(ramp: Ramp, t: number, x: number, y: number): number {
+  return pick(ramp, t, bayer(x, y));
+}
 
 // ───────── painterly (dither-free) helpers: the reference style ─────────
 export interface LumpOpts {
@@ -395,15 +597,32 @@ const sizeOf = (ctx: Ctx): [number, number] => {
  * A sphere-shaded lump quantised into clean ramp bands (no dithering), lit from the top-left. Leafy lumps get a
  * ragged rim and 2px leaf clusters; stone lumps stay smooth with broad planes. Returns the pixels it painted.
  */
-export function lump(ctx: Ctx, cx: number, cy: number, rx: number, ry: number, ramp: Ramp, o: LumpOpts = {}, ids?: { map: Int16Array; id: number; w: number }): void {
-  const seed = o.seed ?? 1, rough = o.rough ?? 0.12, leafy = o.leafy ?? 0, bright = o.bright ?? 0, edge = o.edge ?? 0.18, flat = o.flat ?? 0;
+export function lump(
+  ctx: Ctx,
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  ramp: Ramp,
+  o: LumpOpts = {},
+  ids?: { map: Int16Array; id: number; w: number },
+): void {
+  const seed = o.seed ?? 1,
+    rough = o.rough ?? 0.12,
+    leafy = o.leafy ?? 0,
+    bright = o.bright ?? 0,
+    edge = o.edge ?? 0.18,
+    flat = o.flat ?? 0;
   const [W, H] = sizeOf(ctx);
   for (let y = Math.floor(cy - ry - 1); y <= Math.ceil(cy + ry + 1); y++) {
     for (let x = Math.floor(cx - rx - 1); x <= Math.ceil(cx + rx + 1); x++) {
       if (x < 0 || y < 0 || x >= W || y >= H) continue;
-      const nx = (x + 0.5 - cx) / rx, ny = (y + 0.5 - cy) / ry;
+      const nx = (x + 0.5 - cx) / rx,
+        ny = (y + 0.5 - cy) / ry;
       const dd = nx * nx + ny * ny;
-      const rim = leafy ? (hash2(seed, x >> 1, y >> 1, 3) - 0.5) * leafy * 0.5 + (hash2(seed, x >> 2, y >> 2, 4) - 0.5) * leafy * 0.7 : 0;
+      const rim = leafy
+        ? (hash2(seed, x >> 1, y >> 1, 3) - 0.5) * leafy * 0.5 + (hash2(seed, x >> 2, y >> 2, 4) - 0.5) * leafy * 0.7
+        : 0;
       if (dd > 1 + rim) continue;
       const nz = Math.sqrt(Math.max(0, 1 - Math.min(1, dd)));
       let lam = nx * L[0] + ny * L[1] + nz * L[2];
@@ -421,20 +640,28 @@ export function lump(ctx: Ctx, cx: number, cy: number, rx: number, ry: number, r
  * A pile of stone lumps drawn back to front; where a nearer stone overlaps a farther one, a 1px crevice in the
  * ramp's darkest tone separates them (value only: no outline around the silhouette).
  */
-export function stonePile(ctx: Ctx, stones: Array<[number, number, number, number]>, ramp: Ramp, o: LumpOpts = {}): void {
+export function stonePile(
+  ctx: Ctx,
+  stones: Array<[number, number, number, number]>,
+  ramp: Ramp,
+  o: LumpOpts = {},
+): void {
   const [W, H] = sizeOf(ctx);
   const map = new Int16Array(W * H).fill(-1);
-  const order = stones.map((s, i) => [s, i] as const).sort((a, b) => (a[0][1] + a[0][3]) - (b[0][1] + b[0][3]));
-  for (const [[x, y, rx, ry], i] of order) lump(ctx, x, y, rx, ry, ramp, { ...o, seed: (o.seed ?? 1) + i * 17 }, { map, id: i, w: W });
+  const order = stones.map((s, i) => [s, i] as const).sort((a, b) => a[0][1] + a[0][3] - (b[0][1] + b[0][3]));
+  for (const [[x, y, rx, ry], i] of order)
+    lump(ctx, x, y, rx, ry, ramp, { ...o, seed: (o.seed ?? 1) + i * 17 }, { map, id: i, w: W });
   const rank = new Map(order.map(([, i], k) => [i, k]));
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const id = map[y * W + x]!;
-    if (id < 0) continue;
-    // a farther stone's pixel touching a nearer stone just below/right of it sits in the crevice
-    const below = y + 1 < H ? map[(y + 1) * W + x]! : -1, right = x + 1 < W ? map[y * W + x + 1]! : -1;
-    const near = (j: number) => j >= 0 && j !== id && rank.get(j)! > rank.get(id)!;
-    const far = (j: number) => j >= 0 && j !== id && rank.get(j)! < rank.get(id)!;
-    if (near(below) || near(right)) put(ctx, x, y, ramp[0]!);
-    else if (far(below) || far(right)) put(ctx, x, y, ramp[1]!);
-  }
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      const id = map[y * W + x]!;
+      if (id < 0) continue;
+      // a farther stone's pixel touching a nearer stone just below/right of it sits in the crevice
+      const below = y + 1 < H ? map[(y + 1) * W + x]! : -1,
+        right = x + 1 < W ? map[y * W + x + 1]! : -1;
+      const near = (j: number) => j >= 0 && j !== id && rank.get(j)! > rank.get(id)!;
+      const far = (j: number) => j >= 0 && j !== id && rank.get(j)! < rank.get(id)!;
+      if (near(below) || near(right)) put(ctx, x, y, ramp[0]!);
+      else if (far(below) || far(right)) put(ctx, x, y, ramp[1]!);
+    }
 }

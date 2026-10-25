@@ -12,20 +12,55 @@ const JOURNAL_KEY = 'eigen.solo.journal';
 const FLUSH_DELAY_MS = 500;
 
 const ls = {
-  get: (k: string) => { try { return localStorage.getItem(k); } catch { return null; } },
-  set: (k: string, v: string) => { try { localStorage.setItem(k, v); return true; } catch { return false; } },
-  del: (k: string) => { try { localStorage.removeItem(k); } catch { /* ignore */ } },
+  get: (k: string) => {
+    try {
+      return localStorage.getItem(k);
+    } catch {
+      return null;
+    }
+  },
+  set: (k: string, v: string) => {
+    try {
+      localStorage.setItem(k, v);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  del: (k: string) => {
+    try {
+      localStorage.removeItem(k);
+    } catch {
+      /* ignore */
+    }
+  },
 };
 
-const req = <T>(r: IDBRequest<T>) => new Promise<T>((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
-const txDone = (t: IDBTransaction) => new Promise<void>((res, rej) => { t.oncomplete = () => res(); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error ?? new Error('transaction aborted')); });
+const req = <T>(r: IDBRequest<T>) =>
+  new Promise<T>((res, rej) => {
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+const txDone = (t: IDBTransaction) =>
+  new Promise<void>((res, rej) => {
+    t.oncomplete = () => res();
+    t.onerror = () => rej(t.error);
+    t.onabort = () => rej(t.error ?? new Error('transaction aborted'));
+  });
 
 function openIdb(): Promise<IDBDatabase | null> {
   if (typeof indexedDB === 'undefined') return Promise.resolve(null);
   return new Promise((resolve) => {
     let r: IDBOpenDBRequest;
-    try { r = indexedDB.open(DB_NAME, 1); } catch { resolve(null); return; }
-    r.onupgradeneeded = () => { if (!r.result.objectStoreNames.contains(STORE)) r.result.createObjectStore(STORE); };
+    try {
+      r = indexedDB.open(DB_NAME, 1);
+    } catch {
+      resolve(null);
+      return;
+    }
+    r.onupgradeneeded = () => {
+      if (!r.result.objectStoreNames.contains(STORE)) r.result.createObjectStore(STORE);
+    };
     r.onsuccess = () => resolve(r.result);
     r.onerror = () => resolve(null); // private mode etc.: play on, saved in memory (and the unload journal) only
     r.onblocked = () => resolve(null);
@@ -59,27 +94,34 @@ export class LocalDb {
       try {
         const rec = JSON.parse(j) as Record<string, unknown>;
         for (const [k, v] of Object.entries(rec)) {
-          if (v === null) db.mem.delete(k); else db.mem.set(k, v);
+          if (v === null) db.mem.delete(k);
+          else db.mem.set(k, v);
           db.dirty.add(k);
           db.ver.set(k, 1);
         }
         db.journalPending = true;
         db.schedule(0);
-      } catch { ls.del(JOURNAL_KEY); }
+      } catch {
+        ls.del(JOURNAL_KEY);
+      }
     }
     return db;
   }
 
-  get persistent(): boolean { return this.idb !== null; }
+  get persistent(): boolean {
+    return this.idb !== null;
+  }
 
   // ── record access (values are deep-copied in and out, like rows from a database) ──
 
   get<T>(key: string): T | undefined {
     const v = this.mem.get(key);
-    return v === undefined ? undefined : structuredClone(v) as T;
+    return v === undefined ? undefined : (structuredClone(v) as T);
   }
 
-  has(key: string): boolean { return this.mem.has(key); }
+  has(key: string): boolean {
+    return this.mem.has(key);
+  }
 
   /** keys starting with `prefix` */
   keys(prefix: string): string[] {
@@ -92,6 +134,16 @@ export class LocalDb {
     if (this.wiped) return;
     this.mem.set(key, JSON.parse(JSON.stringify(value)) as unknown); // JSONB semantics: drops undefined, no shared refs
     this.touch(key);
+  }
+
+  /** Validate/clone the complete batch before changing anything, matching a repository transaction. */
+  putMany(entries: Array<[string, unknown]>): void {
+    if (this.wiped) return;
+    const rows = entries.map(([key, value]) => [key, JSON.parse(JSON.stringify(value)) as unknown] as const);
+    for (const [key, value] of rows) {
+      this.mem.set(key, value);
+      this.touch(key);
+    }
   }
 
   delete(key: string): void {
@@ -108,22 +160,44 @@ export class LocalDb {
 
   private schedule(ms: number): void {
     if (this.timer || this.wiped) return;
-    this.timer = setTimeout(() => { this.timer = null; void this.flush().catch((e) => console.warn('save failed (will retry)', e)); }, ms);
+    this.timer = setTimeout(() => {
+      this.timer = null;
+      void this.flush().catch((e) => console.warn('save failed (will retry)', e));
+    }, ms);
   }
 
   /** Write every dirty record to IndexedDB in one transaction. */
   async flush(): Promise<void> {
-    if (this.flushing) { await this.flushing; if (!this.dirty.size) return; }
+    if (this.flushing) {
+      await this.flushing;
+      if (!this.dirty.size) return;
+    }
     if (!this.idb || this.wiped || !this.dirty.size) return;
     const batch = [...this.dirty].map((k) => [k, this.ver.get(k) ?? 0] as const);
     const t = this.idb.transaction(STORE, 'readwrite');
     const s = t.objectStore(STORE);
-    for (const [k] of batch) { const v = this.mem.get(k); if (v === undefined) s.delete(k); else s.put(v, k); }
-    this.flushing = txDone(t).then(() => {
-      for (const [k, v] of batch) if (this.ver.get(k) === v) this.dirty.delete(k);
-      if (this.journalPending && !this.dirty.size) { ls.del(JOURNAL_KEY); this.journalPending = false; }
-    }).finally(() => { this.flushing = null; });
-    try { await this.flushing; } catch (e) { this.schedule(2000); throw e; }
+    for (const [k] of batch) {
+      const v = this.mem.get(k);
+      if (v === undefined) s.delete(k);
+      else s.put(v, k);
+    }
+    this.flushing = txDone(t)
+      .then(() => {
+        for (const [k, v] of batch) if (this.ver.get(k) === v) this.dirty.delete(k);
+        if (this.journalPending && !this.dirty.size) {
+          ls.del(JOURNAL_KEY);
+          this.journalPending = false;
+        }
+      })
+      .finally(() => {
+        this.flushing = null;
+      });
+    try {
+      await this.flushing;
+    } catch (e) {
+      this.schedule(2000);
+      throw e;
+    }
     if (this.dirty.size) this.schedule(FLUSH_DELAY_MS);
   }
 
@@ -140,7 +214,8 @@ export class LocalDb {
   async wipe(): Promise<void> {
     this.wiped = true;
     if (this.timer) clearTimeout(this.timer);
-    this.mem.clear(); this.dirty.clear();
+    this.mem.clear();
+    this.dirty.clear();
     ls.del(JOURNAL_KEY);
     await this.flushing?.catch(() => {});
     if (this.idb) {

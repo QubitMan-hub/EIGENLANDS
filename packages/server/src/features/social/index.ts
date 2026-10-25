@@ -1,5 +1,11 @@
 import {
-  MSG34, type ChatMsg, type ChatSendMsg, type EmoteMsg, type PartyMsg, type ReportMsg, type TradeMsg,
+  MSG34,
+  type ChatMsg,
+  type ChatSendMsg,
+  type EmoteMsg,
+  type PartyMsg,
+  type ReportMsg,
+  type TradeMsg,
 } from '@eigenlands/shared';
 import type { Enemy } from '../../game/enemies';
 import type { GameRoom } from '../../rooms/GameRoom';
@@ -36,7 +42,9 @@ export class SocialModule implements Module, PartyApi, HubRoom {
     this.hub.register(this);
   }
 
-  get bus(): Bus { return this.hub.bus; }
+  get bus(): Bus {
+    return this.hub.bus;
+  }
 
   install(reg: Registrar): void {
     reg.on<PartyMsg>(MSG34.PARTY, 'party', (p, m) => this.party.handle(p, m));
@@ -48,8 +56,12 @@ export class SocialModule implements Module, PartyApi, HubRoom {
 
   // ───────────────────────── PartyApi ─────────────────────────
 
-  partyOf(accountId: string): string { return this.party.partyOf(accountId); }
-  partyMates(accountId: string): string[] { return this.party.partyMates(accountId); }
+  partyOf(accountId: string): string {
+    return this.party.partyOf(accountId);
+  }
+  partyMates(accountId: string): string[] {
+    return this.party.partyMates(accountId);
+  }
 
   // ───────────────────────── lifecycle ─────────────────────────
 
@@ -77,13 +89,18 @@ export class SocialModule implements Module, PartyApi, HubRoom {
       p.data = loadPlayerData(ch.data, this.room.wclock.season(), this.room.wclock.now());
       p.dirty('inv', 'coins', 'equip');
       p.sendFullProfile();
-    } catch (e) { console.error('reload after trade failed', e); }
+    } catch (e) {
+      console.error('reload after trade failed', e);
+    }
   }
 
   async leave(p: ServerPlayer, reason: 'leave' | 'handoff' | 'kick'): Promise<void> {
     await this.trade.leave(p);
     const sub = this.playerSubs.get(p.accountId);
-    if (sub && sub[0] === p.id) { sub[1](); this.playerSubs.delete(p.accountId); }
+    if (sub && sub[0] === p.id) {
+      sub[1]();
+      this.playerSubs.delete(p.accountId);
+    }
     this.hub.dir.remove(p.accountId, p.id);
     this.chat.leave(p);
     await this.party.leave(p, reason);
@@ -100,7 +117,10 @@ export class SocialModule implements Module, PartyApi, HubRoom {
   tick(now: number): void {
     this.tickN++;
     if (this.tickN % 10 === 0) this.party.tick(Date.now());
-    if (this.tickN % 20 === 5) { this.trade.tick(Date.now()); this.chat.tick(Date.now()); }
+    if (this.tickN % 20 === 5) {
+      this.trade.tick(Date.now());
+      this.chat.tick(Date.now());
+    }
     void now;
   }
 
@@ -111,9 +131,15 @@ export class SocialModule implements Module, PartyApi, HubRoom {
 
   // ───────────────────────── hub fan-out ─────────────────────────
 
-  onPartyChanged(id: string): void { if (!this.disposed) this.party.onPartyChanged(id); }
-  onGlobalChat(msg: ChatMsg): void { if (!this.disposed) this.chat.onGlobal(msg); }
-  onPartyChat(partyId: string, msg: ChatMsg): void { if (!this.disposed) this.chat.onPartyChat(partyId, msg); }
+  onPartyChanged(id: string): void {
+    if (!this.disposed) this.party.onPartyChanged(id);
+  }
+  onGlobalChat(msg: ChatMsg): void {
+    if (!this.disposed) this.chat.onGlobal(msg);
+  }
+  onPartyChat(partyId: string, msg: ChatMsg): void {
+    if (!this.disposed) this.chat.onPartyChat(partyId, msg);
+  }
 
   async dispose(): Promise<void> {
     this.disposed = true;
@@ -124,5 +150,7 @@ export class SocialModule implements Module, PartyApi, HubRoom {
     this.playerSubs.clear();
   }
 
-  debug(): Record<string, unknown> { return { ...this.trade.debug() }; }
+  debug(): Record<string, unknown> {
+    return { ...this.trade.debug() };
+  }
 }

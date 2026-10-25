@@ -7,7 +7,18 @@ const pal = PALETTE.map((h) => {
 }).join(',');
 
 /** Surface height (art px, + up) of each ground class; PATH depends on its paving style. Mirrored in terrain.ts. */
-export const GROUND_Z = { water: -7, grass: 0, sand: -2, dirt: -2, road: -1, plaza: 0, soil: -2, floor: 0, wall: 0, caveWall: 13 } as const;
+export const GROUND_Z = {
+  water: -7,
+  grass: 0,
+  sand: -2,
+  dirt: -2,
+  road: -1,
+  plaza: 0,
+  soil: -2,
+  floor: 0,
+  wall: 0,
+  caveWall: 13,
+} as const;
 /** tile rows at or beyond this belong to the Undercroft (shared CAVE_OY - 512, with slack for the window origin) */
 const CAVE_ROW = CAVE_OY - 600;
 
@@ -449,50 +460,46 @@ int floorTop(vec2 tf) {
 }
 
 // ───────── water ─────────
-int waterTop(ivec2 ip, vec2 tf, float sdf, bool deep, float t, int s, int b) {
-  float tt = t * uMotion * .65;
-  vec2 wp = vec2(ip);
-  // layered depth bands with soft, wobbling contours (deep navy far out, slate-blue shelves near the banks)
-  // clear and bright like the reference tiles: pale shallows, mid-blue body, only the deepest open water goes navy
-  float depth = sdf + (deep ? 1.2 : 0.0) + 0.55 * (vnoise(wp * 0.05 + vec2(tt * 0.05, 0.0)) - 0.5);
-  int c = depth < 0.55 ? W4 : depth < 1.5 ? W3 : depth < 4.5 ? W2 : depth < 9.0 ? W1 : W0;
-  // lapping foam along the bank
-  float lap = 0.32 + 0.12 * sin(tt * 1.6 + wp.x * 0.15 + wp.y * 0.3);
-  float foam = vnoise(vec2(wp.x * 0.09 + tt * 0.03, wp.y * 0.14));
-  if (sdf < lap && !deep && foam > 0.56) c = sdf < lap - 0.12 && foam > 0.85 ? W5 : W4;
-  // Quiet submerged caustics in the shallows, broken into short pixel clusters.
-  float caustic = sin(tf.x * 5.0 + vnoise(tf * 0.7) * 4.0 + tt * 0.6) + sin(tf.y * 7.0 + vnoise(tf * 0.6 + 9.0) * 3.0 - tt * 0.45);
-  if (sdf > lap && depth < 1.8 && caustic > 1.65) c = W5;
-  // ripple lines: long, gently slanted streaks (along the iso axes) on a jittered grid; they drift and fade
-  ivec2 RC = ivec2(18, 7);
-  int drift = int(floor(tt * 1.5));
-  ivec2 ipd = ip + ivec2(drift, 0);
-  ivec2 rc0 = cellOf(ipd, RC);
-  for (int j = 0; j <= 1; j++) for (int i = -1; i <= 0; i++) {
-    ivec2 cc = rc0 + ivec2(i, j);
-    float h = hashk(cc, 40);
-    if (h > 0.14) continue;
-    float ph = fract(h * 7.0 + tt * 0.2);
-    if (ph > 0.8) continue;
-    ivec2 b = cc * RC + ivec2(int(hashk(cc, 41) * 8.0), int(hashk(cc, 42) * 5.0));
-    ivec2 q = ipd - b;
-    int len = 4 + int(hashk(cc, 46) * 6.0);
-    int dir = hashk(cc, 45) < 0.5 ? 1 : -1;
-    int yy = (dir > 0 ? q.x : (len - 1 - q.x)) / 4;            // 1px rise every 4px: a flat, wavy streak
-    if (q.x >= 0 && q.x < len && q.y == yy) c = depth < 1.4 ? W5 : depth < 4.5 ? W4 : W3;
-    else if (q.x >= 1 && q.x < len - 1 && q.y == yy + 1) c = depth < 0.55 ? W3 : max(c - 1, W0);
-  }
-  if (hashk(ip, 43) > 0.9975 && fract(hashk(ip, 44) * 3.0 + tt * 0.5) < 0.2) c = W7;   // sparkles
-  if (b == B_SWAMP) c = c >= W4 ? G3 : c == W3 ? G1 : c == W2 ? G0 : NIGHT;           // tannin-dark fen water
-  else if (b == B_CORRUPT) c = c >= W4 ? Q3 : c == W3 ? Q1 : c == W2 ? Q0 : INK;     // ink-black, violet glints
-  else if (b == B_ENCHANTED && c >= W3) c = c >= W4 ? Q7 : W4;                       // glowing glade pools
-  if (s == 3 && sdf < 1.3 + 0.5 * vnoise(wp * 0.05)) {
-    // frozen shallows with cracks
-    float cr = abs(vnoise(wp * 0.09 + 40.0) - 0.5);
-    if (cr < 0.02) return W4;
-    return groundClusters(ip,W6,W5,W7,.3);
-  }
+// One quiet body tone. Depth shading is continuous below, not filled threshold islands.
+int waterTone(int c, int b) {
+  if(b==B_SWAMP)return c==W4?G2:c==W3?G1:G0;
+  if(b==B_CORRUPT)return c==W4?Q2:c==W3?Q1:Q0;
+  if(b==B_ENCHANTED&&c==W4)return Q7;
   return c;
+}
+int calmWater(ivec2 ip, float sdf, bool deep, float t, int season, int bio, bool detail) {
+  int c=W2;
+  float time=t*uMotion*.22;
+  // A thin bank shelf, rather than successively darker outlines around every pool centre.
+  if(!deep&&sdf<.28)c=W3;
+  ivec2 drift=ivec2(int(floor(time)),0),size=ivec2(36,18);
+  ivec2 cell=cellOf(ip+drift,size);
+  float h=hashk(cell,40);
+  ivec2 origin=cell*size+ivec2(3+int(hashk(cell,41)*24.0),3+int(hashk(cell,42)*10.0));
+  ivec2 q=ip+drift-origin;
+  int len=3+int(hashk(cell,46)*3.0);
+  if(h<(detail?.36:.22)&&q.y==0&&q.x>=0&&q.x<len&&fract(h*7.0+time*.2)<.78)c=W3;
+  if(bio==B_ENCHANTED&&c==W3&&h<.035&&q.y==0)c=W4;
+  if(season==3&&sdf<1.1){
+    c=W5;
+    if(q.y==0&&q.x>=0&&q.x<3&&h<.15)c=W6;
+    return c;
+  }
+  return waterTone(c,bio);
+}
+int waterTop(ivec2 ip, vec2 tf, float sdf, bool deep, float t, int s, int b) {
+  return calmWater(ip,sdf,deep,t,s,b,true);
+}
+
+// Slow molten flow: tiny broken streaks, no outlined polygon plates or black crust islands.
+int lavaTop(ivec2 ip,float t){
+  ivec2 size=ivec2(28,16),drift=ivec2(int(floor(t*uMotion*.18)),0);
+  ivec2 cell=cellOf(ip+drift,size);
+  ivec2 origin=cell*size+ivec2(3+int(hashk(cell,111)*14.0),3+int(hashk(cell,112)*7.0));
+  ivec2 q=ip+drift-origin;
+  float h=hashk(cell,113);
+  if(q.y==0&&q.x>=0){if(h<.45&&q.x<7)return R4;if(h>.9&&q.x<4)return R2;}
+  return R3;
 }
 
 // Quieter materials for small/limited GPUs: keep the same biome ramps, water depths and shore foam.
@@ -505,16 +512,7 @@ int economyGrass(ivec2 ip,vec2 tf,int s,float flux,float t,int b){
   return c;
 }
 int economyWater(ivec2 ip,float sdf,bool deep,float t,int s,int b){
-  float depth=sdf+(deep?1.2:0.0),tt=t*uMotion;
-  int c=depth<.55?W4:depth<1.5?W3:depth<4.5?W2:depth<9.0?W1:W0;
-  float wave=sin(float(ip.x)*.15+float(ip.y)*.3+tt*1.2);
-  if(!deep&&sdf<.28+.1*wave)c=W5;
-  else if(wave>.96&&hashk(cellOf(ip,ivec2(12,4)),4)>.7)c=min(c+1,W4);
-  if(b==B_SWAMP)c=c>=W4?G3:c==W3?G1:c==W2?G0:NIGHT;
-  else if(b==B_CORRUPT)c=c>=W4?Q3:c==W3?Q1:c==W2?Q0:INK;
-  else if(b==B_ENCHANTED&&c>=W3)c=c>=W4?Q7:W4;
-  if(s==3&&sdf<1.3)c=hashk(cellOf(ip,ivec2(4,3)),7)>.65?W7:W6;
-  return c;
+  return calmWater(ip,sdf,deep,t,s,b,false);
 }
 
 // ───────── side faces ─────────
@@ -653,11 +651,7 @@ void main() {
     } else if (cls == FLOOR) {
       c = floorTop(tfHit);
     } else if(cls==LAVA){
-      float flow=uMotion>.5?floor(t*1.5):0.0;
-      float crust=fractureNoise(vec2(ip)*vec2(.085,.14)+vec2(flow*.05,0.0));
-      float fissure=abs(crust-.5);
-      c=fissure<.022?R5:fissure<.065?R3:crust>.68?E0:R0;
-      if(hashi(ip)> .995&&fissure<.025)c=R6;
+      c=lavaTop(ip,t);
     } else if(cls==VAULT){
       vec2 p=fract(tfHit);float h=hashi(ivec2(floor(tfHit)));
       c=p.x<.04||p.y<.04?NIGHT:submerged?(h>.94?W3:W2):h>.96?MIST:STEEL;
@@ -729,7 +723,16 @@ void main() {
       c = k == 1 ? (left ? E3 : E2) : (k == 2 ? (left ? STEEL : SLATE) : (left ? E1 : E0));   // contact shadow at the foot
     }
   }
+  // Quiet bank foam and tint it to the habitat; keep winter ice and quantum accents distinct.
+  if(sb!=3&&c>=W4&&c<=W7&&(isWater(cls)||face>0))c=waterTone(W4,bio);
   vec3 col3 = P(c);
+  if(face==0&&isWater(cls)){
+    // Keep depth readable through a low-amplitude shore gradient; never draw dark central blobs.
+    float depth=smoothstep(.3,9.0,sdfAt(tfHit));
+    col3*=mix(1.015,.965,depth);
+  }
+  if(face==0&&cls==LAVA)col3*=.985+.03*vnoise(tfHit*.16+vec2(t*uMotion*.008,0.0));
+
 
   // Feather only real habitat boundaries, within the same surface material.
   // Geometry, collision, coastlines and paving stay on their actual tiles.

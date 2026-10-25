@@ -5,10 +5,17 @@ import { runtime34 } from '../src/features/runtime34';
 import { boot3, clearEnemies, dummy, flatten, setLevel, spawn3, sleep, tp, until, type P3 } from './p3helpers';
 
 let app: App;
-beforeAll(async () => { app = await boot3(); });
-afterAll(async () => { await app?.close(); });
+beforeAll(async () => {
+  app = await boot3();
+});
+afterAll(async () => {
+  await app?.close();
+});
 
-interface Log { ev: ShadowEvent[]; roster: ShadowRosterMsg[] }
+interface Log {
+  ev: ShadowEvent[];
+  roster: ShadowRosterMsg[];
+}
 const logOf = (p: P3): Log => {
   const l: Log = { ev: [], roster: [] };
   p.r.onMessage(MSG34.SHADOW_EV, (m: ShadowEvent) => l.ev.push(m));
@@ -30,7 +37,10 @@ describe('Shadow Army', () => {
     // too early: not enough level is refused elsewhere; here we kill something
     const prey = dummy(p.room, p.sp.sim.x + 1.5, p.sp.sim.y);
     p.room.hitEnemy(prey, 9999, p.sp, 1, 0, 0);
-    await until(() => [...p.room.state.spells.values()].some((s) => s.kind === SPELL.RESIDUE && s.owner === p.sid), 2000);
+    await until(
+      () => [...p.room.state.spells.values()].some((s) => s.kind === SPELL.RESIDUE && s.owner === p.sid),
+      2000,
+    );
 
     p.r.send(MSG34.EXTRACT, {});
     await until(() => log.ev.some((e) => e.kind === 'channel'), 2000);
@@ -103,7 +113,15 @@ describe('Shadow Army', () => {
     await until(() => log.ev.some((e) => e.kind === 'reformed'), 2000);
     expect(sh.hp).toBeGreaterThan(0);
 
-    for (const junk of [null, 5, { act: 'summon', id: {} }, { act: 'stance', stance: 'chaos' }, { act: 'rename', id: 'x', name: 5 }, { act: 'nope' }]) p.r.send(MSG34.SHADOW_CMD, junk);
+    for (const junk of [
+      null,
+      5,
+      { act: 'summon', id: {} },
+      { act: 'stance', stance: 'chaos' },
+      { act: 'rename', id: 'x', name: 5 },
+      { act: 'nope' },
+    ])
+      p.r.send(MSG34.SHADOW_CMD, junk);
     await sleep(200);
     expect(p.room.players.has(p.sid)).toBe(true);
     await p.r.leave();

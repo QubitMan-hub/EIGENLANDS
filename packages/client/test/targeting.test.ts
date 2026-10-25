@@ -11,7 +11,10 @@ describe('use targeting', () => {
     expect(describeUse(tool('pickaxe', 2), T.ORE_IRON, undefined, 0)).toMatchObject({ ok: true });
     expect(describeUse(tool('hoe'), T.GRASS, undefined, 0)).toMatchObject({ kind: 'till' });
     expect(describeUse(tool('can'), T.TILLED, undefined, 0)).toMatchObject({ kind: 'water', ok: true });
-    expect(describeUse({ id: 'turnip_seed', n: 5 }, T.TILLED, undefined, 0)).toMatchObject({ kind: 'plant', label: 'Plant Turnip' });
+    expect(describeUse({ id: 'turnip_seed', n: 5 }, T.TILLED, undefined, 0)).toMatchObject({
+      kind: 'plant',
+      label: 'Plant Turnip',
+    });
     expect(describeUse(tool('rod'), T.WATER, undefined, 0)).toMatchObject({ kind: 'cast' });
     expect(describeUse(tool('net'), T.FLOWERS, undefined, 0)).toMatchObject({ kind: 'net' });
     expect(describeUse(null, T.FORAGE, undefined, 0)).toMatchObject({ kind: 'forage' });
@@ -19,17 +22,30 @@ describe('use targeting', () => {
     expect(describeUse({ id: 'chest', n: 1 }, T.GRASS, undefined, 0)).toMatchObject({ kind: 'place' });
     expect(describeUse({ id: 'chest', n: 1 }, T.WATER, undefined, 0)).toBeNull();
     expect(describeUse(null, T.GRASS, undefined, 0)).toBeNull();
-    expect(describeUse(tool('axe'), T.GRASS_TALL, undefined, 0)).toMatchObject({ kind: 'tool', ok: true, label: 'Cut tall grass (fiber)' });
+    expect(describeUse(tool('axe'), T.GRASS_TALL, undefined, 0)).toMatchObject({
+      kind: 'tool',
+      ok: true,
+      label: 'Cut tall grass (fiber)',
+    });
     expect(describeUse(tool('net'), T.GRASS_TALL, undefined, 0)).toMatchObject({ kind: 'net' });
     const statue: WorldObj = { x: 0, y: 0, kind: 'deco', sub: 'statue', static: true };
     expect(describeUse(null, T.PATH, statue, 0)).toMatchObject({ kind: 'open', label: 'Read the Statue of QubitMan' });
-    expect(describeUse(null, T.PATH, { x: 0, y: 0, kind: 'sign', sub: 'board', static: true }, 0)).toMatchObject({ kind: 'open', label: 'Check the request board' });
+    expect(describeUse(null, T.PATH, { x: 0, y: 0, kind: 'sign', sub: 'board', static: true }, 0)).toMatchObject({
+      kind: 'open',
+      label: 'Check the request board',
+    });
     expect(describeUse(null, T.PATH, { x: 0, y: 0, kind: 'deco', sub: 'bench', static: true }, 0)).toBeNull();
   });
   it('routes objects: stations open, ripe crops harvest, unripe crops show progress', () => {
     const station: WorldObj = { x: 0, y: 0, kind: 'station', sub: 'forge' };
     expect(describeUse(tool('axe'), T.GRASS, station, 0)).toMatchObject({ kind: 'open', label: 'Use Anvil & Forge' });
-    const ripe: WorldObj = { x: 0, y: 0, kind: 'crop', sub: 'turnip', data: { crop: 'turnip', planted: 0, growth: 2, watered: 0, lastDay: 0, owner: 'a' } };
+    const ripe: WorldObj = {
+      x: 0,
+      y: 0,
+      kind: 'crop',
+      sub: 'turnip',
+      data: { crop: 'turnip', planted: 0, growth: 2, watered: 0, lastDay: 0, owner: 'a' },
+    };
     expect(describeUse(null, T.TILLED, ripe, 0)).toMatchObject({ kind: 'harvest' });
     const young = { ...ripe, data: { ...ripe.data, growth: 0 } };
     expect(describeUse(null, T.TILLED, young, 0)).toMatchObject({ kind: 'none', ok: false });

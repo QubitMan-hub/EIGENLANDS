@@ -1,11 +1,77 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ChunkStore, CROPS, ITEMS, MATERIALS, NPCS, RECIPES, T, afterHarvest, addStack, advanceDay, beatTimes, buyPrice, canAdd, catchUp,
-  collapseCrop, cropSeasonOk, cropStage, decaySupply, emptyInventory, findPath, forge, gameHour, hearts, interference, isRipe, matchExperiment,
-  moveSlot, preview, removeItem, countItem, rollFish, sanitizeHits, scheduleAt, scoreHits, sellPrice, skillLevel, townFor, townsFor, weatherForDay,
-  tileAt, isSolid, FISH_TABLE, NODES, TILE_DEFS, FORAGE_BY_SEASON, validInventory, mulberry32, tierOf, giftTaste, SHOP_NPCS, buildingAt,
-  type CropData, DAY_MS, QUESTS, QUEST_BY_ID, offerable, startQuest, applyQuestEvent, questComplete, type QuestLog,
-  syncDeliveries, dailyRequests, questDef, pruneRequests, VOICES, composeTalk, pendingEvent, barkFor, QUBITMAN, NPC_BY_ID, shopOpen, STATION_SUBS,
+  ChunkStore,
+  CROPS,
+  ITEMS,
+  MATERIALS,
+  NPCS,
+  RECIPES,
+  T,
+  afterHarvest,
+  addStack,
+  advanceDay,
+  beatTimes,
+  buyPrice,
+  canAdd,
+  catchUp,
+  collapseCrop,
+  cropSeasonOk,
+  cropStage,
+  decaySupply,
+  emptyInventory,
+  findPath,
+  forge,
+  gameHour,
+  hearts,
+  interference,
+  isRipe,
+  matchExperiment,
+  moveSlot,
+  preview,
+  removeItem,
+  countItem,
+  rollFish,
+  sanitizeHits,
+  scheduleAt,
+  scoreHits,
+  sellPrice,
+  skillLevel,
+  townFor,
+  townsFor,
+  weatherForDay,
+  tileAt,
+  isSolid,
+  FISH_TABLE,
+  NODES,
+  TILE_DEFS,
+  FORAGE_BY_SEASON,
+  validInventory,
+  mulberry32,
+  tierOf,
+  giftTaste,
+  SHOP_NPCS,
+  buildingAt,
+  type CropData,
+  DAY_MS,
+  QUESTS,
+  QUEST_BY_ID,
+  offerable,
+  startQuest,
+  applyQuestEvent,
+  questComplete,
+  type QuestLog,
+  syncDeliveries,
+  dailyRequests,
+  questDef,
+  pruneRequests,
+  VOICES,
+  composeTalk,
+  pendingEvent,
+  barkFor,
+  QUBITMAN,
+  NPC_BY_ID,
+  shopOpen,
+  STATION_SUBS,
 } from '../src';
 
 const SEED = 20260101;
@@ -39,13 +105,25 @@ describe('items & inventory', () => {
     expect(inv.filter(Boolean).length).toBe(2);
     expect(moveSlot(inv, 0, 5)).toBe(true);
     expect(inv[5]).toBeTruthy();
-    const v = validInventory([{ id: 'nope', n: 3 }, { id: 'wood', n: -2 }, { id: 'wood', n: 4 }]);
+    const v = validInventory([
+      { id: 'nope', n: 3 },
+      { id: 'wood', n: -2 },
+      { id: 'wood', n: 4 },
+    ]);
     expect([v[0], v[1], v[2]!.n]).toEqual([null, null, 4]);
   });
 });
 
 describe('farming rules', () => {
-  const fresh = (crop = 'turnip', over: Partial<CropData> = {}): CropData => ({ crop, planted: 0, growth: 0, watered: -1, lastDay: -1, owner: 'a', ...over });
+  const fresh = (crop = 'turnip', over: Partial<CropData> = {}): CropData => ({
+    crop,
+    planted: 0,
+    growth: 0,
+    watered: -1,
+    lastDay: -1,
+    owner: 'a',
+    ...over,
+  });
   it('grows only on watered days and ripens', () => {
     let d = fresh();
     d = advanceDay(d, 0, { rain: false, sprinkler: false, greenhouse: false });
@@ -119,9 +197,23 @@ describe('interference forging', () => {
     const plan = { startAt: 1000, intervalMs: 600, count: 4, windowMs: 180 };
     const beats = beatTimes(plan);
     expect(scoreHits(beats, beats, 180)).toBeCloseTo(1);
-    expect(scoreHits(beats, beats.map((b) => b + 90), 180)).toBeLessThan(0.7);
-    expect(scoreHits(beats, beats.map((b) => b + 300), 180)).toBe(0);
-    expect(scoreHits(beats, [beats[0]!, beats[0]! + 10, beats[0]! + 20, beats[0]! + 30], 180)).toBeLessThanOrEqual(0.25);
+    expect(
+      scoreHits(
+        beats,
+        beats.map((b) => b + 90),
+        180,
+      ),
+    ).toBeLessThan(0.7);
+    expect(
+      scoreHits(
+        beats,
+        beats.map((b) => b + 300),
+        180,
+      ),
+    ).toBe(0);
+    expect(scoreHits(beats, [beats[0]!, beats[0]! + 10, beats[0]! + 20, beats[0]! + 30], 180)).toBeLessThanOrEqual(
+      0.25,
+    );
     expect(sanitizeHits([0, 1100, 1105, 1700, 99999, NaN], plan, 10)).toEqual([1100, 1700]);
   });
 });
@@ -136,15 +228,41 @@ describe('crafting data', () => {
     expect(new Set(RECIPES.map((r) => r.id)).size).toBe(RECIPES.length);
   });
   it('experiments discover recipes by exact ingredient match, including superposed seeds', () => {
-    expect(matchExperiment('furnace', [{ id: 'copper_ore', n: 2 }, { id: 'coal', n: 1 }])?.id).toBe('copper_ingot');
-    expect(matchExperiment('furnace', [{ id: 'copper_ore', n: 3 }, { id: 'coal', n: 1 }])).toBeNull();
-    expect(matchExperiment('alchemy', [{ id: 'qubit_crystal', n: 1 }, { id: 'turnip_seed', n: 1 }, { id: 'potato_seed', n: 1 }])?.id).toBe('superposed_seed');
-    expect(matchExperiment('alchemy', [{ id: 'qubit_crystal', n: 1 }, { id: 'turnip_seed', n: 2 }])).toBeNull();
+    expect(
+      matchExperiment('furnace', [
+        { id: 'copper_ore', n: 2 },
+        { id: 'coal', n: 1 },
+      ])?.id,
+    ).toBe('copper_ingot');
+    expect(
+      matchExperiment('furnace', [
+        { id: 'copper_ore', n: 3 },
+        { id: 'coal', n: 1 },
+      ]),
+    ).toBeNull();
+    expect(
+      matchExperiment('alchemy', [
+        { id: 'qubit_crystal', n: 1 },
+        { id: 'turnip_seed', n: 1 },
+        { id: 'potato_seed', n: 1 },
+      ])?.id,
+    ).toBe('superposed_seed');
+    expect(
+      matchExperiment('alchemy', [
+        { id: 'qubit_crystal', n: 1 },
+        { id: 'turnip_seed', n: 2 },
+      ]),
+    ).toBeNull();
     expect(matchExperiment('workbench', [{ id: 'wood', n: 2 }])?.id).toBe('plank');
   });
   it('enough starter recipes exist and every NPC-taught recipe has a teacher', () => {
     expect(RECIPES.filter((r) => r.learn === 'start').length).toBeGreaterThan(25);
-    for (const r of RECIPES) if (r.learn.startsWith('npc:')) expect(NPCS.find((n) => n.id === r.learn.slice(4)), r.id).toBeTruthy();
+    for (const r of RECIPES)
+      if (r.learn.startsWith('npc:'))
+        expect(
+          NPCS.find((n) => n.id === r.learn.slice(4)),
+          r.id,
+        ).toBeTruthy();
   });
 });
 
@@ -163,8 +281,16 @@ describe('economy & skills & fishing', () => {
   it('fish depend on season, time and water; skill favours rare fish', () => {
     const r = mulberry32(5);
     const base = { season: 1, hour: 12, deep: false, weather: 'clear' as const, level: 1, luck: 0 };
-    for (let i = 0; i < 200; i++) { const got = rollFish(r, base); expect(FISH_TABLE.find((f) => f.id === got.id)!.water).not.toBe('deep'); }
-    const count = (level: number) => { let k = 0; const rr = mulberry32(9); for (let i = 0; i < 3000; i++) if (rollFish(rr, { ...base, deep: true, season: 0, level }).difficulty > 0.4) k++; return k; };
+    for (let i = 0; i < 200; i++) {
+      const got = rollFish(r, base);
+      expect(FISH_TABLE.find((f) => f.id === got.id)!.water).not.toBe('deep');
+    }
+    const count = (level: number) => {
+      let k = 0;
+      const rr = mulberry32(9);
+      for (let i = 0; i < 3000; i++) if (rollFish(rr, { ...base, deep: true, season: 0, level }).difficulty > 0.4) k++;
+      return k;
+    };
     expect(count(10)).toBeGreaterThan(count(1));
     expect(rollFish(mulberry32(1), { ...base, season: 3, hour: 2 }).id).toBeTruthy();
   });
@@ -172,15 +298,22 @@ describe('economy & skills & fishing', () => {
 
 describe('world: nodes, ores and the town', () => {
   it('every node tile has a def and drops real items', () => {
-    for (const n of Object.values(NODES)) { expect(TILE_DEFS[n.tile]).toBeTruthy(); for (const d of n.drops) expect(ITEMS[d.item]).toBeTruthy(); }
+    for (const n of Object.values(NODES)) {
+      expect(TILE_DEFS[n.tile]).toBeTruthy();
+      for (const d of n.drops) expect(ITEMS[d.item]).toBeTruthy();
+    }
     for (const season of FORAGE_BY_SEASON) for (const id of season) expect(ITEMS[id]).toBeTruthy();
   });
   it('the world contains copper nearby, and iron/silver/gold only further out', () => {
     const seen = new Map<number, number>();
-    for (let cy = -8; cy <= 8; cy++) for (let cx = -8; cx <= 8; cx++) for (let y = 0; y < 32; y += 1) for (let x = 0; x < 32; x += 1) {
-      const t = tileAt(SEED, cx * 32 + x, cy * 32 + y);
-      if (t >= T.ORE_COPPER && t <= T.CRYSTAL) seen.set(t, Math.min(seen.get(t) ?? 1e9, Math.hypot(cx * 32 + x, cy * 32 + y)));
-    }
+    for (let cy = -8; cy <= 8; cy++)
+      for (let cx = -8; cx <= 8; cx++)
+        for (let y = 0; y < 32; y += 1)
+          for (let x = 0; x < 32; x += 1) {
+            const t = tileAt(SEED, cx * 32 + x, cy * 32 + y);
+            if (t >= T.ORE_COPPER && t <= T.CRYSTAL)
+              seen.set(t, Math.min(seen.get(t) ?? 1e9, Math.hypot(cx * 32 + x, cy * 32 + y)));
+          }
     expect(seen.get(T.ORE_COPPER)).toBeLessThan(60);
     expect(seen.get(T.ORE_IRON) ?? 1e9).toBeGreaterThan(40);
     expect(seen.get(T.ORE_SILVER) ?? 1e9).toBeGreaterThan(90);
@@ -189,7 +322,22 @@ describe('world: nodes, ores and the town', () => {
   const town = townFor(SEED);
   it('Hadamere exists with its 10 original buildings plus the wider village, walkable doors and furnished interiors', () => {
     expect(town.buildings.length).toBe(27);
-    for (const id of ['smithy', 'hall', 'inn', 'store', 'farmhouse', 'herbalist', 'fisher', 'tailor', 'carpenter', 'scout']) expect(town.buildings.some((b) => b.id === id), id).toBe(true);
+    for (const id of [
+      'smithy',
+      'hall',
+      'inn',
+      'store',
+      'farmhouse',
+      'herbalist',
+      'fisher',
+      'tailor',
+      'carpenter',
+      'scout',
+    ])
+      expect(
+        town.buildings.some((b) => b.id === id),
+        id,
+      ).toBe(true);
     const store = new ChunkStore(SEED);
     for (const b of town.buildings) {
       expect(tileAt(SEED, b.doorX, b.doorY)).toBe(T.DOOR);
@@ -200,7 +348,22 @@ describe('world: nodes, ores and the town', () => {
       store.get(Math.floor(b.x / 32), Math.floor(b.y / 32));
     }
     const subs = new Set(town.objects.map((o) => o.sub));
-    for (const s of ['forge', 'furnace', 'workbench', 'cooking_pot', 'alchemy', 'loom', 'carpenter', 'well', 'bed', 'statue', 'plaque', 'stall', 'bench']) expect(subs.has(s), s).toBe(true);
+    for (const s of [
+      'forge',
+      'furnace',
+      'workbench',
+      'cooking_pot',
+      'alchemy',
+      'loom',
+      'carpenter',
+      'well',
+      'bed',
+      'statue',
+      'plaque',
+      'stall',
+      'bench',
+    ])
+      expect(subs.has(s), s).toBe(true);
     const plaque = town.objects.find((o) => o.sub === 'plaque')!;
     expect(String(plaque.data?.text)).toContain('ALL HAIL QUBITMAN');
     // static furnishing is solid in the shared collision query
@@ -208,11 +371,18 @@ describe('world: nodes, ores and the town', () => {
     expect(store.solidAt(forge.x, forge.y)).toBe(true);
   });
   it('keeps hall, inn and farmhouse dining furniture outside their entrance aisles', () => {
-    for (const [id, minimum] of [['hall', 2], ['inn', 2], ['farmhouse', 1]] as const) {
+    for (const [id, minimum] of [
+      ['hall', 2],
+      ['inn', 2],
+      ['farmhouse', 1],
+    ] as const) {
       const b = town.buildings.find((b) => b.id === id)!;
-      const tables = town.objects.filter((o) => o.sub === 'table' && o.x > b.x && o.x < b.x + b.w - 1 && o.y > b.y && o.y < b.y + b.h - 1);
+      const tables = town.objects.filter(
+        (o) => o.sub === 'table' && o.x > b.x && o.x < b.x + b.w - 1 && o.y > b.y && o.y < b.y + b.h - 1,
+      );
       expect(tables.length, `${id} has usable dining space`).toBeGreaterThanOrEqual(minimum);
-      for (const table of tables) expect(Math.abs(table.x - b.doorX) > 1 || table.y < b.doorY - 2, `${id} entrance remains clear`).toBe(true);
+      for (const table of tables)
+        expect(Math.abs(table.x - b.doorX) > 1 || table.y < b.doorY - 2, `${id} entrance remains clear`).toBe(true);
     }
   });
   it('there is a walkable route between the plaza and every front door', () => {
@@ -231,15 +401,21 @@ describe('world: nodes, ores and the town', () => {
 });
 
 describe('NPCs', () => {
-  const town = { ...townFor(SEED), spots: Object.assign({}, ...townsFor(SEED).map(t => t.spots)) };
+  const town = { ...townFor(SEED), spots: Object.assign({}, ...townsFor(SEED).map((t) => t.spots)) };
   it('all villagers with complete 24h schedules whose spots all exist', () => {
     expect(NPCS.length).toBe(66);
     for (const n of NPCS) {
       let h = 0;
-      for (const b of [...n.schedule].sort((a, c) => a.h0 - c.h0)) { expect(b.h0, n.id).toBe(h); h = b.h1; expect(town.spots[b.spot], `${n.id}:${b.spot}`).toBeTruthy(); }
+      for (const b of [...n.schedule].sort((a, c) => a.h0 - c.h0)) {
+        expect(b.h0, n.id).toBe(h);
+        h = b.h1;
+        expect(town.spots[b.spot], `${n.id}:${b.spot}`).toBeTruthy();
+      }
       expect(h, n.id).toBe(24);
       expect(town.spots[n.home], `${n.id} home`).toBeTruthy();
-      for (const w of ['rain', 'snow', 'clear'] as const) for (const hr of [3, 9, 13, 19]) expect(town.spots[scheduleAt(n, hr, w).spot], `${n.id}@${hr}/${w}`).toBeTruthy();
+      for (const w of ['rain', 'snow', 'clear'] as const)
+        for (const hr of [3, 9, 13, 19])
+          expect(town.spots[scheduleAt(n, hr, w).spot], `${n.id}@${hr}/${w}`).toBeTruthy();
     }
   });
   it('gift preferences and shops reference real items; teachers exist', () => {
@@ -261,18 +437,31 @@ describe('NPCs', () => {
 });
 
 describe('time helpers used by day rollover', () => {
-  it('a game day lasts 24 minutes', () => { expect(DAY_MS).toBe(1440000); expect(gameHour(0)).toBeCloseTo(6); });
+  it('a game day lasts 24 minutes', () => {
+    expect(DAY_MS).toBe(1440000);
+    expect(gameHour(0)).toBeCloseTo(6);
+  });
 });
 
 describe('quests', () => {
   it('every quest references real givers, items and prerequisites', () => {
     for (const q of QUESTS) {
-      expect(NPCS.find((n) => n.id === q.giver), q.id).toBeTruthy();
+      expect(
+        NPCS.find((n) => n.id === q.giver),
+        q.id,
+      ).toBeTruthy();
       for (const r of q.requires ?? []) expect(QUEST_BY_ID[r], `${q.id} requires ${r}`).toBeTruthy();
       for (const i of q.rewards.items ?? []) expect(ITEMS[i.id], `${q.id}:${i.id}`).toBeTruthy();
-      for (const o of q.objectives) if ((o.type === 'gain' || o.type === 'craft' || o.type === 'deliver') && !/^[*#@]/.test(o.target)) expect(ITEMS[o.target], `${q.id}:${o.target}`).toBeTruthy();
-      for (const o of q.objectives) if (o.target.startsWith('@')) expect(Object.values(STATION_SUBS)).toContain(o.target.slice(1));
-      if (q.rewards.recipe) expect(RECIPES.some((r) => r.id === q.rewards.recipe), q.id).toBe(true);
+      for (const o of q.objectives)
+        if ((o.type === 'gain' || o.type === 'craft' || o.type === 'deliver') && !/^[*#@]/.test(o.target))
+          expect(ITEMS[o.target], `${q.id}:${o.target}`).toBeTruthy();
+      for (const o of q.objectives)
+        if (o.target.startsWith('@')) expect(Object.values(STATION_SUBS)).toContain(o.target.slice(1));
+      if (q.rewards.recipe)
+        expect(
+          RECIPES.some((r) => r.id === q.rewards.recipe),
+          q.id,
+        ).toBe(true);
       expect(q.lines.offer.length).toBeGreaterThan(10);
     }
   });
@@ -296,7 +485,10 @@ describe('quests', () => {
     expect(questComplete(QUEST_BY_ID.timber!, log.timber!)).toBe(true);
     expect(startQuest(log, 'timber')).toBe(false);
     // pattern targets: any forage item, anything cooked at a pot, a specific enemy
-    startQuest(log, 'forager'); startQuest(log, 'supper'); log.bugs = { state: 'done', progress: [3] }; startQuest(log, 'slimes');
+    startQuest(log, 'forager');
+    startQuest(log, 'supper');
+    log.bugs = { state: 'done', progress: [3] };
+    startQuest(log, 'slimes');
     applyQuestEvent(log, { type: 'gain', target: 'wood', n: 3 });
     applyQuestEvent(log, { type: 'gain', target: 'daffodil', n: 2 });
     expect(log.forager!.progress[0]).toBe(2);
@@ -309,11 +501,16 @@ describe('quests', () => {
     expect(log.slimes!.progress[0]).toBe(2);
   });
   it('every villager has at least one story quest', () => {
-    for (const n of NPCS) expect(QUESTS.some((q) => q.giver === n.id), n.id).toBe(true);
+    for (const n of NPCS)
+      expect(
+        QUESTS.some((q) => q.giver === n.id),
+        n.id,
+      ).toBe(true);
   });
   it('the request board posts three deterministic, season-appropriate jobs a day that expire', () => {
     for (let day = 0; day < 40; day++) {
-      const a = dailyRequests(SEED, day), b = dailyRequests(SEED, day);
+      const a = dailyRequests(SEED, day),
+        b = dailyRequests(SEED, day);
       expect(a.length).toBe(3);
       expect(a.map((q) => q.id)).toEqual(b.map((q) => q.id));
       expect(new Set(a.map((q) => q.giver)).size).toBe(3);
@@ -331,7 +528,11 @@ describe('quests', () => {
         }
       }
     }
-    const log: QuestLog = { 'req:5:0': { state: 'active', progress: [0] }, 'req:9:1': { state: 'done', progress: [1] }, welcome: { state: 'done', progress: [1, 1, 1] } };
+    const log: QuestLog = {
+      'req:5:0': { state: 'active', progress: [0] },
+      'req:9:1': { state: 'done', progress: [1] },
+      welcome: { state: 'done', progress: [1, 1, 1] },
+    };
     expect(pruneRequests(log, 9)).toEqual(['req:5:0']);
     expect(Object.keys(log).sort()).toEqual(['req:9:1', 'welcome']);
     expect(questDef('req:x:1', SEED)).toBeUndefined();
@@ -344,25 +545,65 @@ describe('dialogue', () => {
     for (const n of NPCS) {
       const v = VOICES[n.id]!;
       expect(v, n.id).toBeTruthy();
-      for (const k of ['morning', 'day', 'evening', 'night'] as const) expect(v.greet[k].length, `${n.id}:${k}`).toBeGreaterThan(0);
+      for (const k of ['morning', 'day', 'evening', 'night'] as const)
+        expect(v.greet[k].length, `${n.id}:${k}`).toBeGreaterThan(0);
       expect(v.chat.every((t) => t.length >= 2)).toBe(true);
       expect(v.events.length).toBeGreaterThanOrEqual(3);
-      for (const e of v.events) { expect(e.pages.length).toBeGreaterThanOrEqual(3); expect(e.choices.length).toBe(3); }
+      for (const e of v.events) {
+        expect(e.pages.length).toBeGreaterThanOrEqual(3);
+        expect(e.choices.length).toBe(3);
+      }
       expect(v.qubitman.length).toBeGreaterThan(0);
       expect(v.barks.work.length + v.barks.free.length).toBeGreaterThan(4);
     }
   });
   it('lines vary with time of day, friendship, weather and memory', () => {
     const orla = NPC_BY_ID.orla!;
-    const morning = composeTalk(orla, { pts: 0, hour: 8, season: 0, weather: 'clear', first: true, atWork: true, rand: () => 0 }).text;
+    const morning = composeTalk(orla, {
+      pts: 0,
+      hour: 8,
+      season: 0,
+      weather: 'clear',
+      first: true,
+      atWork: true,
+      rand: () => 0,
+    }).text;
     expect(VOICES.orla!.greet.morning.some((g) => morning.startsWith(g))).toBe(true);
-    const night = composeTalk(orla, { pts: 0, hour: 23, season: 0, weather: 'clear', first: true, atWork: false, rand: () => 0 }).text;
+    const night = composeTalk(orla, {
+      pts: 0,
+      hour: 23,
+      season: 0,
+      weather: 'clear',
+      first: true,
+      atWork: false,
+      rand: () => 0,
+    }).text;
     expect(night).not.toBe(morning);
-    const deed = composeTalk(NPC_BY_ID.brannoch!, { pts: 0, hour: 10, season: 0, weather: 'clear', first: true, atWork: true, rand: () => 0.1, deed: { kind: 'perfect_forge', what: 'Sword' } });
+    const deed = composeTalk(NPC_BY_ID.brannoch!, {
+      pts: 0,
+      hour: 10,
+      season: 0,
+      weather: 'clear',
+      first: true,
+      atWork: true,
+      rand: () => 0.1,
+      deed: { kind: 'perfect_forge', what: 'Sword' },
+    });
     expect(deed.usedDeed).toBe(true);
     expect(deed.text).toContain('Perfect Sword');
     const seen = new Set<string>();
-    for (let i = 0; i < 60; i++) seen.add(composeTalk(NPC_BY_ID.juniper!, { pts: 300, hour: 14, season: 1, weather: 'rain', first: i % 2 === 0, atWork: false, rand }).text);
+    for (let i = 0; i < 60; i++)
+      seen.add(
+        composeTalk(NPC_BY_ID.juniper!, {
+          pts: 300,
+          hour: 14,
+          season: 1,
+          weather: 'rain',
+          first: i % 2 === 0,
+          atWork: false,
+          rand,
+        }).text,
+      );
     expect(seen.size).toBeGreaterThan(10);
   });
   it('heart events unlock in order and only once', () => {

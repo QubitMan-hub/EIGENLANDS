@@ -30,9 +30,21 @@ export const footY = isoY;
 export const depth = (x: number, y: number): number => isoY(x, y) * 4 + x * 0.001;
 
 /** Facing in screen space for sprite direction selection (world vector -> screen vector). */
-export const screenDir = (wx: number, wy: number): { x: number; y: number } => ({ x: (wx - wy) * ISO_HW, y: (wx + wy) * ISO_HH });
+export const screenDir = (wx: number, wy: number): { x: number; y: number } => ({
+  x: (wx - wy) * ISO_HW,
+  y: (wx + wy) * ISO_HH,
+});
 
 /** The four corners of tile (tx,ty) as a screen-space diamond, for cursors/outlines. */
 export function tileDiamond(tx: number, ty: number): number[] {
-  return [isoX(tx, ty), isoY(tx, ty), isoX(tx + 1, ty), isoY(tx + 1, ty), isoX(tx + 1, ty + 1), isoY(tx + 1, ty + 1), isoX(tx, ty + 1), isoY(tx, ty + 1)];
+  return [
+    isoX(tx, ty),
+    isoY(tx, ty),
+    isoX(tx + 1, ty),
+    isoY(tx + 1, ty),
+    isoX(tx + 1, ty + 1),
+    isoY(tx + 1, ty + 1),
+    isoX(tx, ty + 1),
+    isoY(tx, ty + 1),
+  ];
 }

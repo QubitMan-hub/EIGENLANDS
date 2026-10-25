@@ -6,17 +6,28 @@ const url = process.argv[2] ?? 'http://127.0.0.1:5173/?hour=12';
 const out = process.argv[3] ?? '/tmp/shots';
 mkdirSync(out, { recursive: true });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const fail = (m) => { console.error('FAIL:', m); process.exitCode = 1; };
+const fail = (m) => {
+  console.error('FAIL:', m);
+  process.exitCode = 1;
+};
 const errors = [];
 
 const browser = await chromium.launch({
   executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
-  args: ['--use-angle=swiftshader', '--use-gl=angle', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'],
+  args: [
+    '--use-angle=swiftshader',
+    '--use-gl=angle',
+    '--enable-unsafe-swiftshader',
+    '--ignore-gpu-blocklist',
+    '--no-sandbox',
+  ],
 });
 async function player(name, contextOpts = {}) {
   const ctx = await browser.newContext({ viewport: { width: 960, height: 600 }, ...contextOpts });
   const page = await ctx.newPage();
-  page.on('console', (m) => { if (m.type() === 'error') errors.push(`${name}: ${m.text()}`); });
+  page.on('console', (m) => {
+    if (m.type() === 'error') errors.push(`${name}: ${m.text()}`);
+  });
   page.on('pageerror', (e) => errors.push(`${name} pageerror: ${e.message}`));
   await page.goto(url);
   await page.fill('#name', name);

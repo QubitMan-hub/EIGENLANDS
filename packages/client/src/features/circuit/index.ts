@@ -1,7 +1,24 @@
 import './circuit.css';
 import {
-  ABILITIES, ACTIVE_LINES, CLASSES, ELEMENTS, GATES, GATE_IDS, MSG34, RESOURCE_MAX, SPEC_LEVEL, TUTORIAL, TUTORIAL_DONE, CODEX_BY_ID,
-  boardPreview, type AbilityId, type CastResultMsg, type ChooseMsg, type Preview, type ProgressMsg, type ResourceMsg,
+  ABILITIES,
+  ACTIVE_LINES,
+  CLASSES,
+  ELEMENTS,
+  GATES,
+  GATE_IDS,
+  MSG34,
+  RESOURCE_MAX,
+  SPEC_LEVEL,
+  TUTORIAL,
+  TUTORIAL_DONE,
+  CODEX_BY_ID,
+  boardPreview,
+  type AbilityId,
+  type CastResultMsg,
+  type ChooseMsg,
+  type Preview,
+  type ProgressMsg,
+  type ResourceMsg,
 } from '@eigenlands/shared';
 import { keyLabel } from '../../input/keymap';
 import type { ClientModule, ExtAction, P34Deps } from '../types';
@@ -57,13 +74,27 @@ export class CircuitClient implements ClientModule {
       buyRune: () => this.send(MSG34.BUY_RUNE, {}),
       choose: (m: ChooseMsg) => this.send(MSG34.CHOOSE, m),
       skipStory: () => this.skipStory(),
-      blip: (s) => { try { d.audio.play(s); } catch { /* audio unavailable */ } },
+      blip: (s) => {
+        try {
+          d.audio.play(s);
+        } catch {
+          /* audio unavailable */
+        }
+      },
       hint: () => this.stepHint(),
       tutorialActive: () => this.progress.tutorialActive,
       dock: (slot) => this.dialog.dock(slot),
     });
-    this.bar = new AbilityBar({ cast: (q, direct) => { this.action(`ability${q + 1}` as ExtAction, direct); }, ult: (direct) => { this.action('ultimate', direct); }, board: () => this.toggleBoard() });
-    d.input.onArmChange = a => this.bar.setArmed(a === 'ultimate' ? 4 : a ? ABILITY_ACTIONS[a] ?? null : null);
+    this.bar = new AbilityBar({
+      cast: (q, direct) => {
+        this.action(`ability${q + 1}` as ExtAction, direct);
+      },
+      ult: (direct) => {
+        this.action('ultimate', direct);
+      },
+      board: () => this.toggleBoard(),
+    });
+    d.input.onArmChange = (a) => this.bar.setArmed(a === 'ultimate' ? 4 : a ? (ABILITY_ACTIONS[a] ?? null) : null);
     this.spells = new SpellRenderer(d);
     this.labels = new FloatLabels(d);
     this.lumen = new LumenSprite(d);
@@ -75,21 +106,33 @@ export class CircuitClient implements ClientModule {
 
   // ───────────────────────── net ─────────────────────────
 
-  private now(): number { return this.d.clock.ready ? this.d.clock.serverNow(performance.now()) : Date.now(); }
+  private now(): number {
+    return this.d.clock.ready ? this.d.clock.serverNow(performance.now()) : Date.now();
+  }
 
   /** Every outgoing Phase 3 message goes through here (the dev mock intercepts it; tests read `sentLog`). */
   send(type: string, msg: unknown): void {
     this.sentLog.push({ type, msg, at: performance.now() });
     if (this.sentLog.length > 60) this.sentLog.shift();
-    if (this.mock) { const m = this.mock; queueMicrotask(() => m.handle(type, structuredClone(msg))); return; }
-    try { this.d.net()?.send(type, msg); } catch { /* not connected yet */ }
+    if (this.mock) {
+      const m = this.mock;
+      queueMicrotask(() => m.handle(type, structuredClone(msg)));
+      return;
+    }
+    try {
+      this.d.net()?.send(type, msg);
+    } catch {
+      /* not connected yet */
+    }
   }
 
   handlers(): Record<string, (m: any) => void> {
     return {
       [MSG34.PROGRESS]: (m: ProgressMsg) => this.progress.apply(m),
       [MSG34.CAST_R]: (m: CastResultMsg) => this.onCastResult(m),
-      [MSG34.RES]: (m: ResourceMsg) => { if (m && typeof m.v === 'number') this.res = { v: m.v, max: m.max || RESOURCE_MAX }; },
+      [MSG34.RES]: (m: ResourceMsg) => {
+        if (m && typeof m.v === 'number') this.res = { v: m.v, max: m.max || RESOURCE_MAX };
+      },
     };
   }
 
@@ -115,13 +158,29 @@ export class CircuitClient implements ClientModule {
 
   onState(s: any): void {
     const list: SpellLike[] = [];
-    s?.spells?.forEach?.((v: SpellLike, id: string) => list.push({ id, kind: v.kind, x: v.x, y: v.y, hue: v.hue, owner: v.owner, target: v.target, r: v.r, dx: v.dx, dy: v.dy }));
+    s?.spells?.forEach?.((v: SpellLike, id: string) =>
+      list.push({
+        id,
+        kind: v.kind,
+        x: v.x,
+        y: v.y,
+        hue: v.hue,
+        owner: v.owner,
+        target: v.target,
+        r: v.r,
+        dx: v.dx,
+        dy: v.dy,
+      }),
+    );
     this.stateSpells = list;
     this.feedSpells(typeof s?.serverTime === 'number' ? s.serverTime : undefined);
   }
 
   private feedSpells(t?: number): void {
-    this.spells.ingest(this.mockSpells.length ? [...this.stateSpells, ...this.mockSpells] : this.stateSpells, t ?? this.now());
+    this.spells.ingest(
+      this.mockSpells.length ? [...this.stateSpells, ...this.mockSpells] : this.stateSpells,
+      t ?? this.now(),
+    );
   }
 
   // ───────────────────────── progress & tutorial ─────────────────────────
@@ -134,30 +193,55 @@ export class CircuitClient implements ClientModule {
     this.lastSetup = 0;
     if (c.has('cd')) this.predicted = {};
     if (!first) {
-      if (c.has('gates')) for (const g of GATE_IDS) {
-        const n = (p.gates[g] ?? 0) - (prev.gates[g] ?? 0);
-        if (n > 0) this.d.toasts.add(`New gate${n > 1 ? `s` : ''}: ${GATES[g].name}${n > 1 ? ` ×${n}` : ''}`, 'good');
-      }
-      if (c.has('runes') && p.runes > prev.runes) this.d.toasts.add('An Error Correction rune joins your collection.', 'good');
-      if (c.has('qubits') && p.qubits > prev.qubits) this.d.toasts.add(`A new orb wakes up: ${orbName(p.qubits - 1)}.`, 'good');
-      if (c.has('codex')) for (const id of p.codex) if (!prev.codex.includes(id)) this.d.toasts.add(`Qubitpedia: “${CODEX_BY_ID[id]?.title ?? id}” discovered.`, 'good');
+      if (c.has('gates'))
+        for (const g of GATE_IDS) {
+          const n = (p.gates[g] ?? 0) - (prev.gates[g] ?? 0);
+          if (n > 0) this.d.toasts.add(`New gate${n > 1 ? `s` : ''}: ${GATES[g].name}${n > 1 ? ` ×${n}` : ''}`, 'good');
+        }
+      if (c.has('runes') && p.runes > prev.runes)
+        this.d.toasts.add('An Error Correction rune joins your collection.', 'good');
+      if (c.has('qubits') && p.qubits > prev.qubits)
+        this.d.toasts.add(`A new orb wakes up: ${orbName(p.qubits - 1)}.`, 'good');
+      if (c.has('codex'))
+        for (const id of p.codex)
+          if (!prev.codex.includes(id))
+            this.d.toasts.add(`Qubitpedia: “${CODEX_BY_ID[id]?.title ?? id}” discovered.`, 'good');
       if (c.has('cls') && p.cls !== prev.cls) this.d.sfx('levelup'); // the server announces the class itself
     }
     if (c.has('tutorial') || first) this.tutorialChanged(prev, first);
     if (!this.specNagged && p.loaded && p.cls !== 'wanderer' && !p.spec && this.d.level() >= SPEC_LEVEL) {
       this.specNagged = true;
-      this.d.toasts.add(`You can choose a specialization: open the Board (${this.keyName('board')}) → ${CLASSES[p.cls].name}.`, 'info');
+      this.d.toasts.add(
+        `You can choose a specialization: open the Board (${this.keyName('board')}) → ${CLASSES[p.cls].name}.`,
+        'info',
+      );
     }
   }
 
-  private seen(step: number): boolean { try { return Number(localStorage.getItem(SEEN_KEY) ?? -1) >= step; } catch { return false; } }
-  private markSeen(step: number): void { try { localStorage.setItem(SEEN_KEY, String(step)); } catch { /* ignore */ } }
+  private seen(step: number): boolean {
+    try {
+      return Number(localStorage.getItem(SEEN_KEY) ?? -1) >= step;
+    } catch {
+      return false;
+    }
+  }
+  private markSeen(step: number): void {
+    try {
+      localStorage.setItem(SEEN_KEY, String(step));
+    } catch {
+      /* ignore */
+    }
+  }
 
   private tutorialChanged(prev: Progress, first: boolean): void {
     const t = this.progress.tutorial;
     this.dialog.skippable = !t.skipped && t.step < TUTORIAL_DONE;
     if (t.skipped) {
-      if (!first && !prev.tutorial.skipped) { this.dialog.clear(); this.d.toasts.add('Story skipped. Your gates are in your collection; choose your path on the Board.', 'info'); this.board.render(); }
+      if (!first && !prev.tutorial.skipped) {
+        this.dialog.clear();
+        this.d.toasts.add('Story skipped. Your gates are in your collection; choose your path on the Board.', 'info');
+        this.board.render();
+      }
       this.lumen.visible = false;
       return;
     }
@@ -170,7 +254,8 @@ export class CircuitClient implements ClientModule {
       lines.push(...TUTORIAL[t.step]!.lines);
       this.markSeen(t.step);
     }
-    if (t.step >= TUTORIAL_DONE && !first && prev.tutorial.step < TUTORIAL_DONE) this.d.toasts.add('The Qubitpedia is open: find it on your Board.', 'good');
+    if (t.step >= TUTORIAL_DONE && !first && prev.tutorial.step < TUTORIAL_DONE)
+      this.d.toasts.add('The Qubitpedia is open: find it on your Board.', 'good');
     this.lumen.visible = t.step < TUTORIAL_DONE || this.dialog.open || lines.length > 0;
     this.say(lines);
     if (this.board.isOpen) this.board.render();
@@ -187,7 +272,8 @@ export class CircuitClient implements ClientModule {
     const p = this.progress;
     if (p.tutorialDone) this.lumen.visible = false;
     // the story's "Choose" step opens the class cards right away
-    if (p.tutorialActive && TUTORIAL[p.tutorial.step]?.goal.kind === 'choose_class' && p.cls === 'wanderer') this.openBoard('path');
+    if (p.tutorialActive && TUTORIAL[p.tutorial.step]?.goal.kind === 'choose_class' && p.cls === 'wanderer')
+      this.openBoard('path');
   }
 
   private skipStory(): void {
@@ -196,12 +282,30 @@ export class CircuitClient implements ClientModule {
   }
 
   private fill(text: string): string {
-    return fillPlaceholders(text, this.touch
-      ? { board: 'the Board button', cast: 'your first orb button', journal: 'the Journal button', map: 'the Atlas button', dash: 'Dodge' }
-      : { board: this.keyName('board'), cast: this.keyName('ability1'), journal: this.d.keys().journal.map(keyLabel).join(' / ') || 'the Journal button', map: this.keyName('map'), dash: this.d.keys().dash.map(keyLabel).join(' / ') || 'the Dodge button' });
+    return fillPlaceholders(
+      text,
+      this.touch
+        ? {
+            board: 'the Board button',
+            cast: 'your first orb button',
+            journal: 'the Journal button',
+            map: 'the Atlas button',
+            dash: 'Dodge',
+          }
+        : {
+            board: this.keyName('board'),
+            cast: this.keyName('ability1'),
+            journal: this.d.keys().journal.map(keyLabel).join(' / ') || 'the Journal button',
+            map: this.keyName('map'),
+            dash: this.d.keys().dash.map(keyLabel).join(' / ') || 'the Dodge button',
+          },
+    );
   }
 
-  private keyName(a: ExtAction): string { const k = this.d.keys()[a]?.[0]; return k ? keyLabel(k) : '?'; }
+  private keyName(a: ExtAction): string {
+    const k = this.d.keys()[a]?.[0];
+    return k ? keyLabel(k) : '?';
+  }
 
   private stepHint(): string | null {
     const p = this.progress;
@@ -226,8 +330,13 @@ export class CircuitClient implements ClientModule {
     // when docked in the Board, Enter/Space belong to the focused button
     if (this.dialog.docked && (tag === 'BUTTON' || tag === 'SUMMARY')) return;
     const k = this.d.keys();
-    if (e.code === 'Enter' || e.code === 'NumpadEnter' || this.dialog.docked && (e.code === 'Space' || k.interact.includes(e.code))) {
-      e.preventDefault(); e.stopImmediatePropagation();
+    if (
+      e.code === 'Enter' ||
+      e.code === 'NumpadEnter' ||
+      (this.dialog.docked && (e.code === 'Space' || k.interact.includes(e.code)))
+    ) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
       this.dialog.advance();
     }
   }
@@ -238,7 +347,13 @@ export class CircuitClient implements ClientModule {
     this.d.learn?.('openedCircuit');
     if (tab) this.board.tab = tab;
     if (this.d.wins.name !== 'circuit') {
-      this.d.wins.show('circuit', 'Circuit Board', this.board.el, { wide: true, onClose: () => { this.board.isOpen = false; this.dialog.dock(null); } });
+      this.d.wins.show('circuit', 'Circuit Board', this.board.el, {
+        wide: true,
+        onClose: () => {
+          this.board.isOpen = false;
+          this.dialog.dock(null);
+        },
+      });
       this.board.isOpen = true;
       this.board.draft = this.board.dirty ? this.board.draft : structuredClone(this.progress.board);
     }
@@ -258,9 +373,10 @@ export class CircuitClient implements ClientModule {
     const n = p.qubitsFor(this.d.level());
     const now = this.now();
     return Array.from({ length: ACTIVE_LINES }, (_, q) => {
-      const a = q < n ? p.board.abilities[q] ?? null : null;
+      const a = q < n ? (p.board.abilities[q] ?? null) : null;
       return {
-        ability: a, unlocked: q < n,
+        ability: a,
+        unlocked: q < n,
         line: a && this.attuned && q < this.attuned.lines.length ? this.attuned.lines[q]! : null,
         readyAt: a ? mergeReady(p.cd[a], this.predicted[a], !(a in this.predicted)) : 0,
         totalMs: a ? ABILITIES[a].cd * 1000 : 1,
@@ -292,9 +408,20 @@ export class CircuitClient implements ClientModule {
     const p = this.progress;
     const info = this.slotInfo()[q];
     if (!info) return;
-    if (!info.unlocked) { this.bar.pulse(q, 'denied'); this.d.toasts.add(`${orbName(q)} is still asleep. More orbs wake up as you level.`, 'info'); return; }
-    if (!info.ability) { this.bar.pulse(q, 'denied'); this.d.toasts.add(`${orbName(q)} has no ability yet. Open the Board (${this.keyName('board')}).`, 'info'); return; }
-    if (info.readyAt > this.now()) { this.bar.pulse(q, 'denied'); return; }
+    if (!info.unlocked) {
+      this.bar.pulse(q, 'denied');
+      this.d.toasts.add(`${orbName(q)} is still asleep. More orbs wake up as you level.`, 'info');
+      return;
+    }
+    if (!info.ability) {
+      this.bar.pulse(q, 'denied');
+      this.d.toasts.add(`${orbName(q)} has no ability yet. Open the Board (${this.keyName('board')}).`, 'info');
+      return;
+    }
+    if (info.readyAt > this.now()) {
+      this.bar.pulse(q, 'denied');
+      return;
+    }
     const aim = this.d.aim();
     const target = manual ? undefined : this.pick(info.ability);
     this.send(MSG34.CAST, { line: q, aimX: aim.x, aimY: aim.y, ...(target ? { target } : {}) });
@@ -315,12 +442,27 @@ export class CircuitClient implements ClientModule {
   private ult(manual = false): void {
     if (this.d.dead() || this.d.wins.open || this.d.input.blocked()) return;
     const p = this.progress;
-    if (p.cls === 'wanderer') { this.bar.pulse('ult', 'denied'); this.d.toasts.add('Choose a path on the Board to unlock an ultimate.', 'info'); return; }
-    if (this.res.v < this.res.max) { this.bar.pulse('ult', 'denied'); this.d.toasts.add(`${CLASSES[p.cls].ultimate.name} needs a full ${CLASSES[p.cls].resource.name} bar.`, 'info'); return; }
-    if ((p.cd.ult ?? 0) > this.now()) { this.bar.pulse('ult', 'denied'); return; }
+    if (p.cls === 'wanderer') {
+      this.bar.pulse('ult', 'denied');
+      this.d.toasts.add('Choose a path on the Board to unlock an ultimate.', 'info');
+      return;
+    }
+    if (this.res.v < this.res.max) {
+      this.bar.pulse('ult', 'denied');
+      this.d.toasts.add(`${CLASSES[p.cls].ultimate.name} needs a full ${CLASSES[p.cls].resource.name} bar.`, 'info');
+      return;
+    }
+    if ((p.cd.ult ?? 0) > this.now()) {
+      this.bar.pulse('ult', 'denied');
+      return;
+    }
     const aim = this.d.aim();
     const t = manual ? null : this.d.target();
-    this.send(MSG34.ULT, { aimX: aim.x, aimY: aim.y, ...(t && t.kind === 'enemy' && p.cls === 'superposer' ? { target: t.id } : {}) });
+    this.send(MSG34.ULT, {
+      aimX: aim.x,
+      aimY: aim.y,
+      ...(t && t.kind === 'enemy' && p.cls === 'superposer' ? { target: t.id } : {}),
+    });
     this.bar.pulse('ult', 'cast');
     this.d.sfx('levelup');
   }
@@ -346,14 +488,26 @@ export class CircuitClient implements ClientModule {
       const col = r.misfire ? elCol(7) : elCol(r.hue);
       if (!r.link) {
         this.labels.add(me.x, me.y, castShout(r.ability, r.bit, r.hue, r.misfire), col, { size: 16 });
-        if (r.misfire) { this.labels.add(me.x, me.y, `(${formName(r.ability, r.bit, r.hue)} in wild Flux)`, col, { size: 11, delay: 120 }); this.bar.pulse(m.line, 'misfire'); }
+        if (r.misfire) {
+          this.labels.add(me.x, me.y, `(${formName(r.ability, r.bit, r.hue)} in wild Flux)`, col, {
+            size: 11,
+            delay: 120,
+          });
+          this.bar.pulse(m.line, 'misfire');
+        }
         if (r.locked) this.labels.add(me.x, me.y, '◉ Locked', 0xecd08e, { size: 11, delay: 200 });
       } else {
         echo++;
         const name = r.ability ? ABILITIES[r.ability].name : orbName(r.q);
-        this.labels.add(me.x, me.y, `⛓ ${name}: ${castShout(r.ability, r.bit, r.hue, r.misfire)}`, col, { size: 12, delay: 160 * echo });
+        this.labels.add(me.x, me.y, `⛓ ${name}: ${castShout(r.ability, r.bit, r.hue, r.misfire)}`, col, {
+          size: 12,
+          delay: 160 * echo,
+        });
         if (r.q < ACTIVE_LINES) window.setTimeout(() => this.bar.pulse(r.q, 'echo'), 160 * echo);
-        window.setTimeout(() => { const pos = this.d.me(); if (pos) this.d.fx().ring(pos.x, pos.y, ELEMENTS[r.misfire ? 7 : r.hue]!.color, 1.4); }, 160 * echo);
+        window.setTimeout(() => {
+          const pos = this.d.me();
+          if (pos) this.d.fx().ring(pos.x, pos.y, ELEMENTS[r.misfire ? 7 : r.hue]!.color, 1.4);
+        }, 160 * echo);
       }
     }
   }
@@ -361,23 +515,51 @@ export class CircuitClient implements ClientModule {
   // ───────────────────────── hooks ─────────────────────────
 
   action(a: ExtAction, direct = false): boolean {
-    if (this.dialog.open && !this.dialog.docked && !this.d.wins.open && this.dialog.el.getClientRects().length && a === 'chat') { this.dialog.advance(); return true; }
-    if (a === 'board') { this.toggleBoard(); return true; }
+    if (
+      this.dialog.open &&
+      !this.dialog.docked &&
+      !this.d.wins.open &&
+      this.dialog.el.getClientRects().length &&
+      a === 'chat'
+    ) {
+      this.dialog.advance();
+      return true;
+    }
+    if (a === 'board') {
+      this.toggleBoard();
+      return true;
+    }
     if (a in ABILITY_ACTIONS) {
       if (this.d.wins.open || this.d.input.blocked()) return true;
-      if (!direct && this.d.input.armed === a) { this.d.input.arm(null); return true; }
+      if (!direct && this.d.input.armed === a) {
+        this.d.input.arm(null);
+        return true;
+      }
       this.d.input.arm(null);
-      const q = ABILITY_ACTIONS[a]!, info = this.slotInfo()[q];
+      const q = ABILITY_ACTIONS[a]!,
+        info = this.slotInfo()[q];
       // Desktop directional skills always wait for confirmation, even with a selected target.
-      if (!direct && info?.ability && info.unlocked && info.readyAt <= this.now() && this.style(info.ability).skill && !this.d.dead()) this.d.input.arm(a as ExtAction);
+      if (
+        !direct &&
+        info?.ability &&
+        info.unlocked &&
+        info.readyAt <= this.now() &&
+        this.style(info.ability).skill &&
+        !this.d.dead()
+      )
+        this.d.input.arm(a as ExtAction);
       else this.cast(q);
       return true;
     }
     if (a === 'ultimate') {
       if (this.d.wins.open || this.d.input.blocked()) return true;
-      if (!direct && this.d.input.armed === a) { this.d.input.arm(null); return true; }
+      if (!direct && this.d.input.armed === a) {
+        this.d.input.arm(null);
+        return true;
+      }
       this.d.input.arm(null);
-      if (!direct && this.progress.cls === 'superposer' && this.res.v >= this.res.max && !this.d.dead()) this.d.input.arm('ultimate');
+      if (!direct && this.progress.cls === 'superposer' && this.res.v >= this.res.max && !this.d.dead())
+        this.d.input.arm('ultimate');
       else this.ult();
       return true;
     }
@@ -391,7 +573,9 @@ export class CircuitClient implements ClientModule {
   }
 
   // Story pages stay in the Board; gameplay keeps dodge, interaction and chat outside it.
-  blocking(): boolean { return false; }
+  blocking(): boolean {
+    return false;
+  }
 
   frame(now: number, dt: number): void {
     const srv = this.now();
@@ -403,11 +587,26 @@ export class CircuitClient implements ClientModule {
     if (now - this.lastSetup > 250) {
       this.lastSetup = now;
       const k = this.d.keys();
-      this.bar.setup(info, [0, 1, 2, 3].map((i) => this.keyName(`ability${i + 1}` as ExtAction)), this.progress.cls, k.ultimate?.[0] ? keyLabel(k.ultimate[0]) : '', this.d.level());
+      this.bar.setup(
+        info,
+        [0, 1, 2, 3].map((i) => this.keyName(`ability${i + 1}` as ExtAction)),
+        this.progress.cls,
+        k.ultimate?.[0] ? keyLabel(k.ultimate[0]) : '',
+        this.d.level(),
+      );
       this.bar.boardBtn.title = `Circuit Board (${this.keyName('board')})`;
     }
     const ultReady = mergeReady(this.progress.cd.ult, this.predicted.ult, !('ult' in this.predicted));
-    this.bar.update(info, { readyAt: ultReady > srv ? ultReady : 0, totalMs: (CLASSES[this.progress.cls].ultimate.secs || 6) * 5000, v: this.res.v, max: this.res.max }, srv);
+    this.bar.update(
+      info,
+      {
+        readyAt: ultReady > srv ? ultReady : 0,
+        totalMs: (CLASSES[this.progress.cls].ultimate.secs || 6) * 5000,
+        v: this.res.v,
+        max: this.res.max,
+      },
+      srv,
+    );
     if (this.board.isOpen) {
       this.board.tick();
       this.board.pad(now, () => this.d.wins.close());
@@ -418,11 +617,24 @@ export class CircuitClient implements ClientModule {
     const p = this.progress;
     return {
       circuit: {
-        loaded: p.loaded, cls: p.cls, qubits: p.qubits, step: p.tutorial.step, skipped: p.tutorial.skipped, codex: p.codex.length,
-        boardOpen: this.board.isOpen, dirty: this.board.dirty, draft: this.board.draft, tab: this.board.tab, expert: this.board.expert,
+        loaded: p.loaded,
+        cls: p.cls,
+        qubits: p.qubits,
+        step: p.tutorial.step,
+        skipped: p.tutorial.skipped,
+        codex: p.codex.length,
+        boardOpen: this.board.isOpen,
+        dirty: this.board.dirty,
+        draft: this.board.draft,
+        tab: this.board.tab,
+        expert: this.board.expert,
         dialog: this.dialog.open ? (document.querySelector('.p3-lumen-text')?.textContent ?? '') : null,
-        spells: this.spells.count(), spellKinds: this.spells.kinds(), res: this.res.v, mock: !!this.mock,
-        sent: this.sentLog.map((s) => ({ type: s.type, msg: s.msg })), lastCast: this.lastCast,
+        spells: this.spells.count(),
+        spellKinds: this.spells.kinds(),
+        res: this.res.v,
+        mock: !!this.mock,
+        sent: this.sentLog.map((s) => ({ type: s.type, msg: s.msg })),
+        lastCast: this.lastCast,
       },
     };
   }

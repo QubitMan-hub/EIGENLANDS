@@ -8,7 +8,10 @@ import { depth } from './iso';
 import type { Sun } from './objectviews';
 import { setBuildingLights, type TileLight } from './worldobjviews';
 
-interface Puff { s: Sprite; t: number }
+interface Puff {
+  s: Sprite;
+  t: number;
+}
 interface BView {
   b: Building;
   art: BuildingArt | null;
@@ -30,8 +33,13 @@ function puffTexture(): Texture {
   if (puffTex) return puffTex;
   const { canvas, ctx } = makeCanvas(7, 6);
   const rows = ['0011100', '0122210', '1223321', '1233321', '0122210', '0011100'];
-  rows.forEach((r, y) => [...r].forEach((ch, x) => { if (ch !== '0') put(ctx, x, y, ch === '1' ? C.mist : ch === '2' ? C.fog : C.pale); }));
-  puffTex = Texture.from(canvas); puffTex.source.scaleMode = 'nearest';
+  rows.forEach((r, y) =>
+    [...r].forEach((ch, x) => {
+      if (ch !== '0') put(ctx, x, y, ch === '1' ? C.mist : ch === '2' ? C.fog : C.pale);
+    }),
+  );
+  puffTex = Texture.from(canvas);
+  puffTex.source.scaleMode = 'nearest';
   return puffTex;
 }
 
@@ -52,24 +60,52 @@ export class BuildingViews {
   private builtThisFrame = 0;
   private priority = '';
 
-  constructor(seed: number, private shadowLayer: Container, private entityLayer: Container, private roofLayer: Container) {
-    roofLayer.sortableChildren=true;
-    for (const b of townsFor(seed).flatMap(t => t.buildings)) {
-      this.views.push({ b, art: null, walls: [], roof: null, shadow: null, sign: null, puffs: [], roofA: 1, wallA: 1, cut: false, night: false });
+  constructor(
+    seed: number,
+    private shadowLayer: Container,
+    private entityLayer: Container,
+    private roofLayer: Container,
+  ) {
+    roofLayer.sortableChildren = true;
+    for (const b of townsFor(seed).flatMap((t) => t.buildings)) {
+      this.views.push({
+        b,
+        art: null,
+        walls: [],
+        roof: null,
+        shadow: null,
+        sign: null,
+        puffs: [],
+        roofA: 1,
+        wallA: 1,
+        cut: false,
+        night: false,
+      });
     }
     setBuildingLights((a, b2, c, d) => this.lights(a, b2, c, d));
   }
 
-  private prepare(v:BView):boolean{
-    if(v.ready)return true;
-    const worker=buildingArtWorker();
-    if(!worker.available)return true;
-    if(!v.pending){const request=worker.request(v.b);if(request){v.pending=true;void request.then(art=>{v.pending=false;if(art)v.ready=art;});}}
+  private prepare(v: BView): boolean {
+    if (v.ready) return true;
+    const worker = buildingArtWorker();
+    if (!worker.available) return true;
+    if (!v.pending) {
+      const request = worker.request(v.b);
+      if (request) {
+        v.pending = true;
+        void request.then((art) => {
+          v.pending = false;
+          if (art) v.ready = art;
+        });
+      }
+    }
     return false;
   }
 
   /** 0 (day) .. 1 (night): lit windows. */
-  setDarkness(d: number): void { this.darkness = d; }
+  setDarkness(d: number): void {
+    this.darkness = d;
+  }
 
   private build(v: BView): void {
     const art = v.ready ?? buildBuildingArt(v.b);
@@ -77,32 +113,39 @@ export class BuildingViews {
     v.art = art;
     for (const p of art.walls) {
       const s = new Sprite(p.day);
-      s.x = p.x; s.y = p.y;
+      s.x = p.x;
+      s.y = p.y;
       s.zIndex = depth(p.tx + 0.5, p.ty + 0.5) - (p.door ? 2 : 0);
       this.entityLayer.addChild(s);
       v.walls.push({ s, front: p.front, piece: p });
     }
     const roof = new Sprite(art.roof.tex);
-    roof.x = art.roof.x; roof.y = art.roof.y;roof.zIndex=depth(v.b.x+v.b.w,v.b.y+v.b.h);
+    roof.x = art.roof.x;
+    roof.y = art.roof.y;
+    roof.zIndex = depth(v.b.x + v.b.w, v.b.y + v.b.h);
     this.roofLayer.addChild(roof);
     v.roof = roof;
     const sh = new Sprite(art.shadow.tex);
-    sh.x = art.shadow.x; sh.y = art.shadow.y; sh.alpha = 0.3;
+    sh.x = art.shadow.x;
+    sh.y = art.shadow.y;
+    sh.alpha = 0.3;
     this.shadowLayer.addChild(sh);
     v.shadow = sh;
     if (art.sign) {
       const s = new Sprite(art.sign.tex);
-      s.x = Math.round(art.sign.x); s.y = Math.round(art.sign.y);
+      s.x = Math.round(art.sign.x);
+      s.y = Math.round(art.sign.y);
       s.zIndex = depth(art.sign.tx, art.sign.ty);
       this.entityLayer.addChild(s);
       v.sign = s;
     }
-    if (art.chimney) for (let i = 0; i < 4; i++) {
-      const s = new Sprite(puffTexture());
-      s.anchor.set(0.5);
-      this.roofLayer.addChild(s);
-      v.puffs.push({ s, t: i / 4 });
-    }
+    if (art.chimney)
+      for (let i = 0; i < 4; i++) {
+        const s = new Sprite(puffTexture());
+        s.anchor.set(0.5);
+        this.roofLayer.addChild(s);
+        v.puffs.push({ s, t: i / 4 });
+      }
   }
 
   insideBuilding(tx: number, ty: number): string | null {
@@ -116,18 +159,37 @@ export class BuildingViews {
 
   /** The player stands where the building hides them (north/west of it, within its screen shadow). */
   private behind(b: Building, tx: number, ty: number): boolean {
-    return tx >= b.x - 3 && ty >= b.y - 3 && tx < b.x + b.w && ty < b.y + b.h && (tx < b.x + 1 || ty < b.y + 1) && tx + ty < b.x + b.y + b.w + b.h - 2;
+    return (
+      tx >= b.x - 3 &&
+      ty >= b.y - 3 &&
+      tx < b.x + b.w &&
+      ty < b.y + b.h &&
+      (tx < b.x + 1 || ty < b.y + 1) &&
+      tx + ty < b.x + b.y + b.w + b.h - 2
+    );
   }
 
-  update(now: number, playerTx: number, playerTy: number, reduced: boolean, sun: Sun, minX: number, minY: number, maxX: number, maxY: number, wind: WindField = CALM): void {
+  update(
+    now: number,
+    playerTx: number,
+    playerTy: number,
+    reduced: boolean,
+    sun: Sun,
+    minX: number,
+    minY: number,
+    maxX: number,
+    maxY: number,
+    wind: WindField = CALM,
+  ): void {
     const dt = this.last ? Math.min(0.1, (now - this.last) / 1000) : 0.016;
     this.last = now;
     this.builtThisFrame = 0;
-    const priority=`${playerTx},${playerTy}`;
-    if(priority!==this.priority){
-      this.priority=priority;
-      const dist=(b:Building)=>Math.max(b.x-playerTx,0,playerTx-b.x-b.w)+Math.max(b.y-playerTy,0,playerTy-b.y-b.h);
-      this.views.sort((a,b)=>dist(a.b)-dist(b.b));
+    const priority = `${playerTx},${playerTy}`;
+    if (priority !== this.priority) {
+      this.priority = priority;
+      const dist = (b: Building) =>
+        Math.max(b.x - playerTx, 0, playerTx - b.x - b.w) + Math.max(b.y - playerTy, 0, playerTy - b.y - b.h);
+      this.views.sort((a, b) => dist(a.b) - dist(b.b));
     }
     const inside = this.insideBuilding(playerTx, playerTy);
     if (sun.dark !== undefined) this.darkness = sun.dark;
@@ -137,21 +199,43 @@ export class BuildingViews {
       const b = v.b;
       const vis = b.x + b.w + 4 >= minX && b.x - 4 <= maxX && b.y + b.h + 4 >= minY && b.y - 4 <= maxY;
       // pre-build one building per frame while it is still off screen (within ~40 tiles), so walking into town never hitches
-      if (!v.art && !vis && this.builtThisFrame === 0 && b.x + b.w + 40 >= minX && b.x - 40 <= maxX && b.y + b.h + 40 >= minY && b.y - 40 <= maxY) { if(this.prepare(v)){this.build(v);this.builtThisFrame++;} }
+      if (
+        !v.art &&
+        !vis &&
+        this.builtThisFrame === 0 &&
+        b.x + b.w + 40 >= minX &&
+        b.x - 40 <= maxX &&
+        b.y + b.h + 40 >= minY &&
+        b.y - 40 <= maxY
+      ) {
+        if (this.prepare(v)) {
+          this.build(v);
+          this.builtThisFrame++;
+        }
+      }
       if (!vis) {
-        if (v.art) { v.walls.forEach((w) => (w.s.visible = false)); v.roof!.visible = false; v.shadow!.visible = false; if (v.sign) v.sign.visible = false; v.puffs.forEach((p) => (p.s.visible = false)); }
+        if (v.art) {
+          v.walls.forEach((w) => (w.s.visible = false));
+          v.roof!.visible = false;
+          v.shadow!.visible = false;
+          if (v.sign) v.sign.visible = false;
+          v.puffs.forEach((p) => (p.s.visible = false));
+        }
         continue;
       }
       if (!v.art) {
-        if (!this.prepare(v) || this.builtThisFrame >= 1) continue;   // keep cold architecture bakes out of the same frame
-        this.build(v); this.builtThisFrame++;
+        if (!this.prepare(v) || this.builtThisFrame >= 1) continue; // keep cold architecture bakes out of the same frame
+        this.build(v);
+        this.builtThisFrame++;
       }
       const isIn = inside === b.id;
       const isBehind = !isIn && this.behind(b, playerTx, playerTy);
       const roofT = isIn ? 0 : isBehind ? 0.28 : 1;
       const wallT = isBehind ? 0.55 : 1;
-      v.roofA += (roofT - v.roofA) * k; if (Math.abs(roofT - v.roofA) < 0.01) v.roofA = roofT;
-      v.wallA += (wallT - v.wallA) * k; if (Math.abs(wallT - v.wallA) < 0.01) v.wallA = wallT;
+      v.roofA += (roofT - v.roofA) * k;
+      if (Math.abs(roofT - v.roofA) < 0.01) v.roofA = roofT;
+      v.wallA += (wallT - v.wallA) * k;
+      if (Math.abs(wallT - v.wallA) < 0.01) v.wallA = wallT;
       const night = dark > 0.32;
       const cut = isIn;
       for (const w of v.walls) {
@@ -160,22 +244,31 @@ export class BuildingViews {
         const tex = w.front && cut && w.piece.cut ? w.piece.cut : night ? w.piece.night : w.piece.day;
         if (w.s.texture !== tex) w.s.texture = tex;
       }
-      v.cut = cut; v.night = night;
+      v.cut = cut;
+      v.night = night;
       const roof = v.roof!;
       roof.visible = v.roofA > 0.02;
       roof.alpha = v.roofA;
       const roofTex = night && v.art!.roof.night ? v.art!.roof.night : v.art!.roof.tex;
       if (roof.texture !== roofTex) roof.texture = roofTex;
-      if (v.sign) { v.sign.visible = !cut; v.sign.alpha = v.wallA; }
+      if (v.sign) {
+        v.sign.visible = !cut;
+        v.sign.alpha = v.wallA;
+      }
       v.shadow!.visible = sun.alpha > 0.02;
       v.shadow!.alpha = Math.min(0.42, sun.alpha * 1.1);
       // chimney smoke: puffs rise, drift with the wind and fade
       const ch = v.art!.chimney;
       v.puffs.forEach((p, i) => {
-        if (!ch || reduced) { p.s.visible = false; return; }
+        if (!ch || reduced) {
+          p.s.visible = false;
+          return;
+        }
         p.t = (p.t + dt * 0.22) % 1;
         p.s.visible = v.roofA > 0.5;
-        p.s.x = Math.round(ch.x + p.t * (wind.w.dx - wind.w.dy) * (10 + wind.gust(b.x, b.y) * 14) + Math.sin(now / 700 + i * 2) * 1.5);
+        p.s.x = Math.round(
+          ch.x + p.t * (wind.w.dx - wind.w.dy) * (10 + wind.gust(b.x, b.y) * 14) + Math.sin(now / 700 + i * 2) * 1.5,
+        );
         p.s.y = Math.round(ch.y - 3 - p.t * 26);
         p.s.scale.set(p.t < 0.55 ? 1 : 2);
         p.s.alpha = (1 - p.t) * 0.75 * v.roofA;
@@ -191,9 +284,16 @@ export class BuildingViews {
     for (const v of this.views) {
       const b = v.b;
       if (!v.art || b.x + b.w < minX || b.x > maxX || b.y + b.h < minY || b.y > maxY) continue;
-      for (const w of v.art.windows) out.push({ x: w.x, y: w.y, radius: 2.4, color: 0xf5a654, intensity: Math.min(0.95, (dark - 0.2) * 1.6) });
+      for (const w of v.art.windows)
+        out.push({ x: w.x, y: w.y, radius: 2.4, color: 0xf5a654, intensity: Math.min(0.95, (dark - 0.2) * 1.6) });
       // the interior glows too, so a lifted roof reveals a lamplit room
-      out.push({ x: b.x + b.w / 2, y: b.y + b.h / 2, radius: Math.max(b.w, b.h) * 0.55, color: 0xfad26a, intensity: Math.min(0.8, (dark - 0.2) * 1.2) });
+      out.push({
+        x: b.x + b.w / 2,
+        y: b.y + b.h / 2,
+        radius: Math.max(b.w, b.h) * 0.55,
+        color: 0xfad26a,
+        intensity: Math.min(0.8, (dark - 0.2) * 1.2),
+      });
     }
     return out;
   }

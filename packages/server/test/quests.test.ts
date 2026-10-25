@@ -7,7 +7,10 @@ let app: App;
 let p: Probe;
 
 const npcAt = (id: string) => p.room.village.npc(id)!;
-async function near(id: string): Promise<void> { const n = npcAt(id); await tp(p, n.x + 0.8, n.y); }
+async function near(id: string): Promise<void> {
+  const n = npcAt(id);
+  await tp(p, n.x + 0.8, n.y);
+}
 async function talk(npcId: string, topic?: string): Promise<any> {
   const k = p.dialogues.length;
   p.r.send(MSG.TALK, { npcId, ...(topic ? { topic } : {}) });
@@ -15,7 +18,8 @@ async function talk(npcId: string, topic?: string): Promise<any> {
   return p.dialogues[p.dialogues.length - 1];
 }
 async function quest(npcId: string, q: string, action: 'accept' | 'turnin'): Promise<void> {
-  const k = p.dialogues.length, pk = p.panels.length;
+  const k = p.dialogues.length,
+    pk = p.panels.length;
   p.r.send(MSG.QUEST, { npcId, quest: q, action });
   await until(() => p.dialogues.length > k || p.panels.length > pk);
 }
@@ -31,7 +35,9 @@ beforeAll(async () => {
   p = await spawn(app, 'Questor');
   setDay(p.room, 1, 12.2);
 });
-afterAll(async () => { await app?.close(); });
+afterAll(async () => {
+  await app?.close();
+});
 
 describe('story quests through dialogue', () => {
   it('Orla offers the welcome quest; talking to three villagers completes it; turning in pays out', async () => {
@@ -45,7 +51,10 @@ describe('story quests through dialogue', () => {
     await quest('orla', 'welcome', 'accept');
     expect(p.sp.data.quests.welcome?.state).toBe('active');
     await until(() => p.profiles.some((m) => m.quests?.welcome));
-    for (const id of ['odo', 'brannoch', 'tobin']) { await near(id); await talk(id); }
+    for (const id of ['odo', 'brannoch', 'tobin']) {
+      await near(id);
+      await talk(id);
+    }
     expect(p.sp.data.quests.welcome!.progress).toEqual([1, 1, 1]);
     expect(hasToast(p, /Quest ready: A Warm Welcome/)).toBe(true);
     await near('orla');
@@ -111,7 +120,11 @@ describe('story quests through dialogue', () => {
     // place a chest
     await give(p, 'chest', 1);
     await tp(p, 300.5, 300.5);
-    for (let y = 299; y <= 302; y++) for (let x = 299; x <= 303; x++) { p.room.objects.remove(x, y); p.room.setTile(x, y, 3); }
+    for (let y = 299; y <= 302; y++)
+      for (let x = 299; x <= 303; x++) {
+        p.room.objects.remove(x, y);
+        p.room.setTile(x, y, 3);
+      }
     p.r.send(MSG.USE, { slot: p.sp.data.inv.findIndex((s) => s?.id === 'chest'), tx: 302, ty: 300 });
     await until(() => (p.sp.data.quests.homestead!.progress[0] ?? 0) >= 1);
   });
@@ -165,7 +178,9 @@ describe('friendship', () => {
 
   it('ask topics answer in character; goodbyes end the conversation', async () => {
     const ask = await talk('maribel', 'ask');
-    expect(ask.choices.map((c: any) => c.id)).toEqual(expect.arrayContaining(['ask:about', 'ask:town', 'ask:qubitman', 'ask:rumor', 'back']));
+    expect(ask.choices.map((c: any) => c.id)).toEqual(
+      expect.arrayContaining(['ask:about', 'ask:town', 'ask:qubitman', 'ask:rumor', 'back']),
+    );
     const q = await talk('maribel', 'ask:qubitman');
     expect(q.text.length).toBeGreaterThan(20);
     const bye = await talk('maribel', 'bye');
@@ -176,7 +191,8 @@ describe('friendship', () => {
     setDay(p.room, 1, 19.5);
     await sleep(1200); // let Tobin walk out of the store
     await near('tobin');
-    const from = p.toasts.length, k = p.shopViews.length;
+    const from = p.toasts.length,
+      k = p.shopViews.length;
     p.r.send(MSG.SHOP, { npcId: 'tobin', action: 'open' });
     await until(() => hasToast(p, /closed/i, from));
     expect(p.shopViews.length).toBe(k);

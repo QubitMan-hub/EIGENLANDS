@@ -2,22 +2,48 @@ import { createHash, randomBytes } from 'node:crypto';
 import type pg from 'pg';
 import { BASE_PLAYER_HP, CHUNK_SIZE, type ChunkDiff, type WorldObj, type WorldObjKind } from '@eigenlands/shared';
 
-export interface Account { id: string; googleSub: string | null; email: string | null; isGuest: boolean }
-export interface CharacterRow { id: string; accountId: string; name: string; x: number; y: number; hp: number; level: number; xp: number; data: Record<string, unknown> }
+export interface Account {
+  id: string;
+  googleSub: string | null;
+  email: string | null;
+  isGuest: boolean;
+}
+export interface CharacterRow {
+  id: string;
+  accountId: string;
+  name: string;
+  x: number;
+  y: number;
+  hp: number;
+  level: number;
+  xp: number;
+  data: Record<string, unknown>;
+}
 
 const hashSecret = (s: string) => createHash('sha256').update(s).digest('hex');
 const toAccount = (r: any): Account => ({ id: r.id, googleSub: r.google_sub, email: r.email, isGuest: !r.google_sub });
 const toChar = (r: any): CharacterRow => ({
-  id: r.id, accountId: r.account_id, name: r.name, x: r.x, y: r.y, hp: r.hp, level: r.level, xp: r.xp, data: r.data,
+  id: r.id,
+  accountId: r.account_id,
+  name: r.name,
+  x: r.x,
+  y: r.y,
+  hp: r.hp,
+  level: r.level,
+  xp: r.xp,
+  data: r.data,
 });
 
+export type RepoStore = Pick<Repo, keyof Repo>;
 export class Repo {
   constructor(private pool: pg.Pool) {}
 
   /** Finds or creates a guest account for a device secret. Returns the secret to store client-side. */
   async guestLogin(deviceSecret?: string): Promise<{ account: Account; deviceSecret: string }> {
     if (deviceSecret && deviceSecret.length >= 32) {
-      const r = await this.pool.query('UPDATE accounts SET last_login_at = now() WHERE guest_hash = $1 RETURNING *', [hashSecret(deviceSecret)]);
+      const r = await this.pool.query('UPDATE accounts SET last_login_at = now() WHERE guest_hash = $1 RETURNING *', [
+        hashSecret(deviceSecret),
+      ]);
       if (r.rows[0]) return { account: toAccount(r.rows[0]), deviceSecret };
     }
     const secret = randomBytes(24).toString('hex');
@@ -29,8 +55,15 @@ export class Repo {
    * Google sign-in. If a guest device secret is supplied and the Google identity is new,
    * the guest account is upgraded in place so the character is kept.
    */
-  async googleLogin(sub: string, email: string | null, deviceSecret?: string): Promise<{ account: Account; upgraded: boolean }> {
-    const existing = await this.pool.query('UPDATE accounts SET last_login_at = now(), email = COALESCE($2, email) WHERE google_sub = $1 RETURNING *', [sub, email]);
+  async googleLogin(
+    sub: string,
+    email: string | null,
+    deviceSecret?: string,
+  ): Promise<{ account: Account; upgraded: boolean }> {
+    const existing = await this.pool.query(
+      'UPDATE accounts SET last_login_at = now(), email = COALESCE($2, email) WHERE google_sub = $1 RETURNING *',
+      [sub, email],
+    );
     if (existing.rows[0]) return { account: toAccount(existing.rows[0]), upgraded: false };
     if (deviceSecret) {
       const up = await this.pool.query(
@@ -39,7 +72,10 @@ export class Repo {
       );
       if (up.rows[0]) return { account: toAccount(up.rows[0]), upgraded: true };
     }
-    const r = await this.pool.query('INSERT INTO accounts (google_sub, email) VALUES ($1, $2) RETURNING *', [sub, email]);
+    const r = await this.pool.query('INSERT INTO accounts (google_sub, email) VALUES ($1, $2) RETURNING *', [
+      sub,
+      email,
+    ]);
     return { account: toAccount(r.rows[0]), upgraded: false };
   }
 
@@ -68,7 +104,9 @@ export class Repo {
     return toChar(r.rows[0]);
   }
 
-  async saveCharacter(c: Pick<CharacterRow, 'accountId' | 'x' | 'y' | 'hp' | 'level' | 'xp'> & { data?: Record<string, unknown> }): Promise<void> {
+  async saveCharacter(
+    c: Pick<CharacterRow, 'accountId' | 'x' | 'y' | 'hp' | 'level' | 'xp'> & { data?: Record<string, unknown> },
+  ): Promise<void> {
     if (c.data) {
       await this.pool.query(
         'UPDATE characters SET x=$2, y=$3, hp=$4, level=$5, xp=$6, data=$7, updated_at=now() WHERE account_id=$1',
@@ -83,7 +121,11 @@ export class Repo {
   }
 
   async loadChunkDiff(seed: number, cx: number, cy: number): Promise<ChunkDiff> {
-    const r = await this.pool.query('SELECT diff FROM chunk_diffs WHERE world_seed=$1 AND cx=$2 AND cy=$3', [seed, cx, cy]);
+    const r = await this.pool.query('SELECT diff FROM chunk_diffs WHERE world_seed=$1 AND cx=$2 AND cy=$3', [
+      seed,
+      cx,
+      cy,
+    ]);
     const out: ChunkDiff = new Map();
     if (r.rows[0]) for (const [k, v] of Object.entries(r.rows[0].diff as Record<string, number>)) out.set(Number(k), v);
     return out;
@@ -91,7 +133,11 @@ export class Repo {
 
   /** Diff plus the world day it was last saved on (used to dry watered soil lazily). */
   async loadChunk(seed: number, cx: number, cy: number): Promise<{ diff: ChunkDiff; day: number | null }> {
-    const r = await this.pool.query('SELECT diff, day FROM chunk_diffs WHERE world_seed=$1 AND cx=$2 AND cy=$3', [seed, cx, cy]);
+    const r = await this.pool.query('SELECT diff, day FROM chunk_diffs WHERE world_seed=$1 AND cx=$2 AND cy=$3', [
+      seed,
+      cx,
+      cy,
+    ]);
     const out: ChunkDiff = new Map();
     if (!r.rows[0]) return { diff: out, day: null };
     for (const [k, v] of Object.entries(r.rows[0].diff as Record<string, number>)) out.set(Number(k), v);
@@ -99,15 +145,27 @@ export class Repo {
   }
 
   async loadObjects(seed: number, cx: number, cy: number): Promise<WorldObj[]> {
-    const x0 = cx * CHUNK_SIZE, y0 = cy * CHUNK_SIZE;
+    const x0 = cx * CHUNK_SIZE,
+      y0 = cy * CHUNK_SIZE;
     const r = await this.pool.query(
       'SELECT x, y, kind, sub, owner, data FROM world_objects WHERE world_seed=$1 AND x >= $2 AND x < $3 AND y >= $4 AND y < $5 UNION ALL SELECT x, y, kind, sub, owner, data FROM construction_cells WHERE world_seed=$1 AND x >= $2 AND x < $3 AND y >= $4 AND y < $5',
       [seed, x0, x0 + CHUNK_SIZE, y0, y0 + CHUNK_SIZE],
     );
-    return r.rows.map((o) => ({ x: o.x, y: o.y, kind: o.kind as WorldObjKind, sub: o.sub, ...(o.owner ? { owner: o.owner as string } : {}), data: o.data as Record<string, unknown> }));
+    return r.rows.map((o) => ({
+      x: o.x,
+      y: o.y,
+      kind: o.kind as WorldObjKind,
+      sub: o.sub,
+      ...(o.owner ? { owner: o.owner as string } : {}),
+      data: o.data as Record<string, unknown>,
+    }));
   }
 
-  async saveObjects(seed: number, upserts: WorldObj[], deletes: Array<{ x: number; y: number; structure?: boolean }>): Promise<void> {
+  async saveObjects(
+    seed: number,
+    upserts: WorldObj[],
+    deletes: Array<{ x: number; y: number; structure?: boolean }>,
+  ): Promise<void> {
     if (!upserts.length && !deletes.length) return;
     const client = await this.pool.connect();
     try {
@@ -119,7 +177,11 @@ export class Repo {
           [seed, o.x, o.y, o.kind, o.sub, o.owner ?? null, JSON.stringify(o.data ?? {})],
         );
       }
-      for (const d of deletes) await client.query(`DELETE FROM ${d.structure ? 'construction_cells' : 'world_objects'} WHERE world_seed=$1 AND x=$2 AND y=$3`, [seed, d.x, d.y]);
+      for (const d of deletes)
+        await client.query(
+          `DELETE FROM ${d.structure ? 'construction_cells' : 'world_objects'} WHERE world_seed=$1 AND x=$2 AND y=$3`,
+          [seed, d.x, d.y],
+        );
       await client.query('COMMIT');
     } catch (e) {
       await client.query('ROLLBACK');
@@ -129,8 +191,13 @@ export class Repo {
     }
   }
 
-  async loadRespawns(seed: number, cx: number, cy: number): Promise<Array<{ x: number; y: number; restore: number; at: number }>> {
-    const x0 = cx * CHUNK_SIZE, y0 = cy * CHUNK_SIZE;
+  async loadRespawns(
+    seed: number,
+    cx: number,
+    cy: number,
+  ): Promise<Array<{ x: number; y: number; restore: number; at: number }>> {
+    const x0 = cx * CHUNK_SIZE,
+      y0 = cy * CHUNK_SIZE;
     const r = await this.pool.query(
       'SELECT x, y, restore_tile, at_ms FROM respawns WHERE world_seed=$1 AND x >= $2 AND x < $3 AND y >= $4 AND y < $5',
       [seed, x0, x0 + CHUNK_SIZE, y0, y0 + CHUNK_SIZE],
@@ -138,7 +205,11 @@ export class Repo {
     return r.rows.map((o) => ({ x: o.x, y: o.y, restore: o.restore_tile, at: Number(o.at_ms) }));
   }
 
-  async saveRespawns(seed: number, upserts: Array<{ x: number; y: number; restore: number; at: number }>, deletes: Array<{ x: number; y: number }>): Promise<void> {
+  async saveRespawns(
+    seed: number,
+    upserts: Array<{ x: number; y: number; restore: number; at: number }>,
+    deletes: Array<{ x: number; y: number }>,
+  ): Promise<void> {
     if (!upserts.length && !deletes.length) return;
     const client = await this.pool.connect();
     try {
@@ -150,7 +221,8 @@ export class Repo {
           [seed, o.x, o.y, o.restore, o.at],
         );
       }
-      for (const d of deletes) await client.query('DELETE FROM respawns WHERE world_seed=$1 AND x=$2 AND y=$3', [seed, d.x, d.y]);
+      for (const d of deletes)
+        await client.query('DELETE FROM respawns WHERE world_seed=$1 AND x=$2 AND y=$3', [seed, d.x, d.y]);
       await client.query('COMMIT');
     } catch (e) {
       await client.query('ROLLBACK');
@@ -173,7 +245,11 @@ export class Repo {
   }
 
   /** Persist several chunk diffs atomically. `day` is the world day of this save. */
-  async saveChunkDiffs(seed: number, diffs: Array<{ cx: number; cy: number; diff: ChunkDiff }>, day = 0): Promise<void> {
+  async saveChunkDiffs(
+    seed: number,
+    diffs: Array<{ cx: number; cy: number; diff: ChunkDiff }>,
+    day = 0,
+  ): Promise<void> {
     if (!diffs.length) return;
     const client = await this.pool.connect();
     try {

@@ -13,14 +13,34 @@ import type { Bus } from '../bus';
 export const OFFLINE_KEEP_MS = 5 * 60_000;
 export const PARTY_ID_RE = /^pt_[0-9a-f]{16}$/;
 
-export interface PartyMemberRec { accountId: string; name: string; level: number; cls: ClassId; offlineSince: number }
-export interface PartyRec { id: string; v: number; leader: string; members: PartyMemberRec[] }
+export interface PartyMemberRec {
+  accountId: string;
+  name: string;
+  level: number;
+  cls: ClassId;
+  offlineSince: number;
+}
+export interface PartyRec {
+  id: string;
+  v: number;
+  leader: string;
+  members: PartyMemberRec[];
+}
 
 /** `undefined` = leave unchanged, `null` = disband. */
 export type PartyFn = (cur: PartyRec | null) => PartyRec | null | undefined;
-export interface MutateResult { changed: boolean; prev: PartyRec | null; party: PartyRec | null; v: number }
+export interface MutateResult {
+  changed: boolean;
+  prev: PartyRec | null;
+  party: PartyRec | null;
+  v: number;
+}
 
-export class PartyConflict extends Error { constructor(readonly accountId: string) { super('already in another party'); } }
+export class PartyConflict extends Error {
+  constructor(readonly accountId: string) {
+    super('already in another party');
+  }
+}
 
 export interface PartyStore {
   mutate(id: string, fn: PartyFn): Promise<MutateResult>;
@@ -34,7 +54,9 @@ const clone = (p: PartyRec): PartyRec => ({ ...p, members: p.members.map((m) => 
  * member leads whenever anyone is online.
  */
 export function normalizeParty(p: PartyRec, now: number): PartyRec | null {
-  const members = p.members.filter((m) => !m.offlineSince || now - m.offlineSince < OFFLINE_KEEP_MS).slice(0, PARTY_MAX);
+  const members = p.members
+    .filter((m) => !m.offlineSince || now - m.offlineSince < OFFLINE_KEEP_MS)
+    .slice(0, PARTY_MAX);
   if (members.length < 2) return null;
   const online = members.filter((m) => !m.offlineSince);
   const lead = members.find((m) => m.accountId === p.leader);
@@ -62,11 +84,15 @@ export class MemoryPartyStore implements PartyStore {
     const next = fn(cur ? clone(cur) : null);
     if (next === undefined || same(cur, next)) return { changed: false, prev: cur, party: cur, v: cur?.v ?? 0 };
     const { added, removed } = diffMembers(cur, next);
-    for (const a of added) { const o = this.byAcct.get(a); if (o && o !== id) throw new PartyConflict(a); }
+    for (const a of added) {
+      const o = this.byAcct.get(a);
+      if (o && o !== id) throw new PartyConflict(a);
+    }
     const v = (cur?.v ?? 0) + 1;
     for (const a of removed) if (this.byAcct.get(a) === id) this.byAcct.delete(a);
     if (next) {
-      next.v = v; next.id = id;
+      next.v = v;
+      next.id = id;
       this.parties.set(id, clone(next));
       for (const m of next.members) this.byAcct.set(m.accountId, id);
     } else this.parties.delete(id);
@@ -95,21 +121,32 @@ export class RedisPartyStore implements PartyStore {
       for (let tries = 0; tries < 10; tries++) {
         await this.r.watch(PKEY(id));
         const raw = await this.r.get(PKEY(id));
-        let cur: PartyRec | null = null;
-        try { cur = raw ? (JSON.parse(raw) as PartyRec) : null; } catch { cur = null; }
+        let cur: PartyRec | null;
+        try {
+          cur = raw ? (JSON.parse(raw) as PartyRec) : null;
+        } catch {
+          cur = null;
+        }
         const next = fn(cur ? clone(cur) : null);
-        if (next === undefined || same(cur, next)) { await this.r.unwatch(); return { changed: false, prev: cur, party: cur, v: cur?.v ?? 0 }; }
+        if (next === undefined || same(cur, next)) {
+          await this.r.unwatch();
+          return { changed: false, prev: cur, party: cur, v: cur?.v ?? 0 };
+        }
         const { added, removed } = diffMembers(cur, next);
         if (added.length) {
           await this.r.watch(...added.map(MKEY));
           const owners = await this.r.mget(...added.map(MKEY));
           const bad = owners.findIndex((o) => o && o !== id);
-          if (bad >= 0) { await this.r.unwatch(); throw new PartyConflict(added[bad]!); }
+          if (bad >= 0) {
+            await this.r.unwatch();
+            throw new PartyConflict(added[bad]!);
+          }
         }
         const v = (cur?.v ?? 0) + 1;
         const tx = this.r.multi();
         if (next) {
-          next.v = v; next.id = id;
+          next.v = v;
+          next.id = id;
           tx.set(PKEY(id), JSON.stringify(next), 'EX', TTL_S);
           for (const m of next.members) tx.set(MKEY(m.accountId), id, 'EX', TTL_S);
         } else tx.del(PKEY(id));
@@ -123,7 +160,11 @@ export class RedisPartyStore implements PartyStore {
   }
 }
 
-interface Snapshot { id: string; v: number; party: PartyRec | null }
+interface Snapshot {
+  id: string;
+  v: number;
+  party: PartyRec | null;
+}
 
 /** This process's mirror of every party, kept current by local writes and bus snapshots. */
 export class PartyRegistry {
@@ -133,15 +174,28 @@ export class PartyRegistry {
   private tomb = new Map<string, number>();
   private off: () => void;
 
-  constructor(private store: PartyStore, private bus: Bus, private changed: (id: string) => void) {
+  constructor(
+    private store: PartyStore,
+    private bus: Bus,
+    private changed: (id: string) => void,
+  ) {
     this.off = bus.subscribe('parties', (m) => this.onSnapshot(m as Snapshot));
   }
 
-  get(id: string): PartyRec | undefined { return this.parties.get(id); }
-  partyOf(accountId: string): string { return this.byAcct.get(accountId) ?? ''; }
+  get(id: string): PartyRec | undefined {
+    return this.parties.get(id);
+  }
+  partyOf(accountId: string): string {
+    return this.byAcct.get(accountId) ?? '';
+  }
   /** true when this party id existed and was disbanded (ids are never reused) */
-  wasDeleted(id: string): boolean { return this.tomb.has(id); }
-  partyRecOf(accountId: string): PartyRec | undefined { const id = this.byAcct.get(accountId); return id ? this.parties.get(id) : undefined; }
+  wasDeleted(id: string): boolean {
+    return this.tomb.has(id);
+  }
+  partyRecOf(accountId: string): PartyRec | undefined {
+    const id = this.byAcct.get(accountId);
+    return id ? this.parties.get(id) : undefined;
+  }
 
   /** Atomically change a party. Returns the result, or throws `PartyConflict` if someone joined two parties at once. */
   async update(id: string, fn: PartyFn): Promise<MutateResult> {
@@ -196,5 +250,8 @@ export class PartyRegistry {
     await this.update(p.id, fix);
   }
 
-  close(): void { this.off(); this.store.close?.(); }
+  close(): void {
+    this.off();
+    this.store.close?.();
+  }
 }

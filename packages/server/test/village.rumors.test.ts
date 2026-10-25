@@ -40,25 +40,39 @@ describe('village rumors', () => {
     village.rumor('harvest', 'Zed', 'pumpkins');
     expect(village.rumorBook().list[0]!.heard).toEqual([]);
     // next game hour boundary: gossips hear it
-    clock.advanceMs(60 * 60 * 1000 / 60);
+    clock.advanceMs((60 * 60 * 1000) / 60);
     tick = run(village, clock, 1, tick);
     const r = village.rumorBook().list[0]!;
     expect(r.heard).toContain('orla');
     expect(r.heard).toContain('maribel');
     // spreading: several hours with everyone at the inn
     clock.set(0, 19.2);
-    for (let h = 0; h < 6; h++) { clock.advanceMs(60 * 60 * 1000 / 60); tick = run(village, clock, 1, tick); }
+    for (let h = 0; h < 6; h++) {
+      clock.advanceMs((60 * 60 * 1000) / 60);
+      tick = run(village, clock, 1, tick);
+    }
     expect(r.heard.length).toBeGreaterThan(2);
     // surfacing in conversation (never about the listener)
     const teller = r.heard[0]!;
     let heardIt = false;
     nextTo(p, village, teller);
     p.name = 'Listener';
-    for (let i = 0; i < 100 && !heardIt; i++) { p.data.friends[teller] = { pts: 0, talked: -1, gifted: -1 }; const m = village.talk(p, teller)!; if (m.rumor) { heardIt = true; expect(m.text).toContain(m.rumor); expect(m.rumor).toContain('Zed'); } }
+    for (let i = 0; i < 100 && !heardIt; i++) {
+      p.data.friends[teller] = { pts: 0, talked: -1, gifted: -1 };
+      const m = village.talk(p, teller)!;
+      if (m.rumor) {
+        heardIt = true;
+        expect(m.text).toContain(m.rumor);
+        expect(m.rumor).toContain('Zed');
+      }
+    }
     expect(heardIt).toBe(true);
     // the subject of the rumor does not hear about themselves
     p.name = 'Zed';
-    for (let i = 0; i < 60; i++) { p.data.friends[teller] = { pts: 0, talked: -1, gifted: -1 }; expect(village.talk(p, teller)!.rumor).toBeUndefined(); }
+    for (let i = 0; i < 60; i++) {
+      p.data.friends[teller] = { pts: 0, talked: -1, gifted: -1 };
+      expect(village.talk(p, teller)!.rumor).toBeUndefined();
+    }
   });
 
   it('rumors persist across restarts and are pruned after a few days', async () => {
@@ -75,6 +89,7 @@ describe('village rumors', () => {
     clock.set(10, 10);
     v2.onNewDay(clock.day());
     expect(v2.rumorBook().list.length).toBe(0);
-    void makeHost; void FakePlayer;
+    void makeHost;
+    void FakePlayer;
   });
 });

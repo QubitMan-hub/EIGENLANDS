@@ -1,11 +1,18 @@
 import {
-  INV_SIZE, SKILL_NAMES, addStack, cloneStack, skillLevel,
-  type Inventory, type SkillId, type Stack,
+  INV_SIZE,
+  SKILL_NAMES,
+  addStack,
+  cloneStack,
+  skillLevel,
+  type Inventory,
+  type SkillId,
+  type Stack,
 } from '@eigenlands/shared';
 import type { ServerPlayer } from '../rooms/player';
 import { questEvent, syncQuests } from './quests';
 
-export const isInt = (n: unknown, lo: number, hi: number): n is number => Number.isInteger(n) && (n as number) >= lo && (n as number) <= hi;
+export const isInt = (n: unknown, lo: number, hi: number): n is number =>
+  Number.isInteger(n) && (n as number) >= lo && (n as number) <= hi;
 export const validSlot = (n: unknown): n is number => isInt(n, 0, INV_SIZE - 1);
 
 export const cloneInv = (inv: Inventory): Inventory => inv.map((s) => (s ? cloneStack(s) : null));
@@ -42,6 +49,7 @@ export function addSkillXp(p: ServerPlayer, skill: SkillId, amount: number): voi
 }
 
 /** Distance from the player to the centre of a tile. */
-export const distToTile = (p: ServerPlayer, tx: number, ty: number): number => Math.hypot(tx + 0.5 - p.sim.x, ty + 0.5 - p.sim.y);
+export const distToTile = (p: ServerPlayer, tx: number, ty: number): number =>
+  Math.hypot(tx + 0.5 - p.sim.x, ty + 0.5 - p.sim.y);
 
 export const itemLabel = (id: string): string => id.replace(/_/g, ' ');

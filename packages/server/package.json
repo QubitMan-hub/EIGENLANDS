@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "start": "tsx src/main.ts",
-    "test": "vitest run",
+    "test": "node tools/test.mjs",
+    "test:memory": "TEST_STORAGE=memory node tools/test.mjs",
     "typecheck": "tsc -p .",
     "migrate": "tsx src/db/migrate.ts",
     "loadtest": "tsx tools/loadtest.ts"

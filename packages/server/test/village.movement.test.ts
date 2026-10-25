@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { NPCS, buildingAt, isSolid, scheduleAt, tileAt, townFor, townsFor } from '@eigenlands/shared';
 import { SEED, makeVillage, run } from './village.helpers';
 
-const town = { ...townFor(SEED), spots: Object.assign({}, ...townsFor(SEED).map(t => t.spots)) };
+const town = { ...townFor(SEED), spots: Object.assign({}, ...townsFor(SEED).map((t) => t.spots)) };
 
 describe('village movement', () => {
   it('creates all scheduled NPCs at their scheduled spots', async () => {
@@ -33,7 +33,9 @@ describe('village movement', () => {
         if (k % 25 === 0) {
           for (const def of NPCS) {
             const n = village.npc(def.id)!;
-            expect(host.store.solidAt(Math.floor(n.x), Math.floor(n.y)), `${def.id} inside a solid tile at h${h}`).toBe(false);
+            expect(host.store.solidAt(Math.floor(n.x), Math.floor(n.y)), `${def.id} inside a solid tile at h${h}`).toBe(
+              false,
+            );
           }
         }
         // 55 s into the block (long walks take ~35 s): everyone must be at their spot
@@ -63,7 +65,8 @@ describe('village movement', () => {
     clock.set(0, 12.01);
     tick = run(village, clock, 20, tick); // the schedule is re-read once a second, staggered per NPC
     const n = village.npc('orla')!;
-    const x0 = n.x, y0 = n.y;
+    const x0 = n.x,
+      y0 = n.y;
     tick = run(village, clock, 20, tick); // exactly 1 s of walking
     expect(n.flags & 1).toBe(1);
     const moved = Math.hypot(n.x - x0, n.y - y0);
@@ -80,7 +83,9 @@ describe('village movement', () => {
     // let him reach the field first
     tick = run(village, clock, 2400, tick);
     const field = town.spots.field!;
-    expect(Math.hypot(village.npc('fenwick')!.x - field.x - 0.5, village.npc('fenwick')!.y - field.y - 0.5)).toBeLessThan(0.6);
+    expect(
+      Math.hypot(village.npc('fenwick')!.x - field.x - 0.5, village.npc('fenwick')!.y - field.y - 0.5),
+    ).toBeLessThan(0.6);
     clock.forced = 'rain';
     tick = run(village, clock, 1500, tick);
     const home = town.spots['farmhouse.work']!;
@@ -95,7 +100,9 @@ describe('village movement', () => {
     clock.forced = 'clear';
     clock.set(0, 3);
     expect(village.npc('tobin')!.flags & 2).toBe(2);
-    expect(buildingAt(SEED, Math.floor(village.npc('tobin')!.x), Math.floor(village.npc('tobin')!.y))?.id).toBe('store');
+    expect(buildingAt(SEED, Math.floor(village.npc('tobin')!.x), Math.floor(village.npc('tobin')!.y))?.id).toBe(
+      'store',
+    );
     clock.set(0, 18.5);
     run(village, clock, 1300);
     expect(village.npc('tobin')!.flags & 2).toBe(0); // at the plaza
@@ -110,14 +117,15 @@ describe('village movement', () => {
     const { FakePlayer } = await import('./village.helpers');
     const p = new FakePlayer();
     const o = village.npc('orla')!;
-    p.x = o.x + 2; p.y = o.y;
+    p.x = o.x + 2;
+    p.y = o.y;
     expect(village.talk(p, 'orla')).toBeTruthy();
     const x = o.x;
     tick = run(village, clock, 40, tick);
     expect(o.x).toBeCloseTo(x, 3);
     expect(o.flags & 4).toBe(4);
     expect(o.faceX).toBeGreaterThan(0.9); // facing the player to the east
-    tick = run(village, clock, 400, tick); // 20 s: freeze (8 s) expired
+    run(village, clock, 400, tick); // 20 s: freeze (8 s) expired
     expect(o.flags & 4).toBe(0);
     expect(Math.abs(o.x - x) + Math.abs(o.y - village.npc('orla')!.y)).toBeGreaterThan(0.5);
   });

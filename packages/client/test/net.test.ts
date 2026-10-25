@@ -91,7 +91,7 @@ describe('interpolation and server clock', () => {
   it('clock tracks the lowest-latency packet and maps to ticks', () => {
     const c = new ServerClock();
     // server time = local + 5000, packets take 40..120 ms
-    for (let k = 0; k < 20; k++) c.observe(10_000 + k * 50, 100 + k, 5_000 + k * 50 - 5000 + (k % 5 === 0 ? 40 : 120) );
+    for (let k = 0; k < 20; k++) c.observe(10_000 + k * 50, 100 + k, 5_000 + k * 50 - 5000 + (k % 5 === 0 ? 40 : 120));
     expect(c.ready).toBe(true);
     expect(c.offset).toBeGreaterThan(4800);
     expect(c.tickAt(10_000 + 19 * 50 + 100)).toBeCloseTo(121, 5);
@@ -104,7 +104,12 @@ describe('keymap', () => {
     expect(k.dash[0]).toBe('KeyJ');
     expect(k.attack).not.toContain('KeyJ');
     const mem: Record<string, string> = {};
-    const st = { setItem: (a: string, b: string) => { mem[a] = b; }, getItem: (a: string) => mem[a] ?? null };
+    const st = {
+      setItem: (a: string, b: string) => {
+        mem[a] = b;
+      },
+      getItem: (a: string) => mem[a] ?? null,
+    };
     saveKeys(k, st);
     expect(loadKeys(st).dash[0]).toBe('KeyJ');
     mem['eigen.keys'] = '{not json';

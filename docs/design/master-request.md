@@ -8,13 +8,13 @@
 
 Transform EIGENLANDS into an exceptionally beautiful, deeply immersive, browser-based **isometric pixel-art medieval fantasy RPG**, featuring private multiplayer, an enormous procedural world, living civilizations, survival, crafting, building, exploration, magical creatures, and interconnected gameplay systems.
 
-I want the creative freedom of Minecraft, the challenging survival of RLCraft, the content depth of Terraria, the charm of Stardew Valley, the exploration of Zelda, the environments of Core Keeper, and the fantasy civilization-building of *That Time I Got Reincarnated as a Slime*.
+I want the creative freedom of Minecraft, the challenging survival of RLCraft, the content depth of Terraria, the charm of Stardew Valley, the exploration of Zelda, the environments of Core Keeper, and the fantasy civilization-building of _That Time I Got Reincarnated as a Slime_.
 
-For its visuals, take inspiration from *Octopath Traveler, Eastward, Sea of Stars, CrossCode, Hyper Light Drifter,* and outstanding isometric pixel-art games.
+For its visuals, take inspiration from _Octopath Traveler, Eastward, Sea of Stars, CrossCode, Hyper Light Drifter,_ and outstanding isometric pixel-art games.
 
-For worldbuilding, study *Frieren, Mushoku Tensei, Delicious in Dungeon, Overlord,* and *That Time I Got Reincarnated as a Slime*.
+For worldbuilding, study _Frieren, Mushoku Tensei, Delicious in Dungeon, Overlord,_ and _That Time I Got Reincarnated as a Slime_.
 
-For autonomous world systems, take inspiration from *Kenshi, RimWorld,* and *Dwarf Fortress*.
+For autonomous world systems, take inspiration from _Kenshi, RimWorld,_ and _Dwarf Fortress_.
 
 **This must become one coherent, original game—not a collection of disconnected features.**
 
@@ -60,6 +60,7 @@ Use these exact statuses:
 - `[-] DEFERRED`
 
 For each major feature, record:
+
 - Current implementation status.
 - Relevant files and modules.
 - Dependencies.
@@ -93,6 +94,7 @@ The design system must guide every future addition.
 Overhaul every poor-quality or inconsistent asset until the entire game feels like a premium handcrafted fantasy RPG.
 
 Take visual inspiration from:
+
 - Octopath Traveler — cinematic lighting and atmosphere.
 - Eastward — beautiful detailed pixel environments.
 - Sea of Stars — rich colors and fantasy environments.
@@ -118,6 +120,7 @@ Take visual inspiration from:
 **Do not simply rotate flat sprites into isometric space.** Redesign their geometry, visible faces, sprite anchors, shading, and pixel clusters.
 
 Useful asset sources:
+
 - https://itch.io/game-assets
 - https://opengameart.org/
 - https://kenney.nl/assets
@@ -151,6 +154,7 @@ Preserve strong existing design elements instead of blindly replacing everything
 ### Eliminate generic AI-generated UI
 
 Avoid:
+
 - Generic SaaS-style cards and dashboard layouts.
 - Random purple-blue gradients.
 - Excessively rounded rectangles everywhere.
@@ -172,6 +176,7 @@ Completely redesign the player HUD.
 Create visually extraordinary yet readable health, mana, stamina, food, and thirst indicators.
 
 Consider a cohesive combination of:
+
 - Carefully designed ornamental frames.
 - Subtle metal, carved stone, leather, rune, or fantasy-material detailing.
 - Pixel-perfect bar fills and borders.
@@ -181,6 +186,7 @@ Consider a cohesive combination of:
 - Contextual status effects.
 
 **Health bar**
+
 - Distinct visual identity.
 - Satisfying damage feedback.
 - Smooth health loss and recovery animations.
@@ -189,15 +195,18 @@ Consider a cohesive combination of:
 - Status effects and shields displayed intelligently.
 
 **Mana / magic**
+
 - Thematically distinct from health.
 - Subtle magical effects.
 - Readable resource consumption and regeneration.
 
 **Stamina**
+
 - Clear sprinting, dodging, and exertion feedback.
 - Never obscure movement or combat.
 
 **Hunger and thirst**
+
 - Both visible and instantly understandable.
 - Beautiful, compact fantasy-style icons and bars.
 - Clear warnings without constantly interrupting gameplay.
@@ -211,6 +220,7 @@ Do not cram everything into an oversized HUD.
 Completely overhaul health displays for enemies.
 
 ### Normal monsters
+
 - Elegant, compact health indicators.
 - Display names and levels appropriately.
 - Optional small status icons.
@@ -218,11 +228,13 @@ Completely overhaul health displays for enemies.
 - Clear visual distinction between hostile, neutral, friendly, and elite creatures.
 
 ### Elite and mythical enemies
+
 - More distinctive frames.
 - Unique enemy classification indicators.
 - Readable resistance, shield, or phase information.
 
 ### Legendary bosses
+
 Create **spectacular custom boss health bars**.
 
 For example, an Ancient Dragon could have a beautifully illustrated dragon-themed boss frame with subtle glowing runes, clear phase markers, and a distinctive name treatment.
@@ -232,6 +244,7 @@ An Abyssal Titan, Celestial Guardian, and Demon Sovereign should not all have th
 Boss HUDs must look memorable and cinematic without obstructing attacks or sacrificing clarity.
 
 Add:
+
 - Health-phase transitions.
 - Shield or armor indicators.
 - Status effect displays.
@@ -244,6 +257,7 @@ Ensure all styles remain part of one unified design system.
 ## 3.3 Complete Interface Overhaul
 
 Redesign and unify:
+
 - Main menu and title screen.
 - Character creation and class selection.
 - Inventory and equipment.
@@ -280,6 +294,7 @@ Design an excellent inventory system with beautiful item icons, clear categories
 ### Interaction feedback
 
 Add tasteful micro-interactions:
+
 - Item pickup effects.
 - Crafting completion feedback.
 - Skill unlock effects.
@@ -305,6 +320,7 @@ Critique the results, fix visual inconsistencies, and repeat a bounded improveme
 Significantly improve the controls across the entire game.
 
 ### Movement
+
 - Smooth responsive WASD controls mapped correctly to isometric movement.
 - Normalized diagonal speed.
 - Precise collision and pathing.
@@ -314,6 +330,7 @@ Significantly improve the controls across the entire game.
 - No stuck characters or awkward movement.
 
 ### Combat
+
 - Precise aiming and targeting.
 - Responsive attacks and abilities.
 - Clear enemy hitboxes and attack telegraphs.
@@ -321,6 +338,7 @@ Significantly improve the controls across the entire game.
 - Reliable skill activation and combat feedback.
 
 ### Camera
+
 - Smooth camera following.
 - Configurable zoom.
 - Proper handling of buildings, interiors, obstacles, and large bosses.
@@ -329,22 +347,22 @@ Significantly improve the controls across the entire game.
 
 ### Default controls
 
-| Key | Action |
-|---|---|
-| WASD | Move |
-| Shift | Sprint |
+| Key   | Action                 |
+| ----- | ---------------------- |
+| WASD  | Move                   |
+| Shift | Sprint                 |
 | Space | Dodge / context action |
-| E | Interact |
-| I | Inventory |
-| C | Character |
-| K | Skills |
-| J | Quests |
-| M | World Map |
-| G | Guild / Party |
-| B | Building Mode |
-| Tab | Quick Menu |
-| 1–9 | Hotbar |
-| Esc | Pause / Back |
+| E     | Interact               |
+| I     | Inventory              |
+| C     | Character              |
+| K     | Skills                 |
+| J     | Quests                 |
+| M     | World Map              |
+| G     | Guild / Party          |
+| B     | Building Mode          |
+| Tab   | Quick Menu             |
+| 1–9   | Hotbar                 |
+| Esc   | Pause / Back           |
 
 Audit existing mappings, resolve conflicts, and make controls remappable.
 
@@ -361,6 +379,7 @@ Play-test controls during combat, building, farming, swimming, mounted travel, t
 Add a beautiful, performant minimap in the top-right corner.
 
 Include:
+
 - Player position and direction.
 - Nearby buildings, terrain, roads, water, and landmarks.
 - Friendly players and party members.
@@ -379,6 +398,7 @@ Pressing **M** must open the full interactive world map.
 Press M again or Esc to close it.
 
 The map should support:
+
 - Zoom and pan.
 - Exploration fog.
 - Six kingdoms and their territories.
@@ -529,6 +549,7 @@ The UI must clearly communicate every survival mechanic.
 Create a deeply expandable, data-driven item system with a long-term target of **thousands of meaningful items**.
 
 Include:
+
 - Resources, ores, metals, gems, crystals, fibers, monster drops, and magical materials.
 - Weapons, armor, shields, tools, accessories, and class equipment.
 - Building materials, roofs, walls, furniture, and decorations.
@@ -656,6 +677,7 @@ Bosses require multiple phases, distinct mechanics, excellent animations, memora
 # 14. TELEPORTATION & TRAVEL
 
 Add:
+
 - Discoverable fast-travel shrines.
 - Magical teleporters.
 - Kingdom waypoint networks.
@@ -692,6 +714,7 @@ Players should understand how to progress without knowing quantum computing befo
 # 16. LIVING WORLD, ECONOMY & CIVILIZATIONS
 
 Introduce:
+
 - Autonomous kingdom development.
 - Dynamic wars and invasions.
 - Seasonal festivals and celebrations.
@@ -713,6 +736,7 @@ Use efficient simulation models so the world feels alive without overwhelming th
 The world should remember meaningful player actions.
 
 For example, rescuing a village from a dragon could:
+
 - Improve local reputation.
 - Unlock rare guild quests.
 - Attract attention from a king.
@@ -799,6 +823,7 @@ These details should make simply walking around the world enjoyable.
 Preserve the existing stack wherever sensible.
 
 Prioritize:
+
 - Reusable data-driven architecture.
 - Consistent isometric rendering.
 - Chunk-based procedural generation.
@@ -861,6 +886,7 @@ Before marking any feature complete:
 ### UI-specific QA with Impeccable
 
 Perform visual critique and refinement of:
+
 - Normal gameplay HUD.
 - Low-health combat HUD.
 - Enemy and boss health bars.

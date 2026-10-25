@@ -7,8 +7,8 @@ export interface FishDef {
   /** 'shallow' | 'deep' | 'any' */
   water: 'shallow' | 'deep' | 'any';
   hours: [number, number]; // inclusive start, exclusive end (wraps past midnight if start > end)
-  weight: number;          // rarity weight
-  difficulty: number;      // 0..1 (rhythm tolerance shrinks)
+  weight: number; // rarity weight
+  difficulty: number; // 0..1 (rhythm tolerance shrinks)
   rainBonus?: boolean;
   oceanOnly?: boolean;
   minLevel?: number;
@@ -24,18 +24,51 @@ export const FISH_TABLE: FishDef[] = [
   { id: 'eel', seasons: [0, 1, 2, 3], water: 'deep', hours: [18, 6], weight: 6, difficulty: 0.7, rainBonus: true },
   { id: 'koi', seasons: [0, 1], water: 'shallow', hours: [6, 12], weight: 2.5, difficulty: 0.85 },
   { id: 'sailfin', seasons: [0, 1, 2, 3], water: 'deep', hours: [6, 20], weight: 8, difficulty: 0.55, oceanOnly: true },
-  { id: 'moonray', seasons: [0, 1, 2, 3], water: 'deep', hours: [18, 6], weight: 3, difficulty: 0.8, oceanOnly: true, minLevel: 3 },
-  { id: 'prism_nautilus', seasons: [0, 1, 2, 3], water: 'deep', hours: [0, 24], weight: 1.5, difficulty: 0.95, oceanOnly: true, minLevel: 5 },
+  {
+    id: 'moonray',
+    seasons: [0, 1, 2, 3],
+    water: 'deep',
+    hours: [18, 6],
+    weight: 3,
+    difficulty: 0.8,
+    oceanOnly: true,
+    minLevel: 3,
+  },
+  {
+    id: 'prism_nautilus',
+    seasons: [0, 1, 2, 3],
+    water: 'deep',
+    hours: [0, 24],
+    weight: 1.5,
+    difficulty: 0.95,
+    oceanOnly: true,
+    minLevel: 5,
+  },
   { id: 'glowfin', seasons: [0, 1, 2, 3], water: 'deep', hours: [20, 4], weight: 2, difficulty: 0.9 },
 ];
 
 const inHours = (h: number, [a, b]: [number, number]) => (a <= b ? h >= a && h < b : h >= a || h < b);
 
-export interface FishCtx { season: number; hour: number; deep: boolean; ocean?: boolean; weather: Weather; level: number; luck: number }
+export interface FishCtx {
+  season: number;
+  hour: number;
+  deep: boolean;
+  ocean?: boolean;
+  weather: Weather;
+  level: number;
+  luck: number;
+}
 
 /** Weighted draw from the fish that can bite right now. Skill and luck favour rare fish. */
 export function rollFish(rand: () => number, c: FishCtx): FishDef {
-  const pool = FISH_TABLE.filter((f) => (!f.oceanOnly || c.ocean === true && c.deep) && c.level >= (f.minLevel ?? 0) && f.seasons.includes(c.season) && inHours(c.hour, f.hours) && (f.water === 'any' || (f.water === 'deep') === c.deep));
+  const pool = FISH_TABLE.filter(
+    (f) =>
+      (!f.oceanOnly || (c.ocean === true && c.deep)) &&
+      c.level >= (f.minLevel ?? 0) &&
+      f.seasons.includes(c.season) &&
+      inHours(c.hour, f.hours) &&
+      (f.water === 'any' || (f.water === 'deep') === c.deep),
+  );
   const list = pool.length ? pool : [FISH_TABLE[0]!];
   const weights = list.map((f) => {
     let w = f.weight;
@@ -44,7 +77,10 @@ export function rollFish(rand: () => number, c: FishCtx): FishDef {
     return w;
   });
   let r = rand() * weights.reduce((a, b) => a + b, 0);
-  for (let i = 0; i < list.length; i++) { r -= weights[i]!; if (r <= 0) return list[i]!; }
+  for (let i = 0; i < list.length; i++) {
+    r -= weights[i]!;
+    if (r <= 0) return list[i]!;
+  }
   return list[list.length - 1]!;
 }
 

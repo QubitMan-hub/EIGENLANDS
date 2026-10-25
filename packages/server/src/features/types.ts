@@ -8,7 +8,10 @@ import type { Enemy } from '../game/enemies';
 import type { ServerPlayer } from '../rooms/player';
 
 /** Join options a client may pass (validated by GameRoom). */
-export interface JoinOpts { shard?: string; ticket?: string }
+export interface JoinOpts {
+  shard?: string;
+  ticket?: string;
+}
 
 /** Transient per-player state carried across a shard handoff inside the signed ticket. */
 export interface Carry {

@@ -5,7 +5,15 @@ import { ChatModel, parseCommand, splitName } from '../src/features/social/model
 const ctx = { ch: 'local' as const, known: ['Big Bob', 'Bo', 'Alice'] };
 const msg = (o: Partial<ChatMsg>): ChatMsg => ({ ch: 'local', from: 'Ann', fromId: 'id-ann', text: 'hi', t: 1, ...o });
 
-class MemStore { m = new Map<string, string>(); getItem(k: string) { return this.m.get(k) ?? null; } setItem(k: string, v: string) { this.m.set(k, v); } }
+class MemStore {
+  m = new Map<string, string>();
+  getItem(k: string) {
+    return this.m.get(k) ?? null;
+  }
+  setItem(k: string, v: string) {
+    this.m.set(k, v);
+  }
+}
 
 describe('slash commands', () => {
   it('plain lines go to the current channel; // escapes a slash', () => {
@@ -13,17 +21,37 @@ describe('slash commands', () => {
     expect(parseCommand('  ', ctx)).toEqual({ k: 'none' });
     expect(parseCommand('//shrug', ctx)).toEqual({ k: 'say', ch: 'local', text: '/shrug' });
     expect(parseCommand('hey', { ch: 'party' })).toEqual({ k: 'say', ch: 'party', text: 'hey' });
-    expect(parseCommand('hey', { ch: 'whisper', whisperTo: 'Alice' })).toEqual({ k: 'say', ch: 'whisper', text: 'hey', to: 'Alice' });
+    expect(parseCommand('hey', { ch: 'whisper', whisperTo: 'Alice' })).toEqual({
+      k: 'say',
+      ch: 'whisper',
+      text: 'hey',
+      to: 'Alice',
+    });
     expect(parseCommand('hey', { ch: 'whisper' }).k).toBe('error');
   });
 
   it('whisper, reply and channel switches', () => {
-    expect(parseCommand('/w alice how are you', ctx)).toEqual({ k: 'say', ch: 'whisper', to: 'alice', text: 'how are you' });
-    expect(parseCommand('/tell Big Bob hi there', ctx)).toEqual({ k: 'say', ch: 'whisper', to: 'Big Bob', text: 'hi there' });
+    expect(parseCommand('/w alice how are you', ctx)).toEqual({
+      k: 'say',
+      ch: 'whisper',
+      to: 'alice',
+      text: 'how are you',
+    });
+    expect(parseCommand('/tell Big Bob hi there', ctx)).toEqual({
+      k: 'say',
+      ch: 'whisper',
+      to: 'Big Bob',
+      text: 'hi there',
+    });
     expect(parseCommand('/w "Some One" yo', ctx)).toEqual({ k: 'say', ch: 'whisper', to: 'Some One', text: 'yo' });
     expect(parseCommand('/w Alice', ctx).k).toBe('error');
     expect(parseCommand('/r thanks', ctx)).toEqual({ k: 'error', text: 'Nobody has whispered you yet.' });
-    expect(parseCommand('/r thanks', { ...ctx, lastWhisper: 'Bo' })).toEqual({ k: 'say', ch: 'whisper', to: 'Bo', text: 'thanks' });
+    expect(parseCommand('/r thanks', { ...ctx, lastWhisper: 'Bo' })).toEqual({
+      k: 'say',
+      ch: 'whisper',
+      to: 'Bo',
+      text: 'thanks',
+    });
     expect(parseCommand('/p ready?', ctx)).toEqual({ k: 'say', ch: 'party', text: 'ready?' });
     expect(parseCommand('/g hello all', ctx)).toEqual({ k: 'say', ch: 'global', text: 'hello all' });
     expect(parseCommand('/s hi', ctx)).toEqual({ k: 'say', ch: 'local', text: 'hi' });
@@ -41,7 +69,11 @@ describe('slash commands', () => {
     expect(parseCommand('/promote Big Bob', ctx)).toEqual({ k: 'promote', name: 'Big Bob' });
     expect(parseCommand('/invite', ctx)).toEqual({ k: 'error', text: 'Usage: /invite name' });
     expect(parseCommand('/leave', ctx)).toEqual({ k: 'leave' });
-    expect(parseCommand('/report Big Bob spamming the market', ctx)).toEqual({ k: 'report', name: 'Big Bob', reason: 'spamming the market' });
+    expect(parseCommand('/report Big Bob spamming the market', ctx)).toEqual({
+      k: 'report',
+      name: 'Big Bob',
+      reason: 'spamming the market',
+    });
     expect(parseCommand('/report Bo', ctx)).toEqual({ k: 'report', name: 'Bo', reason: 'no reason given' });
   });
 
@@ -119,7 +151,9 @@ describe('chat model', () => {
 
   it('history: up walks back, down returns to the draft', () => {
     const m = new ChatModel();
-    m.pushHistory('one'); m.pushHistory('two'); m.pushHistory('two');
+    m.pushHistory('one');
+    m.pushHistory('two');
+    m.pushHistory('two');
     expect(m.prev('dra')).toBe('two');
     expect(m.prev('two')).toBe('one');
     expect(m.prev('one')).toBe('one');

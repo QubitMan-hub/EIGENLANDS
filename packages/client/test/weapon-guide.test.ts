@@ -1,32 +1,71 @@
-import { expect,it } from 'vitest';
+import { expect, it } from 'vitest';
 import { Profile } from '../src/game/profile';
 import { weaponComparison } from '../src/ui/equipment-preview';
-it('compares an actual Focus swap with new bonuses and per-bolt charged output',()=>{
- const p=new Profile();p.stats.atkBonus=4;p.inv[10]={id:'ember_staff',n:1};
- const view=weaponComparison(p,10)!;
- expect(view.before.tap[0].damage).toEqual([12,13,20]);expect(view.after.tap[0].damage[0]).toBeCloseTo(14*1.12);expect(view.requirement).toBe(8);
- expect(view.after.heavy.damage[0]).toBeCloseTo(26*.7*1.12);expect(view.after.heavy.damage[1]).toBeCloseTo(26*1.2*1.12);
- p.inv[10]={id:'crossbow',n:1};const crossbow=weaponComparison(p,10)!.after;
- expect(crossbow.heavy.count).toBe(3);expect(crossbow.heavy.details.join(' ')).toContain('2 extra');expect(crossbow.heavy.reach).toEqual([13]);
+it('compares an actual Focus swap with new bonuses and per-bolt charged output', () => {
+  const p = new Profile();
+  p.stats.atkBonus = 4;
+  p.inv[10] = { id: 'ember_staff', n: 1 };
+  const view = weaponComparison(p, 10)!;
+  expect(view.before.tap[0].damage).toEqual([12, 13, 20]);
+  expect(view.after.tap[0].damage[0]).toBeCloseTo(14 * 1.12);
+  expect(view.requirement).toBe(8);
+  expect(view.after.heavy.damage[0]).toBeCloseTo(26 * 0.7 * 1.12);
+  expect(view.after.heavy.damage[1]).toBeCloseTo(26 * 1.2 * 1.12);
+  p.inv[10] = { id: 'crossbow', n: 1 };
+  const crossbow = weaponComparison(p, 10)!.after;
+  expect(crossbow.heavy.count).toBe(3);
+  expect(crossbow.heavy.details.join(' ')).toContain('2 extra');
+  expect(crossbow.heavy.reach).toEqual([13]);
 });
-it('previews quick-bar sword placement while retaining the equipped Focus and the strongest existing sword',()=>{
- const p=new Profile();p.equip.weapon={id:'rime_staff',n:1};p.stats.atkBonus=9;p.inv[0]={id:'sword',n:1,p:{atk:9}};p.inv[10]={id:'sword',n:1,p:{atk:5}};
- const saved=JSON.stringify(p);const view=weaponComparison(p,10)!;
- expect(view.placement).toBe(1);expect(view.after.name).toBe('Rime Staff');expect(view.before.tap[0].damage).toEqual(view.after.tap[0].damage);expect(JSON.stringify(p)).toBe(saved);
- p.inv[10]!.p!.atk=15;expect(weaponComparison(p,10)!.after.tap[0].damage[0]).toBeCloseTo(11*1.3);
+it('previews quick-bar sword placement while retaining the equipped Focus and the strongest existing sword', () => {
+  const p = new Profile();
+  p.equip.weapon = { id: 'rime_staff', n: 1 };
+  p.stats.atkBonus = 9;
+  p.inv[0] = { id: 'sword', n: 1, p: { atk: 9 } };
+  p.inv[10] = { id: 'sword', n: 1, p: { atk: 5 } };
+  const saved = JSON.stringify(p);
+  const view = weaponComparison(p, 10)!;
+  expect(view.placement).toBe(1);
+  expect(view.after.name).toBe('Rime Staff');
+  expect(view.before.tap[0].damage).toEqual(view.after.tap[0].damage);
+  expect(JSON.stringify(p)).toBe(saved);
+  p.inv[10]!.p!.atk = 15;
+  expect(weaponComparison(p, 10)!.after.tap[0].damage[0]).toBeCloseTo(11 * 1.3);
 });
-it('accounts for losing the best sword in a full-bar swap and does not invent placement for materials',()=>{
- const p=new Profile();for(let i=0;i<10;i++)p.inv[i]={id:'wood',n:1};p.inv[0]={id:'sword',n:1,p:{atk:10}};p.stats.atkBonus=10;p.inv[10]={id:'sword',n:1,p:{atk:3}};
- const view=weaponComparison(p,10)!;expect(view.placement).toBe(0);expect(view.after.tap[0].damage).toEqual([11,12,19]);expect(weaponComparison(p,1)).toBeNull();
+it('accounts for losing the best sword in a full-bar swap and does not invent placement for materials', () => {
+  const p = new Profile();
+  for (let i = 0; i < 10; i++) p.inv[i] = { id: 'wood', n: 1 };
+  p.inv[0] = { id: 'sword', n: 1, p: { atk: 10 } };
+  p.stats.atkBonus = 10;
+  p.inv[10] = { id: 'sword', n: 1, p: { atk: 3 } };
+  const view = weaponComparison(p, 10)!;
+  expect(view.placement).toBe(0);
+  expect(view.after.tap[0].damage).toEqual([11, 12, 19]);
+  expect(weaponComparison(p, 1)).toBeNull();
 });
-it('keeps healing, random morph choices and swing recovery distinct from damage and shot cooldown',()=>{
- const p=new Profile();p.inv[10]={id:'verdant_staff',n:1};const heal=weaponComparison(p,10)!.after.heavy;
- expect(heal.damage).toEqual([0,0]);expect(heal.healing).toEqual([20,34]);expect(heal.reach).toEqual([6]);
- p.inv[10]={id:'morph_staff',n:1};const morph=weaponComparison(p,10)!.after;
- expect(morph.tap.map(a=>a.name)).toEqual(['Wolf','Bear']);expect(morph.tap[0].damage).toEqual([9,10,16]);expect(morph.tap[1].damage).toEqual([18,20,33]);expect(morph.tap[0].recovery).toEqual(morph.tap[1].recovery);
+it('keeps healing, random morph choices and swing recovery distinct from damage and shot cooldown', () => {
+  const p = new Profile();
+  p.inv[10] = { id: 'verdant_staff', n: 1 };
+  const heal = weaponComparison(p, 10)!.after.heavy;
+  expect(heal.damage).toEqual([0, 0]);
+  expect(heal.healing).toEqual([20, 34]);
+  expect(heal.reach).toEqual([6]);
+  p.inv[10] = { id: 'morph_staff', n: 1 };
+  const morph = weaponComparison(p, 10)!.after;
+  expect(morph.tap.map((a) => a.name)).toEqual(['Wolf', 'Bear']);
+  expect(morph.tap[0].damage).toEqual([9, 10, 16]);
+  expect(morph.tap[1].damage).toEqual([18, 20, 33]);
+  expect(morph.tap[0].recovery).toEqual(morph.tap[1].recovery);
 });
-it('notifies pack readers once per real level change without marking private data loaded',()=>{
- const p=new Profile(), changes:string[][]=[];p.onChange(c=>changes.push([...c]));
- p.setLevel(5);expect(p.level).toBe(5);expect(changes).toEqual([['level']]);expect(p.loaded).toBe(false);
- p.setLevel(5);p.setLevel(NaN);expect(changes).toHaveLength(1);
+it('notifies pack readers once per real level change without marking private data loaded', () => {
+  const p = new Profile(),
+    changes: string[][] = [];
+  p.onChange((c) => changes.push([...c]));
+  p.setLevel(5);
+  expect(p.level).toBe(5);
+  expect(changes).toEqual([['level']]);
+  expect(p.loaded).toBe(false);
+  p.setLevel(5);
+  p.setLevel(NaN);
+  expect(changes).toHaveLength(1);
 });

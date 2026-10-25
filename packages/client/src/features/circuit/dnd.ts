@@ -30,7 +30,10 @@ export class DragDrop<S> {
   private suppressClickUntil = 0;
   dragging = false;
 
-  constructor(private root: HTMLElement, private host: DropHost<S>) {
+  constructor(
+    private root: HTMLElement,
+    private host: DropHost<S>,
+  ) {
     // the browser's own image/link dragging would cancel the pointer stream (pointercancel)
     root.addEventListener('dragstart', (e) => e.preventDefault());
   }
@@ -39,10 +42,19 @@ export class DragDrop<S> {
     el.addEventListener('pointerdown', (e) => this.down(e, el, get));
     el.addEventListener('click', (e) => {
       // pointer presses are handled on pointerup; this catches keyboard activation (detail 0) and stray clicks
-      if (performance.now() < this.suppressClickUntil && e.detail !== 0) { e.preventDefault(); return; }
+      if (performance.now() < this.suppressClickUntil && e.detail !== 0) {
+        e.preventDefault();
+        return;
+      }
       if (e.detail === 0) get()?.click?.();
     });
-    el.addEventListener('contextmenu', (e) => { const s = get(); if (s?.contextMenu) { e.preventDefault(); s.contextMenu(); } });
+    el.addEventListener('contextmenu', (e) => {
+      const s = get();
+      if (s?.contextMenu) {
+        e.preventDefault();
+        s.contextMenu();
+      }
+    });
   }
 
   private down(e: PointerEvent, el: HTMLElement, get: () => DragSource<S> | null): void {
@@ -50,10 +62,21 @@ export class DragDrop<S> {
     const spec = get();
     if (!spec) return;
     this.active = true;
-    const id = e.pointerId, sx = e.clientX, sy = e.clientY;
-    let moved = false, long = false;
-    const timer = e.pointerType !== 'mouse' && spec.longPress
-      ? window.setTimeout(() => { if (!moved) { long = true; navigator.vibrate?.(20); spec.longPress!(); } }, LONG_MS) : 0;
+    const id = e.pointerId,
+      sx = e.clientX,
+      sy = e.clientY;
+    let moved = false,
+      long = false;
+    const timer =
+      e.pointerType !== 'mouse' && spec.longPress
+        ? window.setTimeout(() => {
+            if (!moved) {
+              long = true;
+              navigator.vibrate?.(20);
+              spec.longPress!();
+            }
+          }, LONG_MS)
+        : 0;
     const scroller = el.closest<HTMLElement>('.window');
     const move = (ev: PointerEvent) => {
       if (ev.pointerId !== id) return;
@@ -69,7 +92,8 @@ export class DragDrop<S> {
       // keep dragging comfortable on small screens: scroll the window near its edges
       if (scroller) {
         const r = scroller.getBoundingClientRect();
-        if (ev.clientY < r.top + 40) scroller.scrollTop -= 8; else if (ev.clientY > r.bottom - 40) scroller.scrollTop += 8;
+        if (ev.clientY < r.top + 40) scroller.scrollTop -= 8;
+        else if (ev.clientY > r.bottom - 40) scroller.scrollTop += 8;
       }
     };
     const up = (ev: PointerEvent) => {
@@ -98,7 +122,8 @@ export class DragDrop<S> {
     document.body.append(g);
     this.ghost = g;
     this.root.classList.add('cb-dragging');
-    for (const t of this.root.querySelectorAll<HTMLElement>('[data-drop]')) t.classList.toggle('can', this.host.canDrop(spec.source, t));
+    for (const t of this.root.querySelectorAll<HTMLElement>('[data-drop]'))
+      t.classList.toggle('can', this.host.canDrop(spec.source, t));
     this.host.start?.(spec.source);
   }
 
@@ -128,4 +153,8 @@ export class DragDrop<S> {
   }
 }
 
-function h(tag: string, cls: string): HTMLElement { const e = document.createElement(tag); e.className = cls; return e; }
+function h(tag: string, cls: string): HTMLElement {
+  const e = document.createElement(tag);
+  e.className = cls;
+  return e;
+}

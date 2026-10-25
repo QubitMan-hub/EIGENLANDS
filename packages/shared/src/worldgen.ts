@@ -7,6 +7,8 @@ import { hash2 } from './rng';
 import { Simplex2D } from './simplex';
 import { T } from './tiles';
 import { townTileAt } from './town';
+import { sanctuaryAt } from './sanctuary';
+import { WORLD_GENERATION, type WorldGeneration } from './world-version';
 import { CAVE_OY, caveTileAt, isCaveY } from './caves';
 
 /**
@@ -16,10 +18,16 @@ import { CAVE_OY, caveTileAt, isCaveY } from './caves';
  * corrupted: decohered wastes of dead wood and crystal.
  */
 export const BIOMES = ['meadow', 'forest', 'autumn', 'taiga', 'swamp', 'desert', 'enchanted', 'corrupted'] as const;
-export type Biome = typeof BIOMES[number];
+export type Biome = (typeof BIOMES)[number];
 export const BIOME_NAMES: Record<Biome, string> = {
-  meadow: 'Phase Meadows', forest: 'Superposition Forest', autumn: 'Amberwood', taiga: 'Bloch Tundra',
-  swamp: 'Decoherence Fen', desert: 'Interference Desert', enchanted: 'Entangled Glade', corrupted: 'Decoherence Wastes',
+  meadow: 'Phase Meadows',
+  forest: 'Superposition Forest',
+  autumn: 'Amberwood',
+  taiga: 'Bloch Tundra',
+  swamp: 'Decoherence Fen',
+  desert: 'Interference Desert',
+  enchanted: 'Entangled Glade',
+  corrupted: 'Decoherence Wastes',
 };
 /** the home vale (spawn and Hadamere) is always meadow; biomes fade in beyond this radius */
 export const HOME_VALE = 78;
@@ -68,19 +76,35 @@ export interface ClimateSample {
 
 // Bounded Float64 blocks preserve every generated value while sharing cold work between
 // terrain, scenery and (in solo) authority. No per-tile object/string cache or periodic global clear.
-interface ClimateBlock {seed:number;cx:number;cy:number;data:Float64Array;biomes?:Uint8Array}
-const climateBlocks=new Map<string,ClimateBlock>();let lastClimate:ClimateBlock|undefined;
-export function sampleClimate(seed:number,x:number,y:number):ClimateSample {
-  if(!Number.isInteger(x)||!Number.isInteger(y))return computeClimate(seed,x,y);
-  const cx=Math.floor(x/CHUNK_SIZE),cy=Math.floor(y/CHUNK_SIZE);let b=lastClimate;
-  if(!b||b.seed!==seed||b.cx!==cx||b.cy!==cy){
-    const k=`${seed}:${cx},${cy}`;b=climateBlocks.get(k);
-    if(b)climateBlocks.delete(k);else b={seed,cx,cy,data:new Float64Array(CHUNK_SIZE*CHUNK_SIZE*4).fill(NaN)};
-    climateBlocks.set(k,b);if(climateBlocks.size>96)climateBlocks.delete(climateBlocks.keys().next().value!);lastClimate=b;
+interface ClimateBlock {
+  seed: number;
+  cx: number;
+  cy: number;
+  data: Float64Array;
+  biomes?: Uint8Array;
+}
+const climateBlocks = new Map<string, ClimateBlock>();
+let lastClimate: ClimateBlock | undefined;
+export function sampleClimate(seed: number, x: number, y: number): ClimateSample {
+  if (!Number.isInteger(x) || !Number.isInteger(y)) return computeClimate(seed, x, y);
+  const cx = Math.floor(x / CHUNK_SIZE),
+    cy = Math.floor(y / CHUNK_SIZE);
+  let b = lastClimate;
+  if (!b || b.seed !== seed || b.cx !== cx || b.cy !== cy) {
+    const k = `${seed}:${cx},${cy}`;
+    b = climateBlocks.get(k);
+    if (b) climateBlocks.delete(k);
+    else b = { seed, cx, cy, data: new Float64Array(CHUNK_SIZE * CHUNK_SIZE * 4).fill(NaN) };
+    climateBlocks.set(k, b);
+    if (climateBlocks.size > 96) climateBlocks.delete(climateBlocks.keys().next().value!);
+    lastClimate = b;
   }
-  const i=((y-cy*CHUNK_SIZE)*CHUNK_SIZE+x-cx*CHUNK_SIZE)*4,a=b.data;
-  if(!Number.isNaN(a[i]))return{height:a[i]!,moisture:a[i+1]!,temperature:a[i+2]!,flux:a[i+3]!};
-  const c=computeClimate(seed,x,y);a.set([c.height,c.moisture,c.temperature,c.flux],i);return c;
+  const i = ((y - cy * CHUNK_SIZE) * CHUNK_SIZE + x - cx * CHUNK_SIZE) * 4,
+    a = b.data;
+  if (!Number.isNaN(a[i])) return { height: a[i]!, moisture: a[i + 1]!, temperature: a[i + 2]!, flux: a[i + 3]! };
+  const c = computeClimate(seed, x, y);
+  a.set([c.height, c.moisture, c.temperature, c.flux], i);
+  return c;
 }
 
 function computeClimate(seed: number, x: number, y: number): ClimateSample {
@@ -108,10 +132,12 @@ function computeClimate(seed: number, x: number, y: number): ClimateSample {
 const biomeCache = new Map<number, Map<string, Biome>>();
 /** Which biome a tile belongs to: climate (temperature, moisture, quantum flux) with ragged, noise-jittered borders. */
 export function biomeAt(seed: number, x: number, y: number): Biome {
-  if (isCaveY(y)) y -= CAVE_OY;                                    // the Undercroft takes the biome of the land above
-  if(Number.isInteger(x)&&Number.isInteger(y)){
-    const cx=Math.floor(x/CHUNK_SIZE),cy=Math.floor(y/CHUNK_SIZE),prepared=climateBlocks.get(`${seed}:${cx},${cy}`)?.biomes;
-    if(prepared)return BIOMES[prepared[(y-cy*CHUNK_SIZE)*CHUNK_SIZE+x-cx*CHUNK_SIZE]!]!;
+  if (isCaveY(y)) y -= CAVE_OY; // the Undercroft takes the biome of the land above
+  if (Number.isInteger(x) && Number.isInteger(y)) {
+    const cx = Math.floor(x / CHUNK_SIZE),
+      cy = Math.floor(y / CHUNK_SIZE),
+      prepared = climateBlocks.get(`${seed}:${cx},${cy}`)?.biomes;
+    if (prepared) return BIOMES[prepared[(y - cy * CHUNK_SIZE) * CHUNK_SIZE + x - cx * CHUNK_SIZE]!]!;
   }
   let cache = biomeCache.get(seed);
   if (!cache) {
@@ -134,7 +160,7 @@ function computeBiome(seed: number, x: number, y: number): Biome {
   if (dist < HOME_VALE) return 'meadow';
   const l = layers(seed);
   // biome fields are much broader than the terrain's climate, so each biome is a region worth exploring
-  const j = l.meadow.fbm(x / 11 + 911, y / 11 - 377, 2) * 0.05;     // ragged borders
+  const j = l.meadow.fbm(x / 11 + 911, y / 11 - 377, 2) * 0.05; // ragged borders
   // the vale's edge is a soft, noisy frontier rather than a ring
   if (smooth(dist, HOME_VALE, HOME_VALE + 45) < 0.5 + l.rocky.fbm(x / 23, y / 23, 2)) return 'meadow';
   const t = l.temperature.fbm(x / 170 + 31, y / 170 - 77, 3) + j;
@@ -167,12 +193,17 @@ function campCenter(seed: number, cellX: number, cellY: number): { x: number; y:
 }
 
 /** Original surface layout remains the placement reference for persistent landmark IDs. */
-export function landmarkTileAt(seed: number, x: number, y: number): number { return surfaceTileAt(seed, x, y, true); }
+export function landmarkTileAt(seed: number, x: number, y: number): number {
+  return surfaceTileAt(seed, x, y, true);
+}
 
-export function tileAt(seed: number, x: number, y: number): number { return surfaceTileAt(seed, x, y, false); }
+export function tileAt(seed: number, x: number, y: number, generation: WorldGeneration = WORLD_GENERATION): number {
+  return surfaceTileAt(seed, x, y, false, generation);
+}
 
-function surfaceTileAt(seed: number, x: number, y: number, legacy: boolean): number {
-  const sanctuary = sanctuaryTileAt(seed, x, y); if (sanctuary !== null) return sanctuary;
+function surfaceTileAt(seed: number, x: number, y: number, legacy: boolean, generation: WorldGeneration = 1): number {
+  const sanctuary = sanctuaryTileAt(seed, x, y);
+  if (sanctuary !== null) return sanctuary;
   if (isCaveY(y)) return townTileAt(seed, x, y) ?? caveTileAt(seed, x, y, legacy);
   const tt = townTileAt(seed, x, y);
   if (tt !== null) return tt;
@@ -196,15 +227,28 @@ function surfaceTileAt(seed: number, x: number, y: number, legacy: boolean): num
   if (c.height < -0.42) return T.DEEP_WATER;
   if (c.height < -0.28) return T.WATER;
   const biome = biomeAt(seed, x, y);
+  if (!legacy && generation >= 2) {
+    const vent = surfaceLavaAt(seed, x, y, biome);
+    if (vent !== null) return vent;
+  }
   if (c.height < -0.2 || biome === 'desert') {
     // dunes: open sand with rare scrub, cacti and wind-cut boulders
     if (biome !== 'desert') return T.SAND;
     const r = hash2(seed, x, y, 31);
     if (r < 0.012) return legacy || spacedTree(seed, x, y) ? T.TREE : T.SAND; // cactus
     if (r < 0.02) return T.ROCK;
-    if (r < 0.026) return hash2(seed, legacy ? x : Math.floor(x / 10), legacy ? y : Math.floor(y / 10), 32) < 0.3 ? T.ORE_GOLD : T.ORE_COPPER;
-    if (r < 0.05) return T.GRASS_TALL;                          // dry scrub
+    if (r < 0.026)
+      return hash2(seed, legacy ? x : Math.floor(x / 10), legacy ? y : Math.floor(y / 10), 32) < 0.3
+        ? T.ORE_GOLD
+        : T.ORE_COPPER;
+    if (r < 0.05) return T.GRASS_TALL; // dry scrub
     return T.SAND;
+  }
+
+  if (!legacy && generation >= 2 && biome === 'swamp') {
+    const pool = wetlandBasin(seed, x, y);
+    if (pool > 0.5) return T.WATER;
+    if (pool > 0.38) return hash2(seed, x, y, 33) < 0.12 + 0.26 * vegetationCover(seed, x, y) ? T.GRASS_TALL : T.GRASS;
   }
 
   const r = hash2(seed, x, y, 1);
@@ -214,8 +258,8 @@ function surfaceTileAt(seed: number, x: number, y: number, legacy: boolean): num
   const l = layers(seed);
   const shoreDist = Math.max(0, c.height + 0.2); // 0 at the sand line, grows inland
 
-  // fen: scattered pools and reed beds between the dead trees
-  if (biome === 'swamp') {
+  // Preserve the exact old seven-tile rule for version-1 maps and landmark placement.
+  if (biome === 'swamp' && (legacy || generation === 1)) {
     const pool = l.sea.fbm(x / 7 + 55, y / 7 - 55, 2);
     if (pool > 0.32) return T.WATER;
     if (pool > 0.22) return hash2(seed, x, y, 33) < 0.6 ? T.GRASS_TALL : T.GRASS;
@@ -224,8 +268,20 @@ function surfaceTileAt(seed: number, x: number, y: number, legacy: boolean): num
   // groves and clearings: trees follow a low-frequency density field instead of uniform noise
   const forest = l.forest.fbm(x / 70 + 40, y / 70 - 40, 3);
   const grove = smooth(forest, 0.02, 0.35);
-  const woody = biome === 'forest' ? 0.12 + 0.6 * grove : biome === 'autumn' ? 0.1 + 0.5 * grove : biome === 'taiga' ? 0.05 + 0.4 * grove
-    : biome === 'swamp' ? 0.05 : biome === 'enchanted' ? 0.04 + 0.35 * grove : biome === 'corrupted' ? 0.03 : 0.5 * grove * (0.55 + 0.45 * Math.max(0, c.moisture + 0.3));
+  const woody =
+    biome === 'forest'
+      ? 0.12 + 0.6 * grove
+      : biome === 'autumn'
+        ? 0.1 + 0.5 * grove
+        : biome === 'taiga'
+          ? 0.05 + 0.4 * grove
+          : biome === 'swamp'
+            ? 0.05
+            : biome === 'enchanted'
+              ? 0.04 + 0.35 * grove
+              : biome === 'corrupted'
+                ? 0.03
+                : 0.5 * grove * (0.55 + 0.45 * Math.max(0, c.moisture + 0.3));
   const treeP = (0.004 + woody) * Math.min(1, shoreDist * 6);
   if (hash2(seed, x, y, 2) < treeP && r0 > 7 && (legacy || spacedTree(seed, x, y))) return T.TREE;
 
@@ -237,7 +293,8 @@ function surfaceTileAt(seed: number, x: number, y: number, legacy: boolean): num
   if (rr < rockP && r0 > 7) {
     // One mineral family per geological pocket; rock positions and overall tier rates remain compatible.
     const o = legacy ? hash2(seed, x, y, 6) : hash2(seed, Math.floor(x / 10), Math.floor(y / 10), 6);
-    if ((c.flux > 0.42 || biome === 'corrupted' || biome === 'enchanted') && o < (biome === 'corrupted' ? 0.3 : 0.1)) return T.CRYSTAL;
+    if ((c.flux > 0.42 || biome === 'corrupted' || biome === 'enchanted') && o < (biome === 'corrupted' ? 0.3 : 0.1))
+      return T.CRYSTAL;
     if (r0 > 150 && o < 0.1) return T.ORE_GOLD;
     if ((r0 > 90 || biome === 'taiga') && o < 0.2) return T.ORE_SILVER;
     if (r0 > 40 && o < 0.3) return T.ORE_IRON;
@@ -252,10 +309,56 @@ function surfaceTileAt(seed: number, x: number, y: number, legacy: boolean): num
   const meadow = l.meadow.fbm(x / 20 + 300, y / 20 - 300, 2);
   const cover = legacy ? 1 : vegetationCover(seed, x, y);
   const flowerK = biome === 'taiga' || biome === 'corrupted' ? 0.12 : biome === 'enchanted' ? 0.8 : legacy ? 0.5 : 0.28;
-  if (hash2(seed, x, y, 4) < flowerK * (legacy ? 1 : 0.15 + 0.85 * cover) * smooth(meadow, 0.2, 0.55) * (0.5 + 0.5 * Math.max(0, c.moisture + 0.4))) return T.FLOWERS;
+  if (
+    hash2(seed, x, y, 4) <
+    flowerK *
+      (legacy ? 1 : 0.15 + 0.85 * cover) *
+      smooth(meadow, 0.2, 0.55) *
+      (0.5 + 0.5 * Math.max(0, c.moisture + 0.4))
+  )
+    return T.FLOWERS;
   const tall = l.meadow.fbm(x / 14 - 500, y / 14 + 500, 2);
-  if (hash2(seed, x, y, 5) < (legacy ? 0.04 + 0.55 * smooth(tall, 0.05, 0.5) : 0.006 + 0.36 * smooth(tall, 0.05, 0.5) * cover)) return T.GRASS_TALL;
+  if (
+    hash2(seed, x, y, 5) <
+    (legacy ? 0.04 + 0.55 * smooth(tall, 0.05, 0.5) : 0.006 + 0.36 * smooth(tall, 0.05, 0.5) * cover)
+  )
+    return T.GRASS_TALL;
   return T.GRASS;
+}
+
+export function wetlandBasin(seed: number, x: number, y: number): number {
+  const sea = layers(seed).sea;
+  const wx = x + sea.noise(x / 95 + 170, y / 95 - 80) * 9;
+  const wy = y + sea.noise(x / 95 - 190, y / 95 + 60) * 9;
+  return sea.noise(wx / 38 + 55, wy / 38 - 55);
+}
+
+/** Rare small geological basins, never a per-tile lava roll. No lava in the home vale or wards. */
+export function surfaceLavaAt(seed: number, x: number, y: number, biome = biomeAt(seed, x, y)): number | null {
+  if (Math.abs(y) > 10000 || Math.hypot(x, y) < 95 || (biome !== 'corrupted' && biome !== 'desert')) return null;
+  const gx = Math.floor(x / 64),
+    gy = Math.floor(y / 64);
+  if (hash2(seed, gx, gy, 1780) > 0.13) return null;
+  const vx = gx * 64 + 12 + Math.floor(hash2(seed, gx, gy, 1781) * 40);
+  const vy = gy * 64 + 12 + Math.floor(hash2(seed, gx, gy, 1782) * 40);
+  const dx = x - vx,
+    dy = y - vy,
+    radius = Math.hypot(dx, dy);
+  if (radius > 6 || sampleClimate(seed, vx, vy).height < -0.05) return null;
+  if (
+    [
+      [0, 0],
+      [8, 0],
+      [-8, 0],
+      [0, 8],
+      [0, -8],
+    ].some(([ox, oy]) => sanctuaryAt(seed, vx + ox!, vy + oy!))
+  )
+    return null;
+  const edge = 3.2 + layers(seed).rocky.noise(x / 5 + 210, y / 5 - 210) * 0.9;
+  if (radius < edge) return T.LAVA;
+  if (radius < edge + 1.4) return T.SCORIA;
+  return null;
 }
 
 function smooth(v: number, a: number, b: number): number {
@@ -263,40 +366,87 @@ function smooth(v: number, a: number, b: number): number {
   return t * t * (3 - 2 * t);
 }
 
-const generatedChunks=new Map<string,Uint8Array>();
-export function generateChunk(seed: number, cx: number, cy: number): Uint8Array {
-  const key=`${seed}:${cx},${cy}`,cached=generatedChunks.get(key);
-  if(cached){generatedChunks.delete(key);generatedChunks.set(key,cached);return cached.slice();}
+const generatedChunks = new Map<string, Uint8Array>();
+export function generateChunk(
+  seed: number,
+  cx: number,
+  cy: number,
+  generation: WorldGeneration = WORLD_GENERATION,
+): Uint8Array {
+  const key = `${generation}:${seed}:${cx},${cy}`,
+    cached = generatedChunks.get(key);
+  if (cached) {
+    generatedChunks.delete(key);
+    generatedChunks.set(key, cached);
+    return cached.slice();
+  }
   const out = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
   const ox = cx * CHUNK_SIZE;
   const oy = cy * CHUNK_SIZE;
   for (let y = 0; y < CHUNK_SIZE; y++) {
     for (let x = 0; x < CHUNK_SIZE; x++) {
-      out[y * CHUNK_SIZE + x] = tileAt(seed, ox + x, oy + y);
+      out[y * CHUNK_SIZE + x] = tileAt(seed, ox + x, oy + y, generation);
     }
   }
-  generatedChunks.set(key,out.slice());
-  if(generatedChunks.size>128)generatedChunks.delete(generatedChunks.keys().next().value!);
+  generatedChunks.set(key, out.slice());
+  if (generatedChunks.size > 128) generatedChunks.delete(generatedChunks.keys().next().value!);
   return out;
 }
 
 /** Transferable deterministic base data; mutable edits and ownership never enter this cache. */
-export interface PreparedWorldChunk {seed:number;cx:number;cy:number;tiles:Uint8Array;climate:Float64Array;biomes:Uint8Array}
-export function prepareWorldChunk(seed:number,cx:number,cy:number):PreparedWorldChunk{
- const tiles=generateChunk(seed,cx,cy),climate=new Float64Array(CHUNK_SIZE*CHUNK_SIZE*4),biomes=new Uint8Array(CHUNK_SIZE*CHUNK_SIZE);
- for(let y=0;y<CHUNK_SIZE;y++)for(let x=0;x<CHUNK_SIZE;x++){
-  const tx=cx*CHUNK_SIZE+x,ty=cy*CHUNK_SIZE+y,i=y*CHUNK_SIZE+x,c=sampleClimate(seed,tx,ty);
-  climate.set([c.height,c.moisture,c.temperature,c.flux],i*4);biomes[i]=BIOMES.indexOf(biomeAt(seed,tx,ty));
- }
- return{seed,cx,cy,tiles,climate,biomes};
+export interface PreparedWorldChunk {
+  generation: WorldGeneration;
+  seed: number;
+  cx: number;
+  cy: number;
+  tiles: Uint8Array;
+  climate: Float64Array;
+  biomes: Uint8Array;
 }
-export function hasPreparedWorldChunk(seed:number,cx:number,cy:number):boolean{
- return generatedChunks.has(`${seed}:${cx},${cy}`)&&!!climateBlocks.get(`${seed}:${cx},${cy}`)?.biomes;
+export function prepareWorldChunk(
+  seed: number,
+  cx: number,
+  cy: number,
+  generation: WorldGeneration = WORLD_GENERATION,
+): PreparedWorldChunk {
+  const tiles = generateChunk(seed, cx, cy, generation),
+    climate = new Float64Array(CHUNK_SIZE * CHUNK_SIZE * 4),
+    biomes = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
+  for (let y = 0; y < CHUNK_SIZE; y++)
+    for (let x = 0; x < CHUNK_SIZE; x++) {
+      const tx = cx * CHUNK_SIZE + x,
+        ty = cy * CHUNK_SIZE + y,
+        i = y * CHUNK_SIZE + x,
+        c = sampleClimate(seed, tx, ty);
+      climate.set([c.height, c.moisture, c.temperature, c.flux], i * 4);
+      biomes[i] = BIOMES.indexOf(biomeAt(seed, tx, ty));
+    }
+  return { generation, seed, cx, cy, tiles, climate, biomes };
 }
-export function acceptPreparedWorldChunk(p:PreparedWorldChunk):void{
- if(p.tiles.length!==CHUNK_SIZE*CHUNK_SIZE||p.climate.length!==CHUNK_SIZE*CHUNK_SIZE*4||p.biomes.length!==CHUNK_SIZE*CHUNK_SIZE)throw new Error('invalid prepared chunk');
- const key=`${p.seed}:${p.cx},${p.cy}`;
- generatedChunks.delete(key);generatedChunks.set(key,p.tiles.slice());if(generatedChunks.size>128)generatedChunks.delete(generatedChunks.keys().next().value!);
- const block={seed:p.seed,cx:p.cx,cy:p.cy,data:p.climate.slice(),biomes:p.biomes.slice()};
- climateBlocks.delete(key);climateBlocks.set(key,block);if(climateBlocks.size>96)climateBlocks.delete(climateBlocks.keys().next().value!);lastClimate=block;
+export function hasPreparedWorldChunk(
+  seed: number,
+  cx: number,
+  cy: number,
+  generation: WorldGeneration = WORLD_GENERATION,
+): boolean {
+  return generatedChunks.has(`${generation}:${seed}:${cx},${cy}`) && !!climateBlocks.get(`${seed}:${cx},${cy}`)?.biomes;
+}
+export function acceptPreparedWorldChunk(p: PreparedWorldChunk): void {
+  if (
+    (p.generation !== 1 && p.generation !== 2) ||
+    p.tiles.length !== CHUNK_SIZE * CHUNK_SIZE ||
+    p.climate.length !== CHUNK_SIZE * CHUNK_SIZE * 4 ||
+    p.biomes.length !== CHUNK_SIZE * CHUNK_SIZE
+  )
+    throw new Error('invalid prepared chunk');
+  const key = `${p.generation}:${p.seed}:${p.cx},${p.cy}`;
+  generatedChunks.delete(key);
+  generatedChunks.set(key, p.tiles.slice());
+  if (generatedChunks.size > 128) generatedChunks.delete(generatedChunks.keys().next().value!);
+  const block = { seed: p.seed, cx: p.cx, cy: p.cy, data: p.climate.slice(), biomes: p.biomes.slice() };
+  const climateKey = `${p.seed}:${p.cx},${p.cy}`;
+  climateBlocks.delete(climateKey);
+  climateBlocks.set(climateKey, block);
+  if (climateBlocks.size > 96) climateBlocks.delete(climateBlocks.keys().next().value!);
+  lastClimate = block;
 }

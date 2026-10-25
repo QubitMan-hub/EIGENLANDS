@@ -2,7 +2,11 @@
 export class TokenBucket {
   private tokens: number;
   private last: number;
-  constructor(private ratePerSec: number, private burst: number, now = Date.now()) {
+  constructor(
+    private ratePerSec: number,
+    private burst: number,
+    now = Date.now(),
+  ) {
     this.tokens = burst;
     this.last = now;
   }
@@ -18,7 +22,10 @@ export class TokenBucket {
 /** Per-key limiter for HTTP endpoints (keyed by IP). Old keys are pruned. */
 export class KeyedLimiter {
   private m = new Map<string, TokenBucket>();
-  constructor(private ratePerSec: number, private burst: number) {}
+  constructor(
+    private ratePerSec: number,
+    private burst: number,
+  ) {}
   allow(key: string, now = Date.now()): boolean {
     let b = this.m.get(key);
     if (!b) {

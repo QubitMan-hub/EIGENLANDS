@@ -1,57 +1,337 @@
 // Real Settings/input/authoritative movement and casts. Dev only positions/gives equipment/spawns a target.
-import {chromium} from 'playwright-core';
+import { chromium } from 'playwright-core';
 import assert from 'node:assert/strict';
-import {mkdirSync} from 'node:fs';
-const base=process.argv[2]??'http://127.0.0.1:5240/',mobile=process.argv.includes('--mobile');
-const out=`/tmp/eigenlands-controls-${new URL(base).port}-${mobile?'landscape':'desktop'}`;mkdirSync(out,{recursive:true});
-const browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
-let page;const errors=[];
-try{
- page=await browser.newPage({viewport:mobile?{width:844,height:390}:{width:1280,height:800},hasTouch:mobile});page.on('pageerror',e=>errors.push(e.message));
- await page.addInitScript(()=>{if(!localStorage.getItem('eigen.keys'))localStorage.setItem('eigen.keys',JSON.stringify({dash:['KeyO']}));});
- await page.goto(`${base}?dev=1&hour=12`);await page.waitForSelector('#g-off:not([hidden])');await page.fill('#name','Control explorer');await page.click('#btn-guest');
- await page.waitForFunction(()=>window.__eigen?.state().ready&&window.__eigen.game.ext.circuit.progress.loaded,null,{timeout:60000});await page.evaluate(()=>window.__eigen.game.app.ticker.maxFPS=15);
- const dev=msg=>page.evaluate(msg=>window.__eigen.game.net.dev(msg),msg);
- const pose=()=>page.evaluate(()=>{const g=window.__eigen.game,p=g.ext.atlas.state.players.get(g.myId);return {x:p.x,y:p.y};});
- const feet=()=>page.evaluate(()=>({...window.__eigen.game.input.feetScreen}));
- const press=async code=>{await page.keyboard.down(code);await page.waitForTimeout(180);await page.keyboard.up(code);};
- const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
- const settings=async()=>{await page.click('#btn-menu');await page.click('#btn-settings');await page.getByRole('dialog',{name:'Settings',exact:true}).waitFor();};
- const closeSettings=async()=>{await page.click('#btn-close');await page.waitForTimeout(350);};
- const keys=await page.evaluate(()=>JSON.stringify(window.__eigen.game.input.keys));
- assert.equal(await page.evaluate(()=>window.__eigen.game.input.movementMode),'keyboard');
- await dev({cmd:'level',level:20});await dev({cmd:'tp',x:250.5,y:250.5});await page.waitForTimeout(1200);
- const spot=await page.evaluate(()=>{const g=window.__eigen.game,m=g.ext.atlas.state.players.get(g.myId),s=g.store.solidAt;
-  for(let y=Math.floor(m.y)-14;y<Math.floor(m.y)+14;y++)for(let x=Math.floor(m.x)-14;x<Math.floor(m.x)+14;x++){
-   let ok=true;for(let t=-3;t<=3;t+=.2)for(const side of [-.35,.35])if(s(Math.floor(x+.5+t+side),Math.floor(y+.5-t+side)))ok=false;
-   for(let t=0;t<5;t+=.2)if(s(Math.floor(x+.5+Math.cos(.3)*t),Math.floor(y+.5+Math.sin(.3)*t)))ok=false;
-   if(ok)return {x:x+.5,y:y+.5};}return null;});assert(spot,'clear generated corridor');
- const home=async()=>{await dev({cmd:'tp',...spot});await page.waitForFunction(spot=>{const g=window.__eigen.game,p=g.ext.atlas.state.players.get(g.myId);return Math.hypot(p.x-spot.x,p.y-spot.y)<.1;},spot,{timeout:10000});await dev({cmd:'kill',d:12});await page.waitForTimeout(900);};await home();
- let p0=await pose();await page.keyboard.down('KeyD');await page.waitForFunction(p0=>{const g=window.__eigen.game,p=g.ext.atlas.state.players.get(g.myId);return p.x>p0.x+.4&&p.y<p0.y-.4;},p0,{timeout:10000});await page.keyboard.up('KeyD');await page.waitForTimeout(250);let p1=await pose();assert(p1.x>p0.x+.3&&p1.y<p0.y-.3,'WASD moves in screen-relative iso direction');
- await home();let f=await feet();await page.mouse.move(f.x+110,f.y);p0=await pose();await page.mouse.down({button:'right'});await page.waitForTimeout(500);await page.mouse.up({button:'right'});assert(dist(p0,await pose())<.1,'keyboard RMB looks without moving');
- await settings();await page.getByLabel('Movement controls',{exact:true}).selectOption('mouse');assert.equal(await page.locator('#voice-chip').isVisible(),false,'voice cannot cover Settings');await page.screenshot({path:`${out}/settings.png`});await closeSettings();
- assert.equal(await page.evaluate(()=>window.__eigen.game.input.movementMode),'mouse');assert.equal(await page.evaluate(()=>JSON.stringify(window.__eigen.game.input.keys)),keys);
- await home();f=await feet();p0=await pose();await page.mouse.move(f.x+110,f.y);await page.mouse.down({button:'right'});await page.waitForFunction(p0=>{const g=window.__eigen.game,p=g.ext.atlas.state.players.get(g.myId);return p.x>p0.x+.4&&p.y<p0.y-.4;},p0,{timeout:10000});p1=await pose();assert(p1.x>p0.x+.3&&p1.y<p0.y-.3,'RMB steers right');
- f=await feet();await page.mouse.move(f.x-110,f.y);await page.waitForFunction(p1=>{const g=window.__eigen.game,p=g.ext.atlas.state.players.get(g.myId);return p.x<p1.x-.3&&p.y>p1.y+.3;},p1,{timeout:10000});const p2=await pose();assert(p2.x<p1.x-.2&&p2.y>p1.y+.2,'held RMB follows changing cursor');await page.mouse.up({button:'right'});await page.waitForTimeout(350);p0=await pose();await page.waitForTimeout(450);assert(dist(p0,await pose())<.1,'release stops');
- await home();await page.waitForTimeout(1000);f=await feet();await page.mouse.move(f.x,f.y);p0=await pose();await page.mouse.down({button:'right'});await page.waitForTimeout(750);assert(dist(p0,await pose())<.15,'holding on feet does not drift');await page.mouse.up({button:'right'});
- // Opening a real dialog while RMB is held clears it; closing cannot replay it.
- f=await feet();await page.mouse.move(f.x+110,f.y);await page.mouse.down({button:'right'});await page.waitForTimeout(250);await press('KeyI');await page.getByRole('dialog',{name:'Pack',exact:true}).waitFor();await page.waitForTimeout(350);p0=await pose();await page.waitForTimeout(400);assert(dist(p0,await pose())<.1);await press('Escape');await page.mouse.up({button:'right'});await page.waitForTimeout(350);p0=await pose();await page.waitForTimeout(350);assert(dist(p0,await pose())<.1,'no replay after dialog');
- await home();f=await feet();await page.mouse.move(f.x+110,f.y);await page.mouse.down({button:'right'});await page.waitForTimeout(250);await page.evaluate(()=>window.dispatchEvent(new Event('blur')));await page.mouse.up({button:'right'});await page.waitForTimeout(350);p0=await pose();await page.waitForTimeout(350);assert(dist(p0,await pose())<.1,'blur stops');
- // Use real equipment UI, then observe actual outgoing input and successful server casts.
- await dev({cmd:'give',id:'crossbow',n:1});await page.waitForFunction(()=>window.__eigen.game.gameplay.profile.count('crossbow')===1);await press('KeyI');const pack=page.getByRole('dialog',{name:'Pack',exact:true});await pack.waitFor();
- const slot=await page.evaluate(()=>window.__eigen.game.gameplay.profile.inv.findIndex(s=>s?.id==='crossbow'));await pack.locator(`.slot[data-i="${slot}"]`).click();await pack.getByRole('button',{name:'Equip item',exact:true}).click();await page.waitForFunction(()=>window.__eigen.game.gameplay.profile.equip.weapon?.id==='crossbow');await press('Escape');await home();
- await page.evaluate(()=>{const g=window.__eigen.game;window.__controls={sent:[],results:[],fx:[]};const send=g.net.send.bind(g.net);g.net.send=(type,msg)=>{if(type==='p3_cast'||type==='input')window.__controls.sent.push({type,msg:JSON.parse(JSON.stringify(msg))});send(type,msg);};g.net.room.onMessage('p3_cast_r',m=>window.__controls.results.push(m));g.net.room.onMessage('fx',m=>window.__controls.fx.push(m));});
- f=await feet();await page.mouse.move(f.x+100,f.y-30);await page.mouse.down({button:'left'});await page.waitForTimeout(180);await page.mouse.up({button:'left'});await page.waitForFunction(()=>window.__eigen.game.gameplay.acts.attacked);
- assert(await page.evaluate(()=>window.__controls.sent.some(s=>s.type==='input'&&s.msg.cmds.some(c=>c.attack))),'left click sends real attack');
- await dev({cmd:'spawn',kind:'boar',n:1,d:4.5,night:false});await page.waitForFunction(()=>[...window.__eigen.game.ext.atlas.state.enemies.values()].some(e=>e.kind===7));
- const target=await page.evaluate(()=>{const g=window.__eigen.game,e=[...g.ext.atlas.state.enemies.values()].find(e=>e.kind===7);return {id:e.id,x:g.world.x+16*(e.x-e.y)*g.scale,y:g.world.y+8*(e.x+e.y)*g.scale-9*g.scale};});await page.mouse.click(target.x,target.y);await page.waitForFunction(id=>window.__eigen.game.targetId===id,target.id);
- await page.waitForTimeout(700);await page.evaluate(()=>window.__controls.sent=[]);await press('KeyQ');await page.waitForFunction(()=>window.__eigen.game.input.armed==='ability1');await page.waitForTimeout(300);assert.equal(await page.evaluate(()=>window.__controls.sent.filter(s=>s.type==='p3_cast').length),0,'selected enemy cannot cause quick cast');assert.equal(await page.evaluate(()=>window.__eigen.game.ext.circuit.aimRange()),9);
- const aim=await page.evaluate(()=>({x:window.__eigen.game.input.playerScreen.x-120,y:window.__eigen.game.input.playerScreen.y}));await page.mouse.move(aim.x,aim.y);await page.waitForFunction(()=>document.querySelector('#hint').hidden);await page.waitForTimeout(250);await page.screenshot({path:`${out}/aim.png`});assert.equal(await page.locator('.p3-slot').first().getAttribute('aria-pressed'),'true');
- await press('KeyQ');assert.equal(await page.evaluate(()=>window.__eigen.game.input.armed),null);await press('KeyQ');await press('Escape');assert.equal(await page.evaluate(()=>window.__eigen.game.input.armed),null);
- await page.evaluate(()=>window.__controls.sent=[]);await press('KeyQ');await page.mouse.click(aim.x,aim.y);await page.waitForFunction(()=>window.__controls.results.some(m=>m.ok&&m.line===0));await page.waitForTimeout(300);
- const sent=await page.evaluate(()=>window.__controls.sent);const casts=sent.filter(s=>s.type==='p3_cast');assert.equal(casts.length,1);assert.equal(casts[0].msg.target,undefined);assert(casts[0].msg.aimX<0&&casts[0].msg.aimY>0,'shoot at confirmed cursor rather than selected foe');assert(!sent.filter(s=>s.type==='input').some(s=>s.msg.cmds.some(c=>c.attack||c.hold)),'confirming cast cannot also attack');
- if(mobile){await page.waitForTimeout(1600);const before=await page.evaluate(()=>window.__controls.results.length);await page.locator('.p3-slot').first().tap();await page.waitForFunction(n=>window.__controls.results.length>n,before);assert.equal(await page.evaluate(()=>window.__eigen.game.input.armed),null,'touch casts directly');}
- await settings();assert.equal(await page.getByLabel('Movement controls',{exact:true}).inputValue(),'mouse');await page.getByLabel('Movement controls',{exact:true}).selectOption('keyboard');await page.getByLabel('Movement controls',{exact:true}).selectOption('mouse');await closeSettings();await page.reload();
- await page.waitForFunction(()=>window.__eigen?.state().ready&&window.__eigen.game.input.movementMode==='mouse',null,{timeout:60000});assert.equal(await page.evaluate(()=>JSON.stringify(window.__eigen.game.input.keys)),keys);assert.deepEqual(errors,[]);
- console.log('Personalized controls passed: keyboard/mouse modes, real RMB steering/stop, camera dead zone, UI/blur safeguards, LMB attack, Q select/preview/cancel/cursor cast, touch and saved reload',out);
-}catch(e){if(page){await page.screenshot({path:`${out}/failure.png`});console.log('Page errors',errors);console.log('Controls state',await page.evaluate(()=>{const g=window.__eigen?.game;return {mode:g?.input.movementMode,blocked:g?.input.blocked(),armed:g?.input.armed,window:g?.gameplay.wins.name,feet:g?.input.feetScreen,mouse:g?.input.mouseXY,look:g?.input.lookHeld,down:[...(g?.input.down??[])],pose:g?.ext.atlas.state.players.get(g.myId)?.toJSON(),pred:g?.predictor.sim,fps:g?.fps,casts:window.__controls?.results};}));}throw e;}finally{await browser.close();}
+import { mkdirSync } from 'node:fs';
+const base = process.argv[2] ?? 'http://127.0.0.1:5240/',
+  mobile = process.argv.includes('--mobile');
+const out = `/tmp/eigenlands-controls-${new URL(base).port}-${mobile ? 'landscape' : 'desktop'}`;
+mkdirSync(out, { recursive: true });
+const browser = await chromium.launch({
+  executablePath: '/usr/bin/chromium',
+  args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
+});
+let page;
+const errors = [];
+try {
+  page = await browser.newPage({
+    viewport: mobile ? { width: 844, height: 390 } : { width: 1280, height: 800 },
+    hasTouch: mobile,
+  });
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('eigen.keys')) localStorage.setItem('eigen.keys', JSON.stringify({ dash: ['KeyO'] }));
+  });
+  await page.goto(`${base}?dev=1&hour=12`);
+  await page.waitForSelector('#g-off:not([hidden])');
+  await page.fill('#name', 'Control explorer');
+  await page.click('#btn-guest');
+  await page.waitForFunction(
+    () => window.__eigen?.state().ready && window.__eigen.game.ext.circuit.progress.loaded,
+    null,
+    { timeout: 60000 },
+  );
+  await page.evaluate(() => (window.__eigen.game.app.ticker.maxFPS = 15));
+  const dev = (msg) => page.evaluate((msg) => window.__eigen.game.net.dev(msg), msg);
+  const pose = () =>
+    page.evaluate(() => {
+      const g = window.__eigen.game,
+        p = g.ext.atlas.state.players.get(g.myId);
+      return { x: p.x, y: p.y };
+    });
+  const feet = () => page.evaluate(() => ({ ...window.__eigen.game.input.feetScreen }));
+  const press = async (code) => {
+    await page.keyboard.down(code);
+    await page.waitForTimeout(180);
+    await page.keyboard.up(code);
+  };
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const settings = async () => {
+    await page.click('#btn-menu');
+    await page.click('#btn-settings');
+    await page.getByRole('dialog', { name: 'Settings', exact: true }).waitFor();
+  };
+  const closeSettings = async () => {
+    await page.click('#btn-close');
+    await page.waitForTimeout(350);
+  };
+  const keys = await page.evaluate(() => JSON.stringify(window.__eigen.game.input.keys));
+  assert.equal(await page.evaluate(() => window.__eigen.game.input.movementMode), 'keyboard');
+  await dev({ cmd: 'level', level: 20 });
+  await dev({ cmd: 'tp', x: 250.5, y: 250.5 });
+  await page.waitForTimeout(1200);
+  const spot = await page.evaluate(() => {
+    const g = window.__eigen.game,
+      m = g.ext.atlas.state.players.get(g.myId),
+      s = g.store.solidAt;
+    for (let y = Math.floor(m.y) - 14; y < Math.floor(m.y) + 14; y++)
+      for (let x = Math.floor(m.x) - 14; x < Math.floor(m.x) + 14; x++) {
+        let ok = true;
+        for (let t = -3; t <= 3; t += 0.2)
+          for (const side of [-0.35, 0.35])
+            if (s(Math.floor(x + 0.5 + t + side), Math.floor(y + 0.5 - t + side))) ok = false;
+        for (let t = 0; t < 5; t += 0.2)
+          if (s(Math.floor(x + 0.5 + Math.cos(0.3) * t), Math.floor(y + 0.5 + Math.sin(0.3) * t))) ok = false;
+        if (ok) return { x: x + 0.5, y: y + 0.5 };
+      }
+    return null;
+  });
+  assert(spot, 'clear generated corridor');
+  const home = async () => {
+    await dev({ cmd: 'tp', ...spot });
+    await page.waitForFunction(
+      (spot) => {
+        const g = window.__eigen.game,
+          p = g.ext.atlas.state.players.get(g.myId);
+        return Math.hypot(p.x - spot.x, p.y - spot.y) < 0.1;
+      },
+      spot,
+      { timeout: 10000 },
+    );
+    await dev({ cmd: 'kill', d: 12 });
+    await page.waitForTimeout(900);
+  };
+  await home();
+  let p0 = await pose();
+  await page.keyboard.down('KeyD');
+  await page.waitForFunction(
+    (p0) => {
+      const g = window.__eigen.game,
+        p = g.ext.atlas.state.players.get(g.myId);
+      return p.x > p0.x + 0.4 && p.y < p0.y - 0.4;
+    },
+    p0,
+    { timeout: 10000 },
+  );
+  await page.keyboard.up('KeyD');
+  await page.waitForTimeout(250);
+  let p1 = await pose();
+  assert(p1.x > p0.x + 0.3 && p1.y < p0.y - 0.3, 'WASD moves in screen-relative iso direction');
+  await home();
+  let f = await feet();
+  await page.mouse.move(f.x + 110, f.y);
+  p0 = await pose();
+  await page.mouse.down({ button: 'right' });
+  await page.waitForTimeout(500);
+  await page.mouse.up({ button: 'right' });
+  assert(dist(p0, await pose()) < 0.1, 'keyboard RMB looks without moving');
+  await settings();
+  await page.getByLabel('Movement controls', { exact: true }).selectOption('mouse');
+  assert.equal(await page.locator('#voice-chip').isVisible(), false, 'voice cannot cover Settings');
+  await page.screenshot({ path: `${out}/settings.png` });
+  await closeSettings();
+  assert.equal(await page.evaluate(() => window.__eigen.game.input.movementMode), 'mouse');
+  assert.equal(await page.evaluate(() => JSON.stringify(window.__eigen.game.input.keys)), keys);
+  await home();
+  f = await feet();
+  p0 = await pose();
+  await page.mouse.move(f.x + 110, f.y);
+  await page.mouse.down({ button: 'right' });
+  await page.waitForFunction(
+    (p0) => {
+      const g = window.__eigen.game,
+        p = g.ext.atlas.state.players.get(g.myId);
+      return p.x > p0.x + 0.4 && p.y < p0.y - 0.4;
+    },
+    p0,
+    { timeout: 10000 },
+  );
+  p1 = await pose();
+  assert(p1.x > p0.x + 0.3 && p1.y < p0.y - 0.3, 'RMB steers right');
+  f = await feet();
+  await page.mouse.move(f.x - 110, f.y);
+  await page.waitForFunction(
+    (p1) => {
+      const g = window.__eigen.game,
+        p = g.ext.atlas.state.players.get(g.myId);
+      return p.x < p1.x - 0.3 && p.y > p1.y + 0.3;
+    },
+    p1,
+    { timeout: 10000 },
+  );
+  const p2 = await pose();
+  assert(p2.x < p1.x - 0.2 && p2.y > p1.y + 0.2, 'held RMB follows changing cursor');
+  await page.mouse.up({ button: 'right' });
+  await page.waitForTimeout(350);
+  p0 = await pose();
+  await page.waitForTimeout(450);
+  assert(dist(p0, await pose()) < 0.1, 'release stops');
+  await home();
+  await page.waitForTimeout(1000);
+  f = await feet();
+  await page.mouse.move(f.x, f.y);
+  p0 = await pose();
+  await page.mouse.down({ button: 'right' });
+  await page.waitForTimeout(750);
+  assert(dist(p0, await pose()) < 0.15, 'holding on feet does not drift');
+  await page.mouse.up({ button: 'right' });
+  // Opening a real dialog while RMB is held clears it; closing cannot replay it.
+  f = await feet();
+  await page.mouse.move(f.x + 110, f.y);
+  await page.mouse.down({ button: 'right' });
+  await page.waitForTimeout(250);
+  await press('KeyI');
+  await page.getByRole('dialog', { name: 'Pack', exact: true }).waitFor();
+  await page.waitForTimeout(350);
+  p0 = await pose();
+  await page.waitForTimeout(400);
+  assert(dist(p0, await pose()) < 0.1);
+  await press('Escape');
+  await page.mouse.up({ button: 'right' });
+  await page.waitForTimeout(350);
+  p0 = await pose();
+  await page.waitForTimeout(350);
+  assert(dist(p0, await pose()) < 0.1, 'no replay after dialog');
+  await home();
+  f = await feet();
+  await page.mouse.move(f.x + 110, f.y);
+  await page.mouse.down({ button: 'right' });
+  await page.waitForTimeout(250);
+  await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  await page.mouse.up({ button: 'right' });
+  await page.waitForTimeout(350);
+  p0 = await pose();
+  await page.waitForTimeout(350);
+  assert(dist(p0, await pose()) < 0.1, 'blur stops');
+  // Use real equipment UI, then observe actual outgoing input and successful server casts.
+  await dev({ cmd: 'give', id: 'crossbow', n: 1 });
+  await page.waitForFunction(() => window.__eigen.game.gameplay.profile.count('crossbow') === 1);
+  await press('KeyI');
+  const pack = page.getByRole('dialog', { name: 'Pack', exact: true });
+  await pack.waitFor();
+  const slot = await page.evaluate(() =>
+    window.__eigen.game.gameplay.profile.inv.findIndex((s) => s?.id === 'crossbow'),
+  );
+  await pack.locator(`.slot[data-i="${slot}"]`).click();
+  await pack.getByRole('button', { name: 'Equip item', exact: true }).click();
+  await page.waitForFunction(() => window.__eigen.game.gameplay.profile.equip.weapon?.id === 'crossbow');
+  await press('Escape');
+  await home();
+  await page.evaluate(() => {
+    const g = window.__eigen.game;
+    window.__controls = { sent: [], results: [], fx: [] };
+    const send = g.net.send.bind(g.net);
+    g.net.send = (type, msg) => {
+      if (type === 'p3_cast' || type === 'input')
+        window.__controls.sent.push({ type, msg: JSON.parse(JSON.stringify(msg)) });
+      send(type, msg);
+    };
+    g.net.room.onMessage('p3_cast_r', (m) => window.__controls.results.push(m));
+    g.net.room.onMessage('fx', (m) => window.__controls.fx.push(m));
+  });
+  f = await feet();
+  await page.mouse.move(f.x + 100, f.y - 30);
+  await page.mouse.down({ button: 'left' });
+  await page.waitForTimeout(180);
+  await page.mouse.up({ button: 'left' });
+  await page.waitForFunction(() => window.__eigen.game.gameplay.acts.attacked);
+  assert(
+    await page.evaluate(() =>
+      window.__controls.sent.some((s) => s.type === 'input' && s.msg.cmds.some((c) => c.attack)),
+    ),
+    'left click sends real attack',
+  );
+  await dev({ cmd: 'spawn', kind: 'boar', n: 1, d: 4.5, night: false });
+  await page.waitForFunction(() => [...window.__eigen.game.ext.atlas.state.enemies.values()].some((e) => e.kind === 7));
+  const target = await page.evaluate(() => {
+    const g = window.__eigen.game,
+      e = [...g.ext.atlas.state.enemies.values()].find((e) => e.kind === 7);
+    return {
+      id: e.id,
+      x: g.world.x + 16 * (e.x - e.y) * g.scale,
+      y: g.world.y + 8 * (e.x + e.y) * g.scale - 9 * g.scale,
+    };
+  });
+  await page.mouse.click(target.x, target.y);
+  await page.waitForFunction((id) => window.__eigen.game.targetId === id, target.id);
+  await page.waitForTimeout(700);
+  await page.evaluate(() => (window.__controls.sent = []));
+  await press('KeyQ');
+  await page.waitForFunction(() => window.__eigen.game.input.armed === 'ability1');
+  await page.waitForTimeout(300);
+  assert.equal(
+    await page.evaluate(() => window.__controls.sent.filter((s) => s.type === 'p3_cast').length),
+    0,
+    'selected enemy cannot cause quick cast',
+  );
+  assert.equal(await page.evaluate(() => window.__eigen.game.ext.circuit.aimRange()), 9);
+  const aim = await page.evaluate(() => ({
+    x: window.__eigen.game.input.playerScreen.x - 120,
+    y: window.__eigen.game.input.playerScreen.y,
+  }));
+  await page.mouse.move(aim.x, aim.y);
+  await page.waitForFunction(() => document.querySelector('#hint').hidden);
+  await page.waitForTimeout(250);
+  await page.screenshot({ path: `${out}/aim.png` });
+  assert.equal(await page.locator('.p3-slot').first().getAttribute('aria-pressed'), 'true');
+  await press('KeyQ');
+  assert.equal(await page.evaluate(() => window.__eigen.game.input.armed), null);
+  await press('KeyQ');
+  await press('Escape');
+  assert.equal(await page.evaluate(() => window.__eigen.game.input.armed), null);
+  await page.evaluate(() => (window.__controls.sent = []));
+  await press('KeyQ');
+  await page.mouse.click(aim.x, aim.y);
+  await page.waitForFunction(() => window.__controls.results.some((m) => m.ok && m.line === 0));
+  await page.waitForTimeout(300);
+  const sent = await page.evaluate(() => window.__controls.sent);
+  const casts = sent.filter((s) => s.type === 'p3_cast');
+  assert.equal(casts.length, 1);
+  assert.equal(casts[0].msg.target, undefined);
+  assert(casts[0].msg.aimX < 0 && casts[0].msg.aimY > 0, 'shoot at confirmed cursor rather than selected foe');
+  assert(
+    !sent.filter((s) => s.type === 'input').some((s) => s.msg.cmds.some((c) => c.attack || c.hold)),
+    'confirming cast cannot also attack',
+  );
+  if (mobile) {
+    await page.waitForTimeout(1600);
+    const before = await page.evaluate(() => window.__controls.results.length);
+    await page.locator('.p3-slot').first().tap();
+    await page.waitForFunction((n) => window.__controls.results.length > n, before);
+    assert.equal(await page.evaluate(() => window.__eigen.game.input.armed), null, 'touch casts directly');
+  }
+  await settings();
+  assert.equal(await page.getByLabel('Movement controls', { exact: true }).inputValue(), 'mouse');
+  await page.getByLabel('Movement controls', { exact: true }).selectOption('keyboard');
+  await page.getByLabel('Movement controls', { exact: true }).selectOption('mouse');
+  await closeSettings();
+  await page.reload();
+  await page.waitForFunction(
+    () => window.__eigen?.state().ready && window.__eigen.game.input.movementMode === 'mouse',
+    null,
+    { timeout: 60000 },
+  );
+  assert.equal(await page.evaluate(() => JSON.stringify(window.__eigen.game.input.keys)), keys);
+  assert.deepEqual(errors, []);
+  console.log(
+    'Personalized controls passed: keyboard/mouse modes, real RMB steering/stop, camera dead zone, UI/blur safeguards, LMB attack, Q select/preview/cancel/cursor cast, touch and saved reload',
+    out,
+  );
+} catch (e) {
+  if (page) {
+    await page.screenshot({ path: `${out}/failure.png` });
+    console.log('Page errors', errors);
+    console.log(
+      'Controls state',
+      await page.evaluate(() => {
+        const g = window.__eigen?.game;
+        return {
+          mode: g?.input.movementMode,
+          blocked: g?.input.blocked(),
+          armed: g?.input.armed,
+          window: g?.gameplay.wins.name,
+          feet: g?.input.feetScreen,
+          mouse: g?.input.mouseXY,
+          look: g?.input.lookHeld,
+          down: [...(g?.input.down ?? [])],
+          pose: g?.ext.atlas.state.players.get(g.myId)?.toJSON(),
+          pred: g?.predictor.sim,
+          fps: g?.fps,
+          casts: window.__controls?.results,
+        };
+      }),
+    );
+  }
+  throw e;
+} finally {
+  await browser.close();
+}

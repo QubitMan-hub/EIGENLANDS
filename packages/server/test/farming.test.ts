@@ -1,12 +1,28 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { CROPS, T, cropStage, daysToRipe, type CropData } from '@eigenlands/shared';
 import type { App } from '../src/app';
-import { boot, count, flatten, give, hasToast, nextDay, setDay, sleep, slotOf, spawn, tp, until, use, type Probe } from './p2';
+import {
+  boot,
+  count,
+  flatten,
+  give,
+  hasToast,
+  nextDay,
+  setDay,
+  sleep,
+  slotOf,
+  spawn,
+  tp,
+  until,
+  use,
+  type Probe,
+} from './p2';
 
 let app: App;
 let p: Probe;
 let other: Probe;
-const X = 200, Y = 200;
+const X = 200,
+  Y = 200;
 const crop = (x: number, y: number) => p.room.store.objectAt(x, y);
 const data = (x: number, y: number) => crop(x, y)!.data as unknown as CropData;
 
@@ -19,7 +35,9 @@ beforeAll(async () => {
   await tp(other, X + 3.5, Y + 0.5);
   flatten(p.room, X, Y, 8);
 });
-afterAll(async () => { await app?.close(); });
+afterAll(async () => {
+  await app?.close();
+});
 
 describe('the crop lifecycle', () => {
   it('till, plant, water, grow over watered days and harvest', async () => {
@@ -114,7 +132,14 @@ describe('seasons, lanterns, sprinklers', () => {
     setDay(p.room, 20, 10); // autumn day 6, a day before winter
     p.room.setTile(X + 2, Y + 2, T.TILLED);
     // plant directly: a pumpkin (autumn) is fine today but dies when winter arrives unripe
-    p.room.objects.put({ x: X + 2, y: Y + 2, kind: 'crop', sub: 'pumpkin', owner: p.accountId, data: { crop: 'pumpkin', planted: 20, growth: 0, watered: -1, lastDay: 19, owner: p.accountId } });
+    p.room.objects.put({
+      x: X + 2,
+      y: Y + 2,
+      kind: 'crop',
+      sub: 'pumpkin',
+      owner: p.accountId,
+      data: { crop: 'pumpkin', planted: 20, growth: 0, watered: -1, lastDay: 19, owner: p.accountId },
+    });
     await nextDay(p.room);
     expect(p.room.wclock.season()).toBe(3);
     expect(data(X + 2, Y + 2).dead).toBe(true);
@@ -147,14 +172,18 @@ describe('superposition', () => {
     await give(p, 'superposed_seed', 2, { a: 'turnip', b: 'potato' }); // unique stacks
     await use(p, 'superposed_seed', X, Y + 7);
     await use(p, 'superposed_seed', X + 1, Y + 7);
-    const a = crop(X, Y + 7)!, b = crop(X + 1, Y + 7)!;
+    const a = crop(X, Y + 7)!,
+      b = crop(X + 1, Y + 7)!;
     expect(a.sub).toBe('*turnip+potato');
     expect(daysToRipe(data(X, Y + 7))).toBe(3); // slower of the two
     // tonic A biases the second crop toward its first crop
     await give(p, 'phase_tonic_a', 1);
     await use(p, 'phase_tonic_a', X + 1, Y + 7);
     expect(data(X + 1, Y + 7).bias).toBe('a');
-    for (const o of [a, b]) { (o.data as unknown as CropData).growth = 3; p.room.objects.update(o); }
+    for (const o of [a, b]) {
+      (o.data as unknown as CropData).growth = 3;
+      p.room.objects.update(o);
+    }
     p.room.rand = () => 0.6; // 0.6 >= 0.5 -> the second crop when unbiased, but < 0.75 -> the first when biased
     await use(p, 'axe', X, Y + 7, 120);
     await use(p, 'axe', X + 1, Y + 7, 120);

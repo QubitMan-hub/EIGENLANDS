@@ -1,14 +1,52 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ACK_BYTES, ACK_FIELDS, ARMOR_LIGHT_MULT, CHARGE_FULL, CHARGE_MIN, COMBO, CRIT_MULT, DASH_CHARGES, DASH_COOLDOWN, ENEMY_BY_KIND,
-  ENEMY_DEFS, IFRAME_TIME, PERFECT_WINDOW, TICK_DT, VULNERABLE_MULT, chargeLevel, critChance, decodeAck, encodeAck, eliteChance,
-  enemyScale, hasIframes, heavyHit, hitStopMs, inArc, isPerfectDodge, newPlayerSim, pickSpawn, resolveHit, rollCrit, sanitizeCmd,
-  shakeFor, shapeHits, slamDamage, spawnTable, stepPlayer, type InputCmd, type PlayerSim,
+  ACK_BYTES,
+  ACK_FIELDS,
+  ARMOR_LIGHT_MULT,
+  CHARGE_FULL,
+  CHARGE_MIN,
+  COMBO,
+  CRIT_MULT,
+  DASH_CHARGES,
+  DASH_COOLDOWN,
+  ENEMY_BY_KIND,
+  ENEMY_DEFS,
+  IFRAME_TIME,
+  PERFECT_WINDOW,
+  TICK_DT,
+  VULNERABLE_MULT,
+  chargeLevel,
+  critChance,
+  decodeAck,
+  encodeAck,
+  eliteChance,
+  enemyScale,
+  hasIframes,
+  heavyHit,
+  hitStopMs,
+  inArc,
+  isPerfectDodge,
+  newPlayerSim,
+  pickSpawn,
+  resolveHit,
+  rollCrit,
+  sanitizeCmd,
+  shakeFor,
+  shapeHits,
+  slamDamage,
+  spawnTable,
+  stepPlayer,
+  type InputCmd,
+  type PlayerSim,
 } from '../src';
 
 const open = () => false;
 const cmd = (o: Partial<InputCmd> = {}): InputCmd => sanitizeCmd({ seq: 1, ...o });
-const run = (p: PlayerSim, n: number, o: Partial<InputCmd> = {}) => { const evs = []; for (let i = 0; i < n; i++) evs.push(stepPlayer(p, cmd(o), open)); return evs; };
+const run = (p: PlayerSim, n: number, o: Partial<InputCmd> = {}) => {
+  const evs = [];
+  for (let i = 0; i < n; i++) evs.push(stepPlayer(p, cmd(o), open));
+  return evs;
+};
 
 describe('combo, buffering and cancels', () => {
   it('taps chain slash, slash, finisher; the finisher lunges further and recovers longer', () => {
@@ -18,7 +56,10 @@ describe('combo, buffering and cancels', () => {
     for (let i = 0; i < 30; i++) {
       const x0 = p.x;
       const ev = stepPlayer(p, cmd({ attack: i % 2 === 0, aimX: 1 }), open);
-      if (ev.attacked) { hits.push(ev.combo); xs.push(p.x - x0); }
+      if (ev.attacked) {
+        hits.push(ev.combo);
+        xs.push(p.x - x0);
+      }
     }
     expect(hits.slice(0, 4)).toEqual([0, 1, 2, 0]);
     expect(xs[2]).toBeGreaterThan(xs[0]! * 2);
@@ -33,7 +74,11 @@ describe('combo, buffering and cancels', () => {
     run(p, 1);
     stepPlayer(p, cmd({ attack: true }), open);
     let fired = -1;
-    for (let i = 0; i < 10; i++) if (stepPlayer(p, cmd(), open).attacked) { fired = i; break; }
+    for (let i = 0; i < 10; i++)
+      if (stepPlayer(p, cmd(), open).attacked) {
+        fired = i;
+        break;
+      }
     expect(fired).toBeGreaterThanOrEqual(0);
     expect(fired).toBeLessThanOrEqual(4);
   });
@@ -54,7 +99,10 @@ describe('combo, buffering and cancels', () => {
     // attack pressed mid-dash comes out as soon as the dash ends, as hit 2 of the combo
     stepPlayer(p, cmd({ attack: true }), open);
     let ev = null;
-    for (let i = 0; i < 6 && !ev; i++) { const e = stepPlayer(p, cmd(), open); if (e.attacked) ev = e; }
+    for (let i = 0; i < 6 && !ev; i++) {
+      const e = stepPlayer(p, cmd(), open);
+      if (e.attacked) ev = e;
+    }
     expect(ev?.combo).toBe(1);
   });
 });
@@ -91,7 +139,8 @@ describe('charged heavy', () => {
 
   it('holding slows movement; a dash cancels the charge', () => {
     const p = newPlayerSim(0, 0);
-    p.charge = 0.5; p.hold = 1;
+    p.charge = 0.5;
+    p.hold = 1;
     stepPlayer(p, cmd({ hold: true, dx: 1 }), open);
     expect(p.x).toBeLessThan(4.5 * TICK_DT * 0.6);
     stepPlayer(p, cmd({ hold: true, dash: true, dx: 1 }), open);
@@ -130,8 +179,13 @@ describe('dash charges and dodging', () => {
     void perfectSteps;
     const q = newPlayerSim(0, 0);
     stepPlayer(q, cmd({ dash: true, dx: 1 }), open);
-    let perfect = 1, ifr = 1;
-    for (let i = 0; i < 10; i++) { stepPlayer(q, cmd(), open); if (isPerfectDodge(q)) perfect++; if (hasIframes(q)) ifr++; }
+    let perfect = 1,
+      ifr = 1;
+    for (let i = 0; i < 10; i++) {
+      stepPlayer(q, cmd(), open);
+      if (isPerfectDodge(q)) perfect++;
+      if (hasIframes(q)) ifr++;
+    }
     expect(perfect).toBe(Math.ceil(PERFECT_WINDOW / TICK_DT - 1e-9));
     expect(ifr).toBeGreaterThan(perfect);
     expect(ifr).toBeLessThanOrEqual(Math.ceil(IFRAME_TIME / TICK_DT));
@@ -157,7 +211,8 @@ describe('crit, poise, armour, slam', () => {
   });
 
   it('crit, stagger vulnerability and armour multiply as specified', () => {
-    const slime = ENEMY_DEFS.slime, brute = ENEMY_DEFS.brute;
+    const slime = ENEMY_DEFS.slime,
+      brute = ENEMY_DEFS.brute;
     const light = { damage: 10, poise: 4, knockback: 2, weight: 0 };
     expect(resolveHit(slime, light, { crit: false, staggered: false }).damage).toBe(10);
     expect(resolveHit(slime, light, { crit: true, staggered: false }).damage).toBe(Math.round(10 * CRIT_MULT));
@@ -209,7 +264,11 @@ describe('enemies and spawning', () => {
   });
 
   it('level 1 only meets slimes and hoppers by day; brutes appear from level 4', () => {
-    expect(spawnTable(1, false).map((e) => e.kind).sort()).toEqual(['hopper', 'slime']);
+    expect(
+      spawnTable(1, false)
+        .map((e) => e.kind)
+        .sort(),
+    ).toEqual(['hopper', 'slime']);
     expect(spawnTable(4, false, 'desert').some((e) => e.kind === 'brute')).toBe(true);
     expect(spawnTable(4, false, 'meadow').some((e) => e.kind === 'brute')).toBe(false);
     expect(spawnTable(2, true).some((e) => e.kind === 'brute')).toBe(false);
@@ -237,11 +296,23 @@ describe('ack carries the whole sim', () => {
   it('replaying from float32-rounded state gives identical results (prediction exactness)', () => {
     const a = newPlayerSim(0.5, 0.5);
     const inputs: Partial<InputCmd>[] = [];
-    for (let i = 0; i < 80; i++) inputs.push({ dx: Math.sin(i / 4), dy: Math.cos(i / 6), attack: i % 7 === 0, hold: i % 20 > 8, dash: i % 23 === 5, aimX: 1 });
+    for (let i = 0; i < 80; i++)
+      inputs.push({
+        dx: Math.sin(i / 4),
+        dy: Math.cos(i / 6),
+        attack: i % 7 === 0,
+        hold: i % 20 > 8,
+        dash: i % 23 === 5,
+        aimX: 1,
+      });
     for (const c of inputs.slice(0, 40)) stepPlayer(a, cmd(c), open);
     const b = decodeAck(encodeAck({ seq: 0, tick: 0, sim: a })).sim;
-    const evA: boolean[] = [], evB: boolean[] = [];
-    for (const c of inputs.slice(40)) { evA.push(stepPlayer(a, cmd(c), open).attacked); evB.push(stepPlayer(b, cmd(c), open).attacked); }
+    const evA: boolean[] = [],
+      evB: boolean[] = [];
+    for (const c of inputs.slice(40)) {
+      evA.push(stepPlayer(a, cmd(c), open).attacked);
+      evB.push(stepPlayer(b, cmd(c), open).attacked);
+    }
     expect(evB).toEqual(evA);
     expect(b.x).toBeCloseTo(a.x, 3);
     expect(b.atkCd).toBe(a.atkCd);

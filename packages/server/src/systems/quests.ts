@@ -3,9 +3,34 @@
  * every system (`questEvent`), deliveries track the pack, rewards are atomic. See shared/src/quests.ts for the data.
  */
 import {
-  ENEMY_DEFS, ITEMS, MSG, NPC_BY_ID, POINTS_PER_HEART, RECIPES, addStack, applyQuestEvent, countItem, dailyRequests, dayNumber,
-  isRequestId, objectiveText, pruneRequests, questComplete, questDef, removeItem, requestDay, startQuest, syncDeliveries, townFor,
-  type BoardRequest, type DeedKind, type PanelMsg, type QuestDef, type QuestEvent, type QuestMsg, type Stack,
+  ENEMY_DEFS,
+  ITEMS,
+  MSG,
+  NPC_BY_ID,
+  POINTS_PER_HEART,
+  RECIPES,
+  addStack,
+  applyQuestEvent,
+  countItem,
+  dailyRequests,
+  dayNumber,
+  isRequestId,
+  objectiveText,
+  pruneRequests,
+  questComplete,
+  questDef,
+  removeItem,
+  requestDay,
+  startQuest,
+  syncDeliveries,
+  townFor,
+  type BoardRequest,
+  type DeedKind,
+  type PanelMsg,
+  type QuestDef,
+  type QuestEvent,
+  type QuestMsg,
+  type Stack,
 } from '@eigenlands/shared';
 import type { ServerPlayer } from '../rooms/player';
 import type { RoomApi } from './api';
@@ -14,7 +39,9 @@ import type { PlayerRef } from './types';
 
 let SEED = 0;
 /** The world seed (request-board jobs are generated from it). Set once by the world room. */
-export const setQuestSeed = (s: number): void => { SEED = s; };
+export const setQuestSeed = (s: number): void => {
+  SEED = s;
+};
 export const questSeed = (): number => SEED;
 
 const d0 = (): number => dayNumber(Date.now());
@@ -47,7 +74,11 @@ function snapshot(p: PlayerRef, seed: number): Map<string, boolean[]> {
   for (const [id, st] of Object.entries(p.data.quests)) {
     if (st.state !== 'active') continue;
     const d = questDef(id, seed);
-    if (d) m.set(id, d.objectives.map((o, i) => (st.progress[i] ?? 0) >= o.n));
+    if (d)
+      m.set(
+        id,
+        d.objectives.map((o, i) => (st.progress[i] ?? 0) >= o.n),
+      );
   }
   return m;
 }
@@ -59,10 +90,16 @@ function announce(p: PlayerRef, before: Map<string, boolean[]>, changed: string[
     if (!d || !st) continue;
     const was = before.get(id) ?? [];
     if (questComplete(d, st)) {
-      if (!was.every(Boolean)) p.toast(`Quest ready: ${d.title}. Return to ${d.daily ? 'the request board or ' : ''}${giverName(d.giver)}.`, 'good');
+      if (!was.every(Boolean))
+        p.toast(
+          `Quest ready: ${d.title}. Return to ${d.daily ? 'the request board or ' : ''}${giverName(d.giver)}.`,
+          'good',
+        );
       continue;
     }
-    d.objectives.forEach((o, i) => { if (!was[i] && (st.progress[i] ?? 0) >= o.n) p.toast(`✓ ${o.label}`, 'good'); });
+    d.objectives.forEach((o, i) => {
+      if (!was[i] && (st.progress[i] ?? 0) >= o.n) p.toast(`✓ ${o.label}`, 'good');
+    });
   }
 }
 
@@ -81,11 +118,17 @@ export function onKill(p: PlayerRef, def: unknown, day: number): void {
 
 // ───────────────────────── accept / turn in ─────────────────────────
 
-export function acceptQuest(p: PlayerRef, id: string, today: number, seed = SEED): { ok: boolean; text: string; def?: QuestDef } {
+export function acceptQuest(
+  p: PlayerRef,
+  id: string,
+  today: number,
+  seed = SEED,
+): { ok: boolean; text: string; def?: QuestDef } {
   const d = questDef(id, seed);
   if (!d) return { ok: false, text: 'There is no such task.' };
   const log = p.data.quests;
-  if (log[id]) return { ok: false, text: log[id]!.state === 'done' ? 'You already did that.' : 'You are already on it.', def: d };
+  if (log[id])
+    return { ok: false, text: log[id]!.state === 'done' ? 'You already did that.' : 'You are already on it.', def: d };
   if (d.daily) {
     if (d.daily.day !== today) return { ok: false, text: 'That request has been taken down.', def: d };
     const active = Object.entries(log).filter(([k, s]) => isRequestId(k) && s.state === 'active').length;
@@ -98,19 +141,28 @@ export function acceptQuest(p: PlayerRef, id: string, today: number, seed = SEED
   return { ok: true, text: d.title, def: d };
 }
 
-export function turnInQuest(p: PlayerRef, id: string, seed = SEED, today = d0()): { ok: boolean; text: string; def?: QuestDef } {
+export function turnInQuest(
+  p: PlayerRef,
+  id: string,
+  seed = SEED,
+  today = d0(),
+): { ok: boolean; text: string; def?: QuestDef } {
   const d = questDef(id, seed);
   const st = p.data.quests[id];
   if (!d || !st) return { ok: false, text: 'You are not on that task.' };
   if (st.state === 'done') return { ok: false, text: 'Already done. Thank you!', def: d };
   syncDeliveries(p.data.quests, (x) => countItem(p.data.inv, x), seed);
   if (!questComplete(d, st)) {
-    const left = d.objectives.map((o, i) => ((st.progress[i] ?? 0) < o.n ? objectiveText(o, st.progress[i] ?? 0) : null)).filter(Boolean);
+    const left = d.objectives
+      .map((o, i) => ((st.progress[i] ?? 0) < o.n ? objectiveText(o, st.progress[i] ?? 0) : null))
+      .filter(Boolean);
     return { ok: false, text: `Not finished yet: ${left.join('; ')}.`, def: d };
   }
   // simulate: hand over deliveries, then add rewards; refuse atomically if the rewards do not fit
   const inv = p.data.inv.map((s) => (s ? { ...s, ...(s.p ? { p: { ...s.p } } : {}) } : null));
-  for (const o of d.objectives) if (o.type === 'deliver' && !removeItem(inv, o.target, o.n)) return { ok: false, text: 'Something is missing from your pack.', def: d };
+  for (const o of d.objectives)
+    if (o.type === 'deliver' && !removeItem(inv, o.target, o.n))
+      return { ok: false, text: 'Something is missing from your pack.', def: d };
   const items: Stack[] = d.rewards.items ?? [];
   if (!fitsAll(inv, items)) return { ok: false, text: 'Make some room in your pack first.', def: d };
   for (const s of items) addStack(inv, s);
@@ -122,10 +174,17 @@ export function turnInQuest(p: PlayerRef, id: string, seed = SEED, today = d0())
     const f = (p.data.friends[d.giver] ??= { pts: 0, talked: -1, gifted: -1 });
     f.pts = Math.min(POINTS_PER_HEART * 10, f.pts + d.rewards.friend);
   }
-  const learned = d.rewards.recipe && RECIPES.some((r) => r.id === d.rewards.recipe) && !p.data.recipes.has(d.rewards.recipe) ? d.rewards.recipe : null;
+  const learned =
+    d.rewards.recipe && RECIPES.some((r) => r.id === d.rewards.recipe) && !p.data.recipes.has(d.rewards.recipe)
+      ? d.rewards.recipe
+      : null;
   if (learned) p.data.recipes.add(learned);
   p.dirty('quests', 'inv', 'coins', 'friends', ...(learned ? ['recipes' as const] : []));
-  const rewardText = [`${d.rewards.coins} coins`, ...items.map((s) => `${s.n} ${ITEMS[s.id]?.name ?? s.id}`), ...(learned ? [`recipe: ${ITEMS[RECIPES.find((r) => r.id === learned)!.out.id]?.name}`] : [])].join(', ');
+  const rewardText = [
+    `${d.rewards.coins} coins`,
+    ...items.map((s) => `${s.n} ${ITEMS[s.id]?.name ?? s.id}`),
+    ...(learned ? [`recipe: ${ITEMS[RECIPES.find((r) => r.id === learned)!.out.id]?.name}`] : []),
+  ].join(', ');
   p.toast(`Quest complete: ${d.title}! (${rewardText})`, 'good');
   recordDeed(p, 'quest', d.daily ? `filled ${giverName(d.giver)}'s request` : `finished "${d.title}"`, today);
   return { ok: true, text: rewardText, def: d };
@@ -147,7 +206,17 @@ export function boardPanel(p: PlayerRef, today: number, seed = SEED, at = boardP
     let state: BoardRequest['state'] = 'open';
     if (st) state = st.state === 'done' ? 'done' : questComplete(d, st) ? 'ready' : 'active';
     else if (day !== today) state = 'expired';
-    return { id: d.id, giver: d.giver, title: d.title, summary: d.summary, objectives: d.objectives, progress: st?.progress ?? d.objectives.map(() => 0), coins: d.rewards.coins, state, day };
+    return {
+      id: d.id,
+      giver: d.giver,
+      title: d.title,
+      summary: d.summary,
+      objectives: d.objectives,
+      progress: st?.progress ?? d.objectives.map(() => 0),
+      coins: d.rewards.coins,
+      state,
+      day,
+    };
   };
   for (const d of dailyRequests(seed, today)) reqs.push(view(d));
   // jobs taken yesterday are still on the player's list until the end of today
@@ -158,18 +227,35 @@ export function boardPanel(p: PlayerRef, today: number, seed = SEED, at = boardP
   }
   const town = townFor(seed);
   const notice = String(town.objects.find((o) => o.sub === 'board')?.data?.text ?? '');
-  return { kind: 'board', tx: at?.x ?? 0, ty: at?.y ?? 0, sub: 'board', sign: notice, board: { day: today, requests: reqs } };
+  return {
+    kind: 'board',
+    tx: at?.x ?? 0,
+    ty: at?.y ?? 0,
+    sub: 'board',
+    sign: notice,
+    board: { day: today, requests: reqs },
+  };
 }
 
 /** QUEST message: at the board (npcId 'board') or with a villager (handled by the village for dialogue). */
 export function handleQuestMsg(room: RoomApi, p: ServerPlayer, m: QuestMsg): void {
-  if (!m || typeof m.quest !== 'string' || (m.action !== 'accept' && m.action !== 'turnin') || typeof m.npcId !== 'string') return;
+  if (
+    !m ||
+    typeof m.quest !== 'string' ||
+    (m.action !== 'accept' && m.action !== 'turnin') ||
+    typeof m.npcId !== 'string'
+  )
+    return;
   if (m.npcId === 'board') {
     const b = boardPos(room.seed);
-    if (!b || Math.hypot(b.x + 0.5 - p.sim.x, b.y + 0.5 - p.sim.y) > 4) { p.toast('Too far from the request board.'); return; }
+    if (!b || Math.hypot(b.x + 0.5 - p.sim.x, b.y + 0.5 - p.sim.y) > 4) {
+      p.toast('Too far from the request board.');
+      return;
+    }
     if (!isRequestId(m.quest)) return;
     const today = room.wclock.day();
-    const r = m.action === 'accept' ? acceptQuest(p, m.quest, today, room.seed) : turnInQuest(p, m.quest, room.seed, today);
+    const r =
+      m.action === 'accept' ? acceptQuest(p, m.quest, today, room.seed) : turnInQuest(p, m.quest, room.seed, today);
     if (!r.ok) p.toast(r.text, 'bad');
     p.client.send(MSG.PANEL, boardPanel(p, today, room.seed, b));
     return;
@@ -182,7 +268,9 @@ export function handleQuestMsg(room: RoomApi, p: ServerPlayer, m: QuestMsg): voi
 
 /** Day rollover / login: drop request-board jobs whose time ran out. */
 export function expireRequests(p: PlayerRef, today: number): void {
-  const active = Object.entries(p.data.quests).filter(([id, s]) => isRequestId(id) && s.state === 'active').map(([id]) => id);
+  const active = Object.entries(p.data.quests)
+    .filter(([id, s]) => isRequestId(id) && s.state === 'active')
+    .map(([id]) => id);
   const gone = pruneRequests(p.data.quests, today);
   if (!gone.length) return;
   p.dirty('quests');
@@ -190,7 +278,10 @@ export function expireRequests(p: PlayerRef, today: number): void {
 }
 
 /** Wire the QUEST message into the room (rate-limited like other social messages). */
-export function registerQuests(room: RoomApi, on: <M>(type: string, bucket: 'socialBucket', fn: (p: ServerPlayer, msg: M) => void) => void): void {
+export function registerQuests(
+  room: RoomApi,
+  on: <M>(type: string, bucket: 'socialBucket', fn: (p: ServerPlayer, msg: M) => void) => void,
+): void {
   setQuestSeed(room.seed);
   on<QuestMsg>(MSG.QUEST, 'socialBucket', (p, m) => handleQuestMsg(room, p, m));
 }

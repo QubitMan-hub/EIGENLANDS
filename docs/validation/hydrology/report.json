@@ -1,0 +1,54 @@
+{
+  "bounds": [-160, -160, 160, 160],
+  "step": 1,
+  "results": [
+    {
+      "seed": 20260101,
+      "generation": 1,
+      "waterTiles": 1479,
+      "pools": 287,
+      "largestPoolTiles": 50,
+      "tilesInPoolsUnder5": 341
+    },
+    {
+      "seed": 20260101,
+      "generation": 2,
+      "waterTiles": 1371,
+      "pools": 39,
+      "largestPoolTiles": 155,
+      "tilesInPoolsUnder5": 24
+    },
+    {
+      "seed": 1337,
+      "generation": 1,
+      "waterTiles": 1060,
+      "pools": 213,
+      "largestPoolTiles": 31,
+      "tilesInPoolsUnder5": 256
+    },
+    {
+      "seed": 1337,
+      "generation": 2,
+      "waterTiles": 898,
+      "pools": 21,
+      "largestPoolTiles": 258,
+      "tilesInPoolsUnder5": 13
+    },
+    {
+      "seed": 7102025,
+      "generation": 1,
+      "waterTiles": 2106,
+      "pools": 431,
+      "largestPoolTiles": 33,
+      "tilesInPoolsUnder5": 580
+    },
+    {
+      "seed": 7102025,
+      "generation": 2,
+      "waterTiles": 1605,
+      "pools": 47,
+      "largestPoolTiles": 241,
+      "tilesInPoolsUnder5": 40
+    }
+  ]
+}

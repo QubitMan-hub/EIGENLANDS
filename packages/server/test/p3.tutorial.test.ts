@@ -1,11 +1,23 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { MSG34, TUTORIAL, TUTORIAL_DONE, TUTORIAL_REWARD, TUTORIAL_SKIP_GATES, emptyGateCounts, rewardsForLevel } from '@eigenlands/shared';
+import {
+  MSG34,
+  TUTORIAL,
+  TUTORIAL_DONE,
+  TUTORIAL_REWARD,
+  TUTORIAL_SKIP_GATES,
+  emptyGateCounts,
+  rewardsForLevel,
+} from '@eigenlands/shared';
 import type { App } from '../src/app';
 import { attune, boot3, cast, dummy, flatten, mkBoard, sleep, spawn3, st, tp, until, type P3 } from './p3helpers';
 
 let app: App;
-beforeAll(async () => { app = await boot3(); });
-afterAll(async () => { await app?.close(); });
+beforeAll(async () => {
+  app = await boot3();
+});
+afterAll(async () => {
+  await app?.close();
+});
 
 const step = (p: P3) => p.prog.tutorial!.step;
 const stepId = (p: P3) => TUTORIAL[step(p)]?.id ?? 'done';
@@ -39,14 +51,18 @@ describe('The Flickering Orb', () => {
 
     // Interfere: Split, Tune, Split
     expect((await attune(p, mkBoard({ 0: ['h', 'z', 'h'] }, { 0: 'glimmer' }))).ok).toBe(true);
-    await cast(p, 0); await cast(p, 0);
+    await cast(p, 0);
+    await cast(p, 0);
     await until(() => stepId(p) === 'fight');
     expect(p.prog.codex).toEqual(expect.arrayContaining(['phase', 'interference']));
 
     // Fight: three creatures defeated by the orb (melee kills would not count)
     for (let k = 0; k < 3; k++) {
       const e = dummy(p.room, p.sp.sim.x + 3, p.sp.sim.y);
-      while (p.room.enemies.has(e.id)) { await cast(p, 0); await sleep(150); }
+      while (p.room.enemies.has(e.id)) {
+        await cast(p, 0);
+        await sleep(150);
+      }
       await until(() => p.prog.tutorial!.count === k + 1 || stepId(p) === 'choose');
     }
     await until(() => stepId(p) === 'choose');
@@ -77,7 +93,11 @@ describe('The Flickering Orb', () => {
     await until(() => st(p).pr.rewardedLevel === p.sp.level && p.prog.gates!.h === st(p).pr.gates.h, 2500);
     const want = { ...emptyGateCounts(), h: 3, x: 2, z: 1, t: 1, cx: 1, m: 1 };
     let runes = TUTORIAL_REWARD.runes;
-    for (let l = 2; l <= p.sp.level; l++) { const r = rewardsForLevel(l); r.gates.forEach((g) => want[g]++); runes += r.runes; }
+    for (let l = 2; l <= p.sp.level; l++) {
+      const r = rewardsForLevel(l);
+      r.gates.forEach((g) => want[g]++);
+      runes += r.runes;
+    }
     expect(p.prog.gates).toEqual(want);
     expect(p.prog.runes).toBe(runes);
     await until(() => p.sp.data.coins === coins + TUTORIAL_REWARD.coins);

@@ -1,18 +1,43 @@
+import { auditRows } from './memory-store';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { MSG, MSG34, TRADE_MAX_ITEMS } from '@eigenlands/shared';
 import type { App } from '../src/app';
 import { runtime34 } from '../src/features/runtime34';
 import { tradeTuning } from '../src/features/social/trade';
-import { bootP4, countOf, giveP4, hasSys, joinP4, lastTrade, sleep, slotOfP4, tpP4, until, waitSys, type P4 } from './p4helpers';
+import {
+  bootP4,
+  countOf,
+  giveP4,
+  hasSys,
+  joinP4,
+  lastTrade,
+  sleep,
+  slotOfP4,
+  tpP4,
+  until,
+  waitSys,
+  type P4,
+} from './p4helpers';
 
 let app: App;
 let realCommit: typeof import('../src/db/repo34').Repo34.prototype.commitTrade;
-beforeAll(async () => { app = await bootP4(); realCommit = runtime34().repo34.commitTrade; });
-afterAll(async () => { await app?.close(); });
-afterEach(() => { runtime34().repo34.commitTrade = realCommit; tradeTuning.confirmDelayMs = 0; });
+beforeAll(async () => {
+  app = await bootP4();
+  realCommit = runtime34().repo34.commitTrade;
+});
+afterAll(async () => {
+  await app?.close();
+});
+afterEach(() => {
+  runtime34().repo34.commitTrade = realCommit;
+  tradeTuning.confirmDelayMs = 0;
+});
 
 const T = (p: P4, m: unknown) => p.r.send(MSG34.TRADE, m);
-const leave = async (...ps: P4[]) => { for (const p of ps) await p.r.leave().catch(() => {}); await sleep(80); };
+const leave = async (...ps: P4[]) => {
+  for (const p of ps) await p.r.leave().catch(() => {});
+  await sleep(80);
+};
 
 let n = 0;
 /** Two players standing next to each other with an open trade. */
@@ -20,8 +45,12 @@ async function pair(o: { shard?: string; x?: number } = {}): Promise<[P4, P4]> {
   n++;
   const x = o.x ?? 0.5;
   const pos = o.shard ? { shard: o.shard, pos: [x, 4.5] as [number, number] } : {};
-  const a = await joinP4(app, `TA${n}`, pos), b = await joinP4(app, `TB${n}`, o.shard ? { shard: o.shard, pos: [x + 1, 4.5] } : {});
-  if (!o.shard) { await tpP4(a, x, 4.5); await tpP4(b, x + 1, 4.5); }
+  const a = await joinP4(app, `TA${n}`, pos),
+    b = await joinP4(app, `TB${n}`, o.shard ? { shard: o.shard, pos: [x + 1, 4.5] } : {});
+  if (!o.shard) {
+    await tpP4(a, x, 4.5);
+    await tpP4(b, x + 1, 4.5);
+  }
   T(a, { action: 'request', name: b.name });
   await until(() => b.tradeReqs.length === 1);
   T(b, { action: 'accept', id: b.tradeReqs[0]!.id });
@@ -30,9 +59,13 @@ async function pair(o: { shard?: string; x?: number } = {}): Promise<[P4, P4]> {
 }
 
 /** Items and coins across both players (memory). Trades must never change these totals. */
-const totals = (a: P4, b: P4, id: string) => ({ items: countOf(a, id) + countOf(b, id), coins: a.sp.data.coins + b.sp.data.coins });
+const totals = (a: P4, b: P4, id: string) => ({
+  items: countOf(a, id) + countOf(b, id),
+  coins: a.sp.data.coins + b.sp.data.coins,
+});
 async function dbTotals(a: P4, b: P4, id: string) {
-  let items = 0, coins = 0;
+  let items = 0,
+    coins = 0;
   for (const p of [a, b]) {
     const ch = await app.repo.getCharacter(p.accountId);
     const d = ch!.data as { inv: Array<{ id: string; n: number } | null>; coins: number };
@@ -41,13 +74,14 @@ async function dbTotals(a: P4, b: P4, id: string) {
   }
   return { items, coins };
 }
-const trades = async (a: P4) => (await runtime34().repo34.pool.query('SELECT * FROM trades WHERE a = $1 OR b = $1', [a.accountId])).rows;
+const trades = (a: P4) => auditRows('trades', a.accountId);
 
 describe('trading', () => {
   it('happy path: items and coins swap, both characters and an audit row are saved', async () => {
     const [a, b] = await pair();
     await giveP4(a, 'fiber', 20);
-    const fs = slotOfP4(a, 'fiber'), axe = slotOfP4(b, 'axe');
+    const fs = slotOfP4(a, 'fiber'),
+      axe = slotOfP4(b, 'axe');
     const fiber0 = countOf(a, 'fiber');
     const t0 = lastTrade(a)!;
     expect(t0.other).toBe(b.name);
@@ -111,7 +145,14 @@ describe('trading', () => {
     const [a, b] = await pair();
     const fs = slotOfP4(a, 'fiber');
     const bad: unknown[] = [
-      { action: 'offer', items: [{ slot: fs, n: 1 }, { slot: fs, n: 1 }], coins: 0 }, // same slot twice
+      {
+        action: 'offer',
+        items: [
+          { slot: fs, n: 1 },
+          { slot: fs, n: 1 },
+        ],
+        coins: 0,
+      }, // same slot twice
       { action: 'offer', items: [{ slot: fs, n: 999 }], coins: 0 },
       { action: 'offer', items: [{ slot: fs, n: 0 }], coins: 0 },
       { action: 'offer', items: [{ slot: fs, n: 1.5 }], coins: 0 },
@@ -141,8 +182,10 @@ describe('trading', () => {
 
     // decline + out of range request
     n++;
-    a = await joinP4(app, `TA${n}`); b = await joinP4(app, `TB${n}`);
-    await tpP4(a, 0.5, 4.5); await tpP4(b, 30.5, 4.5);
+    a = await joinP4(app, `TA${n}`);
+    b = await joinP4(app, `TB${n}`);
+    await tpP4(a, 0.5, 4.5);
+    await tpP4(b, 30.5, 4.5);
     T(a, { action: 'request', name: b.name });
     await waitSys(a, /too far away/);
     await tpP4(b, 1.5, 4.5);
@@ -178,7 +221,8 @@ describe('trading', () => {
 
     // idle 2 minutes
     [a, b] = await pair();
-    for (const t of ((a.room.social.trade as any).trades as Map<string, { at: number }>).values()) t.at = Date.now() - 121_000;
+    for (const t of ((a.room.social.trade as any).trades as Map<string, { at: number }>).values())
+      t.at = Date.now() - 121_000;
     await until(() => lastTrade(a)?.id === null, 3000);
     expect(lastTrade(a)!.reason).toMatch(/2 minutes/);
     await leave(a, b);
@@ -200,11 +244,13 @@ describe('trading', () => {
     const [a, b] = await pair();
     // fill b's pack with unstackable swords
     const free = b.sp.data.inv.filter((s) => !s).length;
-    for (let i = 0; i < free; i++) b.sp.data.inv[b.sp.data.inv.indexOf(null)] = { id: 'sword', n: 1, p: { tier: 1, atk: i } };
+    for (let i = 0; i < free; i++)
+      b.sp.data.inv[b.sp.data.inv.indexOf(null)] = { id: 'sword', n: 1, p: { tier: 1, atk: i } };
     await giveP4(a, 'stone', 5);
     T(a, { action: 'offer', items: [{ slot: slotOfP4(a, 'stone'), n: 5 }], coins: 0 });
     await until(() => lastTrade(b)?.theirs?.items.length === 1);
-    T(a, { action: 'confirm' }); T(b, { action: 'confirm' });
+    T(a, { action: 'confirm' });
+    T(b, { action: 'confirm' });
     await waitSys(b, /does not have room/);
     expect(lastTrade(a)!.id).not.toBeNull();
     expect(countOf(a, 'stone')).toBe(5);
@@ -253,10 +299,18 @@ describe('trade atomicity (no duplication, ever)', () => {
     T(a, { action: 'offer', items: [{ slot: fs, n: 2 }], coins: 30 });
     await until(() => lastTrade(b)?.theirs?.coins === 30);
     // slow DB: the commit is in flight while the spam arrives
-    runtime34().repo34.commitTrade = async (t) => { await sleep(300); return realCommit.call(runtime34().repo34, t); };
+    runtime34().repo34.commitTrade = async (t) => {
+      await sleep(300);
+      return realCommit.call(runtime34().repo34, t);
+    };
     T(a, { action: 'confirm' });
     await until(() => lastTrade(b)?.theirConfirm === true);
-    for (let i = 0; i < 20; i++) { T(b, { action: 'confirm' }); T(a, { action: 'confirm' }); T(a, { action: 'offer', items: [{ slot: fs, n: 5 }], coins: 50 }); T(a, { action: 'cancel' }); }
+    for (let i = 0; i < 20; i++) {
+      T(b, { action: 'confirm' });
+      T(a, { action: 'confirm' });
+      T(a, { action: 'offer', items: [{ slot: fs, n: 5 }], coins: 50 });
+      T(a, { action: 'cancel' });
+    }
     // inventory actions are frozen during the save
     a.r.send(MSG.INV_TRASH, { slot: fs, n: 1 });
     await until(() => lastTrade(a)?.id === null && lastTrade(b)?.id === null, 4000);
@@ -275,7 +329,10 @@ describe('trade atomicity (no duplication, ever)', () => {
     const before = totals(a, b, 'fiber');
     T(a, { action: 'offer', items: [{ slot: slotOfP4(a, 'fiber'), n: 5 }], coins: 100 });
     await until(() => lastTrade(b)?.theirs?.coins === 100);
-    runtime34().repo34.commitTrade = async (t) => { await sleep(250); return realCommit.call(runtime34().repo34, t); };
+    runtime34().repo34.commitTrade = async (t) => {
+      await sleep(250);
+      return realCommit.call(runtime34().repo34, t);
+    };
     T(a, { action: 'confirm' });
     await until(() => lastTrade(b)?.theirConfirm === true);
     T(b, { action: 'confirm' });
@@ -296,12 +353,17 @@ describe('trade atomicity (no duplication, ever)', () => {
   it('a DB failure rolls BOTH players back and leaves no audit row', async () => {
     const [a, b] = await pair();
     await giveP4(b, 'stone', 7);
-    const invA = JSON.stringify(a.sp.data.inv), invB = JSON.stringify(b.sp.data.inv);
+    const invA = JSON.stringify(a.sp.data.inv),
+      invB = JSON.stringify(b.sp.data.inv);
     T(a, { action: 'offer', items: [{ slot: slotOfP4(a, 'fiber'), n: 4 }], coins: 25 });
     T(b, { action: 'offer', items: [{ slot: slotOfP4(b, 'stone'), n: 7 }], coins: 0 });
     await until(() => lastTrade(a)?.theirs?.items.length === 1 && lastTrade(b)?.theirs?.items.length === 1);
-    runtime34().repo34.commitTrade = async () => { await sleep(50); throw new Error('db down'); };
-    T(a, { action: 'confirm' }); T(b, { action: 'confirm' });
+    runtime34().repo34.commitTrade = async () => {
+      await sleep(50);
+      throw new Error('db down');
+    };
+    T(a, { action: 'confirm' });
+    T(b, { action: 'confirm' });
     await until(() => lastTrade(a)?.id === null && lastTrade(b)?.id === null, 3000);
     expect(lastTrade(a)!.reason).toMatch(/could not be saved/);
     expect(JSON.stringify(a.sp.data.inv)).toBe(invA);
@@ -317,9 +379,23 @@ describe('trade atomicity (no duplication, ever)', () => {
 
   it('junk trade payloads never crash the room', async () => {
     const [a, b] = await pair();
-    const junk: any[] = [null, 1, 'x', [], {}, { action: 'request' }, { action: 'request', name: {} }, { action: 'accept', id: 5 },
-      { action: 'decline', id: null }, { action: 'offer' }, { action: 'offer', items: [null], coins: 0 }, { action: 'offer', items: [{ slot: '0', n: '1' }], coins: 0 },
-      { action: 'offer', items: [{ slot: 0, n: 1, stack: { id: 'gold', n: 99 } }], coins: Infinity }, { action: 'confirm', extra: true }, { action: '__proto__' }];
+    const junk: any[] = [
+      null,
+      1,
+      'x',
+      [],
+      {},
+      { action: 'request' },
+      { action: 'request', name: {} },
+      { action: 'accept', id: 5 },
+      { action: 'decline', id: null },
+      { action: 'offer' },
+      { action: 'offer', items: [null], coins: 0 },
+      { action: 'offer', items: [{ slot: '0', n: '1' }], coins: 0 },
+      { action: 'offer', items: [{ slot: 0, n: 1, stack: { id: 'gold', n: 99 } }], coins: Infinity },
+      { action: 'confirm', extra: true },
+      { action: '__proto__' },
+    ];
     for (const m of junk) T(a, m);
     await sleep(300);
     expect(a.room.players.has(a.r.sessionId)).toBe(true);

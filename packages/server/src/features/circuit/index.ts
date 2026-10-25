@@ -5,12 +5,48 @@
  * See docs/design/phase3-4-circuit-multiplayer.md ("Phase 3").
  */
 import {
-  ABILITIES, ACTIVE_LINES, ATTUNE_COOLDOWN_MS, CLASSES, ITEMS, WEAPONS, GATES, GATE_IDS, LINK_POWER, LOCK_POWER, LOCK_POWER_COLLAPSE,
-  MSG34, MULTICLASS_LEVEL, PLAYABLE_CLASSES, RESOURCE_MAX, RUNE_PRICE, SPEC_LEVEL, TUTORIAL, TUTORIAL_DONE,
-  TUTORIAL_REWARD, attuneLocks, castLines, checkBoard, evaluate, lineErrors, placedGates,
-  qubitsForLevel, rewardsForLevel,
-  type AbilityId, type AttuneMsg, type CastLineResult, type CastMsg, type CastResultMsg, type ChooseMsg, type ClassId,
-  type Evaluation, type GateId, type ProgressMsg, type ResourceMsg, type TutorialGoal, type TutorialMsg, type UltMsg,
+  ABILITIES,
+  ACTIVE_LINES,
+  ATTUNE_COOLDOWN_MS,
+  CLASSES,
+  ITEMS,
+  WEAPONS,
+  GATES,
+  GATE_IDS,
+  LINK_POWER,
+  LOCK_POWER,
+  LOCK_POWER_COLLAPSE,
+  MSG34,
+  MULTICLASS_LEVEL,
+  PLAYABLE_CLASSES,
+  RESOURCE_MAX,
+  RUNE_PRICE,
+  SPEC_LEVEL,
+  TUTORIAL,
+  TUTORIAL_DONE,
+  TUTORIAL_REWARD,
+  attuneLocks,
+  castLines,
+  checkBoard,
+  evaluate,
+  lineErrors,
+  placedGates,
+  qubitsForLevel,
+  rewardsForLevel,
+  type AbilityId,
+  type AttuneMsg,
+  type CastLineResult,
+  type CastMsg,
+  type CastResultMsg,
+  type ChooseMsg,
+  type ClassId,
+  type Evaluation,
+  type GateId,
+  type ProgressMsg,
+  type ResourceMsg,
+  type TutorialGoal,
+  type TutorialMsg,
+  type UltMsg,
 } from '@eigenlands/shared';
 import type { Schema } from '@colyseus/schema';
 import type { Enemy } from '../../game/enemies';
@@ -21,7 +57,17 @@ import { runtime34 } from '../runtime34';
 import type { Carry, CircuitApi, Module, Registrar } from '../types';
 import { AbilityEngine, type Kit } from './engine';
 import {
-  MAX_GATE_TOKENS, MAX_RUNES, cleanBoard, isAbility, isClass, isCodex, placeAbilities, rulesFor, serializeProgress, validProgress, type Progress,
+  MAX_GATE_TOKENS,
+  MAX_RUNES,
+  cleanBoard,
+  isAbility,
+  isClass,
+  isCodex,
+  placeAbilities,
+  rulesFor,
+  serializeProgress,
+  validProgress,
+  type Progress,
 } from './progress';
 
 export { AbilityEngine } from './engine';
@@ -41,10 +87,7 @@ const SPLIT_MIN = 0.02;
 
 export const DEV_MSG = 'p3_dev';
 export type DevMsg34 =
-  | { cmd: 'gates' }
-  | { cmd: 'class'; cls: ClassId }
-  | { cmd: 'tutorial'; step: number }
-  | { cmd: 'res'; v: number };
+  { cmd: 'gates' } | { cmd: 'class'; cls: ClassId } | { cmd: 'tutorial'; step: number } | { cmd: 'res'; v: number };
 
 /** Live per-player Circuit state. */
 export interface CircuitState {
@@ -91,8 +134,14 @@ export class CircuitModule implements Module, CircuitApi {
       onHit: (p) => this.onHit(p),
       onEchoed: (p, amount) => this.onEchoed(p, amount),
       onKill: (p) => this.onKill(p),
-      onTether: (p) => { const s = this.states.get(p.id); if (s && s.pr.cls === 'entangler' && s.pr.spec === 'paradox') s.freeSwap = true; },
-      onHurt: (p) => { const s = this.states.get(p.id); if (s) s.lastCombat = Date.now(); },
+      onTether: (p) => {
+        const s = this.states.get(p.id);
+        if (s && s.pr.cls === 'entangler' && s.pr.spec === 'paradox') s.freeSwap = true;
+      },
+      onHurt: (p) => {
+        const s = this.states.get(p.id);
+        if (s) s.lastCombat = Date.now();
+      },
     });
   }
 
@@ -108,9 +157,13 @@ export class CircuitModule implements Module, CircuitApi {
 
   // ───────────────────────── API ─────────────────────────
 
-  classOf(sid: string): ClassId { return this.states.get(sid)?.pr.cls ?? 'wanderer'; }
+  classOf(sid: string): ClassId {
+    return this.states.get(sid)?.pr.cls ?? 'wanderer';
+  }
   /** Live state of a connected player (tests, tools). */
-  stateOf(sid: string): CircuitState | undefined { return this.states.get(sid); }
+  stateOf(sid: string): CircuitState | undefined {
+    return this.states.get(sid);
+  }
 
   private kit(sid: string): Kit | null {
     const s = this.states.get(sid);
@@ -121,9 +174,14 @@ export class CircuitModule implements Module, CircuitApi {
 
   async join(p: ServerPlayer, carry: Carry | null): Promise<void> {
     await pending.get(p.accountId);
-    let raw: unknown = null, failed = false;
+    let raw: unknown = null,
+      failed = false;
     for (let attempt = 0; attempt < 2; attempt++) {
-      try { raw = await runtime34().repo34.loadProgress(p.accountId); failed = false; break; } catch (e) {
+      try {
+        raw = await runtime34().repo34.loadProgress(p.accountId);
+        failed = false;
+        break;
+      } catch (e) {
         failed = true;
         if (attempt === 1) console.error('loadProgress failed', e);
       }
@@ -133,13 +191,26 @@ export class CircuitModule implements Module, CircuitApi {
     const n = qubitsForLevel(p.level, pr.qubitBonus);
     if (reroll) pr.locks = attuneLocks(pr.board, n, () => this.room.rand());
     const s: CircuitState = {
-      p, pr, n, ev: evaluate(pr.board, n, pr.locks), errors: lineErrors(pr.board, n), cd: new Map(), attuneReady: 0,
-      res: 0, resSent: -1, resSentAt: 0, lastCombat: 0, freeSwap: false, saved: '', noSave: failed,
+      p,
+      pr,
+      n,
+      ev: evaluate(pr.board, n, pr.locks),
+      errors: lineErrors(pr.board, n),
+      cd: new Map(),
+      attuneReady: 0,
+      res: 0,
+      resSent: -1,
+      resSentAt: 0,
+      lastCombat: 0,
+      freeSwap: false,
+      saved: '',
+      noSave: failed,
     };
     if (raw !== null && !failed && !reroll) s.saved = JSON.stringify(serializeProgress(pr));
     const now = Date.now();
     if (carry?.cd) {
-      for (const [k, ms] of Object.entries(carry.cd)) if (k === 'ult' || isAbility(k)) s.cd.set(k as AbilityId | 'ult', now + ms);
+      for (const [k, ms] of Object.entries(carry.cd))
+        if (k === 'ult' || isAbility(k)) s.cd.set(k as AbilityId | 'ult', now + ms);
     }
     if (pr.cls !== 'wanderer' && typeof carry?.res === 'number') s.res = Math.max(0, Math.min(RESOURCE_MAX, carry.res));
     this.states.set(p.id, s);
@@ -173,11 +244,20 @@ export class CircuitModule implements Module, CircuitApi {
     if (json === s.saved) return pending.get(acc) ?? Promise.resolve();
     s.saved = json;
     const prev = pending.get(acc) ?? Promise.resolve();
-    const write = prev.then(() => runtime34().repo34.saveProgress(acc, data)).catch((e) => {
-      if (s.saved === json) s.saved = ''; // try again on the next save
-      throw e;
-    });
-    const tracked: Promise<void> = write.then(() => {}, () => {}).finally(() => { if (pending.get(acc) === tracked) pending.delete(acc); });
+    const write = prev
+      .then(() => runtime34().repo34.saveProgress(acc, data))
+      .catch((e) => {
+        if (s.saved === json) s.saved = ''; // try again on the next save
+        throw e;
+      });
+    const tracked: Promise<void> = write
+      .then(
+        () => {},
+        () => {},
+      )
+      .finally(() => {
+        if (pending.get(acc) === tracked) pending.delete(acc);
+      });
     pending.set(acc, tracked);
     return write;
   }
@@ -192,7 +272,9 @@ export class CircuitModule implements Module, CircuitApi {
     into.res = s.res;
   }
 
-  async dispose(): Promise<void> { this.engine.clear(); }
+  async dispose(): Promise<void> {
+    this.engine.clear();
+  }
 
   // ───────────────────────── hooks ─────────────────────────
 
@@ -203,7 +285,8 @@ export class CircuitModule implements Module, CircuitApi {
     const second = this.secT >= 1;
     if (second) this.secT -= 1;
     for (const s of this.states.values()) {
-      if (s.pr.cls !== 'wanderer' && s.res > 0 && now - s.lastCombat > RES_IDLE_MS) s.res = Math.max(0, s.res - RES_DECAY * dt);
+      if (s.pr.cls !== 'wanderer' && s.res > 0 && now - s.lastCombat > RES_IDLE_MS)
+        s.res = Math.max(0, s.res - RES_DECAY * dt);
       this.sendRes(s, false);
       if (second) this.levelRewards(s);
     }
@@ -214,9 +297,13 @@ export class CircuitModule implements Module, CircuitApi {
     return this.engine.incoming(p, dmg, e);
   }
 
-  killed(e: Enemy): void { this.engine.killed(e); }
+  killed(e: Enemy): void {
+    this.engine.killed(e);
+  }
 
-  viewEntities(push: (id: string, x: number, y: number, st: Schema) => void): void { this.engine.view(push); }
+  viewEntities(push: (id: string, x: number, y: number, st: Schema) => void): void {
+    this.engine.view(push);
+  }
 
   // ───────────────────────── messages ─────────────────────────
 
@@ -224,10 +311,16 @@ export class CircuitModule implements Module, CircuitApi {
     const s = this.states.get(p.id);
     if (!s || !m.board || typeof m.board !== 'object') return;
     const now = Date.now();
-    if (now < s.attuneReady) { p.toast('Your Board is still settling. Try again in a moment.', 'bad'); return; }
+    if (now < s.attuneReady) {
+      p.toast('Your Board is still settling. Try again in a moment.', 'bad');
+      return;
+    }
     const board = cleanBoard(m.board);
     const err = checkBoard(board, rulesFor(s.pr, p.level));
-    if (err) { p.toast(err, 'bad'); return; }
+    if (err) {
+      p.toast(err, 'bad');
+      return;
+    }
     s.pr.board = board;
     s.pr.locks = attuneLocks(board, s.n, () => this.room.rand());
     this.recompute(s);
@@ -247,7 +340,8 @@ export class CircuitModule implements Module, CircuitApi {
     const s = this.states.get(p.id);
     if (!s) return;
     const line = m.line;
-    const fail = (error: string) => this.reply(p, { ok: false, error, line: Number.isInteger(line) ? line : -1, results: [], cd: this.cdMsg(s) });
+    const fail = (error: string) =>
+      this.reply(p, { ok: false, error, line: Number.isInteger(line) ? line : -1, results: [], cd: this.cdMsg(s) });
     if (!Number.isInteger(line) || line < 0 || line >= ACTIVE_LINES) return fail('There is no such orb.');
     if (line >= s.n) return fail('That orb has not woken up yet.');
     const ability = s.pr.board.abilities[line];
@@ -264,14 +358,19 @@ export class CircuitModule implements Module, CircuitApi {
     // a wielded staff is a Focus: it nudges the cast toward its own element when the ability has such a form
     const focus = p.data.equip.weapon ? ITEMS[p.data.equip.weapon.id]?.weapon : undefined;
     const fh = focus ? WEAPONS[focus].hue : -1;
-    if (fh >= 0) for (const l of lines) {
-      const a = s.pr.board.abilities[l.q];
-      if (!a || l.misfire) continue;
-      const f = ABILITIES[a].forms;
-      if (f[l.bit]!.hue !== fh && f[l.bit === 0 ? 1 : 0]!.hue === fh && this.room.rand() < FOCUS_BIAS) { l.bit = l.bit === 0 ? 1 : 0; l.hue = fh; }
-    }
+    if (fh >= 0)
+      for (const l of lines) {
+        const a = s.pr.board.abilities[l.q];
+        if (!a || l.misfire) continue;
+        const f = ABILITIES[a].forms;
+        if (f[l.bit]!.hue !== fh && f[l.bit === 0 ? 1 : 0]!.hue === fh && this.room.rand() < FOCUS_BIAS) {
+          l.bit = l.bit === 0 ? 1 : 0;
+          l.hue = fh;
+        }
+      }
     const results: CastLineResult[] = [];
-    if (free) s.freeSwap = false; // spent before executing, so a Tether in the same cast re-arms it
+    if (free)
+      s.freeSwap = false; // spent before executing, so a Tether in the same cast re-arms it
     else s.cd.set(ability, now + ABILITIES[ability].cd * 1000);
     s.lastCombat = now;
     for (const l of lines) {
@@ -279,7 +378,16 @@ export class CircuitModule implements Module, CircuitApi {
       results.push({ q: l.q, ability: a, bit: l.bit, hue: l.hue, misfire: l.misfire, link: l.link, locked: l.locked });
       if (!a || !this.room.players.has(p.id)) continue;
       const power = (l.link ? LINK_POWER : 1) * (l.locked ? 1 + lockPow : 1);
-      this.engine.execute({ caster: p, ability: a, bit: l.bit, hue: l.hue, power, aimX: ax, aimY: ay, target: tgt?.id });
+      this.engine.execute({
+        caster: p,
+        ability: a,
+        bit: l.bit,
+        hue: l.hue,
+        power,
+        aimX: ax,
+        aimY: ay,
+        target: tgt?.id,
+      });
     }
     if (s.pr.cls === 'superposer') {
       const p1 = s.ev.p1[line] ?? 0;
@@ -297,7 +405,8 @@ export class CircuitModule implements Module, CircuitApi {
   private onUlt(p: ServerPlayer, m: UltMsg): void {
     const s = this.states.get(p.id);
     if (!s) return;
-    const fail = (error: string) => this.reply(p, { ok: false, error, line: -1, ult: true, results: [], cd: this.cdMsg(s) });
+    const fail = (error: string) =>
+      this.reply(p, { ok: false, error, line: -1, ult: true, results: [], cd: this.cdMsg(s) });
     const cls = s.pr.cls;
     if (cls === 'wanderer') return fail('Choose a class to unlock an ultimate.');
     if (p.deadT > 0) return fail('You are down.');
@@ -323,16 +432,31 @@ export class CircuitModule implements Module, CircuitApi {
     if (m.what === 'class') {
       if (!isClass(m.cls) || !PLAYABLE_CLASSES.includes(m.cls)) return;
       const viaTutorial = this.goal(s)?.kind === 'choose_class';
-      if (pr.cls !== 'wanderer' && !viaTutorial) { p.toast('Your path is already chosen.', 'bad'); return; }
-      if (m.cls === pr.second) { p.toast('That is already your second class.', 'bad'); return; }
+      if (pr.cls !== 'wanderer' && !viaTutorial) {
+        p.toast('Your path is already chosen.', 'bad');
+        return;
+      }
+      if (m.cls === pr.second) {
+        p.toast('That is already your second class.', 'bad');
+        return;
+      }
       this.setClass(s, m.cls);
       p.toast(`You are now a ${CLASSES[m.cls].name}.`, 'good');
       this.sendProgress(s, ['cls', 'spec', 'second', 'board', 'locks', 'qubits']);
       if (viaTutorial) this.advance(s);
     } else if (m.what === 'spec') {
-      if (pr.cls === 'wanderer') { p.toast('Choose a class first.', 'bad'); return; }
-      if (p.level < SPEC_LEVEL) { p.toast(`Specializations open at level ${SPEC_LEVEL}.`, 'bad'); return; }
-      if (pr.spec) { p.toast('You have already specialized.', 'bad'); return; }
+      if (pr.cls === 'wanderer') {
+        p.toast('Choose a class first.', 'bad');
+        return;
+      }
+      if (p.level < SPEC_LEVEL) {
+        p.toast(`Specializations open at level ${SPEC_LEVEL}.`, 'bad');
+        return;
+      }
+      if (pr.spec) {
+        p.toast('You have already specialized.', 'bad');
+        return;
+      }
       const spec = CLASSES[pr.cls].specs.find((x) => x.id === m.spec);
       if (!spec) return;
       pr.spec = spec.id;
@@ -340,10 +464,22 @@ export class CircuitModule implements Module, CircuitApi {
       this.sendProgress(s, ['spec']);
     } else if (m.what === 'second') {
       if (!isClass(m.cls) || !PLAYABLE_CLASSES.includes(m.cls)) return;
-      if (pr.cls === 'wanderer') { p.toast('Choose a class first.', 'bad'); return; }
-      if (p.level < MULTICLASS_LEVEL) { p.toast(`A second class opens at level ${MULTICLASS_LEVEL}.`, 'bad'); return; }
-      if (pr.second) { p.toast('You already have a second class.', 'bad'); return; }
-      if (m.cls === pr.cls) { p.toast('Pick a different class for your second path.', 'bad'); return; }
+      if (pr.cls === 'wanderer') {
+        p.toast('Choose a class first.', 'bad');
+        return;
+      }
+      if (p.level < MULTICLASS_LEVEL) {
+        p.toast(`A second class opens at level ${MULTICLASS_LEVEL}.`, 'bad');
+        return;
+      }
+      if (pr.second) {
+        p.toast('You already have a second class.', 'bad');
+        return;
+      }
+      if (m.cls === pr.cls) {
+        p.toast('Pick a different class for your second path.', 'bad');
+        return;
+      }
       pr.second = m.cls;
       placeAbilities(pr, s.n);
       this.recompute(s);
@@ -354,7 +490,11 @@ export class CircuitModule implements Module, CircuitApi {
 
   private setClass(s: CircuitState, cls: ClassId): void {
     const pr = s.pr;
-    if (pr.cls !== cls) { pr.spec = null; s.res = 0; s.freeSwap = false; }
+    if (pr.cls !== cls) {
+      pr.spec = null;
+      s.res = 0;
+      s.freeSwap = false;
+    }
     pr.cls = cls;
     if (pr.second === cls || cls === 'wanderer') pr.second = null;
     placeAbilities(pr, s.n);
@@ -365,8 +505,14 @@ export class CircuitModule implements Module, CircuitApi {
   private onBuyRune(p: ServerPlayer): void {
     const s = this.states.get(p.id);
     if (!s) return;
-    if (s.pr.runes >= MAX_RUNES) { p.toast('You already hold every rune your Board can use.', 'bad'); return; }
-    if (p.data.coins < RUNE_PRICE) { p.toast(`An Error Correction rune costs ${RUNE_PRICE} coins.`, 'bad'); return; }
+    if (s.pr.runes >= MAX_RUNES) {
+      p.toast('You already hold every rune your Board can use.', 'bad');
+      return;
+    }
+    if (p.data.coins < RUNE_PRICE) {
+      p.toast(`An Error Correction rune costs ${RUNE_PRICE} coins.`, 'bad');
+      return;
+    }
     p.data.coins -= RUNE_PRICE;
     p.dirty('coins');
     s.pr.runes++;
@@ -383,12 +529,21 @@ export class CircuitModule implements Module, CircuitApi {
     } else if (m.action === 'skip') {
       if (t.step >= TUTORIAL_DONE) return;
       this.grantStep(s, TUTORIAL.length - 1);
-      t.step = TUTORIAL_DONE; t.count = 0; t.skipped = true;
+      t.step = TUTORIAL_DONE;
+      t.count = 0;
+      t.skipped = true;
       this.finishTutorial(s);
-      p.toast(s.pr.cls === 'wanderer' ? 'Lumen will be around. Choose your class on the Board.' : 'Lumen will be around if you need her.', 'info');
+      p.toast(
+        s.pr.cls === 'wanderer'
+          ? 'Lumen will be around. Choose your class on the Board.'
+          : 'Lumen will be around if you need her.',
+        'info',
+      );
       this.sendProgress(s, ['tutorial', 'gates', 'runes', 'qubits', 'board', 'locks']);
     } else if (m.action === 'restart') {
-      t.step = 0; t.count = 0; t.skipped = false;
+      t.step = 0;
+      t.count = 0;
+      t.skipped = false;
       this.sendProgress(s, ['tutorial']);
     }
   }
@@ -428,7 +583,9 @@ export class CircuitModule implements Module, CircuitApi {
 
   // ───────────────────────── tutorial ─────────────────────────
 
-  private goal(s: CircuitState): TutorialGoal | null { return TUTORIAL[s.pr.tutorial.step]?.goal ?? null; }
+  private goal(s: CircuitState): TutorialGoal | null {
+    return TUTORIAL[s.pr.tutorial.step]?.goal ?? null;
+  }
 
   private progressCount(s: CircuitState, n: number): void {
     s.pr.tutorial.count++;
@@ -442,7 +599,8 @@ export class CircuitModule implements Module, CircuitApi {
     const step = TUTORIAL[t.step];
     if (!step) return;
     this.unlock(s, step.codex ?? []);
-    t.step++; t.count = 0;
+    t.step++;
+    t.count = 0;
     if (t.step < TUTORIAL_DONE) this.grantStep(s, t.step);
     else this.finishTutorial(s);
     this.sendProgress(s, ['tutorial', 'codex', 'gates', 'runes', 'qubits', 'board', 'locks']);
@@ -455,7 +613,10 @@ export class CircuitModule implements Module, CircuitApi {
     for (let i = pr.tutGranted + 1; i <= upTo && i < TUTORIAL.length; i++) {
       const g = TUTORIAL[i]!.grant;
       for (const id of g?.gates ?? []) pr.gates[id] = Math.min(MAX_GATE_TOKENS, pr.gates[id] + 1);
-      if (g?.qubitBonus && g.qubitBonus > pr.qubitBonus) { pr.qubitBonus = g.qubitBonus; qubitsChanged = true; }
+      if (g?.qubitBonus && g.qubitBonus > pr.qubitBonus) {
+        pr.qubitBonus = g.qubitBonus;
+        qubitsChanged = true;
+      }
       pr.tutGranted = i;
     }
     if (qubitsChanged) {
@@ -474,14 +635,18 @@ export class CircuitModule implements Module, CircuitApi {
     pr.runes = Math.min(MAX_RUNES, pr.runes + TUTORIAL_REWARD.runes);
     s.p.data.coins += TUTORIAL_REWARD.coins;
     s.p.dirty('coins');
-    s.p.toast(`Lumen's gifts: ${TUTORIAL_REWARD.gates.map((g) => GATES[g].name).join(', ')}, a rune and ${TUTORIAL_REWARD.coins} coins.`, 'good');
+    s.p.toast(
+      `Lumen's gifts: ${TUTORIAL_REWARD.gates.map((g) => GATES[g].name).join(', ')}, a rune and ${TUTORIAL_REWARD.coins} coins.`,
+      'good',
+    );
   }
 
   // ───────────────────────── rewards and resource ─────────────────────────
 
   /** Grant gate and rune rewards for every level above `rewardedLevel`, and wake new orbs. */
   private levelRewards(s: CircuitState): void {
-    const p = s.p, pr = s.pr;
+    const p = s.p,
+      pr = s.pr;
     const keys: Array<keyof ProgressMsg> = [];
     if (p.level > pr.rewardedLevel) {
       const got: GateId[] = [];
@@ -490,8 +655,10 @@ export class CircuitModule implements Module, CircuitApi {
         const r = rewardsForLevel(l);
         got.push(...r.gates);
         runes += r.runes;
-        if (l === SPEC_LEVEL && pr.cls !== 'wanderer' && !pr.spec) p.toast('You can now choose a specialization on your Board.', 'good');
-        if (l === MULTICLASS_LEVEL && pr.cls !== 'wanderer' && !pr.second) p.toast('You can now take up a second class on your Board.', 'good');
+        if (l === SPEC_LEVEL && pr.cls !== 'wanderer' && !pr.spec)
+          p.toast('You can now choose a specialization on your Board.', 'good');
+        if (l === MULTICLASS_LEVEL && pr.cls !== 'wanderer' && !pr.second)
+          p.toast('You can now take up a second class on your Board.', 'good');
       }
       pr.rewardedLevel = p.level;
       for (const g of got) pr.gates[g] = Math.min(MAX_GATE_TOKENS, pr.gates[g] + 1);
@@ -508,7 +675,11 @@ export class CircuitModule implements Module, CircuitApi {
     const n = qubitsForLevel(p.level, pr.qubitBonus);
     if (n !== s.n) {
       const woke = n > s.n;
-      if (woke) p.toast(n - s.n === 1 ? 'A new orb awakens on your Board.' : `${n - s.n} new orbs awaken on your Board.`, 'good');
+      if (woke)
+        p.toast(
+          n - s.n === 1 ? 'A new orb awakens on your Board.' : `${n - s.n} new orbs awaken on your Board.`,
+          'good',
+        );
       this.recompute(s);
       keys.push('qubits');
       if (woke) {
@@ -542,13 +713,16 @@ export class CircuitModule implements Module, CircuitApi {
     if (goal?.kind === 'kills') this.progressCount(s, goal.n);
   }
 
-  private addRes(s: CircuitState, v: number): void { s.res = Math.max(0, Math.min(RESOURCE_MAX, s.res + v)); }
+  private addRes(s: CircuitState, v: number): void {
+    s.res = Math.max(0, Math.min(RESOURCE_MAX, s.res + v));
+  }
 
   private sendRes(s: CircuitState, force: boolean): void {
     const v = Math.round(s.res);
     const now = Date.now();
     if (v === s.resSent || (!force && now - s.resSentAt < RES_SEND_MS)) return;
-    s.resSent = v; s.resSentAt = now;
+    s.resSent = v;
+    s.resSentAt = now;
     const m: ResourceMsg = { v, max: RESOURCE_MAX };
     s.p.client.send(MSG34.RES, m);
   }
@@ -563,7 +737,11 @@ export class CircuitModule implements Module, CircuitApi {
 
   private unlock(s: CircuitState, ids: string[]): boolean {
     let changed = false;
-    for (const id of ids) if (isCodex(id) && !s.pr.codex.includes(id)) { s.pr.codex.push(id); changed = true; }
+    for (const id of ids)
+      if (isCodex(id) && !s.pr.codex.includes(id)) {
+        s.pr.codex.push(id);
+        changed = true;
+      }
     return changed;
   }
 
@@ -573,13 +751,18 @@ export class CircuitModule implements Module, CircuitApi {
     const e = this.room.enemies.get(id);
     if (e) return e.hp > 0 && Math.hypot(e.x - p.sim.x, e.y - p.sim.y) <= TARGET_RANGE ? { id, x: e.x, y: e.y } : null;
     const q = this.engine.allies(p).find((a) => a.id === id);
-    return q && q.deadT <= 0 && Math.hypot(q.sim.x - p.sim.x, q.sim.y - p.sim.y) <= TARGET_RANGE ? { id, x: q.sim.x, y: q.sim.y } : null;
+    return q && q.deadT <= 0 && Math.hypot(q.sim.x - p.sim.x, q.sim.y - p.sim.y) <= TARGET_RANGE
+      ? { id, x: q.sim.x, y: q.sim.y }
+      : null;
   }
 
-  private toward(p: ServerPlayer, t: { x: number; y: number }): [number, number] { return this.aim(p, t.x - p.sim.x, t.y - p.sim.y); }
+  private toward(p: ServerPlayer, t: { x: number; y: number }): [number, number] {
+    return this.aim(p, t.x - p.sim.x, t.y - p.sim.y);
+  }
 
   private aim(p: ServerPlayer, x: unknown, y: unknown): [number, number] {
-    const ax = num(x) ?? 0, ay = num(y) ?? 0;
+    const ax = num(x) ?? 0,
+      ay = num(y) ?? 0;
     const l = Math.hypot(ax, ay);
     if (l > 1e-6 && Number.isFinite(l)) return [ax / l, ay / l];
     const fl = Math.hypot(p.sim.faceX, p.sim.faceY) || 1;
@@ -593,15 +776,27 @@ export class CircuitModule implements Module, CircuitApi {
     return out;
   }
 
-  private reply(p: ServerPlayer, m: CastResultMsg): void { p.client.send(MSG34.CAST_R, m); }
+  private reply(p: ServerPlayer, m: CastResultMsg): void {
+    p.client.send(MSG34.CAST_R, m);
+  }
 
   private sendProgress(s: CircuitState, keys: Array<keyof ProgressMsg> | 'all'): void {
     const pr = s.pr;
     const full: Required<ProgressMsg> = {
-      cls: pr.cls, spec: pr.spec, second: pr.second, board: pr.board, locks: pr.locks, gates: pr.gates, runes: pr.runes,
-      qubits: s.n, codex: pr.codex, tutorial: pr.tutorial, attuneReady: s.attuneReady, cd: this.cdMsg(s),
+      cls: pr.cls,
+      spec: pr.spec,
+      second: pr.second,
+      board: pr.board,
+      locks: pr.locks,
+      gates: pr.gates,
+      runes: pr.runes,
+      qubits: s.n,
+      codex: pr.codex,
+      tutorial: pr.tutorial,
+      attuneReady: s.attuneReady,
+      cd: this.cdMsg(s),
     };
-    const m: ProgressMsg = keys === 'all' ? full : Object.fromEntries(keys.map((k) => [k, full[k]])) as ProgressMsg;
+    const m: ProgressMsg = keys === 'all' ? full : (Object.fromEntries(keys.map((k) => [k, full[k]])) as ProgressMsg);
     s.p.client.send(MSG34.PROGRESS, m);
   }
 }

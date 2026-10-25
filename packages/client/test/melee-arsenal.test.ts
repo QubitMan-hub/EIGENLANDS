@@ -1,14 +1,32 @@
-import {expect,it} from 'vitest';
-import {decodeAck,encodeAck,meleeTap,newPlayerSim,setMeleeWeapon} from '@eigenlands/shared';
-import {Predictor} from '../src/net/prediction';
-import {Profile} from '../src/game/profile';
-import {weaponComparison} from '../src/ui/equipment-preview';
-it('replays melee and ranged weapon context across actual packed ACKs without adding wire fields',()=>{
- const p=new Predictor(0,0,()=>false);setMeleeWeapon(p.sim,'warhammer');p.step({dx:0,dy:0,attack:true,dash:false,skill:false,aimX:1,aimY:0},0);
- p.reconcile(decodeAck(encodeAck({seq:0,tick:0,sim:newPlayerSim(0,0)})));expect(p.sim.atkCd).toBeCloseTo(meleeTap('warhammer',0).recovery);expect(p.sim.melee).toBe('warhammer');
- const bow=new Predictor(0,0,()=>false);bow.sim.ranged=true;bow.step({dx:0,dy:0,attack:true,dash:false,skill:false,aimX:1,aimY:0},0);bow.reconcile(decodeAck(encodeAck({seq:0,tick:0,sim:newPlayerSim(0,0)})));expect(bow.sim.x).toBe(0);expect(bow.sim.ranged).toBe(true);
+import { expect, it } from 'vitest';
+import { decodeAck, encodeAck, meleeTap, newPlayerSim, setMeleeWeapon } from '@eigenlands/shared';
+import { Predictor } from '../src/net/prediction';
+import { Profile } from '../src/game/profile';
+import { weaponComparison } from '../src/ui/equipment-preview';
+it('replays melee and ranged weapon context across actual packed ACKs without adding wire fields', () => {
+  const p = new Predictor(0, 0, () => false);
+  setMeleeWeapon(p.sim, 'warhammer');
+  p.step({ dx: 0, dy: 0, attack: true, dash: false, skill: false, aimX: 1, aimY: 0 }, 0);
+  p.reconcile(decodeAck(encodeAck({ seq: 0, tick: 0, sim: newPlayerSim(0, 0) })));
+  expect(p.sim.atkCd).toBeCloseTo(meleeTap('warhammer', 0).recovery);
+  expect(p.sim.melee).toBe('warhammer');
+  const bow = new Predictor(0, 0, () => false);
+  bow.sim.ranged = true;
+  bow.step({ dx: 0, dy: 0, attack: true, dash: false, skill: false, aimX: 1, aimY: 0 }, 0);
+  bow.reconcile(decodeAck(encodeAck({ seq: 0, tick: 0, sim: newPlayerSim(0, 0) })));
+  expect(bow.sim.x).toBe(0);
+  expect(bow.sim.ranged).toBe(true);
 });
-it('shows actual family output, reach, recovery, poise and level for a real main-hand swap',()=>{
- const p=new Profile();p.inv[10]={id:'spear',n:1};let v=weaponComparison(p,10)!;expect(v.requirement).toBe(3);expect(v.after.tap[0]!.damage).toEqual([7,8,13]);expect(v.after.tap[0]!.reach).toEqual([2.35,2.35,2.75]);
- p.inv[10]={id:'warhammer',n:1};v=weaponComparison(p,10)!;expect(v.after.tap[0]!.recovery).toEqual([.5,.5,.8]);expect(v.after.heavy.damage).toEqual([30,48]);expect(v.after.heavy.details.join(' ')).toMatch(/60.*poise/);
+it('shows actual family output, reach, recovery, poise and level for a real main-hand swap', () => {
+  const p = new Profile();
+  p.inv[10] = { id: 'spear', n: 1 };
+  let v = weaponComparison(p, 10)!;
+  expect(v.requirement).toBe(3);
+  expect(v.after.tap[0]!.damage).toEqual([7, 8, 13]);
+  expect(v.after.tap[0]!.reach).toEqual([2.35, 2.35, 2.75]);
+  p.inv[10] = { id: 'warhammer', n: 1 };
+  v = weaponComparison(p, 10)!;
+  expect(v.after.tap[0]!.recovery).toEqual([0.5, 0.5, 0.8]);
+  expect(v.after.heavy.damage).toEqual([30, 48]);
+  expect(v.after.heavy.details.join(' ')).toMatch(/60.*poise/);
 });
