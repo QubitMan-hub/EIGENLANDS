@@ -4,6 +4,12 @@ export const TICK_RATE = 20;
 export const TICK_DT = 1 / TICK_RATE;
 export const TICK_MS = 1000 / TICK_RATE;
 
+/** highest terrain elevation level (revision-3 worlds have levels 0..MAX_LEVEL) */
+export const MAX_LEVEL = 9;
+/** a step of this many levels between neighbouring tiles is a cliff: it blocks walking, shots and sight */
+export const CLIFF = 2;
+/** Range multiplier for a shooter standing on high ground: +5% per level, up to six levels. */
+export const highGroundRange = (level: number): number => 1 + 0.05 * Math.min(Math.max(level, 0), 6);
 export const PLAYER_SPEED = 4.5; // tiles / s
 /** a sloop under sail outruns a walker */
 export const BOAT_SPEED_MULT = 1.55;

@@ -4,6 +4,7 @@ export * from './rng';
 export * from './simplex';
 export * from './tiles';
 export * from './worldgen';
+export { CONTINENT_R, REGION_CELL, elevationAt, landmarkDistance, latitude, riverField } from './terrain3';
 export * from './world-version';
 export * from './chunks';
 export * from './sim';

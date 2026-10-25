@@ -18,6 +18,7 @@ import {
   type AbilityId,
   type ClassId,
   type EnemyDef,
+  highGroundRange,
 } from '@eigenlands/shared';
 import type { Enemy } from '../../game/enemies';
 import type { GameRoom } from '../../rooms/GameRoom';
@@ -114,6 +115,8 @@ interface Bolt {
   /** weapon bolts: enemies it may still pass through, and those already hit */
   pierce?: number;
   hit?: Set<string>;
+  /** terrain level the bolt left from */
+  level: number;
 }
 interface Echo {
   id: string;
@@ -431,15 +434,17 @@ export class AbilityEngine {
       const dx = Math.cos(a),
         dy = Math.sin(a);
       const sp = this.spell(SPELL.BOLT, ox, oy, c.hue, c.caster.id, { dx, dy });
+      const level = this.room.store.levelAt(Math.floor(ox), Math.floor(oy));
       this.bolts.set(sp.id, {
         ...sp,
+        level,
         owner: c.caster.id,
         x: ox,
         y: oy,
         dx,
         dy,
         speed: f.speed ?? 12,
-        range: f.range ?? 9,
+        range: (f.range ?? 9) * highGroundRange(level),
         travelled: 0,
         form: f,
         hue: c.hue,
@@ -509,7 +514,7 @@ export class AbilityEngine {
           } else landed = true;
         }
       }
-      const wall = !landed && solid(Math.floor(nx), Math.floor(ny));
+      const wall = !landed && solid(Math.floor(nx), Math.floor(ny), b.level);
       if (!wall) {
         b.x = nx;
         b.y = ny;

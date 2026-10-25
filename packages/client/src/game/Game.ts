@@ -622,7 +622,7 @@ export class Game {
 
   private chunk(m: ChunkMsg): void {
     const changed = applyChunkSnapshot(this.store, m);
-    if (changed.tiles.length && this.terrain.has(m.cx, m.cy)) this.terrain.invalidate(m.cx, m.cy);
+    if ((changed.tiles.length || changed.levels) && this.terrain.has(m.cx, m.cy)) this.terrain.invalidate(m.cx, m.cy);
     if (this.shown.has(`${m.cx},${m.cy}`)) {
       for (const t of changed.tiles) this.objects.refreshTile(t.x, t.y);
       for (const o of changed.objects) this.worldObjs.upsert(o);

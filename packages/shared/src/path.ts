@@ -1,12 +1,16 @@
+import { CLIFF } from './constants';
 /** A* on the tile grid (8-way, no corner cutting). Used by the server to walk NPCs between schedule spots. */
 export function findPath(
   sx: number,
   sy: number,
   tx: number,
   ty: number,
-  solid: (x: number, y: number) => boolean,
+  solid: ((x: number, y: number) => boolean) & { level?: (x: number, y: number) => number },
   maxNodes = 3000,
 ): Array<[number, number]> | null {
+  const level = solid.level;
+  /** can a walker step from (ax, ay) to the adjacent tile (bx, by)? Cliffs of CLIFF levels or more cannot be crossed. */
+  const step = (ax: number, ay: number, bx: number, by: number) => !level || Math.abs(level(bx, by) - level(ax, ay)) < CLIFF;
   if (sx === tx && sy === ty) return [];
   if (solid(tx, ty)) return null;
   const key = (x: number, y: number) => `${x},${y}`;
@@ -38,8 +42,13 @@ export function findPath(
         if (!dx && !dy) continue;
         const nx = cur.x + dx,
           ny = cur.y + dy;
-        if (solid(nx, ny)) continue;
-        if (dx && dy && (solid(cur.x + dx, cur.y) || solid(cur.x, cur.y + dy))) continue; // no corner cutting
+        if (solid(nx, ny) || !step(cur.x, cur.y, nx, ny)) continue;
+        if (
+          dx &&
+          dy &&
+          (solid(cur.x + dx, cur.y) || solid(cur.x, cur.y + dy) || !step(cur.x, cur.y, cur.x + dx, cur.y) || !step(cur.x, cur.y, cur.x, cur.y + dy))
+        )
+          continue; // no corner cutting, not even across a cliff corner
         const g = cur.g + (dx && dy ? 1.41 : 1);
         const k = key(nx, ny);
         if (g >= (best.get(k) ?? Infinity)) continue;

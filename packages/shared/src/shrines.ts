@@ -3,6 +3,7 @@ import { isCaveY } from './caves';
 import { hash2 } from './rng';
 import { landmarkTileAt, sampleClimate } from './worldgen';
 import { isSolid } from './tiles';
+import { LEGACY_GENERATION } from './world-version';
 import type { WorldObj } from './objects';
 import { townFor, townAt } from './town';
 import { oceanShrine, isDiveY, DIVE_OY } from './sanctuaries';
@@ -41,7 +42,7 @@ function clear(seed: number, x: number, y: number): boolean {
       const t = landmarkTileAt(seed, x + i, y + j);
       if (isSolid(t)) return false;
     }
-  return sampleClimate(seed, x, y).height > -0.05;
+  return sampleClimate(seed, x, y, LEGACY_GENERATION).height > -0.05;
 }
 
 /** The shrine of region (rx, ry), if any. */

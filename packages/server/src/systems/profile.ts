@@ -1,6 +1,7 @@
 import {
   validTravelNeeds,
   WORLD_GENERATION,
+  isWorldGeneration,
   CROPS,
   DEED_KINDS,
   ITEMS,
@@ -170,7 +171,7 @@ export function loadPlayerData(raw: unknown, season: number, nowMs: number): Pla
     ? r.events.filter((x): x is string => typeof x === 'string' && /^[a-z]+:\d$/.test(x)).slice(0, 64)
     : [];
   return {
-    worldGeneration: r.worldGeneration === WORLD_GENERATION ? WORLD_GENERATION : 1,
+    worldGeneration: isWorldGeneration(r.worldGeneration) ? r.worldGeneration : 1,
     needs: validTravelNeeds(r.needs),
     inv: validInventory(r.inv),
     coins,

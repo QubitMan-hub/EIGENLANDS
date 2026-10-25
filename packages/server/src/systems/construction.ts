@@ -154,6 +154,15 @@ export async function useConstruction(
       } else if (!LAND.includes(room.store.getTile(x, y))) {
         p.toast('Clear trees and rocks before laying a foundation.');
         return true;
+      } else {
+        // foundations need level ground: every neighbouring tile must sit at the same elevation
+        const level = room.store.levelAt(x, y);
+        for (let oy = -1; oy <= 1; oy++)
+          for (let ox = -1; ox <= 1; ox++)
+            if (room.store.levelAt(x + ox, y + oy) !== level) {
+              p.toast('This ground slopes too much for a foundation. Find a level clearing.');
+              return true;
+            }
       }
       d.floor = id as BuildData['floor'];
     } else {

@@ -32,6 +32,7 @@ export async function startApp(o: AppOptions = {}): Promise<App> {
       databaseUrl: TEST_DB,
       redisUrl: usesMemoryStore ? null : 'redis://localhost:6379',
       autosaveMs: 200,
+      newWorldGeneration: 2,
       authRatePerSec: 1000,
       authBurst: 1000,
       ...o.config,
