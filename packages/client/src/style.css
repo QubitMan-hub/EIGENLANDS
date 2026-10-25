@@ -8,6 +8,13 @@
   --danger: #d44a4a;
   --hp: #d44a4a;
   --xp: #bca06b;
+  /* material tokens: ink-green slate, bronze binding, parchment text */
+  --slate: #17201f;
+  --slate-deep: #101719;
+  --bronze: #786646;
+  --bronze-lt: #bca06b;
+  --moss: #45694c;
+  --ember: #874840;
 }
 * {
   box-sizing: border-box;
@@ -72,8 +79,8 @@ body {
 .bar {
   position: relative;
   height: 14px;
-  background: #1a1c2e;
-  border: 1px solid #484c6e;
+  background: var(--slate);
+  border: 1px solid var(--bronze);
   margin-top: 4px;
   overflow: hidden;
 }
@@ -122,7 +129,7 @@ body {
   background: rgba(0, 0, 0, 0.75);
   padding: 2px 8px;
   margin: 2px;
-  border-radius: 4px;
+  border-radius: 0;
   font-size: 0.85em;
 }
 #debug {
@@ -190,9 +197,9 @@ button.danger {
   pointer-events: none;
 }
 .card {
-  background: #1a1c2e;
-  border: 3px solid #484c6e;
-  border-radius: 10px;
+  background: var(--slate);
+  border: 3px solid var(--bronze);
+  border-radius: 0;
   padding: 22px 26px;
   width: min(420px, 100%);
   display: grid;
@@ -423,9 +430,9 @@ section {
 .cell.unk {
   font-size: 20px;
   color: var(--mute);
-  background: #0f1020;
-  border: 2px dashed #3a3e5e;
-  border-radius: 4px;
+  background: var(--slate-deep);
+  border: 2px dashed var(--bronze);
+  border-radius: 0;
   width: 44px;
   height: 44px;
   flex: none;
@@ -512,7 +519,7 @@ section {
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  border-bottom: 2px solid #3a3e5e;
+  border-bottom: 2px solid var(--bronze);
   position: sticky;
   top: 0;
   background: #28332c;
@@ -628,7 +635,7 @@ section {
   color: #b57f4a;
   text-align: center;
   padding: 8px;
-  border-radius: 6px;
+  border-radius: 0;
   font-size: 0.8em;
 }
 .dim {
@@ -651,7 +658,7 @@ section {
   z-index: 40;
   pointer-events: none;
   max-width: 280px;
-  background: #0f1020;
+  background: var(--slate-deep);
 }
 .tip-name {
   font-weight: bold;
@@ -693,7 +700,7 @@ section {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  border: 1px solid #0b0c1a;
+  border: 1px solid var(--slate-deep);
   vertical-align: middle;
   margin: 0 2px;
 }
@@ -748,8 +755,8 @@ section {
   gap: 8px;
   padding: 6px;
   border: 2px solid #2c2f4a;
-  border-radius: 6px;
-  background: #12132a;
+  border-radius: 0;
+  background: var(--slate-deep);
 }
 .recipe.can {
   border-color: #2f8040;
@@ -845,7 +852,7 @@ section {
   flex: 1;
   height: 8px;
   background: linear-gradient(90deg, #7a3ad0, #2c2f4a 50%, #fcd45a);
-  border-radius: 4px;
+  border-radius: 0;
 }
 .cohbar i {
   position: absolute;
@@ -868,8 +875,8 @@ section {
 }
 .fbar {
   height: 8px;
-  background: #0f1020;
-  border-radius: 4px;
+  background: var(--slate-deep);
+  border-radius: 0;
   overflow: hidden;
 }
 .fbar i {
@@ -901,16 +908,16 @@ section {
 .dtext {
   font-size: 1.05em;
   padding: 10px;
-  border: 2px solid #3a3e5e;
-  border-radius: 6px;
-  background: #12132a;
+  border: 2px solid var(--bronze);
+  border-radius: 0;
+  background: var(--slate-deep);
   min-height: 70px;
 }
 .hearts .hf {
   color: #d44a4a;
 }
 .hearts .he {
-  color: #3a3e5e;
+  color: var(--bronze);
 }
 .hearts {
   font-size: 1.1em;
@@ -923,7 +930,7 @@ section {
 }
 .gift-note {
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: 0;
   background: #1f5e33;
 }
 .gift-note.hate {
@@ -989,8 +996,8 @@ section {
 .sign {
   font-size: 1.1em;
   padding: 12px;
-  background: #12132a;
-  border: 2px solid #3a3e5e;
+  background: var(--slate-deep);
+  border: 2px solid var(--bronze);
 }
 #toasts .toast:nth-last-child(n + 3) {
   display: none;
@@ -1006,9 +1013,11 @@ section {
   max-width: min(320px, 70vw);
 }
 .toast {
-  background: rgba(15, 16, 32, 0.9);
-  border: 2px solid #3a3e5e;
-  border-radius: 6px;
+  position: relative;
+  background: var(--slate);
+  border: 1px solid var(--bronze);
+  border-left: 4px solid var(--bronze-lt);
+  box-shadow: 0 2px 0 #101719aa;
   padding: 4px 10px;
   display: flex;
   gap: 8px;
@@ -1021,17 +1030,61 @@ section {
   opacity: 0;
 }
 .toast.good {
-  border-color: #2f8040;
+  border-left-color: #78965e;
 }
 .toast.bad {
-  border-color: #a02a3a;
+  border-left-color: #ae574b;
 }
 .toast.item .ico {
   width: 24px;
   height: 24px;
 }
+/* item pickups stand on a small isometric pedestal; rare finds get a gilt frame and a passing glint */
+.toast.item .pedestal {
+  position: relative;
+  flex: none;
+  width: 30px;
+  height: 28px;
+  background: var(--ped) center bottom / 28px 22px no-repeat;
+  image-rendering: pixelated;
+}
+.toast.item .pedestal .ico {
+  position: absolute;
+  left: 5px;
+  top: -2px;
+  width: 20px;
+  height: 20px;
+}
+.toast.rare {
+  border-color: #dd985f;
+  border-left-color: #eed093;
+  box-shadow:
+    inset 0 0 0 1px #17201f,
+    inset 0 0 0 2px #874840,
+    0 2px 0 #101719aa;
+}
+.toast.rare::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 40%, #f5e5b955 50%, transparent 60%) no-repeat;
+  background-size: 250% 100%;
+  animation: glint 1.1s ease-out 0.15s 1 both;
+  pointer-events: none;
+}
+.reduced-motion .toast.rare::after {
+  display: none;
+}
+@keyframes glint {
+  from {
+    background-position: 120% 0;
+  }
+  to {
+    background-position: -60% 0;
+  }
+}
 .toast .tn {
-  color: #7bc95a;
+  color: #bbca8a;
   font-weight: bold;
 }
 @keyframes tin {
@@ -1055,8 +1108,8 @@ section {
 .rcanvas {
   width: 100%;
   image-rendering: auto;
-  border-radius: 6px;
-  border: 2px solid #3a3e5e;
+  border-radius: 0;
+  border: 2px solid var(--bronze);
 }
 .rtitle {
   font-weight: bold;
@@ -1543,4 +1596,78 @@ section {
 .friends-menu summary,
 .friends-menu button {
   min-height: 44px;
+}
+
+/* ── celebration cards ── */
+#moment {
+  position: fixed;
+  left: 50%;
+  top: 92px;
+  transform: translateX(-50%);
+  z-index: 8;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 8px 16px 8px 10px;
+  background: var(--slate);
+  border: 1px solid var(--bronze-lt);
+  box-shadow:
+    inset 0 0 0 2px var(--slate),
+    inset 0 0 0 3px var(--ember),
+    0 3px 0 #101719aa;
+  pointer-events: none;
+}
+#moment.in {
+  animation: moment-in 0.32s cubic-bezier(0.2, 1.2, 0.4, 1);
+}
+.mo-emblem {
+  width: 52px;
+  height: 56px;
+  image-rendering: pixelated;
+  flex: none;
+}
+.mo-text {
+  display: grid;
+  gap: 2px;
+}
+.mo-text b {
+  font: 14px var(--pix);
+  letter-spacing: 1px;
+  color: #ebce90;
+}
+.mo-text span {
+  font-size: 0.85em;
+  color: #d5e1cf;
+}
+#moment[data-kind='levelup'] .mo-text b {
+  color: #f5e5b9;
+}
+#moment[data-kind='skill'] .mo-text b {
+  color: #c9a8e6;
+}
+#moment[data-kind='heart'] .mo-text b {
+  color: #f0a79b;
+}
+@keyframes moment-in {
+  from {
+    transform: translate(-50%, -12px) scale(0.94);
+    opacity: 0;
+  }
+}
+.reduced-motion #moment.in {
+  animation: none;
+}
+body:has(#boss-bar:not([hidden])) #moment {
+  top: 150px;
+}
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 600px) {
+  #moment {
+    top: 60px;
+    padding: 4px 10px 4px 6px;
+  }
+  .mo-emblem {
+    width: 39px;
+    height: 42px;
+  }
 }

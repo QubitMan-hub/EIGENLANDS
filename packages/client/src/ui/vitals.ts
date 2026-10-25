@@ -50,7 +50,7 @@ const ICON: Record<GaugeId, string> = {
 
 /** A small isometric pedestal (2:1 block) per status tone, drawn once and reused as the chip's floor. */
 const pedestals = new Map<StatusTone, string>();
-function pedestal(tone: StatusTone): string {
+export function pedestal(tone: StatusTone): string {
   let url = pedestals.get(tone);
   if (url) return url;
   const ramp: Record<StatusTone, [number, number, number]> = {

@@ -21,6 +21,7 @@ import { RhythmOverlay } from '../ui/rhythm';
 import { Toasts } from '../ui/toast';
 import { VitalsHud, type VitalsFrame } from '../ui/vitals';
 import { BossBar } from '../ui/bossbar';
+import { Moments, levelMoment } from '../ui/moments';
 import { TargetFrame } from '../ui/targetframe';
 import { enemyChips } from '../ui/enemy-model';
 import { BOSSES } from '@eigenlands/shared';
@@ -326,6 +327,32 @@ switch (panel) {
       bar.root.style.margin = `0 0 ${i === 4 ? 0 : 40}px 0`;
       document.body.append(bar.root);
     });
+    break;
+  }
+  case 'feedback': {
+    // ?panel=feedback — toasts (plain, good, bad, pickup, rare find), a celebration card and the defeat ribbon
+    document.body.style.cssText = 'background:#1b2a22';
+    const t = new Toasts();
+    const mo = new Moments();
+    t.moments = mo;
+    t.add('Crafted 1 Plank', 'good');
+    t.add('Not enough room in your pack', 'bad');
+    t.add('', 'item', { id: 'wood', n: 4 });
+    t.add('', 'item', { id: 'sword', n: 1, p: { qname: 'Superior', tier: 3 } });
+    t.add('Quest complete: Welcome to Hadamere! (50 coins, Seed Pouch)', 'good');
+    if (q2.get('level')) mo.show(levelMoment(Number(q2.get('level'))));
+    const dead = h('div', { class: 'overlay soft' });
+    dead.style.position = 'static';
+    dead.style.inset = 'auto';
+    dead.style.background = 'none';
+    dead.innerHTML =
+      '<div class="panel deadbox"><h2>Wavefunction collapsed</h2><p class="small">Felled by a Cave Brute. Respawning at the shrine in 2&hellip;</p><div class="dead-wait"><i style="width:35%"></i></div></div>';
+    dead.style.position = 'fixed';
+    dead.style.right = '20px';
+    dead.style.top = '200px';
+    dead.style.left = 'auto';
+    dead.style.width = '420px';
+    document.body.append(dead);
     break;
   }
   case 'creatures': {

@@ -262,11 +262,13 @@ Evidence: 9 new unit tests (themes distinct and complete, phase marks, camps, el
 - [~] IN PROGRESS — Map and minimap.
 - [ ] NOT STARTED — Quantum progression board.
 - [ ] NOT STARTED — Skill trees.
-- [ ] NOT STARTED — Death, respawn, victory, and level-up screens.
+- [~] IN PROGRESS — Death, respawn, victory, and level-up screens: the defeat ribbon (ember frame, cause of death, isometric countdown slab) and the level-up celebration card are done; victory still uses the boss banner unchanged.
 - [ ] NOT STARTED — Settings and keybindings.
-- [ ] NOT STARTED — Notifications, tooltips, and interaction prompts.
+- [~] IN PROGRESS — Notifications, tooltips, and interaction prompts: toasts and prompts moved to the bronze/ink material (pickup pedestals, gilt rare finds, celebration cards); tooltips are unchanged.
 
 ### Guild UI
+
+Blocked: there is no guild, adventurer rank or guild-card system in the game. The physical quest board that does exist is part of the Journal/Board work and was not redrawn in this slice.
 
 - [ ] NOT STARTED — Make physical guild quest boards look like beautiful medieval noticeboards, not ordinary website tables.
 - [ ] NOT STARTED — Adventurer cards should look like actual fantasy guild identification cards, with rank-specific detailing and exceptional pixel art.
@@ -279,15 +281,17 @@ Evidence: 9 new unit tests (themes distinct and complete, phase marks, camps, el
 ### Interaction feedback
 
 - [ ] NOT STARTED — Add tasteful micro-interactions:
-- [ ] NOT STARTED — Item pickup effects.
+- [x] IMPLEMENTED & TESTED — Item pickup effects: pickup toasts stand the item icon on an isometric pedestal and merge repeats.
 - [ ] NOT STARTED — Crafting completion feedback.
-- [ ] NOT STARTED — Skill unlock effects.
-- [ ] NOT STARTED — Rank promotion presentations.
-- [ ] NOT STARTED — Quest completion celebrations.
-- [ ] NOT STARTED — Rare loot discovery effects.
+- [x] IMPLEMENTED & TESTED — Skill unlock effects: Gate unlocked and skill-level cards (parsed from the server's toasts, see `ui/moments.ts`).
+- [!] BUG / BLOCKED — Rank promotion presentations: the game has no guild or F–SSS rank system yet, so there is nothing to present; the card component in `ui/moments.ts` takes a new kind when the system exists.
+- [x] IMPLEMENTED & TESTED — Quest completion celebrations: Quest complete card with the reward line; recipe discoveries and heart growth get cards too.
+- [x] IMPLEMENTED & TESTED — Rare loot discovery effects: forged-quality, high-tier and valuable non-food pickups get a gilt double frame and a single glint (none under reduced motion).
 - [ ] NOT STARTED — Beautiful but restrained hover and selection states.
 
 ### Visual acceptance requirements
+
+Slice delivered 2026-10-25: legacy navy/rounded styles in `style.css` (toasts, cards, recipe/dialogue/sign panels, bars, captions) were replaced with the shared slate/bronze/parchment tokens and square corners. The Circuit Board and social panels still use their own purple theme and are the next unification target.
 
 - [ ] NOT STARTED — Use the actual running browser game to inspect the interface at its intended resolutions.
 - [ ] NOT STARTED — Capture and review important gameplay states, including combat, menus, inventory, crafting, maps, boss encounters, low health, multiplayer, and survival warnings.
