@@ -13,6 +13,8 @@ Open **Field crafting** (default **C**) and craft building pieces from wood, sto
 | Thatched Roof   | 3 fiber + 1 wood  | Warm straw roof panels                    |
 | Timber Stairs   | 10 wood + 2 stone | Paired stairs, including an upper landing |
 
+Foundations need level ground in worlds with elevation (revision 3): the tile and all eight neighbours must sit at the same level, so find or clear a flat terrace; hills, banks and mountain slopes refuse the piece with a message and keep your stack.
+
 Lay floors first. Arrange an arbitrary floor plan, then add walls, doors and roofs. Walls and roofs can share a foundation; furniture, chests and crafting stations use a separate layer. The **Rotate** button appears only while a wall, door, roof or stair piece is selected. It has a 44px minimum touch target. A translucent preview shows the aimed piece; the server checks placement and ownership before consuming it.
 
 Adjacent roof panels with the same material and ridge axis form a shared gable. Enter a roofed room to lift its roof and cut away the nearby front walls. Other rooms remain covered.

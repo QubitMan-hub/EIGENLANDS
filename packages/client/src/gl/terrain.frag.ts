@@ -729,6 +729,13 @@ void main() {
       if (hashi(ivec2(ip.x / 2, dPx)) > 0.82) c = left ? bt.hi : bt.body;
       if (dPx >= H - 1) c = bt.dk;
     }
+    else if (cls == SAND && !toWater && !cliff && H >= 6) {
+      // a dune step: one lit face and one shaded face with a pale crest and a soft foot, no strata
+      c = left ? E5 : E4;
+      if (dPx <= 1) c = left ? E7 : E6;
+      else if (hashi(ivec2(ip.x / 2, dPx)) > 0.9) c = left ? E6 : E5;
+      if (dPx >= H - 1) c = left ? E3 : E2;
+    }
     else if (cliff) c = bio == B_DESERT ? sideSand(ip, left, dPx) : sideStone(ip, tfHit, left, dPx);
     else if (k == 1) c = sideSand(ip, left, dPx);
     else if (k == 2) c = sideStone(ip, tfHit, left, dPx);

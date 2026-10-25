@@ -110,7 +110,7 @@ describe('building on uneven ground', () => {
       flat: [number, number] | null = null;
     for (let y = -190; y < 190 && !(slope && flat); y++)
       for (let x = 100; x < 230; x++) {
-        if (![T.GRASS, T.SAND].includes(s.getTile(x, y)) || s.solidAt(x, y + 1)) continue;
+        if (!([T.GRASS, T.SAND] as number[]).includes(s.getTile(x, y)) || s.solidAt(x, y + 1)) continue;
         const l = s.levelAt(x, y);
         let uneven = false;
         for (let oy = -1; oy <= 1; oy++)

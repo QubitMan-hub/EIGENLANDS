@@ -65,7 +65,7 @@ jobs:
         run: docker compose --env-file "$RUNNER_TEMP/render-test.env" -f deploy/render/compose.test.yml down --volumes
   solo-browser:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -94,3 +94,4 @@ jobs:
           export CHROME="$(node --input-type=module -e "import {chromium} from 'playwright-core'; process.stdout.write(chromium.executablePath())")"
           npm run e2e:solo -- http://127.0.0.1:5240/ /tmp/solo-shots
           node e2e/stormbound.mjs http://127.0.0.1:5240/ /tmp/stormbound-shots touch
+          node --import tsx e2e/elevation.mjs http://127.0.0.1:5240/ /tmp/elevation-shots

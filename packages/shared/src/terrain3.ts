@@ -439,8 +439,10 @@ function rawLevel(seed: number, x: number, y: number): number {
   mask *= smooth(Math.abs(riverField(seed, x, y)), riverWidth('forest'), riverWidth('forest') + 0.075);
   if (mask <= 0) return 0;
   if (biome3(seed, x, y) === 'swamp') return 0;
-  const v = F(seed).hill.fbm(x / 46 + 90, y / 46 - 90, 2) * 0.5 + 0.5;
-  return Math.floor(smooth(v, 0.16, 0.78) * 3.99 * mask);
+  // broad swells with a little detail: terraces that are tens of tiles across, not a contour-line maze
+  const h = F(seed).hill;
+  const v = (h.noise(x / 74 + 90, y / 74 - 90) * 0.88 + h.noise(x / 29 - 40, y / 29 + 55) * 0.12) * 0.5 + 0.5;
+  return Math.floor(smooth(v, 0.3, 0.86) * 3.99 * mask);
 }
 
 /** Level of every tile in a chunk; all zero for revisions before 3 and for water. */

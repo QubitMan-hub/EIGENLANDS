@@ -21,7 +21,7 @@ import {
   townFor,
   type SolidQuery,
 } from '../src';
-import { massifOfCell } from '../src/terrain3';
+import { landmarkDistance, massifLevel, massifOfCell } from '../src/terrain3';
 
 const SEEDS = [20260101, 1337, 7102025];
 
@@ -143,7 +143,7 @@ describe('revision 3 terrain', () => {
     }
   }, 60_000);
 
-  it('has mountains with cliffs, and gentle hills that never form a cliff', () => {
+  it('has mountains with sheer tiers', () => {
     let massifs = 0,
       cliffEdges = 0,
       maxLevel = 0;
@@ -160,6 +160,36 @@ describe('revision 3 terrain', () => {
     expect(massifs).toBeGreaterThanOrEqual(3);
     expect(maxLevel).toBeGreaterThanOrEqual(6);
     expect(cliffEdges).toBeGreaterThan(40);
+  }, 120_000);
+});
+
+describe('hills', () => {
+  it('stay gentle: outside massifs and landmark cones there is essentially no cliff', () => {
+    for (const seed of SEEDS) {
+      const store = new ChunkStore(seed, 3000, 3);
+      let steep = 0,
+        hill = 0;
+      for (let y = -220; y < 220; y++)
+        for (let x = -220; x < 220; x++) {
+          if (
+            massifLevel(seed, x, y).inside ||
+            massifLevel(seed, x + 1, y).inside ||
+            massifLevel(seed, x, y + 1).inside
+          )
+            continue;
+          const l = store.levelAt(x, y);
+          if (l > 0) hill++;
+          for (const [dx, dy] of [
+            [1, 0],
+            [0, 1],
+          ] as const)
+            if (Math.abs(store.levelAt(x + dx, y + dy) - l) >= CLIFF && landmarkDistance(seed, x, y, 14) === Infinity)
+              steep++;
+          expect(l).toBeLessThanOrEqual(3);
+        }
+      expect(hill).toBeGreaterThan(2000); // there are hills to speak of
+      expect(steep).toBeLessThanOrEqual(10);
+    }
   }, 120_000);
 });
 

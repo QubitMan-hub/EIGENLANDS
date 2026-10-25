@@ -1,9 +1,12 @@
 // node --import tsx tools/worldgen3-audit.mjs [output-directory] [half-extent=300]
-// Revision-3 evidence: biome and elevation maps, region sizes, connectivity from the spawn and cliff statistics for
-// three seeds. Maps are 2-tile samples (3 px per sample); statistics are exact over the home continent.
+// Revision-3 evidence next to revision 2: biome and elevation maps, region sizes, connectivity from the spawn and cliff
+// statistics for three seeds. Maps are 2-tile samples (3 px per sample); statistics are exact over the home continent.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { chromium } from 'playwright-core';
-import { BIOMES, CHUNK_SIZE, CLIFF, ChunkStore, T, tileAt, biomeAt } from '../packages/shared/src/index.ts';
+import { BIOMES, tileAt, biomeAt } from '../packages/shared/src/worldgen.ts';
+import { ChunkStore } from '../packages/shared/src/chunks.ts';
+import { CHUNK_SIZE, CLIFF } from '../packages/shared/src/constants.ts';
+import { T } from '../packages/shared/src/tiles.ts';
 const out = process.argv[2] ?? '/tmp/worldgen3-audit';
 const half = Number(process.argv[3] ?? 300);
 mkdirSync(out, { recursive: true });
@@ -19,8 +22,11 @@ const browser = await chromium.launch({
 const results = [];
 try {
   const page = await browser.newPage();
-  for (const seed of [20260101, 1337, 7102025]) {
-    const store = new ChunkStore(seed, 2000, 3);
+  for (const [seed, gen] of [20260101, 1337, 7102025].flatMap((sd) => [
+    [sd, 2],
+    [sd, 3],
+  ])) {
+    const store = new ChunkStore(seed, 2000, gen);
     const n = half;
     const biomeRgba = [],
       levelRgba = [];
@@ -28,14 +34,14 @@ try {
       for (let i = 0; i < n; i++) {
         const x = -half + i * 2,
           y = -half + j * 2,
-          t = tileAt(seed, x, y, 3),
+          t = tileAt(seed, x, y, gen),
           level = store.levelAt(x, y),
           water = t === T.WATER || t === T.DEEP_WATER;
         const [r, g, b] = water
           ? t === T.DEEP_WATER
             ? [20, 40, 100]
             : [40, 90, 160]
-          : BIOME_RGB[BIOMES.indexOf(biomeAt(seed, x, y, 3))];
+          : BIOME_RGB[BIOMES.indexOf(biomeAt(seed, x, y, gen))];
         const shade = 1 + level * 0.07;
         biomeRgba.push(Math.min(255, r * shade), Math.min(255, g * shade), Math.min(255, b * shade), 255);
         const v = water ? 0 : 50 + level * 22;
@@ -80,7 +86,7 @@ try {
     // biome region sizes on a 4-tile grid inside the continent
     const label = new Map();
     const sizes = [];
-    const at = (x, y) => (Math.hypot(x, y) <= 200 ? biomeAt(seed, x, y, 3) : null);
+    const at = (x, y) => (Math.hypot(x, y) <= 200 ? biomeAt(seed, x, y, gen) : null);
     for (let y = -200; y <= 200; y += 4)
       for (let x = -200; x <= 200; x += 4) {
         const b = at(x, y);
@@ -109,11 +115,14 @@ try {
     sizes.sort((p, q) => q.tiles - p.tiles);
     results.push({
       seed,
+      revision: gen,
       landTilesWithin200: land,
       reachablePercent: +((reached / land) * 100).toFixed(2),
       maxLevel,
       cliffEdges,
       regionsOver1000Tiles: sizes.filter((s) => s.tiles >= 1000).length,
+      fragmentsUnder200Tiles: sizes.filter((s) => s.tiles < 200).length,
+      biomeRegions: sizes.length,
       largestRegions: sizes.slice(0, 6),
     });
     for (const [name, rgba] of [
@@ -134,7 +143,7 @@ try {
         },
         { rgba, n },
       );
-      writeFileSync(`${out}/${seed}-${name}.png`, Buffer.from(png, 'base64'));
+      writeFileSync(`${out}/${seed}-rev${gen}-${name}.png`, Buffer.from(png, 'base64'));
     }
   }
   writeFileSync(`${out}/report.json`, JSON.stringify({ half, chunk: CHUNK_SIZE, results }, null, 2) + '\n');

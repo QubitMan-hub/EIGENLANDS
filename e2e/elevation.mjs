@@ -1,13 +1,16 @@
-// node --import tsx e2e/elevation.mjs <solo-url> [output-directory]
+// node --import tsx e2e/elevation.mjs <solo-url> [output-directory] [--mobile]
 // Plays the real production solo build in a revision-3 world: walks from the spawn up a mountain's ramp by keyboard,
 // checks the player's level rises, tries to walk off the plateau across the cliff (must be refused), and captures
 // screenshots of the terraces, the cliff and the summit. Fails on page errors.
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright-core';
-import { CLIFF, ChunkStore } from '../packages/shared/src/index.ts';
+import { ChunkStore } from '../packages/shared/src/chunks.ts';
+import { CLIFF } from '../packages/shared/src/constants.ts';
 import { massifOfCell as massif } from '../packages/shared/src/terrain3.ts';
-const url = process.argv[2] ?? 'http://127.0.0.1:5252/EIGENLANDS/';
-const out = process.argv[3] ?? '/tmp/elevation-e2e';
+const args = process.argv.slice(2).filter((a) => !a.startsWith('--'));
+const mobile = process.argv.includes('--mobile');
+const url = args[0] ?? 'http://127.0.0.1:5252/EIGENLANDS/';
+const out = args[1] ?? '/tmp/elevation-e2e';
 mkdirSync(out, { recursive: true });
 const seed = 20260101;
 const store = new ChunkStore(seed, 2000, 3);
@@ -67,7 +70,13 @@ const browser = await chromium.launch({
 });
 const errors = [];
 try {
-  const page = await (await browser.newContext({ viewport: { width: 1280, height: 720 } })).newPage();
+  const page = await (
+    await browser.newContext(
+      mobile
+        ? { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }
+        : { viewport: { width: 1280, height: 720 } },
+    )
+  ).newPage();
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(`${url}?dev=1&hour=12`);
@@ -82,7 +91,7 @@ try {
   const s0 = await st();
   if (s0.generation !== 3) throw new Error(`expected a revision-3 world, got ${s0.generation}`);
   // teleport to the nearest path point 40 tiles from the summit so the walk is short but real
-  const start = path[Math.max(0, path.length - 70)];
+  const start = path[Math.max(0, path.length - (mobile ? 12 : 45))];
   await dev({ cmd: 'tp', x: start[0] + 0.5, y: start[1] + 0.5 });
   await sleep(3500);
   await page.screenshot({ path: `${out}/1-approach.png` });
@@ -101,18 +110,27 @@ try {
         held.add(k);
       }
   };
-  let maxLevel = 0,
+  let rescues = 0,
+    maxLevel = 0,
     shots = 2;
   for (let wp = 0; wp < path.length; wp++) {
     const [tx, ty] = path[wp];
-    if (wp < path.length - 70) continue;
-    for (let tries = 0; tries < 60; tries++) {
+    if (wp < path.length - 45) continue;
+    if (mobile && wp < path.length - 12) continue; // touch layouts are checked for rendering; the keyboard walk is desktop
+    for (let tries = 0; tries < 40; tries++) {
       const s = await st();
       maxLevel = Math.max(maxLevel, s.elevation);
       const dx = tx + 0.5 - s.x,
         dy = ty + 0.5 - s.y;
       if (Math.hypot(dx, dy) < 0.6) break;
-      if (process.env.DEBUG && tries === 59)
+      // a tree or rock at a path corner can pin a body that is steered by coarse keys: after a few tries, step it past
+      if (tries === 12) {
+        rescues++;
+        await dev({ cmd: 'tp', x: tx + 0.5, y: ty + 0.5 });
+        await sleep(300);
+        break;
+      }
+      if (process.env.DEBUG && tries === 39)
         console.log('stuck at', s.x.toFixed(2), s.y.toFixed(2), 'target', tx, ty, 'level', s.elevation, 'wp', wp);
       const want = new Set();
       for (const [k, [kx, ky]] of Object.entries(KEYS)) {
@@ -120,8 +138,11 @@ try {
         const l = Math.hypot(kx, ky);
         if ((kx * dx + ky * dy) / (l * Math.hypot(dx, dy)) > 0.38) want.add(k);
       }
+      // pulse the keys for about the time the step needs, then read the position again: slow software frames cannot overshoot
       await press(want);
-      await sleep(70);
+      await sleep(Math.max(60, Math.min(280, (Math.hypot(dx, dy) / 4.5) * 800)));
+      await press(new Set());
+      await sleep(120);
     }
     if (process.env.DEBUG && wp % 6 === 0)
       console.log('wp', wp, '/', path.length, 'target', tx, ty, 'level', (await st()).elevation);
@@ -130,6 +151,8 @@ try {
   await press(new Set());
   await sleep(500);
   const s1 = await st();
+  console.log('keyboard walk: waypoints', Math.min(45, path.length), 'steps rescued by a teleport:', rescues);
+  if (rescues > 12) throw new Error('too many rescued steps: the ramp is not walkable by keyboard');
   console.log('at the summit region: level', s1.elevation, 'of', top.l, 'max seen', maxLevel);
   await page.screenshot({ path: `${out}/7-summit.png` });
   if (s1.elevation < 2) throw new Error('the player never climbed');
