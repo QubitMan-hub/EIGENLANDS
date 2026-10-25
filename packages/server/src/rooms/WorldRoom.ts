@@ -1,4 +1,4 @@
-import { generationMeta, tileAt, isSolid } from '@eigenlands/shared';
+import { generationMeta, tileAt, isSolid, validAppearance } from '@eigenlands/shared';
 import { caveRegionAt, highGroundRange } from '@eigenlands/shared';
 import { Client, Room, ServerError } from 'colyseus';
 import { StateView } from '@colyseus/schema';
@@ -312,6 +312,10 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     on<InvMoveMsg>(MSG.INV_MOVE, 'invBucket', (p, m) => handleInvMove(p, m));
     on<InvTrashMsg>(MSG.INV_TRASH, 'invBucket', (p, m) => handleInvTrash(p, m));
     on<EquipMsg>(MSG.EQUIP, 'invBucket', (p, m) => handleEquip(p, m));
+    on<{ app?: unknown }>(MSG.APPEARANCE, 'invBucket', (p, m) => {
+      p.data.appearance = p.state.app = validAppearance(m?.app);
+      p.dirty('equip');
+    });
     on<CraftMsg>(MSG.CRAFT, 'craftBucket', (p, m) => handleCraft(this, p, m));
     on<ExperimentMsg>(MSG.EXPERIMENT, 'craftBucket', (p, m) => handleExperiment(this, p, m));
     on<ForgePreviewMsg>(MSG.FORGE_PREVIEW, 'craftBucket', (p, m) => handleForgePreview(p, m));
@@ -433,6 +437,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     st.x = ch.x;
     st.y = ch.y;
     st.look = data.equip.outfit;
+    st.app = data.appearance ?? 0;
     const p = new ServerPlayer(
       client,
       accountId,
@@ -911,6 +916,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     s.xp = p.xp;
     s.ack = p.lastSeq;
     s.look = lookOf(p);
+    s.app = p.data.appearance ?? 0;
     s.cart = p.sim.cart > 0;
     s.weapon = this.weaponOf(p)?.id ?? '';
     s.held = ITEMS[p.data.inv[p.heldSlot]?.id ?? '']?.tool?.type ?? '';

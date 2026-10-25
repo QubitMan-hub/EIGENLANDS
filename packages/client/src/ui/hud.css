@@ -43,46 +43,6 @@ button.primary {
   text-shadow: 0 1px #101719;
   letter-spacing: 1px;
 }
-.orbwrap {
-  position: relative;
-  isolation: isolate;
-  width: 100%;
-  height: 22px;
-  border: 1px solid #ba7b70;
-  background: #281c22;
-  padding: 2px 6px;
-  text-align: right;
-  font:
-    700 12px ui-monospace,
-    monospace;
-  text-shadow: 0 1px #23171a;
-  overflow: hidden;
-}
-.orbwrap::before {
-  content: '';
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: var(--hp, 100%);
-  background: #a83c48;
-  border-top: 3px solid #d26b70;
-  z-index: -1;
-  transition: width 0.2s ease-out;
-}
-.orbwrap::after {
-  content: 'HP';
-  position: absolute;
-  left: 6px;
-  font-size: 10px;
-  top: 3px;
-  color: #fff0dd;
-}
-.orbwrap.low {
-  border-color: #ffd1b7;
-  outline: 1px solid #bb5353;
-}
-.orbwrap.low::after {
-  content: '! HP';
-}
 .xpbar {
   height: 4px;
   width: 100%;
@@ -112,15 +72,6 @@ button.primary {
   gap: 4px;
   align-items: center;
   color: #e1ba68;
-}
-#buffs {
-  position: static;
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-#buffs:empty {
-  display: none;
 }
 
 /* A quiet travel strip; utilities stay behind the native dismissible menu. */
@@ -421,8 +372,7 @@ button.big {
   font-size: 11px;
 }
 .reduced-motion .title .stars,
-.reduced-motion .qubit svg,
-.reduced-motion .orbwrap.low {
+.reduced-motion .qubit svg {
   animation: none;
 }
 
@@ -529,56 +479,6 @@ button svg.pix {
   min-height: 44px;
   margin: 8px 8px 0 0;
 }
-
-#needs-hud {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-top: 5px;
-  font:
-    10px ui-monospace,
-    monospace;
-}
-#needs-hud label {
-  display: block;
-  color: #d5e1cf;
-}
-#needs-hud b {
-  float: right;
-  font-weight: normal;
-}
-#needs-hud progress {
-  display: block;
-  width: 100%;
-  height: 5px;
-  border: 0;
-  background: #101b1b;
-  accent-color: #83ad70;
-}
-#needs-hud progress::-webkit-progress-bar {
-  background: #101b1b;
-}
-#needs-food::-webkit-progress-value {
-  background: #83ad70;
-}
-#needs-water::-webkit-progress-value {
-  background: #82b6ce;
-}
-#needs-food::-moz-progress-bar {
-  background: #83ad70;
-}
-#needs-water::-moz-progress-bar {
-  background: #82b6ce;
-}
-#needs-hud progress.low {
-  accent-color: #dc9e74;
-}
-#needs-hud progress.low::-webkit-progress-value {
-  background: #dc9e74;
-}
-#needs-hud progress.low::-moz-progress-bar {
-  background: #dc9e74;
-}
 @media (orientation: landscape) and (max-height: 600px) {
   html body #toasts {
     top: calc(var(--ledger-bottom, 80px) + 32px);
@@ -596,4 +496,312 @@ button svg.pix {
 }
 body:has(#settings:not([hidden])) #voice-chip {
   display: none;
+}
+
+/* ── character creator: pixel preview + square swatches ── */
+.look-menu summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: #ebce90;
+  font-family: var(--pix);
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+.look-picker {
+  display: grid;
+  grid-template-columns: 136px 1fr;
+  gap: 14px;
+  align-items: start;
+  padding: 8px 0 12px;
+}
+.look-preview {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+}
+.look-canvas {
+  width: 120px;
+  height: 160px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  background: #17201f;
+  border: 2px solid #786646;
+  box-shadow: inset 0 -12px 0 #0f1718;
+}
+.look-canvas canvas {
+  width: 96px;
+  height: 128px;
+  image-rendering: pixelated;
+}
+.look-turn {
+  display: flex;
+  gap: 8px;
+}
+.look-turn button,
+.look-random {
+  min-height: 44px;
+  min-width: 44px;
+  border: 2px solid #786646;
+  background: #28332c;
+  color: #ebce90;
+  font-family: var(--pix);
+  border-radius: 0;
+}
+.look-random {
+  padding: 0 10px;
+  font-size: 11px;
+}
+.look-rows {
+  display: grid;
+  gap: 8px;
+}
+.look-row {
+  display: grid;
+  gap: 3px;
+}
+.look-label {
+  font-size: 10px;
+  color: #b7cbbd;
+  font-family: var(--pix);
+  letter-spacing: 1px;
+}
+.look-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.look-opt {
+  border-radius: 0;
+  border: 2px solid #4b5648;
+  background: #1c2624;
+  color: #d5e1cf;
+  font-size: 11px;
+  min-height: 32px;
+  padding: 0 8px;
+}
+.look-group.swatches .look-opt {
+  width: 32px;
+  padding: 0;
+  background: var(--swatch);
+}
+.look-opt[aria-pressed='true'] {
+  border-color: #ebce90;
+  outline: 2px solid #17201f;
+  box-shadow: 0 0 0 4px #ebce90;
+  margin: 2px;
+}
+.look-opt:focus-visible,
+.look-turn button:focus-visible,
+.look-random:focus-visible {
+  outline: 2px solid #b7d6c6;
+  outline-offset: 2px;
+}
+@media (max-width: 640px), (pointer: coarse) and (orientation: landscape) and (max-height: 600px) {
+  .look-picker {
+    grid-template-columns: 1fr;
+  }
+  .look-group.swatches .look-opt {
+    width: 36px;
+    min-height: 36px;
+  }
+}
+
+/* ── vitals: isometric vials, one row on a shared ground line ── */
+#hud-left {
+  position: fixed;
+}
+#hud-left::before,
+#hud-left::after {
+  content: '';
+  position: absolute;
+  right: 3px;
+  width: 4px;
+  height: 4px;
+  background: #bca06b;
+  box-shadow: inset -1px -1px 0 #786646;
+}
+#hud-left::before {
+  top: 3px;
+}
+#hud-left::after {
+  bottom: 3px;
+}
+#vitals,
+.vitals {
+  --vs: 2;
+  display: grid;
+  gap: 1px;
+  justify-items: start;
+}
+.vitals-canvas {
+  display: block;
+  width: calc(var(--vw, 1) * var(--vs) * 1px);
+  height: calc(var(--vh, 1) * var(--vs) * 1px);
+  image-rendering: pixelated;
+}
+.vitals-labels {
+  display: flex;
+}
+.v-label {
+  width: calc(var(--cell) * var(--vs) * 1px);
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  justify-content: center;
+  font:
+    700 10px ui-monospace,
+    monospace;
+  color: #d5e1cf;
+  text-shadow: 0 1px #101719;
+  white-space: nowrap;
+}
+.v-label svg {
+  fill: currentColor;
+  flex: none;
+}
+.v-label b {
+  font-weight: 700;
+}
+.v-health {
+  color: #f0a79b;
+}
+.v-mana {
+  color: #c9a8e6;
+}
+.v-stamina {
+  color: #a9d19a;
+}
+.v-food {
+  color: #eed093;
+}
+.v-water {
+  color: #91c4c3;
+}
+.v-label.low {
+  color: #ffd1b7;
+}
+.v-label.low b::before {
+  content: '!';
+  margin-right: 1px;
+}
+.status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 6px;
+  pointer-events: auto;
+  margin-top: 2px;
+}
+.status-row[hidden],
+.status-list[hidden] {
+  display: none;
+}
+.st-chip {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  min-height: 28px;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  font:
+    700 10px ui-monospace,
+    monospace;
+  color: #d5e1cf;
+  cursor: pointer;
+}
+.st-chip i {
+  position: relative;
+  display: block;
+  width: 28px;
+  height: 28px;
+  background: var(--ped) center bottom / 28px 22px no-repeat;
+  image-rendering: pixelated;
+}
+.st-chip i svg,
+.status-list svg {
+  fill: currentColor;
+}
+.st-chip i svg {
+  position: absolute;
+  left: 5px;
+  top: 0;
+}
+.st-chip.st-more {
+  min-width: 28px;
+  justify-content: center;
+  align-items: center;
+  color: #ebce90;
+}
+.tone-buff {
+  color: #bbca8a;
+}
+.tone-debuff {
+  color: #ce7556;
+}
+.tone-aura {
+  color: #91c4c3;
+}
+.tone-need {
+  color: #e2b16d;
+}
+.st-chip:focus-visible {
+  outline: 2px solid #b7d6c6;
+  outline-offset: 1px;
+}
+.status-list {
+  pointer-events: auto;
+  list-style: none;
+  margin: 3px 0 0;
+  padding: 4px 6px;
+  display: grid;
+  gap: 5px;
+  background: #101719;
+  border-left: 2px solid #786646;
+  font:
+    10px ui-monospace,
+    monospace;
+}
+.status-list li {
+  display: grid;
+  grid-template-columns: 12px 1fr auto;
+  gap: 1px 6px;
+  align-items: center;
+}
+.status-list li b {
+  color: #f1e4c7;
+}
+.status-list li span {
+  color: #b7cbbd;
+}
+.status-list li small {
+  grid-column: 2 / 4;
+  color: #8fa397;
+  font-size: 10px;
+  line-height: 1.3;
+}
+@media (pointer: coarse) {
+  .st-chip {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+@media (max-width: 640px), (pointer: coarse) and (orientation: landscape) and (max-height: 600px) {
+  #vitals,
+  .vitals {
+    --vs: 1;
+  }
+  .v-label {
+    font-size: 8px;
+    gap: 0;
+  }
+  .v-label svg {
+    display: none;
+  }
+  .v-label.low b::before {
+    margin-right: 0;
+  }
 }

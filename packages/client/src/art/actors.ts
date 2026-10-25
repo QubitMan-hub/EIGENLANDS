@@ -1,5 +1,6 @@
 import { Rectangle, Texture } from 'pixi.js';
 import { NPCS } from '@eigenlands/shared';
+import { appearanceOf, outfitFromAppearance } from './appearance';
 import {
   blob,
   C,
@@ -48,8 +49,11 @@ export function dirOf(fx: number, fy: number): number {
   return [DIR_RIGHT, DIR_DOWN_RIGHT, DIR_DOWN, DIR_DOWN_LEFT, DIR_LEFT, DIR_UP_LEFT, DIR_UP, DIR_UP_RIGHT][o]!;
 }
 
-export type HairStyle = 'short' | 'long' | 'bun' | 'bald' | 'braids' | 'curly' | 'ponytail';
-export type HatStyle = 'cap' | 'brim' | 'beret' | 'helm' | 'hood' | 'circlet';
+export type HairStyle =
+  'short' | 'long' | 'bun' | 'bald' | 'braids' | 'curly' | 'ponytail' | 'spiky' | 'swept' | 'topknot' | 'twintail';
+export type HatStyle = 'cap' | 'brim' | 'beret' | 'helm' | 'hood' | 'circlet' | 'bandana' | 'crown';
+/** Garment cut: how far the skirts hang and what sits on the shoulders. Plain tunic when absent. */
+export type DressStyle = 'robe' | 'coat' | 'mantle' | 'plated';
 export interface Outfit {
   shirt: Ramp;
   pants: Ramp;
@@ -73,11 +77,27 @@ export interface Outfit {
   glow?: number;
   cape?: Ramp;
   vest?: Ramp;
+  /** garment cut (skirts, mantle, plate) */
+  dress?: DressStyle;
+  /** hems, collars, cuffs and buckles (palette index) */
+  trim?: number;
+  /** iris colour (palette index) */
+  eyes?: number;
+  /** shoulder guards and breastplate */
+  plate?: Ramp;
+  /** shoulder mantle */
+  mantle?: Ramp;
+  /** diagonal chest sash */
+  sash?: Ramp;
 }
 
 const SKIN_LIGHT = [C.e3, C.e4, C.e5, C.e6, C.e7] as Ramp;
 const SKIN_MID = [C.e3, C.e4, C.e5, C.e6, C.e7] as Ramp;
 const SKIN_DARK = [C.e1, C.e2, C.e3, C.e4, C.e5] as Ramp;
+const SKINS_EXTRA = [
+  [C.e4, C.e5, C.e6, C.e7, C.white],
+  [C.e0, C.e1, C.e2, C.e3, C.e4],
+] as Ramp[];
 const HAIR = {
   brown: [C.e0, C.e1, C.e2, C.e3, C.e4] as Ramp,
   black: [C.ink, C.night, C.slate, C.steel] as Ramp,
@@ -237,47 +257,66 @@ OUTFITS.push(
 const rmp = (a: number[]) => a as Ramp;
 /** One distinctive look per village NPC (ids from shared NPCS). */
 export const NPC_LOOKS: Record<string, Outfit> = {
+  // the mayor: silver bun, spectacles, a long violet coat with gold lapels and a rose scarf
   orla: {
     shirt: rmp([C.q0, C.q1, C.q2, C.q3, C.q4]),
     pants: rmp([C.night, C.slate, C.steel, C.mist]),
-    hair: rmp([C.steel, C.mist, C.fog, C.pale, C.white]),
+    hair: rmp([C.slate, C.steel, C.mist, C.fog, C.pale]),
     skin: SKIN_MID,
     boots: BOOTS,
     hairStyle: 'bun',
     glasses: true,
+    eyes: C.w5,
+    dress: 'coat',
+    trim: C.r6,
     scarf: rmp([C.r4, C.r5, C.r6, C.r7]),
     cape: rmp([C.q0, C.q1, C.q2, C.q3]),
   },
+  // the grower: sun-bleached straw hat, green jerkin over linen, a copper moustache
   tobin: {
-    shirt: rmp([C.e4, C.e5, C.e6, C.e7, C.white]),
+    shirt: rmp([C.e5, C.e6, C.e7, C.white, C.white]),
     pants: PANTS.brown,
     hair: HAIR.brown,
     skin: SKIN_LIGHT,
     boots: BOOTS,
+    hat: rmp([C.e4, C.e5, C.e6, C.e7]),
+    hatStyle: 'brim',
+    vest: rmp([C.g1, C.g2, C.g3, C.g4]),
     apron: rmp([C.g1, C.g2, C.g3, C.g4]),
     moustache: true,
     beard: rmp([C.e0, C.e1, C.e2, C.e3]),
+    eyes: C.g4,
+    trim: C.r6,
   },
+  // the smith: shaved head, soot beard, pauldrons of dark iron and a heavy leather apron
   brannoch: {
     shirt: rmp([C.r0, C.r1, C.r2, C.r3, C.r4]),
     pants: PANTS.slate,
     hair: HAIR.black,
     skin: SKIN_DARK,
-    boots: BOOTS,
+    boots: rmp([C.ink, C.night, C.slate, C.steel]),
     hairStyle: 'bald',
     beard: rmp([C.ink, C.night, C.slate, C.steel]),
     apron: rmp([C.e0, C.e1, C.e2, C.e3]),
     headband: C.r3,
+    plate: rmp([C.night, C.slate, C.steel, C.mist, C.fog]),
+    eyes: C.r5,
+    trim: C.e5,
   },
+  // the baker: flour-white apron, a tall bun, rose dress with a warm sash
   maribel: {
     shirt: rmp([C.r2, C.r3, C.r4, C.r5, C.r6]),
     pants: PANTS.brown,
-    hair: HAIR.brown,
+    hair: rmp([C.e1, C.e2, C.e3, C.e4, C.e5]),
     skin: SKIN_LIGHT,
     boots: BOOTS,
-    hairStyle: 'bun',
+    hairStyle: 'topknot',
+    dress: 'robe',
     apron: rmp([C.fog, C.pale, C.white, C.white]),
+    eyes: C.e3,
+    trim: C.white,
   },
+  // the fisher: wide brim, fair beard, a sea-blue long coat with a red waistcoat
   fenwick: {
     shirt: rmp([C.w1, C.w2, C.w3, C.w4, C.w5]),
     pants: PANTS.brown,
@@ -288,9 +327,13 @@ export const NPC_LOOKS: Record<string, Outfit> = {
     hatStyle: 'brim',
     beard: rmp([C.e3, C.e4, C.e5, C.e6]),
     vest: rmp([C.r1, C.r2, C.r3, C.r4]),
+    dress: 'coat',
+    trim: C.e6,
+    eyes: C.w6,
   },
+  // the elder: snow beard, indigo mantle trimmed in bone, a faded gold sash
   sedge: {
-    shirt: rmp([C.e5, C.e6, C.e7, C.pale, C.white]),
+    shirt: rmp([C.w0, C.w1, C.w2, C.w3, C.w4]),
     pants: PANTS.olive,
     hair: HAIR.white,
     skin: SKIN_MID,
@@ -298,10 +341,14 @@ export const NPC_LOOKS: Record<string, Outfit> = {
     hat: rmp([C.w1, C.w2, C.w3, C.w4]),
     hatStyle: 'cap',
     beard: rmp([C.mist, C.fog, C.pale, C.white]),
-    vest: rmp([C.r5, C.r6, C.r7, C.r7]),
+    mantle: rmp([C.q0, C.q1, C.q2, C.q3]),
+    trim: C.e7,
+    sash: rmp([C.e3, C.e4, C.r6]),
+    eyes: C.w5,
   },
+  // the tinkerer: violet braids, a beret, a teal robe with a glowing seam and a rune scarf
   wren: {
-    shirt: rmp([C.g1, C.g2, C.g3, C.g4, C.g5]),
+    shirt: rmp([C.w1, C.w2, C.w3, C.w4, C.w6]),
     pants: PANTS.slate,
     hair: HAIR.violet,
     skin: SKIN_MID,
@@ -310,39 +357,55 @@ export const NPC_LOOKS: Record<string, Outfit> = {
     hat: rmp([C.q0, C.q1, C.q2, C.q3]),
     hatStyle: 'beret',
     scarf: rmp([C.q3, C.q4, C.q5, C.q6]),
+    dress: 'robe',
     glow: C.q7,
+    eyes: C.q7,
+    trim: C.q6,
   },
+  // the weaver: ember ponytail, a cobalt coat cut in lapels, bright sea scarf
   pippa: {
     shirt: rmp([C.q3, C.q4, C.q5, C.q6, C.white]),
     pants: PANTS.navy,
     hair: rmp([C.r2, C.r3, C.r4, C.r5, C.r6]),
     skin: SKIN_DARK,
     boots: BOOTS,
-    hairStyle: 'ponytail',
+    hairStyle: 'swept',
     scarf: rmp([C.w4, C.w5, C.w6, C.w7]),
+    dress: 'coat',
+    trim: C.r7,
+    eyes: C.q7,
+    sash: rmp([C.q1, C.q2, C.w6]),
   },
+  // the carpenter: bandana, ruddy beard, a canvas jerkin and a tool apron
   odo: {
-    shirt: rmp([C.w2, C.w3, C.w4, C.w5, C.w6]),
+    shirt: rmp([C.fog, C.pale, C.white, C.white, C.white]),
     pants: PANTS.brown,
     hair: HAIR.red,
     skin: SKIN_LIGHT,
     boots: BOOTS,
-    hairStyle: 'bald',
+    hairStyle: 'short',
+    hat: rmp([C.r1, C.r2, C.r3, C.r4, C.r5]),
+    hatStyle: 'bandana',
     beard: rmp([C.r1, C.r2, C.r3, C.r4]),
     moustache: true,
     apron: rmp([C.e2, C.e3, C.e4, C.e5]),
+    vest: rmp([C.e1, C.e2, C.e3, C.e4]),
+    eyes: C.g4,
   },
+  // the scout: spiky straw hair, a green bandana and a short mantle, small and quick
   juniper: {
     shirt: rmp([C.g3, C.g4, C.g5, C.g6, C.g7]),
     pants: PANTS.brown,
     hair: rmp([C.e3, C.e4, C.e5, C.e6, C.e7]),
     skin: SKIN_MID,
     boots: BOOTS,
-    hairStyle: 'ponytail',
+    hairStyle: 'twintail',
     shorten: 3,
     hat: rmp([C.r2, C.r3, C.r4, C.r5]),
-    hatStyle: 'beret',
-    scarf: rmp([C.r5, C.r6, C.r7, C.r7]),
+    hatStyle: 'bandana',
+    mantle: rmp([C.g1, C.g2, C.g3, C.g4]),
+    trim: C.r6,
+    eyes: C.w5,
   },
 };
 
@@ -551,7 +614,7 @@ function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, seed: numbe
     }
     limb(ctx, sx, sy, ex, ey, 1.3, 1.1, o.shirt, seed + 10 + k, k ? -0.08 : 0.06);
     limb(ctx, ex, ey, hx, hy - 0.8, 1.1, 0.95, o.shirt, seed + 12 + k, k ? -0.1 : 0.03);
-    put(ctx, Math.round(hx - 0.5), Math.round(hy - 1.2), o.shirt[0]!, 1, 1); // cuff shadow
+    put(ctx, Math.round(hx - 0.5), Math.round(hy - 1.2), o.trim ?? o.shirt[0]!, 1, 1); // cuff
     blob(ctx, hx, hy + 0.2, 1.1, 1.15, o.skin, { seed: seed + 14 + k, noise: 0, edgeDark: 0.2, bright: 0.05 });
   };
 
@@ -660,6 +723,11 @@ function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, seed: numbe
     put(ctx, Math.round(tcx - 1 + (three ? 0.6 * s : 0)), Math.round(y0 - 0.5), o.skin[2]!, 2, 1);
     put(ctx, Math.round(tcx - 0.5 + (three ? 0.6 * s : 0)), Math.round(y0 + 0.5), o.skin[1]!, 1, 1);
   }
+  if (o.trim !== undefined && !back) {
+    const nx0 = Math.round(tcx - 2.4 + (three ? 0.6 * s : 0));
+    put(ctx, nx0, Math.round(y0 + 0.4), o.trim, 1, 2);
+    put(ctx, nx0 + 4 + (profile ? -2 : 0), Math.round(y0 + 0.4), o.trim, 1, 2);
+  }
   if (o.vest && !back) {
     poly(
       ctx,
@@ -683,6 +751,57 @@ function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, seed: numbe
         (x, y) => rampAt(o.vest!, 0.38 - (y - y0) / 30, x, y),
       );
   }
+  if (o.dress === 'robe' || o.dress === 'coat') {
+    // long garments hang from the hips: robes flare to the shins, coats stop at the knee and part down the front
+    const robe = o.dress === 'robe';
+    const hem = robe ? 27.4 : 25.6,
+      flare = (robe ? 2.8 : 1.9) * (profile ? 0.55 : 1),
+      sway = moving ? sw * (profile ? 0.5 : 0.9) : 0;
+    const l0 = cx - hiW - 0.3 + lean * 0.3,
+      r0 = cx + hiW + 0.3 + lean * 0.3;
+    poly(
+      ctx,
+      [
+        [l0, hipY - 0.8],
+        [r0, hipY - 0.8],
+        [r0 + flare + sway, hem],
+        [l0 - flare + sway, hem],
+      ],
+      (x, y) => {
+        const u = (x + 0.5 - l0) / (r0 - l0 + 2 * flare);
+        const fold = (x * 3 + (robe ? 1 : 0)) % 5 === 0 && y > hipY + 2 ? -0.13 : 0;
+        const wave = y > hem - 1.4 ? -0.14 : 0;
+        return rampAt(o.shirt, 0.88 - u * 0.62 - (y - hipY) / 34 + fold + wave, x, y);
+      },
+    );
+    if (!back && !profile && !robe) {
+      // the open front shows the trousers beneath, framed by lapels
+      const mx = Math.round(cx + lean * 0.3 + (three ? 0.8 * s : 0));
+      for (let y = Math.round(hipY + 1); y < hem; y++) {
+        put(ctx, mx - 1, y, o.trim ?? o.shirt[3]!);
+        put(ctx, mx, y, o.pants[1]!);
+        put(ctx, mx + 1, y, o.trim ?? o.shirt[3]!);
+      }
+      for (let i = 0; i < 4; i++) {
+        put(
+          ctx,
+          Math.round(tcx - 2.4 + i * 0.6 + (three ? 0.6 * s : 0)),
+          Math.round(y0 + 0.4 + i * 1.3),
+          o.trim ?? o.shirt[4]!,
+        );
+        put(
+          ctx,
+          Math.round(tcx + 2.0 - i * 0.6 + (three ? 0.6 * s : 0)),
+          Math.round(y0 + 0.4 + i * 1.3),
+          o.trim ?? o.shirt[4]!,
+        );
+      }
+    }
+    if (o.trim !== undefined) {
+      const hy2 = Math.round(hem) - 1;
+      for (let x = Math.round(l0 - flare + sway); x < Math.round(r0 + flare + sway); x++) put(ctx, x, hy2, o.trim);
+    }
+  }
   const beltY = Math.round(hipY - 0.3);
   poly(
     ctx,
@@ -694,11 +813,14 @@ function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, seed: numbe
     ],
     C.e0,
   );
-  if (!back) put(ctx, Math.round(cx - 0.5 + (profile ? 1.2 * s : three ? 0.8 * s : 0)), beltY, C.e6, 1, 1);
+  if (!back) put(ctx, Math.round(cx - 0.5 + (profile ? 1.2 * s : three ? 0.8 * s : 0)), beltY, o.trim ?? C.e6, 1, 1);
   if (o.glow !== undefined && !back) {
     const gx = Math.round(cx - 0.5 + lean + (profile ? 1.4 * s : three ? 1.2 * s : 0));
     for (let y = Math.round(y0) + 2; y < beltY; y += 2) put(ctx, gx, y, o.glow);
   }
+  if (o.sash && !back && !profile)
+    for (let i = 0; i < 9; i++)
+      put(ctx, Math.round(cx - shW + 1.2 + i * 0.95 + lean * 0.5), Math.round(y0 + 0.8 + i * 0.9), o.sash[2]!);
   if (o.apron) {
     if (front || turn === 0.5)
       poly(
@@ -738,11 +860,27 @@ function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, seed: numbe
     drawArm(1, true);
   }
 
-  // plate armour: rounded pauldrons over both shoulders
-  if (o.hatStyle === 'helm' && o.hat)
+  // breastplate, mantle and rounded pauldrons over both shoulders
+  if (o.plate && !back)
+    poly(
+      ctx,
+      [
+        [tcx - shW + 1.5, y0 + 0.2],
+        [tcx + shW - 1.5, y0 + 0.2],
+        [tcx + shW - 2.1, waistY + 0.4],
+        [tcx - shW + 2.1, waistY + 0.4],
+      ],
+      (x, y) => rampAt(o.plate!, 0.92 - (x - tcx + shW) / 13 - (y - y0) / 15 + (y > waistY - 0.6 ? -0.2 : 0), x, y),
+    );
+  if (o.mantle)
+    blob(ctx, tcx, y0 + 1.1, shW + 0.5, 2.1, o.mantle, { seed: seed + 72, noise: 0.12, bright: 0.05, edgeDark: 0.2 });
+  if (o.mantle && o.trim !== undefined && !back)
+    put(ctx, Math.round(tcx - shW + 0.5), Math.round(y0 + 2.5), o.trim, Math.round(shW * 2 - 1), 1);
+  const guard = o.plate ?? (o.hatStyle === 'helm' ? o.hat : undefined);
+  if (guard)
     for (const k of profile ? [1] : [0, 1]) {
       const side = profile ? s : k ? 1 : -1;
-      blob(ctx, tcx + side * (shW - (profile ? 1.8 : 0.4)), y0 + 1.2, 2.3, 1.8, o.hat, {
+      blob(ctx, tcx + side * (shW - (profile ? 1.8 : 0.4)), y0 + 1.2, 2.3, 1.8, guard, {
         seed: seed + 70 + k,
         noise: 0.05,
         bright: side < 0 ? 0.12 : -0.05,
@@ -853,6 +991,86 @@ function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, seed: numbe
       else if (!front) limb(ctx, hx - 4 * s, hy - 2, hx - 6 * s, hy + 5, 1.8, 1.1, H, seed + 41);
       else limb(ctx, hx + 4.6, hy - 2, hx + 5.4, hy + 3, 1.2, 0.9, H, seed + 41);
     }
+    const tie = o.trim ?? C.r3;
+    if (style === 'spiky') {
+      // swept-up spikes, each lit on its left edge
+      const spread = profile ? 0.62 : 1;
+      for (const [bx, tx, ty] of [
+        [-3.2, -5.2, -9],
+        [-1, -2.2, -10.6],
+        [1.2, 1.4, -10.2],
+        [3.2, 4.6, -8.2],
+      ] as const) {
+        const ox = profile ? -1.2 * s : 0;
+        poly(
+          ctx,
+          [
+            [hx + ox + (bx - 1.5) * spread, hy - 3.6],
+            [hx + ox + (bx + 1.5) * spread, hy - 3.6],
+            [hx + ox + tx * spread, hy + ty],
+          ],
+          (x, y) => hr(y, x, x < hx + ox + tx * spread ? 0.78 - (hy - 3.6 - y) / 18 : 0.45 - (hy - 3.6 - y) / 24),
+        );
+      }
+    }
+    if (style === 'swept') {
+      // a long side-swept fringe over one eye, with a lock that falls to the shoulder
+      if (front || turn === 0.5) {
+        poly(
+          ctx,
+          [
+            [hx - 4.4, hy - 4.2],
+            [hx + 4.4, hy - 4.6],
+            [hx + 4.8, hy + 2.4],
+            [hx + 3.4, hy + 3.6],
+            [hx + 1.6, hy + 0.8],
+            [hx - 1.2, hy - 1.6],
+          ],
+          (x, y) => hr(y, x, 0.62 - (y - hy) / 14 + ((x + y) % 4 === 0 ? 0.12 : 0) - (x > hx + 2 ? 0.1 : 0)),
+        );
+        limb(ctx, hx + 4.4, hy, hx + 5.2, hy + 8, 1.4, 1, H, seed + 43);
+      } else if (profile)
+        poly(
+          ctx,
+          [
+            [hx - 1 * s, hy - 5],
+            [hx + 3.8 * s, hy - 3.2],
+            [hx + 3.6 * s, hy + 1.4],
+            [hx + 1 * s, hy - 1],
+          ],
+          (x, y) => hr(y, x, 0.6 - (y - hy) / 14),
+        );
+      else limb(ctx, hx, hy - 1, hx + 0.8, hy + 6, 2.6, 1.4, H, seed + 43);
+    }
+    if (style === 'topknot') {
+      blob(ctx, hx - (profile ? 1.6 * s : 0), hy - 7.4 + (back ? 0.8 : 0), 1.9, 1.9, H, {
+        seed: seed + 44,
+        noise: 0.1,
+        edgeDark: 0.2,
+        bright: 0.12,
+      });
+      put(ctx, Math.round(hx - (profile ? 1.6 * s : 0)) - 1, Math.round(hy - 5.4), tie, 2, 1);
+    }
+    if (style === 'twintail') {
+      const tails = profile ? [-s] : [-1, 1];
+      for (const t of tails) {
+        const sway = moving ? Math.sin(p + (t > 0 ? 1.4 : 0)) * 0.9 : 0;
+        const bx = hx + t * (profile ? 4.2 : 4.4);
+        limb(
+          ctx,
+          bx,
+          hy - 1.6,
+          bx + t * 1.6 + sway,
+          hy + 8.4,
+          1.8,
+          0.9,
+          H,
+          seed + 45 + (t > 0 ? 1 : 0),
+          t > 0 ? -0.08 : 0.08,
+        );
+        put(ctx, Math.round(bx) - 1, Math.round(hy - 2), tie, 2, 1);
+      }
+    }
   } else {
     put(ctx, Math.round(hx - 2), Math.round(hy - 3.6), o.skin[4]!, 3, 1); // scalp shine
   }
@@ -863,9 +1081,10 @@ function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, seed: numbe
   const eye = (x: number) => {
     put(ctx, x, ey, C.ink, 1, 1);
     put(ctx, x, ey - 1, o.hair[1]!, 1, 1);
+    if (o.eyes !== undefined) put(ctx, x, ey + 1, o.eyes, 1, 1); // iris glints under the lid
   };
   if (front) {
-    for (const ex of [-2, 1]) eye(Math.round(hx) + ex);
+    for (const ex of o.hairStyle === 'swept' ? [-2] : [-2, 1]) eye(Math.round(hx) + ex);
     put(ctx, Math.round(hx) - 3, ey + 2, C.r5);
     put(ctx, Math.round(hx) + 2, ey + 2, C.r5); // cheeks
     put(ctx, Math.round(hx) - 1, ey + 3, o.skin[1]!, 2, 1);
@@ -921,6 +1140,33 @@ function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, seed: numbe
       for (const sx of [-1, 1])
         put(ctx, Math.round(hx + sx * 5 - (sx < 0 ? 1 : 0)), Math.round(hy - 1.5), hh[1]!, 1, 6);
       if (!back) put(ctx, Math.round(hx - 3), Math.round(hy - 1.2), hh[0]!, 7, 1);
+    } else if (hs === 'bandana') {
+      // a knotted headscarf: band across the brow, tails fluttering behind
+      put(ctx, Math.round(hx - 4.5), Math.round(hy - 3.2), hh[2]!, 9, 2);
+      put(ctx, Math.round(hx - 4.5), Math.round(hy - 1.8), hh[1]!, 9, 1);
+      if (!back)
+        for (let i = 0; i < 4; i++) put(ctx, Math.round(hx - 3 + i * 2), Math.round(hy - 2.8), hh[4] ?? hh[3]!, 1, 1);
+      const kx = back ? hx + 1 : profile ? hx - 4.4 * s : hx + 4.6;
+      limb(ctx, kx, hy - 2.4, kx + (moving ? 1.6 : 0.8) * (profile ? -s : 1), hy + 3.4, 1.4, 0.8, hh, seed + 68, 0.1);
+      limb(ctx, kx, hy - 2.4, kx + (profile ? -s : 1) * 2.4, hy + 1.8, 1.2, 0.7, hh, seed + 69, 0.2);
+    } else if (hs === 'crown') {
+      put(ctx, Math.round(hx - 4.5), Math.round(hy - 4), hh[2]!, 9, 1);
+      for (const [dx, h2] of [
+        [-4, 2],
+        [-2, 3],
+        [0, 4],
+        [2, 3],
+        [4, 2],
+      ] as const)
+        put(
+          ctx,
+          Math.round(hx + dx) - (dx > 0 ? 1 : 0),
+          Math.round(hy - 4 - h2),
+          dx <= 0 ? (hh[4] ?? hh[3]!) : hh[3]!,
+          1,
+          h2,
+        );
+      if (!back) put(ctx, Math.round(hx) - 1, Math.round(hy - 4), C.r3, 1, 1);
     } else if (hs === 'circlet') {
       put(ctx, Math.round(hx - 4.5), Math.round(hy - 3.2), hh[2]!, 9, 1);
       if (!back) {
@@ -1095,6 +1341,8 @@ function drawOrb(ctx: Ctx, frame: number): void {
 export interface Sheets {
   /** frame 0 = idle (breathes on its own), 1..WALK_FRAMES-1 = walk; dir = one of the 8 DIR_* constants */
   person(outfit: number, dir: number, frame: number): Texture;
+  /** a player with a chosen appearance (packed, see shared/appearance.ts) wearing outfit/armour look `look` */
+  styled(look: number, app: number, dir: number, frame: number): Texture;
   /** unique sprite per village NPC; same layout as `person` */
   npc(npcId: string, dir: number, frame: number): Texture;
   /** passive fauna: 4 frames, always drawn facing right (flip the sprite to face left) */
@@ -1146,25 +1394,57 @@ export function buildActorSheets(): Sheets {
         [C.g1, C.g2, C.g3, C.g4],
       ];
       const skin = [SKIN_LIGHT, SKIN_MID, SKIN_DARK][i % 3]!;
-      const hairStyles: HairStyle[] = ['short', 'long', 'bun', 'braids', 'curly', 'bald', 'ponytail'];
-      const hatStyles: HatStyle[] = ['cap', 'brim', 'beret', 'hood', 'circlet', 'helm'];
+      const hairStyles: HairStyle[] = [
+        'short',
+        'long',
+        'bun',
+        'braids',
+        'curly',
+        'spiky',
+        'ponytail',
+        'swept',
+        'topknot',
+        'twintail',
+      ];
+      const hatStyles: HatStyle[] = ['cap', 'brim', 'beret', 'hood', 'bandana', 'beret'];
+      const hairs = Object.values(HAIR);
+      const skins = [SKIN_LIGHT, SKIN_MID, SKIN_DARK, SKINS_EXTRA[0]!, SKINS_EXTRA[1]!];
+      const trims = [C.e4, C.fog, C.r6, C.r3, C.w5, C.e7];
+      const dresses: Array<Outfit['dress']> = [
+        undefined,
+        'robe',
+        'coat',
+        undefined,
+        'mantle',
+        'plated',
+        undefined,
+        'coat',
+      ];
+      const eyeCols = [C.e2, C.g4, C.w5, C.r5, C.q4, C.e3];
       const look: Outfit =
         NPC_LOOKS[id] ??
         (n.settlement
           ? {
               shirt: cloth[i % 8]!,
               pants: cloth[(i + 4 + Math.floor(i / 8)) % 8]!,
-              hair: Object.values(HAIR)[i % Object.values(HAIR).length]!,
-              skin,
+              hair: hairs[(i * 3) % hairs.length]!,
+              skin: skins[(i + Math.floor(i / 5)) % skins.length]!,
               boots: [C.e0, C.e1, C.e2, C.e3],
-              hairStyle: hairStyles[i % 7]!,
+              hairStyle: hairStyles[(i + Math.floor(i / 7)) % hairStyles.length]!,
+              eyes: eyeCols[(i * 5) % eyeCols.length]!,
+              trim: trims[(i * 7) % trims.length]!,
+              dress: dresses[(i + Math.floor(i / 3)) % dresses.length],
+              ...(i % 8 === 5 ? { plate: rmp([C.slate, C.steel, C.mist, C.fog, C.pale]) } : {}),
+              ...(i % 8 === 4 ? { mantle: cloth[(i + 1) % 8]! } : {}),
+              ...(i % 8 === 2 || i % 8 === 7 ? { cape: cloth[(i + 5) % 8]! } : {}),
+              ...(i % 6 === 1 ? { sash: rmp([C.e1, C.e2, trims[(i * 7) % trims.length]!]) } : {}),
               ...(i % 3 !== 0
                 ? { hat: cloth[(i + 2 + Math.floor(i / 6)) % 8]!, hatStyle: hatStyles[(i + Math.floor(i / 8)) % 6]! }
                 : { scarf: cloth[(i + 3) % 8]! }),
-              ...(i % 4 === 0 ? { apron: cloth[(i + 5) % 8]! } : {}),
+              ...(i % 4 === 0 && !(i % 8 === 4 || i % 8 === 5) ? { apron: cloth[(i + 5) % 8]! } : {}),
               ...(i % 5 === 0 ? { glasses: true } : {}),
               ...(['Oren', 'Bram', 'Garrick', 'Harlan', 'Toren'].includes(n.name.split(' ')[0]!)
-                ? { beard: Object.values(HAIR)[i % Object.values(HAIR).length]! }
+                ? { beard: hairs[i % hairs.length]! }
                 : {}),
             }
           : OUTFITS[i % COSMETIC_OUTFITS]!);
@@ -1173,6 +1453,31 @@ export function buildActorSheets(): Sheets {
       npcBases.set(id, tex);
     }
     return tex;
+  };
+
+  // Players with a chosen appearance get their own small atlas, built on first sight and recycled least-recently-used.
+  const styledAtlases = new Map<string, { base: Texture; subs: Map<string, Texture> }>();
+  const styledFor = (look: number, app: number) => {
+    const key = `${look}:${app}`;
+    let e = styledAtlases.get(key);
+    if (e) {
+      styledAtlases.delete(key);
+    } else {
+      const a = appearanceOf(app)!;
+      const baseLook = OUTFITS[((look % OUTFITS.length) + OUTFITS.length) % OUTFITS.length]!;
+      const outfit = outfitFromAppearance(baseLook, a, look === 0);
+      const base = Texture.from(personSheet([outfit], 400 + (app % 997) * 7));
+      base.source.scaleMode = 'nearest';
+      e = { base, subs: new Map() };
+      while (styledAtlases.size >= 64) {
+        const [oldKey, old] = styledAtlases.entries().next().value!;
+        styledAtlases.delete(oldKey);
+        for (const t of old.subs.values()) t.destroy(false);
+        old.base.destroy(true);
+      }
+    }
+    styledAtlases.set(key, e);
+    return e;
   };
 
   // creatures: slime 24x20 (day/night x4), hopper 22x22 (x4 x2), orb 16x16 x2, rabbit 20x18 x4, deer 34x34 x4
@@ -1229,10 +1534,25 @@ export function buildActorSheets(): Sheets {
   const idleCol = (k: number) => ((performance.now() / 700 + k * 0.37) % 2 < 1.15 ? 0 : 9);
   const col = (f: number, k: number, max = COLS - 1) => (f === -1 ? 0 : f <= 0 ? idleCol(k) : Math.min(max, f));
   const dd = (d: number) => ((d % 8) + 8) % 8;
-  return {
+  const sheet: Sheets = {
     person: (o, d, f) => {
       const c = col(f, o * 3 + d);
       return sub(base, `p${o}.${dd(d)}.${c}`, c * PERSON_W, (o * 8 + dd(d)) * PERSON_H, PERSON_W, PERSON_H);
+    },
+    styled: (look, app, d, f) => {
+      if (!appearanceOf(app)) return sheet.person(look, d, f);
+      const e = styledFor(look, app);
+      const c = col(f, (app % 31) * 3 + d);
+      const k = `${dd(d)}.${c}`;
+      let t = e.subs.get(k);
+      if (!t) {
+        t = new Texture({
+          source: e.base.source,
+          frame: new Rectangle(c * PERSON_W, dd(d) * PERSON_H, PERSON_W, PERSON_H),
+        });
+        e.subs.set(k, t);
+      }
+      return t;
     },
     npc: (id, d, f) => {
       const i = Math.max(0, npcIds.indexOf(id));
@@ -1246,4 +1566,15 @@ export function buildActorSheets(): Sheets {
     hopper: (n, f) => sub(cBase, `h${n}.${f % 4}`, (f % 4) * 22, Y.hopper + (n ? 22 : 0), 22, 22),
     orb: (f) => sub(cBase, `o${f % 2}`, (f % 2) * 16, Y.orb, 16, 16),
   };
+  return sheet;
+}
+
+/** One person frame for UI previews (character creation): same painter and polish as the world sprites. */
+export function renderPersonCanvas(o: Outfit, dir: number, frame: number): HTMLCanvasElement {
+  const { canvas, ctx } = makeCanvas(PERSON_W, PERSON_H);
+  const buf = new PixBuf(PERSON_W, PERSON_H);
+  undithered(() => drawPerson(buf.ctx, dir, frame, o, 1 + dir * 13));
+  polished(buf, 12, 31, 6);
+  buf.blit(ctx, 0, 0);
+  return canvas;
 }

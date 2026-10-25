@@ -1,4 +1,5 @@
 import './style.css';
+import { MSG, packAppearance, type Appearance } from '@eigenlands/shared';
 import { IS_SOLO, HAS_SOLO, SERVER_URL, SERVER_ERROR, friendInvite, gameServerUrl } from './net/world-session';
 import { Game } from './game/Game';
 import { Input } from './input/input';
@@ -14,6 +15,7 @@ import {
   signOut,
   type AuthState,
 } from './net/session';
+import { buildAppearancePicker, loadLook, saveLook } from './ui/appearance-picker';
 import { HTML, SettingsUI, applySettings, loadSettings } from './ui/ui';
 
 /** single-player build (GitHub Pages): the world runs and is saved in this browser, see src/local/ */
@@ -152,7 +154,18 @@ async function boot(): Promise<void> {
   $('btn-craft').addEventListener('click', () => game.gameplay.toggleFieldCraft());
   $('btn-journal').addEventListener('click', () => game.gameplay.toggleJournal());
 
-  const enter = async (a: AuthState, name?: string): Promise<void> => {
+  const look = loadLook();
+  const picked = (a: Appearance) => {
+    look.app = a;
+    look.touched = true;
+    saveLook(look);
+    if (auth && game.net) game.net.send(MSG.APPEARANCE, { app: packAppearance(a) });
+  };
+  $('look-title').append(buildAppearancePicker(look.app, picked));
+  $('btn-settings').addEventListener('click', () =>
+    $('look-settings').replaceChildren(buildAppearancePicker(look.app, picked)),
+  );
+  const enter = async (a: AuthState, name?: string, sendLook = false): Promise<void> => {
     auth = a;
     game.accountId = a.accountId;
     msg('Entering the world…');
@@ -165,6 +178,7 @@ async function boot(): Promise<void> {
       msg(`Could not join: ${(e as Error).message || 'server unreachable'}`);
       return;
     }
+    if (sendLook || look.touched) net.send(MSG.APPEARANCE, { app: packAppearance(look.app) });
     $('login').hidden = true;
     $('hud').hidden = false;
     window.__eigen = { state: () => game.debugState(), game };
@@ -174,7 +188,7 @@ async function boot(): Promise<void> {
   setupGoogle(cfg.googleClientId, async (idToken) => {
     try {
       const g = await googleLogin(idToken);
-      if (!auth) await enter(g, ($<HTMLInputElement>('name').value || '').trim() || undefined);
+      if (!auth) await enter(g, ($<HTMLInputElement>('name').value || '').trim() || undefined, true);
       else {
         auth = g;
         $('acct-info').textContent = 'Signed in with Google — your guest progress is now linked to your account.';
@@ -189,7 +203,7 @@ async function boot(): Promise<void> {
     void requestLandscape();
     try {
       const g = await guestLogin();
-      await enter(g, ($<HTMLInputElement>('name').value || '').trim() || undefined);
+      await enter(g, ($<HTMLInputElement>('name').value || '').trim() || undefined, true);
     } catch (e) {
       msg(`Cannot reach the game server (${(e as Error).message}).`);
     }

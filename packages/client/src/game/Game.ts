@@ -118,6 +118,8 @@ import {
   HUE_PALETTE,
   ITEMS,
   MSG34,
+  DASH_CHARGES,
+  DASH_COOLDOWN,
   SHADOW_RANKS,
   WEAPONS,
   setMeleeWeapon,
@@ -127,6 +129,8 @@ import {
 import { Critters } from '../art/critters';
 import { Ships } from '../art/ships';
 import { TargetFrame } from '../ui/targetframe';
+import { VitalsHud } from '../ui/vitals';
+import { staminaFraction } from '../ui/vitals-model';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const pc = (i: number) => parseInt(PALETTE[i]!.slice(1), 16);
@@ -141,6 +145,7 @@ interface Snap extends Pose {
   name: string;
   level: number;
   look: number;
+  app: number;
   weapon: string;
   held: string;
   cart: boolean;
@@ -231,6 +236,11 @@ export class Game {
   private selfReady: ((v: void) => void) | null = null;
   private self: Snap | null = null;
   private selfXp = 0;
+  private vitalsAt = 0;
+  private vitalsHud: VitalsHud | null = null;
+  private get vitals(): VitalsHud {
+    return (this.vitalsHud ??= new VitalsHud($('vitals')));
+  }
   private scale = 3;
   private acc = 0;
   private fps = 0;
@@ -612,6 +622,7 @@ export class Game {
         name: e.name ?? '',
         level: e.level ?? 1,
         look: e.look ?? 0,
+        app: e.app ?? 0,
         weapon: e.weapon ?? '',
         held: e.held ?? '',
         cart: !!e.cart,
@@ -1533,11 +1544,10 @@ export class Game {
           harvesting && Math.hypot(use!.x - x, use!.y - y) > 0.05
             ? screenDir(use!.x - x, use!.y - y)
             : screenDir(fx, fy);
-        v.sprite.texture = this.sheets.person(
-          ((look % OUTFITS.length) + OUTFITS.length) % OUTFITS.length,
-          dirOf(sd.x, sd.y),
-          frame,
-        );
+        const lookIx = ((look % OUTFITS.length) + OUTFITS.length) % OUTFITS.length;
+        v.sprite.texture = s?.app
+          ? this.sheets.styled(lookIx, s.app, dirOf(sd.x, sd.y), frame)
+          : this.sheets.person(lookIx, dirOf(sd.x, sd.y), frame);
         v.sprite.alpha = deadP ? 0.35 : dash ? 0.6 : 1;
         v.sprite.rotation = deadP ? Math.PI / 2 : 0;
         v.sprite.scale.set(1);
@@ -1808,17 +1818,6 @@ export class Game {
       $('hud-level').textContent = `Lv ${s.level}`;
       $('hp-fill').style.width = `${Math.max(0, (s.hp / Math.max(1, s.maxHp)) * 100)}%`;
       $('hp-text').textContent = `${s.hp} / ${s.maxHp}`;
-      const orb = $('orb'),
-        pct = Math.max(0, Math.min(100, (s.hp / Math.max(1, s.maxHp)) * 100));
-      orb.style.setProperty('--hp', `${pct}%`);
-      orb.classList.toggle('low', pct < 30);
-      const health = `${s.hp} / ${s.maxHp}`;
-      if (orb.dataset.v !== health) {
-        orb.dataset.v = health;
-        orb.textContent = health;
-        orb.setAttribute('aria-valuenow', String(s.hp));
-        orb.setAttribute('aria-valuemax', String(s.maxHp));
-      }
       $('xp-orb').style.width = `${Math.min(100, (this.selfXp / xpForLevel(s.level)) * 100)}%`;
       const need = xpForLevel(s.level);
       $('xp-fill').style.width = `${Math.min(100, (this.selfXp / need) * 100)}%`;
@@ -1847,23 +1846,30 @@ export class Game {
     hintEl.hidden = !tip || this.gameplay.blocking || this.settingsOpen() || this.input.armed !== null;
     if (tip) hintEl.textContent = tip;
     const needs = this.gameplay.profile.needs;
-    $('needs-hud').hidden = needs.mode !== 'adventure';
     document.body.classList.toggle('needs-enabled', needs.mode === 'adventure');
-    for (const key of ['food', 'water'] as const) {
-      const bar = $(`needs-${key}`) as HTMLProgressElement;
-      bar.value = needs[key];
-      $(`needs-${key}-value`).textContent = String(Math.ceil(needs[key]));
-      bar.classList.toggle('low', needs[key] <= 20);
-    }
     $('coins').textContent = `${this.gameplay.profile.coins} coins`;
-    const buffs = Object.entries(this.gameplay.profile.buffs).filter(([, b]) => b.until > sn);
-    const bb = $('buffs');
-    bb.textContent = '';
-    for (const [k, b] of buffs) {
-      const el = document.createElement('span');
-      el.className = 'buff';
-      el.textContent = `${k} ${Math.ceil((b.until - sn) / 1000)}s`;
-      bb.append(el);
+    if (s) {
+      const sim = this.predictor.sim;
+      const hudDt = this.vitalsAt ? Math.min(0.25, (now - this.vitalsAt) / 1000) : 0;
+      this.vitalsAt = now;
+      this.vitals.update(
+        {
+          hp: s.hp,
+          maxHp: s.maxHp,
+          mana: this.ext.circuit.resource(),
+          stamina: {
+            frac: staminaFraction(sim.dashN, sim.dashCd, DASH_COOLDOWN, DASH_CHARGES),
+            charges: sim.dashN,
+            max: DASH_CHARGES,
+          },
+          needs: needs.mode === 'adventure' ? { food: needs.food, water: needs.water } : null,
+          auras: this.ext.circuit.auras(this.myId),
+          buffs: this.gameplay.profile.buffs,
+          serverNow: sn,
+        },
+        hudDt,
+        this.settings().reducedMotion,
+      );
     }
     const me = this.predictor.sim;
     const surfaceY = isDiveY(me.y)

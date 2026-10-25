@@ -1075,21 +1075,6 @@ section {
 .rhythm.fish .rtitle {
   color: #7cd0ff;
 }
-#buffs {
-  position: fixed;
-  left: 12px;
-  top: 96px;
-  display: flex;
-  gap: 4px;
-  z-index: 5;
-}
-.buff {
-  background: rgba(15, 16, 32, 0.85);
-  border: 2px solid #3a3e5e;
-  border-radius: 4px;
-  padding: 1px 6px;
-  font-size: 0.75em;
-}
 #coinbox {
   color: #fcd45a;
   font-size: 0.85em;
@@ -1195,10 +1180,6 @@ section {
   html .orbinfo {
     width: 166px;
     gap: 2px;
-  }
-  html .orbwrap {
-    width: 100%;
-    height: 22px;
   }
   html .gatebtn {
     width: 44px;
