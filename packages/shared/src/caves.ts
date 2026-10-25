@@ -1,5 +1,6 @@
 import{CAVE_OY,caveRegionAt,caveRegion,caveRouteDistance2,caveWaystation,caveTownAt,CAVE_TOWNS,caveExitsNear,segmentDistance2}from'./undercroft';
 export{CAVE_OY}from'./undercroft';
+import { mineLoopAt, mineRailAt, mineRailMask } from './mines';
 import { mineralDeposit } from './distribution';
 import { CHUNK_SIZE } from './constants';
 import type { WorldObj } from './objects';
@@ -82,7 +83,7 @@ export function caveTileAt(seed:number,x:number,y:number,legacy=false):number{
  const ly=y-CAVE_OY,r=caveRegionAt(seed,x,y),route=caveRouteDistance2(seed,x,y);
  let landing=Infinity;for(const m of mouthsNear(seed,x,ly,9))landing=Math.min(landing,(x-m.x)**2+(ly-m.y)**2);
  const lift=caveWaystation(seed,r.gx,r.gy),ld=lift?Math.hypot(x-lift.x,y-lift.y):Infinity;
- if(landing<42||ld<4)return T.CAVE_FLOOR;
+ if(landing<42||ld<4||mineRailAt(mineLoopAt(seed,x,y),x,y))return T.CAVE_FLOOR;
  let n=noise.get(seed);if(!n){n=new Simplex2D(seed^0xca5e);if(noise.size>8)noise.clear();noise.set(seed,n);}
  const dx=x-r.x,dy=y-r.y,room=(dx/r.rx)**2+(dy/r.ry)**2;
  const magma=r.biome==='basalt'&&((dx-12)/7)**2+((dy-7)/5)**2<1;
@@ -110,6 +111,20 @@ export function caveTileAt(seed:number,x:number,y:number,legacy=false):number{
  return T.CAVE_FLOOR;
 }
 
+const cascades=new Map<string,{x:number;y:number;sub:string}|null>();
+/** A cascade needs both a real rear wall and a pool at its foot. Cache the authored source search. */
+function cascadeAt(seed:number,r:ReturnType<typeof caveRegion>){
+ const key=`${seed}:${r.id}`;if(cascades.has(key))return cascades.get(key)!;
+ let out:{x:number;y:number;sub:string}|null=null;
+ if(r.feature==='lake'||r.biome==='drowned'||r.biome==='basalt'){
+  for(let dy=-7;dy<=14&&!out;dy++)for(let dx=0;dx<=20&&!out;dx++){
+   const x=r.x+dx,y=r.y+dy,t=caveTileAt(seed,x,y);
+   if((t===T.WATER||t===T.LAVA)&&caveTileAt(seed,x,y-1)===T.CAVE_WALL)out={x,y,sub:t===T.LAVA?'magma_fall':'cave_waterfall'};
+  }
+ }
+ if(cascades.size>=512)cascades.delete(cascades.keys().next().value!);cascades.set(key,out);return out;
+}
+
 /** Static objects of chunk (cx, cy): cave mouths on the surface; ladders and forgotten caches below. */
 export function caveObjectsIn(seed: number, cx: number, cy: number): WorldObj[] {
   const out: WorldObj[] = [];
@@ -128,9 +143,13 @@ export function caveObjectsIn(seed: number, cx: number, cy: number): WorldObj[] 
   if(below){
    for(let gy=Math.floor(sy/72);gy<=Math.floor((sy+31)/72);gy++)for(let gx=Math.floor(x0/72);gx<=Math.floor((x0+31)/72);gx++){
     const r=caveRegion(seed,gx,gy),lift=caveWaystation(seed,gx,gy);
-    const add=(x:number,y:number,sub:string,data:Record<string,unknown>={})=>{if(inChunk(x,y)&&!caveTownAt(x,y))out.push({x,y,kind:sub==='cave_waymark'?'sign':'deco',sub,static:true,data});};
+    const add=(x:number,y:number,sub:string,data:Record<string,unknown>={})=>{if(inChunk(x,y)&&!caveTownAt(x,y)&&!out.some(o=>o.x===x&&o.y===y))out.push({x,y,kind:sub==='cave_waymark'?'sign':'deco',sub,static:true,data});};
+    const mine=mineLoopAt(seed,r.x,r.y);
+    if(mine)for(let y=mine.y;y<=mine.y+mine.h;y++)for(let x=mine.x;x<=mine.x+mine.w;x++)if(mineRailAt(mine,x,y)){
+     add(x,y,x===mine.x&&y===mine.y?'minecart':'mine_rail',{mask:mineRailMask(mine,x,y)});
+    }
     if(lift)add(lift.x,lift.y,'cave_lift',{cave:lift.id});
-    add(r.x,r.y+7,'cave_waymark',{text:`${r.biome.toUpperCase()} · survey district ${gx}, ${gy}. Depth band ${r.depth}. Broad marked passages connect every junction. Supply lifts lie at every other junction; the Atlas can track the nearest exit.`});
+    if(lift)add(lift.x+2,lift.y,'cave_waymark',{text:`${r.biome.toUpperCase()} · survey district ${gx}, ${gy}. Depth band ${r.depth}. Broad marked passages connect every junction. Supply lifts lie at every other junction; the Atlas can track the nearest exit.`});
     if(r.feature==='secret')add(gx*72+12,CAVE_OY+gy*72+12,'ruin_cache',{ruin:`${r.id}:secret`,biome:'enchanted',cave:true,depth:r.depth,secret:true});
     else if(r.feature==='ruins'){
      add(r.x-7,r.y-6,'ruin_cache',{ruin:`${r.id}:archive`,biome:'enchanted',cave:true,depth:r.depth});
@@ -140,10 +159,9 @@ export function caveObjectsIn(seed: number, cx: number, cy: number): WorldObj[] 
      add(r.x+7,r.y-6,'cave_altar',{region:r.id,depth:r.depth});add(r.x,r.y,'cave_seal');
      for(const[dx,dy]of[[-12,-10],[12,-10],[-12,10],[12,10]])add(r.x+dx,r.y+dy,'bell_pylon');
     }
-    if(r.feature==='lake'||r.biome==='drowned')add(r.x+14,r.y+3,'cave_waterfall');
-    if(r.biome==='basalt'&&!['arena','puzzle','ruins','vents'].includes(r.feature))add(r.x+15,r.y+7,'magma_fall');
+    const fall=cascadeAt(seed,r);if(fall)add(fall.x,fall.y,fall.sub);
     if(r.biome==='glowmoss'||r.feature==='grove'){
-     for(const[dx,dy]of[[-12,5],[-11,9],[10,9],[13,-5]])if(!isSolid(caveTileAt(seed,r.x+dx,r.y+dy)))add(r.x+dx,r.y+dy,'glow_mushrooms');
+     for(const[dx,dy]of[[-12,5],[-11,9],[10,9],[13,-5]])if(!mineRailAt(mine,r.x+dx,r.y+dy)&&!isSolid(caveTileAt(seed,r.x+dx,r.y+dy)))add(r.x+dx,r.y+dy,'glow_mushrooms');
     }
    }
   }

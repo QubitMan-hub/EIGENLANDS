@@ -1,3 +1,4 @@
+import { minecartSprite } from '../art/mining';
 import type { HeldWeapons } from '../art/weapons';
 import { type Critters, type CritterId } from '../art/critters';
 import { Sprite, type Container, type Graphics } from 'pixi.js';
@@ -40,6 +41,7 @@ export interface CombatActor {
   held?: Sprite;
   /** hull sprite under a sailing player */
   ship?: Sprite;
+  cartSprite?: Sprite;
 }
 
 /** Synced fields combat reads from interpolated snapshots. */
@@ -433,6 +435,14 @@ export class CombatView {
     v.ship.y = bob;
     v.sprite.y = -7 + bob; v.fl.y = -7 + bob;
     this.wake(v.gfx, fx, fy, t, 1);
+  }
+
+  minecart(v:CombatActor,riding:boolean,fx:number,fy:number):void {
+    if(!riding){if(v.cartSprite?.visible){v.cartSprite.visible=false;v.sprite.y=0;v.fl.y=0;}return;}
+    const art=minecartSprite(Math.abs(fy)>Math.abs(fx)?1:0);
+    if(!v.cartSprite){v.cartSprite=new Sprite();v.root.addChild(v.cartSprite);}
+    v.cartSprite.texture=art.tex;v.cartSprite.anchor.set(art.ax/art.tex.width,art.ay/art.tex.height);v.cartSprite.visible=true;
+    v.sprite.y=-6;v.fl.y=-6;
   }
 
   /** Enemy sprite, animation, flash, squash/stretch, stagger, elite aura, bars and its telegraph. */

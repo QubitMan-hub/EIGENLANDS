@@ -171,7 +171,26 @@ function chair(face: Facing): ObjSprite {
   return iso(32, 36, face, (p) => {
     legs(p, 4.5, 4.5, 7, 7, 6, { ramp: DARKWOOD }, 1.3);
     p.box(4, 4, 6, 8, 8, 1.3, { ramp: WOODM });
-    p.box(4, 3.4, 7.3, 1.3, 8.6, 9, { ramp: WOODM, front: (s, t, c) => (t > 0.2 && t < 0.8 && Math.abs(s - 0.5) > 0.2 && Math.abs(s - 0.5) < 0.35 ? c(-2) : null) });
+    // Two rear uprights and cross rails, along the back edge of the seat.
+    for (const a of [4, 10.7]) p.box(a, 3.4, 6, 1.3, 1.3, 10.3, { ramp: DARKWOOD });
+    p.box(4, 3.4, 14.8, 8, 1.3, 1.5, { ramp: WOODM });
+    p.box(4, 3.4, 10.8, 8, 1.3, 1.5, { ramp: WOODM });
+  });
+}
+
+/** Four seat facings toward a dining table; light remains fixed in world space. */
+export function diningChair(turn: number): ObjSprite {
+  return iso(32, 36, 'sw', p => {
+    const box = (u:number,v:number,z:number,du:number,dv:number,dz:number,ramp:Ramp) => {
+      for(let i=0;i<(turn&3);i++){[u,v,du,dv]=[16-v-dv,u,dv,du];}
+      p.iso.box(u,v,z,du,dv,dz,{top:ramp[ramp.length-1]!,left:ramp[ramp.length-2]!,right:ramp[1]!});
+    };
+    const parts:Array<[number,number,number,number,number,number,Ramp]> = [];
+    for(const u of [4.5,10.2])for(const v of [4.5,10.2])parts.push([u,v,0,1.3,1.3,6,DARKWOOD]);
+    parts.push([4,4,6,8,8,1.3,WOODM],[4,3.4,6,1.3,1.3,10.3,DARKWOOD],[10.7,3.4,6,1.3,1.3,10.3,DARKWOOD],[4,3.4,14.8,8,1.3,1.5,WOODM],[4,3.4,10.8,8,1.3,1.5,WOODM]);
+    // Back-to-front ordering also changes with the physical orientation.
+    const depth=(a:typeof parts[number])=>{let[u,v]=a;let[du,dv]=a.slice(3,5) as [number,number];for(let i=0;i<(turn&3);i++)[u,v,du,dv]=[16-v-dv,u,dv,du];return u+v+du+dv;};
+    parts.sort((a,b)=>depth(a)-depth(b));for(const part of parts)box(...part);
   });
 }
 
@@ -457,6 +476,19 @@ function candles(face: Facing, f: number): ObjSprite {
       put(ctx, Math.round(p.X(a, 8)), Math.round(p.Y(a, 8, 17 + ((a + f) % 2))), f % 2 ? C.e7 : C.r6);
       put(ctx, Math.round(p.X(a, 8)), Math.round(p.Y(a, 8, 16)), C.white);
     }
+  });
+}
+
+function streetLamp(face:Facing,f:number):ObjSprite {
+  return iso(36,64,face,p=>{
+    p.box(5,5,0,6,6,2,{ramp:STONEM});p.box(6.5,6.5,2,3,3,3,{ramp:IRONM});
+    p.box(7.2,7.2,5,1.6,1.6,28,{ramp:IRONM});
+    p.box(7.2,7.2,31,8,1.6,1.5,{ramp:IRONM});p.box(13,7.2,28,1,1.6,4,{ramp:IRONM});
+    p.box(11.5,5,19,5,6,1.4,{ramp:IRONM});
+    p.box(12,5.5,20.4,4,5,6,{ramp:[C.e2,C.e3,C.e4,f?C.e7:C.e6,C.e7]});
+    for(const a of[11.5,15.5])p.box(a,5,20,1,6,7,{ramp:IRONM});
+    p.box(12.5,10.5,21,2.5,.6,4,{ramp:[C.e2,C.e3,C.e4,f?C.e6:C.e5,C.e6]});
+    p.box(11,4.5,26.5,6,7,1.5,{ramp:IRONM});p.box(12,5.5,28,4,5,1.5,{ramp:IRONM});
   });
 }
 
@@ -898,7 +930,7 @@ export const PROPS: Record<string, Mk> = {
   cauldron: anim(3, 3, cauldron), cooking_pot: anim(3, 4, cookingPot),
   workbench: one(workbench), carpenter: one(carpenter), jeweler: one(jeweler), alchemy: anim(2, 2, alchemy), loom: one(loom),
   rack: one(rack), board: one(board), trophy: one(trophy),
-  candles: anim(2, 5, candles), lamp: anim(2, 3, floorLamp), plant: one(plant, { sway: 0.01 }),
+  street_lamp: anim(2, 2, streetLamp), candles: anim(2, 5, candles), lamp: anim(2, 3, floorLamp), plant: one(plant, { sway: 0.01 }),
   stall: anim(2, 1.2, stall), planter: one(planter, { sway: 0.01 }), hay: one(hay), trough: one(trough), woodpile: one(woodpile),
   shrine_altar: anim(4, 3, shrineAltar), shrine_pillar: one(shrinePillar),
   coop: one(coop), barn: one(barn), banner: anim(2, 2, banner), laundry: anim(2, 1.5, laundry), plaque: one(plaque),

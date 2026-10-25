@@ -2,6 +2,7 @@ import {
   ATTACK_BUFFER, CHARGE_FULL, CHARGE_MIN, CHARGE_MOVE_MULT, COMBO_WINDOW, DASH_CHARGES, DASH_COOLDOWN, DASH_SPEED, DASH_TIME,
   BOAT_SPEED_MULT, IFRAME_TIME, PLAYER_RADIUS, PLAYER_SPEED, SKILL_COOLDOWN, SWING_MOVE_MULT, TICK_DT,
 } from './constants';
+import { minePosition, type MineLoop } from './mines';
 import { meleeFamily, meleeTap, meleeHeavy, type MeleeFamily } from './combat';
 
 /** Fixed-rate simulation stays real-time after a render/IO stall; never replay an unbounded suspension. */
@@ -46,6 +47,8 @@ export interface PlayerSim {
   slipT: number;
   /** 1 while sailing: water is open, land is solid, no dashing, faster, no lunges */
   boat: number;
+  /** 0 walking; otherwise progress + 1 on a shared mine circuit. */
+  cart: number;
 }
 
 export interface InputCmd {
@@ -84,7 +87,7 @@ export interface StepEvents {
 }
 
 /** `sea` (when present) is the collision query of a ship: land and obstacles are solid, open water is not. */
-export type SolidQuery = ((tx: number, ty: number) => boolean) & { sea?: (tx: number, ty: number) => boolean };
+export type SolidQuery = ((tx: number, ty: number) => boolean) & { sea?: (tx: number, ty: number) => boolean; mine?: (x:number,y:number)=>MineLoop|null };
 
 /** Switching families cannot carry a finisher/charge across weapons or erase recovery. */
 export function setMeleeWeapon(p: PlayerSim, id: unknown): void {
@@ -97,7 +100,7 @@ export function newPlayerSim(x: number, y: number): PlayerSim {
   return {
     x, y, faceX: 0, faceY: 1, dashT: 0, dashCd: 0, dashDx: 0, dashDy: 0,
     atkCd: 0, combo: 0, comboT: 0, skillCd: 0,
-    dashN: DASH_CHARGES, ifrT: 0, hold: 0, charge: 0, atkBuf: 0, slipT: 0, boat: 0,
+    dashN: DASH_CHARGES, ifrT: 0, hold: 0, charge: 0, atkBuf: 0, slipT: 0, boat: 0, cart: 0,
   };
 }
 
@@ -188,6 +191,20 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepE
   const ev: StepEvents = {
     dashed: false, attacked: false, combo: 0, skill: false, heavy: false, level: 0, counter: false, chargeReady: false, chargeFull: false,
   };
+
+  if(p.cart>0){
+    const loop=land.mine?.(p.x,p.y);
+    if(!loop){p.cart=0;return ev;}
+    p.dashT=0;p.hold=0;p.charge=0;p.atkBuf=0;
+    p.atkCd=down(p.atkCd);p.skillCd=down(p.skillCd);p.ifrT=down(p.ifrT);
+    // Holding any movement control drives the circuit. Letting go brakes immediately.
+    if(cmd.dx!==0||cmd.dy!==0){
+      const progress=(p.cart-1+6.8*TICK_DT)%(2*(loop.w+loop.h));
+      const pos=minePosition(loop,progress);
+      if(!overlapsSolid(pos.x,pos.y,.42,land)){p.x=pos.x;p.y=pos.y;p.faceX=pos.fx;p.faceY=pos.fy;p.cart=progress+1;}
+    }
+    return ev;
+  }
 
   // timers
   if (p.dashN < DASH_CHARGES) {

@@ -26,6 +26,8 @@ export class PlayerState extends Schema {
   @type('string') weapon = '';
   /** Selected tool appearance, derived from the actual hotbar slot on the server. */
   @type('string') held = '';
+  /** Minecart riding state, appended without renumbering existing fields. */
+  @type('boolean') cart = false;
 }
 
 export class EnemyState extends Schema {

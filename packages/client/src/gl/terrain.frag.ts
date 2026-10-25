@@ -450,7 +450,7 @@ int floorTop(vec2 tf) {
 
 // ───────── water ─────────
 int waterTop(ivec2 ip, vec2 tf, float sdf, bool deep, float t, int s, int b) {
-  float tt = t * uMotion;
+  float tt = t * uMotion * .65;
   vec2 wp = vec2(ip);
   // layered depth bands with soft, wobbling contours (deep navy far out, slate-blue shelves near the banks)
   // clear and bright like the reference tiles: pale shallows, mid-blue body, only the deepest open water goes navy
@@ -459,7 +459,7 @@ int waterTop(ivec2 ip, vec2 tf, float sdf, bool deep, float t, int s, int b) {
   // lapping foam along the bank
   float lap = 0.32 + 0.12 * sin(tt * 1.6 + wp.x * 0.15 + wp.y * 0.3);
   float foam = vnoise(vec2(wp.x * 0.09 + tt * 0.03, wp.y * 0.14));
-  if (sdf < lap && !deep && foam > 0.38) c = sdf < lap - 0.12 && foam > 0.6 ? W6 : W5;
+  if (sdf < lap && !deep && foam > 0.56) c = sdf < lap - 0.12 && foam > 0.85 ? W5 : W4;
   // Quiet submerged caustics in the shallows, broken into short pixel clusters.
   float caustic = sin(tf.x * 5.0 + vnoise(tf * 0.7) * 4.0 + tt * 0.6) + sin(tf.y * 7.0 + vnoise(tf * 0.6 + 9.0) * 3.0 - tt * 0.45);
   if (sdf > lap && depth < 1.8 && caustic > 1.65) c = W5;
@@ -471,7 +471,7 @@ int waterTop(ivec2 ip, vec2 tf, float sdf, bool deep, float t, int s, int b) {
   for (int j = 0; j <= 1; j++) for (int i = -1; i <= 0; i++) {
     ivec2 cc = rc0 + ivec2(i, j);
     float h = hashk(cc, 40);
-    if (h > 0.24) continue;
+    if (h > 0.14) continue;
     float ph = fract(h * 7.0 + tt * 0.2);
     if (ph > 0.8) continue;
     ivec2 b = cc * RC + ivec2(int(hashk(cc, 41) * 8.0), int(hashk(cc, 42) * 5.0));
@@ -653,11 +653,11 @@ void main() {
     } else if (cls == FLOOR) {
       c = floorTop(tfHit);
     } else if(cls==LAVA){
-      float flow=uMotion>.5?floor(t*3.0):0.0;
+      float flow=uMotion>.5?floor(t*1.5):0.0;
       float crust=fractureNoise(vec2(ip)*vec2(.085,.14)+vec2(flow*.05,0.0));
       float fissure=abs(crust-.5);
-      c=fissure<.045?R6:fissure<.10?R4:crust>.68?E0:R0;
-      if(hashi(ip)> .98&&fissure<.12)c=E7;
+      c=fissure<.022?R5:fissure<.065?R3:crust>.68?E0:R0;
+      if(hashi(ip)> .995&&fissure<.025)c=R6;
     } else if(cls==VAULT){
       vec2 p=fract(tfHit);float h=hashi(ivec2(floor(tfHit)));
       c=p.x<.04||p.y<.04?NIGHT:submerged?(h>.94?W3:W2):h>.96?MIST:STEEL;
@@ -677,7 +677,7 @@ void main() {
       if (water) {
         // foam where the bank meets the water: bright cyan line that breaks up and breathes
         float br = vnoise(vec2(ip) * 0.35 + vec2(t * 0.6 * uMotion, 0.0));
-        c = br > 0.3 ? W6 : W5;
+        c = br > 0.72 ? W5 : W4;
         if (sb == 3) c = W7;
       } else c = (cls == GRASS) ? (sb == 3 ? FOG : G2) : (cls == SAND ? E4 : (cls == PATH && style >= 1 ? STEEL : cls == CAVE ? INK : E2));
     } else if (water && ((hxm > hHit + 0.5 && ex < 2.5) || (hym > hHit + 0.5 && ey < 2.5))) {

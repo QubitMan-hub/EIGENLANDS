@@ -29,7 +29,7 @@ button.primary { background: #1f5e33; border-color: #7bc95a; } button.danger { b
 .card.wide { width: min(980px, 100%); } .small-card { width: min(380px, 100%); text-align: center; }
 h1 { margin: 0; letter-spacing: .25em; color: var(--accent); text-shadow: 0 0 18px #7a3ad0; font-size: 1.9em; text-align: center; }
 h2, h3 { margin: 0; } .tag { text-align: center; color: var(--mute); margin: 0 0 6px; } .small { color: var(--mute); font-size: .8em; margin: 0; }
-input[type=text], input[type=search], input:not([type]), select { font: inherit; color: var(--ink); background: #131e21; border: 1px solid #8a7959; border-radius: 0; padding: 8px; }
+input[type=text], input[type=search], input[type=url], input:not([type]), select { font: inherit; color: var(--ink); background: #131e21; border: 1px solid #8a7959; border-radius: 0; padding: 8px; }
 label { display: grid; gap: 4px; } label:has(input[type=checkbox]) { display: flex; gap: 8px; align-items: center; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; } section { display: grid; gap: 8px; align-content: start; }
 .keyrow { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 2px 0; } .keyrow button { min-width: 120px; padding: 4px 8px; min-height: 30px; }
@@ -206,3 +206,15 @@ label { display: grid; gap: 4px; } label:has(input[type=checkbox]) { display: fl
 #build-rotate:hover { background:#35443d; }
 #build-rotate:focus-visible { outline:2px solid #f2d590; outline-offset:3px; }
 @media (max-height:500px) and (orientation:landscape) { html #build-rotate { bottom:65px; } html #target-hint { bottom:117px; } }
+
+.friends-menu { text-align:left; margin:8px 0; }
+.friends-menu summary { cursor:pointer; padding:8px 0; color:var(--ink); }
+.friends-menu[open] { border-top:1px solid #64706955; }
+.friends-menu button { margin-top:6px; width:100%; }
+#server-address:empty { display:none; }
+
+#server-address, #login-msg { overflow-wrap:anywhere; }
+
+.overlay.title:has(.friends-menu[open]) { overflow-y:auto; align-items:start; touch-action:pan-y; }
+.friends-menu[open] input { width:100%; min-width:0; min-height:44px; margin:4px 0; }
+.friends-menu summary, .friends-menu button { min-height:44px; }

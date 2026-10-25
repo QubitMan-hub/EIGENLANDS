@@ -137,7 +137,7 @@ if (mode === 'construction') {
     }
   } else if (mode === 'resources') {
     const art = buildObjectArt(season);
-    label('surface | underground: same mineral, no snow below ground', 4, 8);
+    label('surface outcrops | underground geological blocks', 4, 8);
     for (const [r, kind] of ['ore_copper', 'ore_iron', 'ore_silver', 'ore_gold', 'rock'].entries()) {
       label(kind, 4, 45 + r * 47);
       for (let side = 0; side < 2; side++) for (let v = 0; v < 3; v++) {

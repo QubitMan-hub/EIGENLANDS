@@ -129,7 +129,16 @@ export const HTML = `
     <div class="menu panel">
       <label for="name">Name your wanderer</label>
       <input id="name" maxlength="16" autocomplete="off" placeholder="Wanderer" />
+      <p id="play-mode" class="small"></p><p id="server-address" class="small"></p>
       <button id="btn-guest" class="primary big">${iconSvg('spark', 16)} Play</button>
+      <details class="friends-menu"><summary>Play with friends</summary>
+        <p class="small">Join the same online world. Solo saves stay separate.</p>
+        <label for="friend-server">Game server address</label>
+        <input id="friend-server" type="url" autocomplete="url" placeholder="https://play.example.com" />
+        <button id="btn-join-server">Join server</button>
+        <button id="btn-invite" hidden>Copy friend invite</button>
+        <button id="btn-solo" hidden>Return to solo world</button>
+      </details>
       <div id="google-slot"><div id="g-btn"></div><p id="g-off" class="small" hidden>Google sign-in isn't configured on this server. Guest progress is saved on this device and can be upgraded later.</p></div>
       <button id="btn-title-settings">${iconSvg('gear', 14)} Settings</button>
       <p id="login-msg" class="small" role="alert"></p>

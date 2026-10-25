@@ -5,7 +5,7 @@
  * dependencies (Repo, Repo34, Presence, Bus, ShardLocks) to the browser save store.
  */
 import { Encoder } from '@colyseus/schema';
-import { JOIN_ROOM } from '@eigenlands/shared';
+import { JOIN_ROOM, WORLD_EPOCH_MS } from '@eigenlands/shared';
 import { MatchMakeError } from 'colyseus.js';
 import { loadConfig, type Config } from '../../../server/src/config';
 import { Presence } from '../../../server/src/presence';
@@ -13,7 +13,7 @@ import { MemoryBus } from '../../../server/src/features/bus';
 import { setRuntime34 } from '../../../server/src/features/runtime34';
 import { ShardLocks } from '../../../server/src/features/shard/locks';
 import { GameRoom } from '../../../server/src/rooms/GameRoom';
-import { setRuntime } from '../../../server/src/rooms/runtime';
+import { setRuntime, worldClock } from '../../../server/src/rooms/runtime';
 import { metrics } from '../../../server/src/rooms/WorldRoom';
 import type { Repo } from '../../../server/src/db/repo';
 import type { Repo34 } from '../../../server/src/db/repo34';
@@ -58,6 +58,7 @@ export class LocalHost {
     installBufferGlobal();
     const release = await acquireWorldLock();
     const db = await LocalDb.open();
+    const existingWorld = db.has('meta:secret');
     let secret = db.get<string>('meta:secret');
     if (!secret) { secret = randomBytes(32).toString('hex'); db.put('meta:secret', secret); }
     const host = new LocalHost(db, secret);
@@ -67,6 +68,11 @@ export class LocalHost {
     // same wiring as server/src/app.ts createApp (memory presence/bus/locks, i.e. a single-process deployment)
     Encoder.BUFFER_SIZE = 512 * 1024;
     setRuntime({ config: host.config, repo: host.repo as unknown as Repo, presence: new Presence(null), googleVerify: null, ambientSpawns: true });
+    // New solo worlds begin on day 1 at dawn. Keep old worlds on their original calendar:
+    // resetting that clock would invalidate planted days, quests and respawn timestamps.
+    let offset=db.get<number>('meta:clock-offset');
+    if(offset===undefined){offset=existingWorld?0:WORLD_EPOCH_MS-Date.now();db.put('meta:clock-offset',offset);}
+    worldClock().setOffset(offset);
     setRuntime34({ repo34: new LocalRepo34(db) as unknown as Repo34, bus: new MemoryBus(), locks: new ShardLocks(null) });
     host.define(JOIN_ROOM, GameRoom as unknown as RoomCtor, ['shard']);
     roomEvents.disposed = (r) => { matchMaker.rooms.delete(r.roomId); host.creationOpts.delete(r); };

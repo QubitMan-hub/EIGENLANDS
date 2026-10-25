@@ -39,6 +39,7 @@ jobs:
           # "/<repo>" for project sites, "" for <user>.github.io sites and custom domains
           VITE_BASE: ${{ steps.pages.outputs.base_path }}/
           VITE_SOLO: '1'
+          VITE_SERVER_URL: ${{ vars.VITE_SERVER_URL }}
       - name: Check the bundle has no server-only code
         run: |
           test -f packages/client/dist/index.html

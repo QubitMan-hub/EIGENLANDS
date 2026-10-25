@@ -155,8 +155,15 @@ export function townFor(seed: number): Town {
   }
 
   // 6. lamps along the streets and a few decorative trees
-  const lamp = (x: number, y: number) => { if (t.objects.some((o) => o.x === x && o.y === y)) return; if (!t.buildings.some((b) => Math.abs(b.doorX - x) <= 1 && y > b.doorY && y <= b.doorY + 8)) obj(x, y, 'furniture', 'lamp'); };
-  for (let x = cx - 36; x <= cx + 36; x += 8) { lamp(x, cy - 9); lamp(x + 4, cy + 4); lamp(x + 2, cy - 19); }
+  const lamp = (x: number, y: number) => {
+    if (![T.GRASS,T.FLOWERS].includes(get(x,y) as typeof T.GRASS)) return;
+    if (![[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy])=>get(x+dx!,y+dy!)===T.PATH)) return;
+    if (t.objects.some(o=>Math.hypot(o.x-x,o.y-y)<2)) return;
+    if (t.buildings.some(b=>x>=b.x-1&&x<=b.x+b.w&&y>=b.y-1&&y<=b.y+b.h || Math.abs(b.doorX-x)<=1&&y>b.doorY&&y<=b.doorY+8)) return;
+    obj(x,y,'deco','street_lamp');
+  };
+  // Lighting marks the square approaches and road junctions, rather than a world-space grid.
+  for(const [dx,dy] of [[-9,-9],[9,-9],[-17,4],[17,4],[-33,-9],[33,-9],[-17,-19],[17,-19]]) lamp(cx+dx!,cy+dy!);
   dress(t, seed, get, set, obj, spot);
   for (let y = y0; y <= t.y1; y++) for (let x = x0; x <= t.x1; x++) {
     if (get(x, y) !== T.GRASS || hash2(seed, x, y, 302) > 0.035) continue;

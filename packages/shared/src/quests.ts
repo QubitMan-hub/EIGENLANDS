@@ -135,7 +135,7 @@ QUESTS.push(...CAVE_RESIDENTS.map((n):QuestDef=>{
   {title:'Quiet the Echoes',type:'kill',target:'echo_bat',amount:4,task:'Defeat four Echo Bats along the survey roads. Bait a dive, then punish the landing.'},
   {title:'The Lost Survey',type:'read',target:'cave_archive',amount:1,task:'Read a surviving archive in abandoned Bellfall or Stillwater Refuge.'},
   {title:'Iron for the Shafts',type:'deliver',target:'iron_ore',amount:5,task:'Bring five iron ore to repair the shaft braces.'},
-  {title:'Read the Roads',type:'read',target:'cave_waymark',amount:1,task:'Find and read a survey waymark at a cavern junction.'},
+  {title:'Read the Roads',type:'read',target:'cave_waymark',amount:1,task:'Read a survey waymark beside an underground supply lift.'},
   {title:'Supper from Stillwater',type:'deliver',target:'carp',amount:2,task:'Bring two carp for the communal kitchen. Try a cavern lake with your fishing rod.'},
  ]as const;
  const q=plans[n.local]!;

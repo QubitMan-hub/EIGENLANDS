@@ -1,5 +1,5 @@
 import{afterAll,beforeAll,expect,it}from'vitest';
-import{MSG,caveRegion,caveTownAt,caveWaystation,CAVE_TOWNS,caveLanding,shrineOfId,countItem}from'@eigenlands/shared';
+import{MSG,caveRegion,caveTownAt,caveWaystation,CAVE_TOWNS,caveLanding,shrineOfId,countItem,townsFor}from'@eigenlands/shared';
 import type{App}from'../src/app';
 import{boot3,spawn3,tp,setLevel,dev,until,sleep,clearEnemies}from'./p3helpers';
 import{CaveModule}from'../src/features/caves';
@@ -29,8 +29,8 @@ it('runs cave merchant stock and archive/waymark quests through normal interacti
  const merchant=p.room.village.npc('hollowhearth_1')!;expect(merchant).toBeTruthy();await tp(p,merchant.x+.8,merchant.y);p.r.send(MSG.SHOP,{npcId:'hollowhearth_1',action:'open'});await until(()=>views.length>0);expect(JSON.stringify(views[0])).toContain('rod');
  const near=async(id:string)=>{const n=p.room.village.npc(id)!;await tp(p,n.x+.8,n.y);};
  await near('hollowhearth_4');p.r.send(MSG.QUEST,{npcId:'hollowhearth_4',quest:'cave_hollowhearth_4',action:'accept'});await until(()=>p.sp.data.quests.cave_hollowhearth_4?.state==='active');
- const town=CAVE_TOWNS.find(t=>t.abandoned)!;const records=p.room.store.townObjectsIn(Math.floor((town.cx-4)/32),Math.floor((town.cy+4)/32)).find(o=>o.sub==='cave_archive')!;await tp(p,records.x+.5,records.y+1.5);p.r.send(MSG.OPEN,{tx:records.x,ty:records.y});await until(()=>p.sp.data.quests.cave_hollowhearth_4!.progress[0]===1);
+ const town=CAVE_TOWNS.find(t=>t.abandoned)!;const records=townsFor(p.room.seed).find(t=>t.cx===town.cx&&t.cy===town.cy)!.objects.find(o=>o.sub==='cave_archive')!;await tp(p,records.x+.5,records.y+1.5);p.r.send(MSG.OPEN,{tx:records.x,ty:records.y});await until(()=>p.sp.data.quests.cave_hollowhearth_4!.progress[0]===1);
  await near('hollowhearth_4');p.r.send(MSG.QUEST,{npcId:'hollowhearth_4',quest:'cave_hollowhearth_4',action:'turnin'});await until(()=>p.sp.data.quests.cave_hollowhearth_4?.state==='done');
  await near('hollowhearth_6');p.r.send(MSG.QUEST,{npcId:'hollowhearth_6',quest:'cave_hollowhearth_6',action:'accept'});await until(()=>p.sp.data.quests.cave_hollowhearth_6?.state==='active');
- const r=site(p.room.seed,'arena');await tp(p,r.x+.5,r.y+8.5);p.r.send(MSG.OPEN,{tx:r.x,ty:r.y+7});await until(()=>p.sp.data.quests.cave_hollowhearth_6!.progress[0]===1);await p.r.leave();
+ const lift=caveWaystation(p.room.seed,0,0)!;await tp(p,lift.x+2.5,lift.y+1.5);p.r.send(MSG.OPEN,{tx:lift.x+2,ty:lift.y});await until(()=>p.sp.data.quests.cave_hollowhearth_6!.progress[0]===1);await p.r.leave();
 });

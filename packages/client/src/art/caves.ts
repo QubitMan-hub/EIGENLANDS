@@ -5,7 +5,7 @@ import type { ObjSpriteDef } from './worldobjs';
 /** Native 2:1 mine architecture. Ground contact is always (8,8,0). */
 export function caveArchitecture(sub:string):ObjSpriteDef {
  const animated=['glow_mushrooms','cave_waterfall','magma_fall'].includes(sub);
- return{frames:Array.from({length:animated?4:1},(_,f)=>caveFrame(sub,f)),fps:animated?4:0,noShadow:sub==='cave_seal'};
+ return{frames:Array.from({length:animated?4:1},(_,f)=>caveFrame(sub,f)),fps:animated?(sub==='glow_mushrooms'?4:2):0,noShadow:['cave_seal','cave_waterfall','magma_fall'].includes(sub)};
 }
 function caveFrame(sub:string,f:number){
  const w=sub==='cave_seal'?320:80,h=sub==='cave_seal'?208:80,ax=w/2,ay=sub==='cave_seal'?h/2:64,{canvas,ctx}=makeCanvas(w,h);
@@ -46,11 +46,11 @@ function caveFrame(sub:string,f:number){
     p.box(u!-2,v!-2,0,4,4,1,stem);
    }
   }else if(sub==='cave_waterfall'||sub==='magma_fall'){
-   const lava=sub==='magma_fall';p.box(0,0,0,16,9,25,stone);
-   p.top(2,1,25.1,12,7,lava?C.r4:C.w3);
-   p.left(2,9.1,0,12,25,(s,t)=>{const stream=Math.floor(s*9),foam=Math.floor(t*25+f*2)%11<2;return lava?(stream%3===0?C.r2:foam?C.e6:C.r4):(stream%4===0?C.w2:foam?C.w6:C.w4);});
-   p.right(14,1,0,8,25,lava?C.r2:C.w2);
-   for(let i=0;i<7;i++)p.top(2+i*2,10+(i%2)*2,.2,1.6,2,lava?C.r5:C.w5);
+   const lava=sub==='magma_fall';
+   // A narrow stream attached to the +v face of the rear rock tile. The wall crown is 13px
+   // above dry ground, the pool 7px below; there is no freestanding source column.
+   p.left(5,0,0,6,20,(s,t)=>{const stripe=Math.floor(s*6),glint=Math.floor(t*20+f)%13===0;return lava?(stripe%3===0?C.r1:glint?C.r5:C.r3):(stripe%3===0?C.w2:glint?C.w5:C.w3);});
+   for(let i=0;i<3;i++)p.top(5+i*2,1+(i%2),.1,1.5,2,lava?C.r3:C.w4);
   }else if(sub==='cave_seal'){
    // Ground-level ritual seal: concentric inlaid rings stay behind combatants.
    p.top(-92,-92,.05,200,200,(_s,_t,x,y)=>{

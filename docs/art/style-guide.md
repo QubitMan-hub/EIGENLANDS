@@ -150,3 +150,13 @@ Chest lids are reconstructed around a model-space hinge for four poses, with woo
 Never assign an entire low-frequency smooth-noise contour a light/dark material color: it produces rounded patches. Use seeded, sparse, world-anchored angular chips and short cracks with varied positions, lengths and mirroring. Broad fields may supply only low-amplitude continuous shading. Economy uses the same material language, with fewer marks rather than filled ellipses/checkerboards. Meadow variation controls plant density rather than whole-ground color islands. Keep snow/sand ridges directional and water highlights in short ripple clusters.
 
 Feather habitat palettes only across true adjacent material boundaries. Loose dirt/grass/mineral-earth edges may wear into one another over a narrow pixel band; preserve actual elevations, water boundaries, paved stone and wall contacts. Do not shift biome sampling with large noise offsets. Indoor and underground ground never receives cloud shadows. Micro-textures must remain fixed in world space while the camera moves, in both detail modes.
+
+### Mine infrastructure and restrained liquids
+
+Below ground, ordinary stone and copper/iron/silver/gold nodes are geological blocks: a 32×16 ground diamond, 13px high to meet the existing cave crown, with veins evaluated through the top and both lit faces. Surface ores keep their natural outcrop silhouettes. Do not rotate a frontal resource icon to create either model.
+
+Survey boards stand beside real supply lifts; settlement records belong at the provisioner's frontage. Use the native sign painter for unknown sign subtypes, retaining special noticeboard geometry. Dining chairs rebuild all four compass orientations toward their adjacent table; their uprights and horizontal rails belong along the seat's rear edge. Street lanterns use stone feet and metal brackets and must pass street-edge, building and door-clearance checks.
+
+Mine rails use connected u/v endpoints, cross ties and continuous corner rails at ground level, behind actors. The cart has separate wheel pairs, a recessed bed and iron side walls. A moving rider uses an idle passenger pose; the cart translates without ornamental bobbing. Mine circuits are small, dry loops in mining chambers, never boss rings or settlement streets.
+
+Lava is dark crust with sparse warm fissures, with no white sparkling carpet. Water has slower, sparse ripples and broken low-contrast foam. A falling stream may appear only against an actual rear cave wall with a pool at its foot. Its upper end meets the cave crown, not a freestanding source column. Reduced motion stops texture animation and keeps every route and hazard readable.
