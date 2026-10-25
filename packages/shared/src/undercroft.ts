@@ -1,4 +1,6 @@
 import { hash2 } from './rng';
+import { Simplex2D } from './simplex';
+import { activeGeneration } from './generation-registry';
 export const CAVE_OY = 40000,
   CAVE_CELL = 72;
 export const CAVE_BIOMES = ['limestone', 'glowmoss', 'crystal', 'basalt', 'frost', 'drowned'] as const;
@@ -24,32 +26,95 @@ export interface CaveRegion {
   feature: 'lake' | 'ruins' | 'secret' | 'puzzle' | 'vents' | 'arena' | 'grove';
 }
 const regions = new Map<string, CaveRegion>();
-export function caveRegion(seed: number, gx: number, gy: number): CaveRegion {
-  const key = `${seed}:${gx},${gy}`,
+const FEATURES = ['lake', 'ruins', 'secret', 'puzzle', 'vents', 'arena', 'grove'] as const;
+/**
+ * Revision 4 deals features out in 3x3 blocks: every block holds one of each kind (plus a second ruin and lake), so
+ * boss arenas, vault shrines, camps and puzzles are spread evenly instead of clumping or leaving long empty stretches.
+ */
+function latticeFeature(seed: number, gx: number, gy: number): CaveRegion['feature'] {
+  const bx = Math.floor(gx / 3),
+    by = Math.floor(gy / 3);
+  const slots: Array<CaveRegion['feature']> = [...FEATURES, 'ruins', 'lake'];
+  for (let i = slots.length - 1; i > 0; i--) {
+    const j = Math.floor(hash2(seed, bx * 31 + i, by, 2420) * (i + 1));
+    [slots[i], slots[j]] = [slots[j]!, slots[i]!];
+  }
+  const f = slots[gx - bx * 3 + 3 * (gy - by * 3)]!;
+  // the first steps from the start ladder stay gentle: no boss arena within two districts of the origin
+  return f === 'arena' && Math.hypot(gx, gy) < 2.2 ? 'grove' : f;
+}
+const biomeNoise = new Map<number, Simplex2D>();
+const SITE = 56;
+/**
+ * Revision 4 biomes are continuous: warped Voronoi patches roughly 56 tiles across that cross district borders, so a
+ * glowmoss grotto can run through three districts and a frozen hall can end in a basalt seam. The area under the
+ * home vale is always limestone.
+ */
+export function caveBiomeField(seed: number, x: number, y: number): CaveBiome {
+  const ly = y - CAVE_OY;
+  if (Math.hypot(x, ly) < 60) return 'limestone';
+  let n = biomeNoise.get(seed);
+  if (!n) {
+    n = new Simplex2D(seed ^ 0xb10e);
+    if (biomeNoise.size > 8) biomeNoise.clear();
+    biomeNoise.set(seed, n);
+  }
+  const wx = x + 11 * n.noise(x / 41, ly / 41),
+    wy = ly + 11 * n.noise(x / 41 + 77, ly / 41 + 31);
+  const cx = Math.floor(wx / SITE),
+    cy = Math.floor(wy / SITE);
+  let best = Infinity,
+    pick = 0;
+  for (let j = -1; j <= 1; j++)
+    for (let i = -1; i <= 1; i++) {
+      const sx = (cx + i + hash2(seed, cx + i, cy + j, 2430)) * SITE,
+        sy = (cy + j + hash2(seed, cx + i, cy + j, 2431)) * SITE,
+        d = (wx - sx) ** 2 + (wy - sy) ** 2;
+      if (d < best) {
+        best = d;
+        pick = Math.floor(hash2(seed, cx + i, cy + j, 2432) * 6);
+      }
+    }
+  return CAVE_BIOMES[pick]!;
+}
+/** Biome of one cave tile for the world revision (continuous in revision 4, per-district before). */
+export const caveBiomeAt = (
+  seed: number,
+  x: number,
+  y: number,
+  generation: number = activeGeneration(seed),
+): CaveBiome => (generation >= 4 ? caveBiomeField(seed, x, y) : caveRegionAt(seed, x, y, generation).biome);
+export function caveRegion(
+  seed: number,
+  gx: number,
+  gy: number,
+  generation: number = activeGeneration(seed),
+): CaveRegion {
+  const modern = generation >= 4,
+    key = `${seed}:${gx},${gy}:${modern ? 4 : 2}`,
     old = regions.get(key);
   if (old) return old;
-  const depth = Math.min(4, 1 + Math.floor(Math.hypot(gx, gy) / 4)),
-    biome = CAVE_BIOMES[Math.floor(hash2(seed, gx, gy, 2401) * 6)]!;
+  const depth = Math.min(4, 1 + Math.floor(Math.hypot(gx, gy) / 4));
+  const x = gx * 72 + 36 + Math.floor(hash2(seed, gx, gy, 2402) * 13) - 6,
+    y = CAVE_OY + gy * 72 + 36 + Math.floor(hash2(seed, gx, gy, 2403) * 13) - 6;
   const r: CaveRegion = {
     id: `uc${gx}_${gy}`,
     gx,
     gy,
-    x: gx * 72 + 36 + Math.floor(hash2(seed, gx, gy, 2402) * 13) - 6,
-    y: CAVE_OY + gy * 72 + 36 + Math.floor(hash2(seed, gx, gy, 2403) * 13) - 6,
+    x,
+    y,
     rx: 19 + hash2(seed, gx, gy, 2404) * 7,
     ry: 17 + hash2(seed, gx, gy, 2405) * 7,
-    biome,
+    biome: modern ? caveBiomeField(seed, x, y) : CAVE_BIOMES[Math.floor(hash2(seed, gx, gy, 2401) * 6)]!,
     depth,
-    feature: (['lake', 'ruins', 'secret', 'puzzle', 'vents', 'arena', 'grove'] as const)[
-      Math.floor(hash2(seed, gx, gy, 2406) * 7)
-    ]!,
+    feature: modern ? latticeFeature(seed, gx, gy) : FEATURES[Math.floor(hash2(seed, gx, gy, 2406) * 7)]!,
   };
-  if (regions.size >= 512) regions.delete(regions.keys().next().value!);
+  if (regions.size >= 1024) regions.delete(regions.keys().next().value!);
   regions.set(key, r);
   return r;
 }
-export const caveRegionAt = (seed: number, x: number, y: number) =>
-  caveRegion(seed, Math.floor(x / 72), Math.floor((y - CAVE_OY) / 72));
+export const caveRegionAt = (seed: number, x: number, y: number, generation?: number) =>
+  caveRegion(seed, Math.floor(x / 72), Math.floor((y - CAVE_OY) / 72), generation);
 export interface CavePoint {
   x: number;
   y: number;

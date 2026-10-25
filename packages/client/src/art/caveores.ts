@@ -21,10 +21,28 @@ interface Seam {
 }
 
 const SEAMS: Record<string, Seam> = {
-  cave_coal: { ramp: [C.ink, C.night, C.steel, C.pale, C.ink], count: [5, 7], radius: [1.4, 2.8], glint: 0.5, thread: 1 },
+  cave_coal: {
+    ramp: [C.ink, C.night, C.steel, C.pale, C.ink],
+    count: [5, 7],
+    radius: [1.4, 2.8],
+    glint: 0.5,
+    thread: 1,
+  },
   cave_copper: { ramp: [C.r1, C.r3, C.e5, C.e6, C.night], count: [4, 6], radius: [1.3, 2.4], glint: 0.35, thread: 1 },
-  cave_iron: { ramp: [C.e1, C.e2, C.steel, C.mist, C.night], count: [4, 6], radius: [1.4, 2.6], glint: 0.25, thread: 1 },
-  cave_silver: { ramp: [C.slate, C.mist, C.pale, C.white, C.night], count: [3, 5], radius: [1.2, 2.2], glint: 0.7, thread: 1 },
+  cave_iron: {
+    ramp: [C.e1, C.e2, C.steel, C.mist, C.night],
+    count: [4, 6],
+    radius: [1.4, 2.6],
+    glint: 0.25,
+    thread: 1,
+  },
+  cave_silver: {
+    ramp: [C.slate, C.mist, C.pale, C.white, C.night],
+    count: [3, 5],
+    radius: [1.2, 2.2],
+    glint: 0.7,
+    thread: 1,
+  },
   cave_gold: { ramp: [C.e4, C.e6, C.e7, C.white, C.night], count: [3, 5], radius: [1.2, 2.3], glint: 0.8, thread: 1 },
   cave_crystal: { ramp: [C.q2, C.q4, C.q6, C.white, C.night], count: [2, 3], radius: [2, 3.2], glint: 1, thread: 0 },
   cave_geode: { ramp: [C.q3, C.q5, C.q6, C.white, C.night], count: [1, 1], radius: [4.4, 5.2], glint: 1, thread: 0 },
@@ -36,7 +54,11 @@ const ROCK: Ramp = [C.ink, C.night, C.slate, C.steel, C.mist];
 const faceXY = (face: number, s: number, t: number): [number, number] =>
   face === 0 ? [s * 16, t * 16] : [s * 16, (1 - t) * 13];
 
-function nuggetsFor(kind: string, variant: number, face: number): Array<{ x: number; y: number; r: number; g: boolean }> {
+function nuggetsFor(
+  kind: string,
+  variant: number,
+  face: number,
+): Array<{ x: number; y: number; r: number; g: boolean }> {
   const seam = SEAMS[kind]!;
   const h = (i: number, k: number) => hash2(variant * 31 + face * 7 + kind.length, i, k, 4410);
   const n = seam.count[0] + Math.floor(h(0, 0) * (seam.count[1] - seam.count[0] + 1));
@@ -195,7 +217,8 @@ function glowcap(variant: number, frame: number): HTMLCanvasElement {
   blob(ctx, 16, 30, 10, 3.6, [C.ink, C.night, C.night], { noise: 0.1, edgeDark: 0 });
   const mush = (cx: number, base: number, r: number, h: number) => {
     // stem
-    for (let y = base - h; y <= base; y++) put(ctx, cx, y, y > base - 2 ? C.slate : C.fog), put(ctx, cx + 1, y, C.steel);
+    for (let y = base - h; y <= base; y++)
+      (put(ctx, cx, y, y > base - 2 ? C.slate : C.fog), put(ctx, cx + 1, y, C.steel));
     // cap
     blob(ctx, cx + 0.5, base - h, r, r * 0.62, ramp, { seed: cx * 7 + variant, noise: 0.12, bright: 0.18 });
     // spots that pulse

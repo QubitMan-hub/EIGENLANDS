@@ -827,7 +827,11 @@ export const FRAMES_PER_VARIANT: Record<string, number> = {
   ore_gold: 2,
   torch: 2,
   bloom: 2,
-  ...Object.fromEntries(Object.entries(CAVE_ART).filter(([, v]) => v.frames > 1).map(([k, v]) => [k, v.frames])),
+  ...Object.fromEntries(
+    Object.entries(CAVE_ART)
+      .filter(([, v]) => v.frames > 1)
+      .map(([k, v]) => [k, v.frames]),
+  ),
 };
 
 export function buildObjectArt(season: SeasonIdx): ObjectArt {

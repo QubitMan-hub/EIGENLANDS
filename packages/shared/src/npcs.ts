@@ -831,6 +831,136 @@ NPCS.push(
 
 export const NPC_BY_ID: Record<string, NpcDef> = Object.fromEntries(NPCS.map((n) => [n.id, n]));
 
+/**
+ * The travelling merchants of Undercroft 2 (world revision 4). They are deliberately not part of `NPCS` (revisions 2
+ * and 3 have no delver camps); the village system adds them to a revision-4 world, giving each a round of three camps
+ * (spots `<id>.c0..c2` stalls and `<id>.r2` the bedroll) so the stall moves through the day.
+ */
+export const DELVER_MERCHANTS: NpcDef[] = (
+  [
+    {
+      id: 'delver_odo',
+      name: 'Odo Peddlewick',
+      title: 'Ore Peddler',
+      look: 5,
+      bio: 'Pushes a hand-cart of picks, coal and ingots from camp to camp, and swears he has never once taken the same tunnel twice.',
+      shop: {
+        name: "Peddlewick's Ore Cart",
+        stock: ['pickaxe', 'coal', 'copper_ingot', 'iron_ingot', 'plank'],
+        buys: ['resource'] as Array<ItemKind | 'all'>,
+        bonus: 1.15,
+      },
+      loves: ['iron_ingot', 'gold_ore'],
+      likes: ['coal', 'copper_ore', 'silver_ore'],
+      hates: ['slime_gel', 'raw_meat'],
+      line: 'Fresh from the lower galleries. Mind the cart, it bites.',
+    },
+    {
+      id: 'delver_marla',
+      name: 'Marla Quillon',
+      title: 'Delver Apothecary',
+      look: 6,
+      bio: 'A field apothecary who follows the delvers down and trades poultices for stories, preferably gory ones.',
+      shop: {
+        name: "Quillon's Cave Remedies",
+        stock: ['healing_potion', 'regen_potion', 'might_potion', 'ward_potion', 'cloth'],
+        buys: ['forage', 'resource'] as Array<ItemKind | 'all'>,
+        bonus: 1.1,
+      },
+      loves: ['healing_herb', 'qubit_crystal'],
+      likes: ['fiber', 'slime_gel', 'cloth'],
+      hates: ['raw_meat'],
+      line: 'Bleeding? Bruised? Burning? I have a bottle for each and a lecture for all three.',
+    },
+    {
+      id: 'delver_tobin',
+      name: 'Tobin Gleamfoot',
+      title: 'Lamp Trader',
+      look: 7,
+      bio: 'Sells light by the bottle. Swears the caves get darker every season and that his lanterns are the only honest answer.',
+      shop: {
+        name: "Gleamfoot's Lamps & Lights",
+        stock: ['lantern_potion', 'plank', 'cloth', 'coal'],
+        buys: ['resource', 'forage'] as Array<ItemKind | 'all'>,
+        bonus: 1.1,
+      },
+      loves: ['qubit_crystal', 'lantern_potion'],
+      likes: ['coal', 'fiber'],
+      hates: ['slime_gel'],
+      line: 'Mind the dark. It minds you back. A light, friend?',
+    },
+    {
+      id: 'delver_sable',
+      name: 'Sable Rook',
+      title: 'Gem Broker',
+      look: 2,
+      bio: 'Buys anything that glitters and sells almost nothing, which is how she has stayed alive so long in the deep.',
+      shop: {
+        name: "Rook's Assay Table",
+        stock: ['silver_ingot', 'gold_ingot'],
+        buys: ['all'] as Array<ItemKind | 'all'>,
+        bonus: 1.3,
+      },
+      loves: ['qubit_crystal', 'gold_ore'],
+      likes: ['silver_ore', 'gold_ingot', 'silver_ingot'],
+      hates: ['slime_gel', 'raw_meat', 'fiber'],
+      line: 'Show me something that glitters, and try not to haggle. I enjoy it too much.',
+    },
+  ] as const
+).map((m): NpcDef => {
+  const first = m.name.split(' ')[0]!;
+  return {
+    id: m.id,
+    name: m.name,
+    title: m.title,
+    bio: m.bio,
+    look: m.look,
+    home: `${m.id}.r2`,
+    schedule: [
+      B(0, 6, `${m.id}.r2`, 'asleep by the fire'),
+      B(6, 12, `${m.id}.c0`, 'trading at the first camp'),
+      B(12, 18, `${m.id}.c1`, 'trading at the second camp'),
+      B(18, 22, `${m.id}.c2`, 'trading at the third camp'),
+      B(22, 24, `${m.id}.r2`, 'asleep by the fire'),
+    ],
+    loves: [...m.loves],
+    likes: [...m.likes],
+    hates: [...m.hates],
+    shop: {
+      name: m.shop.name,
+      hours: [6, 22],
+      buyBonus: m.shop.bonus,
+      buys: [...m.shop.buys],
+      stock: m.shop.stock.map((item) => ({ item, markup: 1.35 })),
+    },
+    lines: {
+      greet: [
+        [m.line, `${first}, travelling trader. I will be at the next camp by midday, if you miss me.`],
+        [`Back again! You are the sort who knows where the good tunnels are.`],
+        [`There you are, friend. I kept something back for you, under the cart.`],
+      ],
+      work: ['Prices are fixed. Tempers are not.', 'A trader who stops walking stops eating.'],
+      season: [
+        ['Spring thaw means rising water on the low roads.'],
+        ['Summer is slow underground. The cold keeps the dust down.'],
+        ['Autumn brings the crowds. Everyone wants one last find before winter.'],
+        ['Winter is the best trade there is: everyone below, everyone bored.'],
+      ],
+      rain: ['Rain above, drips below. Keep your matches dry.'],
+      snow: ['Snow topside means company in the camps. Good for business.'],
+      night: ['The camp fires are kept low at night. Whisper, friend.'],
+      gift: {
+        love: [`For me? ${first} does not blush. It is the firelight.`],
+        like: ['That is kind. I will find a place for it on the cart.'],
+        neutral: ['Thank you. Everything finds a buyer eventually.'],
+        hate: ['Ah. I will not say what I think of that.'],
+        again: ['One gift a day keeps the books balanced.'],
+      },
+    },
+  };
+});
+for (const m of DELVER_MERCHANTS) NPC_BY_ID[m.id] = m;
+
 // ── friendship
 export const POINTS_PER_HEART = 40;
 export const MAX_HEARTS = 10;
@@ -905,5 +1035,5 @@ export const isWorking = (doing: string): boolean =>
 export const hoursText = (h: [number, number]): string =>
   `${String(h[0]).padStart(2, '0')}:00-${String(h[1] % 24).padStart(2, '0')}:00`;
 
-export const SHOP_NPCS = NPCS.filter((n) => n.shop).map((n) => n.id);
+export const SHOP_NPCS = [...NPCS, ...DELVER_MERCHANTS].filter((n) => n.shop).map((n) => n.id);
 export const itemExists = (id: string): boolean => !!ITEMS[id];

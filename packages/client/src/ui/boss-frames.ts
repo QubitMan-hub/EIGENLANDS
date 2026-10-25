@@ -82,6 +82,46 @@ export const BOSS_THEMES: Record<BossId, BossTheme> = {
     fill: FILLS(C.w4, C.w7),
     trail: C.pale,
   },
+  geode_tyrant: {
+    id: 'geode_tyrant',
+    name: 'The Geode Tyrant',
+    title: 'King of the Prism Vaults',
+    frame: [C.q1, C.q3, C.q6],
+    panel: C.q0,
+    accent: C.q7,
+    fill: FILLS(C.q4, C.q6),
+    trail: C.pale,
+  },
+  cinder_wyrm: {
+    id: 'cinder_wyrm',
+    name: 'The Cinder Wyrm',
+    title: 'Coiled in the Black Rock',
+    frame: [C.night, C.r2, C.e6],
+    panel: C.ink,
+    accent: C.e7,
+    fill: FILLS(C.r3, C.e6),
+    trail: C.e7,
+  },
+  rime_sovereign: {
+    id: 'rime_sovereign',
+    name: 'The Rime Sovereign',
+    title: 'Queen of the Frozen Hall',
+    frame: [C.slate, C.mist, C.white],
+    panel: C.night,
+    accent: C.w7,
+    fill: FILLS(C.w3, C.w6),
+    trail: C.white,
+  },
+  tide_leviathan: {
+    id: 'tide_leviathan',
+    name: 'The Stillwater Leviathan',
+    title: 'Beneath the Black Mirror',
+    frame: [C.w0, C.w2, C.w5],
+    panel: C.ink,
+    accent: C.e7,
+    fill: FILLS(C.w2, C.w5),
+    trail: C.e6,
+  },
 };
 
 const hex = (i: number) => PALETTE[i]!;
@@ -135,6 +175,30 @@ function inside(id: BossId, x: number, y: number): boolean {
       const dx = Math.min(x, W - 1 - x);
       if (y < r && dx < r) return (r - dx) * (r - dx) + (r - y) * (r - y) <= r * r;
       return y >= 1 && y < H - 3;
+    }
+    case 'geode_tyrant': {
+      // faceted prism crown rising over the emblem and name
+      const peak = Math.abs(((x + 9) % 24) - 12) < 5 && x > 20 && x < W - 20 ? 0 : 4;
+      return y >= peak && y < H - 2 && !((x < 3 || x > W - 4) && (y < 6 || y > H - 6));
+    }
+    case 'cinder_wyrm': {
+      // scalloped, serpentine upper edge
+      const wave = Math.round(Math.sin(x / 7) * 2) + 3;
+      return y >= wave && y < H - 3;
+    }
+    case 'rime_sovereign': {
+      // an icicle fringe along the bottom and a pointed tiara tab
+      const fringe = Math.floor(x / 5) % 2 === 0 ? 5 : 2;
+      const tiara = Math.abs(x - cx) < 14 ? 0 : 4;
+      return y >= tiara && y < H - fringe;
+    }
+    case 'tide_leviathan': {
+      // a rounded, wave-lapped frame
+      const r = 9;
+      const dx = Math.min(x, W - 1 - x),
+        dy = Math.min(y, H - 1 - y);
+      if (dx < r && dy < r) return (r - dx) * (r - dx) + (r - dy) * (r - dy) <= r * r;
+      return y >= 1 && y < H - 1 && !(y > H - 5 && Math.floor(x / 7) % 2 === 0);
     }
     case 'veyr': {
       // lightning-cut flanks
@@ -192,6 +256,42 @@ function emblem(ctx: Ctx, t: BossTheme): void {
       iso.cyl(0, 0, 12, 2, 3, [C.e3, C.e4, C.e5], [C.r6, C.r7]);
       iso.dot(0, 0, 15, C.r7, 1, 1);
       iso.dot(0, 1, 1, C.ink, 2, 3);
+      break;
+    }
+    case 'geode_tyrant': {
+      for (const [u, v, h, c] of [
+        [-5, 1, 14, C.q5],
+        [0, -2, 21, C.q7],
+        [5, 2, 16, C.q6],
+        [2, 5, 10, C.q4],
+      ] as const)
+        iso.box(u, v, 2, 3, 3, h, { top: () => C.white, left: () => c, right: () => C.q3 });
+      iso.dot(0, 0, 0, C.q1, 12, 2);
+      break;
+    }
+    case 'cinder_wyrm': {
+      iso.cyl(0, 0, 0, 6, 5, [C.night, C.r1, C.r2, C.r3], [C.r3, C.r4, C.e6]);
+      iso.cyl(0, 0, 5, 4, 7, [C.night, C.r1, C.r2, C.r3, C.r4], [C.r4, C.e6, C.e7]);
+      iso.dot(0, 0, 12, C.e7, 3, 2);
+      for (const s of [-1, 1]) iso.line3(s * 2, 0, 11, s * 6, -s * 2, 17, C.r5);
+      break;
+    }
+    case 'rime_sovereign': {
+      for (const [u, v, h] of [
+        [-5, 0, 13],
+        [-2, 2, 19],
+        [2, -2, 22],
+        [5, 1, 16],
+      ] as const)
+        iso.box(u, v, 1, 2, 2, h, { top: () => C.white, left: () => C.w6, right: () => C.w3 });
+      iso.dot(0, 0, 0, C.w2, 12, 2);
+      break;
+    }
+    case 'tide_leviathan': {
+      iso.cyl(0, 0, 0, 7, 3, [C.w0, C.w1, C.w2, C.w3], [C.w3, C.w4, C.w5]);
+      iso.cyl(0, 0, 3, 3, 12, [C.w0, C.w1, C.w2, C.w3], [C.w3, C.w5, C.w6]);
+      iso.line3(0, 0, 15, 5, -5, 19, C.w5);
+      iso.dot(5, -5, 19, C.e7, 3, 3);
       break;
     }
     case 'veyr': {

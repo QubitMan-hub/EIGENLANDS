@@ -24,7 +24,7 @@ import {
   SWING_MOVE_MULT,
   TICK_DT,
 } from './constants';
-import { minePosition, type MineLoop } from './mines';
+import { mineStep, type MineTrack } from './mines';
 import { meleeFamily, meleeTap, meleeHeavy, type MeleeFamily } from './combat';
 
 /** Fixed-rate simulation stays real-time after a render/IO stall; never replay an unbounded suspension. */
@@ -121,7 +121,7 @@ export interface StepEvents {
 /** `sea` (when present) is the collision query of a ship: land and obstacles are solid, open water is not. */
 export type SolidQuery = ((tx: number, ty: number) => boolean) & {
   sea?: (tx: number, ty: number) => boolean;
-  mine?: (x: number, y: number) => MineLoop | null;
+  mine?: (x: number, y: number) => MineTrack | null;
   /** terrain elevation level of a tile; steps of CLIFF levels or more are impassable (revision 3) */
   level?: (tx: number, ty: number) => number;
 };
@@ -306,16 +306,15 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepE
     p.atkCd = down(p.atkCd);
     p.skillCd = down(p.skillCd);
     p.ifrT = down(p.ifrT);
-    // Holding any movement control drives the circuit. Letting go brakes immediately.
+    // Loops run while any movement is held and brake on release; a haulage line is steered along its rails.
     if (cmd.dx !== 0 || cmd.dy !== 0) {
-      const progress = (p.cart - 1 + 6.8 * TICK_DT) % (2 * (loop.w + loop.h));
-      const pos = minePosition(loop, progress);
-      if (!overlapsSolid(pos.x, pos.y, 0.42, land)) {
-        p.x = pos.x;
-        p.y = pos.y;
-        p.faceX = pos.fx;
-        p.faceY = pos.fy;
-        p.cart = progress + 1;
+      const move = mineStep(loop, p.cart - 1, cmd.dx, cmd.dy, 6.8 * TICK_DT);
+      if (move && !overlapsSolid(move.x, move.y, 0.42, land)) {
+        p.x = move.x;
+        p.y = move.y;
+        p.faceX = move.fx;
+        p.faceY = move.fy;
+        p.cart = move.progress + 1;
       }
     }
     return ev;

@@ -566,23 +566,36 @@ int caveFloorTop(ivec2 ip, float t, int bio) {
   return c;
 }
 // Fractured rock crown: small chisel clusters, no value-noise blobs or blocky economy fill.
-int caveRockTop(ivec2 ip, float t) {
-  int c=groundClusters(ip,NIGHT,INK,SLATE,.64);
-  if(uDetail>.5&&c==NIGHT)c=groundClusters(ip+ivec2(5,31),NIGHT,INK,SLATE,.2);
+// Each cave biome tints its own rock: warm amber limestone, mossy green, violet prism, soot basalt, grey rime, teal wet stone.
+ivec3 caveRockTone(int bio, int face) {
+  if (face == 0) {
+    return bio==B_DESERT?ivec3(INK,E0,E1):bio==B_FOREST?ivec3(INK,G0,G1):bio==B_ENCHANTED?ivec3(INK,Q0,Q1):bio==B_CORRUPT?ivec3(INK,NIGHT,R0):bio==B_TAIGA?ivec3(NIGHT,SLATE,STEEL):ivec3(INK,W0,W1);
+  }
+  if (face == 1) {
+    return bio==B_DESERT?ivec3(E2,E3,E4):bio==B_FOREST?ivec3(G1,G2,G3):bio==B_ENCHANTED?ivec3(Q1,Q2,Q3):bio==B_CORRUPT?ivec3(NIGHT,SLATE,STEEL):bio==B_TAIGA?ivec3(STEEL,MIST,FOG):ivec3(W1,W2,W3);
+  }
+  return bio==B_DESERT?ivec3(E0,E1,E2):bio==B_FOREST?ivec3(G0,G1,G2):bio==B_ENCHANTED?ivec3(Q0,Q1,Q2):bio==B_CORRUPT?ivec3(INK,NIGHT,SLATE):bio==B_TAIGA?ivec3(NIGHT,SLATE,STEEL):ivec3(W0,W1,W2);
+}
+// Fractured rock crown: small chisel clusters, no value-noise blobs or blocky economy fill.
+int caveRockTop(ivec2 ip, float t, int bio) {
+  ivec3 k=caveRockTone(bio,0);
+  int c=groundClusters(ip,k.y,k.x,k.z,.64);
+  if(uDetail>.5&&c==k.y)c=groundClusters(ip+ivec2(5,31),k.y,k.x,k.z,.2);
   if(hashi(ip+ivec2(7,3))>.9995)c=Q2;
   return c;
 }
 // rock faces: lit, layered strata on the left, shade on the right; chisel marks and ore flecks; dark foot
-int sideCave(ivec2 ip, vec2 tf, bool left, int d, int H) {
+int sideCave(ivec2 ip, vec2 tf, bool left, int d, int H, int bio) {
   int u=int(floor((left?tf.x:tf.y)*16.0));
-  int base=left?MIST:SLATE,low=left?STEEL:NIGHT,high=left?FOG:STEEL;
+  ivec3 tone=caveRockTone(bio,left?1:2);
+  int base=tone.y,low=tone.x,high=tone.z;
   int c=groundClusters(ivec2(u,d),base,low,high,.42);
   // Short bedding seams vary by rock section; never a whole noisy strip of color.
   ivec2 bed=cellOf(ivec2(u,d),ivec2(17,5));
   int seam=2+int(hashk(bed,81)*2.0);
   if(d%5==seam&&(u%17+17)%17<3+int(hashk(bed,82)*6.0))c=low;
   if(d<=1)c=high;
-  if(d>=H-1)c=left?SLATE:INK;
+  if(d>=H-1)c=left?low:INK;
   return c;
 }
 
@@ -689,7 +702,7 @@ void main() {
     } else if (cls == CAVE) {
       c = caveFloorTop(ip, t, bio);
     } else if (cls == CAVEWALL) {
-      c = submerged ? ((int(floor(tfHit.x))+int(floor(tfHit.y)))%3==0?W2:STEEL) : caveRockTop(ip, t);
+      c = submerged ? ((int(floor(tfHit.x))+int(floor(tfHit.y)))%3==0?W2:STEEL) : caveRockTop(ip, t, bio);
     } else {
       c = (hashi(ip / 3) > 0.5) ? MIST : STEEL;
     }
@@ -721,7 +734,7 @@ void main() {
     bool toWater = isWater(clsOf(NX));
     bool cliff = H >= 2 * ${LEVEL_PX} - 2 && cls != CAVEWALL; // a tall face: rock, not turf
     int k = (cls == SAND) ? 1 : (cls == FLOOR || cls == WALLC || (cls == PATH && style >= 1)) ? 2 : 0;
-    if (cls == CAVEWALL) c = submerged ? sideStone(ip,tfHit,left,dPx) : sideCave(ip, tfHit, left, dPx, H);
+    if (cls == CAVEWALL) c = submerged ? sideStone(ip,tfHit,left,dPx) : sideCave(ip, tfHit, left, dPx, H, bio);
     else if (cls == GRASS && !toWater && !cliff && H >= 6) {
       // a one-level step is a grassy bank in the habitat's own tones, not a trench of bare earth
       Tones bt = biomeTones(bio, s, false);

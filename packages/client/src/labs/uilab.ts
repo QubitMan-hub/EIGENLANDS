@@ -314,6 +314,10 @@ switch (panel) {
       colossus: [0.28, 35, 5],
       bellkeeper: [0.6, 100, 2],
       veyr: [0.7, 60, 5],
+      geode_tyrant: [0.8, 120, 0],
+      cinder_wyrm: [0.5, 90, 4],
+      rime_sovereign: [0.35, 60, 2],
+      tide_leviathan: [0.95, 150, 0],
     };
     Object.values(BOSSES).forEach((def, i) => {
       const bar = new BossBar();

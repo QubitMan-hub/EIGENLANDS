@@ -1,5 +1,7 @@
 import {
-  mineLoopAt,
+  isMineLine,
+  mineLineKey,
+  mineLinePosition,
   minePosition,
   BIOMES,
   BIOME_NAMES,
@@ -154,20 +156,25 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
     return;
   }
   if (o.static && o.sub === 'minecart') {
-    const loop = mineLoopAt(room.seed, o.x, o.y);
-    if (!loop || loop.x !== o.x || loop.y !== o.y || room.store.solidAt(o.x, o.y)) return;
-    const pos = minePosition(loop, 0);
+    const track = room.store.solidAt.mine?.(o.x, o.y);
+    if (!track || room.store.solidAt(o.x, o.y)) return;
+    let start = 0;
+    if (isMineLine(track)) {
+      start = track.index.get(mineLineKey(o.x, o.y)) ?? -1;
+      if (start < 0) return;
+    } else if (track.x !== o.x || track.y !== o.y) return;
+    const pos = isMineLine(track) ? mineLinePosition(track, start) : minePosition(track, 0);
     p.sim.x = pos.x;
     p.sim.y = pos.y;
     p.sim.faceX = pos.fx;
     p.sim.faceY = pos.fy;
-    p.sim.cart = 1;
+    p.sim.cart = start + 1;
     p.sim.boat = 0;
     p.sim.dashT = 0;
     p.sim.charge = 0;
     p.sim.hold = 0;
     p.queue.length = 0;
-    p.toast('Minecart: hold movement to ride the circuit; release to brake. Use steps off.');
+    p.toast('Minecart: push along the rails to roll, against them to reverse; the buffers stop you. Use steps off.');
     return;
   }
   if (o.kind === 'crop') {
@@ -320,28 +327,79 @@ export function handleShelter(room: RoomApi, p: ServerPlayer, msg: ShelterMsg): 
 }
 
 /** A ruin's treasure cache: every traveller may open each one once. */
+/** Themed vault rewards: the biome's own metals and finds, deeper vaults pay more, and a rare heart crystal. */
+function vaultLoot(theme: string, depth: number, rand: () => number): Array<{ id: string; n: number }> {
+  const r = (lo: number, hi: number) => lo + Math.floor(rand() * (hi - lo + 1)) + Math.min(3, depth - 1);
+  const table: Record<string, Array<{ id: string; n: number }>> = {
+    limestone: [
+      { id: 'coal', n: r(4, 6) },
+      { id: 'copper_ore', n: r(3, 5) },
+      { id: 'healing_potion', n: 2 },
+    ],
+    glowmoss: [
+      { id: 'healing_herb', n: r(4, 6) },
+      { id: 'healing_potion', n: 2 },
+      { id: 'fiber', n: r(3, 5) },
+    ],
+    crystal: [
+      { id: 'qubit_crystal', n: r(2, 3) },
+      { id: 'silver_ore', n: r(2, 3) },
+      { id: 'healing_potion', n: 1 },
+    ],
+    basalt: [
+      { id: 'iron_ore', n: r(4, 6) },
+      { id: 'coal', n: r(4, 6) },
+      { id: 'gold_ore', n: r(1, 2) },
+    ],
+    frost: [
+      { id: 'silver_ore', n: r(3, 4) },
+      { id: 'iron_ore', n: r(3, 4) },
+      { id: 'qubit_crystal', n: 1 },
+    ],
+    drowned: [
+      { id: 'copper_ore', n: r(4, 5) },
+      { id: 'silver_ore', n: r(2, 3) },
+      { id: 'healing_potion', n: 2 },
+    ],
+  };
+  const out = [...(table[theme] ?? table.limestone!)];
+  if (rand() < 0.05) out.push({ id: 'heart_crystal', n: 1 });
+  return out;
+}
+
 function openRuinCache(room: RoomApi, p: ServerPlayer, o: WorldObj): void {
-  const d = (o.data ?? {}) as { ruin?: string; biome?: string; cave?: boolean; depth?: number; secret?: boolean };
+  const d = (o.data ?? {}) as {
+    ruin?: string;
+    biome?: string;
+    cave?: boolean;
+    depth?: number;
+    secret?: boolean;
+    vault?: string;
+    theme?: string;
+  };
   const id = typeof d.ruin === 'string' ? d.ruin : `${o.x},${o.y}`;
   if (p.data.prog.ruins.includes(id)) {
     p.toast('Only dust and old wax left. You have already searched this cache.');
     return;
   }
+  if (d.vault && room.vaultGuard?.(p, o)) return;
   const biome = (BIOMES as readonly string[]).includes(d.biome ?? '') ? (d.biome as Biome) : 'meadow';
   const ocean = o.sub === 'sea_cache';
-  const loot = d.cave
-    ? [
-        { id: 'iron_ore', n: 2 + Math.min(4, d.depth ?? 1) },
-        { id: d.secret ? 'qubit_crystal' : 'healing_potion', n: d.secret ? 1 : 2 },
-        { id: 'coal', n: 3 },
-      ]
-    : ocean
+  const loot = d.vault
+    ? vaultLoot(d.theme ?? 'limestone', d.depth ?? 1, room.rand)
+    : d.cave
       ? [
-          { id: 'doubloon', n: 2 + Math.floor(hash2(room.seed, o.x, o.y, 1703) * 4) },
-          { id: 'cloth', n: 2 },
-          { id: hash2(room.seed, o.x, o.y, 1704) < 0.15 ? 'qubit_crystal' : 'plank', n: 1 },
+          { id: 'iron_ore', n: 2 + Math.min(4, d.depth ?? 1) },
+          { id: d.secret ? 'qubit_crystal' : 'healing_potion', n: d.secret ? 1 : 2 },
+          { id: 'coal', n: 3 },
         ]
-      : ruinLoot(room.seed, id, biome, room.rand);
+      : ocean
+        ? [
+            { id: 'doubloon', n: 2 + Math.floor(hash2(room.seed, o.x, o.y, 1703) * 4) },
+            { id: 'cloth', n: 2 },
+            { id: hash2(room.seed, o.x, o.y, 1704) < 0.15 ? 'qubit_crystal' : 'plank', n: 1 },
+          ]
+        : ruinLoot(room.seed, id, biome, room.rand);
   if (!giveStacks(p, loot)) {
     p.toast("Your pack is too full to carry the cache's contents.", 'bad');
     return;

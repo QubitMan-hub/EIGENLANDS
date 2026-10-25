@@ -11,6 +11,7 @@ import { sanctuaryAt } from './sanctuary';
 import { LEGACY_GENERATION, isWorldGeneration, type WorldGeneration } from './world-version';
 import { biome3, chunkLevels, climate3, surfaceTile3 } from './terrain3';
 import { CAVE_OY, caveTileAt, isCaveY } from './caves';
+import { caveTileAt2 } from './caves2';
 
 /**
  * Biomes, in a fixed order (the index is packed into the client's terrain texture).
@@ -232,7 +233,8 @@ function surfaceTileAt(seed: number, x: number, y: number, legacy: boolean, gene
   const gen = legacy ? 1 : generation;
   const sanctuary = sanctuaryTileAt(seed, x, y);
   if (sanctuary !== null) return sanctuary;
-  if (isCaveY(y)) return townTileAt(seed, x, y) ?? caveTileAt(seed, x, y, legacy);
+  if (isCaveY(y))
+    return townTileAt(seed, x, y) ?? (!legacy && gen >= 4 ? caveTileAt2(seed, x, y) : caveTileAt(seed, x, y, legacy));
   const tt = townTileAt(seed, x, y);
   if (tt !== null) return tt;
   if (isUpperY(y)) return T.UPPER_VOID;

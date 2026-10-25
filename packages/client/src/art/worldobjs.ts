@@ -671,12 +671,16 @@ function propSub(o: WorldObj): string | null {
 export function worldObjDef(o: WorldObj, facing: Facing = 'sw', seatTurn?: number): ObjSpriteDef {
   if (o.sub === 'mine_rail' || o.sub === 'minecart') {
     const mask = Number(o.data?.mask ?? 5),
-      key = `mine:${o.sub}:${mask}`;
+      end = Number(o.data?.end ?? 0),
+      key = `mine:${o.sub}:${mask}:${end}`;
     let d = objCache.get(key);
     if (!d) {
-      d = still(o.sub === 'mine_rail' ? railSprite(mask) : minecartSprite(0, true), {
-        noShadow: o.sub === 'mine_rail',
-      });
+      d = still(
+        o.sub === 'mine_rail' ? railSprite(mask, end) : minecartSprite(mask & 10 && !(mask & 5) ? 1 : 0, true, mask),
+        {
+          noShadow: o.sub === 'mine_rail',
+        },
+      );
       objCache.set(key, d);
     }
     return d;
@@ -738,6 +742,13 @@ export function worldObjDef(o: WorldObj, facing: Facing = 'sw', seatTurn?: numbe
         'cave_seal',
         'bell_pylon',
         'sea_arch',
+        'campfire',
+        'delver_tent',
+        'merchant_cart',
+        'cave_lamp',
+        'buffer_stop',
+        'trial_brazier',
+        'vault_plate',
       ].includes(o.sub)
     )
       d = caveArchitecture(o.sub);
