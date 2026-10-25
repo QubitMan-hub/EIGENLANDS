@@ -207,36 +207,40 @@ Evidence: 33 new unit tests (model, layout, appearance), art-lab captures at 2×
 
 ## 3.2 Monster & Boss Health Bars
 
-- [ ] NOT STARTED — Completely overhaul health displays for enemies.
+Implemented in `ui/enemy-model.ts` (camps, elite modifiers, chips), `game/worldbar.ts` (world-space bars), `ui/targetframe.ts` (selected-creature frame), `ui/boss-frames.ts` + `ui/bossbar.ts` (legendary frames), wired from `combatview.ts`, `Game.updateTarget34` and `features/adventure`. Art labs: `uilab.html?panel=bosses`, `?panel=creatures`, `spritelab.html?lab=bars`. `e2e/encounters.mjs` was updated to the new target-frame API and passes on the solo build (desktop and touch landscape).
+
+- [x] IMPLEMENTED & TESTED — Completely overhaul health displays for enemies.
 
 ### Normal monsters
 
-- [ ] NOT STARTED — Elegant, compact health indicators.
-- [ ] NOT STARTED — Display names and levels appropriately.
-- [ ] NOT STARTED — Optional small status icons.
-- [ ] NOT STARTED — Smooth damage feedback.
-- [ ] NOT STARTED — Clear visual distinction between hostile, neutral, friendly, and elite creatures.
+- [x] IMPLEMENTED & TESTED — Elegant, compact health indicators: a thin isometric slab (exact 2:1 slope) over each damaged creature, with a pale trail that drains after a hit; it now rides above the sprite's real height instead of a fixed offset.
+- [~] IN PROGRESS — Display names and levels appropriately: the selected-creature frame shows the name (and level for players); wild creatures have no level in the game data, so none is invented. World bars carry no text to stay compact.
+- [x] IMPLEMENTED & TESTED — Optional small status icons: chips with pixel icons and a one-line explanation each (camp, elite modifiers, Armoured, Night, Striking, Staggered, Recovering).
+- [x] IMPLEMENTED & TESTED — Smooth damage feedback: trail on world bars and the frame; the existing hit flash and floating numbers are unchanged.
+- [x] IMPLEMENTED & TESTED — Clear visual distinction between hostile, neutral, friendly and elite creatures: camp colour on the world bar, a coloured camp gem and left accent on the frame; passive wildlife has its own green; elites get a gilt double frame and one pip per modifier.
 
 ### Elite and mythical enemies
 
-- [ ] NOT STARTED — More distinctive frames.
-- [ ] NOT STARTED — Unique enemy classification indicators.
-- [ ] NOT STARTED — Readable resistance, shield, or phase information.
+- [x] IMPLEMENTED & TESTED — More distinctive frames (gilt double border, gem, modifier pips).
+- [x] IMPLEMENTED & TESTED — Unique enemy classification indicators (camp gem + Elite chip, one chip per Hardened/Swift/Volatile with its real effect).
+- [x] IMPLEMENTED & TESTED — Readable resistance, shield or phase information: armour/poise bar labelled "Armor" on armoured creatures, "Poise" otherwise; Hardened's 1.7× health, double poise and half knockback are stated. There is no elemental-resistance system in the game, so none is shown.
 
 ### Legendary bosses
 
-- [ ] NOT STARTED — Create **spectacular custom boss health bars**.
-- [ ] NOT STARTED — For example, an Ancient Dragon could have a beautifully illustrated dragon-themed boss frame with subtle glowing runes, clear phase markers, and a distinctive name treatment.
-- [ ] NOT STARTED — An Abyssal Titan, Celestial Guardian, and Demon Sovereign should not all have the exact same generic rectangular bar.
-- [ ] NOT STARTED — Boss HUDs must look memorable and cinematic without obstructing attacks or sacrificing clarity.
-- [ ] NOT STARTED — Add:
-- [ ] NOT STARTED — Health-phase transitions.
-- [ ] NOT STARTED — Shield or armor indicators.
-- [ ] NOT STARTED — Status effect displays.
-- [ ] NOT STARTED — Clear damage feedback.
-- [ ] NOT STARTED — Boss name and title.
-- [ ] NOT STARTED — Optional encounter-specific mechanics.
-- [ ] NOT STARTED — Ensure all styles remain part of one unified design system.
+- [x] IMPLEMENTED & TESTED — Create spectacular custom boss health bars: pixel-art frames per boss, drawn on a canvas with the fixed palette.
+- [x] IMPLEMENTED & TESTED — Examples: all five existing bosses have a unique silhouette, isometric emblem, metal and rune colour — Gelatinous Sovereign (dripping jelly frame, crowned jelly cube), Warden of the Grove (antler tab, stump with antlers), Decoherent Colossus (fractured chamfers, floating shards), Hollow Bellkeeper (bell arch, bronze bell), Veyr (lightning-cut flanks, storm crystal). Glowing rune studs walk along the foot of each frame (still under reduced motion).
+- [x] IMPLEMENTED & TESTED — The dragon, Abyssal Titan, Celestial Guardian and Demon Sovereign named as examples do not exist in the game; the registry (`BOSS_THEMES`) is keyed by boss id and a test fails if a boss lacks a distinct theme.
+- [x] IMPLEMENTED & TESTED — Memorable and cinematic without obstructing attacks: fixed 224×48 art at 2× (1× on compact phones), centred at the top; layout checks against the ledger, minimap and touch controls pass in `e2e/encounters.mjs`.
+- [x] IMPLEMENTED & TESTED — Add:
+  - [x] IMPLEMENTED & TESTED — Health-phase transitions: isometric phase gems on the bar's top edge light as thresholds are passed; the phase chip and the server's phase text update.
+  - [x] IMPLEMENTED & TESTED — Shield or armor indicators: an Armor bar from the synced poise value.
+  - [x] IMPLEMENTED & TESTED — Status effect displays: Striking, Staggered, Recovering chips from the synced stance. Bosses have no other status effects in the game.
+  - [x] IMPLEMENTED & TESTED — Clear damage feedback: draining trail behind the fill.
+  - [x] IMPLEMENTED & TESTED — Boss name and title: headline plus a quieter title line per boss (the titles are new flavour text).
+  - [~] IN PROGRESS — Optional encounter-specific mechanics: the line under the frame shows the server's intro and per-phase text; there is no separate per-boss mechanic indicator (e.g. weak-point markers) because the server sends none yet.
+- [x] IMPLEMENTED & TESTED — Ensure all styles remain part of one unified design system: one grammar (emblem left, name band, bar window with phase gems, status band), shared chip component with the target frame, shared palette and `Iso` kit.
+
+Evidence: 9 new unit tests (themes distinct and complete, phase marks, camps, elite info, chips), art-lab captures at 2×, solo-build e2e (`e2e/solo.mjs`, `e2e/encounters.mjs`). Not done: a recorded real boss fight capture (the e2e drives the same code with fixtures), physical-device checks.
 
 ## 3.3 Complete Interface Overhaul
 

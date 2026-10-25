@@ -20,6 +20,10 @@ import { buildJournal } from '../ui/journal';
 import { RhythmOverlay } from '../ui/rhythm';
 import { Toasts } from '../ui/toast';
 import { VitalsHud, type VitalsFrame } from '../ui/vitals';
+import { BossBar } from '../ui/bossbar';
+import { TargetFrame } from '../ui/targetframe';
+import { enemyChips } from '../ui/enemy-model';
+import { BOSSES } from '@eigenlands/shared';
 
 const q2 = new URLSearchParams(location.search);
 const panel = q2.get('panel') ?? 'inventory';
@@ -292,6 +296,67 @@ switch (panel) {
     // the folded list expands on click
     if (q2.get('open') === '1')
       (document.querySelectorAll('.status-row')[3]?.querySelector('button') as HTMLButtonElement)?.click();
+    break;
+  }
+  case 'bosses': {
+    // ?panel=bosses — every legendary frame at a different health, stacked (no world behind them)
+    const reduced = q2.get('reduced') === '1';
+    document.documentElement.classList.toggle('reduced-motion', reduced);
+    document.body.style.cssText = 'background:#1b2a22;padding:12px';
+    const hps: Record<string, [number, number, number]> = {
+      slime_king: [0.9, 0, 0],
+      warden: [0.42, 80, 0],
+      colossus: [0.28, 35, 5],
+      bellkeeper: [0.6, 100, 2],
+      veyr: [0.7, 60, 5],
+    };
+    Object.values(BOSSES).forEach((def, i) => {
+      const bar = new BossBar();
+      const [f, poise, st] = hps[def.id]!;
+      bar.update(
+        { id: def.id, kind: def.kind, hp: Math.round(f * 1000), maxHp: 1000, x: 0, y: 0, poise, st },
+        def,
+        def.intro,
+        reduced ? 0 : 1.7,
+      );
+      bar.root.style.position = 'relative';
+      bar.root.style.top = '0';
+      bar.root.style.left = '0';
+      bar.root.style.transform = 'none';
+      bar.root.style.margin = `0 0 ${i === 4 ? 0 : 40}px 0`;
+      document.body.append(bar.root);
+    });
+    break;
+  }
+  case 'creatures': {
+    document.body.style.cssText = 'background:#1b2a22;padding:12px;display:grid;gap:12px;justify-items:start';
+    const rows: Array<[string, Parameters<typeof enemyChips>[0], number, number]> = [
+      ['hostile', { faction: 'hostile', elite: 0, st: 0, night: false }, 30, 40],
+      ['neutral', { faction: 'neutral', elite: 0, st: 0, night: false }, 20, 20],
+      ['elite', { faction: 'elite', def: { armor: true }, elite: 3, st: 2, night: true }, 90, 120],
+      ['ally', { faction: 'ally', elite: 0, st: 0, night: false }, 55, 60],
+    ];
+    for (const [fac, input, hp, max] of rows) {
+      const tf = new TargetFrame();
+      tf.root.style.position = 'relative';
+      tf.root.style.left = '0';
+      tf.root.style.top = '0';
+      tf.root.style.transform = 'none';
+      tf.update({
+        id: fac,
+        name: fac === 'elite' ? 'Cave Brute' : fac === 'ally' ? 'Wren' : 'Wisp Slime',
+        level: fac === 'ally' ? 8 : null,
+        hp,
+        maxHp: max,
+        kind: fac === 'ally' ? 'player' : 'enemy',
+        faction: input.faction,
+        chips: enemyChips(input),
+        poise: fac === 'elite' ? 62 : null,
+        poiseLabel: 'Armor',
+        dist: 6,
+      });
+      document.body.append(tf.root);
+    }
     break;
   }
   case 'rhythm': {

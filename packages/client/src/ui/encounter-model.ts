@@ -12,6 +12,9 @@ export interface Encounter {
   maxHp: number;
   x: number;
   y: number;
+  /** remaining poise 0..100 and stance byte, when the server syncs them */
+  poise?: number;
+  st?: number;
 }
 
 /** Nearby encounter, preferring deliberate focus; never let a remote large boss mask a local one. */

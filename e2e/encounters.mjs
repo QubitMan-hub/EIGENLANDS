@@ -74,8 +74,13 @@ try {
         hp: 48,
         maxHp: 64,
         kind: 'enemy',
-        tags: ['Hostile', 'Preparing strike'],
+        faction: 'hostile',
+        chips: [
+          { id: 'hostile', label: 'Hostile', icon: 'sword', tone: 'warn', desc: 'Attacks on sight.' },
+          { id: 'windup', label: 'Striking', icon: 'st_heat', tone: 'warn', desc: 'Preparing a strike.' },
+        ],
         poise: 42,
+        poiseLabel: 'Poise',
         dist: 7,
       });
     });
