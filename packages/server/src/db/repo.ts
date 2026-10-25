@@ -90,6 +90,12 @@ export class Repo {
     return (r.rowCount ?? 0) > 0;
   }
 
+  /** Has any player ever created a character here? A world without one is brand new and may pick the newest revision. */
+  async hasWorldData(): Promise<boolean> {
+    const r = await this.pool.query('SELECT 1 FROM characters LIMIT 1');
+    return (r.rowCount ?? 0) > 0;
+  }
+
   async getCharacter(accountId: string): Promise<CharacterRow | null> {
     const r = await this.pool.query('SELECT * FROM characters WHERE account_id = $1', [accountId]);
     return r.rows[0] ? toChar(r.rows[0]) : null;

@@ -1,0 +1,228 @@
+{
+  "half": 300,
+  "chunk": 32,
+  "results": [
+    {
+      "seed": 20260101,
+      "revision": 2,
+      "landTilesWithin200": 88934,
+      "reachablePercent": 99.4,
+      "maxLevel": 0,
+      "cliffEdges": 0,
+      "regionsOver1000Tiles": 23,
+      "fragmentsUnder200Tiles": 392,
+      "biomeRegions": 476,
+      "largestRegions": [
+        {
+          "biome": "meadow",
+          "tiles": 33296
+        },
+        {
+          "biome": "taiga",
+          "tiles": 5232
+        },
+        {
+          "biome": "swamp",
+          "tiles": 4224
+        },
+        {
+          "biome": "taiga",
+          "tiles": 3344
+        },
+        {
+          "biome": "taiga",
+          "tiles": 3104
+        },
+        {
+          "biome": "taiga",
+          "tiles": 2944
+        }
+      ]
+    },
+    {
+      "seed": 20260101,
+      "revision": 3,
+      "landTilesWithin200": 116867,
+      "reachablePercent": 99.89,
+      "maxLevel": 8,
+      "cliffEdges": 645,
+      "regionsOver1000Tiles": 14,
+      "fragmentsUnder200Tiles": 107,
+      "biomeRegions": 127,
+      "largestRegions": [
+        {
+          "biome": "meadow",
+          "tiles": 45952
+        },
+        {
+          "biome": "forest",
+          "tiles": 17696
+        },
+        {
+          "biome": "swamp",
+          "tiles": 9488
+        },
+        {
+          "biome": "forest",
+          "tiles": 7152
+        },
+        {
+          "biome": "desert",
+          "tiles": 7024
+        },
+        {
+          "biome": "enchanted",
+          "tiles": 6848
+        }
+      ]
+    },
+    {
+      "seed": 1337,
+      "revision": 2,
+      "landTilesWithin200": 87518,
+      "reachablePercent": 99.35,
+      "maxLevel": 0,
+      "cliffEdges": 0,
+      "regionsOver1000Tiles": 28,
+      "fragmentsUnder200Tiles": 348,
+      "biomeRegions": 432,
+      "largestRegions": [
+        {
+          "biome": "meadow",
+          "tiles": 33968
+        },
+        {
+          "biome": "desert",
+          "tiles": 5024
+        },
+        {
+          "biome": "taiga",
+          "tiles": 3920
+        },
+        {
+          "biome": "enchanted",
+          "tiles": 3264
+        },
+        {
+          "biome": "swamp",
+          "tiles": 3184
+        },
+        {
+          "biome": "enchanted",
+          "tiles": 2592
+        }
+      ]
+    },
+    {
+      "seed": 1337,
+      "revision": 3,
+      "landTilesWithin200": 117466,
+      "reachablePercent": 98.25,
+      "maxLevel": 8,
+      "cliffEdges": 452,
+      "regionsOver1000Tiles": 12,
+      "fragmentsUnder200Tiles": 124,
+      "biomeRegions": 138,
+      "largestRegions": [
+        {
+          "biome": "meadow",
+          "tiles": 41808
+        },
+        {
+          "biome": "autumn",
+          "tiles": 11232
+        },
+        {
+          "biome": "taiga",
+          "tiles": 10112
+        },
+        {
+          "biome": "desert",
+          "tiles": 9872
+        },
+        {
+          "biome": "enchanted",
+          "tiles": 8416
+        },
+        {
+          "biome": "enchanted",
+          "tiles": 6848
+        }
+      ]
+    },
+    {
+      "seed": 7102025,
+      "revision": 2,
+      "landTilesWithin200": 87884,
+      "reachablePercent": 99.51,
+      "maxLevel": 0,
+      "cliffEdges": 0,
+      "regionsOver1000Tiles": 25,
+      "fragmentsUnder200Tiles": 339,
+      "biomeRegions": 417,
+      "largestRegions": [
+        {
+          "biome": "meadow",
+          "tiles": 32640
+        },
+        {
+          "biome": "swamp",
+          "tiles": 6000
+        },
+        {
+          "biome": "swamp",
+          "tiles": 5040
+        },
+        {
+          "biome": "meadow",
+          "tiles": 4784
+        },
+        {
+          "biome": "taiga",
+          "tiles": 3760
+        },
+        {
+          "biome": "swamp",
+          "tiles": 2304
+        }
+      ]
+    },
+    {
+      "seed": 7102025,
+      "revision": 3,
+      "landTilesWithin200": 115567,
+      "reachablePercent": 99.42,
+      "maxLevel": 8,
+      "cliffEdges": 541,
+      "regionsOver1000Tiles": 12,
+      "fragmentsUnder200Tiles": 170,
+      "biomeRegions": 186,
+      "largestRegions": [
+        {
+          "biome": "meadow",
+          "tiles": 48112
+        },
+        {
+          "biome": "forest",
+          "tiles": 23008
+        },
+        {
+          "biome": "autumn",
+          "tiles": 11328
+        },
+        {
+          "biome": "taiga",
+          "tiles": 8336
+        },
+        {
+          "biome": "swamp",
+          "tiles": 7728
+        },
+        {
+          "biome": "taiga",
+          "tiles": 6368
+        }
+      ]
+    }
+  ]
+}

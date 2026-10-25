@@ -1,3 +1,15 @@
+# Current continuation: world generation revision 3 and gameplay elevation (2026-10-25)
+
+Work stays inline without subagents. Read [WORLDGEN3.md](WORLDGEN3.md) first; [WORLDGEN_OVERHAUL_REMAINING.md](WORLDGEN_OVERHAUL_REMAINING.md) is still the authoritative unfinished scope. This slice delivers the version boundary and the first real implementation of the full rebuild; it does not claim the whole master request.
+
+**Boundary.** New worlds (no saved metadata and no characters) are created at revision 3 (`NEW_WORLD_GENERATION`, default 3; `2` keeps making old worlds). Saved metadata always wins and is never upgraded; unversioned worlds with characters become revision 2 through the old hydrology migration. Landmark ids, towns, authored objects and revisions 1–2 are byte-identical to the previous main (`tools/worldgen-compat.mjs`; frozen fingerprints in `terrain3.test.ts`). Server tests default `newWorldGeneration: 2` in `startApp`, so existing fixtures keep their world; `elevation*.test.ts` create revision-3 worlds. The client `ChunkStore`, preparer, artlab and tools default to revision 2 unless told otherwise.
+
+**What exists.** `packages/shared/src/terrain3.ts` (continent, latitude climate, Worley regions, rivers, groves, rock fields, hills, massifs, landmark cones, `elevationAt`), `world-version.ts`, `Chunk.levels`, `ChunkMsg.levels`, `SolidQuery.level`, level-aware `moveBody`/`findPath`/`lineOfSight`/`shotBlockedAt`, high-ground range, flat-ground foundations, the shader height march (`uTopZ`, coarse+fine), `iso.ts` lift provider, `pickGround`/`aimLift`, occlusion. Tests: shared `terrain3.test.ts` (frozen revisions, seams, connectivity, hills, collision/pathing), server `elevation.test.ts` and `elevation-persistence.test.ts` (PostgreSQL and memory), client `elevation.test.ts`. Tools/fixtures: `tools/worldgen3-audit.mjs`, `tools/worldgen-compat.mjs`, `e2e/worldgen3-art.mjs`, `e2e/elevation.mjs [--mobile]`; evidence in `docs/validation/worldgen3/`.
+
+**Not done** (see the remaining-work file for the full list): upgrading old worlds, priority-flood erosion/ravines/bridges, species variants, ladders/stairs and a flood-fill repair pass, ships/caves with elevation, a physical-device performance benchmark. Do not describe revision 3 as the complete overhaul.
+
+---
+
 # Current continuation: Veyr, creature art, surface hydrology and development tooling
 
 Work remains inline without subagents. The user handles Render. This branch adds the user's boss design as **Veyr, the Stormbound Colossus**, an overworld beacon encounter with three phases, fixed storm warnings, poise interruption, recovery and durable unique loot. See [STORMBOUND.md](STORMBOUND.md).

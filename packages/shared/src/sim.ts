@@ -9,6 +9,7 @@ import {
   DASH_SPEED,
   DASH_TIME,
   BOAT_SPEED_MULT,
+  CLIFF,
   IFRAME_TIME,
   PLAYER_RADIUS,
   PLAYER_SPEED,
@@ -106,6 +107,8 @@ export interface StepEvents {
 export type SolidQuery = ((tx: number, ty: number) => boolean) & {
   sea?: (tx: number, ty: number) => boolean;
   mine?: (x: number, y: number) => MineLoop | null;
+  /** terrain elevation level of a tile; steps of CLIFF levels or more are impassable (revision 3) */
+  level?: (tx: number, ty: number) => number;
 };
 
 /** Switching families cannot carry a finisher/charge across weapons or erase recovery. */
@@ -201,6 +204,13 @@ function overlapsSolid(x: number, y: number, r: number, solid: SolidQuery): bool
   const y0 = Math.floor(y - r);
   const y1 = Math.floor(y + r - EPS);
   for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) if (solid(tx, ty)) return true;
+  const level = solid.level;
+  if (level && (x0 !== x1 || y0 !== y1)) {
+    // a body may not overlap ground a cliff higher or lower than the tile under its centre
+    const here = level(Math.floor(x), Math.floor(y));
+    for (let ty = y0; ty <= y1; ty++)
+      for (let tx = x0; tx <= x1; tx++) if (Math.abs(level(tx, ty) - here) >= CLIFF) return true;
+  }
   return false;
 }
 

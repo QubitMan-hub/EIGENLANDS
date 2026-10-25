@@ -4,6 +4,7 @@ import { upperTowns, townStairTile, isUpperY } from './floors';
 import { hash2 } from './rng';
 import { T } from './tiles';
 import { sampleClimate } from './worldgen';
+import { LEGACY_GENERATION } from './world-version';
 
 export type BuildingKind = 'smithy' | 'hall' | 'inn' | 'store' | 'house' | 'farmhouse';
 export interface Building {
@@ -60,7 +61,7 @@ function pickSite(seed: number): { cx: number; cy: number } {
     for (let y = cy - H / 2; y < cy + H / 2; y += 3)
       for (let x = cx - W / 2; x < cx + W / 2; x += 3) {
         total++;
-        if (sampleClimate(seed, x, y).height > -0.12) land++;
+        if (sampleClimate(seed, x, y, LEGACY_GENERATION).height > -0.12) land++;
       }
     if (land / total > 0.9) return { cx, cy };
   }

@@ -17,8 +17,18 @@ export function applyChunkSnapshot(store: ChunkStore, m: ChunkMsg) {
     if (chunk.tiles[i] !== t)
       mark(m.cx * CHUNK_SIZE + (i % CHUNK_SIZE), m.cy * CHUNK_SIZE + Math.floor(i / CHUNK_SIZE));
   store.applyDiff(m.cx, m.cy, diff);
+  // the server's levels are authoritative; a locally derived copy that disagrees is replaced
+  let levels = false;
+  if (m.levels && chunk.levels && m.levels.some((v, i) => v !== chunk.levels![i]))
+    levels = store.setLevels(m.cx, m.cy, m.levels);
+  else if (m.levels && !chunk.levels) levels = store.setLevels(m.cx, m.cy, m.levels);
   if (!m.objs)
-    return { tiles: [...tiles.values()], objects: [] as WorldObj[], removed: [] as Array<{ x: number; y: number }> };
+    return {
+      tiles: [...tiles.values()],
+      objects: [] as WorldObj[],
+      removed: [] as Array<{ x: number; y: number }>,
+      levels,
+    };
   const normal = new Map<string, WorldObj>(),
     built = new Map<string, WorldObj>();
   for (const o of m.objs ?? []) (o.kind === 'structure' ? built : normal).set(`${o.x},${o.y}`, o);
@@ -41,5 +51,5 @@ export function applyChunkSnapshot(store: ChunkStore, m: ChunkMsg) {
     if (before !== buildTile(o)) mark(o.x, o.y);
   }
   for (const o of normal.values()) store.putObject(o);
-  return { tiles: [...tiles.values()], objects: [...normal.values()], removed };
+  return { tiles: [...tiles.values()], objects: [...normal.values()], removed, levels };
 }

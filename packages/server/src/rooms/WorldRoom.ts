@@ -1,5 +1,5 @@
-import { WORLD_GENERATION, generationMeta, tileAt, isSolid } from '@eigenlands/shared';
-import { caveRegionAt } from '@eigenlands/shared';
+import { generationMeta, tileAt, isSolid } from '@eigenlands/shared';
+import { caveRegionAt, highGroundRange } from '@eigenlands/shared';
 import { Client, Room, ServerError } from 'colyseus';
 import { StateView } from '@colyseus/schema';
 import {
@@ -162,6 +162,8 @@ interface Projectile {
   /** players that dodged it */
   passed: Set<string>;
   src: Enemy | null;
+  /** terrain level the shot left from: higher ground (a cliff or more) stops it */
+  level: number;
 }
 
 /** An enemy strike waiting to be resolved against players whose view lags behind (defender-favouring lag compensation). */
@@ -242,7 +244,10 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     this.wclock = worldClock();
     const metaKey = `worldgen:${this.seed}`,
       saved = await rt.repo.getBlob(metaKey),
-      meta = generationMeta(saved);
+      meta = generationMeta(saved, {
+        hasWorldData: saved == null ? await rt.repo.hasWorldData() : true,
+        fresh: rt.config.newWorldGeneration,
+      });
     this.migrateHydrology = meta.migratedFrom === 1;
     await rt.repo.putBlob(metaKey, meta);
     this.store = new ChunkStore(this.seed, 512, meta.version);
@@ -396,7 +401,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       currentSurfaceTile !== T.DEEP_WATER;
     if (
       this.migrateHydrology &&
-      ch.data.worldGeneration !== WORLD_GENERATION &&
+      ch.data.worldGeneration !== this.store.generation &&
       Math.abs(ch.y) < 10000 &&
       (!isSolid(oldSurfaceTile) || drainedOldWater) &&
       this.store.solidAt(Math.floor(ch.x), Math.floor(ch.y))
@@ -421,7 +426,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       await this.ensureAround(chunkOf(Math.floor(ch.x)), chunkOf(Math.floor(ch.y)), 1);
     }
     const data = loadPlayerData(ch.data, this.wclock.season(), this.wclock.now());
-    data.worldGeneration = WORLD_GENERATION;
+    data.worldGeneration = this.store.generation;
     const st = new PlayerState();
     st.id = client.sessionId;
     st.name = ch.name;
@@ -533,8 +538,8 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       const object = this.store.objectAt(x, y),
         structure = this.store.structureAt(x, y);
       return (
-        (object?.owner && object.data?.worldGeneration !== WORLD_GENERATION) ||
-        (structure?.owner && structure.data.worldGeneration !== WORLD_GENERATION)
+        (object?.owner && object.data?.worldGeneration !== this.store.generation) ||
+        (structure?.owner && structure.data.worldGeneration !== this.store.generation)
       );
     };
     const repair = (x: number, y: number) => {
@@ -712,7 +717,14 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     if (Math.abs(msg.cx - pcx) > INTEREST_RADIUS + 1 || Math.abs(msg.cy - pcy) > INTEREST_RADIUS + 1) return;
     await this.ensureChunk(msg.cx, msg.cy);
     const objs: WorldObj[] = [...this.store.townObjectsIn(msg.cx, msg.cy), ...this.objects.inChunk(msg.cx, msg.cy)];
-    client.send(MSG.CHUNK, { cx: msg.cx, cy: msg.cy, diff: encodeDiff(this.store.get(msg.cx, msg.cy).diff), objs });
+    const chunk = this.store.get(msg.cx, msg.cy);
+    client.send(MSG.CHUNK, {
+      cx: msg.cx,
+      cy: msg.cy,
+      diff: encodeDiff(chunk.diff),
+      objs,
+      ...(chunk.levels ? { levels: chunk.levels } : {}),
+    });
   }
 
   // ───────────────────────── simulation ─────────────────────────
@@ -1027,7 +1039,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   }
 
   private addProjectile(
-    o: Omit<Projectile, 'state' | 'travelled' | 'history' | 'endTick' | 'passed'>,
+    o: Omit<Projectile, 'state' | 'travelled' | 'history' | 'endTick' | 'passed' | 'level'>,
     kind: number,
   ): Projectile {
     const id = `p${++this.projSeq}`;
@@ -1037,8 +1049,11 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     st.y = o.y;
     st.owner = o.owner;
     st.kind = kind;
+    const level = this.store.levelAt(Math.floor(o.x), Math.floor(o.y));
     const pr: Projectile = {
       ...o,
+      level,
+      range: o.range * highGroundRange(level),
       state: st,
       travelled: 0,
       history: [{ tick: this.state.tick, x: o.x, y: o.y }],
@@ -1128,7 +1143,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       const step = pr.speed * TICK_DT;
       const nx = pr.x + pr.dx * step,
         ny = pr.y + pr.dy * step;
-      let done = this.store.shotBlockedAt(Math.floor(nx), Math.floor(ny)) || pr.travelled + step > pr.range;
+      let done = this.store.shotBlockedAt(Math.floor(nx), Math.floor(ny), pr.level) || pr.travelled + step > pr.range;
       if (!done && pr.team === 'player') {
         for (const e of this.enemies.values()) {
           if (segmentHitsCircle(pr.x, pr.y, nx, ny, pr.radius, { x: e.x, y: e.y, r: e.def.radius })) {

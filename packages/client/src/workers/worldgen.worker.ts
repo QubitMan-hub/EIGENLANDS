@@ -8,7 +8,12 @@ const scope = globalThis as unknown as {
 scope.onmessage = ({ data: { id, seed, cx, cy, generation } }) => {
   try {
     const chunk = prepareWorldChunk(seed, cx, cy, generation);
-    scope.postMessage({ id, chunk }, [chunk.tiles.buffer, chunk.climate.buffer, chunk.biomes.buffer]);
+    scope.postMessage({ id, chunk }, [
+      chunk.tiles.buffer,
+      chunk.levels.buffer,
+      chunk.climate.buffer,
+      chunk.biomes.buffer,
+    ]);
   } catch (e) {
     scope.postMessage({ id, error: String(e) }, []);
   }

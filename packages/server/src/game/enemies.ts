@@ -23,6 +23,7 @@ import {
   type EnemyDef,
   type EnemyKindName,
   type PosSample,
+  CLIFF,
   type SolidQuery,
 } from '@eigenlands/shared';
 import { EnemyState } from '@eigenlands/shared';
@@ -237,9 +238,14 @@ export function stepEnemies(
 export function lineOfSight(solid: SolidQuery, ax: number, ay: number, bx: number, by: number): boolean {
   const d = Math.hypot(bx - ax, by - ay);
   const n = Math.ceil(d / 0.3);
+  const level = solid.level;
+  const from = level ? level(Math.floor(ax), Math.floor(ay)) : 0;
   for (let i = 1; i < n; i++) {
     const k = i / n;
-    if (solid(Math.floor(ax + (bx - ax) * k), Math.floor(ay + (by - ay) * k))) return false;
+    const tx = Math.floor(ax + (bx - ax) * k),
+      ty = Math.floor(ay + (by - ay) * k);
+    // rising ground that is a cliff higher than the viewer hides what lies behind it; looking down is unobstructed
+    if (solid(tx, ty) || (level && level(tx, ty) - from >= CLIFF)) return false;
   }
   return true;
 }

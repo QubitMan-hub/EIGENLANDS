@@ -215,7 +215,9 @@ export class Net {
       this.h.ack(decodeAck(b));
     });
     on(MSG.FX, (f: FxMsg) => this.h.fx(f));
-    on(MSG.CHUNK, (m: ChunkMsg) => this.h.chunk({ ...m, diff: new Uint8Array(m.diff) }));
+    on(MSG.CHUNK, (m: ChunkMsg) =>
+      this.h.chunk({ ...m, diff: new Uint8Array(m.diff), ...(m.levels ? { levels: new Uint8Array(m.levels) } : {}) }),
+    );
     on(MSG.TILE, (m: TileMsg) => this.h.tile(m));
     on(MSG.NOTICE, (m: { text: string }) => this.h.notice(m.text));
     on(MSG.PONG, (m: { t: number }) => this.h.rtt(performance.now() - m.t));

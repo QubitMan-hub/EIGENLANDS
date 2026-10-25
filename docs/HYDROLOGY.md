@@ -1,3 +1,5 @@
+> Revision numbering: this guide describes revision 2 (surface hydrology). The full rebuild with real elevation is revision 3 and applies only to worlds created after it shipped; see [WORLDGEN3.md](WORLDGEN3.md). Revision-2 worlds stay as described here.
+
 # Coherent wetlands and quiet fluids
 
 Surface generation revision 2 replaces the fen's seven-tile FBM pool mask with a broad domain-warped basin field at 38-tile scale. A high water threshold leaves more dry ground; a narrow, sparsely clustered reed belt follows the shore. Quantum shimmer cannot punch random dry tiles through the new lake interiors. Existing oceans, climate fields, settlement footprints, roads, caves, shrine IDs and legacy landmark placement keep their existing rules.

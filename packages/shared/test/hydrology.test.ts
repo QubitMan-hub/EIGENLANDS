@@ -81,10 +81,24 @@ it('adds sparse surface lava pockets with scree margins while leaving revision 1
   for (let y = -64; y < 64; y++) for (let x = -64; x < 64; x++) expect(tileAt(20260101, x, y, 2)).not.toBe(T.LAVA);
 });
 
+it('pins saved worlds to their revision and only lets brand-new worlds start at revision 3', () => {
+  // saved metadata is never upgraded automatically
+  expect(generationMeta({ version: 2 }, { hasWorldData: true, fresh: 3 })).toEqual({ version: 2 });
+  expect(generationMeta({ version: 2, migratedFrom: 1 }, { fresh: 3 })).toEqual({ version: 2, migratedFrom: 1 });
+  expect(generationMeta({ version: 3 }, { fresh: 2 })).toEqual({ version: 3 });
+  // a world without metadata is brand new only when it has no characters
+  expect(generationMeta(null, { hasWorldData: false, fresh: 3 })).toEqual({ version: 3 });
+  expect(generationMeta(null, { hasWorldData: true, fresh: 3 })).toEqual({ version: 2, migratedFrom: 1 });
+  expect(generationMeta(undefined, { fresh: 3 })).toEqual({ version: 2, migratedFrom: 1 });
+  // an operator can keep creating revision-2 worlds
+  expect(generationMeta(null, { hasWorldData: false, fresh: 2 })).toEqual({ version: 2, migratedFrom: 1 });
+});
+
 it('upgrades known metadata conservatively and refuses future or corrupt versions', () => {
   expect(generationMeta(null)).toEqual({ version: 2, migratedFrom: 1 });
   expect(generationMeta({ version: 1 })).toEqual({ version: 2, migratedFrom: 1 });
   expect(generationMeta({ version: 2 })).toEqual({ version: 2 });
-  expect(() => generationMeta({ version: 3 })).toThrow('Unsupported');
+  expect(generationMeta({ version: 3 })).toEqual({ version: 3 });
+  expect(() => generationMeta({ version: 4 })).toThrow('Unsupported');
   expect(() => generationMeta({ version: '2' })).toThrow('Unsupported');
 });

@@ -73,6 +73,8 @@ export interface ChunkMsg {
   cy: number;
   diff: Uint8Array;
   objs?: WorldObj[];
+  /** terrain elevation level per tile (CHUNK_SIZE²) in revision-3 worlds; absent means flat */
+  levels?: Uint8Array;
 }
 export interface TileMsg {
   tx: number;

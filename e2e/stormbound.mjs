@@ -41,7 +41,7 @@ try {
     const g = window.__eigen.game,
       s = g.predictor.sim;
     for (let y = -24; y < 24; y++)
-      for (let x = 115; x < 150; x++) {
+      for (let x = 149; x >= 115; x--) {
         const bx = x + 0.5 + s.faceX * 4,
           by = y + 0.5 + s.faceY * 4;
         if (g.store.solidAt(x, y)) continue;

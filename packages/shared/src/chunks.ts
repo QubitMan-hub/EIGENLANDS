@@ -2,9 +2,9 @@ import { mineLoopAt } from './mines';
 import { buildTile, type BuildCell } from './construction';
 import { oceanObjectsIn } from './ocean';
 import { sanctuaryObjectsIn, isDiveY } from './sanctuaries';
-import { CHUNK_SIZE } from './constants';
-import { generateChunk } from './worldgen';
-import { WORLD_GENERATION, type WorldGeneration } from './world-version';
+import { CHUNK_SIZE, CLIFF, MAX_LEVEL } from './constants';
+import { generateChunk, generateLevels, setActiveGeneration, tileAt } from './worldgen';
+import { LEGACY_GENERATION, type WorldGeneration } from './world-version';
 import { T, isSolid } from './tiles';
 import type { SolidQuery } from './sim';
 import { objSolid, type WorldObj } from './objects';
@@ -19,6 +19,8 @@ export interface Chunk {
   cx: number;
   cy: number;
   tiles: Uint8Array;
+  /** terrain elevation level per tile (revision 3+; undefined means a flat chunk) */
+  levels?: Uint8Array;
   diff: ChunkDiff;
 }
 
@@ -60,13 +62,16 @@ export class ChunkStore {
   readonly objects = new Map<string, WorldObj>();
   readonly structures = new Map<string, BuildCell>();
   structureRevision = 0;
+  levelRevision = 0;
   private townByChunk: Map<string, WorldObj[]> | null = null;
 
   constructor(
     readonly seed: number,
     private maxChunks = 256,
-    readonly generation: WorldGeneration = WORLD_GENERATION,
-  ) {}
+    readonly generation: WorldGeneration = LEGACY_GENERATION,
+  ) {
+    setActiveGeneration(seed, generation);
+  }
 
   has(cx: number, cy: number): boolean {
     return this.chunks.has(chunkKey(cx, cy));
@@ -82,6 +87,7 @@ export class ChunkStore {
       return c;
     }
     c = { cx, cy, tiles: generateChunk(this.seed, cx, cy, this.generation), diff: new Map() };
+    if (this.generation >= 3) c.levels = generateLevels(this.seed, cx, cy, this.generation);
     this.chunks.set(k, c);
     for (const o of this.townObjectsIn(cx, cy)) this.putObject(o);
     if (this.chunks.size > this.maxChunks) {
@@ -94,6 +100,28 @@ export class ChunkStore {
     }
     return c;
   }
+
+  /** Server-authoritative levels for a chunk (the CHUNK message carries them); invalid data is ignored. */
+  setLevels(cx: number, cy: number, levels: Uint8Array): boolean {
+    if (levels.length !== CHUNK_SIZE * CHUNK_SIZE || levels.some((v) => v > MAX_LEVEL)) return false;
+    this.get(cx, cy).levels = levels.slice();
+    this.levelRevision++;
+    return true;
+  }
+
+  /** Elevation level of tile (x, y); 0 on flat revisions, in caves and over water. */
+  levelAt = (x: number, y: number): number => {
+    const cx = chunkOf(x),
+      cy = chunkOf(y);
+    let c = this.lastLevelChunk;
+    if (!c || c.cx !== cx || c.cy !== cy) {
+      c = this.get(cx, cy);
+      this.lastLevelChunk = c;
+    }
+    const lv = c.levels;
+    return lv ? lv[(y - cy * CHUNK_SIZE) * CHUNK_SIZE + (x - cx * CHUNK_SIZE)]! : 0;
+  };
+  private lastLevelChunk: Chunk | null = null;
 
   applyDiff(cx: number, cy: number, diff: ChunkDiff): Chunk {
     const c = this.get(cx, cy);
@@ -151,7 +179,17 @@ export class ChunkStore {
             ...ruinObjectsIn(this.seed, cx, cy),
             ...caveObjectsIn(this.seed, cx, cy),
           ];
-    return wild.length ? [...town, ...wild] : town;
+    const placed = this.generation >= 3 ? wild.filter((o) => this.seaSiteStillAtSea(o)) : wild;
+    return placed.length ? [...town, ...placed] : town;
+  }
+
+  /** Revision 3 grows the home continent: a buoy or cache that now lies on land or shallows is simply not placed. */
+  private seaSiteStillAtSea(o: WorldObj): boolean {
+    if (o.sub !== 'dive_gate' && o.sub !== 'sea_cache') return true;
+    for (let j = -2; j <= 2; j++)
+      for (let i = -2; i <= 2; i++)
+        if (tileAt(this.seed, o.x + i, o.y + j, this.generation) !== T.DEEP_WATER) return false;
+    return true;
   }
 
   putObject(o: WorldObj): void {
@@ -190,12 +228,15 @@ export class ChunkStore {
     (x: number, y: number): boolean => isSolid(this.getTile(x, y)) || this.solidObjs.has(`${x},${y}`),
     {
       sea: (x: number, y: number): boolean => this.seaSolidAt(x, y),
+      level: (x: number, y: number): number => this.levelAt(x, y),
       mine: (x: number, y: number) => mineLoopAt(this.seed, x, y),
     },
   );
   /** cannonballs and bolts fly over water but stop at land, walls and trees */
-  shotBlockedAt = (x: number, y: number): boolean => {
+  shotBlockedAt = (x: number, y: number, fromLevel?: number): boolean => {
     const t = this.getTile(x, y);
+    // high ground also blocks: a shot fired from a lower level cannot cross a cliff face
+    if (fromLevel !== undefined && this.levelAt(x, y) - fromLevel >= CLIFF) return true;
     return (t !== T.WATER && t !== T.DEEP_WATER && isSolid(t)) || this.solidObjs.has(`${x},${y}`);
   };
 }

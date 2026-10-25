@@ -324,7 +324,14 @@ export class GameRoom extends WorldRoom {
       ...this.store.townObjectsIn(msg.cx, msg.cy),
       ...(this.foreign.get(`${msg.cx},${msg.cy}`)?.objs ?? []),
     ];
-    client.send(MSG.CHUNK, { cx: msg.cx, cy: msg.cy, diff: encodeDiff(this.store.get(msg.cx, msg.cy).diff), objs });
+    const chunk = this.store.get(msg.cx, msg.cy);
+    client.send(MSG.CHUNK, {
+      cx: msg.cx,
+      cy: msg.cy,
+      diff: encodeDiff(chunk.diff),
+      objs,
+      ...(chunk.levels ? { levels: chunk.levels } : {}),
+    });
   }
 
   protected hookObjectChanged(m: ObjMsg): void {

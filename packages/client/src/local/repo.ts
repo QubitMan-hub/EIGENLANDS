@@ -97,6 +97,10 @@ export class LocalRepo implements RepoApi {
     return true;
   }
 
+  async hasWorldData(): Promise<boolean> {
+    return this.db.keys('char:').length > 0;
+  }
+
   async getCharacter(accountId: string): Promise<CharacterRow | null> {
     return this.db.get<CharacterRow>(`char:${accountId}`) ?? null;
   }

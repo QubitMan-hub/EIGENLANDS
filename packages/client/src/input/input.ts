@@ -246,6 +246,8 @@ export class Input {
     return this.buffered.delete(a);
   }
 
+  /** art pixels the ground under the cursor sits above the player's (terrain height); removes height from aiming */
+  aimLift = 0;
   /** mouse tile under the cursor (set by the game each frame), for cursor-targeted tool use */
   mouseTile: { tx: number; ty: number } | null = null;
   get mouseXY(): { x: number; y: number } {
@@ -342,7 +344,7 @@ export class Input {
     if (!ln && this.movementMode === 'mouse' && this.mouse.right) {
       // Cursor is a ground point, independent of actor height, zoom or camera look-ahead.
       const sx = (this.mouse.x - this.feetScreen.x) / this.worldScale,
-        sy = (this.mouse.y - this.feetScreen.y) / this.worldScale;
+        sy = (this.mouse.y - this.feetScreen.y) / this.worldScale + this.aimLift;
       const wx = sy / 16 + sx / 32,
         wy = sy / 16 - sx / 32,
         d = Math.hypot(wx, wy);
@@ -373,7 +375,10 @@ export class Input {
       r.aimX = a.x;
       r.aimY = a.y;
     } else if (this.mouse.lastMove > 0 && !this.touchHeld.size) {
-      const a = toWorld(this.mouse.x - this.playerScreen.x, this.mouse.y - this.playerScreen.y);
+      const a = toWorld(
+        this.mouse.x - this.playerScreen.x,
+        this.mouse.y - this.playerScreen.y + this.aimLift * this.worldScale,
+      );
       r.aimX = a.x;
       r.aimY = a.y;
     } else if ((r.attack || r.hold || r.skill) && this.autoAim) {
@@ -393,7 +398,10 @@ export class Input {
     const pad = navigator.getGamepads?.().find((p) => !!p);
     if (pad && Math.hypot(pad.axes[2] ?? 0, pad.axes[3] ?? 0) > 0.35) a = toWorld(pad.axes[2]!, pad.axes[3]!);
     else if (this.mouse.lastMove > 0 && !this.touchHeld.size)
-      a = toWorld(this.mouse.x - this.playerScreen.x, this.mouse.y - this.playerScreen.y);
+      a = toWorld(
+        this.mouse.x - this.playerScreen.x,
+        this.mouse.y - this.playerScreen.y + this.aimLift * this.worldScale,
+      );
     else if (this.autoAim) a = this.autoAim();
     const l = a ? Math.hypot(a.x, a.y) : 0;
     return a && l > 1e-6 ? { x: a.x / l, y: a.y / l } : face;

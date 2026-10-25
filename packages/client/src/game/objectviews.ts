@@ -15,7 +15,7 @@ import {
   sampleClimate,
   type ChunkStore,
 } from '@eigenlands/shared';
-import { depth, isoX, isoY } from './iso';
+import { depth, isoX, isoY, occluded } from './iso';
 import { WindField, CALM } from './windfield';
 import { FRAMES_PER_VARIANT, type ObjectArt, type ObjSprite } from '../art/objects';
 
@@ -77,6 +77,8 @@ interface Obj {
   base: ObjSprite;
   /** which ObjectArt list the sprite came from (a tree tile may draw from 'qtree') */
   artKey: string;
+  /** stands behind raised ground that covers it (revision-3 elevation): not drawn */
+  hidden: boolean;
 }
 
 /** Sun azimuth/elevation from the in-game hour: long shadows at dawn/dusk, short at noon, faint moon shadows at night. */
@@ -238,6 +240,7 @@ export class ObjectViews {
       frames: p.frames,
       base: p.s,
       artKey: p.key,
+      hidden: this.store.generation >= 3 && occluded(this.store.levelAt, tx, ty, this.store.levelAt(tx, ty)),
     };
   }
 
@@ -326,7 +329,7 @@ export class ObjectViews {
       this.visibleBounds = bounds;
       for (const m of this.chunks.values())
         for (const o of m.values()) {
-          const visible = o.tx >= minX && o.tx <= maxX && o.ty >= minY && o.ty <= maxY;
+          const visible = o.tx >= minX && o.tx <= maxX && o.ty >= minY && o.ty <= maxY && !o.hidden;
           o.root.visible = visible;
           if (o.echo) o.echo.visible = visible;
           if (!visible) o.shadow.visible = false;

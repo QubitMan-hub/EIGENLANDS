@@ -21,6 +21,7 @@ import {
   chunkKey,
   isCaveY,
   sampleClimate,
+  LEVEL_PX,
   townFor,
   townAt,
   type ChunkStore,
@@ -89,6 +90,7 @@ export class Terrain {
       uPlaza: { value: new Float32Array([0, 0, 0, 0]), type: 'vec4<f32>' },
       uShrine: { value: new Float32Array([0.5, 0.5, 3.05, 0]), type: 'vec4<f32>' },
       uWind: { value: new Float32Array([1, 0, 0.3]), type: 'vec3<f32>' },
+      uTopZ: { value: 0, type: 'f32' },
     });
     const town = townFor(store.seed);
     this.plaza = { x: town.cx + 0.5, y: town.cy + 4.5, r: 5.9, x0: town.x0, y0: town.y0, x1: town.x1, y1: town.y1 };
@@ -158,7 +160,7 @@ export class Terrain {
 
   private compute(cx: number, cy: number): Uint8Array {
     const out = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE * 4);
-    this.store.get(cx, cy);
+    const levels = this.store.get(cx, cy).levels;
     const seed = this.store.seed;
     const cave = isCaveY(cy * CHUNK_SIZE);
     for (let y = 0; y < CHUNK_SIZE; y++) {
@@ -186,7 +188,8 @@ export class Terrain {
         const flux = sampleClimate(seed, tx, ty).flux;
         const fl = flux > 0.4 ? Math.min(31, Math.round(((flux - 0.4) / 0.4) * 31)) : 0; // iridescent meadow intensity
         out[o + 1] = BIOMES.indexOf(biome) * 32 + fl;
-        out[o + 2] = tile === T.PATH ? this.paving(tx, ty) : 0;
+        // paving style in the low two bits, elevation level above them
+        out[o + 2] = (tile === T.PATH ? this.paving(tx, ty) : 0) | ((levels?.[y * CHUNK_SIZE + x] ?? 0) << 2);
         out[o + 3] = 128;
       }
     }
@@ -284,6 +287,9 @@ export class Terrain {
       }
     }
     this.shoreField();
+    let top = 0;
+    for (let i = 2; i < this.data.length; i += 4) top = Math.max(top, this.data[i]! >> 2);
+    this.common.uniforms.uTopZ = top * LEVEL_PX;
     this.common.uniforms.uWin = new Float32Array([(cx - half) * CHUNK_SIZE, (cy - half) * CHUNK_SIZE]);
     this.src.update();
     this.winCx = cx;
