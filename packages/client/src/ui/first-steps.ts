@@ -6,7 +6,10 @@ export const binding = (keys: KeyMap, action: Action): string =>
 export const controlText = (text: string, keys: KeyMap): string =>
   text.replace(/\{(\w+)\}/g, (all, action: Action) => (action in keys ? binding(keys, action) : all));
 export const FIRST_STEPS: { id: keyof Acts; text: string }[] = [
-  { id: 'moved', text: 'Walk with {up}, {left}, {down}, {right}, the arrow keys, or the left stick.' },
+  {
+    id: 'moved',
+    text: 'Walk with {up}, {left}, {down}, {right}, the arrow keys, or the left stick. Hold {sprint} to sprint while your stamina lasts.',
+  },
   {
     id: 'attacked',
     text: 'Left-click or press {attack} to swing. Tap for a combo; hold and release for a heavy strike. You can practise on empty ground.',

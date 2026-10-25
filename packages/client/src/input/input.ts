@@ -4,6 +4,9 @@ import type { LocalInput } from '../net/prediction';
 export type MovementMode = 'keyboard' | 'mouse';
 export const validMovementMode = (value: unknown): MovementMode => (value === 'mouse' ? 'mouse' : 'keyboard');
 
+/** stick deflection (0..1) at which a thumb stick means sprint */
+const SPRINT_STICK = 0.97;
+
 export interface InputReading extends LocalInput {
   interact: boolean;
   usedKeyboardOrPad: boolean;
@@ -230,6 +233,10 @@ export class Input {
     this.stick.x = x;
     this.stick.y = y;
   }
+  /** a thumb pushed to the rim of the touch stick runs */
+  private stickSprint(_dx: number, _dy: number): boolean {
+    return Math.hypot(this.stick.x, this.stick.y) >= SPRINT_STICK;
+  }
   touch(a: Action, held: boolean): void {
     if (held) {
       this.touchHeld.add(a);
@@ -265,6 +272,7 @@ export class Input {
       dx: 0,
       dy: 0,
       dash: false,
+      sprint: false,
       attack: false,
       hold: false,
       skill: false,
@@ -286,6 +294,7 @@ export class Input {
       padAttackEdge = false,
       padSkill = false,
       padDash = false,
+      padSprint = false,
       padInteract = false;
     let padAim: { x: number; y: number } | null = null;
     const pad = navigator.getGamepads?.().find((p) => !!p);
@@ -295,6 +304,7 @@ export class Input {
       if (ax || ay) {
         dx = ax;
         dy = ay;
+        padSprint = Math.hypot(ax, ay) >= SPRINT_STICK;
         r.usedKeyboardOrPad = true;
       }
       const rx = pad.axes[2] ?? 0,
@@ -364,6 +374,7 @@ export class Input {
     r.hold = attackHeld;
     r.skill = skillHeld || this.consume('skill');
     r.dash = this.consume('dash') || padDash;
+    r.sprint = this.isDown('sprint') || this.touchHeld.has('sprint') || padSprint || this.stickSprint(dx, dy);
     r.interact = this.consume('interact') || padInteract;
     this.buffered.delete('attack');
     this.buffered.delete('skill');

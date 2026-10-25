@@ -83,6 +83,23 @@ if (!(moved > 0.5))
 // the server agrees: little or no correction and nothing left unacknowledged
 if (s1.pending > 6) fail(`inputs not acknowledged by the in-page server (pending=${s1.pending})`);
 
+// ── sprint: hold X while moving → faster, spends stamina, then it refills ──
+{
+  const a = await st();
+  await page.keyboard.down('KeyD');
+  await page.keyboard.down('KeyX');
+  await sleep(1200);
+  const during = await st();
+  await page.keyboard.up('KeyX');
+  await page.keyboard.up('KeyD');
+  console.log('sprint', { stamina: during.stamina?.toFixed(1), sprinting: during.sprinting });
+  if (!(during.stamina < (a.stamina ?? 100) - 5)) fail('sprint did not spend stamina');
+  if (during.sprinting !== true) fail('sprint flag not set while holding X');
+  await sleep(2500);
+  const after = await st();
+  if (!(after.stamina > during.stamina)) fail('stamina did not refill after sprinting');
+}
+
 // ── attack (melee + skill) ──
 await page.mouse.move(800, 300);
 await page.mouse.down();

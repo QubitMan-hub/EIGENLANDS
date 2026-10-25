@@ -39,6 +39,9 @@ export interface VialSpec {
   low: boolean;
   tone: NeedTone;
   aura: 'shield' | 'ward' | 'mirror' | null;
+  /** dash charges lit on the plinth (stamina vial only) */
+  pips: number;
+  pipMax: number;
   /** class resource is full (ultimate ready) */
   ready: boolean;
   /** seconds, drives pulses; 0 for reduced motion */
@@ -95,6 +98,7 @@ function paintVial(ctx: Ctx, place: VialPlace, v: VialSpec): void {
     left: (_a, b) => (b > 0.7 ? C.slate : C.steel),
     right: (_a, b) => (b > 0.7 ? C.night : C.slate),
   });
+  for (let i = 0; i < v.pipMax; i++) iso.dot(1 + i * 3.5, w + 1, 0.5, i < v.pips ? C.g6 : C.night, 2, 1); // dash charges, set into the plinth's lit face
   const trailTop = v.trail * (h - 2.8),
     fillTop = v.shown * (h - 2.8);
   const liquidAt = (lit: boolean, inner: number): number => {

@@ -365,7 +365,7 @@ button.big {
   align-items: center;
   justify-content: center;
   background: transparent;
-  border-color: #484c6e;
+  border-color: #786646;
 }
 .credits {
   color: var(--mute);
@@ -841,4 +841,74 @@ body:has(#settings:not([hidden])) #voice-chip {
   border-left: 4px solid #bca06b;
   box-shadow: 0 3px 0 #101719aa;
   color: #f1e4c7;
+}
+
+/* ── title diorama: card left, floating island right; hidden when there is no room ── */
+.title-scene {
+  display: none;
+}
+@media (min-width: 1040px) and (min-height: 640px) {
+  .overlay.title {
+    grid-template-columns: minmax(420px, 460px) minmax(0, 580px);
+    gap: 24px;
+    justify-content: center;
+  }
+  .title-scene {
+    display: grid;
+    position: relative;
+    place-items: center;
+    pointer-events: none;
+  }
+  .ts-stage {
+    position: relative;
+    width: 576px;
+    height: 624px;
+    animation: ts-bob 5s steps(10, end) infinite alternate;
+  }
+  .ts-island {
+    width: 576px;
+    height: 624px;
+    image-rendering: pixelated;
+  }
+  /* the wanderer stands on the lawn in front of the shrine: tile (-3, 6) in the island's art */
+  .ts-hero {
+    position: absolute;
+    left: 228px;
+    top: 255px;
+    width: 72px;
+    height: 96px;
+    image-rendering: pixelated;
+  }
+  .ts-mote {
+    position: absolute;
+    left: var(--x);
+    bottom: 12%;
+    width: 4px;
+    height: 4px;
+    background: #7fe3d3;
+    opacity: 0;
+    animation: ts-rise var(--d) linear var(--w) infinite;
+  }
+  .reduced-motion .ts-stage,
+  .reduced-motion .ts-mote {
+    animation: none;
+  }
+}
+@keyframes ts-bob {
+  to {
+    transform: translateY(-9px);
+  }
+}
+@keyframes ts-rise {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-160px);
+    opacity: 0;
+  }
 }

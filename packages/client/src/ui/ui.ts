@@ -16,7 +16,16 @@ export interface Settings {
   captions: boolean;
   volume: number;
   highContrastHud: boolean;
+  /** camera distance: how many tiles fit across the view */
+  zoom: ZoomLevel;
 }
+
+export type ZoomLevel = 'close' | 'normal' | 'far';
+export const ZOOM_LEVELS: readonly ZoomLevel[] = ['close', 'normal', 'far'];
+export const validZoom = (v: unknown): ZoomLevel =>
+  (ZOOM_LEVELS as readonly unknown[]).includes(v) ? (v as ZoomLevel) : 'normal';
+/** multiplier on the tiles-across target; the pixel scale is still a whole number */
+export const ZOOM_TILES: Record<ZoomLevel, number> = { close: 0.75, normal: 1, far: 1.4 };
 
 const KEY = 'eigen.settings';
 export function loadSettings(): Settings {
@@ -31,6 +40,7 @@ export function loadSettings(): Settings {
     captions: false,
     volume: 0.5,
     highContrastHud: false,
+    zoom: 'normal',
   };
   try {
     const s = { ...d, ...(JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<Settings>) };
@@ -39,6 +49,7 @@ export function loadSettings(): Settings {
       movementMode: validMovementMode(s.movementMode),
       graphics: validGraphics(s.graphics),
       weatherDetail: validWeather(s.weatherDetail),
+      zoom: validZoom(s.zoom),
     };
   } catch {
     return d;
@@ -179,6 +190,8 @@ export const HTML = `
         <label for="s-graphics">Graphics</label><select id="s-graphics"><option value="auto">Auto · lighter on phones</option><option value="economy">Economy · faster, quieter terrain</option><option value="high">High · full terrain detail</option></select>
         <p class="small dim">Economy reduces canvas resolution and background detail while keeping crisp sprites, collision and combat warnings.</p>
         <label for="s-weather">Weather effects</label><select id="s-weather"><option value="gentle">Gentle</option><option value="full">Full</option><option value="off">Off</option></select>
+        <label for="s-zoom">Camera distance</label><select id="s-zoom"><option value="close">Close · bigger sprites</option><option value="normal">Normal</option><option value="far">Far · see more of the world</option></select>
+        <p class="small dim">Zoom steps stay on whole pixels so art never blurs. Press = / − in game to change it quickly.</p>
         <label class="tog"><input type="checkbox" id="s-motion"> Reduce motion (no shake, fewer particles, still water)</label>
         <label>Text size <select id="s-text"><option value="1">Normal</option><option value="1.25">Large</option><option value="1.5">Extra large</option></select></label>
         <label>Colour-blind mode <select id="s-cb"><option value="off">Off</option><option value="protan">Protanopia (red-weak)</option><option value="deutan">Deuteranopia (green-weak)</option><option value="tritan">Tritanopia (blue-weak)</option></select></label>
@@ -236,6 +249,7 @@ export class SettingsUI {
     const s = this.settings;
     $<HTMLSelectElement>('s-graphics').value = s.graphics;
     $<HTMLSelectElement>('s-weather').value = s.weatherDetail;
+    $<HTMLSelectElement>('s-zoom').value = s.zoom;
     $<HTMLSelectElement>('s-movement').value = s.movementMode;
     $<HTMLInputElement>('s-motion').checked = s.reducedMotion;
     $<HTMLSelectElement>('s-text').value = String(s.textScale);
@@ -247,6 +261,7 @@ export class SettingsUI {
     const upd = () => {
       s.graphics = validGraphics($<HTMLSelectElement>('s-graphics').value);
       s.weatherDetail = validWeather($<HTMLSelectElement>('s-weather').value);
+      s.zoom = validZoom($<HTMLSelectElement>('s-zoom').value);
       s.movementMode = validMovementMode($<HTMLSelectElement>('s-movement').value);
       s.reducedMotion = $<HTMLInputElement>('s-motion').checked;
       s.textScale = Number($<HTMLSelectElement>('s-text').value);
@@ -261,6 +276,7 @@ export class SettingsUI {
     for (const id of [
       's-graphics',
       's-weather',
+      's-zoom',
       's-movement',
       's-motion',
       's-text',
@@ -394,7 +410,10 @@ export const freshActs = (): Acts => ({
 
 /** One hint at a time, in order. Steps already done (and persisted) are skipped. */
 export const TUTORIAL: ReadonlyArray<{ id: keyof Acts; text: string }> = [
-  { id: 'moved', text: 'Move with WASD or the arrow keys (touch: left stick).' },
+  {
+    id: 'moved',
+    text: 'Move with WASD or the arrow keys (touch: left stick; push it to the rim to sprint). Hold {sprint} to sprint while your stamina lasts.',
+  },
   { id: 'attacked', text: 'Attack with {attack}, or click. Chain three hits for a heavy finisher.' },
   { id: 'dashed', text: 'Dash with {dash}. You cannot be hurt while dashing — dodge red warnings.' },
   { id: 'selected', text: 'Pick a tool: press 1–0, scroll the wheel, or tap the quick-bar. Slot 1 is your axe.' },

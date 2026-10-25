@@ -9,6 +9,13 @@ import {
   DASH_SPEED,
   DASH_TIME,
   BOAT_SPEED_MULT,
+  EXHAUST_DELAY,
+  SPRINT_DRAIN,
+  SPRINT_MIN,
+  SPRINT_MULT,
+  STAMINA_DELAY,
+  STAMINA_MAX,
+  STAMINA_REGEN,
   CLIFF,
   IFRAME_TIME,
   PLAYER_RADIUS,
@@ -66,6 +73,12 @@ export interface PlayerSim {
   boat: number;
   /** 0 walking; otherwise progress + 1 on a shared mine circuit. */
   cart: number;
+  /** sprint stamina 0..STAMINA_MAX, quantised to 1/64 so client replay and server agree exactly */
+  stamina: number;
+  /** seconds before stamina starts refilling */
+  staminaT: number;
+  /** 1 while sprinting */
+  sprint: number;
 }
 
 export interface InputCmd {
@@ -74,6 +87,8 @@ export interface InputCmd {
   dx: number;
   dy: number;
   dash: boolean;
+  /** sprint held (honoured only while moving with stamina) */
+  sprint?: boolean;
   /** attack pressed this step (or a repeat request: held-to-repeat clients send it every step) */
   attack: boolean;
   /** attack button is held: charges a heavy strike that fires on release */
@@ -124,6 +139,18 @@ export function setMeleeWeapon(p: PlayerSim, id: unknown): void {
   p.melee = next;
 }
 
+/** Quantise to 1/64 (exact in float32): the ACK carries stamina and the replay must match the server bit for bit. */
+const qs = (v: number) => Math.round(v * 64) / 64;
+
+function stepStamina(p: PlayerSim): void {
+  if (p.sprint) {
+    p.stamina = qs(Math.max(0, p.stamina - SPRINT_DRAIN * TICK_DT));
+    p.staminaT = q(p.stamina <= 0 ? EXHAUST_DELAY : STAMINA_DELAY);
+    if (p.stamina <= 0) p.sprint = 0;
+  } else if (p.staminaT > 0) p.staminaT = down(p.staminaT);
+  else p.stamina = Math.min(STAMINA_MAX, qs(p.stamina + STAMINA_REGEN * TICK_DT));
+}
+
 export function newPlayerSim(x: number, y: number): PlayerSim {
   return {
     x,
@@ -146,6 +173,9 @@ export function newPlayerSim(x: number, y: number): PlayerSim {
     slipT: 0,
     boat: 0,
     cart: 0,
+    stamina: STAMINA_MAX,
+    staminaT: 0,
+    sprint: 0,
   };
 }
 
@@ -187,6 +217,7 @@ export function sanitizeCmd(raw: Partial<InputCmd>): InputCmd {
     dx,
     dy,
     dash: raw.dash === true,
+    sprint: raw.sprint === true,
     attack: raw.attack === true,
     hold: raw.hold === true,
     skill: raw.skill === true,
@@ -405,9 +436,15 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepE
     // committed swing slows you; so does holding a charge
     const k = p.atkCd > 0.15 ? SWING_MOVE_MULT : p.charge > 0 ? CHARGE_MOVE_MULT : 1;
     const sp = sailing ? PLAYER_SPEED * BOAT_SPEED_MULT : PLAYER_SPEED;
-    vx = cmd.dx * sp * k;
-    vy = cmd.dy * sp * k;
+    // sprint only while moving freely: not mid-swing, charging or sailing; it needs a little stamina to begin
+    const moving = cmd.dx !== 0 || cmd.dy !== 0;
+    const sprinting =
+      cmd.sprint && moving && !sailing && k === 1 && p.stamina >= (p.sprint ? 0.01 : SPRINT_MIN) ? 1 : 0;
+    p.sprint = sprinting;
+    vx = cmd.dx * sp * k * (sprinting ? SPRINT_MULT : 1);
+    vy = cmd.dy * sp * k * (sprinting ? SPRINT_MULT : 1);
   }
+  stepStamina(p);
   moveBody(p, vx * TICK_DT, vy * TICK_DT, PLAYER_RADIUS, solid);
   return ev;
 }
