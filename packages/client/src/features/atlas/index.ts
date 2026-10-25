@@ -18,7 +18,7 @@ interface Landmark extends Point {
   shrine?: string;
 }
 const known = new Map<string, string>([['shrine_altar', 'Resonance shrine'], ['cave_mouth', 'Cave entrance'], ['cave_ladder', 'Surface ladder'], ['cave_lift', 'Supply lift'], ['dive_gate', 'Diving buoy'], ['dive_exit', 'Sloop return'], ['stairs_up', 'Upper floor'], ['stairs_down', 'Downstairs'], ['board', 'Town board']]);
-const colors = ['#224555', '#326779', '#cba67c', '#5b8056', '#af855e', '#62433f', '#443039', '#b48d60', '#6b7c7c', '#46565b', '#2b3941'];
+const colors = ['#224555', '#326779', '#cba67c', '#5b8056', '#af855e', '#62433f', '#443039', '#b48d60', '#6b7c7c', '#46565b', '#2b3941', '#10141f', '#dd985f', '#6b7c7c'];
 const point = (v: unknown): v is Point => !!v && typeof v === 'object' && ['x', 'y'].every(k => Number.isFinite((v as Record<string, unknown>)[k]) && Math.abs(Number((v as Record<string, unknown>)[k])) < 1e6) && typeof (v as Point).name === 'string';
 /** One local chart shared by the modal atlas and quiet live minimap. */
 export class AtlasClient implements ClientModule {

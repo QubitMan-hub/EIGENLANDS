@@ -6,9 +6,9 @@ import{CaveModule}from'../src/features/caves';
 let app:App;beforeAll(async()=>{app=await boot3();});afterAll(async()=>{await sleep(250);await app?.close();});
 function site(seed:number,feature:string){for(let y=-4;y<6;y++)for(let x=-6;x<6;x++){const r=caveRegion(seed,x,y);if(r.feature===feature&&!caveTownAt(r.x,r.y)&&!caveTownAt(r.x+7,r.y-6))return r;}throw Error('No site');}
 it('makes generated lifts usable, clears dash on arrival, and guards caches against repeat claims',async()=>{
- const p=await spawn3(app,'Surveyor');const lift=caveWaystation(p.room.seed,0,0)!;await tp(p,lift.x+.5,lift.y+1.5);p.sp.sim.dashT=.15;
+ const p=await spawn3(app,'Surveyor'),fx:any[]=[];p.r.onMessage(MSG.FX,m=>fx.push(m));const lift=caveWaystation(p.room.seed,0,0)!;await tp(p,lift.x+.5,lift.y+1.5);p.sp.sim.dashT=.15;
  p.r.send(MSG.OPEN,{tx:lift.x,ty:lift.y});const up=caveLanding(p.room.seed,lift.id,false)!;await until(()=>Math.hypot(p.sp.sim.x-up.x,p.sp.sim.y-up.y)<.1);expect(p.sp.sim.dashT).toBe(0);
- const town=CAVE_TOWNS.find(t=>t.abandoned)!;await tp(p,town.cx+3.5,town.cy+6.5);p.r.send(MSG.OPEN,{tx:town.cx+3,ty:town.cy+5});await until(()=>p.sp.data.prog.ruins.includes(`${town.id}:archive`));const n=countItem(p.sp.data.inv,'qubit_crystal');expect(n).toBeGreaterThan(0);p.r.send(MSG.OPEN,{tx:town.cx+3,ty:town.cy+5});await sleep(180);expect(countItem(p.sp.data.inv,'qubit_crystal')).toBe(n);await p.r.leave();
+ const town=CAVE_TOWNS.find(t=>t.abandoned)!;await tp(p,town.cx+3.5,town.cy+6.5);p.r.send(MSG.OPEN,{tx:town.cx+3,ty:town.cy+5});await until(()=>p.sp.data.prog.ruins.includes(`${town.id}:archive`));const n=countItem(p.sp.data.inv,'qubit_crystal');expect(n).toBeGreaterThan(0);await until(()=>fx.some(f=>f.kind==='chest'));const opened=fx.filter(f=>f.kind==='chest').length;p.r.send(MSG.OPEN,{tx:town.cx+3,ty:town.cy+5});await sleep(180);expect(countItem(p.sp.data.inv,'qubit_crystal')).toBe(n);expect(fx.filter(f=>f.kind==='chest')).toHaveLength(opened);await p.r.leave();
 });
 it('loads actual cave shrine objects, summons the arena boss only in an arena, and persists its reward',async()=>{
  const p=await spawn3(app,'Bell challenger');await setLevel(p,12);await dev(p,{cmd:'give',id:'deep_sigil',n:2});await until(()=>countItem(p.sp.data.inv,'deep_sigil')===2);

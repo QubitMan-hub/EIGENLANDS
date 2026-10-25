@@ -85,7 +85,12 @@ export function caveTileAt(seed:number,x:number,y:number,legacy=false):number{
  if(landing<42||ld<4)return T.CAVE_FLOOR;
  let n=noise.get(seed);if(!n){n=new Simplex2D(seed^0xca5e);if(noise.size>8)noise.clear();noise.set(seed,n);}
  const dx=x-r.x,dy=y-r.y,room=(dx/r.rx)**2+(dy/r.ry)**2;
+ const magma=r.biome==='basalt'&&((dx-12)/7)**2+((dy-7)/5)**2<1;
  const lake=(r.feature==='lake'||r.biome==='drowned')&&((dx-8)/10)**2+((dy-5)/8)**2<1;
+ if(r.feature==='arena'&&dx*dx+dy*dy<19*19){
+  if(dx*dx+dy*dy>16*16&&route>10)return r.biome==='basalt'?T.LAVA:T.WATER;
+  return T.VAULT_FLOOR;
+ }
  if(route<6.25)return lake?T.FLOOR:T.PATH;
  // Preserve a roomy, dry centre for orientation, combat and district connections.
  if(dx*dx+dy*dy<110)return T.CAVE_FLOOR;
@@ -98,6 +103,7 @@ export function caveTileAt(seed:number,x:number,y:number,legacy=false):number{
  if(!open){if(legacy)return T.CAVE_WALL;const deposit=mineralDeposit(seed,x,ly);return deposit!==null&&(route<65||room<1.5)?deposit:T.CAVE_WALL;}
  if(access||spur)return T.CAVE_FLOOR;
  if(r.feature==='puzzle'||r.feature==='arena'||r.feature==='ruins'||r.feature==='vents')return T.CAVE_FLOOR;
+ if(magma)return T.LAVA;
  if(lake)return room<.65?T.DEEP_WATER:T.WATER;
  const h=hash2(seed,x,y,977);if(h<(r.biome==='crystal'?.025:.009)&&room>.55)return T.CRYSTAL;
  if(h<.02&&room>.72&&room<1.05)return T.ROCK;if(h<.045&&(r.biome==='glowmoss'||r.feature==='grove'))return T.SHIMMER;
@@ -130,8 +136,15 @@ export function caveObjectsIn(seed: number, cx: number, cy: number): WorldObj[] 
      add(r.x-7,r.y-6,'ruin_cache',{ruin:`${r.id}:archive`,biome:'enchanted',cave:true,depth:r.depth});
      add(r.x+7,r.y-6,'ruin_pillar');add(r.x-8,r.y+4,'ruin_pillar');
     }else if(r.feature==='vents'){add(r.x+7,r.y-6,'cave_vent',{region:r.id});}
-    else if(r.feature==='arena')add(r.x+7,r.y-6,'cave_altar',{region:r.id,depth:r.depth});
-    if(r.biome==='glowmoss'||r.feature==='grove'){add(r.x-10,r.y+8,'ruin_crystal');add(r.x+11,r.y+8,'ruin_monolith');}
+    else if(r.feature==='arena'){
+     add(r.x+7,r.y-6,'cave_altar',{region:r.id,depth:r.depth});add(r.x,r.y,'cave_seal');
+     for(const[dx,dy]of[[-12,-10],[12,-10],[-12,10],[12,10]])add(r.x+dx,r.y+dy,'bell_pylon');
+    }
+    if(r.feature==='lake'||r.biome==='drowned')add(r.x+14,r.y+3,'cave_waterfall');
+    if(r.biome==='basalt'&&!['arena','puzzle','ruins','vents'].includes(r.feature))add(r.x+15,r.y+7,'magma_fall');
+    if(r.biome==='glowmoss'||r.feature==='grove'){
+     for(const[dx,dy]of[[-12,5],[-11,9],[10,9],[13,-5]])if(!isSolid(caveTileAt(seed,r.x+dx,r.y+dy)))add(r.x+dx,r.y+dy,'glow_mushrooms');
+    }
    }
   }
   return out;

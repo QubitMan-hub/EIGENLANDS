@@ -58,7 +58,7 @@ uniform vec3 uWind;         // world wind: direction xy + strength 0..1 (same fi
 const vec3 PAL[48] = vec3[48](${pal});
 
 const int B_MEADOW = 0, B_FOREST = 1, B_AUTUMN = 2, B_TAIGA = 3, B_SWAMP = 4, B_DESERT = 5, B_ENCHANTED = 6, B_CORRUPT = 7;
-const int DEEP = 0, WATER = 1, SAND = 2, GRASS = 3, PATH = 4, SOIL = 5, SOILWET = 6, FLOOR = 7, WALLC = 8, CAVE = 9, CAVEWALL = 10, VOID = 11;
+const int DEEP = 0, WATER = 1, SAND = 2, GRASS = 3, PATH = 4, SOIL = 5, SOILWET = 6, FLOOR = 7, WALLC = 8, CAVE = 9, CAVEWALL = 10, VOID = 11, LAVA = 12, VAULT = 13;
 const int INK=0, NIGHT=1, SLATE=2, STEEL=3, MIST=4, FOG=5, PALE=6, WHITE=7;
 const int G0=8, G1=9, G2=10, G3=11, G4=12, G5=13, G6=14, G7=15;
 const int E0=16, E1=17, E2=18, E3=19, E4=20, E5=21, E6=22, E7=23;
@@ -101,7 +101,7 @@ float sdfOf(vec4 t) { return (t.a * 255.0 - 128.0) / 12.0; }
 bool isWater(int c) { return c == WATER || c == DEEP; }
 float heightOf(vec4 t) {
   int c = clsOf(t);
-  if (c == WATER || c == DEEP) return Z_WATER;
+  if (c == WATER || c == DEEP || c == LAVA) return Z_WATER;
   if (c == CAVEWALL) return ${GROUND_Z.caveWall}.0;
   if (c == SAND) return ${GROUND_Z.sand}.0;
   if (c == SOIL || c == SOILWET) return ${GROUND_Z.soil}.0;
@@ -123,11 +123,6 @@ float fluxAt(vec2 tf) {
   vec2 f = u - floor(u);
   return mix(mix(fluxOf(tileAt(b)), fluxOf(tileAt(b + ivec2(1, 0))), f.x), mix(fluxOf(tileAt(b + ivec2(0, 1))), fluxOf(tileAt(b + ivec2(1, 1))), f.x), f.y);
 }
-// biome under a pixel, sampled with a little jitter so borders interlock like real ecotones
-int biomeAtPx(vec2 tf, ivec2 ip) {
-  vec2 j = (vec2(vnoise(tf * 0.7), vnoise(tf * 0.7 + 9.0)) - 0.5) * 1.3 + (vec2(vnoise(tf * 2.3 + 4.0), vnoise(tf * 2.3 - 4.0)) - 0.5) * 0.5;
-  return biomeOf(tileAt(ivec2(floor(tf + j))));
-}
 // effective season of a biome: the tundra is always snowed in, Amberwood always in autumn colour
 int seasonOf(int b, int s) { return b == B_TAIGA ? 3 : b == B_AUTUMN ? 2 : s; }
 
@@ -135,6 +130,38 @@ int seasonOf(int b, int s) { return b == B_TAIGA ? 3 : b == B_AUTUMN ? 2 : s; }
 int phaseCol(float h, float t) {
   float ph = fract(t * 0.11 * uMotion + h * 3.7);
   return ph < 0.34 ? Q7 : ph < 0.67 ? Q4 : Q6;
+}
+
+// Sparse angular marks, anchored in world pixels. Noise selects a stamp and its
+// position, never fills a large bright/dark contour. Both quality modes share it.
+int groundClusters(ivec2 ip,int base,int low,int high,float density){
+  ivec2 size=ivec2(17,11),cell=cellOf(ip,size);
+  if(hashk(cell,71)>density)return base;
+  ivec2 origin=cell*size+ivec2(5+int(hashk(cell,72)*7.0),3+int(hashk(cell,73)*5.0));
+  ivec2 q=ip-origin;
+  if(hashk(cell,74)>.5)q.x=-q.x;
+  int len=2+int(hashk(cell,75)*4.0),shape=int(hashk(cell,76)*3.0);
+  if(shape==0){
+    if(q.y==0&&q.x>=0&&q.x<len)return q.x==0?high:base;
+    if(q.y==1&&q.x>=1&&q.x<len)return low;
+    if(q.y==-1&&q.x==1)return high;
+  }else if(shape==1){
+    // Short, broken fracture with a one-pixel branch, not a closed contour.
+    if(q.x>=0&&q.x<len&&q.y==q.x/3)return low;
+    if(q.x==2&&q.y==-1)return low;
+    if(q.x==0&&q.y==-1)return high;
+  }else{
+    if(q.y==0&&(q.x==0||q.x==1))return high;
+    if(q.y==1&&q.x==1)return low;
+  }
+  return base;
+}
+// Piecewise-linear volcanic fractures: angular facets instead of smooth ovals.
+float fractureNoise(vec2 p){
+  ivec2 cell=ivec2(floor(p));vec2 f=fract(p);
+  float a=hashi(cell),d=hashi(cell+1);
+  return f.x>f.y?a+(hashi(cell+ivec2(1,0))-a)*f.x+(d-hashi(cell+ivec2(1,0)))*f.y:
+    a+(hashi(cell+ivec2(0,1))-a)*f.y+(d-hashi(cell+ivec2(0,1)))*f.x;
 }
 
 // ───────── grass ─────────
@@ -169,7 +196,7 @@ int clumpPix(ivec2 ip, float dens, float big, Tones T, out bool hit) {
     float rx = (1.8 + hashk(c, 4) * 1.6) * (0.8 + big * 0.9), ry = rx * (0.55 + hashk(c, 5) * 0.15);
     vec2 q = (vec2(ip) + 0.5 - ctr);
     vec2 n = q / vec2(rx, ry);
-    float dd = dot(n, n);
+    float dd = abs(n.x)*.8 + abs(n.y)*1.2;
     // jagged leaf rim: a per-pixel wobble so the silhouette reads as leaves, plus a notch on top
     float wob = (hashi(ip + c * 3) - 0.5) * 0.7;
     if (dd < 1.0 + wob && ctr.y > bestY) {
@@ -227,7 +254,7 @@ int snowTop(ivec2 ip, vec2 tf, float t) {
   vec2 wp = vec2(ip);
   float n = vnoise(wp * 0.03) * 0.7 + vnoise(wp * 0.09 + 7.0) * 0.3;
   // bright powder, faintly icy mid-tones, cool blue-grey hollows only in the deepest drift shadows
-  int c = n > 0.5 ? WHITE : n > 0.24 ? W7 : PALE;
+  int c = groundClusters(ip,PALE,FOG,WHITE,.25);
   float ridge = sin(wp.x * 0.16 + wp.y * 0.34 + vnoise(wp * 0.05) * 5.0);
   if (ridge > 0.9 && n > 0.3) c = WHITE;
   else if (ridge < -0.94) c = n > 0.5 ? W7 : PALE;                // wind-carved drift edges
@@ -244,8 +271,7 @@ int grassTop(ivec2 ip, vec2 tf, int s, float flux, float t, int b) {
   vec2 wp = vec2(ip);
   if (s == 3) return snowTop(ip, tf, t);
   // large soft regions of sunlit lime meadow vs. deeper leafy turf
-  float lushN = fbm(tf * 0.2 + 3.0);
-  bool lush = lushN > (s == 0 ? 0.46 : 0.55);
+  bool lush = false; // Vegetation density varies; the underlying earth does not change into broad color islands.
   Tones T = biomeTones(b, s, lush);
   int c = T.base;
   // Low frequency cover with a warped edge: quiet clearings alternate with planted hummocks.
@@ -258,12 +284,6 @@ int grassTop(ivec2 ip, vec2 tf, int s, float flux, float t, int b) {
   bool hit;
   int cl = clumpPix(ip, dens, big, T, hit);
   if (hit) return cl;
-  if (lush) {
-    // meadow: soft lighter/darker patches and fine tufts
-    float pn = vnoise(wp * 0.08 + 31.0) * 0.75 + hashi(ip / 2) * 0.25;
-    if (pn > 0.74) c = T.hi;
-    else if (pn < 0.2) c = T.sh;
-  }
   ivec2 TC = ivec2(6, 4);
   ivec2 tc = cellOf(ip, TC);
   for (int j = 0; j <= 1; j++) for (int i = -1; i <= 1; i++) {
@@ -301,11 +321,8 @@ int grassTop(ivec2 ip, vec2 tf, int s, float flux, float t, int b) {
     float tw = fract(hashk(ip, 17) * 5.0 + t * 0.3 * uMotion);
     if (hashk(ip, 18) > 1.0 - glint && tw < 0.4) return b == B_CORRUPT ? (hashk(ip, 19) < 0.5 ? Q5 : Q3) : phaseCol(hashk(ip, 19), t);
   }
-  // fen: still puddles of black water among the moss
-  if (b == B_SWAMP) {
-    float pd = vnoise(wp * 0.045 + 13.0);
-    if (pd > 0.7) return pd > 0.76 ? W0 : (hashi(ip) > 0.5 ? G0 : W1);
-  }
+  // Damp micro-detail follows an actual bank, rather than painting fake puddles.
+  if(b==B_SWAMP&&sdfAt(tf)>-1.1)c=groundClusters(ip,c,G0,W1,.16);
   // wastes: cracked ground
   if (b == B_CORRUPT && abs(vnoise(wp * 0.07 + 5.0) - 0.5) < 0.018) return NIGHT;
   return c;
@@ -314,10 +331,9 @@ int grassTop(ivec2 ip, vec2 tf, int s, float flux, float t, int b) {
 // ───────── sand / dirt / soil ─────────
 int sandTop(ivec2 ip, float sdf, int s) {
   vec2 wp = vec2(ip);
-  int c = E6;
+  int c = groundClusters(ip,E6,E5,E7,.22);
   float n = vnoise(wp * 0.035) * 0.7 + vnoise(wp * 0.12) * 0.3;
-  if (n > 0.64) c = E7;
-  else if (n < 0.22) c = E5;
+
   // long wind ripples across the dunes, lit on one flank
   float dr = sin(wp.x * 0.3 + wp.y * 0.62 + vnoise(wp * 0.04) * 7.0);
   if (dr > 0.92 && sdf < -1.5) c = c == E5 ? E6 : E7; else if (dr < -0.9 && sdf < -1.5) c = c == E7 ? E6 : E5;
@@ -336,25 +352,7 @@ int sandTop(ivec2 ip, float sdf, int s) {
 }
 
 int dirtTop(ivec2 ip, int s) {
-  vec2 wp = vec2(ip);
-  int c = E4;
-  float n = vnoise(wp * 0.07 + 5.0);
-  if (n > 0.64) c = E5;
-  else if (n < 0.24) c = E3;
-  // dry cracks: thin warped iso-lines
-  float cr = abs(vnoise(wp * vec2(0.11, 0.2) + 40.0) - 0.5);
-  if (cr < 0.022) c = E3;
-  if (cr < 0.022 && hashi(ip) > 0.6) c = E2;
-  // pebbles: lit top-left, shaded below
-  ivec2 cc = cellOf(ip, ivec2(8, 5));
-  if (hashk(cc, 30) < 0.28) {
-    ivec2 q = ip - (cc * ivec2(8, 5) + ivec2(int(hashk(cc, 31) * 6.0), int(hashk(cc, 32) * 3.0)));
-    if (q == ivec2(0)) return E6;
-    if (q == ivec2(1, 0)) return E5;
-    if (q == ivec2(0, 1) || q == ivec2(1, 1)) return E2;
-  }
-  if (s == 3 && vnoise(wp * 0.08) > 0.58) c = vnoise(wp * 0.3) > 0.5 ? WHITE : PALE;
-  return c;
+  return groundClusters(ip,E4,E3,s==3?PALE:E5,s==3?.46:.34);
 }
 
 int soilTop(ivec2 ip, vec2 tf, bool wet, int s) {
@@ -458,9 +456,6 @@ int waterTop(ivec2 ip, vec2 tf, float sdf, bool deep, float t, int s, int b) {
   // clear and bright like the reference tiles: pale shallows, mid-blue body, only the deepest open water goes navy
   float depth = sdf + (deep ? 1.2 : 0.0) + 0.55 * (vnoise(wp * 0.05 + vec2(tt * 0.05, 0.0)) - 0.5);
   int c = depth < 0.55 ? W4 : depth < 1.5 ? W3 : depth < 4.5 ? W2 : depth < 9.0 ? W1 : W0;
-  // drifting sky reflections: soft lighter patches
-  float sky = vnoise(wp * vec2(0.035, 0.07) + vec2(tt * 0.04, tt * 0.015));
-  if (sky > 0.68 && c <= W3 && c > W0) c += 1;
   // lapping foam along the bank
   float lap = 0.32 + 0.12 * sin(tt * 1.6 + wp.x * 0.15 + wp.y * 0.3);
   float foam = vnoise(vec2(wp.x * 0.09 + tt * 0.03, wp.y * 0.14));
@@ -495,20 +490,17 @@ int waterTop(ivec2 ip, vec2 tf, float sdf, bool deep, float t, int s, int b) {
     // frozen shallows with cracks
     float cr = abs(vnoise(wp * 0.09 + 40.0) - 0.5);
     if (cr < 0.02) return W4;
-    float v = vnoise(wp * 0.05 + 70.0);
-    return v > 0.62 ? W7 : v > 0.3 ? W6 : W5;
+    return groundClusters(ip,W6,W5,W7,.3);
   }
   return c;
 }
 
 // Quieter materials for small/limited GPUs: keep the same biome ramps, water depths and shore foam.
 int economyGrass(ivec2 ip,vec2 tf,int s,float flux,float t,int b){
-  Tones tone=biomeTones(b,s,false);
-  ivec2 cell=cellOf(ip,ivec2(10,6));
-  vec2 centre=vec2(cell*ivec2(10,6))+vec2(3.0+hashk(cell,2)*4.0,2.0+hashk(cell,3)*2.0);
-  vec2 q=(vec2(ip)-centre)/vec2(2.5,1.5);
-  int c=tone.base;
-  if(hashk(cell,6)>.82&&dot(q,q)<1.0)c=q.y<-.2?tone.body:tone.sh;
+  Tones tone=biomeTones(b,s,false);int c=tone.base;
+  ivec2 size=ivec2(11,7),cell=cellOf(ip,size);
+  ivec2 origin=cell*size+ivec2(2+int(hashk(cell,2)*6.0),3+int(hashk(cell,3)*3.0));
+  if(hashk(cell,6)>.8){int tuft=tuftPix(ip,origin,tone.body,tone.hi);if(tuft>=0)c=tuft;}
   if(flux>.6&&hashk(ip,8)>.999)c=phaseCol(flux,t);
   return c;
 }
@@ -556,41 +548,34 @@ int sideStone(ivec2 ip, vec2 tf, bool left, int d) {
 
 // ───────── the Undercroft ─────────
 // floor: warm packed earth worn into flagstones, pebbles, damp glinting patches (reads lighter than the rock above)
+int caveBase(int bio){
+  return bio==1?G1:bio==6?SLATE:bio==7?E1:bio==3?STEEL:bio==4?W1:E2;
+}
 int caveFloorTop(ivec2 ip, float t, int bio) {
-  vec2 wp=vec2(ip);
-  // Broad, quiet material clusters. Economy uses one coherent noise sample, never random checkerboard patches.
-  float n=vnoise(wp*.045);
-  int base=E2, low=E1, high=E3;
-  if(bio==1){base=G1;low=G0;high=G2;}
-  else if(bio==6){base=SLATE;low=Q0;high=STEEL;}
-  else if(bio==7){base=E1;low=E0;high=R0;}
-  else if(bio==3){base=STEEL;low=SLATE;high=MIST;}
-  else if(bio==4){base=W1;low=W0;high=W2;}
-  int c=n<.24?low:n>.79?high:base;
-  float h=hashi(ip);
-  if(h>.997)c=high;
-  else if(h>.993)c=low;
-  if(uDetail>.5 && n>.72 && abs(vnoise(wp*.14+7.0)-.5)<.015)c=low;
+  int base=caveBase(bio),low=bio==1?G0:bio==6?NIGHT:bio==7?E0:bio==3?SLATE:bio==4?W0:E1;
+  int high=bio==1?G2:bio==6?STEEL:bio==7?R0:bio==3?MIST:bio==4?W2:E3;
+  int c=groundClusters(ip,base,low,high,.38);
+  if(uDetail>.5&&c==base)c=groundClusters(ip+ivec2(37,19),base,low,high,.12);
   return c;
 }
-// rock crown seen from above: near-black lumpy stone, moss in the hollows, the rare crystal glint
+// Fractured rock crown: small chisel clusters, no value-noise blobs or blocky economy fill.
 int caveRockTop(ivec2 ip, float t) {
-  vec2 wp = vec2(ip);
-  float n = uDetail < .5 ? hashi(ip / 4) * 1.5 : vnoise(wp * 0.16) + 0.5 * vnoise(wp * 0.4 + 3.0);
-  int c = n > 1.1 ? SLATE : n > 0.55 ? NIGHT : INK;
-  if (uDetail > .5 && vnoise(wp * 0.06 + 30.0) > 0.7 && n > 0.7) c = n > 1.0 ? G1 : G0;
-  if (hashi(ip + ivec2(7, 3)) > 0.9993) c = fract(hashi(ip) * 5.0 + t * 0.25 * uMotion) < 0.25 ? Q7 : Q3;
+  int c=groundClusters(ip,NIGHT,INK,SLATE,.64);
+  if(uDetail>.5&&c==NIGHT)c=groundClusters(ip+ivec2(5,31),NIGHT,INK,SLATE,.2);
+  if(hashi(ip+ivec2(7,3))>.9995)c=Q2;
   return c;
 }
 // rock faces: lit, layered strata on the left, shade on the right; chisel marks and ore flecks; dark foot
 int sideCave(ivec2 ip, vec2 tf, bool left, int d, int H) {
-  float u = (left ? tf.x : tf.y) * 16.0;
-  float n = vnoise(vec2(u * 0.5 + float(ip.x) * 0.1, float(d) * 0.35) + (left ? 0.0 : 9.0));
-  int c = left ? (n > 0.5 ? FOG : MIST) : (n > 0.55 ? STEEL : SLATE);
-  if (d <= 1) c = left ? PALE : MIST;                                           // worn top edge
-  else if ((d + int(n * 3.0)) % 5 == 0) c = left ? STEEL : NIGHT;               // strata
-  if (hashi(ip) > 0.985) c = hashi(ip + 1) > 0.5 ? E6 : W5;                    // ore flecks
-  if (d >= H - 1) c = left ? SLATE : INK;                                        // foot in shadow
+  int u=int(floor((left?tf.x:tf.y)*16.0));
+  int base=left?MIST:SLATE,low=left?STEEL:NIGHT,high=left?FOG:STEEL;
+  int c=groundClusters(ivec2(u,d),base,low,high,.42);
+  // Short bedding seams vary by rock section; never a whole noisy strip of color.
+  ivec2 bed=cellOf(ivec2(u,d),ivec2(17,5));
+  int seam=2+int(hashk(bed,81)*2.0);
+  if(d%5==seam&&(u%17+17)%17<3+int(hashk(bed,82)*6.0))c=low;
+  if(d<=1)c=high;
+  if(d>=H-1)c=left?SLATE:INK;
   return c;
 }
 
@@ -609,6 +594,7 @@ void main() {
   float hHit = 0.0;
   int face = 0;      // 0 top, 1 left (+y) side, 2 right (+x) side
   int dPx = 0;
+  bool submerged=abs(uWin.y - ${DIVE_OY}.0)<4000.0;
   bool enclosed = uWin.y > ${CAVE_ROW}.0 || abs(uWin.y - ${UPPER_OY}.0) < 1000.0 || abs(uWin.y - ${DIVE_OY}.0) < 4000.0;
   float zTop = enclosed ? ${GROUND_Z.caveWall}.0 : 0.0;
   for (int k = 0; k < STEPS; k++) {
@@ -638,7 +624,7 @@ void main() {
   vec2 fr = fract(tfHit);
   int c;
 
-  int bio = uDetail < .5 ? biomeOf(X0) : biomeAtPx(tfHit, ip);
+  int bio = biomeOf(X0);
   int sb = seasonOf(bio, s);
   if (face == 0) {
     float sdf = sdfAt(tfHit);
@@ -666,10 +652,20 @@ void main() {
       c = soilTop(ip, tfHit, cls == SOILWET, sb);
     } else if (cls == FLOOR) {
       c = floorTop(tfHit);
+    } else if(cls==LAVA){
+      float flow=uMotion>.5?floor(t*3.0):0.0;
+      float crust=fractureNoise(vec2(ip)*vec2(.085,.14)+vec2(flow*.05,0.0));
+      float fissure=abs(crust-.5);
+      c=fissure<.045?R6:fissure<.10?R4:crust>.68?E0:R0;
+      if(hashi(ip)> .98&&fissure<.12)c=E7;
+    } else if(cls==VAULT){
+      vec2 p=fract(tfHit);float h=hashi(ivec2(floor(tfHit)));
+      c=p.x<.04||p.y<.04?NIGHT:submerged?(h>.94?W3:W2):h>.96?MIST:STEEL;
+      if((p.x>.12&&p.x<.16||p.y>.12&&p.y<.16)&&hashi(ivec2(floor(tfHit)))>.76)c=SLATE;
     } else if (cls == CAVE) {
       c = caveFloorTop(ip, t, bio);
     } else if (cls == CAVEWALL) {
-      c = caveRockTop(ip, t);
+      c = submerged ? ((int(floor(tfHit.x))+int(floor(tfHit.y)))%3==0?W2:STEEL) : caveRockTop(ip, t);
     } else {
       c = (hashi(ip / 3) > 0.5) ? MIST : STEEL;
     }
@@ -700,7 +696,7 @@ void main() {
     int H = int(hHit - hN + 0.5);
     bool toWater = isWater(clsOf(NX));
     int k = (cls == SAND) ? 1 : (cls == FLOOR || cls == WALLC || (cls == PATH && style >= 1)) ? 2 : 0;
-    if (cls == CAVEWALL) c = sideCave(ip, tfHit, left, dPx, H);
+    if (cls == CAVEWALL) c = submerged ? sideStone(ip,tfHit,left,dPx) : sideCave(ip, tfHit, left, dPx, H);
     else if (k == 1) c = sideSand(ip, left, dPx);
     else if (k == 2) c = sideStone(ip, tfHit, left, dPx);
     else c = sideEarth(ip, left, dPx);
@@ -735,9 +731,39 @@ void main() {
   }
   vec3 col3 = P(c);
 
-  // drifting cloud shadows (soft, never in winter overcast)
-  float cloud = vnoise(tfHit * 0.1 + vec2(37.0, 11.0) + vec2(t * 0.012, t * 0.005) * uMotion);
-  if (cloud > 0.68 && s != 3) col3 *= 0.9;
+  // Feather only real habitat boundaries, within the same surface material.
+  // Geometry, collision, coastlines and paving stay on their actual tiles.
+  if(face==0&&(cls==CAVE||cls==GRASS||cls==SAND||(cls==PATH&&style==0))){
+    float edge=min(min(fr.x,1.0-fr.x),min(fr.y,1.0-fr.y));
+    if(edge<.35){
+      bool xEdge=min(fr.x,1.0-fr.x)<min(fr.y,1.0-fr.y);
+      ivec2 adjacent=xEdge?ivec2(fr.x<.5?-1:1,0):ivec2(0,fr.y<.5?-1:1);
+      vec4 other=tileAt(T0+adjacent);int nb=biomeOf(other);
+      if(clsOf(other)==cls&&nb!=bio){
+        int currentBase=cls==CAVE?caveBase(bio):cls==GRASS?biomeTones(bio,s,false).base:E6;
+        int neighborBase=cls==CAVE?caveBase(nb):cls==GRASS?biomeTones(nb,s,false).base:E6;
+        col3+= (P(neighborBase)-P(currentBase))*(.5*(1.0-smoothstep(0.0,.35,edge)));
+      }else if(abs(heightOf(other)-hHit)<=2.1){
+        int oc=clsOf(other);
+        bool loose=oc==CAVE||oc==GRASS||oc==SAND||(oc==PATH&&styleOf(other)==0);
+        if(loose&&oc!=cls){
+          int here=cls==CAVE?caveBase(bio):cls==GRASS?biomeTones(bio,s,false).base:cls==SAND?E6:E4;
+          int there=oc==CAVE?caveBase(nb):oc==GRASS?biomeTones(nb,s,false).base:oc==SAND?E6:E4;
+          col3+=(P(there)-P(here))*(.5*(1.0-smoothstep(0.0,.22,edge)));
+        }
+      }
+    }
+  }
+  // Broad variation is continuous and low in amplitude; it never becomes a filled color patch.
+  if(face==0&&!isWater(cls)&&cls!=LAVA&&cls!=VAULT&&cls!=FLOOR){
+    float grain=vnoise(vec2(ip)*.025+7.0)-.5;
+    col3*=1.0+grain*.045;
+  }
+  // Clouds affect open sky only, with a soft ramp rather than a thresholded shadow island.
+  if(!enclosed&&cls!=FLOOR&&cls!=VAULT&&s!=3){
+    float cloud=vnoise(tfHit*.1+vec2(37.0,11.0)+vec2(t*.012,t*.005)*uMotion);
+    col3*=1.0-.045*smoothstep(.25,.85,cloud);
+  }
 
   fragColor = vec4(col3, 1.0);
 }`;

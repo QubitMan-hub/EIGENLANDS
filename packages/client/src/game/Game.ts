@@ -1,4 +1,4 @@
-import { CAVE_BIOME_NAMES, caveRegionAt } from '@eigenlands/shared';
+import { T, CAVE_BIOME_NAMES, caveRegionAt } from '@eigenlands/shared';
 import { ClickMining } from './click-mining';
 import { WorldPreparer } from './world-preparer';
 import { applyChunkSnapshot } from './chunk-updates';
@@ -425,6 +425,7 @@ export class Game {
   private toolSwings = new WeakMap<ActorView, { at: number; received: number; waitForResult?: boolean; tool: 'axe' | 'pickaxe' | 'hoe' | 'can' | 'rod' | 'net'; x: number; y: number }>();
 
   private fxFromServer(f: FxMsg): void {
+    if(f.kind==='chest'){this.worldObjs.animateChest(Math.floor(f.x),Math.floor(f.y));return;}
     if ((['chop','mine','till','water','cast','catch','dust'].includes(f.kind)) && f.id && (f.weapon === 'axe' || f.weapon === 'pickaxe' || f.weapon === 'hoe' || f.weapon === 'can' || f.weapon === 'rod' || f.weapon === 'net')) {
       const actor = this.views.get(f.id);
       if (actor) {
@@ -994,7 +995,7 @@ export class Game {
     for (let ty = v.y0; ty < v.y1; ty++) {
       for (let tx = v.x0; tx < v.x1; tx++) {
         const def = TILE_DEFS[this.store.getTile(tx, ty)];
-        if (!def || def.light <= 0) continue;
+        if (!def || def.light <= 0 || def.id===T.LAVA && ((tx%4+4)%4!==0||(ty%4+4)%4!==0)) continue;
         const flick = reduced ? 1 : 0.88 + 0.12 * Math.sin(now / 130 + tx * 3.1 + ty * 1.7);
         const l = { ...toL(tx + 0.5, ty + 0.5), radius: def.light * (reduced ? 1 : flick), color: pc(def.lightColor), intensity: 0.95 * flick };
         if (def.light >= 4) out.push(l); else if (small.length < 24) small.push(l);

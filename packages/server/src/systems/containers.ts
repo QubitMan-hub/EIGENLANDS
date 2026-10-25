@@ -94,6 +94,7 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
   }
   if (o.static && o.sub === 'board') { p.client.send(MSG.PANEL, boardPanel(p, room.wclock.day(), room.seed, { x: o.x, y: o.y })); return; }
   if(o.kind==='sign'&&['cave_archive','cave_waymark'].includes(o.sub))questEvent(p,{type:'read',target:o.sub,n:1});
+  if(o.kind==='chest')room.fx({kind:'chest',x:o.x+.5,y:o.y+.5});
   sendPanel(p, o);
 }
 
@@ -169,7 +170,7 @@ function openRuinCache(room: RoomApi, p: ServerPlayer, o: WorldObj): void {
   p.data.prog.ruins.push(id);
   p.dirty('inv');
   p.toast(ocean ? 'You recovered a sealed voyager’s cache from the deep sea!' : isCaveY(o.y) ? 'You found a forgotten miner\'s cache in the Undercroft!' : `You found a forgotten cache in the ${BIOME_NAMES[biome]}!`, 'good');
-  room.fx({ kind: 'craft', x: o.x + 0.5, y: o.y + 0.5 });
+  room.fx({ kind: 'chest', x: o.x + 0.5, y: o.y + 0.5 });
 }
 
 /** Climb down a cave mouth into the Undercroft, or up its ladder back to daylight. */

@@ -229,12 +229,26 @@ function crate(face: Facing): ObjSprite {
   });
 }
 
-function chest(face: Facing): ObjSprite {
-  return iso(32, 32, face, (p) => {
-    const band: Detail = (s, t, c) => (Math.abs(s - 0.2) < 0.05 || Math.abs(s - 0.8) < 0.05 ? C.e6 : null);
-    p.box(2.5, 3.5, 0, 11, 8, 6.5, { ramp: WOODM, front: (s, t, c, x, y, lit) => (Math.abs(s - 0.5) < 0.08 && t > 0.55 ? C.e7 : band(s, t, c, x, y, lit)), end: band });
-    p.box(2.2, 3.2, 6.5, 11.6, 8.6, 3, { ramp: WOODM, front: band, end: band, top: (s, t, c) => (Math.abs(s - 0.2) < 0.05 || Math.abs(s - 0.8) < 0.05 ? C.e5 : null) });
-  });
+/** The lid is rebuilt around its hinge in 3D for each pose, never rotated as a billboard. */
+export function treasureChest(face:Facing,pose:number,theme:'wood'|'vault'|'sea'='wood'):ObjSprite {
+ return iso(42,54,face,p=>{
+  const r: Ramp=theme==='vault'?[C.night,C.slate,C.steel,C.mist,C.fog]:theme==='sea'?[C.w0,C.w1,C.w2,C.w3,C.mist]:WOODM;
+  const metal=theme==='sea'?IRONM:BRASS;
+  const bands:Detail=(s,t)=>Math.abs(s-.18)<.055||Math.abs(s-.82)<.055?metal[3]!:null;
+  p.box(1.5,2.5,0,13,10,1.3,{ramp:metal});
+  p.box(2,3,1.3,12,9,7,{ramp:r,front:bands,end:(s,t,c)=>Math.round(t*7)%3===0?c(-1):null});
+  p.box(3,4,8.3,10,7,.2,{ramp:[C.ink,C.night,C.slate]});
+  // Rim, recessed interior and brass corner plates.
+  p.box(2,3,8,12,1,1,{ramp:metal});p.box(2,11,8,12,1,1,{ramp:metal});
+  for(const a of[2,12])p.box(a,3,8,2,9,1,{ramp:metal});
+  const angle=Math.max(0,Math.min(3,pose))/3*1.32;
+  for(let j=0;j<9;j++){
+   const b=3+j*Math.cos(angle),z=9+j*Math.sin(angle);
+   p.box(1.7,b,z,12.6,Math.max(.4,Math.cos(angle)+.1),1.3,{ramp:r,front:bands,top:(s,t,c)=>Math.abs(s-.18)<.055||Math.abs(s-.82)<.055?metal[4]!:j%3===0?c(-1):null});
+  }
+  if(pose>0){p.box(5,6,8.5,3,2,1,{ramp:BRASS});p.box(9,8,8.5,2,2,1,{ramp:theme==='sea'?[C.w2,C.w4,C.w6]:[C.q1,C.q3,C.q4]});}
+  p.box(7,12,4.5,2,1,3,{ramp:metal});p.dot(8,13,6,C.ink);
+ });
 }
 
 function barrel(face: Facing): ObjSprite {
@@ -879,7 +893,7 @@ export const PROPS: Record<string, Mk> = {
   bookcase: one(bookcase), wardrobe: one(wardrobe), shelf: one(shelf),
   table: one((f) => table(f)), desk: one(desk), counter: one(counter),
   chair: one(chair), stool: one(stool), bed: one(bed), bench: one(bench), rug: one(rug, { noShadow: true }),
-  crate: one(crate), chest: one(chest), barrel: one(barrel), basket: one(basket),
+  crate: one(crate), chest: (face)=>({frames:nf(4,f=>treasureChest(face,f)),fps:0,interactive:true}), barrel: one(barrel), basket: one(basket),
   hearth: anim(3, 6, hearth), stove: anim(2, 4, stove), furnace: anim(2, 4, furnace), forge: anim(3, 5, forge),
   cauldron: anim(3, 3, cauldron), cooking_pot: anim(3, 4, cookingPot),
   workbench: one(workbench), carpenter: one(carpenter), jeweler: one(jeweler), alchemy: anim(2, 2, alchemy), loom: one(loom),

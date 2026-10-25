@@ -16,7 +16,7 @@
 import { Texture } from 'pixi.js';
 import { Iso } from './isokit';
 import type { Building } from '@eigenlands/shared';
-import { hash2 } from '@eigenlands/shared';
+import { hash2, isCaveY, isDiveY } from '@eigenlands/shared';
 import { bigTextC, bigTextWidth, C, makeCanvas, put, rasterPixels, rampAt, undithered, type Ctx, type Ramp } from './shade';
 
 export const WALL_H = 44;
@@ -84,6 +84,11 @@ function drawBoxes(ctx: Ctx, w: number, h: number, left: number, top: number, bo
   }
 }
 
+export const buildingRealm=(b:Building):'surface'|'cave'|'sea'=>isDiveY(b.y)?'sea':isCaveY(b.y)?'cave':'surface';
+const CAVE_STYLE:Style={wall:[C.night,C.slate,C.steel,C.mist,C.fog],timber:null,kind:'stone',shutter:null,roof:[C.night,C.slate,C.steel,C.mist,C.fog],roofKind:'slate',trim:C.e3};
+const SEA_STYLE:Style={wall:[C.w0,C.w1,C.w2,C.mist,C.pale],timber:null,kind:'stone',shutter:null,roof:[C.w0,C.w1,C.w2,C.w3,C.w5],roofKind:'tile',trim:C.pale};
+const styleFor=(b:Building)=>buildingRealm(b)==='cave'?CAVE_STYLE:buildingRealm(b)==='sea'?SEA_STYLE:STYLES[b.style%4]!;
+
 function wallMat(b: Building, st: Style, seed: number, interior: boolean, capC: number): Mat {
   const x1 = b.x + b.w, y1 = b.y + b.h;
   const winTile = (face: Face, x: number, y: number): boolean => {
@@ -114,7 +119,8 @@ function wallMat(b: Building, st: Style, seed: number, interior: boolean, capC: 
     }
     // windows
     if (winTile(face, x, y) && z >= 15 && z < 33) {
-      const inU = fu >= 0.28 && fu <= 0.72, inZ = z >= 17 && z < 31;
+      const realm=buildingRealm(b);
+      const inU = fu >= 0.28 && fu <= 0.72 && (realm==='surface'||Math.hypot((fu-.5)*28,(z-24)*.65)<5), inZ = z >= 17 && z < 31;
       if (inU && inZ) {
         const frame = fu < 0.34 || fu > 0.66 || z < 18 || z >= 30 || Math.abs(fu - 0.5) < 0.03 || Math.abs(z - 24) < 0.6;
         if (frame) return st.kind === 'siding' ? C.pale : (st.timber ? st.timber[1]! : C.slate);
@@ -163,19 +169,23 @@ function buildRoof(b: Building, st: Style, seed: number): { canvas: HTMLCanvasEl
   const rise = Math.min(span * 11, 40);
   const zE = WALL_H, zR = zE + rise;
   const mid = alongX ? b.y + b.h / 2 : b.x + b.w / 2;
-  const roofZ = (x: number, y: number) => zE + rise * (1 - Math.abs((alongX ? y : x) - mid) / span);
+  const realm=buildingRealm(b);
+  const roofZ = (x: number, y: number) => {
+    const d=Math.min(1,Math.abs((alongX?y:x)-mid)/span);
+    return zE+(realm==='cave'?18*Math.sqrt(Math.max(0,1-d*d)):realm==='sea'?28*Math.sqrt(Math.max(0,1-d*d)):rise*(1-d));
+  };
   const inFoot = (x: number, y: number) => x >= X0 && x <= X1 && y >= Y0 && y <= Y1;
   const inWalls = (x: number, y: number) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
   const big = b.kind === 'hall' || b.kind === 'inn' || b.kind === 'smithy' || b.kind === 'farmhouse' || b.kind === 'house';
-  const ch = big ? { x0: alongX ? b.x + b.w * 0.7 : mid + 0.2, y0: alongX ? mid - 0.9 : b.y + b.h * 0.3, s: 0.75 } : null;
+  const ch = realm==='surface'&&big ? { x0: alongX ? b.x + b.w * 0.7 : mid + 0.2, y0: alongX ? mid - 0.9 : b.y + b.h * 0.3, s: 0.75 } : null;
   const chTop = zR + 8;
   const L = Math.floor((X0 - Y1) * 16) - 2, R = Math.ceil((X1 - Y0) * 16) + 2;
-  const hasCanopy = b.kind === 'hall' || b.kind === 'inn' || b.kind === 'store' || b.id === 'bakery';
+  const hasCanopy = realm==='surface'&&(b.kind === 'hall' || b.kind === 'inn' || b.kind === 'store' || b.id === 'bakery');
   const top = Math.floor((X0 + Y0) * 8 - chTop) - 3, bot = Math.ceil((X1 + Y1) * 8 - zE) + (hasCanopy ? 28 : 6);
   // Small cross-gables emerge from the camera-facing slope. Their volume is
   // intersected by the same world-space rays as the main roof, so valleys and
   // chimney occlusion remain correct in both ridge orientations.
-  const count = b.kind === 'inn' || b.kind === 'hall' ? 2 : b.kind === 'farmhouse' || b.id === 'library' ? 1 : 0;
+  const count = realm!=='surface'?0:b.kind === 'inn' || b.kind === 'hall' ? 2 : b.kind === 'farmhouse' || b.id === 'library' ? 1 : 0;
   const dormers = Array.from({ length: count }, (_, i) => {
     const a = (alongX ? b.x : b.y) + (alongX ? b.w : b.h) * ((i + 1) / (count + 1));
     const n = mid + span * 0.63;
@@ -200,7 +210,7 @@ function buildRoof(b: Building, st: Style, seed: number): { canvas: HTMLCanvasEl
   for (let py = 0; py < h; py++) for (let px = 0; px < w; px++) {
     const P = (px + 0.5 + L) / 16, sy = py + 0.5 + top;
     const ax=(sy/8+P)/2,ay=(sy/8-P)/2;
-    let cap=boxCap(ax,ay,X0,Y0,X1,Y1,gableCap(alongX?ay:ax,mid,zE,rise,rise/span));
+    let cap=boxCap(ax,ay,X0,Y0,X1,Y1,realm==='surface'?gableCap(alongX?ay:ax,mid,zE,rise,rise/span):zE+(realm==='cave'?18:28));
     if(ch)cap=Math.max(cap,boxCap(ax,ay,ch.x0,ch.y0,ch.x0+ch.s,ch.y0+ch.s,chTop));
     for(const d of dormers)cap=Math.max(cap,boxCap(ax,ay,alongX?d.a-d.half:d.n0,alongX?d.n0:d.a-d.half,alongX?d.a+d.half:d.n1,alongX?d.n1:d.a+d.half,gableCap(alongX?ax:ay,d.a,d.eave,9,9/d.half)));
     if(!Number.isFinite(cap))continue;
@@ -265,7 +275,11 @@ function buildRoof(b: Building, st: Style, seed: number): { canvas: HTMLCanvasEl
         let t = 0.55 + lit;
         let c: number;
         if (Math.abs(down) < 0.12) { c = rampAt(R0, 0.85 + lit, px, py); put(ctx, px, py, c); break; }   // ridge cap
-        if (st.roofKind === 'thatch') {
+        if(realm==='cave'){
+          const rib=Math.floor(apx)%32;t+=(rib<3?.32:rib<5?-.2:0)+(Math.floor(dpx)%7===0?-.12:0);
+        }else if(realm==='sea'){
+          const rib=Math.floor(apx)%24;t+=(rib<2?.25:0)+(Math.floor(dpx)%6===0?-.12:0);
+        }else if (st.roofKind === 'thatch') {
           const strand = hash2(seed, Math.floor(apx / 3), Math.floor(dpx / 4), 9);
           const course = Math.floor(dpx) % 10;
           t += (strand - 0.5) * 0.14 + (course === 0 ? -0.18 : course < 2 ? 0.1 : 0);
@@ -299,7 +313,7 @@ function buildRoof(b: Building, st: Style, seed: number): { canvas: HTMLCanvasEl
         if (win) {
           const r = Math.hypot((u - cu) * 16, (z - zMid)) ;
           c = r > 4.2 ? C.e1 : (r < 1 || Math.abs((u - cu) * 16) < 0.5 || Math.abs(z - zMid) < 0.5) ? C.e1 : (z > zMid ? C.w4 : C.w2);
-        } else if (STYLES[b.style % 4]!.kind === 'stone') c = rampAt(STYLES[1]!.wall, gableFace === 'east' ? 0.35 : 0.65, px, py);
+        } else if (st.kind === 'stone') c = rampAt(st.wall, gableFace === 'east' ? 0.35 : 0.65, px, py);
         else {
           const boards = Math.floor(u * 16 / 3);
           c = Math.floor(u * 16) % 3 === 0 ? C.e1 : rampAt([C.e1, C.e2, C.e3, C.e4], (gableFace === 'east' ? 0.35 : 0.7) + (hash2(seed, boards, 0, 12) - 0.5) * 0.25, px, py);
@@ -366,7 +380,7 @@ function signTexture(kind: string): HTMLCanvasElement | null {
 export function buildBuildingArt(b: Building): BuildingArt { return undithered(() => buildBuildingArtInner(b)); }
 function buildBuildingArtInner(b: Building): BuildingArt {
   const seed = b.x * 31 + b.y * 17;
-  const st = STYLES[b.style % 4]!;
+  const st = styleFor(b);
   const x1 = b.x + b.w, y1 = b.y + b.h;
   const walls: WallPiece[] = [];
   const windows: Array<{ x: number; y: number }> = [];

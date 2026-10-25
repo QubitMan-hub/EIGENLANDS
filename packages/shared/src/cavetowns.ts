@@ -15,7 +15,7 @@ export function caveTowns(seed: number): Town[] {
   for(let i=0;i<4;i++){
    const x=p.cx+(i%2?7:-22),y=p.cy+(i<2?-17:7);
    const b:Building={id:`${p.id}.house${i}`,kind:i===0?'store':i===1?'smithy':i===2?'inn':'house',x,y,w:12,h:9,doorX:x+5,doorY:y+8,style:p.id==='prismdelve'?2:0};
-   t.buildings.push(b);rect(x,y,12,9,T.WALL);rect(x+1,y+1,10,7,T.FLOOR);set(b.doorX,b.doorY,T.FLOOR);
+   t.buildings.push(b);rect(x,y,12,9,T.WALL);rect(x+1,y+1,10,7,i===2?T.FLOOR:T.VAULT_FLOOR);set(b.doorX,b.doorY,T.FLOOR);
    for(let yy=Math.min(b.doorY+1,p.cy);yy<=Math.max(b.doorY+1,p.cy);yy++)set(b.doorX,yy,T.PATH);
    furnish(b,(ox,oy,kind,sub)=>t.objects.push({x:ox,y:oy,kind,sub}),(id,sx,sy)=>{t.spots[`${p.id}.${id}`]={x:sx,y:sy};});
   }

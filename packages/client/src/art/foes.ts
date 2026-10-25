@@ -459,7 +459,7 @@ function encounterDef(moth:boolean):Def{return{w:48,h:44,ay:36,shadow:moth?[6,3]
 }};}
 
 /** Original cave fauna, with restrained idle poses and distinct windup silhouettes. */
-function caveFauna(form:number):Def{return{w:form>=6?64:48,h:form>=6?64:46,ay:form>=6?56:39,shadow:form>=6?[12,5]:[7,3],n:{idle:4,move:6,windup:4,attack:3,hurt:2,death:5},draw(s,a,k,t){
+function caveFauna(form:number):Def{return{w:form===8?96:form>=6?64:48,h:form===8?96:form>=6?64:46,ay:form===8?86:form>=6?56:39,shadow:form===8?[20,8]:form>=6?[12,5]:[7,3],n:form===8?{idle:2,move:4,windup:3,attack:3,hurt:1,death:4}:{idle:4,move:6,windup:4,attack:3,hurt:2,death:5},draw(s,a,k,t){
  const moving=a==='move',wind=a==='windup',dead=a==='death',pulse=moving?Math.sin(t*TAU):0;
  const colors=[0x6c547a,0x67917b,0x628eac,0x9c8772,0x9bc4d4,0x397c87,0x867f80,0x658d77,0x92795f];
  const shell=M(ramp(colors[form]!,3,2,{hue:9})),dark=M(ramp(0x30353f,2,2)),ivory=M(ramp(0xd9c5a1,2,1));
@@ -478,10 +478,25 @@ function caveFauna(form:number):Def{return{w:form>=6?64:48,h:form>=6?64:46,ay:fo
   for(const side of[-1,1]){s.cap([0,side*2,z+3],[3,side*5,z+(wind?8:1)],1.1*scale,.7*scale,ivory);s.sph([2,side*4,z+10*scale],1*scale,glow);}
   for(let i=0;i<5;i++)s.sph([Math.cos(i*2.4)*4*scale,Math.sin(i*2.4)*4*scale,z+11*scale],.7*scale,ivory);
  }else if(form===8){
-  s.ell([0,0,z+10],[9,8,12],shell);s.ell([0,0,z+1],[12,10,3],dark);s.sph([0,0,z+23],3,ivory);
-  for(const side of[-1,1]){s.cap([0,side*7,z+10],[4,side*13,z+(wind?16:4)],2.5,2,shell);s.sph([4,side*13,z+(wind?16:4)],3,ivory);s.glowPx([8,side*3,z+13],0xa3e8df);}
-  s.line([8,-4,z+6],[8,4,z+6],0x9cded7,2);
-  for(const side of[-1,1]){s.line([7,side*5,z+5],[7,side*5,z+15],0x4c6867,2);s.line([8,side*4,z+8],[8,side*4,z+12],0xa3e8df,1);}s.sph([0,0,z-1],2.5,ivory);
+  const iron=M(ramp(0x40434c,3,2,{hue:8}),{shiny:true}),bronze=M(ramp(0x81704d,3,2)),voidM=M(rampOf([0x10141f,0x1c2630],0));
+  const lift=wind?8:a==='attack'?-5:0,fall=dead?t*22:0;
+  s.push(I3,[0,0,0],[0,0,-fall]);
+  // Hollow iron bell cuirass, flared skirt and a skull recessed in the split crown.
+  s.ell([0,0,26],[14,11,19],iron);s.ell([0,0,10],[18,14,4],bronze);
+  s.ell([10,0,34],[6,7,10],voidM);s.ell([13,0,36],[3.5,4.5,6],ivory);
+  for(const side of[-1,1]){
+   s.ell([15,side*2.4,38],[1.6,1.2,1.1],voidM);s.glowPx([16,side*2.4,38],0x9dece0);
+   s.cap([-1,side*8,43],[-3,side*12,57],3,.2,bronze);
+   s.cap([0,side*10,32],[-1,side*20,25+lift],4,3,iron);
+   s.cap([-1,side*20,25+lift],[8,side*24,15+lift],3,1.8,ivory);
+   for(let finger=0;finger<3;finger++)s.cap([8,side*(23+finger),15+lift],[12,side*(23+finger),10+lift],.8,.15,ivory);
+   for(let i=0;i<6;i++)s.ell([-2,side*18,22+lift-i*3],[1.2,.7,1.8],bronze);
+   s.line([12,side*5,17],[12,side*5,28],0x8bbab5,1);
+  }
+  for(let i=0;i<7;i++){const y=(i-3)*3.2;s.cap([9,y,23],[12,y,10],1.4,.5,bronze);}
+  s.sph([0,0,7],3,glow);s.cap([0,0,7],[0,0,23],.8,.8,bronze);
+  for(const side of[-1,1])s.cap([0,side*6,9],[4,side*8,1],2.5,1.8,iron);
+  s.pop();
  }else{
   const r=scale;s.ell([0,0,z],[5*r,4*r,3.5*r],shell);s.ell([4*r,0,z+1],[2.5*r,3*r,2*r],dark);
   for(const side of[-1,1])for(let i=0;i<(form===4?4:2);i++){const x=(-3+i*(form===4?2:6))*r,step=moving?Math.sin(t*TAU+i+side)*1.5:0;s.cap([x,side*3*r,z-1],[x+step,side*5*r,1],1*r,.5*r,shell);}
