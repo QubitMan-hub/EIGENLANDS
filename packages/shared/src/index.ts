@@ -65,3 +65,6 @@ export * from './mines';
 export * from './caves2';
 export * from './survival';
 export * from './realms';
+export * from './kingdoms';
+export * from './realm-towns';
+export * from './realm-npcs';

@@ -27,6 +27,10 @@ export interface NpcDef {
   loves: string[];
   likes: string[];
   hates: string[];
+  /** world revision 5: the kingdom, role and settlement plot of a kingdom resident */
+  realm?: string;
+  role?: string;
+  site?: string;
   shop?: {
     name: string;
     stock: ShopStock[];

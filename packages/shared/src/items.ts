@@ -480,6 +480,19 @@ const FOOD: Array<[string, string, number, Glyph, number, number, number, ItemDe
   ['hearty_stew', 'Hearty Stew', 210, 'bowl', C.e3, C.r4, 70, { kind: 'regen', secs: 120, power: 2 }],
   ['baked_yam', 'Baked Yam', 95, 'root', C.q4, C.e5, 32],
   ['qubit_tea', 'Qubit Tea', 260, 'bottle', C.q4, C.q7, 20, { kind: 'lantern', secs: 600, power: 1 }],
+  // ── kingdom cuisine (world revision 5): signature dishes of the six great kingdoms
+  ['knights_pie', "Knight's Pie", 170, 'pie', C.e4, C.e6, 55, { kind: 'might', secs: 150, power: 0.12 }],
+  ['honey_cake', 'Aurelian Honey Cake', 120, 'pie', C.e6, C.e7, 38, { kind: 'regen', secs: 80, power: 1.2 }],
+  ['glowcap_broth', 'Glowcap Broth', 140, 'bowl', C.w4, C.w7, 36, { kind: 'lantern', secs: 600, power: 1 }],
+  ['hazel_loaf', 'Hazelnut Loaf', 100, 'pie', C.e3, C.e5, 34, { kind: 'ward', secs: 150, power: 0.12 }],
+  ['forge_stew', 'Forge-Fire Stew', 190, 'bowl', C.r3, C.e6, 60, { kind: 'warmth', secs: 360, power: 0.8 }],
+  ['cave_bread', 'Cave-Cheese Bread', 95, 'pie', C.e5, C.e7, 32, { kind: 'ward', secs: 120, power: 0.1 }],
+  ['cherry_mochi', 'Cherry Mochi', 110, 'jar', C.r5, C.white, 34, { kind: 'might', secs: 120, power: 0.1 }],
+  ['thunder_noodles', 'Thunder Noodles', 180, 'bowl', C.e4, C.w6, 55, { kind: 'might', secs: 180, power: 0.15 }],
+  ['reef_ceviche', 'Reef Ceviche', 170, 'fish', C.w4, C.g6, 42, { kind: 'coolness', secs: 360, power: 0.8 }],
+  ['crab_chowder', 'Pearl-Crab Chowder', 175, 'bowl', C.e6, C.w5, 56, { kind: 'ward', secs: 150, power: 0.15 }],
+  ['ember_stew', 'Ember-Pepper Stew', 185, 'bowl', C.r4, C.e7, 58, { kind: 'warmth', secs: 300, power: 0.6 }],
+  ['cinder_cake', 'Cinder Cake', 125, 'pie', C.night, C.r5, 36, { kind: 'regen', secs: 90, power: 1.5 }],
 ];
 for (const [id, name, v, g, a, b, heal, buff] of FOOD)
   def(id, name, 'food', v, g, a, b, 'Cooked at the pot. Eat it for health.', { heal, buff });

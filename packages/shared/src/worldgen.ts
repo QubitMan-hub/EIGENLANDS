@@ -241,8 +241,10 @@ function surfaceTileAt(seed: number, x: number, y: number, legacy: boolean, gene
   const sanctuary = sanctuaryTileAt(seed, x, y);
   if (sanctuary !== null) return sanctuary;
   if (isCaveY(y))
-    return townTileAt(seed, x, y) ?? (!legacy && gen >= 4 ? caveTileAt2(seed, x, y) : caveTileAt(seed, x, y, legacy));
-  const tt = townTileAt(seed, x, y);
+    return (
+      townTileAt(seed, x, y, gen) ?? (!legacy && gen >= 4 ? caveTileAt2(seed, x, y) : caveTileAt(seed, x, y, legacy))
+    );
+  const tt = townTileAt(seed, x, y, gen);
   if (tt !== null) return tt;
   if (isUpperY(y)) return T.UPPER_VOID;
   // Spawn shrine: path disc, four torches.

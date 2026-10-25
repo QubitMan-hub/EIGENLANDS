@@ -12,7 +12,12 @@ function reach(from: { x: number; y: number }, x0: number, y0: number, x1: numbe
   seen.add(key(from.x, from.y));
   while (q.length) {
     const [x, y] = q.pop()!;
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ] as const) {
       const nx = x + dx,
         ny = y + dy;
       if (nx < x0 || nx > x1 || ny < y0 || ny > y1 || seen.has(key(nx, ny)) || !open(nx, ny)) continue;

@@ -20,7 +20,8 @@ export interface WorldGenerationMeta {
   version: WorldGeneration;
   migratedFrom?: 1;
 }
-export const isWorldGeneration = (v: unknown): v is WorldGeneration => v === 1 || v === 2 || v === 3 || v === 4 || v === 5;
+export const isWorldGeneration = (v: unknown): v is WorldGeneration =>
+  v === 1 || v === 2 || v === 3 || v === 4 || v === 5;
 
 /**
  * Decide a world's revision from its saved metadata.

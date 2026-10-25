@@ -407,6 +407,127 @@ r(
   'discover',
   'Like a potato, but sweeter.',
 );
+// ── kingdom cuisine (world revision 5)
+const KING_DISH: Array<[string, Array<[string, number]>, number, string]> = [
+  [
+    'knights_pie',
+    [
+      ['potato', 1],
+      ['grilled_meat', 1],
+      ['egg', 1],
+    ],
+    9,
+    'Meat, potato and egg in a crust.',
+  ],
+  [
+    'honey_cake',
+    [
+      ['milk', 1],
+      ['egg', 1],
+      ['blueberry', 2],
+    ],
+    8,
+    'Milk, egg and sweet berries.',
+  ],
+  [
+    'glowcap_broth',
+    [
+      ['mushroom', 2],
+      ['healing_herb', 1],
+    ],
+    8,
+    'Mushrooms and herbs, slowly simmered.',
+  ],
+  [
+    'hazel_loaf',
+    [
+      ['hazelnut', 3],
+      ['egg', 1],
+    ],
+    7,
+    'Ground hazelnuts, baked.',
+  ],
+  [
+    'forge_stew',
+    [
+      ['coal', 1],
+      ['raw_meat', 1],
+      ['potato', 1],
+    ],
+    9,
+    'Cooked over coals until it glows.',
+  ],
+  [
+    'cave_bread',
+    [
+      ['milk', 1],
+      ['hay', 1],
+      ['mushroom', 1],
+    ],
+    6,
+    'Dense bread and sharp cheese.',
+  ],
+  [
+    'cherry_mochi',
+    [
+      ['blackberry', 2],
+      ['milk', 1],
+    ],
+    7,
+    'Soft rice-cake with fruit.',
+  ],
+  [
+    'thunder_noodles',
+    [
+      ['egg', 1],
+      ['wild_leek', 1],
+      ['fish_fry', 1],
+    ],
+    10,
+    'Noodles in a smoky broth.',
+  ],
+  [
+    'reef_ceviche',
+    [
+      ['sailfin', 1],
+      ['tomato', 1],
+    ],
+    9,
+    'Raw fish cured in citrus and salt.',
+  ],
+  [
+    'crab_chowder',
+    [
+      ['perch', 1],
+      ['milk', 1],
+      ['potato', 1],
+    ],
+    9,
+    'Rich seafood chowder.',
+  ],
+  [
+    'ember_stew',
+    [
+      ['raw_meat', 1],
+      ['tomato', 1],
+      ['coal', 1],
+    ],
+    10,
+    'Fiercely spiced stew.',
+  ],
+  [
+    'cinder_cake',
+    [
+      ['egg', 1],
+      ['milk', 1],
+      ['coal', 1],
+    ],
+    8,
+    'A dark, dense, smoky cake.',
+  ],
+];
+for (const [id, ing, xp, hint] of KING_DISH) r(id, 'cooking_pot', ing, [id, 1], xp, 'discover', hint);
+
 r(
   'veggie_stew',
   'cooking_pot',
