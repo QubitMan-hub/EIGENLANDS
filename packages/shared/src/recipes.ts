@@ -571,6 +571,68 @@ r(
   'Iron and herbs.',
 );
 r(
+  'bandage',
+  'alchemy',
+  [
+    ['cloth', 1],
+    ['healing_herb', 1],
+  ],
+  ['bandage', 2],
+  4,
+  'start',
+  'Clean cloth and a herb poultice.',
+);
+r(
+  'antidote',
+  'alchemy',
+  [
+    ['healing_herb', 2],
+    ['slime_gel', 1],
+  ],
+  ['antidote', 1],
+  6,
+  'start',
+  'Herbs bound with gel draw out poison.',
+);
+r(
+  'burn_salve',
+  'alchemy',
+  [
+    ['healing_herb', 2],
+    ['milk', 1],
+  ],
+  ['burn_salve', 1],
+  6,
+  'discover',
+  'Herbs and milk soothe a burn.',
+);
+r(
+  'warming_tonic',
+  'alchemy',
+  [
+    ['sunpetal', 1],
+    ['coal', 1],
+    ['healing_herb', 1],
+  ],
+  ['warming_tonic', 1],
+  8,
+  'discover',
+  'A bright flower, a coal and a herb: warmth in a bottle.',
+);
+r(
+  'cooling_tonic',
+  'alchemy',
+  [
+    ['daffodil', 1],
+    ['slime_gel', 1],
+    ['healing_herb', 1],
+  ],
+  ['cooling_tonic', 1],
+  8,
+  'discover',
+  'A cool flower, gel and a herb.',
+);
+r(
   'lantern_potion',
   'alchemy',
   [

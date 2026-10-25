@@ -14,6 +14,8 @@ Source: [complete user request](design/master-request.md). Both pasted uploads a
 
 - [x] IMPLEMENTED & TESTED — Undercroft 2 (world revision 4): organic warped caves with continuous biomes, embedded vein ores, cave terraces, steerable haulage mine lines with buffers, delver camps with four travelling merchants, sealed/echo vault shrines with trials, six biome monsters and four new arena bosses. Flood-fill connectivity, terrace-cliff, feature-spread and server trial/boss/merchant tests pass. Not done: additional full cave towns, boss-specific loot, device performance proof.
 
+- [~] IN PROGRESS — Survival (§8): body temperature (biome/cave/season/weather/fire/shelter), bleeding, poison, burns, frostbite, bandage/antidote/salve/tonics, Hardcore difficulty, HUD warmth bar and chips. Server, shared and HUD tests pass. Open: clothing warmth, camping gear, food storage, magical conditions, fracture.
+
 Implementation references: `packages/client/src/art`, `game`, `ui`, `features`; `packages/shared/src`; `packages/server/src`. Dependencies: preserve shared authoritative rules, chunk/shard persistence and existing saves. Evidence: the latest continuation passed all 405 workspace tests (52 client, 215 server, 138 shared), typechecks and both production builds, plus solo/multiplayer and mobile browser checks. Only individually listed slices are complete; the full master overhaul remains IN PROGRESS.
 
 ## Implementation map and remaining dependencies
@@ -470,11 +472,11 @@ Slice delivered 2026-10-25: legacy navy/rounded styles in `style.css` (toasts, c
 
 ### Temperature
 
-- [ ] NOT STARTED — Heat, cold, weather exposure, appropriate clothing, fires, and shelter.
+- [~] IN PROGRESS — Heat, cold, weather exposure, appropriate clothing, fires, and shelter.
 
 ### Injuries and conditions
 
-- [ ] NOT STARTED — Poison, bleeding, burns, frostbite, exhaustion, and magical conditions.
+- [~] IN PROGRESS — Poison, bleeding, burns, frostbite, exhaustion, and magical conditions.
 
 ### Survival supplies
 
@@ -484,7 +486,7 @@ Slice delivered 2026-10-25: legacy navy/rounded styles in `style.css` (toasts, c
 
 - [ ] NOT STARTED — Cozy — Relaxed farming and building.
 - [ ] NOT STARTED — Adventure — Balanced survival and progression.
-- [ ] NOT STARTED — Hardcore — Demanding RLCraft-inspired survival and dangerous encounters.
+- [x] IMPLEMENTED & TESTED — Hardcore — Demanding RLCraft-inspired survival and dangerous encounters.
 - [ ] NOT STARTED — Survival should reward knowledge and planning without forcing endless frustrating micromanagement.
 - [ ] NOT STARTED — The UI must clearly communicate every survival mechanic.
 

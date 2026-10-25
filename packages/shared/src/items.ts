@@ -110,6 +110,22 @@ import {
 export interface ToolSpec {
   type: 'axe' | 'pickaxe' | 'hoe' | 'can' | 'rod' | 'net';
 }
+/** Timed effects stored as server buffs: boons, resistances and injuries. */
+export type BuffKind =
+  'regen' | 'might' | 'ward' | 'lantern' | 'bleed' | 'poison' | 'burn' | 'frostbite' | 'warmth' | 'coolness';
+export const BUFF_KIND_LIST: readonly BuffKind[] = [
+  'regen',
+  'might',
+  'ward',
+  'lantern',
+  'bleed',
+  'poison',
+  'burn',
+  'frostbite',
+  'warmth',
+  'coolness',
+];
+
 export interface ItemDef {
   id: string;
   name: string;
@@ -125,7 +141,9 @@ export interface ItemDef {
   /** food/potion */
   heal?: number;
   nourishment?: number;
-  buff?: { kind: 'regen' | 'might' | 'ward' | 'lantern'; secs: number; power: number };
+  buff?: { kind: BuffKind; secs: number; power: number };
+  /** medicine: injuries this item cures */
+  cure?: Array<'bleed' | 'poison' | 'burn' | 'frostbite'>;
   /** placeable: world object subtype created */
   place?: {
     kind: 'station' | 'sprinkler' | 'shelter' | 'chest' | 'furniture' | 'sign' | 'fence' | 'structure';
@@ -477,6 +495,22 @@ def('ward_potion', 'Warding Potion', 'potion', 140, 'bottle', C.w4, C.w7, 'Take 
 });
 def('lantern_potion', 'Night-Sight Potion', 'potion', 100, 'bottle', C.q4, C.q7, 'See further in the dark.', {
   buff: { kind: 'lantern', secs: 600, power: 1 },
+});
+
+// ── survival medicine and tonics (master plan §8)
+def('bandage', 'Bandage', 'potion', 25, 'bottle', C.pale, C.e6, 'Stops bleeding. Heals a little.', {
+  heal: 10,
+  cure: ['bleed'],
+});
+def('antidote', 'Antidote', 'potion', 60, 'bottle', C.g4, C.g7, 'Clears poison.', { cure: ['poison'] });
+def('burn_salve', 'Burn Salve', 'potion', 70, 'bottle', C.w3, C.e6, 'Soothes burns and frostbite.', {
+  cure: ['burn', 'frostbite'],
+});
+def('warming_tonic', 'Warming Tonic', 'potion', 90, 'bottle', C.r4, C.e7, 'Resist the cold for a long while.', {
+  buff: { kind: 'warmth', secs: 420, power: 0.7 },
+});
+def('cooling_tonic', 'Cooling Tonic', 'potion', 90, 'bottle', C.w5, C.w7, 'Resist the heat for a long while.', {
+  buff: { kind: 'coolness', secs: 420, power: 0.7 },
 });
 
 // ── fertilizers

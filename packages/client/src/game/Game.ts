@@ -1849,7 +1849,7 @@ export class Game {
     hintEl.hidden = !tip || this.gameplay.blocking || this.settingsOpen() || this.input.armed !== null;
     if (tip) hintEl.textContent = tip;
     const needs = this.gameplay.profile.needs;
-    document.body.classList.toggle('needs-enabled', needs.mode === 'adventure');
+    document.body.classList.toggle('needs-enabled', needs.mode !== 'cozy');
     $('coins').textContent = `${this.gameplay.profile.coins} coins`;
     if (s) {
       const sim = this.predictor.sim;
@@ -1866,7 +1866,7 @@ export class Game {
             charges: sim.dashN,
             max: DASH_CHARGES,
           },
-          needs: needs.mode === 'adventure' ? { food: needs.food, water: needs.water } : null,
+          needs: needs.mode !== 'cozy' ? { food: needs.food, water: needs.water, temp: needs.temp } : null,
           auras: this.ext.circuit.auras(this.myId),
           buffs: this.gameplay.profile.buffs,
           serverNow: sn,

@@ -1,5 +1,12 @@
 import { generationMeta, tileAt, isSolid, validAppearance } from '@eigenlands/shared';
-import { caveBiomeAt, caveRegionAt, highGroundRange } from '@eigenlands/shared';
+import {
+  DIFFICULTY_RULES,
+  ENEMY_KEY_BY_KIND,
+  caveBiomeAt,
+  caveRegionAt,
+  highGroundRange,
+  injuryOnHit,
+} from '@eigenlands/shared';
 import { Client, Room, ServerError } from 'colyseus';
 import { StateView } from '@colyseus/schema';
 import {
@@ -133,7 +140,7 @@ import { addSkillXp, giveStacks } from '../systems/helpers';
 import { handleEquip, handleInvMove, handleInvTrash, lookOf } from '../systems/inventory';
 import { ObjectManager } from '../systems/objects';
 import { loadPlayerData, serializePlayerData } from '../systems/profile';
-import { setTravelMode, tickTravelNeeds } from '../systems/travel-needs';
+import { inflict, setTravelMode, tickTravelNeeds } from '../systems/travel-needs';
 import { handleUse } from '../systems/tools';
 import { handleDev } from '../systems/dev';
 import { onKill, registerQuests } from '../systems/quests';
@@ -1433,8 +1440,12 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       e,
     );
     if (dmg <= 0) return false; // dodged or absorbed by a Phase 3 ability
-    p.hp = Math.max(0, p.hp - dmg);
+    p.hp = Math.max(0, p.hp - (p.data.needs.mode === 'hardcore' ? Math.round(dmg * 1.25) : dmg));
     p.invuln = 0.5;
+    // wounds: some creatures leave an injury behind (Adventure and Hardcore only)
+    const hit = injuryOnHit(ENEMY_KEY_BY_KIND[e.def.kind] ?? '');
+    if (hit && this.rand() < Math.min(0.9, hit.chance * DIFFICULTY_RULES[p.data.needs.mode].injury))
+      inflict(this, p, hit.cond);
     const l = Math.hypot(dirX, dirY) || 1;
     const shove = weight >= 2 ? 0.6 : 0.3;
     moveBody(p.sim, (dirX / l) * shove, (dirY / l) * shove, PLAYER_RADIUS, this.store.solidAt); // server authoritative; the client reconciles

@@ -63,3 +63,4 @@ export * from './construction';
 export * from './undercroft';
 export * from './mines';
 export * from './caves2';
+export * from './survival';

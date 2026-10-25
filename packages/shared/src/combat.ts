@@ -1397,6 +1397,10 @@ export const ENEMY_BY_KIND: EnemyDef[] = [
   ENEMY_DEFS.tide_leviathan,
 ];
 export type EnemyKindName = keyof typeof ENEMY_DEFS;
+/** ENEMY_DEFS key by numeric kind, for rules that are written by species name. */
+export const ENEMY_KEY_BY_KIND: Record<number, string> = Object.fromEntries(
+  Object.entries(ENEMY_DEFS).map(([k, d]) => [d.kind, k]),
+);
 
 export const NIGHT_HP_MULT = 1.6;
 export const NIGHT_DMG_MULT = 1.4;

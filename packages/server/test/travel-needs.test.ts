@@ -20,7 +20,7 @@ afterAll(async () => {
   await app?.close();
 });
 it('defaults to Cozy, validates mode-only requests and pauses towns/death while wilderness exhaustion stays nonlethal', async () => {
-  expect(p.data.needs).toEqual({ mode: 'cozy', food: 100, water: 100 });
+  expect(p.data.needs).toEqual({ mode: 'cozy', food: 100, water: 100, temp: 0 });
   const safe = townFor(w.seed);
   p.sim.x = safe.cx;
   p.sim.y = safe.cy;
@@ -90,7 +90,7 @@ it('eats food at full health, never wastes full supplies, and refills the same s
   expect(p.data.inv[10].n).toBe(1);
 });
 it('persists fractional needs and mode across a real disconnect/rejoin without offline catch-up or mode refill', async () => {
-  p.data.needs = { mode: 'adventure', food: 42.5, water: 67.25 };
+  p.data.needs = { mode: 'adventure', food: 42.5, water: 67.25, temp: 0 };
   const town = townFor(w.seed);
   p.sim.x = town.cx;
   p.sim.y = town.cy;
@@ -101,7 +101,7 @@ it('persists fractional needs and mode across a real disconnect/rejoin without o
   await until(() => !!me(r));
   w = matchMaker.getLocalRoomById(lastRoomId());
   p = w.players.get(r.sessionId);
-  expect(p.data.needs).toEqual({ mode: 'adventure', food: 42.5, water: 67.25 });
+  expect(p.data.needs).toEqual({ mode: 'adventure', food: 42.5, water: 67.25, temp: 0 });
   r.send(MSG.TRAVEL_MODE, { mode: 'cozy' });
   await until(() => p.data.needs.mode === 'cozy');
   expect(p.data.needs.food).toBe(42.5);
@@ -112,7 +112,7 @@ it('loads an old character without needs as Cozy, keeping inventory/coins and gr
   delete old.needs;
   old.coins = 123;
   const data = loadPlayerData(old, 0, Date.now());
-  expect(data.needs).toEqual({ mode: 'cozy', food: 100, water: 100 });
+  expect(data.needs).toEqual({ mode: 'cozy', food: 100, water: 100, temp: 0 });
   expect(data.coins).toBe(123);
   expect(data.inv).toEqual(old.inv);
   expect(data.recipes.has('waterskin')).toBe(true);

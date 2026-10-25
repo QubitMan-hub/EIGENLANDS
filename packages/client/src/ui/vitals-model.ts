@@ -3,7 +3,7 @@
  * Nothing here touches the DOM or the canvas, so the behaviour is unit-tested.
  */
 
-export type GaugeId = 'health' | 'mana' | 'stamina' | 'food' | 'water';
+export type GaugeId = 'health' | 'mana' | 'stamina' | 'food' | 'water' | 'temp';
 
 /** Seconds the pale "damage trail" waits before draining, and how fast fill and trail then move (fraction/second). */
 export const TRAIL_HOLD = 0.42;
@@ -115,9 +115,32 @@ export const STATUS_DEFS: Record<string, StatusDef> = {
     icon: 'st_drop',
     desc: () => 'Water is empty. Fill a skin at a well.',
   },
-  // reserved: shown only when the server reports them (survival systems, master plan §8)
-  chill: { label: 'Chilled', tone: 'debuff', icon: 'st_chill', desc: () => 'Cold slows you down.' },
-  heat: { label: 'Overheated', tone: 'debuff', icon: 'st_heat', desc: () => 'Heat drains stamina faster.' },
+  burn: {
+    label: 'Burning',
+    tone: 'debuff',
+    icon: 'st_heat',
+    desc: () => 'Fire burns you. Salve it, or stand by water.',
+  },
+  frostbite: {
+    label: 'Frostbitten',
+    tone: 'debuff',
+    icon: 'st_chill',
+    desc: () => 'Frostbite drains health. Warm up by a fire or use a burn salve.',
+  },
+  warmth: { label: 'Warm tonic', tone: 'buff', icon: 'st_heat', desc: () => 'Cold barely touches you.' },
+  coolness: { label: 'Cool tonic', tone: 'buff', icon: 'st_chill', desc: () => 'Heat barely touches you.' },
+  chill: {
+    label: 'Chilled',
+    tone: 'debuff',
+    icon: 'st_chill',
+    desc: () => 'You are cold. Find a fire or shelter; extreme cold causes frostbite.',
+  },
+  heat: {
+    label: 'Overheated',
+    tone: 'debuff',
+    icon: 'st_heat',
+    desc: () => 'You are hot. Find shade or water; extreme heat drains health.',
+  },
   bleed: { label: 'Bleeding', tone: 'debuff', icon: 'st_bleed', desc: () => 'Losing health until bandaged.' },
   fracture: { label: 'Fracture', tone: 'debuff', icon: 'st_crack', desc: () => 'Movement is hampered until healed.' },
   poison: { label: 'Poisoned', tone: 'debuff', icon: 'st_poison', desc: () => 'Poison drains health over time.' },
@@ -140,7 +163,7 @@ export interface StatusInput {
   /** circuit auras currently on the player */
   auras: ReadonlyArray<'shield' | 'ward' | 'mirror'>;
   /** food/water 0..100 when Adventure needs are on, otherwise null */
-  needs: { food: number; water: number } | null;
+  needs: { food: number; water: number; temp?: number } | null;
 }
 
 const TONE_ORDER: Record<StatusTone, number> = { debuff: 0, need: 1, aura: 2, buff: 3 };
@@ -169,6 +192,9 @@ export function collectStatuses(input: StatusInput): StatusEntry[] {
       w = needTone(input.needs.water);
     if (f !== 'ok') push(f === 'empty' ? 'starving' : 'hungry', null);
     if (w !== 'ok') push(w === 'empty' ? 'dehydrated' : 'parched', null);
+    const t = input.needs.temp ?? 0;
+    if (t <= -35) push('chill', null);
+    else if (t >= 35) push('heat', null);
   }
   return out.sort((a, b) => TONE_ORDER[a.tone] - TONE_ORDER[b.tone] || (a.left ?? Infinity) - (b.left ?? Infinity));
 }

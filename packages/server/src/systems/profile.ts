@@ -1,6 +1,7 @@
 import {
   validTravelNeeds,
   WORLD_GENERATION,
+  BUFF_KIND_LIST,
   isWorldGeneration,
   CROPS,
   DEED_KINDS,
@@ -36,7 +37,7 @@ export interface DerivedStats {
   /** chance a hit passes straight through */ phase: number;
 }
 
-const BUFF_KINDS = new Set(['regen', 'might', 'ward', 'lantern']);
+const BUFF_KINDS = new Set<string>(BUFF_KIND_LIST);
 
 export function startRecipes(): string[] {
   return RECIPES.filter((r) => r.learn === 'start').map((r) => r.id);

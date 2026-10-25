@@ -102,7 +102,7 @@ export function buildJournal(
     firstSteps?: HTMLElement;
     track?: (id: string | null, map?: boolean) => void;
     tracked?: () => string | null;
-    travelMode?: (mode: 'cozy' | 'adventure') => void;
+    travelMode?: (mode: 'cozy' | 'adventure' | 'hardcore') => void;
   } = {},
 ): HTMLElement {
   ensureP2Styles();
@@ -159,11 +159,12 @@ export function buildJournal(
       mode.setAttribute('aria-label', 'Travel mode');
       mode.append(
         h('option', { value: 'cozy', text: 'Cozy · no depletion' }),
-        h('option', { value: 'adventure', text: 'Adventure · food and water' }),
+        h('option', { value: 'adventure', text: 'Adventure · food, water, weather, injuries' }),
+        h('option', { value: 'hardcore', text: 'Hardcore · harsher drain, injuries and hits' }),
       );
       mode.value = n.mode;
       mode.disabled = !options.travelMode;
-      mode.addEventListener('change', () => options.travelMode?.(mode.value as 'cozy' | 'adventure'));
+      mode.addEventListener('change', () => options.travelMode?.(mode.value as 'cozy' | 'adventure' | 'hardcore'));
       body.append(
         h(
           'section',
@@ -171,10 +172,16 @@ export function buildJournal(
           h('h3', { text: 'Travel needs' }),
           mode,
           h('p', {
-            text: `Food ${Math.ceil(n.food)}/100 · Water ${Math.ceil(n.water)}/100. ${n.mode === 'cozy' ? 'Cozy pauses depletion.' : 'Adventure needs are enabled.'}`,
+            text: `Food ${Math.ceil(n.food)}/100 · Water ${Math.ceil(n.water)}/100. ${n.mode === 'cozy' ? 'Cozy pauses depletion.' : n.mode === 'adventure' ? 'Adventure needs are enabled.' : 'Hardcore is on: faster drain, frequent injuries, harder hits.'}${n.mode === 'cozy' ? '' : ` Body warmth ${Math.round(n.temp)}.`}`,
           }),
           h('p', {
             text: 'Adventure uses food over about 30 minutes and water over 20 minutes at rest. Exertion costs more; desert thirst rises faster. Town wards, death and offline time pause depletion. At zero, exhaustion costs 1 HP every 10 seconds and stops at 1 HP. Switching modes never refills supplies.',
+          }),
+          h('p', {
+            text: 'Warmth (Adventure and Hardcore): deserts scorch at noon and freeze at night, taiga and the Rime Cathedral are cold, Cinder Hollows are hot, winter and snow chill you. Stand near a campfire, forge or torch, or go indoors, to settle toward comfort; warming and cooling tonics resist the extremes. Freezing or scorching for several seconds costs health, and freezing causes frostbite.',
+          }),
+          h('p', {
+            text: 'Injuries: wolves, boars and brutes can make you bleed (bandage), swamp and cave creatures poison (antidote), cinder creatures and lava burn (burn salve, or stand by water), frost creatures and freezing cause frostbite (burn salve or a fire). Bandages and antidotes are a start recipe at the alchemy bench; salves and tonics are discovered. Injuries never kill you outright; they stop at 1 HP.',
           }),
           h('p', {
             text: 'Food restores 25 nourishment, even at full health. Craft an empty waterskin from 1 hide + 2 fiber in Field crafting, select it in the quick-bar and Use it facing a town well. Each filled skin restores 35 water and keeps the empty container. Rivers and ocean water cannot fill it. The mode changes food and water needs only.',
