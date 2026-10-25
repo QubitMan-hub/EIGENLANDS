@@ -8,7 +8,7 @@ Open **Play with friends**, enter the game server's address, then select **Join 
 
 Cloudflare Pages (or the existing GitHub Pages site) can serve the static browser build. This repository's existing authoritative multiplayer backend is a **Node.js / Colyseus server with PostgreSQL**, not a Worker. Pages alone cannot host that process. Porting it to Durable Objects would be a separate backend migration.
 
-For occasional free games with friends, run the backend on your computer and use a **Cloudflare Tunnel**. There is no need to expose PostgreSQL or Redis to the internet. Your computer and tunnel must remain running. A temporary Quick Tunnel address changes when restarted; keep using the same database and session secret to retain everyone's characters. Free-service limits and availability remain subject to Cloudflare's current terms.
+For occasional free games with friends, run the backend on your computer and use a **Cloudflare Tunnel**. There is no need to expose PostgreSQL or Redis to the internet. Your computer and tunnel must remain running. A temporary Quick Tunnel address changes when restarted; keep using the same database and session secret to retain everyone's stored characters. Browser guest logins are scoped to the server address: a new Quick Tunnel URL is treated as a different server and will not automatically resume the old guest character. Use a stable named tunnel/address for ongoing progression, or configure Google sign-in on the same database so players can recover their accounts after an address change. Free-service limits and availability remain subject to Cloudflare's current terms.
 
 ## Run the server on your computer
 
