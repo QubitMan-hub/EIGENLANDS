@@ -36,6 +36,8 @@ import {
   season,
   PALETTE,
   townFor,
+  KINGDOMS,
+  inRealmLand,
   townsFor,
   weatherForDay,
   biomeWeather,
@@ -113,6 +115,7 @@ import { buildFoeSheets, type FoeSheets } from '../art/foes';
 import { CombatView } from './combatview';
 import { WindField } from './windfield';
 import { Ambient } from './ambient';
+import { WorldLife } from './life';
 import {
   HUE_PALETTE,
   ITEMS,
@@ -264,6 +267,7 @@ export class Game {
   private aimGfx = new Graphics();
   readonly wind = new WindField();
   private ambient!: Ambient;
+  private life!: WorldLife;
   private targetId: string | null = null;
   private targetFrame = new TargetFrame();
   private bobber = new Graphics();
@@ -399,6 +403,20 @@ export class Game {
       sheets: () => this.sheets,
       fx: () => this.fx,
       toScreen: (x, y) => ({ x: this.world.x + isoX(x, y) * this.scale, y: this.world.y + isoY(x, y) * this.scale }),
+    });
+    this.life = new WorldLife({
+      layer: () => this.entityLayer,
+      labels: () => this.labelLayer,
+      store: () => this.store,
+      seed: () => this.seed,
+      sheets: () => this.sheets,
+      foes: () => this.foes,
+      art: () => this.ambient.artOf(),
+      fx: () => this.fx,
+      sound: (s, x, y) => this.sound(s, x, y),
+      toScreen: (x, y) => ({ x: this.world.x + isoX(x, y) * this.scale, y: this.world.y + isoY(x, y) * this.scale }),
+      hostiles: () =>
+        [...this.views.values()].filter((v) => v.type === 'enemy' && v.root.visible).map((v) => ({ x: v.lx, y: v.ly })),
     });
     this.combat = new CombatView(
       {
@@ -647,6 +665,7 @@ export class Game {
     s.enemies.forEach((e: any, id: string) => push(id, e, 'enemy'));
     s.projectiles.forEach((p: any, id: string) => push(id, p, 'proj'));
     s.shadows?.forEach((p: any, id: string) => push(id, p, 'shadow'));
+    s.army?.forEach((p: any, id: string) => push(`ar:${id}`, p, 'shadow'));
     s.npcs?.forEach((n: any, id: string) => push(id, n, 'npc'));
     for (const id of [...this.views.keys()]) if (!present.has(id)) this.dropView(id);
 
@@ -755,6 +774,23 @@ export class Game {
     box.append(el);
     setTimeout(() => el.remove(), 1600);
     while (box.children.length > 4) box.firstChild?.remove();
+  }
+
+  private realmSeen: string | null = null;
+  private realmCheckAt = 0;
+  /** "Entering <Kingdom>" when the player crosses onto a kingdom's continent (world revision 5) */
+  private realmBanner(now: number): void {
+    if (now < this.realmCheckAt || this.store.generation < 5) return;
+    this.realmCheckAt = now + 1000;
+    const me = this.predictor?.sim;
+    if (!me) return;
+    const realm = inRealmLand(this.seed, Math.floor(me.x), Math.floor(me.y));
+    if (realm === this.realmSeen) return;
+    this.realmSeen = realm;
+    if (realm) {
+      const k = KINGDOMS[realm];
+      this.gameplay.toasts.add(`Entering ${k.name} · ${k.epithet}`, 'info');
+    }
   }
 
   private toast(text: string): void {
@@ -1055,6 +1091,7 @@ export class Game {
     this.fps = this.frameRate.sample(now);
     const dt = Math.min(frameInterval, 250) / 1000;
     if (!this.predictor || !this.connected) return;
+    this.realmBanner(now);
 
     // fixed-step simulation (same step as the server)
     const budget = simulationBudget(this.acc, frameInterval);
@@ -1180,6 +1217,16 @@ export class Game {
       season: this.seasonIdx,
       wind: this.wind.w,
       reduced,
+    });
+    this.life.frame({
+      now,
+      dt,
+      me,
+      hour,
+      day: dayNumber(this.clock.serverNow(now)),
+      weather,
+      reduced,
+      underground,
     });
     this.updateTarget34(renderT, me);
     this.syncFocus(now);
@@ -1849,7 +1896,7 @@ export class Game {
     hintEl.hidden = !tip || this.gameplay.blocking || this.settingsOpen() || this.input.armed !== null;
     if (tip) hintEl.textContent = tip;
     const needs = this.gameplay.profile.needs;
-    document.body.classList.toggle('needs-enabled', needs.mode === 'adventure');
+    document.body.classList.toggle('needs-enabled', needs.mode !== 'cozy');
     $('coins').textContent = `${this.gameplay.profile.coins} coins`;
     if (s) {
       const sim = this.predictor.sim;
@@ -1866,7 +1913,7 @@ export class Game {
             charges: sim.dashN,
             max: DASH_CHARGES,
           },
-          needs: needs.mode === 'adventure' ? { food: needs.food, water: needs.water } : null,
+          needs: needs.mode !== 'cozy' ? { food: needs.food, water: needs.water, temp: needs.temp } : null,
           auras: this.ext.circuit.auras(this.myId),
           buffs: this.gameplay.profile.buffs,
           serverNow: sn,

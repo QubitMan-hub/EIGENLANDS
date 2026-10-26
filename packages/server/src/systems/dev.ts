@@ -1,4 +1,14 @@
-import { BASE_PLAYER_HP, ITEMS, RECIPES, chunkOf, maxHpForLevel, type DevMsg } from '@eigenlands/shared';
+import {
+  REALM_IDS,
+  REALM_SITE_BY_ID,
+  type RaidPlan,
+  BASE_PLAYER_HP,
+  ITEMS,
+  RECIPES,
+  chunkOf,
+  maxHpForLevel,
+  type DevMsg,
+} from '@eigenlands/shared';
 import { runtime } from '../rooms/runtime';
 import type { ServerPlayer } from '../rooms/player';
 import type { RoomApi } from './api';
@@ -55,6 +65,31 @@ export function handleDev(room: RoomApi, p: ServerPlayer, msg: DevMsg): void {
         msg.recipe === '*' ? RECIPES.map((r) => r.id) : RECIPES.some((r) => r.id === msg.recipe) ? [msg.recipe] : [];
       for (const id of ids) p.data.recipes.add(id);
       if (ids.length) p.dirty('recipes');
+      return;
+    }
+    case 'raid': {
+      const site = REALM_SITE_BY_ID[String(msg.site)];
+      const attacker = REALM_IDS.find((r) => r === msg.attacker);
+      const army = (room as unknown as { army?: { startNow(p: RaidPlan): boolean } }).army;
+      if (!site || !attacker || attacker === site.realm || !army) return;
+      const scale = msg.scale === 3 ? 3 : msg.scale === 2 ? 2 : 1;
+      const n = scale === 1 ? 4 : scale === 2 ? 7 : 12;
+      army.startNow({
+        id: `raid:dev:${Date.now()}`,
+        day: 0,
+        hour: 0,
+        attacker,
+        defender: site.realm,
+        siteId: site.id,
+        scale,
+        party: [
+          Math.ceil(n * 0.45),
+          Math.floor(n * 0.25),
+          scale === 1 ? 0 : Math.floor(n * 0.2),
+          scale === 3 ? 2 : scale === 2 ? 1 : 0,
+        ],
+        beast: scale >= 2,
+      });
       return;
     }
     case 'friend': {

@@ -71,7 +71,10 @@ interface Style {
   roof: Ramp;
   roofKind: 'thatch' | 'slate' | 'tile' | 'shingle';
   trim: number;
+  /** roof geometry (default: gable) */
+  shape?: RoofShape;
 }
+export type RoofShape = 'gable' | 'hip' | 'pagoda' | 'dome' | 'flat' | 'spire';
 const STYLES: Style[] = [
   {
     wall: [C.e4, C.e5, C.e6, C.e7, C.white],
@@ -109,6 +112,312 @@ const STYLES: Style[] = [
     roofKind: 'shingle',
     trim: C.e1,
   },
+];
+const mk = (
+  wall: Ramp,
+  timber: Ramp | null,
+  kind: Style['kind'],
+  shutter: Ramp | null,
+  roof: Ramp,
+  roofKind: Style['roofKind'],
+  trim: number,
+  shape: RoofShape = 'gable',
+): Style => ({ wall, timber, kind, shutter, roof, roofKind, trim, shape });
+const rp = (a: number[]) => a as Ramp;
+/**
+ * Five looks per kingdom (style = 4 + realm * 5 + variant): three common houses, a civic/merchant look and the grand
+ * look of palaces, keeps and temples. Realm order: aurelion, sylvaris, khardum, raijin, thalassara, nethrakar.
+ */
+const REALM_STYLES: Style[] = [
+  // Aurelion: honey stone, half-timber, blue slate, gilt trim
+  mk(
+    rp([C.e4, C.e5, C.e6, C.e7, C.white]),
+    rp([C.e0, C.e1, C.e2, C.e3]),
+    'plaster',
+    rp([C.w1, C.w2, C.w3, C.w4]),
+    rp([C.r0, C.r1, C.r2, C.r3, C.r4]),
+    'tile',
+    C.e1,
+  ),
+  mk(
+    rp([C.e3, C.e4, C.e5, C.e6, C.pale]),
+    null,
+    'stone',
+    rp([C.w1, C.w2, C.w3, C.w4]),
+    rp([C.w0, C.w1, C.w2, C.w3, C.w4]),
+    'slate',
+    C.e6,
+  ),
+  mk(
+    rp([C.pale, C.white, C.white, C.fog]),
+    rp([C.e0, C.e1, C.e2, C.e3]),
+    'plaster',
+    rp([C.g1, C.g2, C.g3, C.g4]),
+    rp([C.e1, C.e2, C.e3, C.e4, C.e5, C.e6]),
+    'thatch',
+    C.e1,
+  ),
+  mk(
+    rp([C.e3, C.e4, C.e5, C.e6, C.pale]),
+    null,
+    'stone',
+    rp([C.w1, C.w2, C.w3, C.w4]),
+    rp([C.w0, C.w1, C.w2, C.w3, C.w4]),
+    'slate',
+    C.e7,
+    'hip',
+  ),
+  mk(
+    rp([C.fog, C.pale, C.white, C.white, C.white]),
+    null,
+    'stone',
+    rp([C.w2, C.w3, C.w4, C.w5]),
+    rp([C.w1, C.w2, C.w3, C.w4, C.w5]),
+    'slate',
+    C.e7,
+    'hip',
+  ),
+  // Sylvaris: living wood, moss thatch, green shingle
+  mk(
+    rp([C.e0, C.e1, C.e2, C.g1, C.g2]),
+    rp([C.e0, C.e1, C.e2, C.e3]),
+    'siding',
+    rp([C.g3, C.g4, C.g5, C.g6]),
+    rp([C.g0, C.g1, C.g2, C.g3, C.g4, C.g5]),
+    'thatch',
+    C.g3,
+  ),
+  mk(
+    rp([C.e1, C.e2, C.e3, C.e4, C.e5]),
+    rp([C.e0, C.e1, C.e2, C.e3]),
+    'siding',
+    rp([C.g2, C.g3, C.g4, C.g5]),
+    rp([C.g1, C.g2, C.g3, C.g4, C.g5]),
+    'shingle',
+    C.g4,
+  ),
+  mk(
+    rp([C.mist, C.fog, C.pale, C.white, C.white]),
+    rp([C.g0, C.g1, C.g2, C.g3]),
+    'plaster',
+    rp([C.g3, C.g4, C.g5, C.g6]),
+    rp([C.g0, C.g1, C.g2, C.g3, C.g4]),
+    'thatch',
+    C.g2,
+  ),
+  mk(
+    rp([C.e1, C.e2, C.e3, C.e4, C.e5]),
+    rp([C.e0, C.e1, C.e2, C.e3]),
+    'siding',
+    rp([C.g3, C.g4, C.g5, C.g6]),
+    rp([C.g1, C.g2, C.g3, C.g4, C.g5]),
+    'shingle',
+    C.g5,
+    'hip',
+  ),
+  mk(
+    rp([C.e0, C.e1, C.e2, C.e3, C.g2]),
+    rp([C.g1, C.g2, C.g3, C.g4]),
+    'siding',
+    rp([C.g4, C.g5, C.g6, C.g7]),
+    rp([C.g1, C.g2, C.g3, C.g4, C.g5, C.g6]),
+    'thatch',
+    C.g6,
+    'dome',
+  ),
+  // Khar-Dum: dark riveted stone, iron roofs, forge-red trim
+  mk(
+    rp([C.night, C.slate, C.steel, C.mist, C.fog]),
+    rp([C.slate, C.steel, C.mist, C.fog]),
+    'stone',
+    rp([C.r1, C.r2, C.r3, C.r4]),
+    rp([C.ink, C.night, C.slate, C.steel, C.mist]),
+    'slate',
+    C.r3,
+  ),
+  mk(
+    rp([C.slate, C.steel, C.mist, C.fog, C.pale]),
+    null,
+    'stone',
+    rp([C.r1, C.r2, C.r3, C.r4]),
+    rp([C.night, C.slate, C.steel, C.mist, C.fog]),
+    'slate',
+    C.e5,
+  ),
+  mk(
+    rp([C.r0, C.r1, C.r2, C.r3, C.mist]),
+    rp([C.night, C.slate, C.steel, C.mist]),
+    'stone',
+    null,
+    rp([C.ink, C.night, C.slate, C.steel]),
+    'slate',
+    C.e4,
+  ),
+  mk(
+    rp([C.night, C.slate, C.steel, C.mist, C.fog]),
+    rp([C.e1, C.e2, C.e3, C.e4]),
+    'stone',
+    rp([C.e2, C.e3, C.e4, C.e5]),
+    rp([C.ink, C.night, C.slate, C.steel, C.mist]),
+    'slate',
+    C.e5,
+    'hip',
+  ),
+  mk(
+    rp([C.ink, C.night, C.slate, C.steel, C.mist]),
+    rp([C.slate, C.steel, C.mist, C.fog]),
+    'stone',
+    rp([C.r2, C.r3, C.r4, C.r5]),
+    rp([C.night, C.slate, C.steel, C.mist]),
+    'slate',
+    C.e6,
+    'flat',
+  ),
+  // Raijin: lacquered red timber, white plaster, dark curved tile
+  mk(
+    rp([C.pale, C.white, C.fog, C.white, C.white]),
+    rp([C.r1, C.r2, C.r3, C.r4]),
+    'plaster',
+    rp([C.r2, C.r3, C.r4, C.r5]),
+    rp([C.ink, C.night, C.slate, C.steel, C.mist]),
+    'tile',
+    C.r3,
+  ),
+  mk(
+    rp([C.e2, C.e3, C.e4, C.e5, C.e6]),
+    rp([C.e0, C.e1, C.e2, C.e3]),
+    'siding',
+    rp([C.e1, C.e2, C.e3, C.e4]),
+    rp([C.night, C.slate, C.steel, C.mist, C.fog]),
+    'tile',
+    C.e1,
+    'hip',
+  ),
+  mk(
+    rp([C.white, C.white, C.pale, C.fog]),
+    rp([C.night, C.slate, C.steel, C.mist]),
+    'plaster',
+    rp([C.night, C.slate, C.steel, C.mist]),
+    rp([C.e0, C.e1, C.e2, C.e3, C.e4]),
+    'shingle',
+    C.slate,
+  ),
+  mk(
+    rp([C.pale, C.white, C.fog, C.white, C.white]),
+    rp([C.r1, C.r2, C.r3, C.r4]),
+    'plaster',
+    rp([C.r2, C.r3, C.r4, C.r5]),
+    rp([C.night, C.slate, C.steel, C.mist, C.fog]),
+    'tile',
+    C.r4,
+    'pagoda',
+  ),
+  mk(
+    rp([C.r1, C.r2, C.r3, C.r4, C.r5]),
+    rp([C.ink, C.night, C.slate, C.steel]),
+    'plaster',
+    rp([C.e4, C.e5, C.e6, C.e7]),
+    rp([C.ink, C.night, C.slate, C.steel, C.mist]),
+    'tile',
+    C.e6,
+    'pagoda',
+  ),
+  // Thalassara: coral plaster, pearl stone, teal tile
+  mk(
+    rp([C.r4, C.r5, C.r6, C.pale, C.white]),
+    rp([C.w1, C.w2, C.w3, C.w4]),
+    'plaster',
+    rp([C.w2, C.w3, C.w4, C.w5]),
+    rp([C.w1, C.w2, C.w3, C.w4, C.w5, C.w6]),
+    'tile',
+    C.pale,
+  ),
+  mk(
+    rp([C.white, C.white, C.pale, C.fog]),
+    rp([C.w2, C.w3, C.w4, C.w5]),
+    'plaster',
+    rp([C.w3, C.w4, C.w5, C.w6]),
+    rp([C.w2, C.w3, C.w4, C.w5, C.w6]),
+    'tile',
+    C.w4,
+  ),
+  mk(
+    rp([C.e5, C.e6, C.e7, C.pale, C.white]),
+    null,
+    'stone',
+    rp([C.w2, C.w3, C.w4, C.w5]),
+    rp([C.e1, C.e2, C.e3, C.e4, C.e5]),
+    'thatch',
+    C.w3,
+  ),
+  mk(
+    rp([C.pale, C.white, C.white, C.fog]),
+    rp([C.w2, C.w3, C.w4, C.w5]),
+    'plaster',
+    rp([C.w2, C.w3, C.w4, C.w5]),
+    rp([C.w2, C.w3, C.w4, C.w5, C.w6]),
+    'tile',
+    C.e6,
+    'hip',
+  ),
+  mk(
+    rp([C.white, C.white, C.pale, C.fog, C.mist]),
+    null,
+    'stone',
+    rp([C.w3, C.w4, C.w5, C.w6]),
+    rp([C.w1, C.w2, C.w3, C.w4, C.w5, C.w6]),
+    'tile',
+    C.e7,
+    'dome',
+  ),
+  // Nethrakar: obsidian, crimson trim and tile, violet glass
+  mk(
+    rp([C.ink, C.night, C.slate, C.night, C.slate]),
+    rp([C.r0, C.r1, C.r2, C.r3]),
+    'stone',
+    rp([C.q1, C.q2, C.q3, C.q4]),
+    rp([C.r0, C.r1, C.r2, C.r3, C.r4]),
+    'tile',
+    C.r4,
+  ),
+  mk(
+    rp([C.night, C.slate, C.q0, C.q1, C.q2]),
+    null,
+    'stone',
+    rp([C.r2, C.r3, C.r4, C.r5]),
+    rp([C.q0, C.q1, C.q2, C.q3]),
+    'slate',
+    C.r5,
+  ),
+  mk(
+    rp([C.slate, C.steel, C.mist, C.steel, C.slate]),
+    rp([C.r0, C.r1, C.r2, C.r3]),
+    'stone',
+    rp([C.e3, C.e4, C.e5, C.e6]),
+    rp([C.ink, C.night, C.slate, C.steel]),
+    'slate',
+    C.e5,
+  ),
+  mk(
+    rp([C.ink, C.night, C.slate, C.night, C.slate]),
+    rp([C.r1, C.r2, C.r3, C.r4]),
+    'stone',
+    rp([C.q2, C.q3, C.q4, C.q5]),
+    rp([C.r1, C.r2, C.r3, C.r4, C.r5]),
+    'tile',
+    C.r5,
+    'hip',
+  ),
+  mk(
+    rp([C.ink, C.ink, C.night, C.slate, C.night]),
+    rp([C.r1, C.r2, C.r3, C.r4]),
+    'stone',
+    rp([C.r3, C.r4, C.r5, C.r6]),
+    rp([C.r0, C.r1, C.r2, C.r3, C.r4, C.r5]),
+    'tile',
+    C.r6,
+    'flat',
+  ),
 ];
 const GRANITE: Ramp = [C.slate, C.steel, C.mist, C.fog, C.pale];
 const GLASS_DAY: Ramp = [C.w1, C.w2, C.w3, C.w5, C.w6];
@@ -194,7 +503,17 @@ const SEA_STYLE: Style = {
   trim: C.pale,
 };
 const styleFor = (b: Building) =>
-  buildingRealm(b) === 'cave' ? CAVE_STYLE : buildingRealm(b) === 'sea' ? SEA_STYLE : STYLES[b.style % 4]!;
+  buildingRealm(b) === 'cave'
+    ? CAVE_STYLE
+    : buildingRealm(b) === 'sea'
+      ? SEA_STYLE
+      : b.style >= 4
+        ? realmStyle(b)
+        : STYLES[b.style % 4]!;
+function realmStyle(b: Building): Style {
+  const st = REALM_STYLES[(b.style - 4) % REALM_STYLES.length]!;
+  return (b.kind as string) === 'tower' ? { ...st, shape: 'spire' } : st;
+}
 
 function wallMat(b: Building, st: Style, seed: number, interior: boolean, capC: number): Mat {
   const x1 = b.x + b.w,
@@ -312,28 +631,61 @@ function buildRoof(
     Y1 = b.y + b.h + o;
   const alongX = b.w >= b.h;
   const span = alongX ? b.h / 2 + o : b.w / 2 + o;
-  const rise = Math.min(span * 11, 40);
+  const realm = buildingRealm(b);
+  const shape: RoofShape = realm === 'surface' ? (st.shape ?? 'gable') : 'gable';
+  const baseRise = Math.min(span * 11, 40);
+  const rise =
+    shape === 'spire'
+      ? Math.min(span * 15, 54)
+      : shape === 'pagoda'
+        ? baseRise * 1.15
+        : shape === 'dome'
+          ? Math.min(span * 9, 34)
+          : shape === 'flat'
+            ? 7
+            : baseRise;
   const zE = WALL_H,
     zR = zE + rise;
   const mid = alongX ? b.y + b.h / 2 : b.x + b.w / 2;
-  const realm = buildingRealm(b);
+  const aMid = alongX ? b.x + b.w / 2 : b.y + b.h / 2;
+  const alongHalf = (alongX ? b.w : b.h) / 2 + o;
+  /** 0 at the eave .. 1 at the ridge, for the shaped roofs */
+  const shapeH = (x: number, y: number): number => {
+    const across = Math.min(1, Math.abs((alongX ? y : x) - mid) / span),
+      along = Math.min(1, Math.abs((alongX ? x : y) - aMid) / alongHalf);
+    if (shape === 'hip' || shape === 'pagoda')
+      return Math.max(0, Math.min(1 - across, ((1 - along) * alongHalf) / span));
+    if (shape === 'spire') return 1 - Math.max(across, along);
+    if (shape === 'dome') return Math.sqrt(Math.max(0, 1 - across * across - along * along));
+    return 1;
+  };
   const roofZ = (x: number, y: number) => {
     const d = Math.min(1, Math.abs((alongX ? y : x) - mid) / span);
-    return (
-      zE +
-      (realm === 'cave'
-        ? 18 * Math.sqrt(Math.max(0, 1 - d * d))
-        : realm === 'sea'
-          ? 28 * Math.sqrt(Math.max(0, 1 - d * d))
-          : rise * (1 - d))
-    );
+    if (realm === 'cave') return zE + 18 * Math.sqrt(Math.max(0, 1 - d * d));
+    if (realm === 'sea') return zE + 28 * Math.sqrt(Math.max(0, 1 - d * d));
+    if (shape === 'gable') return zE + rise * (1 - d);
+    if (shape === 'flat') {
+      // crenellated parapet around a low platform
+      const ex = Math.min(x - b.x, b.x + b.w - x),
+        ey = Math.min(y - b.y, b.y + b.h - y);
+      const edge = Math.min(ex, ey);
+      const merlon = Math.floor((x + y) * 2) % 2 === 0;
+      return zE + (edge < 0.7 ? (merlon ? rise : rise - 4.5) : 1.5);
+    }
+    const h = shapeH(x, y);
+    if (shape === 'pagoda') {
+      // concave sweep with upturned eaves
+      const lip = h < 0.1 ? ((0.1 - h) / 0.1) * 5 : 0;
+      return zE + rise * Math.pow(h, 1.45) + lip;
+    }
+    return zE + rise * h;
   };
   const inFoot = (x: number, y: number) => x >= X0 && x <= X1 && y >= Y0 && y <= Y1;
   const inWalls = (x: number, y: number) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
   const big =
     b.kind === 'hall' || b.kind === 'inn' || b.kind === 'smithy' || b.kind === 'farmhouse' || b.kind === 'house';
   const ch =
-    realm === 'surface' && big
+    realm === 'surface' && big && (shape === 'gable' || shape === 'hip')
       ? { x0: alongX ? b.x + b.w * 0.7 : mid + 0.2, y0: alongX ? mid - 0.9 : b.y + b.h * 0.3, s: 0.75 }
       : null;
   const chTop = zR + 8;
@@ -347,7 +699,7 @@ function buildRoof(
   // intersected by the same world-space rays as the main roof, so valleys and
   // chimney occlusion remain correct in both ridge orientations.
   const count =
-    realm !== 'surface'
+    realm !== 'surface' || shape !== 'gable'
       ? 0
       : b.kind === 'inn' || b.kind === 'hall'
         ? 2
@@ -395,7 +747,9 @@ function buildRoof(
           X1,
           Y1,
           realm === 'surface'
-            ? gableCap(alongX ? ay : ax, mid, zE, rise, rise / span)
+            ? shape === 'gable'
+              ? gableCap(alongX ? ay : ax, mid, zE, rise, rise / span)
+              : zE + rise + 6
             : zE + (realm === 'cave' ? 18 : 28),
         );
         if (ch) cap = Math.max(cap, boxCap(ax, ay, ch.x0, ch.y0, ch.x0 + ch.s, ch.y0 + ch.s, chTop));
@@ -490,11 +844,12 @@ function buildRoof(
               down = Math.abs((alongX ? y : x) - mid);
             const side = (alongX ? y : x) > mid ? 1 : -1; // +1 = south/east slope (faces the camera)
             const lit = alongX ? (side > 0 ? 0.18 : -0.02) : side > 0 ? -0.25 : 0.12;
-            const dpx = down * 16,
+            const dpx =
+                shape === 'gable' || shape === 'flat' ? down * 16 : (1 - Math.min(1, (rz - zE) / rise)) * span * 16,
               apx = along * 16;
             let t = 0.55 + lit;
             let c: number;
-            if (Math.abs(down) < 0.12) {
+            if ((shape === 'gable' || shape === 'hip') && Math.abs(down) < 0.12) {
               c = rampAt(R0, 0.85 + lit, px, py);
               put(ctx, px, py, c);
               break;
@@ -510,17 +865,23 @@ function buildRoof(
               const course = Math.floor(dpx) % 10;
               t += (strand - 0.5) * 0.14 + (course === 0 ? -0.18 : course < 2 ? 0.1 : 0);
             } else {
-              const rowH = st.roofKind === 'slate' ? 6 : st.roofKind === 'tile' ? 6 : 5;
+              const rowH = st.roofKind === 'slate' ? 6 : st.roofKind === 'tile' ? 5 : 5;
               const row = Math.floor(dpx / rowH);
-              const len = st.roofKind === 'tile' ? 7 : st.roofKind === 'slate' ? 11 : 8;
+              const len = st.roofKind === 'tile' ? 8 : st.roofKind === 'slate' ? 11 : 8;
               const off = (row % 2) * (len / 2);
               const k = Math.floor((apx + off) / len);
               const fr = apx + off - k * len,
                 fz = dpx - row * rowH;
-              if (fz < 0.7)
+              if (st.roofKind === 'tile') {
+                // scalloped clay tiles: each tile is a rounded fish-scale lit from the upper left, overlapped by the next row
+                const u = (fr / len - 0.5) * 2,
+                  v = fz / rowH;
+                const arc = 0.5 + 0.5 * Math.sqrt(Math.max(0, 1 - u * u));
+                if (v > arc) t -= 0.34;
+                else if (v > arc - 0.24) t -= 0.14;
+                else t += 0.1 * (1 - v) - u * 0.05 + (hash2(seed, k, row, 10) - 0.5) * 0.22;
+              } else if (fz < 0.7)
                 t -= 0.18; // course shadow line
-              else if (st.roofKind === 'tile')
-                t += Math.cos((fr / len) * Math.PI * 2) * 0.06 + (fz > rowH - 1 ? 0.04 : 0);
               else {
                 if (fr < 0.7) t -= 0.14;
                 t += (hash2(seed, k, row, 10) - 0.5) * 0.16 + (fz > rowH - 1.5 ? 0.1 : 0);
@@ -534,7 +895,7 @@ function buildRoof(
             break;
           }
           // below the slab: the gable wall (only the part above the walls, inside the wall footprint)
-          if (z >= zE && inWalls(x, y)) {
+          if (shape === 'gable' && z >= zE && inWalls(x, y)) {
             const gableFace = alongX ? (x > b.x + b.w - 0.05 ? 'east' : null) : y > b.y + b.h - 0.05 ? 'south' : null;
             if (!gableFace) continue;
             const u = gableFace === 'east' ? y : x;

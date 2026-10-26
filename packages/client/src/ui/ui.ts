@@ -1,6 +1,7 @@
 import { validGraphics, validWeather, type GraphicsMode, type WeatherDetail } from '../game/visual-budget';
 import './fonts';
 import './hud.css';
+import './identity.css';
 import { iconSvg } from './icons';
 import { validMovementMode, type MovementMode } from '../input/input';
 import { ACTIONS, ACTION_LABELS, keyLabel, rebind, saveKeys, type Action, type KeyMap } from '../input/keymap';

@@ -168,6 +168,8 @@ export interface ProfileMsg {
   buffs?: Record<string, { until: number; power: number }>;
   /** friendship per NPC: points, last day talked, last day gifted */
   friends?: Record<string, { pts: number; talked: number; gifted: number }>;
+  /** standing with each kingdom */
+  rep?: Record<string, number>;
   /** quest log: state + per-objective progress */
   quests?: QuestLog;
   /** heart events seen ("npc:index"), sent with quests */
@@ -476,4 +478,6 @@ export type DevMsg =
   /** combat testing: spawn n enemies of `kind` around the player (d tiles away), optionally elite / night variants */
   | { cmd: 'spawn'; kind: string; n?: number; elite?: number; night?: boolean; d?: number }
   /** defeat every enemy within d tiles as the player (drops, XP, Shadow residues) */
-  | { cmd: 'kill'; d?: number };
+  | { cmd: 'kill'; d?: number }
+  /** start a war party against `site` from the `attacker` realm (scale 1..3) */
+  | { cmd: 'raid'; site: string; attacker: string; scale?: number };

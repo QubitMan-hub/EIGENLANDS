@@ -748,35 +748,134 @@ function plant(face: Facing): ObjSprite {
 }
 
 // ───────────────────────── outdoors ─────────────────────────
-function stall(face: Facing, f: number): ObjSprite {
+export const STALL_AWNINGS = ['red', 'blue', 'green', 'gold', 'violet'] as const;
+export const STALL_GOODS = ['produce', 'fish', 'cloth', 'bread', 'pots', 'flowers', 'hung', 'herbs'] as const;
+type Awning = (typeof STALL_AWNINGS)[number];
+type Goods = (typeof STALL_GOODS)[number];
+const AWN: Record<Awning, [number, number, number]> = {
+  red: [C.r2, C.r3, C.r1],
+  blue: [C.w2, C.w3, C.w1],
+  green: [C.g2, C.g3, C.g1],
+  gold: [C.e4, C.e5, C.e3],
+  violet: [C.q2, C.q3, C.q1],
+};
+
+/** what lies on a market counter: produce, fish on ice, bolts of cloth, loaves, pots, cut flowers, hung meat, herbs */
+function stallGoods(p: Prop, ctx: Ctx, goods: Goods): void {
+  const rng = mulberry32(5 + goods.length);
+  const top = 11.2;
+  const blobAt = (a: number, b: number, z: number, r: number, ramp: Ramp, seed: number) =>
+    blob(ctx, p.X(a, b), p.Y(a, b, z), r, r * 0.85, ramp, { seed, noise: 0.05, bright: 0.2 });
+  switch (goods) {
+    case 'produce': {
+      const prod: Ramp[] = [
+        [C.r2, C.r3, C.r4, C.r5],
+        [C.e4, C.e5, C.e6, C.e7],
+        [C.g3, C.g4, C.g5, C.g6],
+        [C.q1, C.q2, C.q3, C.q4],
+      ];
+      for (let k = 0; k < 4; k++) {
+        p.box(1 + k * 3.7, 6.5, top, 3.2, 6, 1.6, { ramp: WOODM });
+        for (let i = 0; i < 5; i++)
+          blobAt(2.6 + k * 3.7 + (rng() - 0.5) * 2, 8 + rng() * 3.5, top + 2.2, 1.3, prod[k]!, i + k * 5);
+      }
+      break;
+    }
+    case 'fish': {
+      p.box(1, 6, top, 14, 7, 1.2, { ramp: [C.w4, C.w5, C.w6, C.pale, C.white] }); // crushed ice
+      for (let i = 0; i < 9; i++) {
+        const a = 2 + (i % 5) * 2.7,
+          b = 7 + Math.floor(i / 5) * 3;
+        blobAt(a, b, top + 1.8, 1.5, [C.steel, C.mist, C.fog, C.pale], i);
+        p.dot(a + 1.4, b, top + 1.8, C.night);
+      }
+      break;
+    }
+    case 'cloth': {
+      const bolts: Ramp[] = [
+        [C.r1, C.r2, C.r3, C.r4],
+        [C.w2, C.w3, C.w4, C.w5],
+        [C.g2, C.g3, C.g4, C.g5],
+        [C.e4, C.e5, C.e6, C.e7],
+        [C.q2, C.q3, C.q4, C.q5],
+        [C.white, C.white, C.pale, C.fog],
+      ];
+      for (let k = 0; k < 6; k++) p.cyl(2 + k * 2.4, 8.5, top, 1.2, 4.5 + (k % 2), bolts[k]!, bolts[(k + 1) % 6]!);
+      p.box(1, 11.5, top, 14, 1.2, 0.8, { ramp: bolts[(0 + 2) % 6]! }); // a length draped over the front
+      break;
+    }
+    case 'bread': {
+      p.box(1, 6.5, top, 14, 6.5, 0.8, { ramp: LIGHTWOOD });
+      for (let i = 0; i < 8; i++)
+        blobAt(2.5 + (i % 4) * 3.4, 8 + Math.floor(i / 4) * 3, top + 2, 1.5, [C.e2, C.e3, C.e4, C.e5, C.e6], i);
+      p.cyl(14, 8, top, 1.6, 3, WOODM, LIGHTWOOD); // a basket of rolls
+      break;
+    }
+    case 'pots': {
+      const clay: Ramp[] = [
+        [C.r0, C.r1, C.r2, C.r3],
+        [C.e1, C.e2, C.e3, C.e4],
+        [C.w1, C.w2, C.w3, C.w4],
+      ];
+      for (let k = 0; k < 5; k++) {
+        const big = k % 2 === 0;
+        p.cyl(2 + k * 2.8, 8 + (k % 2), top, big ? 1.7 : 1.2, big ? 4.5 : 3, clay[k % 3]!, clay[(k + 1) % 3]!);
+      }
+      break;
+    }
+    case 'flowers': {
+      const bl = [C.r4, C.e6, C.q4, C.white, C.r2];
+      for (let k = 0; k < 4; k++) {
+        p.cyl(2.5 + k * 3.7, 9, top, 1.6, 3, WOODM, LIGHTWOOD);
+        for (let i = 0; i < 6; i++)
+          put(
+            ctx,
+            Math.round(p.X(2.5 + k * 3.7 + (rng() - 0.5) * 2.2, 9)),
+            Math.round(p.Y(2.5 + k * 3.7, 9, top + 4.5 + rng() * 4)),
+            bl[(k + i) % bl.length]!,
+          );
+        blobAt(2.5 + k * 3.7, 9, top + 6, 2, LEAF, k);
+      }
+      break;
+    }
+    case 'hung': {
+      p.box(1, 6.5, top, 14, 6.5, 0.8, { ramp: LIGHTWOOD });
+      for (let i = 0; i < 4; i++) blobAt(3 + i * 3.4, 9.5, top + 2, 1.5, [C.r2, C.r3, C.r4, C.r5], i);
+      p.box(1, 13.5, 21, 14, 0.8, 0.8, { ramp: DARKWOOD }); // rail under the awning
+      for (let i = 0; i < 5; i++) {
+        p.line(2 + i * 3, 13.7, 21, 2 + i * 3, 13.7, 17, C.fog);
+        p.box(1.4 + i * 3, 13.3, 12.5, 1.4, 1.4, 4.5, { ramp: i % 2 ? [C.r2, C.r3, C.r4, C.r5] : [C.e3, C.e4, C.e5] });
+      }
+      break;
+    }
+    case 'herbs': {
+      for (let k = 0; k < 4; k++) {
+        p.cyl(2.5 + k * 3.7, 9, top, 1.4, 2.2 + (k % 2), [C.w1, C.w2, C.w3, C.w4], [C.w3, C.w4, C.w5]);
+        blobAt(
+          2.5 + k * 3.7,
+          9,
+          top + 4,
+          1.4,
+          [C.g1, C.g2, C.g3, C.g4, C.g5][k % 2 ? 0 : 1] ? [C.g1, C.g2, C.g3, C.g4] : LEAF,
+          k,
+        );
+      }
+      for (let i = 0; i < 5; i++) p.line(2 + i * 3, 3, 24, 2 + i * 3, 3, 20 - (i % 2), C.g3); // bundles hung to dry
+      break;
+    }
+  }
+}
+
+function stall(face: Facing, f: number, awn: Awning = 'red', goods: Goods = 'produce'): ObjSprite {
   return iso(46, 62, face, (p, ctx) => {
-    // counter of crates heaped with produce
+    // counter of crates heaped with goods
     p.box(0.5, 5, 0, 15, 9, 10, {
       ramp: LIGHTWOOD,
       front: (s, t, c) => (Math.round(t * 10) % 3 === 0 ? c(-1) : Math.round(s * 15) % 5 === 0 ? c(-2) : null),
       end: planks(10),
     });
     p.box(0, 4.5, 10, 16, 10, 1.2, { ramp: WOODM });
-    const prod: Ramp[] = [
-      [C.r2, C.r3, C.r4, C.r5],
-      [C.e4, C.e5, C.e6, C.e7],
-      [C.g3, C.g4, C.g5, C.g6],
-      [C.q1, C.q2, C.q3, C.q4],
-    ];
-    const rng = mulberry32(5);
-    for (let k = 0; k < 4; k++) {
-      p.box(1 + k * 3.7, 6.5, 11.2, 3.2, 6, 1.6, { ramp: WOODM }); // produce crates
-      for (let i = 0; i < 5; i++)
-        blob(
-          ctx,
-          p.X(2.6 + k * 3.7 + (rng() - 0.5) * 2, 8 + rng() * 3.5),
-          p.Y(2.6 + k * 3.7, 9, 13.4),
-          1.3,
-          1.1,
-          prod[k]!,
-          { seed: i + k * 5, noise: 0.05, bright: 0.2 },
-        );
-    }
+    stallGoods(p, ctx, goods);
     // posts and the striped awning sloping out toward the customers
     for (const [a, b, h] of [
       [0.5, 0.5, 30],
@@ -798,17 +897,52 @@ function stall(face: Facing, f: number): ObjSprite {
       e1y = I.Y(ua, va, back) - ay,
       e2x = I.X(ub, vb) - ax,
       e2y = I.Y(ub, vb, front) - ay;
+    const [dark, light, edge] = AWN[awn];
     I.para(ax, ay, e1x, e1y, e2x, e2y, (s, t) => {
       const red = Math.floor((s * 17) / 2.8) % 2 === 0;
       const lit = p.facing === 'sw' ? 1 : 0;
-      return red ? [C.r2, C.r3][lit]! : [C.e6, C.e7][lit]!;
+      return red ? [dark, light][lit]! : [C.e6, C.e7][lit]!;
     });
     // scalloped valance along the front edge
     for (let a = -0.5; a < 17; a += 1) {
       const red = Math.floor((a + 0.5) / 2.8) % 2 === 0;
       const drop = Math.round(a) % 2 === 0 ? 2 : 1;
-      for (let d = 0; d < drop + 1; d++) p.dot(a, 16.5, front - d, red ? C.r1 : C.e5);
+      for (let d = 0; d < drop + 1; d++) p.dot(a, 16.5, front - d, red ? edge : C.e5);
     }
+  });
+}
+
+/** A tiered stone fountain: a wide basin, a column and a small bowl, water spilling down and rippling. */
+function fountain(face: Facing, f: number): ObjSprite {
+  return iso(72, 84, face, (p, ctx) => {
+    const R = (a: number) => a;
+    p.cyl(8, 8, 0, 9.4, 4.5, STONEM, STONEM, (t) => (Math.round(t * 12) % 4 === 0 ? C.slate : null));
+    p.cyl(8, 8, 4.5, 8.2, 1.2, STONEM, WATER); // basin lip and the water within
+    p.iso.cyl(8, 8, 5, 7.2, 0.4, WATER, WATER);
+    // ripples
+    for (let i = 0; i < 3; i++) {
+      const r = 2.5 + ((f * 0.9 + i * 1.6) % 5);
+      for (let k = 0; k < 18; k++) {
+        const ang = (k / 18) * 6.283;
+        p.dot(R(8 + Math.cos(ang) * r), R(8 + Math.sin(ang) * r), 5.6, i === 0 ? C.pale : C.w6);
+      }
+    }
+    p.cyl(8, 8, 5.5, 2, 15, STONEM, STONEM);
+    p.cyl(8, 8, 20, 4.8, 1.8, STONEM, WATER);
+    p.cyl(8, 8, 21.8, 1.2, 6, STONEM, STONEM);
+    p.cyl(8, 8, 27, 2.6, 1.2, STONEM, WATER);
+    // the jet and its falling drops
+    for (let z = 28; z < 36; z++) p.dot(8, 8, z, f % 2 ? C.white : C.pale);
+    for (let i = 0; i < 8; i++) {
+      const ang = (i / 8) * 6.283 + f * 0.4;
+      const k = ((f + i) % 4) / 4;
+      p.dot(8 + Math.cos(ang) * (1.5 + k * 5.5), 8 + Math.sin(ang) * (1.5 + k * 5.5), 27 - k * 22, C.w6);
+    }
+    for (let i = 0; i < 8; i++) {
+      const ang = (i / 8) * 6.283;
+      p.dot(8 + Math.cos(ang) * 4.6, 8 + Math.sin(ang) * 4.6, 20 - ((f + i) % 3), C.w5);
+    }
+    void ctx;
   });
 }
 
@@ -1488,6 +1622,14 @@ export const PROPS: Record<string, Mk> = {
   lamp: anim(2, 3, floorLamp),
   plant: one(plant, { sway: 0.01 }),
   stall: anim(2, 1.2, stall),
+  fountain: anim(4, 6, fountain),
+  ...Object.fromEntries(
+    STALL_AWNINGS.flatMap((awn) =>
+      STALL_GOODS.map(
+        (goods) => [`stall_${awn}_${goods}`, anim(2, 1.2, (face, f) => stall(face, f, awn, goods))] as const,
+      ),
+    ),
+  ),
   planter: one(planter, { sway: 0.01 }),
   hay: one(hay),
   trough: one(trough),

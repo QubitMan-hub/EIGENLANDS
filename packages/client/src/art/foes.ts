@@ -1,4 +1,6 @@
 import { ART_RGB } from './creature-pixels';
+import { armyUnitDef } from './army-units';
+import { ARMY_CLASSES, REALM_IDS, armyKey, armyOfKind, type ArmyKey } from '@eigenlands/shared';
 import { wildDef } from './fauna';
 import type { Texture } from 'pixi.js';
 import {
@@ -60,9 +62,20 @@ export type CritterKind =
   | 'geode_tyrant'
   | 'cinder_wyrm'
   | 'rime_sovereign'
-  | 'tide_leviathan';
+  | 'tide_leviathan'
+  | 'griffin'
+  | 'spirit_stag'
+  | 'iron_golem'
+  | 'raiju'
+  | 'reef_naga'
+  | 'hellhound'
+  | 'cow'
+  | 'sheep'
+  | 'pig'
+  | 'horse'
+  | ArmyKey;
 
-interface Def {
+export interface Def {
   w: number;
   h: number;
   ay?: number;
@@ -1064,6 +1077,451 @@ function caveBeast(form: number): Def {
   };
 }
 
+/**
+ * Mythical beasts of the six kingdoms (world revision 5): griffin, spirit stag, iron golem, raiju, reef naga and a
+ * three-headed hellhound. Larger and far more detailed than the cave fauna: each has a signature silhouette (wings,
+ * antler crown, anvil fists, storm mane, hooded coil, triple jaws) and animated glow or particles.
+ */
+function realmBeast(form: number): Def {
+  const U = 2.1;
+  return {
+    w: 132,
+    h: 124,
+    ay: 108,
+    shadow: [[17, 16, 20, 15, 16, 17][form]!, [6.5, 6, 7.5, 6, 6.5, 6.5][form]!],
+    n: { idle: 4, move: 6, windup: 4, attack: 3, hurt: 2, death: 5 },
+    draw(s, a, k, t) {
+      const moving = a === 'move',
+        wind = a === 'windup',
+        dead = a === 'death',
+        bite = a === 'attack',
+        hurt = a === 'hurt';
+      const sw = Math.sin(t * TAU),
+        sw2 = Math.sin(t * TAU * 2);
+      const R = (c: number, n = 4, hue = 9) => M(ramp(c, n, 2, { hue }));
+      const eye = (c: number) => M(ramp(c, 2, 1), { glow: true });
+      const glow = (c: number, n = 3) => M(ramp(c, n, 2), { glow: true });
+      const sink = dead ? t * 7 : 0;
+      const lift = wind ? 1 : 0;
+      s.push([U, 0, 0, 0, U, 0, 0, 0, U], [0, 0, 0], [bite ? (1 - t) * 3 : 0, 0, -sink]);
+      /** four-legged walk: paired legs swing in alternation */
+      const legs = (xf: number, xb: number, zt: number, rt: number, rb: number, m: Mat, foot?: Mat, sp = 3) => {
+        for (const side of [-1, 1])
+          for (const [x, ph] of [
+            [xf, 0],
+            [xb, 0.5],
+          ] as const) {
+            const st = moving ? Math.sin(t * TAU + (ph + (side > 0 ? 0.5 : 0)) * TAU) * 2.6 : 0;
+            const lift = moving ? Math.max(0, Math.cos(t * TAU + (ph + (side > 0 ? 0.5 : 0)) * TAU)) * 1.2 : 0;
+            s.cap([x, side * sp, zt], [x + st, side * (sp + 0.5), 0.9 + lift], rt, rb, m);
+            if (foot) s.ell([x + st + 0.6, side * (sp + 0.5), 0.8 + lift], [1.3, 0.9, 0.7], foot);
+          }
+      };
+      if (form === 0) {
+        // ───────── griffin: lion body, eagle head, great spread wings
+        const fur = R(ART_RGB.c4, 4),
+          furD = R(ART_RGB.c3, 3),
+          plume = R(ART_RGB.pale, 4, 6),
+          gold = M(ramp(ART_RGB.c4, 3, 1), { shiny: true }),
+          wingA = R(ART_RGB.e3, 4),
+          wingB = R(ART_RGB.e6, 4, 6);
+        const z = 8.5 + (moving ? 0.6 * Math.abs(sw) : 0.25 * sw);
+        s.ell([0, 0, z], [7.6, 3.5, 3.8], fur);
+        s.ell([-5.4, 0, z + 0.4], [4, 3.7, 4], fur); // haunch
+        s.ell([4.4, 0, z + 1.6], [4, 3.5, 4.4], plume); // feathered chest
+        s.ell([0, 0, z + 3.4], [6, 2.2, 1.2], furD); // back mane
+        s.cap([-8, 0, z + 0.6], [-13.5, 0, z - 1.4 + sw * 2], 1.1, 0.5, furD); // lion tail
+        s.sph([-14.4, 0, z - 1.4 + sw * 2], 1.9, gold); // tail tuft
+        s.sph([-15.4, 0, z - 2.4 + sw * 2], 1.3, furD);
+        s.cap([5.4, 0, z + 3], [7, 0, z + 7 + lift * 2], 2.8, 2.2, plume); // neck
+        s.ell([8.6, 0, z + 9 + lift * 2], [3.2, 2.6, 2.7], plume); // head
+        s.cap([10.4, 0, z + 9.4 + lift * 2], [13.8, 0, z + 7.4 + lift * 2 - (bite ? 2 : 0)], 1.35, 0.35, gold); // beak
+        s.cap([10.6, 0, z + 8.6 + lift * 2], [12.8, 0, z + 7 + lift * 2 + (bite ? 1.6 : 0)], 0.8, 0.25, gold);
+        for (const side of [-1, 1]) {
+          s.sph([10.2, side * 1.9, z + 10 + lift * 2], 0.75, eye(ART_RGB.e7));
+          s.cap([8, side * 1.4, z + 11 + lift * 2], [6, side * 2.6, z + 14.4 + lift * 2], 0.55, 0.15, plume); // ear tufts
+          // wings: arm, wrist, then a fan of primaries and coverts
+          const flap = dead ? -4 : wind ? 8 : bite ? -3 : moving ? 3 + sw * 5 : 2 + sw * 1.4;
+          const sh: [number, number, number] = [2.4, side * 3, z + 3.4];
+          const el: [number, number, number] = [-0.4, side * 8.5, z + 8 + flap * 0.6];
+          const wr: [number, number, number] = [-2, side * 14, z + 12 + flap];
+          s.cap(sh, el, 1.7, 1.3, wingA);
+          s.cap(el, wr, 1.3, 0.9, wingA);
+          for (let i = 0; i < 7; i++) {
+            const f = i / 6;
+            const tip: [number, number, number] = [-7 - f * 6, side * (23 - f * 7), z + 12 + flap * 1.1 - f * 9];
+            s.cap(i < 3 ? wr : el, tip, 1.6 - f * 0.4, 0.4, i % 2 ? wingA : wingB);
+          }
+          for (let i = 0; i < 4; i++)
+            s.ell(
+              [-1 - i * 0.9, side * (9 + i * 2.8), z + 8.4 + flap * (0.7 + i * 0.1) - i * 1.1],
+              [2.8, 1.6, 0.9],
+              gold,
+            );
+        }
+        // hindlegs (lion) and forelegs (eagle talons)
+        legs(-5.4, 0, z - 1.6, 1.5, 0.9, fur, furD, 2.6);
+        for (const side of [-1, 1]) {
+          const st = moving ? Math.sin(t * TAU + (side > 0 ? 0.5 : 0) * TAU) * 2 : bite ? 2 : 0;
+          s.cap([4.8, side * 2.4, z - 0.6], [6.4 + st, side * 2.8, 1.2], 1.3, 0.8, plume);
+          for (let c = -1; c <= 1; c++)
+            s.cap([7 + st, side * 2.8 + c * 0.6, 1.2], [8.8 + st, side * 2.8 + c * 0.9, 0.3], 0.35, 0.1, gold);
+        }
+      } else if (form === 1) {
+        // ───────── spirit stag: ghostly white deer, glowing antler crown, halo, drifting petals
+        const hide = M(ramp(ART_RGB.pale, 4, 2, { hue: 6 })),
+          shade = M(ramp(ART_RGB.fog, 3, 2, { hue: 6 })),
+          horn = glow(ART_RGB.n5, 4),
+          bloom = glow(ART_RGB.c2, 3),
+          halo = glow(ART_RGB.e7, 3),
+          mote = glow(ART_RGB.w6, 2);
+        const z = 11.4 + (moving ? 0.7 * Math.abs(sw) : 0.3 * sw);
+        s.ell([0, 0, z], [7.6, 3.2, 3.8], hide);
+        s.ell([-4.6, 0, z - 0.2], [3.6, 3, 3.6], shade);
+        s.ell([4.6, 0, z + 1], [3.4, 3, 3.6], hide);
+        s.cap([-7.6, 0, z + 1], [-9.6, 0, z + 3.4 + sw], 1, 0.5, hide); // tail
+        s.cap([5.6, 0, z + 2.4], [8, 0, z + 8.2 + lift], 2, 1.4, hide);
+        s.ell([4.6, 0, z + 2.4], [3, 2.4, 4], shade, I3); // mane
+        s.ell([9.6, 0, z + 9.8 + lift], [2.8, 1.7, 1.6], hide);
+        s.cap([10.6, 0, z + 9.4 + lift], [12.4, 0, z + 8.8 + lift], 1, 0.6, shade);
+        s.sph([12.6, 0, z + 8.8 + lift], 0.55, glow(ART_RGB.pale, 2));
+        // halo: a ring of light behind the head
+        for (let i = 0; i < 14; i++) {
+          const ang = (i / 14) * TAU + t * TAU * 0.25;
+          s.sph([8.4 - 1.4, Math.cos(ang) * 6.6, z + 13.6 + lift + Math.sin(ang) * 6.6], 0.5, halo);
+        }
+        for (const side of [-1, 1]) {
+          s.sph([10.4, side * 1.3, z + 10.4 + lift], 0.55, eye(ART_RGB.g6));
+          // antlers: a main beam with tines, tipped with blossoms
+          const base: [number, number, number] = [9.4, side * 1, z + 11.2 + lift];
+          let p0 = base;
+          const beam: Array<[number, number, number]> = [
+            [8, side * 3, z + 15.6 + lift],
+            [6.4, side * 5.6, z + 19.6 + lift],
+            [7.4, side * 8, z + 23.4 + lift],
+            [9.6, side * 9, z + 26 + lift],
+          ];
+          beam.forEach((q, i) => {
+            s.cap(p0, q, 0.7 - i * 0.1, 0.55 - i * 0.1, horn);
+            if (i > 0) {
+              s.cap(q, [q[0] + 2.6, q[1] + side * 2.4, q[2] + 2.6], 0.4, 0.15, horn);
+              s.cap(q, [q[0] - 2, q[1] + side * 2, q[2] + 1.8], 0.35, 0.12, horn);
+              s.sph([q[0] + 2.8, q[1] + side * 2.6, q[2] + 2.8], 0.55, bloom);
+            }
+            p0 = q;
+          });
+          s.sph([beam[3]![0], beam[3]![1], beam[3]![2] + 0.6], 0.8, halo);
+        }
+        legs(4.4, -5, z - 1.4, 0.9, 0.5, hide, glow(ART_RGB.e6, 2), 2.4);
+        for (let i = 0; i < 9; i++) {
+          const ph = (t + i / 9) % 1;
+          s.sph([-6 + i * 1.9, Math.sin(ph * TAU + i) * 6, 4 + ph * 18], 0.35 + (i % 3) * 0.15, i % 3 ? mote : bloom);
+        }
+      } else if (form === 2) {
+        // ───────── iron golem: anvil fists, rune-lit furnace chest, vents of steam
+        const iron = R(ART_RGB.slate, 5, 8),
+          plate = R(ART_RGB.steel, 4, 8),
+          dark = R(ART_RGB.night, 3, 8),
+          fire = glow(ART_RGB.c3, 4),
+          rune = glow(ART_RGB.t2, 3);
+        const z = 13.5 + (moving ? 0.5 * Math.abs(sw) : 0.2 * sw);
+        s.ell([0, 0, z + 1], [6.6, 6.4, 8.4], iron); // torso
+        s.ell([0, 0, z - 6], [5.4, 5.2, 3.4], dark); // belt
+        s.ell([1.6, 0, z + 11.6], [3.8, 3.8, 3.4], plate); // head
+        s.ell([3.8, 0, z + 11.8], [1.4, 3, 1], eye(ART_RGB.e6)); // glowing visor slit
+        s.cap([1, -1.8, z + 14.6], [1, -2.8, z + 18], 0.7, 0.2, iron); // horns
+        s.cap([1, 1.8, z + 14.6], [1, 2.8, z + 18], 0.7, 0.2, iron);
+        s.sph([6.4, 0, z + 2.6], 2.8 + 0.3 * Math.sin(t * TAU * 2), fire); // furnace
+        s.sph([6.6, 0, z + 2.6], 1.4, eye(ART_RGB.e7));
+        for (let i = 0; i < 4; i++)
+          s.cap([6.4, -3.6, z + 6.4 - i * 2.4], [6.4, 3.6, z + 6.4 - i * 2.4], 0.25, 0.25, i % 2 ? rune : fire);
+        for (const side of [-1, 1]) {
+          s.sph([0, side * 8.4, z + 8], 3.5, plate); // pauldron
+          for (let i = 0; i < 3; i++)
+            s.cap(
+              [0, side * (7.4 + i * 1.2), z + 10.4 + i * 0.4],
+              [-0.6, side * (8.4 + i * 1.4), z + 14.4 + i],
+              0.5,
+              0.1,
+              dark,
+            );
+          const up = wind ? 12 : bite ? -6 : moving ? sw * side * 2 : 0;
+          const fist: [number, number, number] = [3 + (bite ? 3 : 0), side * 11, z - 1 + up];
+          s.cap([0, side * 8.4, z + 6], [1.6, side * 10, z + 1.4 + up * 0.5], 2.5, 2.1, iron);
+          s.cap([1.6, side * 10, z + 1.4 + up * 0.5], fist, 2.2, 2.6, plate);
+          s.ell([fist[0] + 0.8, fist[1], fist[2] - 2.4], [3.8, 3.4, 3], iron); // anvil fist
+          s.ell([fist[0] + 0.8, fist[1], fist[2] - 4.8], [4.6, 3.8, 1.1], dark);
+          s.cap([-1.8, side * 3.4, z - 7], [moving ? sw * side * 2.4 : 0, side * 3.6, 2], 3, 2.4, iron); // legs
+          s.ell([moving ? sw * side * 2.4 : 0, side * 3.6, 1.2], [3.8, 3.4, 1.3], dark);
+          s.sph([4.8, side * 3.6, z + 4.6], 0.5, plate);
+          s.sph([4.8, side * 3.6, z - 1], 0.5, plate);
+        }
+        for (let i = 0; i < 4; i++) {
+          const ph = (t + i / 4) % 1;
+          s.sph(
+            [-1 + (i % 2) * 1.2, (i - 1.5) * 1.6, z + 16 + ph * 9],
+            0.9 + ph * 1.2,
+            M(ramp(ART_RGB.fog, 2, 1), { glow: true }),
+          );
+        }
+      } else if (form === 3) {
+        // ───────── raiju: storm wolf wreathed in lightning, three comet tails
+        const fur = R(ART_RGB.fog, 4, 6),
+          mane = R(ART_RGB.pale, 4, 6),
+          dark = R(ART_RGB.slate, 3, 8),
+          bolt = glow(ART_RGB.b1, 3),
+          bolt2 = glow(ART_RGB.q5, 3);
+        const z = 8.6 + (moving ? Math.abs(sw) * 0.8 : 0.4 * sw);
+        s.ell([0, 0, z], [7.6, 2.8, 3.2], fur);
+        s.ell([4.8, 0, z + 1.4], [3.6, 2.8, 3.6], mane);
+        s.ell([8.2, 0, z + 3.2 + lift], [3, 2.2, 2.4], fur);
+        s.cap([9.6, 0, z + 2.6 + lift], [13, 0, z + 1.6 + lift - (bite ? 1.8 : 0)], 1.3, 0.5, dark);
+        s.cap([9.6, 0, z + 1.6 + lift], [12.6, 0, z + 0.4 + lift + (bite ? 1.6 : 0)], 0.9, 0.3, dark);
+        for (const side of [-1, 1]) {
+          s.sph([9.6, side * 1.6, z + 4.2 + lift], 0.65, eye(ART_RGB.w7));
+          s.cap([7.4, side * 1.6, z + 5.2 + lift], [5.8, side * 2.6, z + 9 + lift], 0.8, 0.12, mane);
+        }
+        // blazing mane: spikes of white fur crackling blue
+        for (let i = 0; i < 9; i++) {
+          const f = i / 8;
+          s.cap(
+            [5 - f * 8, 0, z + 2.6],
+            [4 - f * 12, (i % 2 ? 1 : -1) * (1.4 + f * 2), z + 6.4 + (1 - f) * 3.6 + (wind ? 2 : 0)],
+            1.1 - f * 0.4,
+            0.15,
+            i % 3 ? mane : glow(ART_RGB.w6, 2),
+          );
+        }
+        // three tails ending in sparks
+        for (let i = -1; i <= 1; i++) {
+          const w = Math.sin(t * TAU + i * 1.3) * 2.2;
+          s.cap([-7, 0, z + 0.4], [-12 - Math.abs(i) * -1, i * 3 + w, z + 2.4 + (i === 0 ? 2 : 0)], 1.1, 0.5, fur);
+          s.cap([-12, i * 3 + w, z + 2.4], [-17, i * 4.4 + w * 1.4, z + 3 + (i === 0 ? 3 : 0)], 0.5, 0.15, bolt);
+          s.sph([-17.4, i * 4.4 + w * 1.4, z + 3 + (i === 0 ? 3 : 0)], 1.2, bolt);
+        }
+        // lightning arcs around the body (zigzag), re-rolled each frame
+        const arcs = wind || bite ? 5 : 3;
+        for (let n = 0; n < arcs; n++) {
+          let p: [number, number, number] = [-3 + n * 3, (n % 2 ? 1 : -1) * 2.8, z + 3];
+          for (let j = 0; j < 4; j++) {
+            const q: [number, number, number] = [
+              p[0] + 1.2 + ((k * 7 + n * 3 + j * 5) % 5) * 0.5 - 1,
+              p[1] + (n % 2 ? 1 : -1) * (1.4 + ((k + j * 2 + n) % 3) * 0.8),
+              p[2] + 2.2 + ((k + j) % 2) * 1.2,
+            ];
+            s.cap(p, q, 0.28, 0.2, n % 2 ? bolt2 : bolt);
+            p = q;
+          }
+        }
+        legs(4.4, -5, z - 1.2, 1.1, 0.6, dark, bolt, 2.4);
+        if (wind || bite) s.sph([14.4, 0, z + 1], 2.1 + (bite ? 0.8 : 0), bolt);
+      } else if (form === 4) {
+        // ───────── reef naga: serpent coil rising into a hooded, pearl-crowned warrior with a coral trident
+        const scale = R(ART_RGB.t1, 4, 10),
+          scaleD = R(ART_RGB.t0, 3, 10),
+          belly = R(ART_RGB.pale, 3, 6),
+          coral = R(ART_RGB.c2, 4, 12),
+          pearl = glow(ART_RGB.white, 3),
+          skin = R(ART_RGB.t2, 3, 8),
+          gold = M(ramp(ART_RGB.c4, 3, 1), { shiny: true });
+        const segs = 10;
+        for (let i = 0; i < segs; i++) {
+          const f = i / (segs - 1);
+          const x = -10 + f * 12;
+          const y = Math.sin(t * TAU * (moving ? 1 : 0.35) - i * 0.9) * (3.6 - f * 3);
+          const zz = 3.2 + Math.max(0, f - 0.45) * 22;
+          const r = 3.8 - f * 1.2;
+          s.sph([x, y, zz - sink * 0], r, i % 2 ? scale : scaleD);
+          s.ell([x + 0.6, y, zz - r * 0.5], [r * 0.7, r * 0.8, r * 0.5], belly);
+          if (i % 2 === 0) s.cap([x, y, zz + r * 0.8], [x - 0.6, y, zz + r * 1.9], 0.4, 0.1, coral);
+        }
+        const hz = 3.2 + 0.55 * 22 + 4 + lift * 2,
+          hx = 2;
+        s.ell([hx, 0, hz - 2.6], [3.2, 3.4, 3.8], skin); // torso
+        s.ell([hx + 0.6, 0, hz - 2.6], [2.8, 3.4, 2.4], scale); // scale bodice
+        s.sph([hx + 0.8, 0, hz + 2.2], 2.2, skin);
+        s.cap([hx + 2.8, 0, hz + 1.6], [hx + 4.4, 0, hz + 0.8 - (bite ? 1 : 0)], 0.7, 0.4, skin);
+        for (const side of [-1, 1]) {
+          s.ell([hx - 0.2, side * 3.6, hz + 2.6], [2.2, 1.2, 3.4], coral); // hood fins
+          s.cap([hx - 0.4, side * 3.8, hz + 5.4], [hx - 0.6, side * 5.4, hz + 7.6], 0.5, 0.15, coral);
+          s.sph([hx + 2.6, side * 1.1, hz + 2.8], 0.55, eye(ART_RGB.e6));
+          // arms and trident
+          const reach = wind ? 6 : bite ? 8 : 2;
+          s.cap(
+            [hx, side * 3.2, hz - 0.4],
+            [hx + 1.6 + (side > 0 ? reach : 0), side * 4.8, hz - 3.6 + (side > 0 && wind ? 5 : 0)],
+            1,
+            0.8,
+            skin,
+          );
+        }
+        const tx = hx + 3.6 + (wind ? 4 : bite ? 8 : 2),
+          ty = 4.8;
+        s.cap([tx, ty, hz - 9], [tx, ty, hz + 10], 0.4, 0.4, gold);
+        for (const dy of [-1.8, 0, 1.8])
+          s.cap([tx, ty + dy, hz + 10], [tx, ty + dy, hz + 13.4 + (dy === 0 ? 1.4 : 0)], 0.35, 0.1, gold);
+        s.cap([tx, ty - 1.8, hz + 10], [tx, ty + 1.8, hz + 10], 0.3, 0.3, gold);
+        for (let i = 0; i < 5; i++)
+          s.sph([hx + 0.8 + Math.cos(i * 1.26) * 0.1, (i - 2) * 0.9, hz + 4.8 - Math.abs(i - 2) * 0.5], 0.5, pearl); // crown
+        s.sph([hx + 2.4, 0, hz - 0.8], 0.9, pearl); // pendant
+        for (let i = 0; i < 6; i++) {
+          const ph = (t + i / 6) % 1;
+          s.sph([-6 + i * 2.4, Math.sin(ph * TAU + i) * 6, 2 + ph * 14], 0.4, glow(ART_RGB.w6, 2)); // rising bubbles
+        }
+      } else {
+        // ───────── hellhound: three-headed, lava-veined obsidian hide wreathed in flame
+        const hide = R(ART_RGB.c0, 4, 9),
+          rock = R(ART_RGB.night, 4, 9),
+          fire = glow(ART_RGB.c2, 4),
+          hot = glow(ART_RGB.c4, 3),
+          bone = M(ramp(ART_RGB.pale, 3, 1));
+        const z = 9.4 + (moving ? 0.7 * Math.abs(sw) : 0.3 * sw);
+        s.ell([0, 0, z], [8.2, 3.6, 4], hide);
+        s.ell([-5.6, 0, z + 0.4], [3.8, 3.4, 3.8], rock);
+        s.ell([5, 0, z + 1], [4.2, 3.6, 4.6], hide);
+        for (let i = 0; i < 7; i++)
+          s.cap([-6 + i * 2, 0, z + 3.4], [-6.6 + i * 2, 0, z + 6.6 + (i % 2) * 1.6], 0.7, 0.1, bone); // spine spikes
+        for (let i = 0; i < 6; i++) s.sph([-5 + i * 2, i % 2 ? 1.6 : -1.6, z + 1.6], 0.55, i % 2 ? hot : fire); // lava veins
+        s.cap([-8.6, 0, z + 1], [-14, 0, z + 3.4 + sw * 2], 1.3, 0.5, rock); // fiery tail
+        for (let i = 0; i < 4; i++)
+          s.sph(
+            [-14 - i * 1.6, 0, z + 3.4 + sw * 2 + i * 1.2 + Math.sin(t * TAU * 2 + i) * 0.8],
+            2 - i * 0.4,
+            i % 2 ? hot : fire,
+          );
+        // three heads on short necks, the centre one the largest
+        for (const [hy, hs, hh] of [
+          [0, 1.25, 2.6],
+          [-3.8, 0.9, 0.8],
+          [3.8, 0.9, 0.8],
+        ] as const) {
+          const hz2 = z + 4.2 + hh + lift;
+          s.cap([5.6, hy * 0.4, z + 3], [8.2 + hh * 0.2, hy, hz2 - 0.6], 1.8 * hs, 1.4 * hs, hide);
+          s.ell([9.4, hy, hz2], [3 * hs, 2.1 * hs, 2.2 * hs], hide);
+          const jaw = bite || wind ? 1.6 : 0.5;
+          s.cap([10.8, hy, hz2 - 0.2], [13.8 * hs + 0.4, hy, hz2 + 0.6 + jaw * 0.2], 1.3 * hs, 0.5, hide);
+          s.cap([10.6, hy, hz2 - 1], [13.2 * hs, hy, hz2 - 1.4 - jaw], 1 * hs, 0.35, rock);
+          if (wind || bite) s.sph([13.6 * hs, hy, hz2 - 0.6 - jaw * 0.3], 1.2 * hs + (bite ? 0.6 : 0), fire);
+          for (const side of [-1, 1]) {
+            s.sph([10.4, hy + side * 1.3 * hs, hz2 + 0.8], 0.55 * hs, eye(ART_RGB.e6));
+            s.cap([8.6, hy + side * 1.1 * hs, hz2 + 1.8], [7, hy + side * 2 * hs, hz2 + 4.8 * hs], 0.6 * hs, 0.1, bone); // horns
+          }
+          // flame mane licking up from every neck
+          for (let i = 0; i < 3; i++) {
+            const ph = (t * 2 + i / 3 + hy * 0.1) % 1;
+            s.sph(
+              [6.4, hy + Math.sin(i + k) * 1.4, hz2 + 1.4 + ph * 4.4],
+              1.5 * hs * (1 - ph * 0.6),
+              i % 2 ? hot : fire,
+            );
+          }
+        }
+        legs(4.8, -5.4, z - 1.8, 1.5, 0.9, rock, fire, 2.8);
+        s.cap([4, -3, z + 2], [3, 3, z + 2], 0.45, 0.45, bone); // a broken chain collar
+      }
+      void hurt;
+      s.pop();
+    },
+  };
+}
+
+/** Farm and stable animals (client-only ambient life and the rideable horse): cow, sheep, pig, horse. */
+function farmAnimal(form: number): Def {
+  return {
+    w: 72,
+    h: 64,
+    ay: 54,
+    shadow: [9, 3.6],
+    n: { idle: 4, move: 6, windup: 2, attack: 2, hurt: 2, death: 3 },
+    draw(s, a, k, t) {
+      const moving = a === 'move';
+      const sw = Math.sin(t * TAU);
+      const R = (c: number, n = 3, hue = 8) => M(ramp(c, n, 2, { hue }));
+      const dark = R(ART_RGB.night, 3);
+      s.push([1.45, 0, 0, 0, 1.45, 0, 0, 0, 1.45], [0, 0, 0], [0, 0, 0]);
+      const legs = (x0: number, x1: number, zt: number, w: number, m: Mat, hoof: Mat, sp = 2.2) => {
+        for (const side of [-1, 1])
+          for (const [x, ph] of [
+            [x0, 0],
+            [x1, 0.5],
+          ] as const) {
+            const st = moving ? Math.sin(t * TAU + (ph + (side > 0 ? 0.5 : 0)) * TAU) * 2.2 : 0;
+            s.cap([x, side * sp, zt], [x + st, side * (sp + 0.3), 0.7], w, w * 0.7, m);
+            s.ell([x + st + 0.3, side * (sp + 0.3), 0.6], [w * 0.9, w * 0.8, 0.5], hoof);
+          }
+      };
+      const bob = moving ? 0.4 * Math.abs(sw) : 0.15 * Math.sin(t * TAU);
+      if (form === 0) {
+        // cow: cream hide, dark patches, short horns and a swinging tail
+        const hide = R(ART_RGB.pale, 3, 6),
+          patch = R(ART_RGB.night, 3),
+          pink = R(ART_RGB.c2, 3);
+        const z = 6.4 + bob;
+        s.ell([0, 0, z], [6.4, 3.2, 3.4], hide);
+        s.ell([-1, 0.4, z + 1], [2.8, 2.7, 2.2], patch);
+        s.ell([3, -1, z + 0.6], [1.8, 1.8, 1.8], patch);
+        s.ell([-1, 0, z - 2.6], [2.4, 1.6, 1.2], pink);
+        s.cap([-6.2, 0, z + 1], [-7.8, 0, z - 2 + sw * 1.4], 0.4, 0.3, hide);
+        s.cap([5, 0, z + 1], [7.6, 0, z + 2.6], 1.6, 1.3, hide);
+        s.ell([8.4, 0, z + 2.2], [2.1, 1.8, 1.6], hide);
+        s.ell([9.8, 0, z + 1.4], [1, 1.4, 0.9], pink);
+        for (const side of [-1, 1]) {
+          s.cap([8, side * 1.4, z + 3.4], [7.6, side * 2.6, z + 5], 0.35, 0.15, M(ramp(ART_RGB.pale, 2, 1)));
+          s.sph([9, side * 1.3, z + 2.8], 0.3, dark);
+        }
+        legs(4, -4, z - 1.6, 0.8, hide, dark);
+      } else if (form === 1) {
+        // sheep: a cloud of wool on dark legs and face
+        const wool = R(ART_RGB.white, 3, 4);
+        const z = 5.2 + bob;
+        for (const [x, y, zz, r] of [
+          [0, 0, z, 3.6],
+          [-2.4, 1.2, z + 0.4, 2.6],
+          [-2.4, -1.4, z + 0.4, 2.6],
+          [2.2, 0, z + 0.6, 2.8],
+          [0, 0, z + 1.6, 2.6],
+        ] as const)
+          s.sph([x, y, zz], r, wool);
+        s.ell([4.6, 0, z + 1.2], [1.6, 1.3, 1.5], dark);
+        for (const side of [-1, 1]) s.cap([4.2, side * 1, z + 2], [3.6, side * 2.4, z + 1.8], 0.5, 0.3, dark);
+        legs(2.2, -2.2, z - 1.6, 0.55, dark, dark, 1.6);
+      } else if (form === 2) {
+        // pig: round pink barrel, flat snout, curly tail
+        const pig = R(ART_RGB.c2, 3, 10);
+        const z = 4.6 + bob;
+        s.ell([0, 0, z], [4.6, 3, 3], pig);
+        s.ell([4.6, 0, z + 0.6], [2, 1.8, 1.8], pig);
+        s.ell([6.4, 0, z + 0.3], [0.9, 1.2, 0.9], R(ART_RGB.c3, 3));
+        for (const side of [-1, 1]) {
+          s.ell([4.4, side * 1.4, z + 2], [0.8, 0.6, 1.2], pig);
+          s.sph([5.6, side * 0.9, z + 1.4], 0.25, dark);
+        }
+        s.cap([-4.4, 0, z + 1], [-5.4, 0.5, z + 2.2], 0.4, 0.3, pig);
+        legs(2.4, -2.4, z - 1.4, 0.7, pig, dark, 1.8);
+      } else {
+        // horse: chestnut with a dark mane and tail
+        const coat = R(ART_RGB.e3, 4),
+          mane = R(ART_RGB.e0, 3);
+        const z = 9 + bob;
+        s.ell([0, 0, z], [7, 3, 3.6], coat);
+        s.ell([-4.6, 0, z + 0.4], [3.4, 3, 3.4], coat);
+        s.cap([-7.8, 0, z + 1], [-10.4, 0, z - 4 + sw * 1.2], 1.1, 0.4, mane);
+        s.cap([5, 0, z + 2], [8, 0, z + 7.6], 2, 1.4, coat);
+        s.ell([9.6, 0, z + 8], [3, 1.6, 1.6], coat);
+        s.sph([12, 0, z + 7.4], 0.8, dark);
+        for (const side of [-1, 1]) {
+          s.sph([9.8, side * 1.3, z + 9], 0.35, M(ramp(ART_RGB.e7, 2, 1), { glow: true }));
+          s.cap([8.4, side * 0.8, z + 9.4], [8, side * 1, z + 11.2], 0.3, 0.1, coat);
+        }
+        for (let i = 0; i < 4; i++)
+          s.cap([5.8 - i * 0.6, 0, z + 3 + i * 1.5], [4.6 - i * 0.6, 0.4, z + 4 + i * 1.5], 0.8, 0.5, mane);
+        legs(4.4, -4.8, z - 1.6, 0.9, coat, dark, 2.4);
+      }
+      s.pop();
+    },
+  };
+}
+
 const DEFS: Record<CritterKind, Def> = {
   echo_bat: caveFauna(0),
   spore_sage: caveFauna(1),
@@ -1084,6 +1542,19 @@ const DEFS: Record<CritterKind, Def> = {
   cinder_wyrm: caveBeast(7),
   rime_sovereign: caveBeast(8),
   tide_leviathan: caveBeast(9),
+  griffin: realmBeast(0),
+  spirit_stag: realmBeast(1),
+  iron_golem: realmBeast(2),
+  raiju: realmBeast(3),
+  reef_naga: realmBeast(4),
+  hellhound: realmBeast(5),
+  cow: farmAnimal(0),
+  sheep: farmAnimal(1),
+  pig: farmAnimal(2),
+  horse: farmAnimal(3),
+  ...(Object.fromEntries(
+    REALM_IDS.flatMap((r, ri) => ARMY_CLASSES.map((c) => [armyKey(r, c), armyUnitDef(ri, c)])),
+  ) as Record<ArmyKey, Def>),
   reed_stalker: encounterDef(false),
   cinder_moth: encounterDef(true),
   fox: wildDef('fox'),
@@ -1216,6 +1687,12 @@ export function buildFoeSheets(): FoeSheets {
     'tide_leviathan',
   ] as const;
   const name = (k: number): CritterKind => {
+    const farm = (['cow', 'sheep', 'pig', 'horse'] as const)[k - 74];
+    if (farm) return farm;
+    const army = armyOfKind(k);
+    if (army) return armyKey(army.realm, army.cls);
+    const realm = (['griffin', 'spirit_stag', 'iron_golem', 'raiju', 'reef_naga', 'hellhound'] as const)[k - 44];
+    if (realm) return realm;
     const cave = caveNames[k - 24] ?? newCave[k - 34];
     if (cave) return cave;
     if (k === 22) return 'reed_stalker';

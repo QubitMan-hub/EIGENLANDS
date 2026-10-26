@@ -9,7 +9,8 @@ import { T } from './tiles';
 import { townTileAt } from './town';
 import { sanctuaryAt } from './sanctuary';
 import { LEGACY_GENERATION, isWorldGeneration, type WorldGeneration } from './world-version';
-import { biome3, chunkLevels, climate3, surfaceTile3 } from './terrain3';
+import { biome3, chunkLevels, climate3, elevationAt, surfaceTile3 } from './terrain3';
+import { nearestRealm, realmBiome, realmClimate, realmLevel, realmOf, realmTileAt } from './realms';
 import { CAVE_OY, caveTileAt, isCaveY } from './caves';
 import { caveLevels, caveTileAt2 } from './caves2';
 
@@ -81,7 +82,7 @@ export interface ClimateSample {
 export { setActiveGeneration, activeGeneration } from './generation-registry';
 import { activeGeneration } from './generation-registry';
 /** Climate and biome fields are shared by revisions 1 and 2; revision 3 has its own. */
-const family = (generation: WorldGeneration): 2 | 3 => (generation >= 3 ? 3 : 2);
+const family = (generation: WorldGeneration): 2 | 3 | 5 => (generation >= 5 ? 5 : generation >= 3 ? 3 : 2);
 
 // Bounded Float64 blocks preserve every generated value while sharing cold work between
 // terrain, scenery and (in solo) authority. No per-tile object/string cache or periodic global clear.
@@ -89,7 +90,7 @@ interface ClimateBlock {
   seed: number;
   cx: number;
   cy: number;
-  fam: 2 | 3;
+  fam: 2 | 3 | 5;
   data: Float64Array;
   biomes?: Uint8Array;
 }
@@ -123,7 +124,8 @@ export function sampleClimate(
   return c;
 }
 
-function computeClimate(seed: number, x: number, y: number, fam: 2 | 3): ClimateSample {
+function computeClimate(seed: number, x: number, y: number, fam: 2 | 3 | 5): ClimateSample {
+  if (fam === 5) return realmClimate(seed, x, y) ?? climate3(seed, x, y);
   if (fam === 3) return climate3(seed, x, y);
   return legacyClimate(seed, x, y);
 }
@@ -177,10 +179,15 @@ export function biomeAt(
   const k = `${x},${y}`;
   const hit = cache.get(k);
   if (hit) return hit;
-  const b = fam === 3 ? biome3(seed, x, y) : computeBiome(seed, x, y);
+  const b = fam === 5 ? biome5(seed, x, y) : fam === 3 ? biome3(seed, x, y) : computeBiome(seed, x, y);
   if (cache.size >= 25000) cache.delete(cache.keys().next().value!);
   cache.set(k, b);
   return b;
+}
+
+function biome5(seed: number, x: number, y: number): Biome {
+  const r = realmOf(seed, x, y);
+  return r ? realmBiome(seed, r.geo, x, y) : biome3(seed, x, y);
 }
 
 function computeBiome(seed: number, x: number, y: number): Biome {
@@ -234,8 +241,10 @@ function surfaceTileAt(seed: number, x: number, y: number, legacy: boolean, gene
   const sanctuary = sanctuaryTileAt(seed, x, y);
   if (sanctuary !== null) return sanctuary;
   if (isCaveY(y))
-    return townTileAt(seed, x, y) ?? (!legacy && gen >= 4 ? caveTileAt2(seed, x, y) : caveTileAt(seed, x, y, legacy));
-  const tt = townTileAt(seed, x, y);
+    return (
+      townTileAt(seed, x, y, gen) ?? (!legacy && gen >= 4 ? caveTileAt2(seed, x, y) : caveTileAt(seed, x, y, legacy))
+    );
+  const tt = townTileAt(seed, x, y, gen);
   if (tt !== null) return tt;
   if (isUpperY(y)) return T.UPPER_VOID;
   // Spawn shrine: path disc, four torches.
@@ -253,6 +262,10 @@ function surfaceTileAt(seed: number, x: number, y: number, legacy: boolean, gene
     if (Math.hypot(dx, dy) <= 1.6) return T.PATH;
   }
 
+  if (!legacy && generation >= 5) {
+    const realm = realmTileAt(seed, x, y);
+    if (realm !== null) return realm;
+  }
   if (!legacy && generation >= 3) return surfaceTile3(seed, x, y, r0);
   const c = sampleClimate(seed, x, y, gen);
   if (c.height < -0.42) return T.DEEP_WATER;
@@ -430,6 +443,30 @@ export function generateChunk(
   return out;
 }
 
+/** Revision 5 levels: kingdom tiles use their realm's terrain, everything else the revision-3 hills and massifs. */
+function realmAwareLevels(seed: number, cx: number, cy: number, generation: WorldGeneration): Uint8Array {
+  const key = `${generation}:${seed}:${cx},${cy}`,
+    cached = generatedLevels.get(key);
+  if (cached) {
+    generatedLevels.delete(key);
+    generatedLevels.set(key, cached);
+    return cached.slice();
+  }
+  const tiles = generateChunk(seed, cx, cy, generation);
+  const out = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
+  for (let y = 0; y < CHUNK_SIZE; y++)
+    for (let x = 0; x < CHUNK_SIZE; x++) {
+      const t = tiles[y * CHUNK_SIZE + x]!;
+      if (t === T.WATER || t === T.DEEP_WATER) continue;
+      const wx = cx * CHUNK_SIZE + x,
+        wy = cy * CHUNK_SIZE + y;
+      out[y * CHUNK_SIZE + x] = nearestRealm(wx, wy) ? realmLevel(seed, wx, wy) : elevationAt(seed, wx, wy);
+    }
+  generatedLevels.set(key, out.slice());
+  if (generatedLevels.size > 128) generatedLevels.delete(generatedLevels.keys().next().value!);
+  return out;
+}
+
 /** Elevation level of every tile of a chunk (all zero before revision 3). */
 const generatedLevels = new Map<string, Uint8Array>();
 export function generateLevels(
@@ -440,6 +477,7 @@ export function generateLevels(
 ): Uint8Array {
   if (generation < 3) return new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
   if (generation >= 4 && isCaveY(cy * CHUNK_SIZE)) return caveLevels(seed, cx, cy);
+  if (generation >= 5) return realmAwareLevels(seed, cx, cy, generation);
   const key = `${generation}:${seed}:${cx},${cy}`,
     cached = generatedLevels.get(key);
   if (cached) {

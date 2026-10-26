@@ -1,5 +1,12 @@
 import { generationMeta, tileAt, isSolid, validAppearance } from '@eigenlands/shared';
-import { caveBiomeAt, caveRegionAt, highGroundRange } from '@eigenlands/shared';
+import {
+  DIFFICULTY_RULES,
+  ENEMY_KEY_BY_KIND,
+  caveBiomeAt,
+  caveRegionAt,
+  highGroundRange,
+  injuryOnHit,
+} from '@eigenlands/shared';
 import { Client, Room, ServerError } from 'colyseus';
 import { StateView } from '@colyseus/schema';
 import {
@@ -48,6 +55,9 @@ import {
   setMeleeWeapon,
   isPerfectDodge,
   pickSpawn,
+  REALM_BEAST,
+  inRealmLand,
+  type EnemyKindName,
   resolveHit,
   rollCrit,
   shapeHits,
@@ -133,7 +143,7 @@ import { addSkillXp, giveStacks } from '../systems/helpers';
 import { handleEquip, handleInvMove, handleInvTrash, lookOf } from '../systems/inventory';
 import { ObjectManager } from '../systems/objects';
 import { loadPlayerData, serializePlayerData } from '../systems/profile';
-import { setTravelMode, tickTravelNeeds } from '../systems/travel-needs';
+import { inflict, setTravelMode, tickTravelNeeds } from '../systems/travel-needs';
 import { handleUse } from '../systems/tools';
 import { handleDev } from '../systems/dev';
 import { onKill, registerQuests } from '../systems/quests';
@@ -766,21 +776,21 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
 
     // Wards disperse intruders without loot, XP or kill credit; they are resting places, not farming spots.
     for (const e of this.enemies.values())
-      if (!e.def.passive && sanctuaryAt(this.seed, e.x, e.y)) {
+      if (!e.def.passive && !e.state.fac && this.warded(e.x, e.y)) {
         this.enemies.delete(e.id);
         this.state.enemies.delete(e.id);
       }
-    const targets = [...this.players.values()]
-      .map(
-        (p) => ({
+    const targets = [
+      ...[...this.players.values()]
+        .map((p) => ({
           id: p.client.sessionId,
           x: p.sim.x,
           y: p.sim.y,
-          alive: p.deadT <= 0 && !sanctuaryAt(this.seed, p.sim.x, p.sim.y),
-        }),
-        ...this.hookTargets(),
-      )
-      .filter((t) => !sanctuaryAt(this.seed, t.x, t.y));
+          alive: p.deadT <= 0 && !this.warded(p.sim.x, p.sim.y),
+        }))
+        .filter((t) => !this.warded(t.x, t.y)),
+      ...this.hookTargets(),
+    ];
     stepEnemies(this.enemies.values(), TICK_DT, tick, targets, solid, this.rand, {
       telegraph: (en) => this.fx({ kind: 'telegraph', x: en.x, y: en.y, v: en.t, w: en.atk, id: en.id }),
       strike: (en, x, y, r, mult) => this.enemyStrike(en, x, y, r, mult),
@@ -1117,6 +1127,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       );
     }
     this.fx({ kind: 'orb', x: e.x, y: e.y, dx, dy, id: e.id });
+    this.hookFire(e, dx, dy);
   }
 
   /** A melee swing batted an orb back: it now flies where the player faces, faster and harder. */
@@ -1216,8 +1227,8 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     if (
       !this.enemies.has(e.id) ||
       e.hp <= 0 ||
-      sanctuaryAt(this.seed, e.x, e.y) ||
-      (by && sanctuaryAt(this.seed, by.sim.x, by.sim.y))
+      (!e.state.fac && this.warded(e.x, e.y)) ||
+      (by && this.warded(by.sim.x, by.sim.y))
     )
       return;
     const weight = o.weight ?? 0;
@@ -1417,7 +1428,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
 
   /** Apply an enemy hit to a player (ward buff, Phase 3 hook, shove, death). Returns whether damage was dealt. */
   private hurtPlayer(p: ServerPlayer, raw: number, e: Enemy, weight: number, dirX: number, dirY: number): boolean {
-    if (sanctuaryAt(this.seed, p.sim.x, p.sim.y)) return false;
+    if (this.warded(p.sim.x, p.sim.y)) return false;
     // armour: a hit may pass straight through (phase), otherwise worn defence trims it
     if (p.stats.phase > 0 && this.rand() < p.stats.phase) {
       this.fx({ kind: 'shadow', x: p.sim.x, y: p.sim.y, v: 5, id: p.id });
@@ -1433,8 +1444,12 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       e,
     );
     if (dmg <= 0) return false; // dodged or absorbed by a Phase 3 ability
-    p.hp = Math.max(0, p.hp - dmg);
+    p.hp = Math.max(0, p.hp - (p.data.needs.mode === 'hardcore' ? Math.round(dmg * 1.25) : dmg));
     p.invuln = 0.5;
+    // wounds: some creatures leave an injury behind (Adventure and Hardcore only)
+    const hit = injuryOnHit(ENEMY_KEY_BY_KIND[e.def.kind] ?? '');
+    if (hit && this.rand() < Math.min(0.9, hit.chance * DIFFICULTY_RULES[p.data.needs.mode].injury))
+      inflict(this, p, hit.cond);
     const l = Math.hypot(dirX, dirY) || 1;
     const shove = weight >= 2 ? 0.6 : 0.3;
     moveBody(p.sim, (dirX / l) * shove, (dirY / l) * shove, PLAYER_RADIUS, this.store.solidAt); // server authoritative; the client reconciles
@@ -1536,7 +1551,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
         const x = Math.floor(p.sim.x + Math.cos(a) * d) + 0.5,
           y = Math.floor(p.sim.y + Math.sin(a) * d) + 0.5;
         const habitat = biomeAt(this.seed, x, y);
-        const kind = pickSpawn(
+        let kind: EnemyKindName = pickSpawn(
             p.level,
             night,
             this.rand(),
@@ -1546,6 +1561,14 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
             this.store.generation >= 4,
           ),
           def = ENEMY_DEFS[kind];
+        // the wilds of a kingdom also hold its mythical beast (revision 5)
+        if (this.store.generation >= 5 && p.level >= 3 && !isCaveY(y) && this.rand() < 0.2) {
+          const realm = inRealmLand(this.seed, x, y);
+          if (realm) {
+            kind = REALM_BEAST[realm];
+            def = ENEMY_DEFS[kind];
+          }
+        }
         const cost = def.budget ?? 1;
         if (
           used + cost > budget ||
@@ -1748,6 +1771,14 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   protected hookWeaponShot(_p: ServerPlayer, _shot: WeaponShot, _ax: number, _ay: number, _power: number): boolean {
     return false;
   }
+  /** a settlement's ward holds unless a war party is assaulting it */
+  protected warded(x: number, y: number): boolean {
+    return !!sanctuaryAt(this.seed, x, y) && !this.hookWarZone(x, y);
+  }
+  protected hookWarZone(_x: number, _y: number): boolean {
+    return false;
+  }
+  protected hookFire(_e: Enemy, _dx: number, _dy: number): void {}
   protected hookKilled(_e: Enemy, _killer: ServerPlayer | undefined): void {}
   protected hookIncomingDamage(_p: ServerPlayer, dmg: number, _e: Enemy): number {
     return dmg;

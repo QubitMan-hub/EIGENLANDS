@@ -3,6 +3,9 @@
  * Pure data + a pure line composer, used by the server (dialogue) and the client (ambient chatter, statue lore).
  */
 import type { Weather } from './weather';
+import { realmNpcs } from './realm-npcs';
+import { KINGDOMS, relationsOf } from './kingdoms';
+import type { RealmId } from './realms';
 import { DELVER_MERCHANTS, NPCS, NPC_BY_ID, tierOf, hearts, type NpcDef } from './npcs';
 
 /** Things the player did recently that villagers can remember and comment on. */
@@ -1817,6 +1820,146 @@ for (const n of DELVER_MERCHANTS) {
         { text: 'I should keep moving.', reply: 'Of course. The tunnels wait for nobody.', pts: 0 },
       ],
     })),
+  };
+}
+
+// Kingdom residents (revision 5): a voice built from their realm's lore and their station.
+const ROLE_TALK: Record<string, { work: string[]; free: string[]; about: string }> = {
+  ruler: {
+    work: ['Petitions, petitions.', 'A crown is mostly paperwork.'],
+    free: ['The realm sleeps; I do not.'],
+    about: 'I carry the crown because someone must, and I try to be worth the weight.',
+  },
+  court: {
+    work: ['Reports to read.', 'The court never rests.'],
+    free: ['Intrigue is exhausting.'],
+    about: 'I serve the throne with counsel, and the realm with caution.',
+  },
+  commander: {
+    work: ['Eyes up, formation tight!', 'Drill, then drill again.'],
+    free: ['A quiet watch is a good watch.'],
+    about: 'I turn farmers into soldiers and soldiers into survivors.',
+  },
+  guard: {
+    work: ['Halt. State your business.', 'Keep to the road.'],
+    free: ['Nothing to report. Good.'],
+    about: 'I hold the gate so everyone else can sleep.',
+  },
+  archer: {
+    work: ['Wind is shifting.', 'Steady. Breathe. Loose.'],
+    free: ['I count the stars between watches.'],
+    about: 'From the wall I see everything. Most of it is quiet.',
+  },
+  soldier: {
+    work: ['Stand to!', 'Boots on, blades sharp.'],
+    free: ['Home feels far from the line.'],
+    about: 'I took the oath at sixteen. I mean it more every year.',
+  },
+  innkeeper: {
+    work: ['Another round!', 'Rooms and stew, in that order.'],
+    free: ['The fire wants stoking.'],
+    about: 'Every traveller carries a story. I collect them like coins.',
+  },
+  smith: {
+    work: ['Clang. Clang. Clang.', 'The metal tells you when it is ready.'],
+    free: ['My hands miss the hammer already.'],
+    about: 'I made my first blade at twelve. It was terrible. I kept it.',
+  },
+  merchant: {
+    work: ['Fresh stock, fair prices!', 'Look, touch, buy.'],
+    free: ['The ledger never lies.'],
+    about: 'Trade is peace with a profit. I like both.',
+  },
+  herbalist: {
+    work: ['Steep. Stir. Wait.', 'Mind the green one. It bites.'],
+    free: ['I hear the roots whisper.'],
+    about: 'Wounds and fevers fear patience, and I have plenty.',
+  },
+  scholar: {
+    work: ['Footnotes, always footnotes.', 'Hush. I am reading.'],
+    free: ['So many books. So little candle.'],
+    about: 'I keep the memory of the realm in ink, so it cannot be argued with.',
+  },
+  elder: {
+    work: ['In my day...', 'The village remembers.'],
+    free: ['The sun is kind to old bones.'],
+    about: 'I have buried my parents and married my grandchildren. The village is my family.',
+  },
+  farmer: {
+    work: ['The soil does not hurry.', 'Weeds never take a holiday.'],
+    free: ['Good rain, good year.'],
+    about: 'I read weather in my knees and soil in my fingers.',
+  },
+  hand: {
+    work: ['Another furrow.', 'Hay waits for nobody.'],
+    free: ['Sore hands, full heart.'],
+    about: 'I work the land for my keep and a little more.',
+  },
+};
+for (const n of realmNpcs()) {
+  const def = KINGDOMS[n.realm as RealmId];
+  const first = n.name.split(' ')[0]!;
+  const role = ROLE_TALK[n.role ?? 'hand'] ?? ROLE_TALK.hand!;
+  const trad = def.traditions;
+  const fest = def.festivals[0]!;
+  const rel = relationsOf(def.id);
+  const friend = rel.find((r) => r.stance === 'allied' || r.stance === 'friendly');
+  const foe = rel.find((r) => r.stance === 'rival' || r.stance === 'hostile');
+  V[n.id] = {
+    greet: {
+      morning: [`Good morning, traveller. ${def.name} wakes early.`, `Morning. ${def.motto}`],
+      day: [`Welcome to ${def.name}. ${def.epithet}, and proud of it.`, `Traveller. ${role.work[0]}`],
+      evening: [`Evening. The lamps of ${def.name} are lit.`],
+      night: [`Late to be abroad. Stay in the light.`],
+    },
+    again: [`Back again? ${role.free[0]}`, `${first} nods. ${def.motto}`],
+    chat: [
+      [`${trad[0]!}`, `${def.climate.split('.')[0]!}.`],
+      [`${trad[1 % trad.length]!}`, `We have a saying: ${def.motto}`],
+      [`${trad[2 % trad.length]!}`, `You are one of us now. ${role.free[0]}`],
+    ],
+    bye: ['Safe roads.', `Long live ${def.name}.`],
+    accept: ['Good. The realm will remember.', 'Then we are agreed.'],
+    decline: ['Perhaps another day.'],
+    thanks: ['The realm is in your debt.', 'Well done. Truly.'],
+    about: [
+      `${n.title} of ${def.name}. ${role.about}`,
+      `${n.bio}`,
+      `${def.history.split('.')[0]!}. That is our story, and I am part of it.`,
+    ],
+    town: `${def.name}: ${def.culture.split('.')[0]!}.`,
+    qubitman: ['QubitMan? The old tales say the Eigen-lights bind every kingdom. I would not argue.'],
+    rumorIn: ['Travellers say: {rumor}'],
+    noRumor: `Quiet days in ${def.name}. The next ${fest.name} will be lively, though.`,
+    memory: ['I still treasure the {item} you gave me.'],
+    deeds: {
+      quest: [`${def.name} hears of deeds like yours.`],
+      fish: [`A catch of {what}? The market here would pay well.`],
+    },
+    barks: { work: role.work, free: [...role.free, def.motto] },
+    closed: `Closed for now. Come back during the day.`,
+    events: [
+      {
+        hearts: 3,
+        title: `${first}: ${fest.name}`,
+        pages: [
+          `${fest.name} comes to ${def.name} each year. ${fest.desc}`,
+          `${first} presses a small gift into your hand. “Come celebrate with us.”`,
+          friend
+            ? `“Even ${KINGDOMS[friend.other].name}'s envoys come, when the roads allow.”`
+            : `“All are welcome, if they keep the peace.”`,
+        ],
+        choices: [
+          { text: 'I would be honoured.', reply: 'Then we shall save you a seat.', pts: 20 },
+          {
+            text: 'Tell me more.',
+            reply: foe ? `Not everyone loves us, ${foe.other} least.` : 'Ask anyone; they will tell you.',
+            pts: 10,
+          },
+          { text: 'Maybe another time.', reply: 'The invitation stands.', pts: 0 },
+        ],
+      },
+    ],
   };
 }
 

@@ -37,12 +37,12 @@ export function toSprite(
 }
 
 // ───────── ramps (dark -> light) ─────────
-const LEAF: Ramp = [C.g0, C.g1, C.g2, C.g3, C.g5, C.g6];
-const LEAF_SPRING: Ramp = [C.g1, C.g2, C.g3, C.g5, C.g6, C.g7];
-const LEAF_AUT_O: Ramp = [C.e1, C.r0, C.r1, C.r4, C.r5, C.r6];
-const LEAF_AUT_R: Ramp = [C.e0, C.r0, C.r2, C.r3, C.r4, C.r5];
-const LEAF_AUT_Y: Ramp = [C.g1, C.g3, C.g5, C.r5, C.r6, C.r7];
-const PINE: Ramp = [C.g0, C.g0, C.g1, C.g2, C.g3, C.g4];
+const LEAF: Ramp = [C.n0, C.n1, C.n2, C.n3, C.n4, C.n5];
+const LEAF_SPRING: Ramp = [C.n1, C.n2, C.n3, C.n4, C.n5, C.g6];
+const LEAF_AUT_O: Ramp = [C.r1, C.c1, C.c2, C.c3, C.c4, C.r6];
+const LEAF_AUT_R: Ramp = [C.c0, C.c1, C.c2, C.r3, C.c3, C.c4];
+const LEAF_AUT_Y: Ramp = [C.n1, C.n3, C.c3, C.c4, C.r6, C.r7];
+const PINE: Ramp = [C.n0, C.n0, C.n1, C.n2, C.t0, C.n3];
 const SNOW: Ramp = [C.mist, C.fog, C.pale, C.white, C.white];
 const BARK: Ramp = [C.e0, C.e1, C.e2, C.e3, C.e4];
 const WOOD: Ramp = [C.e1, C.e2, C.e3, C.e4, C.e5];
@@ -185,7 +185,7 @@ export function drawBroadleaf(ctx: Ctx, seed: number, season: SeasonIdx): void {
         const d = nx * nx + ny * ny;
         if (d > 0.95 + (cluster - 0.5) * 0.25) continue;
         const lit =
-          0.68 - (x - cx) * 0.008 - (y - 15) * 0.008 + Math.sqrt(Math.max(0, 1 - d)) * 0.1 - nx * 0.06 - ny * 0.06;
+          0.64 - (x - cx) * 0.01 - (y - 15) * 0.014 + Math.sqrt(Math.max(0, 1 - d)) * 0.1 - nx * 0.08 - ny * 0.08;
         if (front < 0 || lit > value) {
           front = i;
           value = lit;

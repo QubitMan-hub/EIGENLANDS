@@ -14,6 +14,10 @@ Source: [complete user request](design/master-request.md). Both pasted uploads a
 
 - [x] IMPLEMENTED & TESTED — Undercroft 2 (world revision 4): organic warped caves with continuous biomes, embedded vein ores, cave terraces, steerable haulage mine lines with buffers, delver camps with four travelling merchants, sealed/echo vault shrines with trials, six biome monsters and four new arena bosses. Flood-fill connectivity, terrace-cliff, feature-spread and server trial/boss/merchant tests pass. Not done: additional full cave towns, boss-specific loot, device performance proof.
 
+- [~] IN PROGRESS — Survival (§8): body temperature (biome/cave/season/weather/fire/shelter), bleeding, poison, burns, frostbite, bandage/antidote/salve/tonics, Hardcore difficulty, HUD warmth bar and chips. Server, shared and HUD tests pass. Open: clothing warmth, camping gear, food storage, magical conditions, fracture.
+
+- [~] IN PROGRESS — Six Great Kingdoms (§6, world revision 5): continents with biome palettes and roads, 78 generated settlements (six capitals, towns, villages, farms, outposts), about 360 named residents with schedules, shops and voices, six mythical beasts, reputation with price effects, four-step quest chains, diplomacy calendar and festivals, Journal Kingdoms tab, entry banner. Open: marching armies, atlas borders, underwater cities, wars, branching faction quests. See docs/KINGDOMS.md.
+
 Implementation references: `packages/client/src/art`, `game`, `ui`, `features`; `packages/shared/src`; `packages/server/src`. Dependencies: preserve shared authoritative rules, chunk/shard persistence and existing saves. Evidence: the latest continuation passed all 405 workspace tests (52 client, 215 server, 138 shared), typechecks and both production builds, plus solo/multiplayer and mobile browser checks. Only individually listed slices are complete; the full master overhaul remains IN PROGRESS.
 
 ## Implementation map and remaining dependencies
@@ -388,58 +392,58 @@ Slice delivered 2026-10-25: legacy navy/rounded styles in `style.css` (toasts, c
 
 ## 6. THE INFINITE WORLD & SIX GREAT KINGDOMS
 
-- [ ] NOT STARTED — Maintain a massive, effectively infinite procedural world containing six major, persistent civilizations.
-- [ ] NOT STARTED — Each must have distinct architecture, climate, history, culture, economy, ruler, military, politics, inhabitants, and quests.
+- [~] IN PROGRESS — Maintain a massive, effectively infinite procedural world containing six major, persistent civilizations. Revision 5 adds six continents across the sea (plus the home continent) with distinct biomes; kingdom state is per-player standing, not yet a persistent shared world simulation.
+- [~] IN PROGRESS — Each must have distinct architecture, climate, history, culture, economy, ruler, military, politics, inhabitants, and quests. Shipped: architecture styles, climate, lore, ruler, economy, rep titles; Army units are lore only (see KINGDOMS.md). Quests: four-step chains.
 
 ## I. Aurelion — Golden Kingdom
 
-- [ ] NOT STARTED — Grand European-inspired medieval civilization.
-- [ ] NOT STARTED — Golden castles, fertile plains, cathedral-like halls, knightly orders, villages, and royal tournaments.
-- [ ] NOT STARTED — Army: Knights, infantry, cavalry, archers, griffin riders, royal guards.
+- [~] IN PROGRESS — Grand European-inspired medieval civilization.
+- [~] IN PROGRESS — Golden castles, fertile plains, cathedral-like halls, knightly orders, villages, and royal tournaments.
+- [~] IN PROGRESS — Army: Knights, infantry, cavalry, archers, griffin riders, royal guards. Lore units and the griffin beast exist; no marching armies or riders.
 
 ## II. Sylvaris — Verdant Kingdom
 
-- [ ] NOT STARTED — Ancient forest civilization.
-- [ ] NOT STARTED — Living tree settlements, enchanted forests, mystical lakes, ancient spirits, druids, and magical wildlife.
-- [ ] NOT STARTED — Army: Elven archers, forest guardians, spirit cavalry, druids, woodland creatures.
+- [~] IN PROGRESS — Ancient forest civilization.
+- [~] IN PROGRESS — Living tree settlements, enchanted forests, mystical lakes, ancient spirits, druids, and magical wildlife.
+- [~] IN PROGRESS — Army: Elven archers, forest guardians, spirit cavalry, druids, woodland creatures.
 
 ## III. Khar-Dum — Iron Kingdom
 
-- [ ] NOT STARTED — Dwarven mountain civilization.
-- [ ] NOT STARTED — Enormous fortresses, mines, underground cities, furnaces, mechanical gates, and legendary craftsmen.
-- [ ] NOT STARTED — Army: Heavy infantry, runic warriors, golems, siege engineers, armored mountain units.
+- [~] IN PROGRESS — Dwarven mountain civilization.
+- [~] IN PROGRESS — Enormous fortresses, mines, underground cities, furnaces, mechanical gates, and legendary craftsmen.
+- [~] IN PROGRESS — Army: Heavy infantry, runic warriors, golems, siege engineers, armored mountain units.
 
 ## IV. Raijin Shogunate — Storm Kingdom
 
-- [ ] NOT STARTED — Feudal Japan-inspired fantasy civilization.
-- [ ] NOT STARTED — Pagodas, cherry blossoms, bamboo forests, temples, misty mountains, and ancient shrines.
-- [ ] NOT STARTED — Army: Samurai, shinobi, mounted warriors, thunder beasts, spirit swordsmen.
+- [~] IN PROGRESS — Feudal Japan-inspired fantasy civilization.
+- [~] IN PROGRESS — Pagodas, cherry blossoms, bamboo forests, temples, misty mountains, and ancient shrines.
+- [~] IN PROGRESS — Army: Samurai, shinobi, mounted warriors, thunder beasts, spirit swordsmen.
 
 ## V. Thalassara — Ocean Kingdom
 
-- [ ] NOT STARTED — Magnificent underwater and island civilization.
-- [ ] NOT STARTED — Coral palaces, underwater cities, glowing reefs, ancient ruins, tropical islands, and harbors.
-- [ ] NOT STARTED — Army: Sea knights, merfolk, sirens, aquatic cavalry, royal fleets, and leviathan allies.
-- [ ] NOT STARTED — Add ships, sailing, underwater exploration, aquatic farming, and ocean trade.
+- [~] IN PROGRESS — Magnificent underwater and island civilization.
+- [~] IN PROGRESS — Coral palaces, underwater cities, glowing reefs, ancient ruins, tropical islands, and harbors.
+- [~] IN PROGRESS — Army: Sea knights, merfolk, sirens, aquatic cavalry, royal fleets, and leviathan allies.
+- [~] IN PROGRESS — Add ships, sailing, underwater exploration, aquatic farming, and ocean trade. Existing sailing and ports remain; no underwater cities, aquatic farming or kingdom ship fleets yet.
 
 ## VI. Nethrakar — Demon Kingdom
 
-- [ ] NOT STARTED — Complex fantasy monster civilization.
-- [ ] NOT STARTED — Obsidian fortresses, crimson forests, magical cities, dark ruins, and ancient supernatural societies.
-- [ ] NOT STARTED — Army: Demon knights, shadow mages, hellhound cavalry, monstrous infantry, and draconic allies.
-- [ ] NOT STARTED — **The demon kingdom is not inherently evil.** It must have its own culture, values, alliances, motivations, and opportunities for peaceful interaction.
+- [~] IN PROGRESS — Complex fantasy monster civilization.
+- [~] IN PROGRESS — Obsidian fortresses, crimson forests, magical cities, dark ruins, and ancient supernatural societies.
+- [~] IN PROGRESS — Army: Demon knights, shadow mages, hellhound cavalry, monstrous infantry, and draconic allies.
+- [~] IN PROGRESS — **The demon kingdom is not inherently evil.** It must have its own culture, values, alliances, motivations, and opportunities for peaceful interaction.
 
 ### Every kingdom requires
 
-- [ ] NOT STARTED — A distinct named ruler and personality.
-- [ ] NOT STARTED — Royal court and advisors.
-- [ ] NOT STARTED — Capital city, towns, villages, farms, and military outposts.
-- [ ] NOT STARTED — Infantry, cavalry, commanders, and mythical units.
-- [ ] NOT STARTED — Culture, traditions, festivals, architecture, and cuisine.
-- [ ] NOT STARTED — Trade networks and economic activities.
-- [ ] NOT STARTED — Diplomacy, rivalries, treaties, and possible wars.
-- [ ] NOT STARTED — Meaningful quests and faction relationships.
-- [ ] NOT STARTED — Dynamic NPC behavior and environmental storytelling.
+- [~] IN PROGRESS — A distinct named ruler and personality.
+- [~] IN PROGRESS — Royal court and advisors.
+- [~] IN PROGRESS — Capital city, towns, villages, farms, and military outposts.
+- [~] IN PROGRESS — Infantry, cavalry, commanders, and mythical units.
+- [~] IN PROGRESS — Culture, traditions, festivals, architecture, and cuisine.
+- [~] IN PROGRESS — Trade networks and economic activities.
+- [~] IN PROGRESS — Diplomacy, rivalries, treaties, and possible wars.
+- [~] IN PROGRESS — Meaningful quests and faction relationships. Four-step chains and reputation exist; faction wars and branching are not built.
+- [~] IN PROGRESS — Dynamic NPC behavior and environmental storytelling. Schedules, festival gatherings and diplomacy-priced shops exist; no wars or NPC migration.
 
 ## 7. THREE ADDITIONAL REALMS
 
@@ -470,11 +474,11 @@ Slice delivered 2026-10-25: legacy navy/rounded styles in `style.css` (toasts, c
 
 ### Temperature
 
-- [ ] NOT STARTED — Heat, cold, weather exposure, appropriate clothing, fires, and shelter.
+- [~] IN PROGRESS — Heat, cold, weather exposure, appropriate clothing, fires, and shelter.
 
 ### Injuries and conditions
 
-- [ ] NOT STARTED — Poison, bleeding, burns, frostbite, exhaustion, and magical conditions.
+- [~] IN PROGRESS — Poison, bleeding, burns, frostbite, exhaustion, and magical conditions.
 
 ### Survival supplies
 
@@ -484,7 +488,7 @@ Slice delivered 2026-10-25: legacy navy/rounded styles in `style.css` (toasts, c
 
 - [ ] NOT STARTED — Cozy — Relaxed farming and building.
 - [ ] NOT STARTED — Adventure — Balanced survival and progression.
-- [ ] NOT STARTED — Hardcore — Demanding RLCraft-inspired survival and dangerous encounters.
+- [x] IMPLEMENTED & TESTED — Hardcore — Demanding RLCraft-inspired survival and dangerous encounters.
 - [ ] NOT STARTED — Survival should reward knowledge and planning without forcing endless frustrating micromanagement.
 - [ ] NOT STARTED — The UI must clearly communicate every survival mechanic.
 

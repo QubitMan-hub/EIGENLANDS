@@ -145,6 +145,13 @@ export async function cast(p: P3, line: number, aimX = 1, aimY = 0, ready = true
 export const dev3 = (p: P3, msg: Record<string, unknown>) => p.r.send(DEV_MSG, msg);
 export const dev = (p: P3, msg: Record<string, unknown>) => p.r.send(MSG.DEV, msg);
 
+/** Shops keep hours of the world clock, which follows real time: pin it to midday so a test never depends on when it runs. */
+export async function noon(p: P3): Promise<void> {
+  const h = p.room.wclock.hour();
+  dev(p, { cmd: 'time', offsetMs: Math.round((((12 - h + 24) % 24) / 24) * 24 * 60 * 1000) });
+  await sleep(300);
+}
+
 export async function tp(p: P3, x: number, y: number): Promise<void> {
   dev(p, { cmd: 'tp', x, y });
   await until(() => Math.abs(p.sp.sim.x - x) < 0.01 && Math.abs(p.sp.sim.y - y) < 0.01);

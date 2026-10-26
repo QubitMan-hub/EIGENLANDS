@@ -43,9 +43,10 @@ export class FakePlayer implements PlayerRef {
   x = 0;
   y = 0;
   data: PlayerData = {
-    needs: { mode: 'cozy', food: 100, water: 100 },
+    needs: { mode: 'cozy', food: 100, water: 100, temp: 0 },
     inv: emptyInventory(),
     coins: 0,
+    rep: {},
     skills: { farming: 0, mining: 0, foraging: 0, fishing: 0, crafting: 0 },
     recipes: new Set(),
     equip: emptyEquip(),

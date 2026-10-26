@@ -110,6 +110,22 @@ import {
 export interface ToolSpec {
   type: 'axe' | 'pickaxe' | 'hoe' | 'can' | 'rod' | 'net';
 }
+/** Timed effects stored as server buffs: boons, resistances and injuries. */
+export type BuffKind =
+  'regen' | 'might' | 'ward' | 'lantern' | 'bleed' | 'poison' | 'burn' | 'frostbite' | 'warmth' | 'coolness';
+export const BUFF_KIND_LIST: readonly BuffKind[] = [
+  'regen',
+  'might',
+  'ward',
+  'lantern',
+  'bleed',
+  'poison',
+  'burn',
+  'frostbite',
+  'warmth',
+  'coolness',
+];
+
 export interface ItemDef {
   id: string;
   name: string;
@@ -125,7 +141,9 @@ export interface ItemDef {
   /** food/potion */
   heal?: number;
   nourishment?: number;
-  buff?: { kind: 'regen' | 'might' | 'ward' | 'lantern'; secs: number; power: number };
+  buff?: { kind: BuffKind; secs: number; power: number };
+  /** medicine: injuries this item cures */
+  cure?: Array<'bleed' | 'poison' | 'burn' | 'frostbite'>;
   /** placeable: world object subtype created */
   place?: {
     kind: 'station' | 'sprinkler' | 'shelter' | 'chest' | 'furniture' | 'sign' | 'fence' | 'structure';
@@ -462,6 +480,19 @@ const FOOD: Array<[string, string, number, Glyph, number, number, number, ItemDe
   ['hearty_stew', 'Hearty Stew', 210, 'bowl', C.e3, C.r4, 70, { kind: 'regen', secs: 120, power: 2 }],
   ['baked_yam', 'Baked Yam', 95, 'root', C.q4, C.e5, 32],
   ['qubit_tea', 'Qubit Tea', 260, 'bottle', C.q4, C.q7, 20, { kind: 'lantern', secs: 600, power: 1 }],
+  // ── kingdom cuisine (world revision 5): signature dishes of the six great kingdoms
+  ['knights_pie', "Knight's Pie", 170, 'pie', C.e4, C.e6, 55, { kind: 'might', secs: 150, power: 0.12 }],
+  ['honey_cake', 'Aurelian Honey Cake', 120, 'pie', C.e6, C.e7, 38, { kind: 'regen', secs: 80, power: 1.2 }],
+  ['glowcap_broth', 'Glowcap Broth', 140, 'bowl', C.w4, C.w7, 36, { kind: 'lantern', secs: 600, power: 1 }],
+  ['hazel_loaf', 'Hazelnut Loaf', 100, 'pie', C.e3, C.e5, 34, { kind: 'ward', secs: 150, power: 0.12 }],
+  ['forge_stew', 'Forge-Fire Stew', 190, 'bowl', C.r3, C.e6, 60, { kind: 'warmth', secs: 360, power: 0.8 }],
+  ['cave_bread', 'Cave-Cheese Bread', 95, 'pie', C.e5, C.e7, 32, { kind: 'ward', secs: 120, power: 0.1 }],
+  ['cherry_mochi', 'Cherry Mochi', 110, 'jar', C.r5, C.white, 34, { kind: 'might', secs: 120, power: 0.1 }],
+  ['thunder_noodles', 'Thunder Noodles', 180, 'bowl', C.e4, C.w6, 55, { kind: 'might', secs: 180, power: 0.15 }],
+  ['reef_ceviche', 'Reef Ceviche', 170, 'fish', C.w4, C.g6, 42, { kind: 'coolness', secs: 360, power: 0.8 }],
+  ['crab_chowder', 'Pearl-Crab Chowder', 175, 'bowl', C.e6, C.w5, 56, { kind: 'ward', secs: 150, power: 0.15 }],
+  ['ember_stew', 'Ember-Pepper Stew', 185, 'bowl', C.r4, C.e7, 58, { kind: 'warmth', secs: 300, power: 0.6 }],
+  ['cinder_cake', 'Cinder Cake', 125, 'pie', C.night, C.r5, 36, { kind: 'regen', secs: 90, power: 1.5 }],
 ];
 for (const [id, name, v, g, a, b, heal, buff] of FOOD)
   def(id, name, 'food', v, g, a, b, 'Cooked at the pot. Eat it for health.', { heal, buff });
@@ -477,6 +508,22 @@ def('ward_potion', 'Warding Potion', 'potion', 140, 'bottle', C.w4, C.w7, 'Take 
 });
 def('lantern_potion', 'Night-Sight Potion', 'potion', 100, 'bottle', C.q4, C.q7, 'See further in the dark.', {
   buff: { kind: 'lantern', secs: 600, power: 1 },
+});
+
+// ── survival medicine and tonics (master plan §8)
+def('bandage', 'Bandage', 'potion', 25, 'bottle', C.pale, C.e6, 'Stops bleeding. Heals a little.', {
+  heal: 10,
+  cure: ['bleed'],
+});
+def('antidote', 'Antidote', 'potion', 60, 'bottle', C.g4, C.g7, 'Clears poison.', { cure: ['poison'] });
+def('burn_salve', 'Burn Salve', 'potion', 70, 'bottle', C.w3, C.e6, 'Soothes burns and frostbite.', {
+  cure: ['burn', 'frostbite'],
+});
+def('warming_tonic', 'Warming Tonic', 'potion', 90, 'bottle', C.r4, C.e7, 'Resist the cold for a long while.', {
+  buff: { kind: 'warmth', secs: 420, power: 0.7 },
+});
+def('cooling_tonic', 'Cooling Tonic', 'potion', 90, 'bottle', C.w5, C.w7, 'Resist the heat for a long while.', {
+  buff: { kind: 'coolness', secs: 420, power: 0.7 },
 });
 
 // ── fertilizers
@@ -719,6 +766,58 @@ def(
   C.g3,
   C.e6,
   'A heart that still beats slowly, in time with the forest.',
+);
+// Mythical-beast trophies (world revision 5)
+def(
+  'griffin_plume',
+  'Griffin Plume',
+  'resource',
+  120,
+  'feather',
+  C.e5,
+  C.e7,
+  'A gilded flight feather. Aurelion lords pay in gold.',
+);
+def(
+  'stag_antler',
+  'Spirit Antler',
+  'resource',
+  120,
+  'leaf',
+  C.g5,
+  C.pale,
+  'Warm to the touch and faintly luminous. Sylvaris holds it sacred.',
+);
+def(
+  'iron_heart',
+  'Iron Heart',
+  'resource',
+  140,
+  'ore',
+  C.slate,
+  C.e6,
+  'A fist-sized core of folded iron, still faintly warm.',
+);
+def('raiju_fang', 'Raiju Fang', 'resource', 130, 'feather', C.pale, C.w6, 'A crackling fang. It tingles in your pack.');
+def(
+  'naga_pearl',
+  'Naga Pearl',
+  'resource',
+  150,
+  'orb',
+  C.white,
+  C.w6,
+  'A tide-bright pearl from a reef naga. Thalassara adores them.',
+);
+def(
+  'hellhound_ember',
+  'Hellhound Ember',
+  'resource',
+  130,
+  'coal',
+  C.r2,
+  C.e6,
+  'A coal that will not cool. Nethrakar smiths prize it.',
 );
 def('void_core', 'Void Core', 'resource', 900, 'orb', C.q3, C.q7, 'A crystal that is mostly absence.');
 def(

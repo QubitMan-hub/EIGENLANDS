@@ -37,8 +37,8 @@ const cmd = (o: Partial<InputCmd> = {}): InputCmd => sanitizeCmd({ seq: 1, ...o 
 
 describe('palette', () => {
   it('has exactly 48 unique colours', () => {
-    expect(PALETTE.length).toBe(48);
-    expect(new Set(PALETTE).size).toBe(48);
+    expect(PALETTE.length).toBe(64);
+    expect(new Set(PALETTE).size).toBe(64);
   });
 });
 

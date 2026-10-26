@@ -252,7 +252,7 @@ switch (panel) {
         'Adventure · hungry · shield + buffs',
         base({
           hp: 44,
-          needs: { food: 14, water: 62 },
+          needs: { food: 14, water: 62, temp: -62 },
           auras: ['shield'],
           buffs: {
             regen: { until: now + 42_000, power: 2 },
@@ -267,7 +267,7 @@ switch (panel) {
         base({
           hp: 30,
           mana: null,
-          needs: { food: 80, water: 0 },
+          needs: { food: 80, water: 0, temp: 70 },
           auras: ['ward', 'mirror'],
           buffs: {
             lantern: { until: now + 500_000, power: 1 },

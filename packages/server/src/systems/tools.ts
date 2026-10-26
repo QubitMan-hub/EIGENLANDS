@@ -279,7 +279,8 @@ export function forageAt(room: RoomApi, p: ServerPlayer, tx: number, ty: number)
 function eat(room: RoomApi, p: ServerPlayer, slot: number): void {
   const stack = p.data.inv[slot]!;
   const def = ITEMS[stack.id]!;
-  if (def.heal && !def.buff && p.hp >= p.maxHp && (!def.nourishment || p.data.needs.food >= 100)) {
+  const hurt = (def.cure ?? []).some((c) => p.data.buffs[c]);
+  if (def.heal && !def.buff && !hurt && p.hp >= p.maxHp && (!def.nourishment || p.data.needs.food >= 100)) {
     p.toast("You're already at full health.");
     return;
   }
@@ -288,6 +289,11 @@ function eat(room: RoomApi, p: ServerPlayer, slot: number): void {
     p.dirty('needs');
   }
   if (def.heal) p.hp = Math.min(p.maxHp, p.hp + def.heal);
+  if (def.cure?.length) {
+    for (const c of def.cure) delete p.data.buffs[c];
+    p.dirty('buffs');
+    p.toast(`${def.name} used.`, 'good');
+  }
   if (def.buff) {
     p.data.buffs[def.buff.kind] = { until: room.wclock.now() + def.buff.secs * 1000, power: def.buff.power };
     p.dirty('buffs');

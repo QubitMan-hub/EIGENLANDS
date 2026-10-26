@@ -28,7 +28,7 @@ export interface VitalsFrame {
   mana: { v: number; max: number; name: string } | null;
   /** sprint stamina as a fraction and a 0..100 value; dash charges ride on the plinth as pips */
   stamina: { frac: number; value: number; charges: number; max: number };
-  needs: { food: number; water: number } | null;
+  needs: { food: number; water: number; temp?: number } | null;
   auras: StatusInput['auras'];
   buffs: StatusInput['buffs'];
   serverNow: number;
@@ -40,6 +40,7 @@ const GAUGE_LABEL: Record<GaugeId, string> = {
   stamina: 'Stamina',
   food: 'Food',
   water: 'Water',
+  temp: 'Body warmth',
 };
 const ICON: Record<GaugeId, string> = {
   health: 'heart',
@@ -47,6 +48,7 @@ const ICON: Record<GaugeId, string> = {
   stamina: 'bolt',
   food: 'st_food',
   water: 'st_drop',
+  temp: 'st_heat',
 };
 
 /** A small isometric pedestal (2:1 block) per status tone, drawn once and reused as the chip's floor. */
@@ -86,6 +88,7 @@ export class VitalsHud {
     stamina: new GaugeMotion(),
     food: new GaugeMotion(),
     water: new GaugeMotion(),
+    temp: new GaugeMotion(),
   };
   private ids: GaugeId[] = [];
   private layout = vitalsLayout([]);
@@ -120,7 +123,7 @@ export class VitalsHud {
     const ids: GaugeId[] = ['health'];
     if (f.mana) ids.push('mana');
     ids.push('stamina');
-    if (f.needs) ids.push('food', 'water');
+    if (f.needs) ids.push('food', 'water', 'temp');
     if (ids.join() !== this.ids.join()) this.rebuild(ids);
 
     const frac: Record<GaugeId, number> = {
@@ -129,6 +132,7 @@ export class VitalsHud {
       stamina: f.stamina.frac,
       food: f.needs ? f.needs.food / 100 : 0,
       water: f.needs ? f.needs.water / 100 : 0,
+      temp: f.needs ? ((f.needs.temp ?? 0) + 100) / 200 : 0.5,
     };
     let moving = false;
     for (const id of this.ids) moving = this.motion[id].step(dt, frac[id], reduced) || moving;
@@ -146,7 +150,8 @@ export class VitalsHud {
       const m = this.motion[id];
       const tone =
         id === 'food' ? needTone(f.needs?.food ?? 100) : id === 'water' ? needTone(f.needs?.water ?? 100) : 'ok';
-      const low = id === 'health' ? lowHealth(f.hp, f.maxHp) : tone !== 'ok';
+      const low =
+        id === 'health' ? lowHealth(f.hp, f.maxHp) : id === 'temp' ? Math.abs(f.needs?.temp ?? 0) >= 80 : tone !== 'ok';
       const ready = id === 'mana' && !!f.mana && f.mana.v >= f.mana.max && f.mana.max > 0;
       if (!reduced && (low || ready)) pulsing = true;
       specs[id] = {
@@ -236,6 +241,28 @@ export class VitalsHud {
       `Stamina ${Math.round(f.stamina.value)} of 100. Hold sprint to run; dash charges ${f.stamina.charges} of ${f.stamina.max} (studs on the plinth).`,
     );
     if (f.needs) {
+      const t = f.needs.temp ?? 0,
+        word =
+          t <= -80
+            ? 'Freezing'
+            : t <= -55
+              ? 'Cold'
+              : t <= -35
+                ? 'Chilly'
+                : t >= 80
+                  ? 'Scorching'
+                  : t >= 55
+                    ? 'Hot'
+                    : t >= 35
+                      ? 'Warm'
+                      : 'Fine';
+      set(
+        'temp',
+        word,
+        Math.round(t),
+        100,
+        `Body warmth: ${word.toLowerCase()} (${Math.round(t)}). Fires, shelter, clothing tonics and the time of day change it.`,
+      );
       set(
         'food',
         String(Math.ceil(f.needs.food)),

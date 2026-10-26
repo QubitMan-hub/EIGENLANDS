@@ -24,6 +24,7 @@ export const VIAL_STYLES: Record<GaugeId, VialStyle> = {
   mana: { w: 70, h: 8, liquid: [C.q1, C.q2, C.q3, C.q4, C.q7], frame: [C.steel, C.mist, C.pale], ticks: 3 },
   stamina: { w: 70, h: 8, liquid: [C.g1, C.g2, C.g3, C.g5, C.g6], frame: [C.slate, C.steel, C.fog], ticks: 1 },
   food: { w: 70, h: 6, liquid: [C.e3, C.e4, C.r5, C.r6, C.r7], frame: [C.e1, C.e3, C.e5], ticks: 0 },
+  temp: { w: 70, h: 6, liquid: [C.w2, C.w4, C.w6, C.e5, C.r4], frame: [C.slate, C.steel, C.fog], ticks: 1 },
   water: { w: 70, h: 6, liquid: [C.w1, C.w2, C.w3, C.w4, C.w6], frame: [C.steel, C.mist, C.fog], ticks: 0 },
 };
 
@@ -99,6 +100,26 @@ function paintBar(ctx: Ctx, place: VialPlace, v: VialSpec): void {
     iy = 2;
   px(ix - 1, iy - 1, C.ink, iw + 2, ih + 2);
   px(ix, iy, C.night, iw, ih);
+  if (v.id === 'temp') {
+    // centre-zero gauge: cold fills left in blue, heat fills right in red; the middle mark is comfortable
+    const mid = ix + Math.floor(iw / 2),
+      off = Math.round((v.shown - 0.5) * 2 * (iw / 2));
+    const cold = off < 0;
+    const x1 = cold ? mid + off : mid,
+      wd = Math.abs(off);
+    if (wd > 0) {
+      const body = cold ? C.w4 : C.r4,
+        lit = cold ? C.w6 : C.e6,
+        shade = cold ? C.w2 : C.r2;
+      px(x1, iy, body, wd, ih);
+      px(x1, iy, lit, wd, 1);
+      px(x1, iy + ih - 1, shade, wd, 1);
+    }
+    px(mid, iy, C.pale, 1, ih);
+    px(ix + Math.floor(iw * 0.18), iy, C.slate, 1, ih);
+    px(ix + Math.floor(iw * 0.82), iy, C.slate, 1, ih);
+    return;
+  }
   const trailW = Math.round(v.trail * iw),
     fillW = Math.round(v.shown * iw);
   if (trailW > fillW) px(ix + fillW, iy, v.flash > 0 ? C.white : C.pale, trailW - fillW, ih);

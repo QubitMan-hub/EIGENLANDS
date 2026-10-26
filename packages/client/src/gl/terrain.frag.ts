@@ -72,7 +72,7 @@ uniform vec4 uShrine;       // spawn shrine centre (tiles) + radius
 uniform vec3 uWind;         // world wind: direction xy + strength 0..1 (same field the swaying plants follow)
 uniform float uTopZ;        // highest raised ground in the window (art px); 0 keeps the flat-world ray length
 
-const vec3 PAL[48] = vec3[48](${pal});
+const vec3 PAL[64] = vec3[64](${pal});
 
 const int B_MEADOW = 0, B_FOREST = 1, B_AUTUMN = 2, B_TAIGA = 3, B_SWAMP = 4, B_DESERT = 5, B_ENCHANTED = 6, B_CORRUPT = 7;
 const int DEEP = 0, WATER = 1, SAND = 2, GRASS = 3, PATH = 4, SOIL = 5, SOILWET = 6, FLOOR = 7, WALLC = 8, CAVE = 9, CAVEWALL = 10, VOID = 11, LAVA = 12, VAULT = 13;
@@ -82,6 +82,7 @@ const int E0=16, E1=17, E2=18, E3=19, E4=20, E5=21, E6=22, E7=23;
 const int W0=24, W1=25, W2=26, W3=27, W4=28, W5=29, W6=30, W7=31;
 const int R0=32, R1=33, R2=34, R3=35, R4=36, R5=37, R6=38, R7=39;
 const int Q0=40, Q1=41, Q2=42, Q3=43, Q4=44, Q5=45, Q6=46, Q7=47;
+const int N0=48, N1=49, N2=50, N3=51, N4=52, N5=53, T0=54, T1=55, T2=56, C0=57, C1=58, C2=59, C3=60, C4=61, B0=62, B1=63;
 
 const float Z_WATER = ${GROUND_Z.water}.0;
 const int STEPS = 9 + ${GROUND_Z.caveWall} + ${MAX_TOP};   // upper bound; the ray starts at the crown of the tallest block (0 on flat ground)
@@ -106,7 +107,7 @@ float fbm(vec2 p) {
   vec2 r = vec2(p.x * 0.8 - p.y * 0.6, p.x * 0.6 + p.y * 0.8);
   return vnoise(p) * 0.55 + vnoise(r * 2.1 + 17.3) * 0.3 + vnoise(r.yx * 4.3 - 5.1) * 0.15;
 }
-vec3 P(int i) { return PAL[clamp(i, 0, 47)]; }
+vec3 P(int i) { return PAL[clamp(i, 0, 63)]; }
 ivec2 cellOf(ivec2 p, ivec2 size) { return ivec2(floor(vec2(p) / vec2(size))); }
 vec2 isoToTile(vec2 iso) { return vec2(iso.y / 16.0 + iso.x / 32.0, iso.y / 16.0 - iso.x / 32.0); }
 
@@ -195,9 +196,9 @@ Tones grassTones(int s, bool lush) {
     else { T.base = G2; T.body = G4; T.hi = R5; T.sh = G1; T.dk = G1; }
     return T;
   }
-  if (lush) { T.base = G4; T.body = G5; T.hi = G6; T.sh = G3; T.dk = G2; }
-  else { T.base = G3; T.body = G4; T.hi = G5; T.sh = G2; T.dk = G1; }
-  if (s == 0 && !lush) { T.base = G4; T.body = G4; T.hi = G6; T.sh = G3; T.dk = G2; }
+  if (lush) { T.base = N3; T.body = N4; T.hi = N5; T.sh = N2; T.dk = N1; }
+  else { T.base = N2; T.body = N3; T.hi = N4; T.sh = N1; T.dk = N0; }
+  if (s == 0 && !lush) { T.base = N3; T.body = N3; T.hi = N5; T.sh = N1; T.dk = N0; }
   return T;
 }
 
@@ -298,7 +299,7 @@ int grassTop(ivec2 ip, vec2 tf, int s, float flux, float t, int b) {
   vec2 bent = tf + vec2(vnoise(tf * 0.12 + 17.0), vnoise(tf * 0.12 - 39.0)) * 2.5;
   float dn = fbm(bent * 0.32 + 50.0);
   // Resting ground planes between planted clusters keep actors and loot legible.
-  float dens = lush ? 0.08 + 0.16 * smoothstep(0.4, 0.8, dn) : 0.08 + 0.28 * smoothstep(0.3, 0.72, dn);
+  float dens = lush ? 0.1 + 0.2 * smoothstep(0.4, 0.8, dn) : 0.14 + 0.4 * smoothstep(0.28, 0.7, dn);
   float big = lush ? 0.0 : 0.08 + 0.25 * smoothstep(0.3, 0.75, fbm(tf * 0.35 + 70.0));
   if (s == 3) { dens *= 0.35; big = 0.0; }
   bool hit;
@@ -308,14 +309,50 @@ int grassTop(ivec2 ip, vec2 tf, int s, float flux, float t, int b) {
   ivec2 tc = cellOf(ip, TC);
   for (int j = 0; j <= 1; j++) for (int i = -1; i <= 1; i++) {
     ivec2 cc = tc + ivec2(i, j);
-    if (hashk(cc, 6) > (lush ? 0.08 : 0.13)) continue;
+    if (hashk(cc, 6) > (lush ? 0.1 : 0.22)) continue;
     ivec2 b = cc * TC + ivec2(int(hashk(cc, 7) * 5.0), int(hashk(cc, 8) * 3.0));
     int r = tuftPix(ip, b, lush ? T.sh : T.body, lush ? T.dk : T.hi);
     if (r >= 0) return r;
   }
+  // mottled turf: sunlit and shaded stamps in drifts, so meadows read as living ground rather than a flat fill
+  {
+    ivec2 MC = ivec2(13, 8);
+    ivec2 m0 = cellOf(ip, MC);
+    float mt = smoothstep(0.2, 0.75, fbm(tf * 0.22 + 130.0));
+    for (int j = 0; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+      ivec2 mc = m0 + ivec2(i, j);
+      if (hashk(mc, 31) > 0.25 + 0.5 * mt) continue;
+      ivec2 mo = mc * MC + ivec2(2 + int(hashk(mc, 32) * 8.0), 1 + int(hashk(mc, 33) * 5.0));
+      ivec2 q = ip - mo;
+      int w = 3 + int(hashk(mc, 34) * 3.0);
+      if (q.y == 0 && q.x >= 0 && q.x < w) return hashk(mc, 35) < 0.5 ? T.sh : T.hi;
+      if (q.y == 1 && q.x >= 1 && q.x < w - 1) return hashk(mc, 35) < 0.5 ? T.dk : T.body;
+    }
+    // clover and low shrub blobs
+    ivec2 BC = ivec2(23, 14);
+    ivec2 bc = cellOf(ip, BC);
+    if (hashk(bc, 36) < 0.42 && b != B_CORRUPT && s != 3) {
+      ivec2 bo = bc * BC + ivec2(3 + int(hashk(bc, 37) * 16.0), 3 + int(hashk(bc, 38) * 8.0));
+      vec2 d = vec2(ip - bo) / vec2(3.4, 2.1);
+      float rr = dot(d, d);
+      if (rr < 1.0) {
+        float lit = -(d.x * 0.4 + d.y * 0.9) + (hashi(ip) - 0.5) * 0.5;
+        return lit > 0.35 ? T.hi : lit < -0.35 ? T.dk : T.body;
+      }
+      if (rr < 1.9 && ip.y - bo.y >= 1 && ip.y - bo.y <= 2) return T.dk;
+    }
+    // pebbles with a hard shadow
+    ivec2 pc = cellOf(ip, ivec2(19, 13));
+    if (hashk(pc, 39) < 0.16) {
+      ivec2 po = pc * ivec2(19, 13) + ivec2(2 + int(hashk(pc, 40) * 15.0), 2 + int(hashk(pc, 41) * 9.0));
+      ivec2 q = ip - po;
+      if (q.y == 0 && (q.x == 0 || q.x == 1)) return q.x == 0 ? PALE : MIST;
+      if (q.y == 1 && q.x >= 0 && q.x <= 2) return b == B_CORRUPT ? NIGHT : T.dk;
+    }
+  }
   // flowers (spring/summer), fallen leaves (autumn), glitter (winter)
   if (s <= 1 && b != B_CORRUPT && b != B_SWAMP) {
-    float fd = smoothstep(0.6, 0.85, vnoise(tf * 0.4 + 90.0)) * (s == 0 ? 0.6 : 0.35) * (b == B_ENCHANTED ? 1.6 : 1.0);
+    float fd = smoothstep(0.6, 0.85, vnoise(tf * 0.4 + 90.0)) * (s == 0 ? 0.95 : 0.6) * (b == B_ENCHANTED ? 1.6 : 1.0);
     ivec2 FC = ivec2(11, 7);
     ivec2 f0 = cellOf(ip, FC);
     for (int j = 1; j >= 0; j--) for (int i = -1; i <= 1; i++) {

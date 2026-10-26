@@ -2,7 +2,9 @@
  * Quests: story quests from villagers and the daily request board. Objective progress comes from real events reported by
  * every system (`questEvent`), deliveries track the pack, rewards are atomic. See shared/src/quests.ts for the data.
  */
+import { gainRep } from './reputation';
 import {
+  type RealmId,
   ENEMY_DEFS,
   ITEMS,
   MSG,
@@ -179,6 +181,7 @@ export function turnInQuest(
       ? d.rewards.recipe
       : null;
   if (learned) p.data.recipes.add(learned);
+  if (d.realm && d.rewards.rep) gainRep(p, d.realm as RealmId, d.rewards.rep);
   p.dirty('quests', 'inv', 'coins', 'friends', ...(learned ? ['recipes' as const] : []));
   const rewardText = [
     `${d.rewards.coins} coins`,

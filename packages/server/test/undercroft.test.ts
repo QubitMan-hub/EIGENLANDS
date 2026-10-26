@@ -11,7 +11,7 @@ import {
   townsFor,
 } from '@eigenlands/shared';
 import type { App } from '../src/app';
-import { boot3, spawn3, tp, setLevel, dev, until, sleep, clearEnemies } from './p3helpers';
+import { boot3, spawn3, tp, setLevel, dev, until, sleep, clearEnemies, noon } from './p3helpers';
 import { CaveModule } from '../src/features/caves';
 let app: App;
 beforeAll(async () => {
@@ -109,6 +109,7 @@ it('runs cave merchant stock and archive/waymark quests through normal interacti
   const p = await spawn3(app, 'Cave historian'),
     views: any[] = [];
   p.r.onMessage(MSG.SHOP_VIEW, (m) => views.push(m));
+  await noon(p);
   const merchant = p.room.village.npc('hollowhearth_1')!;
   expect(merchant).toBeTruthy();
   await tp(p, merchant.x + 0.8, merchant.y);

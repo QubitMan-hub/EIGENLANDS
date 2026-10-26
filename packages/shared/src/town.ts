@@ -1,4 +1,6 @@
 import { caveTowns } from './cavetowns';
+import { realmTowns } from './realm-towns';
+import { activeGeneration } from './generation-registry';
 import { extraTowns } from './settlements';
 import { upperTowns, townStairTile, isUpperY } from './floors';
 import { hash2 } from './rng';
@@ -6,7 +8,7 @@ import { T } from './tiles';
 import { sampleClimate } from './worldgen';
 import { LEGACY_GENERATION } from './world-version';
 
-export type BuildingKind = 'smithy' | 'hall' | 'inn' | 'store' | 'house' | 'farmhouse';
+export type BuildingKind = 'smithy' | 'hall' | 'inn' | 'store' | 'house' | 'farmhouse' | 'tower';
 export interface Building {
   id: string;
   kind: BuildingKind;
@@ -639,29 +641,39 @@ export function furnish(b: Building, rawObj: ObjAdd, spot: SpotAdd): void {
   }
 }
 
-const allCache = new Map<number, Town[]>();
-export function townsFor(seed: number): Town[] {
-  let towns = allCache.get(seed);
+const allCache = new Map<string, Town[]>();
+/** Every settlement of a world. Revision 5 adds the 78 plots of the six kingdoms. */
+export function townsFor(seed: number, generation: number = activeGeneration(seed)): Town[] {
+  const modern = generation >= 5,
+    key = `${seed}:${modern ? 5 : 0}`;
+  let towns = allCache.get(key);
   if (!towns) {
     const base = [townFor(seed), ...extraTowns(seed)];
-    towns = [...base, ...upperTowns(base), ...caveTowns(seed)];
+    towns = [...base, ...upperTowns(base), ...caveTowns(seed), ...(modern ? realmTowns(seed) : [])];
     if (allCache.size > 8) allCache.clear();
-    allCache.set(seed, towns);
+    allCache.set(key, towns);
   }
   return towns;
 }
 
-export function townAt(seed: number, x: number, y: number): Town | null {
+const REALM_REACH = 1500;
+export function townAt(seed: number, x: number, y: number, generation: number = activeGeneration(seed)): Town | null {
   if (Math.abs(x) <= 120 && Math.abs(y) <= 120) {
     const t = townFor(seed);
     return x >= t.x0 && x <= t.x1 && y >= t.y0 && y <= t.y1 ? t : null;
   }
-  if (Math.abs(x) > 650 || (Math.abs(y) > 650 && !isUpperY(y) && !(y >= 39488 && y < 41000))) return null;
-  return townsFor(seed).find((t) => x >= t.x0 && x <= t.x1 && y >= t.y0 && y <= t.y1) ?? null;
+  const far = generation >= 5 && Math.abs(x) <= REALM_REACH && Math.abs(y) <= REALM_REACH;
+  if (!far && (Math.abs(x) > 650 || (Math.abs(y) > 650 && !isUpperY(y) && !(y >= 39488 && y < 41000)))) return null;
+  return townsFor(seed, generation).find((t) => x >= t.x0 && x <= t.x1 && y >= t.y0 && y <= t.y1) ?? null;
 }
 /** Town tile override at (x,y), or null outside a settlement's authored footprint. */
-export function townTileAt(seed: number, x: number, y: number): number | null {
-  const t = townAt(seed, x, y);
+export function townTileAt(
+  seed: number,
+  x: number,
+  y: number,
+  generation: number = activeGeneration(seed),
+): number | null {
+  const t = townAt(seed, x, y, generation);
   return t?.tiles.get(x - t.x0 + (y - t.y0) * (t.x1 - t.x0 + 1)) ?? null;
 }
 export function buildingAt(seed: number, x: number, y: number): Building | null {

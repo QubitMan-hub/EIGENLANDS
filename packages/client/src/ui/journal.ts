@@ -8,6 +8,16 @@ import {
   QUESTS,
   RECIPES,
   SKILLS,
+  DAY_MS,
+  KINGDOMS,
+  REALM_IDS,
+  REP_TIERS,
+  type KingdomStance,
+  diplomacyAt,
+  nextFestival,
+  realmRankName,
+  relationsOf,
+  repTier,
   SKILL_NAMES,
   SKILL_PERKS,
   STATION_NAMES,
@@ -28,7 +38,7 @@ import { ACTIONS, ACTION_LABELS, DEFAULT_KEYS, type KeyMap } from '../input/keym
 import { binding } from './first-steps';
 import { heartsRow } from './dialogue';
 
-export type JournalTab = 'journey' | 'quests' | 'skills' | 'friends' | 'recipes' | 'guide' | 'help';
+export type JournalTab = 'journey' | 'quests' | 'skills' | 'friends' | 'kingdoms' | 'recipes' | 'guide' | 'help';
 
 /** "How do I…?" pages: everything Phase 2 adds, explained in-game. */
 export const GUIDE: Array<[string, string]> = [
@@ -102,7 +112,7 @@ export function buildJournal(
     firstSteps?: HTMLElement;
     track?: (id: string | null, map?: boolean) => void;
     tracked?: () => string | null;
-    travelMode?: (mode: 'cozy' | 'adventure') => void;
+    travelMode?: (mode: 'cozy' | 'adventure' | 'hardcore') => void;
   } = {},
 ): HTMLElement {
   ensureP2Styles();
@@ -134,6 +144,7 @@ export function buildJournal(
       ['journey', 'Journey'],
       ['skills', 'Skills'],
       ['friends', 'Friends'],
+      ['kingdoms', 'Kingdoms'],
       ['recipes', 'Recipes'],
       ['guide', 'How to…'],
       ['help', 'Controls'],
@@ -159,11 +170,12 @@ export function buildJournal(
       mode.setAttribute('aria-label', 'Travel mode');
       mode.append(
         h('option', { value: 'cozy', text: 'Cozy · no depletion' }),
-        h('option', { value: 'adventure', text: 'Adventure · food and water' }),
+        h('option', { value: 'adventure', text: 'Adventure · food, water, weather, injuries' }),
+        h('option', { value: 'hardcore', text: 'Hardcore · harsher drain, injuries and hits' }),
       );
       mode.value = n.mode;
       mode.disabled = !options.travelMode;
-      mode.addEventListener('change', () => options.travelMode?.(mode.value as 'cozy' | 'adventure'));
+      mode.addEventListener('change', () => options.travelMode?.(mode.value as 'cozy' | 'adventure' | 'hardcore'));
       body.append(
         h(
           'section',
@@ -171,10 +183,16 @@ export function buildJournal(
           h('h3', { text: 'Travel needs' }),
           mode,
           h('p', {
-            text: `Food ${Math.ceil(n.food)}/100 · Water ${Math.ceil(n.water)}/100. ${n.mode === 'cozy' ? 'Cozy pauses depletion.' : 'Adventure needs are enabled.'}`,
+            text: `Food ${Math.ceil(n.food)}/100 · Water ${Math.ceil(n.water)}/100. ${n.mode === 'cozy' ? 'Cozy pauses depletion.' : n.mode === 'adventure' ? 'Adventure needs are enabled.' : 'Hardcore is on: faster drain, frequent injuries, harder hits.'}${n.mode === 'cozy' ? '' : ` Body warmth ${Math.round(n.temp)}.`}`,
           }),
           h('p', {
             text: 'Adventure uses food over about 30 minutes and water over 20 minutes at rest. Exertion costs more; desert thirst rises faster. Town wards, death and offline time pause depletion. At zero, exhaustion costs 1 HP every 10 seconds and stops at 1 HP. Switching modes never refills supplies.',
+          }),
+          h('p', {
+            text: 'Warmth (Adventure and Hardcore): deserts scorch at noon and freeze at night, taiga and the Rime Cathedral are cold, Cinder Hollows are hot, winter and snow chill you. Stand near a campfire, forge or torch, or go indoors, to settle toward comfort; warming and cooling tonics resist the extremes. Freezing or scorching for several seconds costs health, and freezing causes frostbite.',
+          }),
+          h('p', {
+            text: 'Injuries: wolves, boars and brutes can make you bleed (bandage), swamp and cave creatures poison (antidote), cinder creatures and lava burn (burn salve, or stand by water), frost creatures and freezing cause frostbite (burn salve or a fire). Bandages and antidotes are a start recipe at the alchemy bench; salves and tonics are discovered. Injuries never kill you outright; they stop at 1 HP.',
           }),
           h('p', {
             text: 'Food restores 25 nourishment, even at full health. Craft an empty waterskin from 1 hide + 2 fiber in Field crafting, select it in the quick-bar and Use it facing a town well. Each filled skin restores 35 water and keeps the empty container. Rivers and ocean water cannot fill it. The mode changes food and water needs only.',
@@ -327,6 +345,8 @@ export function buildJournal(
           text: `${POINTS_PER_HEART} points per heart (max ${MAX_HEARTS}). Talk once a day, give one gift a day.`,
         }),
       );
+    } else if (tab === 'kingdoms') {
+      body.append(kingdomsPage(profile, seed));
     } else if (tab === 'recipes') {
       const by = new Map<StationId, (typeof RECIPES)[number][]>();
       for (const r of RECIPES)
@@ -424,5 +444,65 @@ export function buildJournal(
     render();
   });
   root.append(tabs, body);
+  return root;
+}
+
+const STANCE_LABEL: Record<KingdomStance, string> = {
+  allied: 'Allied',
+  friendly: 'Friendly',
+  neutral: 'Neutral',
+  rival: 'Rivals',
+  hostile: 'Hostile',
+};
+
+/** The six great kingdoms: lore, your standing, relations and the next festival. */
+function kingdomsPage(profile: Profile, seed: number): HTMLElement {
+  const day = Math.floor(Date.now() / DAY_MS);
+  const root = h('div', { class: 'kingdoms' });
+  root.append(
+    h('div', {
+      class: 'small dim',
+      text: 'Six kingdoms lie across the sea. Trade, quests and kindness raise your standing; standing lowers prices and opens doors. Allies of a kingdom warm to you a little, its rivals cool.',
+    }),
+  );
+  for (const id of REALM_IDS) {
+    const k = KINGDOMS[id];
+    const rep = profile.rep[id] ?? 0;
+    const tier = repTier(rep);
+    const next = tier >= 4 ? null : REP_TIERS[(Math.max(0, tier) + 1) as 1 | 2 | 3 | 4];
+    const prev = tier <= 0 ? 0 : REP_TIERS[tier as 1 | 2 | 3 | 4];
+    const pct = next ? Math.max(0, Math.min(100, ((rep - prev) / (next - prev)) * 100)) : 100;
+    const nf = nextFestival(id, day);
+    root.append(
+      h(
+        'details',
+        { class: 'kingdom' },
+        h(
+          'summary',
+          {},
+          h('b', { text: `${k.name} · ${k.epithet}` }),
+          h('span', { class: 'small dim', text: `  ${realmRankName(id, rep)} (${rep})` }),
+        ),
+        h('div', { class: 'bar xp' }, h('i', { style: `width:${pct}%` })),
+        h('div', { class: 'small', text: `${k.ruler.title}: ${k.ruler.name}, in ${k.capital}. ${k.ruler.trait}` }),
+        h('div', { class: 'small dim', text: k.culture }),
+        h('div', { class: 'small dim', text: `Cuisine: ${k.cuisine}` }),
+        h('div', { class: 'small dim', text: `Trade: ${k.economy.trade}` }),
+        h('div', {
+          class: 'small',
+          text: `Next festival: ${nf.festival.name}${nf.in === 0 ? ' (today!)' : ` in ${nf.in} day${nf.in === 1 ? '' : 's'}`}`,
+        }),
+        ...relationsOf(id).map((r) =>
+          h('div', { class: 'small dim', text: `${STANCE_LABEL[r.stance]} with ${KINGDOMS[r.other].name}: ${r.note}` }),
+        ),
+      ),
+    );
+  }
+  const rumors = diplomacyAt(seed, day).filter((d) => d.event);
+  if (rumors.length)
+    root.append(
+      h('div', { class: 'small' }, h('b', { text: 'Court rumours this season' })),
+      ...rumors.map((d) => h('div', { class: 'small dim', text: d.rumor })),
+    );
   return root;
 }
