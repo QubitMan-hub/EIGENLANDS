@@ -3,6 +3,9 @@ import {
   ATTUNE_REACH,
   MSG_TRAVEL,
   MSG_CIV,
+  MSG_FEST,
+  TOURNEY_BOUTS,
+  type TourneyState,
   type CivSummary,
   waystonesNear,
   type TravelEvent,
@@ -95,7 +98,16 @@ export class TravelClient implements ClientModule {
       [MSG_TRAVEL.EV]: (m: TravelEvent) => this.on(m),
       // the living kingdoms' state rides along with the travel module (it is shown in the Journal and the world)
       [MSG_CIV.STATE]: (m: CivSummary) => setCivState(m),
+      [MSG_FEST.TOURNEY]: (m: TourneyState) => this.bout(m),
     };
+  }
+
+  /** the herald's calls during a tournament bout */
+  private bout(m: TourneyState): void {
+    if (m.status !== 'fighting' || m.left <= 0) return;
+    const foe = ['a foot soldier', 'a rider', 'the champion'][m.bout] ?? 'a challenger';
+    this.d.toasts.add(`Bout ${m.bout + 1} of ${TOURNEY_BOUTS.length}: ${foe} enters the lists! (${m.left}s)`, 'info');
+    this.d.sfx('bell');
   }
 
   private on(m: TravelEvent): void {

@@ -1,4 +1,4 @@
-import { chooseIntrigue, civState } from '../game/civ-store';
+import { chooseIntrigue, civState, festJoin } from '../game/civ-store';
 import {
   ITEMS,
   MAX_HEARTS,
@@ -21,6 +21,13 @@ import {
   type KingdomStance,
   diplomacyAt,
   nextFestival,
+  nextFestivalOf,
+  nextTourney,
+  festivalToday,
+  tourneyOn,
+  dayNumber,
+  CHAMPION_TITLE,
+  type FestHost,
   realmRankName,
   relationsOf,
   repTier,
@@ -542,9 +549,65 @@ function realmState(id: RealmId): HTMLElement | null {
   return box;
 }
 
+/** Festivals and tournaments: what is on today, with the actions to join in, and what comes next. */
+function pageantry(day: number): HTMLElement {
+  const box = h('div', { class: 'civ-news' }, h('b', { text: 'Festivals & tournaments' }));
+  const hosts: FestHost[] = ['home', ...REALM_IDS];
+  const where = (host: FestHost) => (host === 'home' ? 'Hadamere and the home towns' : KINGDOMS[host].name);
+  for (const host of hosts) {
+    const f = festivalToday(host, day);
+    if (!f) continue;
+    box.append(
+      h(
+        'div',
+        { class: 'civ-intrigue' },
+        h('b', { text: `Today: the ${f.name} in ${where(host)}` }),
+        h('div', {
+          class: 'small',
+          text: `${f.desc} Bring ${ITEMS[f.feast]?.name ?? 'a dish'} to the feast (any cooked food is welcome).`,
+        }),
+        h(
+          'div',
+          { class: 'civ-choices' },
+          h('button', { text: 'Share a dish', on: { click: () => festJoin(host, 'feast') } }),
+        ),
+      ),
+    );
+  }
+  for (const r of REALM_IDS) {
+    if (!tourneyOn(r, day)) continue;
+    box.append(
+      h(
+        'div',
+        { class: 'civ-intrigue' },
+        h('b', { text: `Today: a royal tournament in ${KINGDOMS[r].capital}` }),
+        h('div', {
+          class: 'small',
+          text: `Noon to six in the ${r === 'aurelion' ? 'lists by the moat' : 'palace square'}: three bouts against ${KINGDOMS[r].name}'s soldiers for the purse and the title ${CHAMPION_TITLE[r]}.`,
+        }),
+        h(
+          'div',
+          { class: 'civ-choices' },
+          h('button', { text: 'Enter the lists', on: { click: () => festJoin(r, 'tourney') } }),
+        ),
+      ),
+    );
+  }
+  const home = nextFestivalOf('home', day);
+  if (home.in > 0)
+    box.append(
+      h('div', {
+        class: 'small dim',
+        text: `Next at home: ${home.festival.name} in ${home.in} day${home.in === 1 ? '' : 's'}.`,
+      }),
+    );
+  if (box.children.length === 1) box.append(h('div', { class: 'small dim', text: 'Nothing today.' }));
+  return box;
+}
+
 /** The six great kingdoms: lore, your standing, relations and the next festival. */
 function kingdomsPage(profile: Profile, seed: number): HTMLElement {
-  const day = Math.floor(Date.now() / DAY_MS);
+  const day = dayNumber(Date.now());
   const root = h('div', { class: 'kingdoms' });
   root.append(
     h('div', {
@@ -577,7 +640,7 @@ function kingdomsPage(profile: Profile, seed: number): HTMLElement {
         h('div', { class: 'small dim', text: `Trade: ${k.economy.trade}` }),
         h('div', {
           class: 'small',
-          text: `Next festival: ${nf.festival.name}${nf.in === 0 ? ' (today!)' : ` in ${nf.in} day${nf.in === 1 ? '' : 's'}`}`,
+          text: `Next festival: ${nf.festival.name}${nf.in === 0 ? ' (today!)' : ` in ${nf.in} day${nf.in === 1 ? '' : 's'}`}. Next tournament in ${k.capital}: ${nextTourney(id, day) === 0 ? 'today' : `in ${nextTourney(id, day)} days`}.`,
         }),
         realmState(id),
         ...relationsOf(id).map((r) =>
@@ -586,6 +649,7 @@ function kingdomsPage(profile: Profile, seed: number): HTMLElement {
       ),
     );
   }
+  root.insertBefore(pageantry(day), root.children[1] ?? null);
   const civ = civState();
   if (civ) {
     const news = REALM_IDS.flatMap((r) => civ.kingdoms[r].chronicle.map((c) => ({ ...c, r })))

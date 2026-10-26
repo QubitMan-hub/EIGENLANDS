@@ -71,6 +71,10 @@ export interface PlayerData {
     mounts?: string[];
     /** road caravans met (caravans.ts route ids) */
     caravans?: string[];
+    /** festival feasts shared and tournaments won ("f:host:day", "t:realm:day"; the last 40) */
+    fest?: string[];
+    /** titles won (tournament champion titles) */
+    titles?: string[];
     /** mount names and well-fed-until times (world clock ms) */
     mountNames?: Partial<Record<'horse' | 'stag' | 'griffin', string>>;
     mountFed?: Partial<Record<'horse' | 'stag' | 'griffin', number>>;

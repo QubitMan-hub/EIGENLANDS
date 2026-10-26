@@ -48,6 +48,7 @@ import { ShrineModule } from '../features/shrines';
 import { TravelModule } from '../features/travel';
 import { CaravanModule } from '../features/caravans';
 import { CivModule } from '../features/civ';
+import { FestivalModule } from '../features/festivals';
 import { SocialModule } from '../features/social';
 import type { BucketName, Carry, JoinOpts, Module, Registrar } from '../features/types';
 import type { VillageHost, VillageSystem } from '../systems/types';
@@ -92,6 +93,7 @@ export class GameRoom extends WorldRoom {
   travel!: TravelModule;
   caravans!: CaravanModule;
   civ!: CivModule;
+  festivals!: FestivalModule;
   shardMod!: ShardModule;
   private modules: Module[] = [];
   private buckets = new Map<string, Map<BucketName, TokenBucket>>();
@@ -136,6 +138,7 @@ export class GameRoom extends WorldRoom {
     this.travel = new TravelModule(this);
     this.caravans = new CaravanModule(this);
     this.civ = new CivModule(this);
+    this.festivals = new FestivalModule(this);
     this.modules = [
       this.shardMod,
       this.circuit,
@@ -148,6 +151,7 @@ export class GameRoom extends WorldRoom {
       this.travel,
       this.caravans,
       this.civ,
+      this.festivals,
       this.army,
       this.voice,
     ];
@@ -464,7 +468,7 @@ export class GameRoom extends WorldRoom {
   }
 
   protected hookWarZone(x: number, y: number): boolean {
-    return this.army?.warZone(x, y) ?? false;
+    return (this.army?.warZone(x, y) ?? false) || (this.festivals?.warZone(x, y) ?? false);
   }
   protected hookFire(e: Enemy, dx: number, dy: number): void {
     this.army?.shot(e, dx, dy);

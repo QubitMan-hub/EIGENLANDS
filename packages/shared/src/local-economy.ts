@@ -10,8 +10,9 @@ import { hash2 } from './rng';
 export interface LocalEconomy {
   produces: ItemKind[];
   needs: ItemKind[];
-  /** the kind that ran short today */
+  /** the kind that ran short today, and how folk say it */
   shortage: ItemKind;
+  short: string;
   /** one line for the shop window */
   note: string;
 }
@@ -74,6 +75,7 @@ export function localEconomy(seed: number, siteId: string, day: number): LocalEc
     produces: t.produces,
     needs: t.needs,
     shortage,
+    short: SHORT_WORD[shortage]!,
     note: `Made here: ${t.word} (cheap). Wanted: ${t.want}. Short today: ${SHORT_WORD[shortage]}.`,
   };
 }

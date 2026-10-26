@@ -86,3 +86,5 @@ export * from './caravans';
 export * from './bridges';
 export * from './civ';
 export * from './local-economy';
+export * from './pageantry';
+export * from './npc-ties';

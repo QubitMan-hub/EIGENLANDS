@@ -261,6 +261,8 @@ export function validProg(raw: unknown): PlayerData['prog'] {
     home: typeof r.home === 'string' && r.home.length <= 40 ? r.home : null,
     mounts: ids(r.mounts).filter((m) => m === 'horse' || m === 'stag'),
     caravans: ids(r.caravans),
+    fest: ids(r.fest).slice(-40),
+    titles: ids(r.titles).slice(0, 40),
     mountNames: mountRecord(r.mountNames, (v) => validMountName(v) ?? undefined),
     mountFed: mountRecord(r.mountFed, (v) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined)),
   };

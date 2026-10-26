@@ -135,7 +135,7 @@ const PEDDLER: CaravanRoute = {
 export const PEDDLER_HOURS: [number, number] = [8, 18];
 
 /** The towns of the home continent, in the order the peddler visits them (Hadamere first). */
-function homeTowns(seed: number): Town[] {
+export function homeTowns(seed: number): Town[] {
   return townsFor(seed, activeGeneration(seed)).filter(
     (t) => !t.abandoned && !t.site && !isCaveY(t.cy) && !isUpperY(t.cy) && !nearestRealm(t.cx, t.cy),
   );

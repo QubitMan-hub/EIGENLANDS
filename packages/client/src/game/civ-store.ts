@@ -1,4 +1,4 @@
-import { MSG_CIV, type CivSummary, type RealmId } from '@eigenlands/shared';
+import { MSG_CIV, MSG_FEST, type CivSummary, type FestHost, type RealmId } from '@eigenlands/shared';
 
 /** The latest kingdom state from the server (master plan §16), for the Journal, settlements and shops. */
 let state: CivSummary | null = null;
@@ -20,4 +20,8 @@ export function setCivSender(fn: (type: string, msg: unknown) => void): void {
 /** Decide a kingdom's court intrigue (the server checks you are in that kingdom). */
 export function chooseIntrigue(realm: RealmId, choice: 'a' | 'b'): void {
   sender?.(MSG_CIV.CHOOSE, { realm, choice });
+}
+/** Share a dish at a festival feast, or enter a capital's tournament (the server checks where you stand). */
+export function festJoin(host: FestHost, act: 'feast' | 'tourney'): void {
+  sender?.(MSG_FEST.JOIN, { host, act });
 }
