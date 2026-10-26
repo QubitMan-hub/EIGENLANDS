@@ -6,6 +6,14 @@ New worlds use revision 5; saved worlds keep their revision (1–4 are frozen). 
 
 Six continents sit at shard centres across the sea from the home continent: Aurelion (1024,-512), Sylvaris (256,-1024), Khar-Dum (-768,-768), Raijin (768,768), Thalassara (-256,1024, an archipelago), Nethrakar (-1024,256). Each has a warped coast, its own biome palette, roads on the axes, flat levels near settlements and massifs (Khar-Dum most). Every realm has 13 settlement plots: capital, 4 towns, 4 villages, 2 farms, 2 outposts, each inside one server shard.
 
+## Cities v2 (`realm-towns.ts`, `client/src/art/buildings.ts`)
+
+Plots are bigger (capital 224x168, town 120x92, village 60x50). Each plot has its own seeded plan: row streets of varying pitch and reach, lanes, parks and ponds, a river (or canals in Thalassara), a plaza that changes size and position, full or partial walls (stone, hedge, palisade, canal ring, obsidian with lava moat), corner and gate towers, and in capitals a castle that belongs to its kingdom: moated Aurelion keep with a tourney ground, Sylvaris grove-palace with ponds, Khar-Dum fortress-hold with a thick curtain wall, concentric Raijin citadel, Thalassara island palace, Nethrakar obsidian citadel behind lava. Buildings use style codes `4 + realm*5 + variant` (three common homes, a civic look, a grand look) and roof shapes (gable, hip, pagoda, dome, spire, flat battlements). Residents were increased (more guards and soldiers).
+
+## Art and UI (this pass)
+
+The master palette grew from 48 to 64 colours (emerald, teal, crimson, gold, blue; `C.n*`, `C.t*`, `C.c*`, `C.b*`), grass has mottling, clover and pebbles, trees and roofs use the vivid ramps and the six beasts were recoloured. The UI has a new identity layer (`ui/identity.css`): walnut and brass plates for the live HUD, parchment pages for reading windows, Pixelify Sans and IM Fell English. Impeccable is not installed in this environment, so the pass followed the frontend-design guidance instead. Not done: a full redraw of every older monster and prop, interior art for the new castle halls.
+
 ## Settlements (`realm-towns.ts`)
 
 Deterministic `Town` objects per plot: avenue and main street, rows of buildings with south doors, plaza with well and banners, walls and gates (capital/town/outpost), fields and fences (farms/villages), palace and throne for capitals. Building `style` 4–9 selects the client's realm architecture (`client/src/art/buildings.ts`). Settlements are sanctuaries (no monsters).
