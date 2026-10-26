@@ -1,3 +1,15 @@
+# Current continuation: castles, frontier provinces and travel fixes (2026-10-26)
+
+Revision 6 adds sparse, seeded frontier settlements on broad province islands, using the six existing realm cultures and town builder. Discovery is local and bounded; collision, furnished buildings, sanctuary protection, construction exclusion, ambient residents and atlas discovery use existing systems. New worlds default to 6; saved revisions 1–5 keep their layouts. Read [FRONTIER_CITIES.md](FRONTIER_CITIES.md) for the implementation, validation and explicit limits.
+
+Palaces now have projected round bastions with conical or crenellated crowns, archer towers reach their foundations, and flat keep terraces use stone joints and edge merlons. Revision-6 towns add cultural curtain walls, furnished watchrooms and palace thrones. Existing house variation and all six material families remain. NPC dialogue now uses the actual `.dlg-box` theme selector; the UI lab loads the runtime theme too. Grass is now a quiet resting plane: sparse low-contrast clusters, fewer flowers/glints, no overlapping clover/pebble stamps and no curved crack lines. Sand/snow contour stripes were removed too.
+
+Travel fixes: shared collision clipping cannot reverse the requested movement axis, evicted chunk level pointers are invalidated, a new shard session discards obsolete pending inputs, and scenery waits for prepared worker data rather than forcing a competing cold bake. Regression tests cover these causes; this is not a claim that every hardware/network hitch is eliminated.
+
+Remaining: interactive frontier NPC rosters/shops/quests, intercity routes and trade, playable castle battlements/upper floors, additional authored castle silhouettes, physical-device and cross-network performance checks. Existing named kingdom merchants/quests remain functional. Continue the wider checklist in [EIGENLANDS_MASTER_PLAN.md](EIGENLANDS_MASTER_PLAN.md); older continuation entries below are historical, not current default-generation instructions.
+
+---
+
 # Next batch: settlement streaming and readable shopfronts (2026-10-26)
 
 Building views now index the existing 32-tile chunks and update/sort only nearby architecture. Interior queries use the same index; distant camera jumps hide old roofs, walls, signs and smoke. The one-bake-per-frame limit remains. Two regression tests cover cross-chunk doors/interiors, visible-first loading, 1,000 distant fixtures and stale-sprite cleanup. Shop sign text/icons are projected onto real thick boards with diagonal edges, and low stone thresholds/woven mats make entries readable without changing collision or saved doors. This is not a measured end-to-end FPS multiplier or a new world-layout migration.

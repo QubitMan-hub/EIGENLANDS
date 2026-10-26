@@ -15,14 +15,15 @@ import { furnish, type Building, type BuildingKind, type Town } from './town';
  * Doors always face south, so buildings stand on the north side of the street they open on. Style codes are
  * `4 + realm * 5 + variant` (0-2 common homes, 3 civic and merchant, 4 grand: palaces, keeps, halls and temples).
  */
-const cache = new Map<number, Town[]>();
+const cache = new Map<string, Town[]>();
 
-export function realmTowns(seed: number): Town[] {
-  const hit = cache.get(seed);
+export function realmTowns(seed: number, generation = 5): Town[] {
+  const key = `${seed}:${generation >= 6 ? 6 : 5}`;
+  const hit = cache.get(key);
   if (hit) return hit;
-  const towns = REALM_SITES.map((site) => build(site, seed));
+  const towns = REALM_SITES.map((site) => buildRealmTown(site, seed, generation));
   if (cache.size > 6) cache.clear();
-  cache.set(seed, towns);
+  cache.set(key, towns);
   return towns;
 }
 
@@ -164,7 +165,7 @@ function strHash(s: string): number {
   return h >>> 0;
 }
 
-function build(site: RealmSite, seed: number): Town {
+export function buildRealmTown(site: RealmSite, seed: number, generation = 5): Town {
   const def = KINGDOMS[site.realm];
   const prof = PROFILE[site.realm];
   const ri = REALM_IDS.indexOf(site.realm);
@@ -183,13 +184,14 @@ function build(site: RealmSite, seed: number): Town {
   const cx = site.cx,
     cy = site.cy;
   const name =
-    site.kind === 'capital'
+    site.name ??
+    (site.kind === 'capital'
       ? def.capital
       : site.kind === 'town'
         ? def.names.towns[site.ring as 'n']
         : site.kind === 'village'
           ? def.names.villages[site.ring as 'n']
-          : def.names.seaward[site.ring as 'n'];
+          : def.names.seaward[site.ring as 'n']);
   const t: Town = {
     name,
     cx,
@@ -223,6 +225,7 @@ function build(site: RealmSite, seed: number): Town {
     for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) if (oAt(x + i, y + j) !== FREE) return false;
     return true;
   };
+  const occupiedObjects = new Set<string>();
   const obj = (
     x: number,
     y: number,
@@ -230,7 +233,12 @@ function build(site: RealmSite, seed: number): Town {
     sub: string,
     data?: Record<string, unknown>,
   ) => {
-    if (inPlot(x, y)) t.objects.push({ x, y, kind, sub, data });
+    if (inPlot(x, y)) {
+      const key = `${x},${y}`;
+      if (generation >= 6 && occupiedObjects.has(key)) return;
+      t.objects.push({ x, y, kind, sub, data });
+      occupiedObjects.add(key);
+    }
   };
   const spot = (n: string, x: number, y: number) => {
     t.spots[n] = { x, y };
@@ -429,6 +437,12 @@ function build(site: RealmSite, seed: number): Town {
     mark(tx - 1, ty - 1, size + 2, size + 3, RES);
     t.buildings.push(b);
     towers.push({ x: tx, y: ty });
+    if (generation >= 6)
+      furnish(
+        b,
+        (x, y, kind, sub) => obj(x, y, kind, sub),
+        () => {},
+      );
   };
   if (walled && (site.kind === 'capital' || wallKind === 'stone' || wallKind === 'obsidian')) {
     const s = site.kind === 'capital' ? 6 : 5;
@@ -480,6 +494,7 @@ function build(site: RealmSite, seed: number): Town {
         { ...b, id: furn },
         (x, y, k, sub) => obj(x, y, k, sub),
         (n, sx, sy) => spot(`${site.id}.${n}`, sx, sy),
+        generation >= 6,
       );
     return b;
   };
@@ -1263,6 +1278,19 @@ function build(site: RealmSite, seed: number): Town {
         for (let dx = -r; dx <= r && !best; dx++)
           if (walkable(s.x + dx, s.y + dy) && get(s.x + dx, s.y + dy) !== T.WATER) best = { x: s.x + dx, y: s.y + dy };
     if (best) t.spots[k] = best;
+  }
+  if (generation >= 6) {
+    const covered = new Set<number>();
+    for (const b of t.buildings)
+      for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) covered.add(x - x0 + (y - y0) * W);
+    for (const [i, tile] of t.tiles)
+      if (tile === T.WALL && !covered.has(i)) {
+        const x = x0 + (i % W),
+          y = y0 + Math.floor(i / W);
+        const alongX = get(x - 1, y) === T.WALL || get(x + 1, y) === T.WALL;
+        const alongY = get(x, y - 1) === T.WALL || get(x, y + 1) === T.WALL;
+        obj(x, y, 'deco', `rampart_${site.realm}_${alongX && alongY ? 'corner' : alongY ? 'ns' : 'ew'}`);
+      }
   }
   void buildingsAt;
   return t;

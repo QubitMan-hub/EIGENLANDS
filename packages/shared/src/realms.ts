@@ -35,6 +35,8 @@ export const REALM_GEO: Record<RealmId, RealmGeo> = {
 export type SiteKind = 'capital' | 'town' | 'village' | 'farm' | 'outpost';
 export interface RealmSite {
   id: string;
+  /** Optional authored name for lazily generated frontier settlements. */
+  name?: string;
   realm: RealmId;
   kind: SiteKind;
   cx: number;

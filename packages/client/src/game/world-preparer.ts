@@ -61,6 +61,10 @@ export class WorldPreparer {
       this.disable();
     }
   }
+  /** Drawing must not force the same expensive cold chunk the worker is baking. */
+  ready(seed: number, cx: number, cy: number, generation: WorldGeneration): boolean {
+    return !this.worker || hasPreparedWorldChunk(seed, cx, cy, generation);
+  }
   private key(seed: number, cx: number, cy: number, generation: WorldGeneration) {
     return `${generation}:${seed}:${cx},${cy}`;
   }

@@ -8,7 +8,7 @@ import {
   mulberry32,
   packAppearance,
   randomAppearance,
-  townsFor,
+  townsNear,
   type ChunkStore,
   type RealmId,
   type RealmSite,
@@ -232,7 +232,7 @@ export class WorldLife {
   }
 
   private townNear(x: number, y: number): Town | null {
-    const ts = townsFor(this.d.seed());
+    const ts = townsNear(this.d.seed(), x - 16, y - 16, x + 16, y + 16);
     let best: Town | null = null;
     for (const t of ts) {
       if (!siteOf(t)) continue;
@@ -1359,6 +1359,7 @@ export class WorldLife {
 
 const siteCache = new WeakMap<Town, RealmSite | null>();
 function siteOf(t: Town): RealmSite | null {
+  if (t.site) return t.site;
   const hit = siteCache.get(t);
   if (hit !== undefined) return hit;
   let site: RealmSite | null = null;

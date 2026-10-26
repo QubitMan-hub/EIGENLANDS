@@ -1,0 +1,76 @@
+{
+  "contrast": [
+    {
+      "name": "desktop",
+      "text": "Back again! Let me guess — you need \"just one more\" of something.",
+      "colour": "rgb(42, 31, 22)",
+      "background": "rgb(236, 223, 184)",
+      "contrast": 12.10830075080097
+    },
+    {
+      "name": "mobile",
+      "text": "Back again! Let me guess — you need \"just one more\" of something.",
+      "colour": "rgb(42, 31, 22)",
+      "background": "rgb(236, 223, 184)",
+      "contrast": 12.10830075080097
+    }
+  ],
+  "castles": [
+    {
+      "name": "Goldspire",
+      "total": 1141,
+      "nearby": 41
+    },
+    {
+      "name": "Heartroot",
+      "total": 1141,
+      "nearby": 42
+    },
+    {
+      "name": "Anvilhold",
+      "total": 1141,
+      "nearby": 43
+    },
+    {
+      "name": "Raikyo",
+      "total": 1141,
+      "nearby": 61
+    },
+    {
+      "name": "Nacrehall",
+      "total": 1141,
+      "nearby": 53
+    },
+    {
+      "name": "Obsidia",
+      "total": 1141,
+      "nearby": 62
+    }
+  ],
+  "frontier": [
+    {
+      "name": "Goldford",
+      "x": -5376,
+      "y": -5120,
+      "buildings": 32,
+      "total": 1173,
+      "nearby": 32
+    },
+    {
+      "name": "Embermere",
+      "x": -3584,
+      "y": -4864,
+      "buildings": 28,
+      "total": 1169,
+      "nearby": 28
+    },
+    {
+      "name": "Goldgate",
+      "x": -2048,
+      "y": -4864,
+      "buildings": 6,
+      "total": 1147,
+      "nearby": 6
+    }
+  ]
+}

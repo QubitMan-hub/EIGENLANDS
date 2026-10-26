@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ChunkStore, TICK_DT, TICK_MS, encodeAck, decodeAck, T } from '@eigenlands/shared';
+import { ChunkStore, newPlayerSim, TICK_DT, TICK_MS, encodeAck, decodeAck, T } from '@eigenlands/shared';
 import { Predictor } from '../src/net/prediction';
 import { Interpolator, ServerClock } from '../src/net/interp';
 import { DEFAULT_KEYS, keyLabel, loadKeys, rebind, saveKeys } from '../src/input/keymap';
@@ -136,4 +136,18 @@ describe('labels and accessibility maths', () => {
       for (const row of [0, 1, 2]) expect(v[row * 5]! + v[row * 5 + 1]! + v[row * 5 + 2]!).toBeCloseTo(1, 1);
     }
   });
+});
+
+it('does not replay inputs discarded by a shard handoff into the new session', () => {
+  const p = new Predictor(128, 0.5, () => false);
+  const input = { dx: 1, dy: 0, dash: false, attack: false, skill: false, aimX: 1, aimY: 0 };
+  const a = p.step(input, 1).cmd;
+  p.step(input, 2);
+  const authority = newPlayerSim(128.1, 0.5);
+  authority.stamina = 62;
+  p.reconcile({ seq: 0, tick: 1, sim: authority }, true);
+  expect(p.pending).toHaveLength(0);
+  expect(p.sim.x).toBe(128.1);
+  expect(p.sim.stamina).toBe(62);
+  expect(p.step(input, 2).cmd.seq).toBeGreaterThan(a.seq);
 });

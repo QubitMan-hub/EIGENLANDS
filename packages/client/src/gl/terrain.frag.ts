@@ -270,15 +270,10 @@ Tones biomeTones(int b, int s, bool lush) {
   return T;
 }
 
-// snowfield: soft drifts (bone white with cool blue-grey hollows), wind-sculpted ridges, dead grass poking through
+// snowfield: quiet powder (bone white with sparse cool blue-grey marks), dead grass poking through
 int snowTop(ivec2 ip, vec2 tf, float t) {
-  vec2 wp = vec2(ip);
-  float n = vnoise(wp * 0.03) * 0.7 + vnoise(wp * 0.09 + 7.0) * 0.3;
   // bright powder, faintly icy mid-tones, cool blue-grey hollows only in the deepest drift shadows
-  int c = groundClusters(ip,PALE,FOG,WHITE,.25);
-  float ridge = sin(wp.x * 0.16 + wp.y * 0.34 + vnoise(wp * 0.05) * 5.0);
-  if (ridge > 0.9 && n > 0.3) c = WHITE;
-  else if (ridge < -0.94) c = n > 0.5 ? W7 : PALE;                // wind-carved drift edges
+  int c = groundClusters(ip,PALE,FOG,WHITE,.1);
   ivec2 cc = cellOf(ip, ivec2(9, 6));
   if (hashk(cc, 61) < 0.18) {
     ivec2 q = ip - (cc * ivec2(9, 6) + ivec2(int(hashk(cc, 62) * 7.0), int(hashk(cc, 63) * 4.0)));
@@ -289,71 +284,29 @@ int snowTop(ivec2 ip, vec2 tf, float t) {
 }
 
 int grassTop(ivec2 ip, vec2 tf, int s, float flux, float t, int b) {
-  vec2 wp = vec2(ip);
   if (s == 3) return snowTop(ip, tf, t);
-  // large soft regions of sunlit lime meadow vs. deeper leafy turf
-  bool lush = false; // Vegetation density varies; the underlying earth does not change into broad color islands.
-  Tones T = biomeTones(b, s, lush);
+  // Turf is a resting plane, not a second layer of rocks, clover and bright flecks.
+  Tones T = biomeTones(b, s, false);
+  T.hi = T.body;
+  T.dk = T.sh;
   int c = T.base;
-  // Low frequency cover with a warped edge: quiet clearings alternate with planted hummocks.
+  // Sparse planting drifts leave broad clearings; noise changes density, never ground colour.
   vec2 bent = tf + vec2(vnoise(tf * 0.12 + 17.0), vnoise(tf * 0.12 - 39.0)) * 2.5;
-  float dn = fbm(bent * 0.32 + 50.0);
-  // Resting ground planes between planted clusters keep actors and loot legible.
-  float dens = lush ? 0.1 + 0.2 * smoothstep(0.4, 0.8, dn) : 0.14 + 0.4 * smoothstep(0.28, 0.7, dn);
-  float big = lush ? 0.0 : 0.08 + 0.25 * smoothstep(0.3, 0.75, fbm(tf * 0.35 + 70.0));
-  if (s == 3) { dens *= 0.35; big = 0.0; }
+  float cover = smoothstep(0.48, 0.78, fbm(bent * 0.22 + 50.0));
   bool hit;
-  int cl = clumpPix(ip, dens, big, T, hit);
+  int cl = clumpPix(ip, 0.012 + 0.085 * cover, 0.0, T, hit);
   if (hit) return cl;
-  ivec2 TC = ivec2(6, 4);
+  ivec2 TC = ivec2(13, 9);
   ivec2 tc = cellOf(ip, TC);
-  for (int j = 0; j <= 1; j++) for (int i = -1; i <= 1; i++) {
-    ivec2 cc = tc + ivec2(i, j);
-    if (hashk(cc, 6) > (lush ? 0.1 : 0.22)) continue;
-    ivec2 b = cc * TC + ivec2(int(hashk(cc, 7) * 5.0), int(hashk(cc, 8) * 3.0));
-    int r = tuftPix(ip, b, lush ? T.sh : T.body, lush ? T.dk : T.hi);
+  if (hashk(tc, 6) < 0.025 + 0.06 * cover) {
+    ivec2 origin = tc * TC + ivec2(3 + int(hashk(tc, 7) * 7.0), 3 + int(hashk(tc, 8) * 4.0));
+    int r = tuftPix(ip, origin, T.body, T.body);
     if (r >= 0) return r;
-  }
-  // mottled turf: sunlit and shaded stamps in drifts, so meadows read as living ground rather than a flat fill
-  {
-    ivec2 MC = ivec2(13, 8);
-    ivec2 m0 = cellOf(ip, MC);
-    float mt = smoothstep(0.2, 0.75, fbm(tf * 0.22 + 130.0));
-    for (int j = 0; j <= 1; j++) for (int i = -1; i <= 1; i++) {
-      ivec2 mc = m0 + ivec2(i, j);
-      if (hashk(mc, 31) > 0.25 + 0.5 * mt) continue;
-      ivec2 mo = mc * MC + ivec2(2 + int(hashk(mc, 32) * 8.0), 1 + int(hashk(mc, 33) * 5.0));
-      ivec2 q = ip - mo;
-      int w = 3 + int(hashk(mc, 34) * 3.0);
-      if (q.y == 0 && q.x >= 0 && q.x < w) return hashk(mc, 35) < 0.5 ? T.sh : T.hi;
-      if (q.y == 1 && q.x >= 1 && q.x < w - 1) return hashk(mc, 35) < 0.5 ? T.dk : T.body;
-    }
-    // clover and low shrub blobs
-    ivec2 BC = ivec2(23, 14);
-    ivec2 bc = cellOf(ip, BC);
-    if (hashk(bc, 36) < 0.42 && b != B_CORRUPT && s != 3) {
-      ivec2 bo = bc * BC + ivec2(3 + int(hashk(bc, 37) * 16.0), 3 + int(hashk(bc, 38) * 8.0));
-      vec2 d = vec2(ip - bo) / vec2(3.4, 2.1);
-      float rr = dot(d, d);
-      if (rr < 1.0) {
-        float lit = -(d.x * 0.4 + d.y * 0.9) + (hashi(ip) - 0.5) * 0.5;
-        return lit > 0.35 ? T.hi : lit < -0.35 ? T.dk : T.body;
-      }
-      if (rr < 1.9 && ip.y - bo.y >= 1 && ip.y - bo.y <= 2) return T.dk;
-    }
-    // pebbles with a hard shadow
-    ivec2 pc = cellOf(ip, ivec2(19, 13));
-    if (hashk(pc, 39) < 0.16) {
-      ivec2 po = pc * ivec2(19, 13) + ivec2(2 + int(hashk(pc, 40) * 15.0), 2 + int(hashk(pc, 41) * 9.0));
-      ivec2 q = ip - po;
-      if (q.y == 0 && (q.x == 0 || q.x == 1)) return q.x == 0 ? PALE : MIST;
-      if (q.y == 1 && q.x >= 0 && q.x <= 2) return b == B_CORRUPT ? NIGHT : T.dk;
-    }
   }
   // flowers (spring/summer), fallen leaves (autumn), glitter (winter)
   if (s <= 1 && b != B_CORRUPT && b != B_SWAMP) {
-    float fd = smoothstep(0.6, 0.85, vnoise(tf * 0.4 + 90.0)) * (s == 0 ? 0.95 : 0.6) * (b == B_ENCHANTED ? 1.6 : 1.0);
-    ivec2 FC = ivec2(11, 7);
+    float fd = smoothstep(0.6, 0.85, vnoise(tf * 0.4 + 90.0)) * (s == 0 ? 0.16 : 0.09) * (b == B_ENCHANTED ? 1.2 : 1.0);
+    ivec2 FC = ivec2(19, 13);
     ivec2 f0 = cellOf(ip, FC);
     for (int j = 1; j >= 0; j--) for (int i = -1; i <= 1; i++) {
       ivec2 cc = f0 + ivec2(i, j);
@@ -363,42 +316,37 @@ int grassTop(ivec2 ip, vec2 tf, int s, float flux, float t, int b) {
       if (r >= 0) return r;
     }
   } else if (s == 2) {
-    ivec2 LC = ivec2(8, 6);
+    ivec2 LC = ivec2(16, 11);
     ivec2 cc = cellOf(ip, LC);
-    if (hashk(cc, 13) < 0.22) {
+    if (hashk(cc, 13) < 0.08) {
       ivec2 q = ip - (cc * LC + ivec2(int(hashk(cc, 14) * 6.0), int(hashk(cc, 15) * 5.0)));
       int lc = hashk(cc, 16) < 0.5 ? R3 : R4;
       if (q.y == 0 && (q.x == 0 || q.x == 1)) return q.x == 0 ? lc : lc + 1;
       if (q.y == 1 && q.x == 1) return R1;
     }
-  } else if (hashi(ip + ivec2(3, 1)) > 0.994 && fract(hashi(ip) * 7.0 + t * 0.35 * uMotion) < 0.35) return WHITE;
+  }
   // quantum meadow: rare phase glints
-  float glint = b == B_ENCHANTED ? 0.02 : b == B_CORRUPT ? 0.01 : 0.005 * flux;
+  float glint = b == B_ENCHANTED ? 0.0008 : b == B_CORRUPT ? 0.0004 : 0.0002 * flux;
   if (flux > 0.2 || b >= B_ENCHANTED) {
     float tw = fract(hashk(ip, 17) * 5.0 + t * 0.3 * uMotion);
     if (hashk(ip, 18) > 1.0 - glint && tw < 0.4) return b == B_CORRUPT ? (hashk(ip, 19) < 0.5 ? Q5 : Q3) : phaseCol(hashk(ip, 19), t);
   }
   // Damp micro-detail follows an actual bank, rather than painting fake puddles.
   if(b==B_SWAMP&&sdfAt(tf)>-1.1)c=groundClusters(ip,c,G0,W1,.16);
-  // wastes: cracked ground
-  if (b == B_CORRUPT && abs(vnoise(wp * 0.07 + 5.0) - 0.5) < 0.018) return NIGHT;
+  // Short mineral marks rather than continuous noisy contour lines.
+  if (b == B_CORRUPT) c = groundClusters(ip, c, T.sh, T.body, 0.08);
   return c;
 }
 
 // ───────── sand / dirt / soil ─────────
 int sandTop(ivec2 ip, float sdf, int s) {
   vec2 wp = vec2(ip);
-  int c = groundClusters(ip,E6,E5,E7,.22);
+  int c = groundClusters(ip,E6,E5,E7,.12);
   float n = vnoise(wp * 0.035) * 0.7 + vnoise(wp * 0.12) * 0.3;
 
-  // long wind ripples across the dunes, lit on one flank
-  float dr = sin(wp.x * 0.3 + wp.y * 0.62 + vnoise(wp * 0.04) * 7.0);
-  if (dr > 0.92 && sdf < -1.5) c = c == E5 ? E6 : E7; else if (dr < -0.9 && sdf < -1.5) c = c == E7 ? E6 : E5;
-  float rip = sin(wp.x * 0.42 + wp.y * 0.95 + vnoise(wp * 0.07) * 6.0);
-  if (rip > 0.975 && n > 0.4) c = E7; else if (rip < -0.985) c = E5;
   if (sdf > -0.75) c = sdf > -0.35 ? E4 : E5;            // wet sand along the waterline
   ivec2 cc = cellOf(ip, ivec2(10, 7));
-  if (hashk(cc, 20) < 0.2) {
+  if (hashk(cc, 20) < 0.04) {
     ivec2 q = ip - (cc * ivec2(10, 7) + ivec2(int(hashk(cc, 21) * 8.0), int(hashk(cc, 22) * 5.0)));
     if (q == ivec2(0)) return hashk(cc, 23) < 0.5 ? PALE : R6;
     if (q == ivec2(1, 0)) return FOG;
@@ -551,10 +499,10 @@ int lavaTop(ivec2 ip,float t){
 // Quieter materials for small/limited GPUs: keep the same biome ramps, water depths and shore foam.
 int economyGrass(ivec2 ip,vec2 tf,int s,float flux,float t,int b){
   Tones tone=biomeTones(b,s,false);int c=tone.base;
-  ivec2 size=ivec2(11,7),cell=cellOf(ip,size);
+  ivec2 size=ivec2(17,11),cell=cellOf(ip,size);
   ivec2 origin=cell*size+ivec2(2+int(hashk(cell,2)*6.0),3+int(hashk(cell,3)*3.0));
-  if(hashk(cell,6)>.8){int tuft=tuftPix(ip,origin,tone.body,tone.hi);if(tuft>=0)c=tuft;}
-  if(flux>.6&&hashk(ip,8)>.999)c=phaseCol(flux,t);
+  if(hashk(cell,6)>.94){int tuft=tuftPix(ip,origin,tone.body,tone.body);if(tuft>=0)c=tuft;}
+  if(flux>.6&&hashk(ip,8)>.9998)c=phaseCol(flux,t);
   return c;
 }
 int economyWater(ivec2 ip,float sdf,bool deep,float t,int s,int b){

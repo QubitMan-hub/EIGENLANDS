@@ -254,12 +254,20 @@ export function moveBody(pos: { x: number; y: number }, dx: number, dy: number, 
     if (sx !== 0) {
       const nx = pos.x + sx;
       if (!overlapsSolid(nx, pos.y, r, solid)) pos.x = nx;
-      else pos.x = sx > 0 ? Math.floor(nx + r) - r - EPS : Math.floor(nx - r) + 1 + r + EPS;
+      else {
+        const edge = sx > 0 ? Math.floor(nx + r) - r - EPS : Math.floor(nx - r) + 1 + r + EPS;
+        // A side obstruction or newly synchronized cliff can overlap the body.
+        // Collision may shorten this step, never reverse or enlarge its input.
+        pos.x = sx > 0 ? Math.max(pos.x, Math.min(nx, edge)) : Math.min(pos.x, Math.max(nx, edge));
+      }
     }
     if (sy !== 0) {
       const ny = pos.y + sy;
       if (!overlapsSolid(pos.x, ny, r, solid)) pos.y = ny;
-      else pos.y = sy > 0 ? Math.floor(ny + r) - r - EPS : Math.floor(ny - r) + 1 + r + EPS;
+      else {
+        const edge = sy > 0 ? Math.floor(ny + r) - r - EPS : Math.floor(ny - r) + 1 + r + EPS;
+        pos.y = sy > 0 ? Math.max(pos.y, Math.min(ny, edge)) : Math.min(pos.y, Math.max(ny, edge));
+      }
     }
   }
 }

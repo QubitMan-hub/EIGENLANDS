@@ -7,7 +7,7 @@ import {
   chunkOf,
   isBuildPiece,
   isUpperY,
-  townsFor,
+  townsNear,
   type BuildCell,
   type BuildData,
   type BuildPiece,
@@ -33,7 +33,9 @@ const occupied = (room: RoomApi, x: number, y: number) =>
   );
 const protectedAt = (room: RoomApi, x: number, y: number) =>
   Math.hypot(x, baseY(y)) < 12 ||
-  townsFor(room.seed).some((t) => x >= t.x0 - 2 && x <= t.x1 + 2 && y >= t.y0 - 2 && y <= t.y1 + 2) ||
+  townsNear(room.seed, x - 2, y - 2, x + 2, y + 2).some(
+    (t) => x >= t.x0 - 2 && x <= t.x1 + 2 && y >= t.y0 - 2 && y <= t.y1 + 2,
+  ) ||
   !!room.store.objectAt(x, y)?.static;
 
 /** Can every upstairs occupant still reach a down stair after this edit? Unknown/huge components fail closed. */

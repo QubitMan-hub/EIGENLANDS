@@ -68,3 +68,11 @@ The next batch spatially indexes immutable settlement buildings by the existing 
 Hanging shop lettering and icons are now projected onto thick upright boards; their bottoms retain the previous height above the walkway. Stone thresholds and small woven mats use the wall painter's real top/side geometry and existing low doorstep height. They improve entrance readability without creating new obstacles.
 
 The six source-rendered capital samples update 55–66 nearby buildings out of 1,141 total (about 94–95% fewer building-view candidates per frame). This measures architecture traversal, not overall FPS; terrain, NPCs and other render costs still exist. Evidence: `docs/validation/kingdom-art/report.json`.
+
+## Castles and frontier provinces (revision 6, 2026-10-26)
+
+Original procedural castle art now includes world-space round bastions, arrow loops, conical crowns and crenellated towers, with each kingdom's existing stone and roof ramps. Keep terraces use stone paving and edge merlons. Turret geometry extends to its foundation rather than clipping at the roof eave. Revision-6 settlements add stone/obsidian curtain-wall art, furnished watchrooms and a palace throne; doors, collision and the existing domestic subsets remain.
+
+New revision-6 worlds discover additional towns/villages in sparse regions beyond the fixed named kingdoms. These reuse the realm layout/furnishing rules on broad seeded province islands, and stream through bounded regional queries. Buildings, static objects, protected streets, ambient residents and atlas discovery are integrated. Saved worlds retain revisions 1–5. See [FRONTIER_CITIES.md](FRONTIER_CITIES.md).
+
+Not delivered here: new interactive frontier NPC shops or quests, intercity trade, playable battlement floors, new castle stairs or a full replacement of all palace footprints. The named kingdom NPC systems remain intact. Browser screenshots verify rendering; they do not establish low-end phone performance.

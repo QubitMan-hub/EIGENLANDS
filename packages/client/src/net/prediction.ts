@@ -56,7 +56,10 @@ export class Predictor {
     return { cmd, ev };
   }
 
-  reconcile(ack: Ack): number {
+  reconcile(ack: Ack, newSession = false): number {
+    // The old shard discards its input queue; those commands cannot be replayed
+    // against a fresh session whose acknowledgement counter starts at zero.
+    if (newSession) this.pending = [];
     const bx = this.sim.x,
       by = this.sim.y;
     const { ranged, melee } = this.sim;
@@ -67,7 +70,7 @@ export class Predictor {
       ey = by - this.sim.y;
     const dist = Math.hypot(ex, ey);
     this.lastCorrection = dist;
-    if (dist > 3) {
+    if (newSession || dist > 3) {
       this.err.x = 0;
       this.err.y = 0;
       this.prev = { x: this.sim.x, y: this.sim.y };

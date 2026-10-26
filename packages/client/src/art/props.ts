@@ -4,7 +4,7 @@
  * that wall ('sw' = backed onto the north-east wall, 'se' = backed onto the north-west wall).
  */
 import { Texture } from 'pixi.js';
-import { mulberry32 } from '@eigenlands/shared';
+import { mulberry32, REALM_IDS, type RealmId } from '@eigenlands/shared';
 import type { ObjSprite } from './objects';
 import type { ObjSpriteDef } from './worldobjs';
 import { blob, C, line, makeCanvas, outline, poly, polish, put, undithered, type Ctx, type Ramp } from './shade';
@@ -1840,6 +1840,50 @@ export function statueInscription(
   });
 }
 
+/** Low curtain wall courses connect on the world's axes, with a walk-top and merlons. */
+function rampart(face: Facing, realm: RealmId, corner: boolean): ObjSprite {
+  const stone: Record<RealmId, Ramp> = {
+    aurelion: [C.slate, C.steel, C.mist, C.fog, C.pale],
+    sylvaris: [C.g0, C.g1, C.g2, C.e3, C.e4],
+    khardum: [C.ink, C.night, C.slate, C.steel, C.mist],
+    raijin: [C.e0, C.e1, C.e2, C.e3, C.e5],
+    thalassara: [C.w0, C.w1, C.t0, C.t1, C.w5],
+    nethrakar: [C.ink, C.q0, C.q1, C.slate, C.steel],
+  };
+  return iso(
+    44,
+    60,
+    face,
+    (p) => {
+      const m = { ramp: stone[realm], front: planks(19, 5), end: planks(19, 5) };
+      p.box(0, 0, 0, 16, 16, 2, { ramp: stone[realm] });
+      p.box(0, 4, 2, 16, 8, 17, m);
+      p.box(0, 3.5, 19, 16, 9, 2.5, { ramp: stone[realm] });
+      if (corner) {
+        p.box(4, 0, 2, 8, 16, 17, m);
+        p.box(3.5, 0, 19, 9, 16, 2.5, { ramp: stone[realm] });
+      }
+      for (const a of [0, 8])
+        for (const b of [4, 10]) {
+          p.box(a, b, 21.5, 4, 2, 4.5, { ramp: stone[realm] });
+          if (corner) p.box(b, a, 21.5, 2, 4, 4.5, { ramp: stone[realm] });
+        }
+    },
+    { margin: 14 },
+  );
+}
+function royalThrone(face: Facing): ObjSprite {
+  return iso(40, 62, face, (p) => {
+    p.box(2, 2, 0, 12, 12, 2, { ramp: STONEM });
+    for (const a of [3, 11]) for (const b of [4, 11]) p.box(a, b, 2, 1.6, 1.6, 9, { ramp: BRASS });
+    p.box(3, 3, 2, 10, 2, 31, { ramp: BRASS });
+    p.box(4, 5, 11, 8, 7, 2, { ramp: [C.r0, C.r1, C.r2, C.r3] });
+    p.box(5, 5, 15, 6, 0.7, 15, { ramp: [C.r0, C.r1, C.r2, C.r3] });
+    for (const a of [2.5, 12]) p.box(a, 5, 12, 1.5, 8, 3, { ramp: BRASS });
+    for (const a of [3, 7, 11]) p.box(a, 3, 33, 2, 2, a === 7 ? 5 : 3, { ramp: BRASS });
+  });
+}
+
 // ───────────────────────── registry ─────────────────────────
 type Mk = (face: Facing) => ObjSpriteDef;
 const one =
@@ -1851,6 +1895,15 @@ const anim =
 
 /** Isometric props by sub. Each takes the wall it backs onto. */
 export const PROPS: Record<string, Mk> = {
+  royal_throne: one(royalThrone),
+  ...Object.fromEntries(
+    REALM_IDS.flatMap((realm) =>
+      ['ew', 'ns', 'corner'].map((axis) => [
+        `rampart_${realm}_${axis}`,
+        one(() => rampart(axis === 'ns' ? 'se' : 'sw', realm, axis === 'corner')),
+      ]),
+    ),
+  ),
   bookcase: one(bookcase),
   wardrobe: one(wardrobe),
   shelf: one(shelf),

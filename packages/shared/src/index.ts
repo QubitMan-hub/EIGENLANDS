@@ -71,3 +71,5 @@ export * from './realm-npcs';
 export * from './realm-quests';
 export * from './army';
 export * from './wars';
+
+export * from './frontier';

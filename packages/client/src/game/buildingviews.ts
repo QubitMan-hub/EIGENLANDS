@@ -1,7 +1,7 @@
 import { buildingArtWorker } from '../art/building-worker-client';
 import { CALM, type WindField } from './windfield';
 import { Sprite, Texture, type Container } from 'pixi.js';
-import { chunkOf, townsFor, type Building } from '@eigenlands/shared';
+import { chunkOf, townsFor, frontierTownsNear, type Building } from '@eigenlands/shared';
 import { buildBuildingArt, type BuildingArt } from '../art/buildings';
 import { makeCanvas, put, C } from '../art/shade';
 import { depth } from './iso';
@@ -13,6 +13,7 @@ interface Puff {
   t: number;
 }
 interface BView {
+  retired?: boolean;
   b: Building;
   art: BuildingArt | null;
   ready?: BuildingArt;
@@ -61,38 +62,82 @@ export class BuildingViews {
   private darkness = 0;
   private builtThisFrame = 0;
   private priority = '';
+  private frontierKey = '';
+  private frontierViews: BView[] = [];
 
   constructor(
-    seed: number,
+    private seed: number,
     private shadowLayer: Container,
     private entityLayer: Container,
     private roofLayer: Container,
   ) {
     roofLayer.sortableChildren = true;
-    for (const b of townsFor(seed).flatMap((t) => t.buildings)) {
-      const view: BView = {
-        b,
-        art: null,
-        walls: [],
-        roof: null,
-        shadow: null,
-        sign: null,
-        puffs: [],
-        roofA: 1,
-        wallA: 1,
-        cut: false,
-        night: false,
-      };
-      this.views.push(view);
-      for (let cy = chunkOf(b.y); cy <= chunkOf(b.y + b.h); cy++)
-        for (let cx = chunkOf(b.x); cx <= chunkOf(b.x + b.w); cx++) {
-          const key = `${cx},${cy}`;
-          const bucket = this.buckets.get(key) ?? [];
-          if (!this.buckets.has(key)) this.buckets.set(key, bucket);
-          bucket.push(view);
-        }
-    }
+    for (const b of townsFor(seed).flatMap((t) => t.buildings)) this.addBuilding(b);
     setBuildingLights((a, b2, c, d) => this.lights(a, b2, c, d));
+  }
+
+  private addBuilding(b: Building): BView {
+    const view: BView = {
+      b,
+      art: null,
+      walls: [],
+      roof: null,
+      shadow: null,
+      sign: null,
+      puffs: [],
+      roofA: 1,
+      wallA: 1,
+      cut: false,
+      night: false,
+    };
+    this.views.push(view);
+    for (let cy = chunkOf(b.y); cy <= chunkOf(b.y + b.h); cy++)
+      for (let cx = chunkOf(b.x); cx <= chunkOf(b.x + b.w); cx++) {
+        const key = `${cx},${cy}`;
+        const bucket = this.buckets.get(key) ?? [];
+        if (!this.buckets.has(key)) this.buckets.set(key, bucket);
+        bucket.push(view);
+      }
+    return view;
+  }
+  private disposeArt(art: BuildingArt | null | undefined): void {
+    if (!art) return;
+    const textures = [
+      ...art.walls.flatMap((w) => [w.day, w.night, w.cut]),
+      art.roof.tex,
+      art.roof.night,
+      art.shadow.tex,
+      art.sign?.tex,
+    ];
+    for (const t of new Set(textures)) t?.destroy(true);
+  }
+  private frontier(minX: number, minY: number, maxX: number, maxY: number): void {
+    const towns = frontierTownsNear(this.seed, minX - 44, minY - 44, maxX + 44, maxY + 44);
+    const key = towns
+      .map((t) => t.site!.id)
+      .sort()
+      .join(',');
+    if (key === this.frontierKey) return;
+    this.frontierKey = key;
+    const old = new Set(this.frontierViews);
+    for (const v of old) {
+      v.retired = true;
+      for (const w of v.walls) w.s.destroy();
+      v.roof?.destroy();
+      v.shadow?.destroy();
+      v.sign?.destroy();
+      for (const p of v.puffs) p.s.destroy();
+      this.disposeArt(v.art);
+      this.disposeArt(v.ready);
+    }
+    this.views = this.views.filter((v) => !old.has(v));
+    this.nearby = this.nearby.filter((v) => !old.has(v));
+    for (const [key, bucket] of this.buckets) {
+      const keep = bucket.filter((v) => !old.has(v));
+      if (keep.length) this.buckets.set(key, keep);
+      else this.buckets.delete(key);
+    }
+    this.frontierViews = towns.flatMap((t) => t.buildings.map((b) => this.addBuilding(b)));
   }
 
   private query(minX: number, minY: number, maxX: number, maxY: number): BView[] {
@@ -122,7 +167,8 @@ export class BuildingViews {
         v.pending = true;
         void request.then((art) => {
           v.pending = false;
-          if (art) v.ready = art;
+          if (v.retired) this.disposeArt(art);
+          else if (art) v.ready = art;
         });
       }
     }
@@ -214,6 +260,7 @@ export class BuildingViews {
     const priority = `${playerTx},${playerTy},${Math.floor(minX)},${Math.floor(minY)},${Math.floor(maxX)},${Math.floor(maxY)}`;
     if (priority !== this.priority) {
       this.priority = priority;
+      this.frontier(minX, minY, maxX, maxY);
       const next = this.query(minX - 44, minY - 44, maxX + 44, maxY + 44);
       const keep = new Set(next);
       for (const v of this.nearby) if (!keep.has(v)) this.hide(v);

@@ -4,6 +4,8 @@ Source: [complete user request](design/master-request.md). Both pasted uploads a
 
 ## Audit and execution record
 
+- [~] IN PROGRESS — Castles/frontier batch (2026-10-26): original projected bastions/crowns/curtain walls, furnished watchrooms/thrones, revision-6 lazy province towns and atlas discovery. Dialogue theme and collision/shard travel defects addressed with regression tests. See [FRONTIER_CITIES.md](FRONTIER_CITIES.md) for evidence and limits. Saved revisions 1–5 retained. Frontier interactive NPC shops/quests, intercity trade and playable castle battlements remain open.
+
 - [x] IMPLEMENTED & TESTED — Prior completed work merged in PRs #2, #3 and #4; main baseline 54cf502. Clean feature branch preserves new work.
 - [x] IMPLEMENTED & TESTED — Functional furnished upper floors, charter-gated underwater sanctuaries, timed traps and platform circuits. Three shared and four server integration checks passed; real solo/multiplayer reload, stairs, diving, platform chamber and sloop return passed. Merged to main in PR #5 after both CI checks passed.
 - [x] IMPLEMENTED & TESTED — PR #5 merged at 404a880 after both GitHub CI checks passed; local main synchronized. Full broader overhaul remains IN PROGRESS.

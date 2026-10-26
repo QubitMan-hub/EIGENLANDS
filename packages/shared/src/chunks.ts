@@ -1,3 +1,4 @@
+import { frontierTownAt, frontierTownsNear } from './frontier';
 import { mineLineAt, mineLoopAt } from './mines';
 import { buildTile, type BuildCell } from './construction';
 import { oceanObjectsIn } from './ocean';
@@ -94,6 +95,7 @@ export class ChunkStore {
       for (const [key, ch] of this.chunks) {
         if (ch.diff.size === 0 && ch !== this.lastChunk) {
           this.chunks.delete(key);
+          if (this.lastLevelChunk === ch) this.lastLevelChunk = null;
           break;
         } // never evict edited chunks
       }
@@ -167,7 +169,13 @@ export class ChunkStore {
         this.townByChunk.set(k, list);
       }
     }
-    const town = this.townByChunk.get(chunkKey(cx, cy)) ?? [];
+    const town = [
+      ...(this.townByChunk.get(chunkKey(cx, cy)) ?? []),
+      ...frontierTownsNear(this.seed, cx * 32, cy * 32, cx * 32 + 31, cy * 32 + 31, this.generation)
+        .flatMap((t) => t.objects)
+        .filter((o) => chunkOf(o.x) === cx && chunkOf(o.y) === cy)
+        .map((o) => ({ ...o, static: true })),
+    ];
     const wild = isCaveY(cy * CHUNK_SIZE)
       ? [...caveObjectsIn(this.seed, cx, cy, this.generation), ...shrineObjectsIn(this.seed, cx, cy)]
       : isDiveY(cy * CHUNK_SIZE)
@@ -179,7 +187,9 @@ export class ChunkStore {
             ...ruinObjectsIn(this.seed, cx, cy),
             ...caveObjectsIn(this.seed, cx, cy, this.generation),
           ];
-    const placed = this.generation >= 3 ? wild.filter((o) => this.seaSiteStillAtSea(o)) : wild;
+    const placed = (this.generation >= 3 ? wild.filter((o) => this.seaSiteStillAtSea(o)) : wild).filter(
+      (o) => this.generation < 6 || !frontierTownAt(this.seed, o.x, o.y, this.generation),
+    );
     return placed.length ? [...town, ...placed] : town;
   }
 
