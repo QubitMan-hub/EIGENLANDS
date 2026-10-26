@@ -450,7 +450,7 @@ function build(site: RealmSite, seed: number): Town {
         [wx1 - 3, cy - 9],
         [wx1 - 3, cy + 4],
       ] as const)
-        if (isFree(tx, ty, 5, 5) || true) placeTower(tx, ty, 5);
+        placeTower(tx, ty, 5);
   }
 
   // ───── castle (capitals) and fort (outposts)
@@ -525,8 +525,7 @@ function build(site: RealmSite, seed: number): Town {
       for (let k = 0; k < thick; k++) {
         for (let x = zx + k; x <= zx1 - k; x++) {
           set(x, zy + k, tile);
-          if (Math.abs(x - midX) > (gap - 1) / 2 || true)
-            set(x, zy1 - k, Math.abs(x - midX) <= (gap - 1) / 2 ? T.PATH : tile);
+          set(x, zy1 - k, Math.abs(x - midX) <= (gap - 1) / 2 ? T.PATH : tile);
         }
         for (let y = zy + k; y <= zy1 - k; y++) {
           set(zx + k, y, tile);
