@@ -47,6 +47,7 @@ import { VoiceModule } from '../features/voice';
 import { ShrineModule } from '../features/shrines';
 import { TravelModule } from '../features/travel';
 import { CaravanModule } from '../features/caravans';
+import { CivModule } from '../features/civ';
 import { SocialModule } from '../features/social';
 import type { BucketName, Carry, JoinOpts, Module, Registrar } from '../features/types';
 import type { VillageHost, VillageSystem } from '../systems/types';
@@ -90,6 +91,7 @@ export class GameRoom extends WorldRoom {
   shrines!: ShrineModule;
   travel!: TravelModule;
   caravans!: CaravanModule;
+  civ!: CivModule;
   shardMod!: ShardModule;
   private modules: Module[] = [];
   private buckets = new Map<string, Map<BucketName, TokenBucket>>();
@@ -133,6 +135,7 @@ export class GameRoom extends WorldRoom {
     this.caves = new CaveModule(this);
     this.travel = new TravelModule(this);
     this.caravans = new CaravanModule(this);
+    this.civ = new CivModule(this);
     this.modules = [
       this.shardMod,
       this.circuit,
@@ -144,6 +147,7 @@ export class GameRoom extends WorldRoom {
       this.sailing,
       this.travel,
       this.caravans,
+      this.civ,
       this.army,
       this.voice,
     ];

@@ -1,9 +1,11 @@
+import { civOf, recordCiv } from '../../features/civ/registry';
 import { gainRep } from '../reputation';
 import {
   DAY_MS,
   GIFT_EXTRA,
   GIFT_POINTS,
   ITEMS,
+  civPriceFactor,
   DELVER_MERCHANTS,
   type ScheduleBlock,
   KINGDOMS,
@@ -710,7 +712,9 @@ export class Village implements VillageSystem {
     const origin = REALM_IDS.find((r) => r !== realm && KINGDOMS[r].economy.exports.includes(itemId));
     const trade = origin ? tradeModifier(this.host.seed, day, origin, realm) : 1;
     const rep = repPriceMultiplier(p?.data.rep?.[realm] ?? 0);
-    return trade * rep * (festivalOn(realm, day) ? 0.9 : 1);
+    // the kingdom's state: its decree, wars, prosperity and granaries (shared civ.ts)
+    const civ = civPriceFactor(civOf(this.host.seed)?.kingdoms[realm], ITEMS[itemId]?.kind === 'food');
+    return trade * rep * civ * (festivalOn(realm, day) ? 0.9 : 1);
   }
 
   private unitSell(def: NpcDef, itemId: string, extraSupply = 0, p: PlayerRef | null = null): number {
@@ -796,6 +800,7 @@ export class Village implements VillageSystem {
       p.dirty('inv', 'coins');
       p.toast(`Bought ${n} ${ITEMS[entry.item]!.name} for ${cost}.`, 'good', stack);
       if (def.realm) gainRep(p, def.realm as RealmId, Math.max(1, Math.floor(cost / 30)), true);
+      if (def.realm) recordCiv(this.host.seed, def.realm as RealmId, 'trade', cost);
       if (p.data.quests) syncQuests(p, this.host.seed);
       return this.view(p, def);
     }
@@ -820,6 +825,7 @@ export class Village implements VillageSystem {
       p.dirty('inv', 'coins');
       p.toast(`Sold ${n} ${ITEMS[id]!.name} for ${total}.`, 'good');
       if (def.realm) gainRep(p, def.realm as RealmId, Math.max(1, Math.floor(total / 40)), true);
+      if (def.realm) recordCiv(this.host.seed, def.realm as RealmId, 'trade', total);
       if (p.data.quests) {
         questEvent(p, { type: 'sell', target: id, n }, this.host.seed);
         syncQuests(p, this.host.seed);

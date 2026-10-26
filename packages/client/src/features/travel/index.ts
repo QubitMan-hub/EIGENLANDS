@@ -2,6 +2,8 @@ import { Graphics } from 'pixi.js';
 import {
   ATTUNE_REACH,
   MSG_TRAVEL,
+  MSG_CIV,
+  type CivSummary,
   waystonesNear,
   type TravelEvent,
   type WayKind,
@@ -11,6 +13,7 @@ import { isoX, isoY } from '../../game/iso';
 import { keyLabel } from '../../input/keymap';
 import { h } from '../../ui/dom';
 import type { ClientModule, P34Deps } from '../types';
+import { setCivSender, setCivState } from '../../game/civ-store';
 import { CaravanViews } from './caravans';
 import { BridgeViews } from './bridges';
 import { VoyageCard } from '../../ui/voyage';
@@ -50,6 +53,13 @@ export class TravelClient implements ClientModule {
     this.gfx.zIndex = 9e8;
     this.d.fxLayer().addChild(this.gfx);
     this.caravans = new CaravanViews(d);
+    setCivSender((type, msg) => {
+      try {
+        this.d.net().send(type, msg);
+      } catch {
+        /* offline */
+      }
+    });
     this.bridges = new BridgeViews(d);
     this.voyage = new VoyageCard(() => this.d.settings().reducedMotion);
     this.fill = h('i');
@@ -78,7 +88,11 @@ export class TravelClient implements ClientModule {
   }
 
   handlers(): Record<string, (m: any) => void> {
-    return { [MSG_TRAVEL.EV]: (m: TravelEvent) => this.on(m) };
+    return {
+      [MSG_TRAVEL.EV]: (m: TravelEvent) => this.on(m),
+      // the living kingdoms' state rides along with the travel module (it is shown in the Journal and the world)
+      [MSG_CIV.STATE]: (m: CivSummary) => setCivState(m),
+    };
   }
 
   private on(m: TravelEvent): void {

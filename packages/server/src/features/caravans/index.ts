@@ -26,6 +26,7 @@ import type { Enemy } from '../../game/enemies';
 import type { GameRoom } from '../../rooms/GameRoom';
 import type { ServerPlayer } from '../../rooms/player';
 import { gainRep } from '../../systems/reputation';
+import { recordCiv } from '../civ/registry';
 import type { Module, Registrar } from '../types';
 
 export const CARAVAN_NPC = 'caravan:';
@@ -159,6 +160,7 @@ export class CaravanModule implements Module {
         p.dirty('inv', 'coins');
         p.toast(`Bought ${n} ${ITEMS[entry.item]!.name} for ${cost}.`, 'good', stack);
         gainRep(p, r.realm, Math.max(1, Math.floor(cost / 40)), true);
+        recordCiv(this.room.seed, r.realm, 'trade', cost);
       }
       return this.view(p, r);
     }
@@ -178,6 +180,7 @@ export class CaravanModule implements Module {
       p.dirty('inv', 'coins');
       p.toast(`Sold ${n} ${name} for ${total}.`, 'good');
       gainRep(p, r.realm, Math.max(1, Math.floor(total / 50)), true);
+      recordCiv(this.room.seed, r.realm, 'trade', total);
       return this.view(p, r);
     }
     return this.view(p, r);
@@ -228,6 +231,7 @@ export class CaravanModule implements Module {
       }
       if (!c.moving && c.at?.id === e.dest && near) {
         this.escorts.delete(pid);
+        recordCiv(this.room.seed, e.route.realm, 'caravansSaved');
         p.data.coins += e.pay;
         p.dirty('coins');
         this.room.grantXp(p, 50 + p.level * 8);
@@ -256,6 +260,7 @@ export class CaravanModule implements Module {
     for (const [id, a] of this.ambushes) {
       // wolves that left the world another way (despawned, warded) no longer count
       for (const e of a.enemies) if (!this.room.enemies.has(e)) a.enemies.delete(e);
+      if (this.t > a.until && a.enemies.size) recordCiv(this.room.seed, a.route.realm, 'caravansLost');
       if (this.t > a.until || !a.enemies.size) this.ambushes.delete(id);
     }
     if (this.t < this.next) return;
@@ -302,6 +307,7 @@ export class CaravanModule implements Module {
     for (const [id, a] of this.ambushes) {
       if (!a.enemies.delete(e.id) || a.enemies.size) continue;
       this.ambushes.delete(id);
+      recordCiv(this.room.seed, a.route.realm, 'caravansSaved');
       const pos = caravanAt(this.room.seed, a.route, this.now());
       for (const p of this.room.players.values()) {
         if (p.deadT > 0 || Math.hypot(p.sim.x - pos.x, p.sim.y - pos.y) > DEFEND_REACH) continue;

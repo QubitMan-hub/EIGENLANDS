@@ -1,3 +1,4 @@
+import { chooseIntrigue, civState } from '../game/civ-store';
 import {
   ITEMS,
   MAX_HEARTS,
@@ -11,6 +12,11 @@ import {
   DAY_MS,
   KINGDOMS,
   REALM_IDS,
+  REALM_SITES,
+  DECREES,
+  PROJECTS,
+  civSiteName,
+  type RealmId,
   REP_TIERS,
   type KingdomStance,
   diplomacyAt,
@@ -459,6 +465,83 @@ const STANCE_LABEL: Record<KingdomStance, string> = {
   hostile: 'Hostile',
 };
 
+/** The living state of a kingdom (§16): its fortunes, the decree, the works under way, wars and court intrigue. */
+function realmState(id: RealmId): HTMLElement | null {
+  const k = civState()?.kingdoms[id];
+  if (!k) return null;
+  const meter = (label: string, v: number) =>
+    h(
+      'div',
+      { class: 'civ-meter' },
+      h('span', { text: label }),
+      h('i', {}, h('b', { style: `width:${Math.round(v)}%` })),
+      h('span', { class: 'small', text: `${Math.round(v)}` }),
+    );
+  const box = h(
+    'div',
+    { class: 'civ-state' },
+    meter('Prosperity', k.prosperity),
+    meter('Might', k.might),
+    meter('Stability', k.stability),
+    h('div', {
+      class: 'small',
+      text: `Treasury ${k.treasury.toLocaleString()} crowns · Decree: ${DECREES[k.decree.id].name}. ${DECREES[k.decree.id].text}`,
+    }),
+  );
+  if (k.project) {
+    const site = REALM_SITES.find((s) => s.id === k.project!.site);
+    box.append(
+      h('div', {
+        class: 'small',
+        text: `Building: a ${PROJECTS[k.project.kind].name.toLowerCase()} at ${site ? civSiteName(site) : '?'} (${Math.round(k.project.progress * 100)}%). ${PROJECTS[k.project.kind].desc}`,
+      }),
+    );
+  }
+  if (k.built.length)
+    box.append(
+      h('div', {
+        class: 'small dim',
+        text: `Works completed: ${k.built
+          .slice(-5)
+          .map((b) => PROJECTS[b.kind].name.toLowerCase())
+          .join(', ')}`,
+      }),
+    );
+  for (const w of k.wars)
+    box.append(h('div', { class: 'small bad', text: `At war with ${KINGDOMS[w.with].name} since day ${w.since}.` }));
+  if (k.intrigue) {
+    const i = k.intrigue;
+    box.append(
+      h(
+        'div',
+        { class: 'civ-intrigue' },
+        h('b', { text: `Court intrigue: ${i.title}` }),
+        h('div', { class: 'small', text: i.text }),
+        h(
+          'div',
+          { class: 'civ-choices' },
+          ...i.choices.map((c) =>
+            h('button', { text: c.label, title: c.outcome, on: { click: () => chooseIntrigue(id, c.id) } }),
+          ),
+        ),
+        h('div', {
+          class: 'small dim',
+          text: `Decided by the first traveller who acts, in ${KINGDOMS[id].name} itself; left alone it festers after day ${i.expires}.`,
+        }),
+      ),
+    );
+  }
+  if (k.chronicle.length)
+    box.append(
+      h(
+        'div',
+        { class: 'small dim' },
+        ...k.chronicle.slice(0, 4).map((c) => h('div', { text: `Day ${c.day}: ${c.text}` })),
+      ),
+    );
+  return box;
+}
+
 /** The six great kingdoms: lore, your standing, relations and the next festival. */
 function kingdomsPage(profile: Profile, seed: number): HTMLElement {
   const day = Math.floor(Date.now() / DAY_MS);
@@ -496,11 +579,28 @@ function kingdomsPage(profile: Profile, seed: number): HTMLElement {
           class: 'small',
           text: `Next festival: ${nf.festival.name}${nf.in === 0 ? ' (today!)' : ` in ${nf.in} day${nf.in === 1 ? '' : 's'}`}`,
         }),
+        realmState(id),
         ...relationsOf(id).map((r) =>
           h('div', { class: 'small dim', text: `${STANCE_LABEL[r.stance]} with ${KINGDOMS[r.other].name}: ${r.note}` }),
         ),
       ),
     );
+  }
+  const civ = civState();
+  if (civ) {
+    const news = REALM_IDS.flatMap((r) => civ.kingdoms[r].chronicle.map((c) => ({ ...c, r })))
+      .sort((a, b) => b.day - a.day)
+      .slice(0, 8);
+    if (news.length)
+      root.insertBefore(
+        h(
+          'div',
+          { class: 'civ-news' },
+          h('b', { text: 'News from the kingdoms' }),
+          ...news.map((n) => h('div', { class: 'small', text: `Day ${n.day} · ${n.text}` })),
+        ),
+        root.children[1] ?? null,
+      );
   }
   const rumors = diplomacyAt(seed, day).filter((d) => d.event);
   if (rumors.length)

@@ -1,4 +1,5 @@
 import { questEvent } from '../../systems/quests';
+import { civOf, recordCiv } from '../civ/registry';
 /**
  * Standing armies and border wars (world revision 5). Settlements are garrisoned by their kingdom's soldiers, who
  * patrol the walls and fight anything hostile; the seasonal war calendar (shared wars.ts) sends raiding parties of a
@@ -20,6 +21,7 @@ import {
   moveBody,
   raidHeadline,
   raidsOn,
+  warRaidSites,
   shapeHits,
   type RaidPlan,
   type RealmSite,
@@ -374,7 +376,27 @@ export class ArmyModule implements Module {
 
   private todays(): RaidPlan[] {
     const day = this.room.wclock.day();
-    if (this.plans.day !== day) this.plans = { day, list: raidsOn(this.room.seed, day) };
+    if (this.plans.day !== day) {
+      // the calendar's border raids, plus the parties sent by kingdoms actually at war (civ.ts)
+      const civ = civOf(this.room.seed);
+      const war: RaidPlan[] = civ
+        ? warRaidSites(this.room.seed, civ, day).map((r) => {
+            const n = r.scale === 2 ? 7 : 12;
+            return {
+              id: `war:${day}:${r.attacker}:${r.siteId}`,
+              day,
+              hour: r.hour,
+              attacker: r.attacker,
+              defender: r.defender,
+              siteId: r.siteId,
+              scale: r.scale,
+              party: [Math.ceil(n * 0.45), Math.floor(n * 0.25), Math.floor(n * 0.2), r.scale === 3 ? 2 : 1],
+              beast: true,
+            };
+          })
+        : [];
+      this.plans = { day, list: [...raidsOn(this.room.seed, day), ...war] };
+    }
     return this.plans.list;
   }
 
@@ -508,6 +530,7 @@ export class ArmyModule implements Module {
       ? `The ${KINGDOMS[r.plan.attacker].name} assault on ${name} was beaten back.`
       : `${KINGDOMS[r.plan.attacker].name} raiders plundered ${name} and withdrew.`;
     this.results.set(site.id, { day, text, repelled });
+    recordCiv(this.room.seed, r.plan.defender, repelled ? 'raidsWon' : 'raidsLost');
     for (const p of this.room.players.values()) {
       if (Math.hypot(p.sim.x - site.cx, p.sim.y - site.cy) > 300) continue;
       p.toast(text, repelled ? 'good' : 'bad');

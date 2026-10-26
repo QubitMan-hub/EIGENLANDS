@@ -1,3 +1,4 @@
+import { recordCiv } from '../features/civ/registry';
 import { handleGuild } from './guild';
 /**
  * Quests: story quests from villagers and the daily request board. Objective progress comes from real events reported by
@@ -184,6 +185,7 @@ export function turnInQuest(
       : null;
   if (learned) p.data.recipes.add(learned);
   if (d.realm && d.rewards.rep) gainRep(p, d.realm as RealmId, d.rewards.rep);
+  if (d.realm) recordCiv(seed, d.realm as RealmId, 'questsDone');
   p.dirty('quests', 'inv', 'coins', 'friends', ...(learned ? ['recipes' as const] : []));
   const rewardText = [
     `${d.rewards.coins} coins`,
