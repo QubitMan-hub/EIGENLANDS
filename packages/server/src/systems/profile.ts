@@ -29,12 +29,7 @@ import {
   type QuestLog,
   type Stack,
   recipeById,
-  EQUIP_SLOTS,
-  GEAR_SLOTS,
-  enchantBonus,
-  gearPower,
-  isBroken,
-  type GearBonus,
+  equipmentStats,
   validDisc,
 } from '@eigenlands/shared';
 import type { Buff, DirtyPart, FriendRec, PlayerData } from './types';
@@ -273,70 +268,9 @@ export function serializePlayerData(d: PlayerData): Record<string, unknown> {
 }
 
 export function deriveStats(d: PlayerData): DerivedStats {
-  const s: DerivedStats = {
-    hpBonus: 0,
-    atkBonus: 0,
-    luck: 0,
-    haste: 0,
-    def: 0,
-    phase: 0,
-    warm: 0,
-    cool: 0,
-    drain: 0,
-    light: 0,
-    craft: 0,
-    stamina: 0,
-  };
-  for (const r of [d.equip.ring1, d.equip.ring2]) {
-    if (!r?.p?.stat || !Number.isFinite(r.p.val)) continue;
-    const v = r.p.val!;
-    if (r.p.stat === 'hp') s.hpBonus += v;
-    else if (r.p.stat === 'atk') s.atkBonus += v;
-    else if (r.p.stat === 'luck') s.luck += v;
-    else if (r.p.stat === 'haste') s.haste += v;
-  }
+  // worn and wielded gear (see equipmentStats), then the quick-bar sword, food and potion effects, and Heart Crystals
+  const s: DerivedStats = equipmentStats(d.equip);
   s.atkBonus += quickbarAttack(d.inv);
-  // Broken pieces give nothing; quality and upgrades scale what a piece gives; enchantments add on top.
-  const live = (st: Stack | null | undefined): Stack | null => (st && !isBroken(st.p) ? st : null);
-  const add = (b: GearBonus | null, k = 1): void => {
-    if (!b) return;
-    s.hpBonus += Math.round((b.hp ?? 0) * k);
-    s.atkBonus += Math.round((b.atk ?? 0) * k);
-    s.def += (b.def ?? 0) * k;
-    s.luck += (b.luck ?? 0) * k;
-    s.haste += (b.haste ?? 0) * k;
-    s.phase += (b.phase ?? 0) * k;
-    s.warm += b.warm ?? 0;
-    s.cool += b.cool ?? 0;
-    s.drain += b.drain ?? 0;
-    s.light = Math.max(s.light, b.light ?? 0);
-    s.craft += b.craft ?? 0;
-    s.stamina += b.stamina ?? 0;
-  };
-  // armour (with set bonuses), averaging the quality of the pieces worn
-  const worn = (['head', 'chest', 'legs', 'feet'] as const).map((k) => live(d.equip[k]));
-  const a = armorTotals({
-    head: worn[0]?.id ?? null,
-    chest: worn[1]?.id ?? null,
-    legs: worn[2]?.id ?? null,
-    feet: worn[3]?.id ?? null,
-  });
-  const present = worn.filter((x): x is Stack => !!x);
-  const ak = present.length ? present.reduce((t, x) => t + gearPower(x.p), 0) / present.length : 1;
-  add(a.bonus, ak);
-  // the wielded weapon or Focus
-  const weapon = live(d.equip.weapon);
-  const w = weapon ? ITEMS[weapon.id]?.weapon : undefined;
-  if (weapon && w) add(WEAPONS[w].bonus, gearPower(weapon.p));
-  // shields, cloaks, amulets, belts, charms, lanterns
-  for (const slot of GEAR_SLOTS) {
-    const g = live(d.equip[slot]);
-    const spec = g ? ITEMS[g.id]?.gear : undefined;
-    if (g && spec) add(spec.bonus, gearPower(g.p));
-  }
-  // enchantments on anything worn
-  for (const slot of [...EQUIP_SLOTS])
-    if (slot !== 'ring1' && slot !== 'ring2') add(enchantBonus(live(d.equip[slot])?.p));
   // food and potion effects that change stats while they last (expired buffs are removed by the room each second)
   const bp = (k: string): number => d.buffs[k]?.power ?? 0;
   s.hpBonus += Math.round(bp('vigor'));

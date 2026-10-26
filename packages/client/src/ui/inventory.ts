@@ -76,7 +76,7 @@ export function buildInventory(
           : !profile.equip.ring2
             ? 'ring2'
             : 'ring1'
-        : (d.armor?.slot ?? (d.weapon ? 'weapon' : null));
+        : (d.armor?.slot ?? d.gear?.slot ?? (d.weapon ? 'weapon' : null));
     const comparison = h('div', { class: 'inv-comparison' });
     const compare = () => {
       clear(comparison);
@@ -151,7 +151,7 @@ export function buildInventory(
     if (weapon) details.append(buildWeaponGuide(weapon));
     const required = equipmentLevel(st.id),
       locked = level() < required;
-    if (d.weapon || d.armor)
+    if (d.weapon || d.armor || d.gear)
       details.append(
         h('p', {
           class: locked ? 'equip-lock' : 'small dim',
@@ -226,6 +226,7 @@ export function buildInventory(
     else if (d?.kind === 'outfit') act.equip(i, 'outfit');
     else if (d?.kind === 'armor' && d.armor) act.equip(i, d.armor.slot);
     else if (d?.kind === 'weapon' && d.weapon) act.equip(i, 'weapon');
+    else if (d?.kind === 'gear' && d.gear) act.equip(i, d.gear.slot);
     else act.use(i);
   };
 
@@ -256,7 +257,9 @@ export function buildInventory(
       if (!d) return false;
       if (key === 'ring1' || key === 'ring2') return d.kind === 'ring';
       if (key === 'weapon') return d.kind === 'weapon' && !!d.weapon;
-      return d.kind === 'armor' && d.armor?.slot === key;
+      if (key === 'head' || key === 'chest' || key === 'legs' || key === 'feet')
+        return d.kind === 'armor' && d.armor?.slot === key;
+      return d.kind === 'gear' && d.gear?.slot === key;
     };
     const eqSlot = (label: string, st: Stack | null, key: EquipSlotKey) => {
       const slot = h(
@@ -303,6 +306,16 @@ export function buildInventory(
           eqSlot('Weapon', E.weapon, 'weapon'),
           eqSlot('Ring', E.ring1, 'ring1'),
           eqSlot('Ring', E.ring2, 'ring2'),
+        ),
+        h(
+          'div',
+          { class: 'eq-col' },
+          eqSlot('Shield', E.shield ?? null, 'shield'),
+          eqSlot('Cloak / Pack', E.back ?? null, 'back'),
+          eqSlot('Amulet', E.neck ?? null, 'neck'),
+          eqSlot('Belt', E.belt ?? null, 'belt'),
+          eqSlot('Charm', E.charm ?? null, 'charm'),
+          eqSlot('Lantern', E.light ?? null, 'light'),
         ),
       ),
     );

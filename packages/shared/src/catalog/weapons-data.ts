@@ -43,6 +43,7 @@ interface FamilyForm {
 
 const ALL = WEAPON_TIERS.map((t) => t.metal);
 export const FAMILIES: FamilyForm[] = [
+  { base: 'sword', noun: 'Sword', mult: 0.9, blurb: 'A balanced three-hit combo with a lunging finisher.', from: ALL },
   { base: 'spear', noun: 'Spear', mult: 1, blurb: 'Reaching thrusts.', from: ALL.filter((m) => m !== 'hellsteel') },
   { base: 'battle_axe', noun: 'Battle Axe', mult: 1.15, blurb: 'Wide sweeping cleaves.', from: ALL },
   {

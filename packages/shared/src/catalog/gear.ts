@@ -125,6 +125,11 @@ for (const s of CATALOG_SETS) {
 
 // ── weapons: a metal's rod forms the shaft or blade, plates the head
 const HEAD: Record<string, (m: string) => Array<[string, number]>> = {
+  sword: (m) => [
+    [`${m}_rod`, 3],
+    [`${m}_plate`, 1],
+    ['handle', 1],
+  ],
   spear: (m) => [
     [`${m}_rod`, 2],
     [`${m}_plate`, 1],

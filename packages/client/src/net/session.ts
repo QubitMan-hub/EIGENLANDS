@@ -13,6 +13,7 @@ import {
   type DialogueMsg,
   type EquipMsg,
   type ExperimentMsg,
+  type GearMsg,
   type FishBiteMsg,
   type ForgePreviewReply,
   type ForgeStartMsg,
@@ -312,6 +313,9 @@ export class Net {
   }
   experiment(m: ExperimentMsg): void {
     this.send(MSG.EXPERIMENT, m);
+  }
+  gear(m: GearMsg): void {
+    this.send(MSG.GEAR, m);
   }
   forgePreview(materials: string[]): void {
     this.send(MSG.FORGE_PREVIEW, { materials });

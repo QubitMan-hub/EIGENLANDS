@@ -1,5 +1,5 @@
 import { COL as C, item, rec } from './kit';
-import type { EnchantDef } from './types';
+import type { EnchantDef, GearBonus } from './types';
 import type { Rarity } from '../crafting';
 
 /**
@@ -7,7 +7,7 @@ import type { Rarity } from '../crafting';
  * into a piece of gear, where it adds its bonus until the piece is re-enchanted. Which gear can carry which rune, and how
  * rare the gear must be, is data.
  */
-export const ENCHANTS: EnchantDef[] = [
+const BASE_ENCHANTS: EnchantDef[] = [
   { key: 'flame', name: 'Flame', bonus: { atk: 4 }, minRarity: 0, on: ['weapon'], blurb: 'Strikes burn: +4 attack.' },
   { key: 'keen', name: 'Keen', bonus: { atk: 6 }, minRarity: 1, on: ['weapon'], blurb: 'A razor edge: +6 attack.' },
   {
@@ -91,6 +91,29 @@ export const ENCHANTS: EnchantDef[] = [
     blurb: '5% of hits pass straight through you.',
   },
 ];
+/** Each rune comes in three strengths: plain, Greater (about 1.8x) and Perfect (3x), which only richer gear can carry. */
+export const ENCHANT_TIER_NAMES = ['', 'Greater ', 'Perfect '] as const;
+const TIER_SCALE = [1, 1.8, 3] as const;
+const scaleBonus = (b: GearBonus, k: number): GearBonus => {
+  const out: GearBonus = {};
+  for (const [key, v] of Object.entries(b) as Array<[keyof GearBonus, number]>) {
+    const bounded = key === 'def' || key === 'phase' || key === 'drain';
+    out[key] = bounded ? Math.round(v * k * 1000) / 1000 : Math.round(v * k * 10) / 10;
+  }
+  return out;
+};
+export const ENCHANTS: EnchantDef[] = BASE_ENCHANTS.flatMap((e) =>
+  e.key === 'phasing'
+    ? [e]
+    : TIER_SCALE.map((k, i) => ({
+        ...e,
+        key: i === 0 ? e.key : `${e.key}${i + 1}`,
+        name: `${ENCHANT_TIER_NAMES[i]}${e.name}`,
+        bonus: i === 0 ? e.bonus : scaleBonus(e.bonus, k),
+        minRarity: Math.max(e.minRarity, i === 0 ? 0 : i === 1 ? 2 : 3),
+        blurb: i === 0 ? e.blurb : `${e.blurb} Stronger (${ENCHANT_TIER_NAMES[i]!.trim()}).`,
+      })),
+);
 export const ENCHANT_BY_KEY: Readonly<Record<string, EnchantDef>> = Object.fromEntries(ENCHANTS.map((e) => [e.key, e]));
 
 interface Rune {
@@ -247,6 +270,20 @@ const RUNES: Rune[] = [
     rarity: 4,
   },
 ];
+/** The essence a stronger rune is distilled with. */
+const ESSENCE_OF: Record<string, string> = {
+  flame: 'essence_fire',
+  keen: 'essence_fire',
+  tempest: 'essence_storm',
+  vitality: 'essence_life',
+  warding: 'essence_frost',
+  frostward: 'essence_frost',
+  emberward: 'essence_fire',
+  swiftness: 'essence_storm',
+  fortune: 'essence_life',
+  endurance: 'essence_life',
+  artisan: 'essence_storm',
+};
 for (const r of RUNES) {
   const def = ENCHANT_BY_KEY[r.key]!;
   item(`rune_${r.key}`, `Rune of ${def.name}`, 'rune', {
@@ -265,6 +302,43 @@ for (const r of RUNES) {
     hint: `Carve the ${def.name.toLowerCase()} rune.`,
     tool: 'chisel',
   });
+  for (const t of [2, 3] as const) {
+    const key = `${r.key}${t}`,
+      d2 = ENCHANT_BY_KEY[key];
+    if (!d2) continue;
+    const prev = t === 2 ? `rune_${r.key}` : `rune_${r.key}2`;
+    item(`rune_${key}`, `Rune of ${d2.name}`, 'rune', {
+      v: 200 + t * 260 + r.rarity * 120,
+      g: 'rune',
+      a: r.a,
+      b: t === 2 ? C.e6 : C.white,
+      d: `${d2.blurb} Only richer gear (rarity ${d2.minRarity}+) can hold it.`,
+      rarity: Math.min(5, r.rarity + t - 1) as Rarity,
+      use: { t: 'rune', key },
+    });
+    rec(
+      'runeforge',
+      t === 2
+        ? [
+            [prev, 2],
+            ['charged_crystal', 1],
+            ['crystal_dust', 3],
+          ]
+        : [
+            [prev, 2],
+            [ESSENCE_OF[r.key]!, 1],
+            ['sage_ink', 1],
+          ],
+      [`rune_${key}`, 1],
+      {
+        lvl: r.lvl + t * 4,
+        disc: 'magic',
+        xp: 30 + t * 20,
+        hint: `Fold two runes into one stronger rune.`,
+        tool: 'chisel',
+      },
+    );
+  }
 }
 // the warding amulet in gear-items asks for this by another name
 item('rune_ward', 'Ward Rune', 'rune', {

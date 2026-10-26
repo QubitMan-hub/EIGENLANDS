@@ -287,6 +287,9 @@ export function handleChest(room: RoomApi, p: ServerPlayer, msg: ChestMsg): void
   sendPanel(p, o);
 }
 
+/** What a keeper carries to collect from a pen: shears for wool, a pail for goat milk. */
+const SHELTER_TOOL: Record<string, string> = { sheepfold: 'shears', goat_shed: 'milk_pail' };
+
 export function handleShelter(room: RoomApi, p: ServerPlayer, msg: ShelterMsg): void {
   if (!msg || (msg.action !== 'add' && msg.action !== 'feed' && msg.action !== 'collect')) return;
   const o = ownedAt(room, p, msg.tx, msg.ty, 'shelter');
@@ -323,6 +326,11 @@ export function handleShelter(room: RoomApi, p: ServerPlayer, msg: ShelterMsg): 
   } else {
     if (d.ready <= 0) {
       p.toast(`No ${f.product} yet.`);
+      return;
+    }
+    const tool = SHELTER_TOOL[o.sub];
+    if (tool && countItem(p.data.inv, tool) < 1) {
+      p.toast(`You need ${ITEMS[tool]?.name.toLowerCase() ?? tool} in your pack to collect ${f.productName}.`, 'bad');
       return;
     }
     if (!giveStacks(p, [{ id: f.product, n: d.ready }])) {

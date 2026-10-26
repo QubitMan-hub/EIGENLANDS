@@ -68,11 +68,15 @@ export const GUIDE: Array<[string, string]> = [
   ],
   [
     'Animals',
-    'Buy a Chicken Coop and chickens from Fenwick (Barns come later). Place the coop, open it with E, add animals and feed them hay each day (hay: 3 fiber in field crafting). Fed animals give eggs or milk the next morning.',
+    'Buy a Chicken Coop and chickens from Fenwick, or build a Barn, Sheepfold, Goat Shed, Pig Pen or Apiary at a carpenter bench and buy the animals at a farm supply. Place the shelter, open it with E, add animals and feed them hay each day (hay: 3 fiber in field crafting). Fed animals give their product the next morning: eggs, milk, wool, goat milk, truffles, honey. Collect wool with shears in your pack and goat milk with a milk pail.',
   ],
   [
     'Crafting and discovery',
-    'C opens field crafting anywhere (workbench, chest, fences, hay...). Stations do more: Workbench (planks, tools, stations), Furnace (ingots), Cooking Pot (meals), Alchemy Table (potions, tonics, superposed seeds), Loom (cloth, outfits), Jeweler Bench (rings), Carpenter Bench (furniture, coops). Hadamere has one of each to use for free. Recipes marked ??? are discovered by putting ingredients on the Experiment bench: nothing is used up if it fails, and the game tells you when the ingredients are right but the amounts are off. Some recipes are taught by villagers at 4 hearts.',
+    'C opens field crafting anywhere (workbench, chest, fences, hay...). Stations do more: Workbench (tools and the other benches), Furnace (ingots, glass, brick), Anvil & Forge (plate, weapons, armour), Cooking Pot and Stone Oven (meals), Brewing Barrels (beer, wine, spirits), Alchemy Table (potions), Loom (thread, cloth), Tanning Rack (leather), Jeweler (gems, rings, amulets), Stonecutter (blocks, tiles), Carpenter (planks, furniture), Engineer’s Bench (gears, lanterns), Rune Altar (runes, essences), Enchanting Table (binds runes into gear), Mill & Dairy (flour, cheese, oil). Hadamere has several to use for free. Each bench trains one or two crafting disciplines; as a discipline levels up it unlocks recipes and makes better quality. Small craft tools (chisel, saw, tongs, sewing kit, knife, loupe, mortar & pestle) must be in your pack for their trades. Recipes marked ??? are discovered by putting ingredients on the Experiment bench: nothing is used up if it fails. Some recipes come from a kingdom once it counts you a friend, from a villager at 4 hearts, or from a scroll found in a vault.',
+  ],
+  [
+    'Gear: quality, repair, upgrades and enchanting',
+    'Crafted gear has a quality (Crude to Masterwork) from your skill, and wears down as you fight: armour when you are hit, weapons when you strike, lanterns in the dark. At 0 it is broken and gives nothing until mended. Mend it at the bench that made it (a share of the original materials) or with a repair kit; upgrade it up to +5 at the same bench for more power; bind a rune into it at an Enchanting Table. Shields, cloaks and packs, amulets, belts, charms and lanterns each have their own slot.',
   ],
   [
     'Smelting and forging',

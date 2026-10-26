@@ -103,4 +103,10 @@ for (const p of PEN_DATA)
 export const LANTERN_RADIUS = 2;
 /** Sprinkler reach: 'sprinkler1' waters orthogonal neighbours, 'sprinkler2' all 8 neighbours. */
 export const sprinklerCovers = (sub: string, dx: number, dy: number): boolean =>
-  sub === 'sprinkler2' ? Math.max(Math.abs(dx), Math.abs(dy)) === 1 : Math.abs(dx) + Math.abs(dy) === 1;
+  sub === 'sprinkler3'
+    ? Math.max(Math.abs(dx), Math.abs(dy)) <= 2
+    : sub === 'sprinkler2'
+      ? Math.max(Math.abs(dx), Math.abs(dy)) === 1
+      : Math.abs(dx) + Math.abs(dy) === 1;
+/** How far from a sprinkler its water can reach, in tiles. */
+export const sprinklerReach = (sub: string): number => (sub === 'sprinkler3' ? 2 : 1);

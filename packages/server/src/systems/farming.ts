@@ -10,6 +10,9 @@ import {
   cropSeasonOk,
   daysToRipe,
   harvestYield,
+  sprinklerReach,
+  CROP_ROWS,
+  countItem,
   isRipe,
   seasonOfDay,
   sprinklerCovers,
@@ -35,8 +38,8 @@ export const lanternNear = (room: RoomApi, x: number, y: number): boolean => {
 };
 
 export const sprinklerNear = (room: RoomApi, x: number, y: number): boolean => {
-  for (let dy = -1; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
+  for (let dy = -2; dy <= 2; dy++) {
+    for (let dx = -2; dx <= 2; dx++) {
       if (!dx && !dy) continue;
       const o = room.store.objectAt(x + dx, y + dy);
       if (o && o.kind === 'sprinkler' && sprinklerCovers(o.sub, -dx, -dy)) return true;
@@ -44,6 +47,9 @@ export const sprinklerNear = (room: RoomApi, x: number, y: number): boolean => {
   }
   return false;
 };
+
+/** Crops cut with a sickle. */
+const GRAINS = new Set(CROP_ROWS.filter((r) => r.glyph === 'wheat').map((r) => r.def.id));
 
 export const cropOf = (o: WorldObj): CropData => o.data as unknown as CropData;
 const cropName = (id: string) => ITEMS[id]?.name ?? id;
@@ -104,8 +110,9 @@ export function dailyRollover(room: RoomApi, day: number): void {
   // 4. sprinklers wet the tilled soil they cover (even without crops)
   for (const o of objs) {
     if (o.kind !== 'sprinkler') continue;
-    for (let dy = -1; dy <= 1; dy++)
-      for (let dx = -1; dx <= 1; dx++)
+    const reach = sprinklerReach(o.sub);
+    for (let dy = -reach; dy <= reach; dy++)
+      for (let dx = -reach; dx <= reach; dx++)
         if ((dx || dy) && sprinklerCovers(o.sub, dx, dy)) wetTile(room, o.x + dx, o.y + dy);
   }
 }
@@ -190,8 +197,13 @@ export function uprootCrop(room: RoomApi, p: ServerPlayer, o: WorldObj): void {
     p.toast("That isn't yours.");
     return;
   }
+  const d = cropOf(o);
   room.objects.remove(o.x, o.y);
-  p.toast('You uproot the plant.');
+  // a trowel lifts it whole: the seed comes back with the roots
+  const seed = `${d.crop}_seed`;
+  if (!d.dead && ITEMS[seed] && countItem(p.data.inv, 'trowel') > 0 && giveStacks(p, [{ id: seed, n: 1 }]))
+    p.toast('You lift the plant carefully and keep its seed.');
+  else p.toast('You uproot the plant.');
 }
 
 export function fertilize(room: RoomApi, p: ServerPlayer, slot: number, o: WorldObj): void {
@@ -205,12 +217,15 @@ export function fertilize(room: RoomApi, p: ServerPlayer, slot: number, o: World
     p.toast("It doesn't need that now.");
     return;
   }
-  if (stack.id === 'fertilizer') {
-    if (d.fert) {
-      p.toast('Already fertilized.');
+  const fert = ITEMS[stack.id]?.fert ?? (stack.id === 'fertilizer' ? { days: 1, yield: 0 } : null);
+  if (fert) {
+    const have = d.fert === true ? 1 : Number(d.fert) || 0;
+    if (have >= fert.days && (d.yb ?? 0) >= fert.yield) {
+      p.toast('Already fertilized as well as that.');
       return;
     }
-    d.fert = true;
+    d.fert = Math.max(have, fert.days);
+    d.yb = Math.max(d.yb ?? 0, fert.yield);
   } else {
     if (!d.alt) {
       p.toast('Phase tonics only work on superposed crops.');
@@ -244,7 +259,9 @@ export function harvestCrop(room: RoomApi, p: ServerPlayer, o: WorldObj): void {
     return;
   }
   const crop = collapseCrop(d, room.rand);
-  const n = harvestYield(crop, room.rand, skillLv(p, 'farming'), p.stats.luck);
+  // a sickle in the pack cuts grain cleanly: one more per harvest
+  const sickle = GRAINS.has(crop) && countItem(p.data.inv, 'sickle') > 0 ? 1 : 0;
+  const n = harvestYield(crop, room.rand, skillLv(p, 'farming'), p.stats.luck, (d.yb ?? 0) + sickle);
   const out: Stack = { id: crop, n };
   if (!giveStacks(p, [out])) {
     p.toast('Your pack is full.', 'bad');

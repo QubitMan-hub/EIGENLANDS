@@ -187,6 +187,17 @@ rec('alchemy', [['glass', 1]], ['glass_vial', 3], {
   hint: 'Blow glass into small vials.',
 });
 
+/** Potions found by experimenting at the alchemy table. */
+const DISCOVER = new Set([
+  'panacea',
+  'fortune_draught',
+  'phoenix_tonic',
+  'shade_draught',
+  'rimeguard_tonic',
+  'supreme_healing',
+  'greater_regen',
+]);
+
 // ── potions: every one has a single clear job
 interface Potion {
   id: string;
@@ -600,7 +611,7 @@ for (const p of POTIONS) {
     lvl: p.lvl,
     disc: 'alchemy',
     xp: 8 + p.lvl * 2,
-    learn: p.learn ?? (p.lvl <= 4 ? 'start' : 'level'),
+    learn: p.learn ?? (DISCOVER.has(p.id) ? 'discover' : p.lvl <= 4 ? 'start' : 'level'),
     hint: p.hint,
   });
 }

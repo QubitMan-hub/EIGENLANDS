@@ -76,3 +76,4 @@ export * from './wars';
 export * from './frontier';
 export * from './catalog';
 export * from './gear-state';
+export * from './item-info';

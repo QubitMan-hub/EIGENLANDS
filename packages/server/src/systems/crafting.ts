@@ -205,6 +205,16 @@ export function handleExperiment(room: RoomApi, p: ServerPlayer, msg: Experiment
     return;
   }
 
+  const block = recipeBlock(rec, profileOf(p));
+  if (block) {
+    p.toast(`These belong together, but you are not skilled enough yet. ${block}. (Nothing was used up.)`, 'info');
+    return;
+  }
+  if (rec.tool && countItem(p.data.inv, rec.tool) < 1) {
+    p.toast(`You would need ${ITEMS[rec.tool]?.name ?? rec.tool} in your pack. (Nothing was used up.)`, 'info');
+    return;
+  }
+
   let extra: Props | undefined;
   if (rec.inputs.some((i) => i.id.startsWith('*'))) {
     const seeds = offered.filter((o) => ITEMS[o.id]?.kind === 'seed').map((o) => ITEMS[o.id]!.crop!);

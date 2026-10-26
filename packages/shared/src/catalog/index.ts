@@ -28,7 +28,7 @@ export const catalogRecipes = (): Recipe[] => [...OUT.recipes];
 /** Where each catalog item comes from when it is not crafted (the world hooks and the catalog test read this). */
 export const catalogSources = (): ReadonlyArray<{ item: string; src: Source }> => OUT.sources;
 export { CATALOG_GLYPHS, type CatalogGlyph } from './glyphs';
-export { ENCHANTS, ENCHANT_BY_KEY } from './magic';
+export { ENCHANTS, ENCHANT_BY_KEY, ENCHANT_TIER_NAMES } from './magic';
 
 /** Groups of enemy kinds a source can name instead of one kind. */
 export const MOB_GROUPS: Readonly<Record<string, readonly string[]>> = {
@@ -91,3 +91,5 @@ export function catalogVaultDrops(theme: string): Array<{ item: string; weight: 
     if (src.k === 'vault' && (src.table === theme || src.table === 'any')) out.push({ item, weight: src.weight });
   return out;
 }
+export { CROP_ROWS, type CropRow } from './crop-data';
+export { PEN_DATA, type PenData } from './pen-data';

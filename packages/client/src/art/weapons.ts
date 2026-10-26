@@ -168,8 +168,8 @@ export class HeldWeapons {
               }
             } else {
               stroke(-3, 0, C.e2);
-              poly(b.ctx, [pt(1, -1.3), pt(9, -1), pt(12), pt(9, 1.3), pt(1, 1.3)], C.steel);
-              poly(b.ctx, [pt(1, -1.3), pt(9, -1), pt(12), pt(1)], C.pale);
+              poly(b.ctx, [pt(1, -1.3), pt(9, -1), pt(12), pt(9, 1.3), pt(1, 1.3)], metal);
+              poly(b.ctx, [pt(1, -1.3), pt(9, -1), pt(12), pt(1)], shine);
               const a = pt(0, -3),
                 q = pt(0, 3);
               line(b.ctx, a[0], a[1], q[0], q[1], C.e5);

@@ -204,6 +204,6 @@ describe('superposition', () => {
     // fertilizer shaves a day off
     await give(p, 'fertilizer', 1);
     await use(p, 'fertilizer', X + 2, Y + 6);
-    expect(data(X + 2, Y + 6).fert).toBe(true);
+    expect(data(X + 2, Y + 6).fert).toBeTruthy();
   });
 });

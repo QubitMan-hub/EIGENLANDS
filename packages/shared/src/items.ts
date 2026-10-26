@@ -974,15 +974,17 @@ for (const w of Object.values(WEAPONS)) {
     w.name,
     'weapon',
     120 + w.level * 20,
-    fam === 'spear'
-      ? 'spear'
-      : fam === 'battle_axe'
-        ? 'battle_axe'
-        : fam === 'warhammer'
-          ? 'warhammer'
-          : w.cls === 'crossbow'
-            ? 'crossbow'
-            : 'staff',
+    fam === 'sword'
+      ? 'sword'
+      : fam === 'spear'
+        ? 'spear'
+        : fam === 'battle_axe'
+          ? 'battle_axe'
+          : fam === 'warhammer'
+            ? 'warhammer'
+            : w.cls === 'crossbow'
+              ? 'crossbow'
+              : 'staff',
     a,
     b,
     `${w.blurb} ${w.quantum} Level ${w.level}.`,
@@ -999,7 +1001,7 @@ export const itemName = (s: Stack): string => {
   if (s.p?.qname) return `${s.p.qname} ${d.name}`;
   return d.name;
 };
-export const TIER_NAMES = ['Wooden', 'Copper', 'Iron', 'Silver', 'Crystal'] as const;
+export const TIER_NAMES = ['Wooden', 'Copper', 'Iron', 'Silver', 'Crystal', 'Mithril', 'Adamant', 'Voidsteel'] as const;
 
 /** Equal stacks can merge: same id and identical unique properties (or none). */
 export function sameStack(a: Stack, b: Stack): boolean {
@@ -1106,7 +1108,7 @@ export function validInventory(v: unknown): Inventory {
 /** The authoritative level gate for an equipment item. */
 export function equipmentLevel(id: string): number {
   const d = ITEMS[id];
-  return d?.weapon ? WEAPONS[d.weapon].level : d?.armor ? (SET_BY_ID[d.armor.set]?.level ?? 1) : 1;
+  return d?.weapon ? WEAPONS[d.weapon].level : d?.armor ? (SET_BY_ID[d.armor.set]?.level ?? 1) : (d?.gear?.level ?? 1);
 }
 /** Forged swords contribute only the strongest bonus in the quick-bar, including when a Focus is equipped. */
 export const quickbarAttack = (inv: Inventory): number =>

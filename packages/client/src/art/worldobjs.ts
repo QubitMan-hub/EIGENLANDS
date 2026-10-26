@@ -768,7 +768,7 @@ export function worldObjDef(o: WorldObj, facing: Facing = 'sw', seatTurn?: numbe
       d = TOWN_DECO[o.sub]!();
     else if (o.kind === 'station') d = PROPS.crate!(facing);
     else if (o.kind === 'sprinkler')
-      d = sprinkler(o.sub === 'sprinkler2', !!(o.data as { watering?: boolean } | undefined)?.watering);
+      d = sprinkler(o.sub !== 'sprinkler1', !!(o.data as { watering?: boolean } | undefined)?.watering);
     else if (o.kind === 'shelter') d = (PROPS[o.sub] ?? PROPS.coop)!(facing);
     else if (o.kind === 'chest') d = chest();
     else if (o.kind === 'sign') d = PROPS.sign!(facing);
