@@ -2,6 +2,7 @@
 import '../style.css';
 import '../ui/fonts';
 import '../ui/hud.css';
+import '../ui/identity.css';
 import { ITEMS, NPC_BY_ID, RECIPES, type DialogueMsg, type PanelMsg } from '@eigenlands/shared';
 import { Audio } from '../audio';
 import { ServerClock } from '../net/interp';

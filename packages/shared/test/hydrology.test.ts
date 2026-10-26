@@ -101,6 +101,7 @@ it('upgrades known metadata conservatively and refuses future or corrupt version
   expect(generationMeta({ version: 3 })).toEqual({ version: 3 });
   expect(generationMeta({ version: 4 })).toEqual({ version: 4 });
   expect(generationMeta({ version: 5 })).toEqual({ version: 5 });
-  expect(() => generationMeta({ version: 6 })).toThrow('Unsupported');
+  expect(generationMeta({ version: 6 })).toEqual({ version: 6 });
+  expect(() => generationMeta({ version: 7 })).toThrow('Unsupported');
   expect(() => generationMeta({ version: '2' })).toThrow('Unsupported');
 });

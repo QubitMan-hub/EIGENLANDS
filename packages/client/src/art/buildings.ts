@@ -777,12 +777,11 @@ function buildRoof(
     if (realm === 'sea') return zE + 28 * Math.sqrt(Math.max(0, 1 - d * d));
     if (shape === 'gable') return Math.max(mainZ(x, y), wingZ(x, y));
     if (shape === 'flat') {
-      // crenellated parapet around a low platform
       const ex = Math.min(x - b.x, b.x + b.w - x),
         ey = Math.min(y - b.y, b.y + b.h - y);
       const edge = Math.min(ex, ey);
-      const merlon = Math.floor((x + y) * 2) % 2 === 0;
-      return zE + (edge < 0.7 ? (merlon ? rise : rise - 4.5) : 1.5);
+      const merlon = Math.floor(((ex < ey ? y : x) * 16) / 6) % 2 === 0;
+      return zE + (edge < 0.45 ? (merlon ? 12 : 7) : edge < 0.8 ? 4 : 2.5);
     }
     const h = shapeH(x, y);
     if (shape === 'pagoda') {
@@ -806,6 +805,75 @@ function buildRoof(
   const turretOdds = realmIdx === 2 || realmIdx === 0 || realmIdx === 5 ? 0.3 : 0.16;
   const towered = house && b.w >= 7 && b.h >= 6 && form !== 'barrel' && hv(7) < turretOdds;
   const vols: Vol[] = [];
+  const palace = b.id.endsWith('.palace') && realm === 'surface';
+  const watch = b.kind === 'tower' && realm === 'surface';
+  const bastion = (cx: number, cy: number, radius: number, bodyTop: number, crown: boolean) => {
+    const masonry: Ramp =
+      realmIdx === 0
+        ? [C.e2, C.e3, C.e4, C.e5, C.e6]
+        : realmIdx === 1
+          ? [C.g0, C.g1, C.g2, C.e3, C.e4]
+          : realmIdx === 3
+            ? [C.e3, C.e4, C.e5, C.e6, C.pale]
+            : realmIdx === 4
+              ? [C.slate, C.steel, C.mist, C.fog, C.pale]
+              : st.wall;
+    const cap = crown ? 8 : realmIdx === 1 ? 36 : realmIdx === 4 ? 27 : 42;
+    vols.push({
+      x0: cx - radius - 0.1,
+      x1: cx + radius + 0.1,
+      y0: cy - radius - 0.1,
+      y1: cy + radius + 0.1,
+      zmin: 0,
+      ztop: bodyTop + cap,
+      hit: (x, y, z, px, py) => {
+        const dx = x - cx,
+          dy = y - cy,
+          d = Math.hypot(dx, dy);
+        if (d > radius) return -1;
+        const angle = Math.atan2(dy, dx),
+          lit = 0.6 + ((dy - dx) / radius) * 0.16;
+        if (z > bodyTop) {
+          if (crown) {
+            const merlon = Math.floor(((angle + Math.PI) / Math.PI) * 8) % 2 === 0;
+            if (z > bodyTop + 2 && (d < radius * 0.72 || !merlon)) return -1;
+            return rampAt(masonry, z > bodyTop + 6 ? 0.85 : lit, px, py);
+          }
+          const h = cap * (1 - d / radius);
+          if (z > bodyTop + h) return -1;
+          const row = Math.floor((z - bodyTop) / 5),
+            seam = Math.floor((angle + Math.PI) * radius * 4 + (row % 2) * 4) % 8;
+          return rampAt(R0, lit + (row % 2 ? 0.02 : 0) - (seam === 0 ? 0.13 : 0), px, py);
+        }
+
+        const around = (angle + Math.PI) * radius * 16;
+        const course = Math.floor(z / 5);
+        if (z > 18 && z < bodyTop - 8 && Math.abs((around % 24) - 12) < 1.4 && Math.floor(z / 15) % 2 === 1)
+          return C.night; // narrow defensive arrow loop on the curved surface
+        if (Math.floor(z) % 5 === 4 || Math.floor(around + (course % 2) * 5) % 10 === 0)
+          return rampAt(masonry, lit - 0.16, px, py);
+        if (z < 4 || z > bodyTop - 3) return rampAt(masonry, lit + 0.16, px, py);
+        return rampAt(masonry, lit, px, py);
+      },
+    });
+  };
+  if (palace) {
+    const r = Math.min(1.45, b.h * 0.13);
+    const crown = realmIdx === 2 || realmIdx === 5;
+    for (const x of [b.x + r - 0.1, b.x + b.w - r + 0.1])
+      for (const y of [b.y + r - 0.1, b.y + b.h - r + 0.1])
+        bastion(x, y, r, WALL_H + 24 + (realmIdx === 0 ? 10 : realmIdx === 1 ? 4 : 0), crown);
+    // A central lantern/tower breaks the long keep ridge; silhouette is cultural.
+    if (realmIdx === 0 || realmIdx === 4) bastion(b.x + b.w / 2, b.y + b.h / 2, 1.2, WALL_H + rise + 12, false);
+  } else if (watch) {
+    bastion(
+      b.x + b.w / 2,
+      b.y + b.h / 2,
+      Math.min(b.w, b.h) * 0.43,
+      WALL_H + 22,
+      realmIdx === 2 || realmIdx === 5 || design < 0.42,
+    );
+  }
   if (church) {
     // the bell tower: a square stone shaft at the front corner, louvred belfry openings, a tall slate spire and a cross
     const half = Math.min(1.7, b.w * 0.2),
@@ -942,8 +1010,17 @@ function buildRoof(
   // Rays move (+1/16,+1/16) in tile space per vertical pixel. Intersect their
   // bounding volumes and roof planes before sampling, keeping the original half-pixel grid.
   // Empty space above/beside a roof used to consume almost the entire raster budget.
-  const boxCap = (ax: number, ay: number, x0: number, y0: number, x1: number, y1: number, cap: number): number => {
-    const lo = Math.max(zE - 4, (x0 - ax) * 16, (y0 - ay) * 16),
+  const boxCap = (
+    ax: number,
+    ay: number,
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    cap: number,
+    zmin = zE - 4,
+  ): number => {
+    const lo = Math.max(zmin, (x0 - ax) * 16, (y0 - ay) * 16),
       hi = Math.min(cap, (x1 - ax) * 16, (y1 - ay) * 16);
     return hi >= lo ? hi : -Infinity;
   };
@@ -975,7 +1052,7 @@ function buildRoof(
             : zE + (realm === 'cave' ? 18 : 28),
         );
         if (ch) cap = Math.max(cap, boxCap(ax, ay, ch.x0, ch.y0, ch.x0 + ch.s, ch.y0 + ch.s, chTop));
-        for (const v of vols) cap = Math.max(cap, boxCap(ax, ay, v.x0, v.y0, v.x1, v.y1, v.ztop));
+        for (const v of vols) cap = Math.max(cap, boxCap(ax, ay, v.x0, v.y0, v.x1, v.y1, v.ztop, v.zmin));
         for (const d of dormers)
           cap = Math.max(
             cap,
@@ -1088,6 +1165,13 @@ function buildRoof(
                 y += f / 32;
                 rz = roofZ(x, y);
               }
+            }
+            if (shape === 'flat' && realm === 'surface') {
+              const u = Math.floor(x * 16),
+                v = Math.floor(y * 16);
+              const joint = u % 12 === 0 || v % 12 === 0;
+              put(ctx, px, py, rampAt(st.wall, joint ? 0.32 : 0.52 + (z > zE + 6 ? 0.12 : 0), px, py));
+              break;
             }
             // roof surface: courses run along the ridge (of the cross-gable wing where that is the higher surface)
             const onWing = !!wing && wingZ(x, y) > mainZ(x, y);

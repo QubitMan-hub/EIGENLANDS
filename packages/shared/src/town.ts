@@ -1,3 +1,5 @@
+import { frontierTownAt, frontierTownsNear } from './frontier';
+import type { RealmSite } from './realms';
 import { caveTowns } from './cavetowns';
 import { realmTowns } from './realm-towns';
 import { activeGeneration } from './generation-registry';
@@ -33,6 +35,7 @@ export interface Spot {
   y: number;
 }
 export interface Town {
+  site?: RealmSite;
   name: string;
   abandoned?: boolean;
   cx: number;
@@ -456,7 +459,7 @@ type SpotAdd = (name: string, x: number, y: number) => void;
  * work happens, a hearth and bed for whoever lives there, storage along the walls, rugs, plants and lamps. Furniture
  * hugs the walls (back wall first, then the side walls) and the entrance corridor stays clear.
  */
-export function furnish(b: Building, rawObj: ObjAdd, spot: SpotAdd): void {
+export function furnish(b: Building, rawObj: ObjAdd, spot: SpotAdd, royal = false): void {
   const ix = b.x + 1,
     iy = b.y + 1,
     iw = b.w - 2,
@@ -509,6 +512,12 @@ export function furnish(b: Building, rawObj: ObjAdd, spot: SpotAdd): void {
     midY = iy + Math.floor(ih / 2);
 
   switch (b.kind) {
+    case 'tower':
+      deco(ix, iy, 'rack');
+      deco(right, iy, 'barrel');
+      deco(ix, bottom, 'stool');
+      spot(`${b.id}.watch`, midX, midY);
+      break;
     case 'church': {
       // an altar under the east window, candles either side, and pews in two ranks down a central aisle
       deco(midX, iy, 'shrine_altar');
@@ -563,7 +572,7 @@ export function furnish(b: Building, rawObj: ObjAdd, spot: SpotAdd): void {
       spot('inn.table', ix + 5, iy + 2);
       break;
     case 'hall':
-      deco(midX, iy, 'desk');
+      deco(midX, iy, royal && b.id === 'palace' ? 'royal_throne' : 'desk');
       table(ix + 1, iy + 3);
       table(right - 1, iy + 3);
       backWall(['bookcase', 'banner', 'shelf'], ix, midX - 1, 2);
@@ -658,11 +667,11 @@ const allCache = new Map<string, Town[]>();
 /** Every settlement of a world. Revision 5 adds the 78 plots of the six kingdoms. */
 export function townsFor(seed: number, generation: number = activeGeneration(seed)): Town[] {
   const modern = generation >= 5,
-    key = `${seed}:${modern ? 5 : 0}`;
+    key = `${seed}:${generation >= 6 ? 6 : modern ? 5 : 0}`;
   let towns = allCache.get(key);
   if (!towns) {
     const base = [townFor(seed), ...extraTowns(seed)];
-    towns = [...base, ...upperTowns(base), ...caveTowns(seed), ...(modern ? realmTowns(seed) : [])];
+    towns = [...base, ...upperTowns(base), ...caveTowns(seed), ...(modern ? realmTowns(seed, generation) : [])];
     if (allCache.size > 8) allCache.clear();
     allCache.set(key, towns);
   }
@@ -670,7 +679,24 @@ export function townsFor(seed: number, generation: number = activeGeneration(see
 }
 
 const REALM_REACH = 1500;
+export function townsNear(
+  seed: number,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  generation: number = activeGeneration(seed),
+): Town[] {
+  return [
+    ...townsFor(seed, generation).filter((t) => t.x1 >= x0 && t.x0 <= x1 && t.y1 >= y0 && t.y0 <= y1),
+    ...frontierTownsNear(seed, x0, y0, x1, y1, generation),
+  ];
+}
 export function townAt(seed: number, x: number, y: number, generation: number = activeGeneration(seed)): Town | null {
+  if (generation >= 6) {
+    const frontier = frontierTownAt(seed, x, y, generation);
+    if (frontier) return frontier;
+  }
   if (Math.abs(x) <= 120 && Math.abs(y) <= 120) {
     const t = townFor(seed);
     return x >= t.x0 && x <= t.x1 && y >= t.y0 && y <= t.y1 ? t : null;

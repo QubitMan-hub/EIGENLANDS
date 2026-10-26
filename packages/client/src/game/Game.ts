@@ -39,6 +39,7 @@ import {
   KINGDOMS,
   inRealmLand,
   townsFor,
+  frontierTownsNear,
   weatherForDay,
   biomeWeather,
   biomeAt,
@@ -220,6 +221,7 @@ export class Game {
   private fxLayer = new Container();
   private labelLayer = new Container();
   private predictor!: Predictor;
+  private awaitingAuthority = false;
   private interp = new Interpolator<Snap>();
   private views = new Map<string, ActorView>();
   private requested = new Set<string>();
@@ -608,6 +610,7 @@ export class Game {
 
   // ───────────── network handlers ─────────────
   private welcome(w: WelcomeMsg): void {
+    this.awaitingAuthority = !!this.myId && this.myId !== w.playerId;
     this.myId = w.playerId;
     this.features = w.features ?? { aiDialogue: false };
     // a shard handoff re-sends WELCOME: keep the drawn world, only restart it for a new seed
@@ -620,7 +623,8 @@ export class Game {
 
   private ack(a: Ack): void {
     if (!this.predictor) return;
-    this.predictor.reconcile(a);
+    this.predictor.reconcile(a, this.awaitingAuthority);
+    this.awaitingAuthority = false;
   }
 
   private state(s: any): void {
@@ -1104,8 +1108,11 @@ export class Game {
       this.lastStream = now;
       this.stream();
     }
-    for (let i = 0; i < 1 && this.pendingBuild.length; i++) {
-      const [x, y] = this.pendingBuild.shift()!;
+    const drawable = this.pendingBuild.findIndex(
+      ([x, y]) => this.store.has(x, y) || this.preparer.ready(this.seed, x, y, this.store.generation),
+    );
+    if (drawable >= 0) {
+      const [x, y] = this.pendingBuild.splice(drawable, 1)[0]!;
       if (!this.shown.has(`${x},${y}`)) this.showChunk(x, y);
     }
 
@@ -1441,6 +1448,7 @@ export class Game {
       this.gameplay.blocking ||
       this.ext.blocking ||
       this.net.switching ||
+      this.awaitingAuthority ||
       now - (this.hops.get(this.myId)?.at ?? -1e9) < 650;
     if (frozen) {
       this.mining.cancel();
@@ -1930,7 +1938,10 @@ export class Game {
         : isCaveY(me.y)
           ? me.y - CAVE_OY
           : me.y;
-    const town = townsFor(this.seed).reduce((best, t) =>
+    const town = [
+      ...townsFor(this.seed),
+      ...frontierTownsNear(this.seed, me.x - 160, surfaceY - 160, me.x + 160, surfaceY + 160),
+    ].reduce((best, t) =>
       Math.hypot(t.cx - me.x, t.cy - surfaceY) < Math.hypot(best.cx - me.x, best.cy - surfaceY) ? t : best,
     );
     const tdx = town.cx - me.x,

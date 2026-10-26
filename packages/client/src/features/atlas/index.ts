@@ -9,6 +9,7 @@ import {
   PALETTE,
   TILE_DEFS,
   townsFor,
+  frontierTownsNear,
   townFor,
   type PartyStateMsg,
 } from '@eigenlands/shared';
@@ -362,6 +363,13 @@ export class AtlasClient implements ClientModule {
     const plane = planeOf(me.y);
     this.journal.visit(this.d.store(), me.x, me.y);
     this.centres.set(plane, { x: me.x, y: me.y, name: plane });
+    for (const t of frontierTownsNear(this.d.store().seed, me.x - 100, me.y - 100, me.x + 100, me.y + 100)) {
+      const key = `${t.cx},${t.cy}`;
+      if (this.seen(t.cx, t.cy) && !this.landmarks.has(key)) {
+        this.landmarks.set(key, { x: t.cx, y: t.cy, name: t.name, sub: 'frontier_city' });
+        this.changed = true;
+      }
+    }
     for (const o of this.d.store().objects.values())
       if (known.has(o.sub) && this.seen(o.x, o.y)) {
         const key = `${o.x},${o.y}`;

@@ -467,7 +467,8 @@ select:focus-visible {
   font-family: var(--pix);
   color: #4a2f12;
 }
-.dialogue .dtext {
+.dialogue .dtext,
+.dialogue .dlg-box {
   font-family: var(--prose);
   font-size: 19px;
   line-height: 1.45;
@@ -478,7 +479,12 @@ select:focus-visible {
     inset 0 0 0 1px #8a7143,
     inset 0 0 22px #7a5a2244;
 }
-.dialogue .dname {
+.dialogue .dlg-box .more,
+.dialogue .dlg-box .pageno {
+  color: var(--ink-soft);
+}
+.dialogue .dname,
+.dialogue .dlg-name {
   font-family: var(--pix);
   color: #6a4519;
   font-size: 20px;
