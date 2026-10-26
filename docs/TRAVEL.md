@@ -44,6 +44,29 @@ Breath of the Wild's towers, where reaching one is a reward in itself.
   - Attuning plays a column of light.
   - The atlas charts attuned stones as diamonds and marks your home with ⌂.
 
+- **Road caravans.** Each of the 24 kingdom roads has a caravan: a covered wagon in its kingdom's colours, a horse in
+  the shafts, a driver and two escorts. It shuttles from the capital out through the ring's village and town to its
+  farm or outpost and back. It rests 30 s just outside each settlement's gate and winds unseen through the town's own
+  streets.
+  - **Trade:** press Use beside the wagon to open its shop. Wares rotate daily, plus Recall Shards and hay. Caravans
+    pay 60% of an item's value; town shops pay about half.
+  - **First meeting:** pays XP and is remembered.
+  - **Ambushes:** wolves (a brute from level 10) sometimes fall on a caravan on unwarded road. Everyone defending
+    within 30 tiles when the last one falls gets coins, XP and standing with that kingdom.
+  - **Atlas:** shows caravans wherever you have charted the road.
+- **Bridges.** Deck tiles over water or lava get railings and lantern posts where the deck meets land. This covers
+  town rivers, canals and moats, and the royal roads. Royal roads now always continue as a plank deck over water
+  instead of stopping at it.
+- **Ferry voyages.** A Ferry-to-Ferry crossing takes 5 s and shows a parchment sea chart with the sloop sailing the
+  route between the two ports.
+- **The Undercroft network.** The underground settlements (two lived-in, two abandoned) each have a waystone. They link
+  only to each other; the Recall Shard still brings you home from below.
+- **Hitching post.** Every waystone window lists the mounts you own.
+  - Rename them (up to 18 letters; defaults are Bramble and Moonlight).
+  - Feed them hay, carrots, apples or oats. Using feed while riding works too.
+  - A well-fed mount is 10% swifter for 15 minutes.
+- **Keyboard and gamepad.** Opening a waystone focuses its first available journey.
+
 ## Implementation
 
 | Piece                                                         | File                                                                  |
@@ -97,13 +120,12 @@ when they walk across a border.
 
 ## Not built yet
 
-- **Caravan routes:** travelling merchants that actually travel along the kingdom roads.
-- **Bridges:** dedicated bridge pieces. Generated roads already cross with the terrain.
-- **Ferry passage:** a sailing cut-scene for ferries (they jump like gates).
-- **Mount upkeep:** stabling, feeding and naming.
-- **More mounts:** further fantasy mounts beyond the Stag; flying mounts.
-- **Undercroft network:** a network of its own underground. Travel is surface-only by design; the Recall Shard works
-  everywhere.
-- **Gamepad selection:** gamepad focus order in the travel window has not been reviewed on hardware.
+- **Flying mounts:** flight would need a new collision rule (over walls, water and wards) and a landing rule, so it
+  is a deliberate design decision rather than more of the same.
+- **Mount stabling:** mounts are not boarded at a stable or needed between uses. The hitching post covers naming and
+  feeding.
+- **Caravan escort quests:** taking a job to ride with a caravan to its far end. Ambush defence and trade exist.
+- **Gamepad hardware review:** focus order in the travel window works with the keyboard but has not been checked on a
+  physical gamepad.
 
-Ranch integration: trained adult horses use the same 1.6× riding and road rules with the authored livestock horse art; trained Glimmerharts use mount state 3 (1.45×), distinct from the earned Moonlit Stag (state 2, 1.85×). Space always dismounts and its contextual hint reflects that. Ranch authority validates only its own riders, so whistle/bell riders are preserved. Original horse/Glimmerhart models remain; the travel Stag keeps its distinct model.
+Ranch integration preserves the original authored horse/Glimmerhart art and the seated rider. Codes 1/2 are travel horse/Stag, 3/4 their fed forms, and 5 is an individually trained Glimmerhart at 1.45×. Space dismounts every mode; spell and dodge paths dismount before acting. Ranch authority validates only its own riders, while travel care/expiry handles only codes 1–4. The separate earned Moonlit Stag keeps its own model.

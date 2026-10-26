@@ -694,10 +694,10 @@ export class CombatView {
     }
     const frame = moving ? 1 + (Math.floor(travel / 0.32) % (MOUNT_FRAMES - 1)) : 0;
     const texture =
-      kind === 2
+      kind === 2 || kind === 4
         ? null
         : livestockTexture(
-            kind === 3 ? 'phasehart' : 'horse',
+            kind === 5 ? 'phasehart' : 'horse',
             moving && !reduced ? 2 + (Math.floor(travel / 0.22) % 2) : 0,
             Math.abs(fx) >= Math.abs(fy) ? (fx < 0 ? 2 : 0) : fy < 0 ? 3 : 1,
           );

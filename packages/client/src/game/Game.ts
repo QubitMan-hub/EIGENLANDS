@@ -349,6 +349,7 @@ export class Game {
       net: () => this.net,
       ridingMount: () => this.predictor?.sim.mount > 0,
       ridingCart: () => this.predictor?.sim.cart > 0,
+      caravanNear: () => this.ext?.travel.caravanNear() ?? null,
       clock: this.clock,
       audio: this.audio,
       input: this.input,

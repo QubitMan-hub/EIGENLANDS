@@ -84,7 +84,7 @@ export class Ranch implements Module {
         return;
       }
       this.riders.set(p.id, { x: o.x, y: o.y, animal: a.id, species: a.species });
-      p.sim.mount = a.species === 'horse' ? 1 : 3;
+      p.sim.mount = a.species === 'horse' ? 1 : 5;
       p.sim.dashT = 0;
       p.toast('Mounted. Space, an attack, a skill or dodge dismounts.', 'good');
     }

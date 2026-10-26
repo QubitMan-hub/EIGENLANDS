@@ -99,6 +99,7 @@ import {
   type TalkMsg,
   type GiftMsg,
   type ShopMsg,
+  type ShopViewMsg,
   type DialogueChatMsg,
   type DevMsg,
   type UseMsg,
@@ -349,6 +350,11 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       if (d) p.client.send(MSG.DIALOGUE, d);
     });
     on<ShopMsg>(MSG.SHOP, 'socialBucket', (p, m) => {
+      if (typeof m?.npcId === 'string' && m.npcId.startsWith('caravan:')) {
+        const v = this.caravanShop(p, m);
+        if (v) p.client.send(MSG.SHOP_VIEW, v);
+        return;
+      }
       if (!this.npcNear(p, m?.npcId)) return;
       const v = this.village.shop(p, m);
       if (v) p.client.send(MSG.SHOP_VIEW, v);
@@ -1772,6 +1778,9 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   protected hookViewEntities(_push: (id: string, x: number, y: number, st: SpellState) => void): void {}
   /** an adventure object (shrine altar/pillar) was opened */
   shrineInteract(_p: ServerPlayer, _o: WorldObj): void {}
+  caravanShop(_p: ServerPlayer, _m: ShopMsg): ShopViewMsg | null {
+    return null;
+  }
 
   /** boss summoning (the Phase 3/4 room provides the boss module) */
   summonBoss(_p: ServerPlayer, _itemId: string, _x: number, _y: number): boolean {

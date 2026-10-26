@@ -171,7 +171,14 @@ it('trains only happy adult owned mounts, syncs quiet animals, dismounts on dama
     kind: 'shelter',
     sub: 'barn',
     owner: p.accountId,
-    data: { herd: [{ id: 0, species: 'horse', born: day - 6, happy: 90, bred: -9 }], serial: 1, lastDay: day },
+    data: {
+      herd: [
+        { id: 0, species: 'horse', born: day - 6, happy: 90, bred: -9 },
+        { id: 1, species: 'phasehart', born: day - 20, happy: 90, bred: -9, trained: true },
+      ],
+      serial: 1,
+      lastDay: day,
+    },
   };
   p.room.objects.put(o);
   p.sp.data.coins = 1000;
@@ -193,6 +200,12 @@ it('trains only happy adult owned mounts, syncs quiet animals, dismounts on dama
   const n = p.room.state.npcs.get('livestock:222,222:0')!;
   expect(n.farm).toBe('horse');
   expect(Math.hypot(n.x - 222, n.y - 222)).toBeLessThan(5);
+  p.r.send('ranch', { tx: 222, ty: 222, id: 1, action: 'ride' });
+  await until(() => p.sp.sim.mount === 5);
+  await sleep(1200); // Includes travel care ticks: this must remain a Glimmerhart.
+  expect(p.sp.sim.mount).toBe(5);
+  p.room.ranch.incomingDamage(p.sp, 1);
+  expect(p.sp.sim.mount).toBe(0);
   await p.r.leave();
 }, 30000);
 it('walks a real escort through checkpoints, frees a guarded rescue and shares only nearby living party quest credit', async () => {
@@ -311,7 +324,7 @@ it('casts real Circuit abilities and ultimates on foot even when a travel or ran
   p.r.send(MSG34.CHOOSE, { what: 'class', cls: 'superposer' });
   await until(() => p.prog.cls === 'superposer');
   st(p).res = 100;
-  p.sp.sim.mount = 3;
+  p.sp.sim.mount = 5;
   p.r.send(MSG34.ULT, { aimX: 1, aimY: 0 });
   await until(() => p.casts.some((c) => c.ult && c.ok));
   expect(p.sp.sim.mount).toBe(0);

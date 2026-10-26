@@ -30,7 +30,7 @@ export class PlayerState extends Schema {
   @type('boolean') cart = false;
   /** Packed Appearance (see appearance.ts); 0 = never chosen. Appended for schema field compatibility. */
   @type('uint32') app = 0;
-  /** Riding: 0 on foot, 1 horse, 2 Moonlit Stag, 3 Glimmerhart. Appended for schema field compatibility. */
+  /** Riding: 0 on foot, 1 horse, 2 Moonlit Stag, 5 Glimmerhart. Appended for schema field compatibility. */
   @type('uint8') mount = 0;
 }
 

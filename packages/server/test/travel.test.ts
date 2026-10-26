@@ -6,7 +6,7 @@ import { boot3, clearEnemies, dev, sleep, spawn3, tp, until, type P3 } from './p
 
 let app: App;
 beforeAll(async () => {
-  app = await boot3();
+  app = await boot3({ newWorldGeneration: 6 });
 });
 afterAll(async () => {
   await app?.close();
@@ -133,5 +133,55 @@ describe('mounts', () => {
     expect(prog.ways).toEqual(['g:65:25', 'w:-84:58']);
     expect(prog.home).toBe('g:65:25');
     expect(prog.mounts).toEqual(['stag']);
+  });
+});
+
+describe('ferries and the hitching post', () => {
+  it('a ferry crossing between harbours plays as a voyage and lands at the far ferry', async () => {
+    const { p, evs } = await traveller('Sailor');
+    clearEnemies(p.room);
+    const all = waystonesNear(p.room.seed, 0, 0, 1700, p.room.store.generation);
+    const harbours = all.filter((s) => s.kind === 'harbor');
+    const a = harbours[0],
+      b = harbours.find((s) => s.net !== a?.net);
+    expect(!!a && !!b).toBe(true);
+    for (const s of [b!, a!]) {
+      await at(p, s);
+      await until(() => ways(p).includes(s.id), 4000);
+    }
+    p.sp.data.coins = 5000;
+    p.r.send(MSG_TRAVEL.GO, { from: a!.id, to: b!.id });
+    await until(() => evs.some((e) => e.kind === 'channel'), 3000);
+    const ch = evs.find((e) => e.kind === 'channel') as Extract<TravelEvent, { kind: 'channel' }>;
+    expect(ch.voyage?.to.name).toBe(b!.name);
+    await until(() => evs.some((e) => e.kind === 'arrive'), 8000);
+    const dest = arrivalOf(b!);
+    expect(Math.hypot(p.sp.sim.x - dest.x, p.sp.sim.y - dest.y)).toBeLessThan(0.2);
+    await p.r.leave();
+  });
+
+  it('name and feed your horse at a waystone; a fed horse runs faster', async () => {
+    const { p, gate } = await traveller('Groom');
+    clearEnemies(p.room);
+    await at(p, gate);
+    await until(() => ways(p).includes(gate.id), 3000);
+    dev(p, { cmd: 'give', id: 'horse_whistle', n: 1 });
+    dev(p, { cmd: 'give', id: 'hay', n: 3 });
+    await until(
+      () => p.sp.data.inv.some((s) => s?.id === 'hay') && p.sp.data.inv.some((s) => s?.id === 'horse_whistle'),
+      2000,
+    );
+    p.r.send(MSG_TRAVEL.GO, { from: gate.id, rename: { kind: 'horse', name: 'Old Bess' } });
+    await until(() => p.sp.data.prog.mountNames?.horse === 'Old Bess', 2000);
+    p.r.send(MSG_TRAVEL.GO, { from: gate.id, rename: { kind: 'horse', name: '<b>' } });
+    await sleep(200);
+    expect(p.sp.data.prog.mountNames?.horse).toBe('Old Bess');
+    p.r.send(MSG_TRAVEL.GO, { from: gate.id, feed: 'horse' });
+    await until(() => (p.sp.data.prog.mountFed?.horse ?? 0) > p.room.wclock.now(), 2000);
+    await tp(p, gate.x + 6.5, gate.y + 8.5);
+    p.r.send(MSG.USE, { slot: p.sp.data.inv.findIndex((s) => s?.id === 'horse_whistle'), tx: 0, ty: 0 });
+    await until(() => p.sp.sim.mount === 3, 2000); // a fed horse
+    expect(p.toasts.some((t) => /Old Bess/.test(t.text))).toBe(true);
+    await p.r.leave();
   });
 });

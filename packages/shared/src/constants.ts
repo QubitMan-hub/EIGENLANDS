@@ -26,8 +26,8 @@ export const EXHAUST_DELAY = 1.4;
 export const SPRINT_MIN = 10;
 /** a sloop under sail outruns a walker */
 export const BOAT_SPEED_MULT = 1.55;
-/** Riding (PlayerSim.mount): 1 horse, 2 Moonlit Stag, 3 trained Glimmerhart. No sprint or tools in the saddle. */
-export const MOUNT_SPEED_MULT: readonly number[] = [1, 1.6, 1.85, 1.45];
+/** Riding: 1 horse, 2 Stag, 3/4 their fed forms, 5 an individually trained Glimmerhart. */
+export const MOUNT_SPEED_MULT: readonly number[] = [1, 1.6, 1.85, 1.76, 2.03, 1.45];
 /** Kept roads and paths speed travellers a little, and riders more. */
 export const ROAD_MULT = 1.12;
 export const ROAD_MULT_MOUNTED = 1.2;

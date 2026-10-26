@@ -1,6 +1,7 @@
 import { guildContract, validGuildJourney, contractKind } from '@eigenlands/shared';
 import {
   REALM_IDS,
+  validMountName,
   REP_MIN,
   REP_MAX,
   validTravelNeeds,
@@ -235,6 +236,16 @@ export function loadPlayerData(raw: unknown, season: number, nowMs: number): Pla
   };
 }
 
+function mountRecord<T>(raw: unknown, ok: (v: unknown) => T | undefined): Partial<Record<'horse' | 'stag', T>> {
+  const out: Partial<Record<'horse' | 'stag', T>> = {};
+  if (!raw || typeof raw !== 'object') return out;
+  for (const k of ['horse', 'stag'] as const) {
+    const v = ok((raw as Record<string, unknown>)[k]);
+    if (v !== undefined) out[k] = v;
+  }
+  return out;
+}
+
 export function validProg(raw: unknown): PlayerData['prog'] {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const ids = (v: unknown): string[] =>
@@ -250,6 +261,9 @@ export function validProg(raw: unknown): PlayerData['prog'] {
     ways: ids(r.ways),
     home: typeof r.home === 'string' && r.home.length <= 40 ? r.home : null,
     mounts: ids(r.mounts).filter((m) => m === 'horse' || m === 'stag'),
+    caravans: ids(r.caravans),
+    mountNames: mountRecord(r.mountNames, (v) => validMountName(v) ?? undefined),
+    mountFed: mountRecord(r.mountFed, (v) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined)),
   };
 }
 

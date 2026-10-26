@@ -16,6 +16,7 @@ import {
 } from '../src/index';
 
 const SEED = 20260101;
+const all = waystonesNear(SEED, 0, 0, 1700, 6);
 
 describe('the waystone network', () => {
   const all = waystonesNear(SEED, 0, 0, 1700, 6);
@@ -92,7 +93,7 @@ describe('riding and roads', () => {
     const walk = run(0, open).x,
       horse = run(1, open).x,
       stag = run(2, open).x,
-      hart = run(3, open).x;
+      hart = run(5, open).x;
     expect(hart / walk).toBeCloseTo(1.45);
     expect(horse).toBeGreaterThan(hart);
     expect(horse).toBeGreaterThan(walk * 1.5);
@@ -112,5 +113,76 @@ describe('riding and roads', () => {
     const ev = stepPlayer(p, sanitizeCmd({ seq: 3, attack: true }), open);
     expect(p.mount).toBe(0);
     expect(ev.attacked).toBe(true);
+  });
+});
+
+describe('road caravans', () => {
+  it('one per kingdom road, resting outside each settlement and rolling along the road between', async () => {
+    const { caravanRoutes, caravanAt, caravanStock, tileAt, T, ITEMS } = await import('../src/index');
+    const routes = caravanRoutes(SEED);
+    expect(routes.length).toBe(24);
+    let samples = 0,
+      onRoad = 0;
+    for (const r of routes.slice(0, 8)) {
+      expect(r.stops.length).toBe(4);
+      expect(r.stops.map((s) => s.d)).toEqual([...r.stops.map((s) => s.d)].sort((a, b) => a - b));
+      for (let t = 0; t < r.period * 1000; t += 9000) {
+        const p = caravanAt(SEED, r, t);
+        // deterministic: the same moment gives the same place
+        expect(caravanAt(SEED, r, t)).toEqual(p);
+        samples++;
+        if (tileAt(SEED, Math.floor(p.x), Math.floor(p.y), 6) === T.PATH) onRoad++;
+        if (!p.moving) expect(tileAt(SEED, Math.floor(p.x), Math.floor(p.y), 6)).toBe(T.PATH);
+      }
+      const stock = caravanStock(SEED, r, 12);
+      expect(stock.length).toBeGreaterThanOrEqual(8);
+      for (const s of stock) expect(ITEMS[s.item], s.item).toBeTruthy();
+      expect(caravanStock(SEED, r, 12)).toEqual(stock);
+      expect(caravanStock(SEED, r, 13)).not.toEqual(stock); // wares rotate daily
+    }
+    expect(onRoad / samples).toBeGreaterThan(0.85);
+  });
+});
+
+describe('bridges, the Undercroft network and mount care', () => {
+  it('railings line every deck tile over water, with lanterns where the deck meets land', async () => {
+    const { bridgeRailsIn, T } = await import('../src/index');
+    // a 3-wide deck running north-south across a river 4 tiles wide
+    const tile = (x: number, y: number) =>
+      x >= 4 && x <= 7 ? (y >= 2 && y <= 4 ? T.FLOOR : T.WATER) : y >= 2 && y <= 4 ? T.PATH : T.GRASS;
+    const rails = bridgeRailsIn((x, y) => (x >= 4 && x <= 7 && (y < 2 || y > 4) ? T.WATER : tile(x, y)), 0, 0, 12, 8);
+    expect(rails.length).toBeGreaterThan(0);
+    expect(rails.every((r) => r.side === 0 || r.side === 2)).toBe(true);
+    expect(
+      rails
+        .filter((r) => r.end)
+        .map((r) => r.x)
+        .sort(),
+    ).toEqual([4, 4, 7, 7]);
+    // a waterside room (floor with a wall behind it) is not a bridge
+    const room = bridgeRailsIn((x, y) => (y === 1 ? T.WATER : y === 3 ? T.WALL : T.FLOOR), 0, 2, 4, 1);
+    expect(room).toEqual([]);
+  });
+  it('the Undercroft towns keep a network of their own', () => {
+    const under = waystonesNear(SEED, 0, 40000, 2000, 6);
+    expect(under.length).toBeGreaterThanOrEqual(2);
+    expect(under.every((s) => s.net === 'undercroft' && !s.wild)).toBe(true);
+    const gate = all.find((s) => s.kind === 'gate')!;
+    expect(canTravel(under[0]!, under[1]!)).toBe(true);
+    expect(canTravel(under[0]!, gate)).toBe(false);
+  });
+  it('mount codes carry the animal and a good feed; fed mounts are swifter', async () => {
+    const { mountCode, mountKindOf, validMountName, MOUNT_SPEED_MULT } = await import('../src/index');
+    expect(mountKindOf(0)).toBeNull();
+    expect(mountKindOf(5)).toBeNull(); // Individual Glimmerhart care belongs to the ranch.
+    expect(mountKindOf(99)).toBeNull();
+    expect([1, 2, 3, 4].map(mountKindOf)).toEqual(['horse', 'stag', 'horse', 'stag']);
+    expect(mountCode('stag', true)).toBe(4);
+    expect(MOUNT_SPEED_MULT[mountCode('horse', true)]!).toBeGreaterThan(
+      MOUNT_SPEED_MULT[mountCode('horse', false)]! * 1.09,
+    );
+    expect(validMountName('  Old   Bess ')).toBe('Old Bess');
+    expect(validMountName('<script>')).toBeNull();
+    expect(validMountName('x'.repeat(19))).toBeNull();
   });
 });

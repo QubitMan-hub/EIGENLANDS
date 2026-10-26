@@ -82,7 +82,7 @@ export interface PlayerSim {
   staminaT: number;
   /** 1 while sprinting */
   sprint: number;
-  /** 0 on foot; 1 riding a horse, 2 the Moonlit Stag, 3 a trained Glimmerhart (MOUNT_SPEED_MULT). Attacking or skills step you down first. */
+  /** 0 on foot; 1 riding a horse, 2 the Moonlit Stag, 5 a trained Glimmerhart (MOUNT_SPEED_MULT). Attacking or skills step you down first. */
   mount: number;
 }
 

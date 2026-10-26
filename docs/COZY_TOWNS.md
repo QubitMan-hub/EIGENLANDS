@@ -1,10 +1,10 @@
 # Cozy settlements and latest-main review
 
-This batch integrates main through `a9d5b6d`: adaptive graphics/performance mode and prop footprints, the UI legibility pass, and waystones/gates/ferries/Recall/roads. It also retains the living guilds, resident charters and ranch systems from the ongoing branch. Original horse/Glimmerhart sprites take priority where the two mount renderers overlapped; the distinct earned Moonlit Stag remains.
+This batch integrates main through `4d0c9ac`: adaptive graphics/performance mode and prop footprints, the UI legibility pass, waystones/gates/ferries/Recall/roads, caravans, bridges, ferry voyages, underground waystones and named/fed travel mounts. It also retains the living guilds, resident charters and ranch systems from the ongoing branch. Original horse/Glimmerhart sprites take priority where the two mount renderers overlapped; the distinct earned Moonlit Stag remains.
 
 ## Integration fixes
 
-- One packed/schema mount field and one mount renderer. Horse = 1 (1.6×), Moonlit Stag = 2 (1.85×), trained Glimmerhart = 3 (1.45×). Kept roads retain their travel bonus. Ranch authority checks its own riders and no longer clears whistle/bell riders. Save data stays additive: herd training and `prog.ways/home/mounts` coexist.
+- One packed/schema mount field and one mount renderer. Horse = 1 (1.6×), Moonlit Stag = 2 (1.85×), fed horse/Stag = 3/4 (1.76×/2.03×), trained Glimmerhart = 5 (1.45×). Travel care recognizes only its own four modes so it cannot convert a ranch Glimmerhart to a horse. Kept roads retain their travel bonus. Ranch authority checks its own riders and no longer clears whistle/bell riders. Save data stays additive: herd training and `prog.ways/home/mounts` coexist.
 - The travel renderer's seated rider crop now works with our original horse/Glimmerhart art and correctly aligned held items/shadows. Space's hint and action both dismount. Basic attacks, dodge and skills step down before acting; actual Circuit spell/ultimate RPCs now enforce that rule too.
 - Existing adaptive Auto/Performance resolution, terrain freezing, pathfinding heap and large-prop collision are preserved. No new engine or dependency.
 - The built-browser contrast audit found recipe counters on parchment and small Circuit medals still below its threshold. Opaque ink backings fix these while retaining the original sprites and element-colored rims. `e2e/ui-contrast.mjs --assert` now fails on contrast or horizontal overflow regressions.

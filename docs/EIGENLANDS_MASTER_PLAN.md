@@ -601,9 +601,9 @@ See [TRAVEL.md](TRAVEL.md) for rules, files, validation and limits.
 - [x] DONE — Magical teleporters: Recall Shard (learned at 3 attuned stones) returns you to a bound home from anywhere.
 - [x] DONE — Kingdom waypoint networks: travel between any attuned stones of one kingdom network, with fares and Wayfarer discounts.
 - [x] DONE — Realm portals: a Realm Gate in each capital and Hadamere links the networks.
-- [~] IN PROGRESS — Horses and fantasy mounts: Riding Horse (shop) and Moonlit Stag (12 stones) are ridden with shared-sim speed and saddle rules; no stabling, feeding, naming or flying mounts yet.
-- [~] IN PROGRESS — Sailing and ocean travel: Sloop Charter sailing (existing) plus Ferry posts at every kingdom's seaward outpost; no ferry voyage scene.
-- [~] IN PROGRESS — Roads, bridges, ports, and caravan routes: generated kingdom roads now speed travellers and riders, ports have ferries; caravans and dedicated bridges are not built.
+- [~] IN PROGRESS — Horses and fantasy mounts: Riding Horse and Moonlit Stag with shared-sim riding, naming and feeding at every hitching post; flying mounts are not built.
+- [x] DONE — Sailing and ocean travel: Sloop Charter sailing plus ferry crossings between every kingdom's harbours, shown as a voyage on a sea chart.
+- [x] DONE — Roads, bridges, ports, and caravan routes: faster kept roads, railed bridges and royal-road decks over water, ferry posts with voyages, and 24 road caravans that trade and can be ambushed. See [TRAVEL.md](TRAVEL.md).
 - [~] IN PROGRESS — Meaningful exploration rewards and secrets: wild stones pay XP and coins, Wayfarer ranks cut fares, the Recall recipe and the Stag are exploration rewards; more secrets remain.
 - [x] DONE — Fast travel must be convenient without removing the satisfaction of discovering locations: only attuned stones, only from a stone, never mid-fight, channels break on movement or damage.
 

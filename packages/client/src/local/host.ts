@@ -107,6 +107,7 @@ export class LocalHost {
       metrics,
       db: () => db.stats(),
       rooms: () => host.rooms.map((r) => ({ id: r.roomId, ...(r.metadata as object), clients: r.clients.length })),
+      raw: () => host.rooms,
     };
     return host;
   }

@@ -11,6 +11,9 @@ import { isoX, isoY } from '../../game/iso';
 import { keyLabel } from '../../input/keymap';
 import { h } from '../../ui/dom';
 import type { ClientModule, P34Deps } from '../types';
+import { CaravanViews } from './caravans';
+import { BridgeViews } from './bridges';
+import { VoyageCard } from '../../ui/voyage';
 
 export interface AttunedStone {
   id: string;
@@ -39,10 +42,16 @@ export class TravelClient implements ClientModule {
   private nearAt = 0;
   private nearest: Waystone | null = null;
   onChange: (list: AttunedStone[]) => void = () => {};
+  readonly caravans: CaravanViews;
+  readonly bridges: BridgeViews;
+  private voyage: VoyageCard;
 
   constructor(private d: P34Deps) {
     this.gfx.zIndex = 9e8;
     this.d.fxLayer().addChild(this.gfx);
+    this.caravans = new CaravanViews(d);
+    this.bridges = new BridgeViews(d);
+    this.voyage = new VoyageCard(() => this.d.settings().reducedMotion);
     this.fill = h('i');
     this.label = h('span');
     this.bar = h('div', { id: 'travel-bar', class: 'cast-bar' }, this.label, h('b', {}, this.fill));
@@ -91,16 +100,22 @@ export class TravelClient implements ClientModule {
         this.channel = { until: now + m.seconds * 1000, seconds: m.seconds, to: m.to };
         this.label.textContent = `Travelling to ${m.to}… hold still`;
         this.bar.hidden = false;
-        this.d.sfx('charge');
+        if (m.voyage) {
+          this.label.textContent = `Ferry to ${m.to}… hold still on deck`;
+          this.voyage.show(m.voyage.from, m.voyage.to, m.seconds);
+          this.d.sfx('bell');
+        } else this.d.sfx('charge');
         break;
       case 'cancel':
         this.channel = null;
         this.bar.hidden = true;
+        this.voyage.hide();
         this.d.toasts.add(m.why, 'bad');
         break;
       case 'arrive':
         this.channel = null;
         this.bar.hidden = true;
+        this.voyage.hide();
         this.arrive = { x: m.x, y: m.y, at: now };
         this.d.toasts.add(`You step out at ${m.name}.`, 'info');
         this.d.sfx('pickup');
@@ -108,8 +123,16 @@ export class TravelClient implements ClientModule {
     }
   }
 
+  /** The caravan in trading reach (the interact key opens its wagon shop). */
+  caravanNear(): { id: string; name: string } | null {
+    const c = this.caravans.reachable();
+    return c ? { id: c.route.id, name: c.route.name } : null;
+  }
+
   hint(): string | null {
-    if (this.channel || this.d.wins.open || !this.nearest) return null;
+    if (this.channel || this.d.wins.open) return null;
+    // a caravan in reach is offered by the interaction prompt itself
+    if (!this.nearest || this.caravanNear()) return null;
     const s = this.nearest;
     const k = this.d.keys().interact[0];
     const key = k ? keyLabel(k) : 'Use';
@@ -119,7 +142,9 @@ export class TravelClient implements ClientModule {
       : `A ${what} hums nearby: walk up to it to attune ${s.name}`;
   }
 
-  frame(now: number): void {
+  frame(now: number, dt = 16): void {
+    this.caravans.frame(dt);
+    this.bridges.frame(now);
     const me = this.d.me();
     const g = this.gfx;
     g.clear();
@@ -196,6 +221,11 @@ export class TravelClient implements ClientModule {
   }
 
   debug(): Record<string, unknown> {
-    return { attuned: this.attuned.size, travelling: !!this.channel, nearStone: this.nearest?.id ?? null };
+    return {
+      bridgeRails: this.bridges.count(),
+      attuned: this.attuned.size,
+      travelling: !!this.channel,
+      nearStone: this.nearest?.id ?? null,
+    };
   }
 }
