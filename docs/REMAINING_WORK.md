@@ -49,8 +49,8 @@ Remaining cave expansion: stacked geological floors/coordinate migration, additi
 - Companion fixes completed in [PR #21](https://github.com/QubitMan-hub/EIGENLANDS/pull/21): bounded cached obstacle routes, smooth walking catch-up, owner-centered threat sight/leash, and safe recall to the owner tile. Support deer retain their noncombat role; neutral wildlife is not attacked automatically.
 
 - Expand the existing single paid guild-fighter contract into resident-specific recruitment with clear ownership/lease visibility, payment/dismissal, persistence and multiplayer identity. The existing contract already checks friendship and expires; wildlife bonds and extracted echoes also work.
-- Travelling merchants and caravans: actual routes along the kingdom roads (see [TRAVEL.md](TRAVEL.md)), schedules, stock/economy, discovery, interaction and persistence.
-- Travel follow-ups: mount stabling/feeding/naming, further fantasy and flying mounts, ferry voyage scenes, dedicated bridges, an Undercroft network, gamepad review of the travel window. Waystones, gates, ferries, Recall Shards, horse/Stag riding and road speed are implemented.
+- Caravan escort jobs (ride a caravan to its far end), and travelling merchants on the home continent. Road caravans with trade and ambushes are implemented ([TRAVEL.md](TRAVEL.md)).
+- Travel follow-ups: flying mounts (needs a collision/landing design), mount stabling, gamepad hardware review of the travel window. Waystones, gates, ferries with voyages, the Undercroft network, Recall Shards, horse/Stag riding with naming and feeding, railed bridges and road speed are implemented.
 - Further weapon families and equipment progression beyond the existing sword, spear, battle axe, warhammer, crossbow and Foci; keep displayed and authoritative attack values shared.
 - More authored biome/cave/shore/mountain discoveries and occupied interior variety. Preserve existing landmark IDs, world edits, floor transitions and collision.
 - Broader creature/monster diversity with coherent art and meaningful habitats; preserve current separate wildlife/hostile budgets and settlement wards.

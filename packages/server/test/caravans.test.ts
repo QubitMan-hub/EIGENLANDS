@@ -44,25 +44,18 @@ describe('road caravans', () => {
   it('beating off an ambush pays everyone defending the wagon', async () => {
     const p = await spawn3(app, 'Guard');
     clearEnemies(p.room);
-    // a moment when some caravan rolls along open (unwarded) road
-    let r = caravanRoutes(p.room.seed)[0]!,
-      at = caravanAt(p.room.seed, r, p.room.wclock.now());
-    search: for (let dt = 0; dt < 900_000; dt += 5000)
-      for (const route of caravanRoutes(p.room.seed)) {
-        const c = caravanAt(p.room.seed, route, p.room.wclock.now() + dt);
-        if (
-          c.moving &&
-          !c.hidden &&
-          !sanctuaryAt(p.room.seed, c.x, c.y) &&
-          !sanctuaryAt(p.room.seed, c.x + 12, c.y + 12)
-        ) {
-          r = route;
-          at = c;
+    // a moment when some caravan rolls along open (unwarded) road where wolves can stand
+    let ok = false;
+    search: for (let dt = 0; dt < 1_800_000 && !ok; dt += 5000)
+      for (const r of caravanRoutes(p.room.seed)) {
+        const c = caravanAt(p.room.seed, r, p.room.wclock.now() + dt);
+        if (!c.moving || c.hidden || sanctuaryAt(p.room.seed, c.x, c.y)) continue;
+        await tp(p, c.x + 1, c.y + 1);
+        if (p.room.caravans.ambush(r, c.x, c.y, c.fx, c.fy, 5)) {
+          ok = true;
           break search;
         }
       }
-    await tp(p, at.x + 1, at.y + 1);
-    const ok = p.room.caravans.ambush(r, at.x, at.y, at.fx, at.fy, 5);
     expect(ok).toBe(true);
     await until(() => p.toasts.some((t) => /Wolves fall/.test(t.text)), 2000);
     const coins = p.sp.data.coins;

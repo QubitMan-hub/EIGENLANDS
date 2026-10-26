@@ -692,7 +692,7 @@ export class CombatView {
       v.root.addChildAt(v.mountSprite, 0);
     }
     const frame = moving ? 1 + (Math.floor(travel / 0.32) % (MOUNT_FRAMES - 1)) : 0;
-    const art = mountSprite(kind === 2 ? 'stag' : 'horse', mountDir(fx, fy), frame);
+    const art = mountSprite(kind % 2 === 0 ? 'stag' : 'horse', mountDir(fx, fy), frame);
     v.mountSprite.texture = art.tex;
     v.mountSprite.anchor.set(art.ax / art.tex.width, art.ay / art.tex.height);
     v.mountSprite.visible = true;

@@ -42,6 +42,8 @@ function ensureStyles(): void {
 .travel-row .fare { font-family: var(--pix); color: #7a4d0a; white-space: nowrap; }
 .travel-row.far .g, .travel-row.far .nm { opacity: .7; }
 .travel-row button { min-height: 36px; padding: 4px 14px; }
+.stable-row { grid-template-columns: 26px minmax(0, 1fr) auto auto; }
+.stable-row input { width: min(220px, 100%); }
 .travel-empty { padding: 10px 12px; background: var(--parch-hi); box-shadow: inset 0 0 0 1px #8a7143; }
 @media (max-width: 560px) { .travel-row { grid-template-columns: 22px minmax(0, 1fr) auto; } .travel-row .fare { grid-column: 2; } }
 `;
@@ -51,6 +53,8 @@ function ensureStyles(): void {
 export interface TravelActions {
   go(to: string): void;
   bind(): void;
+  rename?(kind: 'horse' | 'stag', name: string): void;
+  feed?(kind: 'horse' | 'stag'): void;
 }
 
 export function buildTravel(t: TravelPanel, act: TravelActions): HTMLElement {
@@ -87,6 +91,7 @@ export function buildTravel(t: TravelPanel, act: TravelActions): HTMLElement {
       t.rank ? ` · fares ${t.rank * 12}% cheaper` : '',
     ),
   );
+  if (t.stable?.length) root.append(stable(t, act));
   if (!t.dests.length) {
     root.append(
       h('div', {
@@ -115,6 +120,38 @@ export function buildTravel(t: TravelPanel, act: TravelActions): HTMLElement {
     }),
   );
   return root;
+}
+
+/** Every waystone keeps a hitching post: name your mounts and give them a feed here. */
+function stable(t: TravelPanel, act: TravelActions): HTMLElement {
+  const box = h('div', { class: 'travel-net travel-stable' }, h('h3', { text: 'Hitching post' }));
+  for (const m of t.stable ?? []) {
+    const input = h('input', { type: 'text', value: m.name, maxLength: 18 }) as HTMLInputElement;
+    input.setAttribute('aria-label', `Name of your ${m.kind === 'stag' ? 'Moonlit Stag' : 'horse'}`);
+    const mins = Math.ceil(m.fedMs / 60000);
+    box.append(
+      h(
+        'div',
+        { class: 'travel-row stable-row' },
+        h('span', { class: 'g', text: m.kind === 'stag' ? '✧' : '♞' }),
+        h(
+          'div',
+          { class: 'nm' },
+          input,
+          h('small', {
+            text: `${m.kind === 'stag' ? 'Moonlit Stag' : 'Riding horse'} · ${mins > 0 ? `well fed for ${mins} min (10% swifter)` : 'hungry for hay, carrots, apples or oats'}`,
+          }),
+        ),
+        h('button', { text: 'Rename', on: { click: () => act.rename?.(m.kind, input.value) } }),
+        h('button', {
+          text: `Feed${t.feed ? ` (${t.feed})` : ''}`,
+          disabled: !t.feed,
+          on: { click: () => act.feed?.(m.kind) },
+        }),
+      ),
+    );
+  }
+  return box;
 }
 
 function row(d: TravelDest, coins: number, act: TravelActions): HTMLElement {

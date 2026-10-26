@@ -82,3 +82,4 @@ export * from './gear-state';
 export * from './item-info';
 export * from './travel';
 export * from './caravans';
+export * from './bridges';

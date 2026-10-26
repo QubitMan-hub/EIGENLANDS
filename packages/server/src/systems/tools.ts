@@ -1,4 +1,5 @@
 import {
+  MOUNT_FEED,
   caveBiomeAt,
   dropAllowed,
   inRealmLand,
@@ -71,6 +72,12 @@ export async function handleUse(room: RoomApi, p: ServerPlayer, msg: UseMsg): Pr
   if (def.special === 'mount') {
     p.toolReadyAt = t0 + tuning.toolCooldownMs;
     room.toggleMount?.(p, def.mount ?? 'horse');
+    return;
+  }
+  // feed held while riding goes to the mount
+  if (p.sim.mount && (MOUNT_FEED as readonly string[]).includes(first.id)) {
+    p.toolReadyAt = t0 + tuning.toolCooldownMs;
+    room.feedMount?.(p, msg.slot);
     return;
   }
   // tools and seeds are used on foot: step down from the saddle first

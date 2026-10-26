@@ -32,6 +32,7 @@ export interface RoomApi {
   travelInteract?(p: ServerPlayer, o: import('@eigenlands/shared').WorldObj): void;
   recall?(p: ServerPlayer, slot: number): void;
   toggleMount?(p: ServerPlayer, kind: string): void;
+  feedMount?(p: ServerPlayer, slot: number): void;
   toggleShip?(p: ServerPlayer): void;
   summonBoss?(p: ServerPlayer, itemId: string, x: number, y: number): boolean;
   vaultGuard?(p: ServerPlayer, o: import('@eigenlands/shared').WorldObj): boolean;

@@ -71,6 +71,9 @@ export interface PlayerData {
     mounts?: string[];
     /** road caravans met (caravans.ts route ids) */
     caravans?: string[];
+    /** mount names and well-fed-until times (world clock ms) */
+    mountNames?: Partial<Record<'horse' | 'stag', string>>;
+    mountFed?: Partial<Record<'horse' | 'stag', number>>;
   };
 }
 

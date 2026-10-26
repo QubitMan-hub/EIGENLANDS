@@ -384,9 +384,15 @@ export class Gameplay {
           this.wins.close();
         },
         bind: () => net.send(MSG_TRAVEL.GO, { from: here, bind: true }),
+        rename: (kind, name) => net.send(MSG_TRAVEL.GO, { from: here, rename: { kind, name } }),
+        feed: (kind) => net.send(MSG_TRAVEL.GO, { from: here, feed: kind }),
       });
       if (this.wins.name === 'travel') this.wins.update('travel', body);
-      else this.wins.show('travel', 'Waystone', body);
+      else {
+        this.wins.show('travel', 'Waystone', body);
+        // gamepads and keyboards land on the first journey they can take
+        body.querySelector<HTMLButtonElement>('.travel-row button.primary')?.focus();
+      }
     } else if (m.kind === 'lore' && m.lore) {
       this.acts.statue = true;
       this.wins.show('lore', m.lore.title, buildLore(m, this.d.portrait));

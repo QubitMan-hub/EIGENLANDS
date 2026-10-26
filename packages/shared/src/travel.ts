@@ -42,6 +42,8 @@ export const ATTUNE_REACH = 3.5;
 /** Seconds of channelling before the jump; moving or being hurt breaks it. */
 export const TRAVEL_CHANNEL = 2.5;
 export const RECALL_CHANNEL = 5;
+/** A ferry crossing between harbours takes a little longer: you are at sea. */
+export const VOYAGE_CHANNEL = 5;
 /** Every this many attuned stones raises the Wayfarer rank (cheaper travel, rewards). */
 export const WAYFARER_STEP = 5;
 export const WAYFARER_MAX = 4;
@@ -57,14 +59,18 @@ const NET_NAMES: Record<string, string> = {
   raijin: 'Raijin Shogunate',
   thalassara: 'Thalassara',
   nethrakar: 'Nethrakar',
+  undercroft: 'The Undercroft',
 };
 export const netName = (net: string): string => NET_NAMES[net] ?? net;
-export const wayNet = (x: number, y: number): string => nearestRealm(x, y)?.id ?? 'home';
+export const wayNet = (x: number, y: number): string =>
+  isCaveY(y) && !isDiveY(y) ? 'undercroft' : (nearestRealm(x, y)?.id ?? 'home');
 const surfaceY = (y: number): boolean => !isCaveY(y) && !isUpperY(y) && !isDiveY(y);
+/** The Undercroft's settlements keep a network of their own (no wild stones underground). */
+const undercroftY = (y: number): boolean => isCaveY(y) && !isDiveY(y) && !isUpperY(y);
 
 const OPEN = new Set<number>([T.GRASS, T.GRASS_TALL, T.FLOWERS, T.SAND, T.PATH, T.SHIMMER]);
 /** Settlement stones may also stand on paving and yard floors outside buildings. */
-const TOWN_OPEN = new Set<number>([...OPEN, T.FLOOR]);
+const TOWN_OPEN = new Set<number>([...OPEN, T.FLOOR, T.CAVE_FLOOR]);
 
 /** A kingdom settlement's site: frontier towns carry it, realm towns name their spots after it. */
 function siteOf(t: Town): RealmSite | null {
@@ -85,7 +91,7 @@ const idOf = (kind: WayKind, x: number, y: number) => `${kind[0]}:${x}:${y}`;
 
 /** A clear spot inside a settlement: open ground, nothing furnished nearby, away from doors and NPC spots. */
 function townStone(seed: number, gen: WorldGeneration, t: Town): Waystone | null {
-  if (!surfaceY(t.cy)) return null;
+  if (!surfaceY(t.cy) && !undercroftY(t.cy)) return null;
   const kind = kindOf(seed, t);
   const taken = new Set<string>();
   const tile = (x: number, y: number) => tileAt(seed, x, y, gen);
@@ -258,8 +264,10 @@ export function waystonesNear(
   r: number,
   gen: WorldGeneration = activeGeneration(seed),
 ): Waystone[] {
+  if (undercroftY(y))
+    return settledStones(seed, gen).filter((s) => undercroftY(s.y) && Math.hypot(s.x - x, s.y - y) <= r);
   if (!surfaceY(y)) return [];
-  const out = settledStones(seed, gen).filter((s) => Math.hypot(s.x - x, s.y - y) <= r);
+  const out = settledStones(seed, gen).filter((s) => surfaceY(s.y) && Math.hypot(s.x - x, s.y - y) <= r);
   if (gen >= 6)
     for (const t of frontierTownsNear(seed, x - r - 120, y - r - 120, x + r + 120, y + r + 120, gen)) {
       const s = frontierStone(seed, gen, t);
@@ -291,7 +299,7 @@ export function waystoneObjectsIn(
 ): WorldObj[] {
   const x0 = cx * 32,
     y0 = cy * 32;
-  if (!surfaceY(y0)) return [];
+  if (!surfaceY(y0) && !undercroftY(y0)) return [];
   return waystonesNear(seed, x0 + 16, y0 + 16, 24, gen)
     .filter((s) => Math.floor(s.x / 32) === cx && Math.floor(s.y / 32) === cy)
     .map((s) => ({ x: s.x, y: s.y, kind: 'deco', sub: WAY_SUB[s.kind], static: true, data: { way: s.id } }));
@@ -340,6 +348,10 @@ export interface TravelPanel {
   rank: number;
   coins: number;
   dests: TravelDest[];
+  /** the mounts you own (by whistle or bell in your pack), for the hitching-post stable */
+  stable?: StableEntry[];
+  /** feed in your pack (for the stable's Feed button) */
+  feed?: number;
 }
 
 export type TravelEvent =
@@ -349,9 +361,38 @@ export type TravelEvent =
       home: string | null;
     }
   | { kind: 'attune'; id: string; name: string; wayKind: WayKind; x: number; y: number; reward: string; rank: number }
-  | { kind: 'channel'; seconds: number; to: string }
+  | {
+      kind: 'channel';
+      seconds: number;
+      to: string;
+      /** a ferry crossing: the client plays the voyage on a sea chart */
+      voyage?: { from: { name: string; x: number; y: number }; to: { name: string; x: number; y: number } };
+    }
   | { kind: 'cancel'; why: string }
   | { kind: 'arrive'; name: string; x: number; y: number };
+
+/** Mount codes in PlayerSim.mount: which animal, and whether it is well fed. */
+export type MountKind = 'horse' | 'stag';
+export const mountKindOf = (code: number): MountKind | null => (code <= 0 ? null : code % 2 === 0 ? 'stag' : 'horse');
+export const mountCode = (kind: MountKind, fed: boolean): number => (kind === 'stag' ? 2 : 1) + (fed ? 2 : 0);
+/** What a mount will eat, and for how long a good feed lasts. */
+export const MOUNT_FEED = ['hay', 'carrot', 'apple', 'oats'] as const;
+export const MOUNT_FED_MS = 15 * 60 * 1000;
+export const MOUNT_DEFAULT_NAME: Record<MountKind, string> = { horse: 'Bramble', stag: 'Moonlight' };
+/** A mount's name: letters, spaces, apostrophes and hyphens, at most 18 characters. */
+export function validMountName(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const n = raw.replace(/\s+/g, ' ').trim();
+  return n.length >= 1 && n.length <= 18 && /^[\p{L}' -]+$/u.test(n) ? n : null;
+}
+
+/** The stable section of the waystone window: your mounts, their names and whether they are fed. */
+export interface StableEntry {
+  kind: MountKind;
+  name: string;
+  /** milliseconds of a good feed left (0 = hungry) */
+  fedMs: number;
+}
 
 export const MSG_TRAVEL = {
   /** client -> server: { to: id } go from the stone you stand at; { bind: true } bind home; { recall: slot } */
@@ -368,4 +409,7 @@ export interface TravelGoMsg {
   bind?: boolean;
   /** cancel a channel in progress */
   cancel?: boolean;
+  /** stable: rename a mount, or feed it from the pack */
+  rename?: { kind: MountKind; name: string };
+  feed?: MountKind;
 }

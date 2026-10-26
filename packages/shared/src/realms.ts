@@ -509,8 +509,11 @@ export function realmTileAt(seed: number, x: number, y: number): number | null {
   const g = r.geo,
     h = r.height,
     l = F(seed);
-  if (h < -0.42) return T.DEEP_WATER;
-  if (h < -0.28) return T.WATER;
+  if (h < -0.28) {
+    // the royal roads bridge rivers and lakes on a plank deck, and run out as a short pier past the seaward outposts
+    if (roadDistance(seed, g, x, y) < 1.6) return T.FLOOR;
+    return h < -0.42 ? T.DEEP_WATER : T.WATER;
+  }
   const biome = realmBiome(seed, g, x, y);
   const sd = siteDistance(g, x, y),
     rd = roadDistance(seed, g, x, y);

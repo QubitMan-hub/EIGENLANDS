@@ -28,6 +28,7 @@ import {
   type StrikeShape,
   type WeaponShot,
   type WorldObj,
+  mountKindOf,
   type ShopMsg,
   type ShopViewMsg,
 } from '@eigenlands/shared';
@@ -444,6 +445,10 @@ export class GameRoom extends WorldRoom {
   }
   toggleMount(p: ServerPlayer, kind: string): void {
     this.travel?.toggleMount(p, kind);
+  }
+  feedMount(p: ServerPlayer, slot: number): void {
+    const kind = mountKindOf(p.sim.mount);
+    if (kind) this.travel?.feedMount(p, kind, slot);
   }
 
   protected hookTargets(): Array<{ id: string; x: number; y: number; alive: boolean }> {
