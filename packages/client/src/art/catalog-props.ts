@@ -6,7 +6,7 @@
 import { PROP_SPECS, type PropShape, type PropSpec, type RampKey } from '@eigenlands/shared';
 import { blob, C, put, type Ramp } from './shade';
 import { DARKWOOD, IRONM, STONEM, WOODM, type Facing } from './isokit';
-import { BRASS, BRONZE, FIRE, LEAF, LINEN, PROPS, STRAW, anim, iso, one, type Mk } from './props';
+import { BRASS, BRONZE, FIRE, LEAF, LINEN, PROPS, STRAW, anim, iso as baseIso, one, type Mk } from './props';
 import type { ObjSprite } from './objects';
 
 const RAMPS: Record<RampKey, Ramp> = {
@@ -42,6 +42,9 @@ const darker = (r: Ramp): Ramp => [r[0]!, r[0]!, r[1]!, r[2]!, r[3]!, r[4]!];
 type Draw = (s: { main: Ramp; trim: Ramp; tint: number }, face: Facing, f: number) => ObjSprite;
 const m = (ramp: Ramp) => ({ ramp });
 const flame = (f: number, h = 0): number => (f % 2 ? C.e7 : C.r6) - h * 0;
+
+const iso: typeof baseIso = (w, h, face, draw, options = {}) =>
+  baseIso(w + 8, h + 8, face, draw, { ...options, margin: (options.margin ?? 10) + 4 });
 
 const SHAPES: Partial<Record<PropShape, { frames?: number; fps?: number; draw: Draw }>> = {
   table: {

@@ -1,3 +1,4 @@
+import { handleGuild } from './guild';
 /**
  * Quests: story quests from villagers and the daily request board. Objective progress comes from real events reported by
  * every system (`questEvent`), deliveries track the pack, rewards are atomic. See shared/src/quests.ts for the data.
@@ -47,7 +48,8 @@ export const setQuestSeed = (s: number): void => {
 export const questSeed = (): number => SEED;
 
 const d0 = (): number => dayNumber(Date.now());
-const giverName = (id: string) => NPC_BY_ID[id]?.name.split(' ')[0] ?? 'the villager';
+const giverName = (id: string) =>
+  id === 'guild' ? 'any Adventurer Guild board' : (NPC_BY_ID[id]?.name.split(' ')[0] ?? 'the villager');
 
 /** Something quest-relevant happened. Updates progress, tells the player about finished objectives/quests. */
 export function questEvent(p: PlayerRef, ev: QuestEvent, seed = SEED): void {
@@ -249,6 +251,10 @@ export function handleQuestMsg(room: RoomApi, p: ServerPlayer, m: QuestMsg): voi
     typeof m.npcId !== 'string'
   )
     return;
+  if (m.npcId === 'guild') {
+    handleGuild(room, p, m);
+    return;
+  }
   if (m.npcId === 'board') {
     const b = boardPos(room.seed);
     if (!b || Math.hypot(b.x + 0.5 - p.sim.x, b.y + 0.5 - p.sim.y) > 4) {

@@ -1,3 +1,11 @@
+# Current continuation: homesteads, guilds and crafting integration (2026-10-26)
+
+Read [HOMESTEADS_AND_GUILD.md](HOMESTEADS_AND_GUILD.md) first. Integrated main's crafting expansion (`5bbd3cf`, #41), retained authored livestock/orchard/guild art and connected the new pens/products/tools. Perennial orchards, water-connected irrigation, individual husbandry with breeding/happiness, safe bed rest, physical guild boards, registration/cards, F–SSS proofs and a craftable player-hall board now extend the existing systems. All material/food/gear catalogs stay intact; catalog furniture gained raster padding to fix clipping. No world layout reset.
+
+Next: actual escort/rescue/investigation/diplomacy guild missions, guild staff/architecture, party-shared guild kill credit, livestock free roaming/mount riding and settlement governance. See the focused doc for exact boundaries and tests; the master checklist is not blanket complete.
+
+---
+
 # Current continuation: crafting and food expansion (§9, 2026-10-26)
 
 A data-driven catalog (`packages/shared/src/catalog/`) now adds 860 items, 750 recipes, 17 stations, 70 crops, 27 armour sets, 63 weapons, 34 enchants, 156 dishes and 51 drinks, with discipline XP, craft quality, gear durability/repair/upgrade/enchant (`MSG.GEAR`), recipe discovery, a searchable crafting book (favorites, tracker, recipe tree) and rich item tooltips. Read [CRAFTING.md](CRAFTING.md) for architecture, how to add content and the explicit "Not built" list (saddles/mounts are not built; counts are 1,240 items, not thousands). Tests: `catalog.test.ts`, `catalog-systems.test.ts`, server `crafting2.test.ts`.

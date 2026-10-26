@@ -1,4 +1,12 @@
-import { NPC_BY_ID, questComplete, questDef, townsFor, type PartyStateMsg, type QuestLog } from '@eigenlands/shared';
+import {
+  guildBoard,
+  NPC_BY_ID,
+  questComplete,
+  questDef,
+  townsFor,
+  type PartyStateMsg,
+  type QuestLog,
+} from '@eigenlands/shared';
 
 export interface MapPoint {
   x: number;
@@ -22,9 +30,17 @@ export function questDestinations(
   npcs: ReadonlyMap<string, MapPoint>,
   seen: (x: number, y: number) => boolean,
   knownHomes = false,
+  guilds: readonly MapPoint[] = [],
 ): Destination[] {
   const towns = townsFor(seed);
   const npc = (id: string): Pick<Destination, 'point' | 'detail'> => {
+    if (id === 'guild') {
+      const board =
+        guilds.find((p) => validPoint(p) && seen(p.x, p.y)) ?? towns.map(guildBoard).find((p) => p && seen(p.x, p.y));
+      return board
+        ? { point: { x: board.x, y: board.y }, detail: 'Discovered Adventurer Guild board' }
+        : { detail: 'Guild hall uncharted · visit a settlement hall' };
+    }
     const live = npcs.get(id);
     if (live && validPoint(live) && seen(live.x, live.y)) return { point: live, detail: 'Current villager position' };
     const home = NPC_BY_ID[id]?.home;
@@ -43,7 +59,7 @@ export function questDestinations(
       result.push({
         id: `${id}:return`,
         questId: id,
-        title: `${q.title} · Return to ${NPC_BY_ID[q.giver]?.name ?? q.giver}`,
+        title: `${q.title} · Return to ${q.giver === 'guild' ? 'an Adventurer Guild board' : (NPC_BY_ID[q.giver]?.name ?? q.giver)}`,
         ...npc(q.giver),
       });
       continue;

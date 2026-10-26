@@ -102,3 +102,30 @@ it('explicit tracking can use quest-described homes over fog without exposing un
     )[0]?.point,
   ).toBeUndefined();
 });
+
+it('routes completed guild commissions to discovered physical boards, including player halls', () => {
+  const log = { 'guild:F:0': { state: 'active' as const, progress: [3] } };
+  const board = { x: 9000, y: -4000 };
+  const routes = questDestinations(
+    1,
+    log,
+    () => 0,
+    new Map(),
+    (x, y) => x === board.x && y === board.y,
+    false,
+    [board],
+  );
+  expect(routes[0]?.point).toEqual(board);
+  expect(routes[0]?.detail).toContain('Guild board');
+  expect(
+    questDestinations(
+      1,
+      log,
+      () => 0,
+      new Map(),
+      () => false,
+      false,
+      [board],
+    )[0]?.point,
+  ).toBeUndefined();
+});

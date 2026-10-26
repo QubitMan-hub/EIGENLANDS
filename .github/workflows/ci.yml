@@ -65,7 +65,7 @@ jobs:
         run: docker compose --env-file "$RUNNER_TEMP/render-test.env" -f deploy/render/compose.test.yml down --volumes
   solo-browser:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -82,6 +82,7 @@ jobs:
           node e2e/fluid-materials.mjs /tmp/creature-art/fluids
           node e2e/kingdom-materials.mjs http://127.0.0.1:5174/ /tmp/creature-art/kingdoms
           node --import tsx e2e/castle-frontier-art.mjs http://127.0.0.1:5174/ /tmp/creature-art/frontier
+          node e2e/homestead-art.mjs http://127.0.0.1:5174/ /tmp/creature-art/homesteads
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -97,3 +98,4 @@ jobs:
           npm run e2e:solo -- http://127.0.0.1:5240/ /tmp/solo-shots
           node e2e/stormbound.mjs http://127.0.0.1:5240/ /tmp/stormbound-shots touch
           node --import tsx e2e/elevation.mjs http://127.0.0.1:5240/ /tmp/elevation-shots
+          node e2e/homestead-gameplay.mjs http://127.0.0.1:5240/ /tmp/homestead-gameplay

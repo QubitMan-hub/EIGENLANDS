@@ -1,3 +1,4 @@
+import { buildGuild } from '../ui/guild';
 import type { EquipMsg } from '@eigenlands/shared';
 import {
   BUILD_PIECES,
@@ -68,6 +69,7 @@ export interface GameplayDeps {
   guidance?: () => string | null;
   journey?: () => JourneyInfo | null;
   openBoard?: () => void;
+  openParty?: () => void;
   trackQuest?: (id: string | null, map?: boolean) => void;
   trackedQuest?: () => string | null;
   seed?: () => number;
@@ -365,6 +367,9 @@ export class Gameplay {
           add: () => net.shelter({ tx: m.tx, ty: m.ty, action: 'add' }),
           feed: () => net.shelter({ tx: m.tx, ty: m.ty, action: 'feed' }),
           collect: () => net.shelter({ tx: m.tx, ty: m.ty, action: 'collect' }),
+          buy: (species) => net.shelter({ tx: m.tx, ty: m.ty, action: 'buy', species }),
+          care: () => net.shelter({ tx: m.tx, ty: m.ty, action: 'care' }),
+          breed: (species) => net.shelter({ tx: m.tx, ty: m.ty, action: 'breed', species }),
         });
       if (this.wins.name === 'shelter') this.wins.update('shelter', render());
       else this.wins.show('shelter', m.shelter?.name ?? 'Shelter', render());
@@ -379,6 +384,23 @@ export class Gameplay {
       });
       if (this.wins.name === 'board') this.wins.update('board', el);
       else this.wins.show('board', 'Hadamere Request Board', el, { wide: true });
+    } else if (m.kind === 'guild' && m.guild) {
+      const el = buildGuild(
+        m,
+        (quest, action) => net.send(MSG.QUEST, { npcId: 'guild', quest, action, tx: m.tx, ty: m.ty }),
+        {
+          classes: () => {
+            this.wins.close();
+            this.d.openBoard?.();
+          },
+          party: () => {
+            this.wins.close();
+            this.d.openParty?.();
+          },
+        },
+      );
+      if (this.wins.name === 'guild') this.wins.update('guild', el);
+      else this.wins.show('guild', 'Adventurer Guild', el, { wide: true });
     } else if (m.kind === 'sign') this.wins.show('sign', 'Sign', buildSign(m));
   }
 
@@ -538,7 +560,9 @@ export class Gameplay {
             o.kind === 'chest' ||
             o.kind === 'shelter' ||
             o.kind === 'sign' ||
-            o.sub === 'statue')
+            ['statue', 'guild_board', 'guild_noticeboard', 'bed', 'double_bed', 'canopy_bed', 'hammock'].includes(
+              o.sub,
+            ))
         ) {
           net.open(tx, ty);
           return true;

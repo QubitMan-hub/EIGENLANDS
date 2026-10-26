@@ -44,7 +44,7 @@ function made(room: RoomApi, p: ServerPlayer, rec: Recipe, n: number, discovered
   }
   if (rec.station === 'cooking_pot') recordDeed(p, 'cook', name.toLowerCase(), day);
   if (discovered) {
-    questEvent(p, { type: 'discover', target: id, n: 1 });
+    questEvent(p, { type: 'discover', target: id, n: 1, kind: 'recipe' });
     recordDeed(p, 'discover', name, day);
   }
   syncQuests(p);

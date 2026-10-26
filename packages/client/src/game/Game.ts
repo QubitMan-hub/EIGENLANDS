@@ -377,6 +377,7 @@ export class Game {
             }
           : null;
       },
+      openParty: () => this.ext.social.togglePartyWindow(true),
       openBoard: () => {
         this.ext.circuit.action('board');
       },

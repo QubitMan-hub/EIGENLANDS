@@ -1,3 +1,4 @@
+import { readHerd, advanceHerd } from '@eigenlands/shared';
 import {
   CROPS,
   FARM_ANIMALS,
@@ -37,10 +38,42 @@ export const lanternNear = (room: RoomApi, x: number, y: number): boolean => {
   return false;
 };
 
+/** Short connected channels carry real water; isolated/deeply extended channels stay dry. */
+export function channelWatered(room: RoomApi, x: number, y: number): boolean {
+  const first = room.store.structureAt(x, y);
+  if (first?.data.floor !== 'irrigation_channel') return false;
+  const queue: Array<[number, number]> = [[x, y]],
+    seen = new Set<string>(),
+    level = room.store.levelAt(x, y);
+  for (let i = 0; i < queue.length && i < 64; i++) {
+    const [cx, cy] = queue[i]!,
+      key = `${cx},${cy}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]) {
+      const nx = cx + dx!,
+        ny = cy + dy!,
+        tile = room.store.getTile(nx, ny);
+      if (room.store.levelAt(nx, ny) !== level) continue;
+      if (tile === T.WATER || tile === T.DEEP_WATER) return true;
+      const next = room.store.structureAt(nx, ny);
+      if (next?.owner === first.owner && next.data.floor === 'irrigation_channel' && !seen.has(`${nx},${ny}`))
+        queue.push([nx, ny]);
+    }
+  }
+  return false;
+}
+
 export const sprinklerNear = (room: RoomApi, x: number, y: number): boolean => {
   for (let dy = -2; dy <= 2; dy++) {
     for (let dx = -2; dx <= 2; dx++) {
       if (!dx && !dy) continue;
+      if (Math.abs(dx) + Math.abs(dy) === 1 && channelWatered(room, x + dx, y + dy)) return true;
       const o = room.store.objectAt(x + dx, y + dy);
       if (o && o.kind === 'sprinkler' && sprinklerCovers(o.sub, -dx, -dy)) return true;
     }
@@ -66,20 +99,35 @@ export function refreshCrop(room: RoomApi, o: WorldObj, today: number): boolean 
   const d = cropOf(o);
   if (!d || (d.dead && d.lastDay >= today - 1)) return false;
   const next = catchUp(d, today, room.seed, sprinklerNear(room, o.x, o.y), lanternNear(room, o.x, o.y));
-  if (next === d || (next.growth === d.growth && next.dead === d.dead && next.lastDay === d.lastDay)) return false;
+  if (
+    next === d ||
+    (next.growth === d.growth &&
+      next.dead === d.dead &&
+      next.lastDay === d.lastDay &&
+      next.dormant === d.dormant &&
+      next.established === d.established)
+  )
+    return false;
   o.data = next as unknown as Record<string, unknown>;
   return true;
 }
 
 /** Shelters produce once per day when fed. */
 export function rollShelter(o: WorldObj, day: number): boolean {
-  const d = o.data as { animals: number; fed: boolean; ready: number; lastDay?: number };
-  if (!d || (d.lastDay !== undefined && d.lastDay >= day)) return false;
-  d.lastDay = day;
-  if (d.fed) {
-    d.ready += d.animals;
-    d.fed = false;
+  if (o.sub === 'apiary') {
+    const d = o.data as { animals: number; fed: boolean; ready: number; lastDay?: number };
+    if (!d || day <= (d.lastDay ?? day - 1)) return false;
+    d.lastDay = day;
+    if (d.fed) {
+      d.ready = Math.min(99, d.ready + d.animals);
+      d.fed = false;
+    }
+    return true;
   }
+  const d = readHerd({ ...o.data, lastDay: o.data?.lastDay ?? day - 1 }, o.sub, day);
+  const n = advanceHerd(d, day);
+  if (n === d && o.data?.herd) return false;
+  o.data = n;
   return true;
 }
 
@@ -142,10 +190,21 @@ export function plantSeed(room: RoomApi, p: ServerPlayer, slot: number, tx: numb
     }
   }
   if (!CROPS[crop]) return;
+  if (
+    alt &&
+    (!!CROPS[crop]?.perennial !== !!CROPS[alt]?.perennial ||
+      (CROPS[crop]?.perennial && !CROPS[crop]!.seasons.some((s) => CROPS[alt]!.seasons.includes(s))))
+  ) {
+    p.toast('Perennial superpositions need two perennial crops with a shared fruiting season.');
+    return;
+  }
   const day = room.wclock.day();
   const gh = lanternNear(room, tx, ty);
   const next = seasonOfDay(day + 1);
-  if (!cropSeasonOk(crop, next, gh) || (alt && !cropSeasonOk(alt, next, gh))) {
+  if (
+    (!CROPS[crop]?.perennial && !cropSeasonOk(crop, next, gh)) ||
+    (alt && !CROPS[alt]?.perennial && !cropSeasonOk(alt, next, gh))
+  ) {
     p.toast("It won't survive the coming season. Wait for the right one, or shield it with a Phase Lantern.", 'bad');
     return;
   }
@@ -156,6 +215,7 @@ export function plantSeed(room: RoomApi, p: ServerPlayer, slot: number, tx: numb
     watered: tile === T.TILLED_WET ? day : -1,
     lastDay: day - 1,
     owner: p.accountId,
+    ...(CROPS[crop]?.perennial ? { dormant: !cropSeasonOk(crop, room.wclock.season(), gh) } : {}),
     ...(alt ? { alt } : {}),
   };
   p.data.inv.forEach((s, i) => {
@@ -252,6 +312,10 @@ export function harvestCrop(room: RoomApi, p: ServerPlayer, o: WorldObj): void {
   }
   if (d.dead) {
     p.toast('It has withered. Uproot it with a hoe.', 'bad');
+    return;
+  }
+  if (d.dormant) {
+    p.toast('Dormant for the season. The roots will survive; fruit returns in season.');
     return;
   }
   if (!isRipe(d)) {

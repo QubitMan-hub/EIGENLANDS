@@ -530,36 +530,35 @@ See [CRAFTING.md](CRAFTING.md) for the architecture, the data files and what is 
 
 ## 10. FARMING, ANIMAL HUSBANDRY & BUILDING
 
-- [ ] NOT STARTED — Players should be able to create their own homes, farms, ranches, workshops, and settlements.
+- [~] IN PROGRESS — Players can build durable owned homes, farms, ranches, workshops and guild halls from modular architecture and functional objects. Settlement governance/NPC housing remains open.
 
 ### Agriculture
 
-- [ ] NOT STARTED — Crop growth, planting, watering, harvesting, seasonal effects, irrigation, fertilizers, magical crops, orchards, and vineyards.
+- [x] IMPLEMENTED & TESTED — Planting, watered growth, harvesting, seasons, sprinklers and water-connected irrigation, fertilizer, superposed crops, perennial orchards and grape trellises. See HOMESTEADS_AND_GUILD.md.
 
 ### Animal husbandry
 
-- [ ] NOT STARTED — Chickens, cows, sheep, goats, pigs, horses, and fantasy livestock.
-- [ ] NOT STARTED — Include feeding, breeding, growth, shelter, animal happiness, resource collection, and proper animations.
+- [x] IMPLEMENTED & TESTED — Chickens, cows, sheep, goats, pigs, horses and Glimmerhart fantasy livestock.
+- [x] IMPLEMENTED & TESTED — Owned shelters, feeding, breeding, growth, happiness, bounded products, tool-gated atomic collection and grounded quiet animations. Apiaries retain their colony model; free-roaming animals and mounts remain open.
 
 ### Building
 
-- [ ] NOT STARTED — Cottages, houses, farms, barns, stables, inns, towers, castles, guild halls, workshops, and expandable settlements.
-- [ ] NOT STARTED — Allow customization of walls, roofs, flooring, windows, lighting, gardens, and interiors.
-- [ ] NOT STARTED — Furniture must be genuinely isometric and functional where appropriate.
+- [~] IN PROGRESS — Cottages, houses, farms, barns, stables, inns, towers, castles, guild halls and workshops can be composed from 33 modular pieces and the furniture/station catalog; support, collision, roofs, stairs and ownership persist. Settlement governance and bespoke prefab plans remain open.
+- [x] IMPLEMENTED & TESTED — Wall, roof, floor, window, lighting, garden and interior customization via construction and placed objects.
+- [~] IN PROGRESS — Native isometric furniture; functional storage, benches, lights, warmth, safe bed rest and player-hall guild boards. Additional furniture-specific interactions remain open.
 
 ## 11. ADVENTURER GUILD SYSTEM — F TO SSS
 
-- [ ] NOT STARTED — Every major settlement should have an Adventurer Guild Hall.
-- [ ] NOT STARTED — Players can register, receive guild identity cards, select classes, accept quests, form parties, and gain reputation.
-- [ ] NOT STARTED — Ranks:
-- [ ] NOT STARTED — **F → E → D → C → B → A → S → SS → SSS**
-- [ ] NOT STARTED — SSS should be extraordinarily difficult to obtain.
-- [ ] NOT STARTED — It must require intelligence, planning, extraordinary accomplishments, strategic mastery, and meaningful world-changing quests—not merely grinding.
+- [~] IN PROGRESS — Existing civic halls/inns host physical guild boards, including frontier settlements; player-built halls can craft their own. Dedicated guild architecture/staff remain open.
+- [x] IMPLEMENTED & TESTED — Register, receive a persistent ledger identity card, accept verified commissions, select classes and form parties through the existing systems.
+- [x] IMPLEMENTED & TESTED — **F → E → D → C → B → A → S → SS → SSS** with two commissions and a practical trial per promotion.
+- [x] IMPLEMENTED & TESTED — SSS requires distinct credited defenses in all six kingdoms plus two legendary bosses after acceptance, following all previous promotions. No repeatable rank-XP shortcut.
+- [~] IN PROGRESS — Practical/cross-profession/boss mastery and actual raid-outcome proofs implemented; authored branching world-changing guild storylines remain open.
 
 ### Quest boards
 
-- [ ] NOT STARTED — Monster hunts, escorts, rescues, investigations, dungeon exploration, resource gathering, crafting commissions, farming contracts, diplomatic missions, kingdom defense, and legendary quests.
-- [ ] NOT STARTED — Each guild hall should have a beautiful physical quest board with a fully functional matching UI.
+- [~] IN PROGRESS — 25 ledger entries covering hunts, supplies, crafting, farming, fishing, trade, archives, experimentation, bosses and kingdom defense. Escort/rescue, branching investigation and diplomacy missions remain open.
+- [x] IMPLEMENTED & TESTED — Original projected physical boards with a readable matching desktop/mobile ledger, server reach/eligibility checks and one-time rewards.
 
 ## 12. MORE PLAYER CLASSES
 

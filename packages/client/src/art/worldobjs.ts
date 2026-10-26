@@ -1,3 +1,4 @@
+import { orchardCanvas } from './orchards';
 import { railSprite, minecartSprite } from './mining';
 import { caveArchitecture } from './caves';
 /**
@@ -261,9 +262,21 @@ function cropDef(d: CropData | undefined, sub: string): ObjSpriteDef {
   const def = CROPS[a] ?? CROPS.turnip!;
   const dead = !!d?.dead;
   const stage = d ? cropStage(d) : 3;
-  const key = `crop:${a}:${b ?? ''}:${stage}:${dead}`;
+  const key = `crop:${a}:${b ?? ''}:${stage}:${dead}:${d?.dormant}:${d?.established}`;
   const hit = cropCache.get(key);
   if (hit) return hit;
+  if (def.shape === 'tree' || def.shape === 'trellis') {
+    const tex = Texture.from(
+      orchardCanvas(
+        def,
+        d ?? { crop: a, growth: def.days, planted: 0, watered: 0, lastDay: 0, owner: '', established: true },
+      ),
+    );
+    tex.source.scaleMode = 'nearest';
+    const out: ObjSpriteDef = { frames: [{ tex, ax: 24, ay: 70 }], fps: 0, sway: 0.008 };
+    cropCache.set(key, out);
+    return out;
+  }
   let out: ObjSpriteDef;
   if (!b || dead) {
     out = still(

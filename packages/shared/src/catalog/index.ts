@@ -14,6 +14,7 @@ import './kitchen';
 import './dishes';
 import './drinks';
 import './home';
+import './homesteads';
 import './legendary';
 import type { Source } from './types';
 

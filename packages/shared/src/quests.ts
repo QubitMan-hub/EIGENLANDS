@@ -72,6 +72,7 @@ export interface QuestEvent {
   station?: string;
 }
 
+import { GUILD_QUESTS } from './guild';
 import { realmQuests } from './realm-quests';
 const q = (d: QuestDef): QuestDef => d;
 export const QUESTS: QuestDef[] = [
@@ -519,7 +520,7 @@ QUESTS.push(
   }),
 );
 
-QUESTS.push(...realmQuests());
+QUESTS.push(...realmQuests(), ...GUILD_QUESTS);
 
 export const QUEST_BY_ID: Record<string, QuestDef> = Object.fromEntries(QUESTS.map((x) => [x.id, x]));
 export type QuestState = { state: 'active' | 'done'; progress: number[] };

@@ -74,6 +74,9 @@ export * from './army';
 export * from './wars';
 
 export * from './frontier';
+
+export * from './livestock';
+export * from './guild';
 export * from './catalog';
 export * from './gear-state';
 export * from './item-info';

@@ -1,3 +1,4 @@
+import { GUILD_QUESTS } from '../src/guild';
 import { describe, expect, it } from 'vitest';
 import {
   ChunkStore,
@@ -447,7 +448,12 @@ describe('time helpers used by day rollover', () => {
 describe('quests', () => {
   it('every quest references real givers, items and prerequisites', () => {
     for (const q of QUESTS) {
-      expect(NPCS.find((n) => n.id === q.giver) ?? (q.realm ? NPC_BY_ID[q.giver] : undefined), q.id).toBeTruthy();
+      expect(
+        q.giver === 'guild'
+          ? GUILD_QUESTS.includes(q)
+          : (NPCS.find((n) => n.id === q.giver) ?? (q.realm ? NPC_BY_ID[q.giver] : undefined)),
+        q.id,
+      ).toBeTruthy();
       for (const r of q.requires ?? []) expect(QUEST_BY_ID[r], `${q.id} requires ${r}`).toBeTruthy();
       for (const i of q.rewards.items ?? []) expect(ITEMS[i.id], `${q.id}:${i.id}`).toBeTruthy();
       for (const o of q.objectives)
