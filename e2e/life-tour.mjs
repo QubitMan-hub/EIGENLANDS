@@ -35,6 +35,16 @@ const info = () =>
     k: window.__eigen.game.life.kinds(),
   }));
 console.log(JSON.stringify(await info()));
+console.log('styled', await page.evaluate(() => window.__eigen.game.life.styledCount()));
+console.log(
+  'build ms',
+  await page.evaluate(() => {
+    const g = window.__eigen.game;
+    const t = performance.now();
+    for (let i = 0; i < 3; i++) g.sheets.styled(0, (1 << 24) | (i * 977 + 5), 0, 0);
+    return (performance.now() - t) / 3;
+  }),
+);
 await page.screenshot({ path: `${out}/1.png` });
 for (const [i, role] of (process.env.ROLES ?? 'crowd,patron,smith,fisher,roofbird').split(',').entries()) {
   const p = await page.evaluate((r) => window.__eigen.game.life.find(r), role);
@@ -43,7 +53,7 @@ for (const [i, role] of (process.env.ROLES ?? 'crowd,patron,smith,fisher,roofbir
     continue;
   }
   await dev({ cmd: 'tp', x: Math.round(p.x), y: Math.round(p.y + 4) });
-  await sleep(3500);
+  await sleep(9000);
   console.log(role, JSON.stringify(await info()));
   await page.screenshot({ path: `${out}/${i}-${role}.png` });
 }

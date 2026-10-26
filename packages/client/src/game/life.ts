@@ -5,6 +5,9 @@ import {
   armyKind,
   festivalOn,
   hash2,
+  mulberry32,
+  packAppearance,
+  randomAppearance,
   townsFor,
   type ChunkStore,
   type RealmId,
@@ -61,6 +64,7 @@ type Role =
   | 'farmer'
   | 'fisher'
   | 'crowd'
+  | 'vendor'
   | 'trader'
   | 'escort'
   | 'knight'
@@ -98,6 +102,9 @@ interface Actor {
   ttl?: number;
   umbrella: boolean;
   danger: number;
+  slot2?: number;
+  /** packed appearance (shared/appearance.ts): every villager is a distinct person */
+  app: number;
 }
 
 const FARM_COW = 74,
@@ -119,6 +126,26 @@ const TALK: Record<string, string[]> = {
   rain: ['Wet again...', 'Quick, under the awning!'],
 };
 
+const WARE_IDX: Record<string, number> = {
+  produce: 0,
+  fish: 1,
+  cloth: 2,
+  bread: 3,
+  pots: 4,
+  flowers: 5,
+  hung: 6,
+  herbs: 7,
+};
+const CRIES: string[][] = [
+  ['Apples, sweet as honey!', 'Fresh from the orchard!', 'Ripe plums, ripe plums!'],
+  ['Fish! Caught this morning!', 'Silver trout, three coppers!'],
+  ['Fine cloth from the loom!', 'Silk! Come and feel it!'],
+  ['Hot bread, still warm!', 'Honey rolls! Get your honey rolls!'],
+  ['Pots and jugs, sturdy and cheap!', 'Never leaks, I swear.'],
+  ['Flowers for your sweetheart!', 'Fresh-cut roses!'],
+  ['Smoked ham, smoked sausage!', 'Best cuts in the kingdom!'],
+  ['Herbs and remedies!', 'Cures for what ails you!'],
+];
 const pick = <T>(a: T[], r: number): T => a[Math.floor(r * a.length) % a.length]!;
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 
@@ -140,7 +167,10 @@ export class WorldLife {
   private procession = { day: -1, started: false };
   private festival = false;
   private clock = 0;
+  private budget = 1;
   private fishing: Actor | null = null;
+  /** where customers stand to browse: in front of each stall */
+  private fronts: Array<{ x: number; y: number }> = [];
 
   constructor(private d: LifeDeps) {}
 
@@ -151,6 +181,10 @@ export class WorldLife {
     const o: Record<string, number> = {};
     for (const a of this.cast) o[a.role] = (o[a.role] ?? 0) + 1;
     return o;
+  }
+  /** how many people have their own sheet built yet (tests) */
+  styledCount(): number {
+    return this.cast.filter((a) => a.app && this.d.sheets().styledReady(a.look, a.app)).length;
   }
   /** position of the first actor with a role (tests, screenshots) */
   find(role: Role): { x: number; y: number } | null {
@@ -166,6 +200,7 @@ export class WorldLife {
 
   frame(f: LifeFrame): void {
     this.clock += f.dt;
+    this.budget = f.dt > 0.12 ? 3 : 1;
     const town = f.underground ? null : this.townNear(f.me.x, f.me.y);
     if (town !== this.town) this.enter(town, f);
     if (!this.town || !this.site || !this.realm) return;
@@ -209,6 +244,7 @@ export class WorldLife {
     this.rockets = [];
     this.sparks = [];
     this.fishing = null;
+    this.fronts = [];
     this.town = town;
     this.site = town ? siteOf(town) : null;
     this.realm = this.site?.realm ?? null;
@@ -284,6 +320,20 @@ export class WorldLife {
     // a fisherman wherever a bank touches the settlement
     this.findFishing(t, look(n));
 
+    // stall-keepers behind every market stall, calling their wares
+    for (const [k, sp] of Object.entries(t.spots)) {
+      if (!k.startsWith(`${site.id}.stall.`)) continue;
+      const stall = t.objects.find((o) => o.x === sp.x && o.y === sp.y + 1 && o.sub.startsWith('stall_'));
+      const goods = stall?.sub.split('_')[2] ?? 'produce';
+      const v = this.person('vendor', look(n), sp.x + 0.5, sp.y + 0.6, {
+        hours: [7, 18.5],
+        home: { x: sp.x + 0.5, y: sp.y + 0.6, r: 0 },
+      });
+      v.dir = dirOf(0.4, 1);
+      v.slot = WARE_IDX[goods] ?? 0;
+      v.phase = (n++ % 7) * 0.9;
+      this.fronts.push({ x: sp.x + 0.5, y: sp.y + 3 });
+    }
     // market and festival crowd around the plaza
     const pa = t.spots[`${site.id}.plaza_a`],
       pb = t.spots[`${site.id}.plaza_b`],
@@ -342,6 +392,7 @@ export class WorldLife {
       slot: 0,
       umbrella: false,
       danger: 0,
+      app: 0,
     };
     this.cast.push(a);
     this.place(a);
@@ -356,9 +407,13 @@ export class WorldLife {
     o: { hours?: [number, number]; home?: Actor['home'] } = {},
   ): Actor {
     const a = this.mk(role, x, y, o.home ?? { x, y, r: 4 }, o.hours ?? [0, 24]);
-    a.look = look;
+    a.look = 0;
+    const rng = mulberry32(
+      Math.floor(hash2(Math.floor(x * 16), Math.floor(y * 16), look, 8113 + this.cast.length) * 2 ** 31),
+    );
+    a.app = packAppearance(randomAppearance(rng));
     a.body.anchor.set(0.5, 31 / 32);
-    a.body.texture = this.d.sheets().person(look, a.dir, 0);
+    a.body.visible = false;
     a.umbrella = hash2(Math.floor(x * 7), Math.floor(y * 7), look, 4412) < 0.65;
     return a;
   }
@@ -698,6 +753,9 @@ export class WorldLife {
       case 'crowd':
         this.crowd(a, f);
         break;
+      case 'vendor':
+        this.vendor(a, f);
+        break;
       case 'trader':
       case 'escort':
       case 'royal':
@@ -726,7 +784,19 @@ export class WorldLife {
   }
 
   private sit(a: Actor, f: LifeFrame): void {
-    a.body.texture = this.d.sheets().person(a.look, a.dir, f.reduced ? 0 : 0);
+    a.body.texture = this.tex(a, a.dir, f.reduced ? 0 : 0);
+  }
+  /** a villager's frame: their own sheet once built (at most one build per frame), a plain stand-in until then */
+  private tex(a: Actor, dir: number, frame: number) {
+    const sh = this.d.sheets();
+    if (sh.styledReady(a.look, a.app) || this.budget > 0) {
+      if (!sh.styledReady(a.look, a.app)) this.budget--;
+      a.body.visible = true;
+      return sh.styled(a.look, a.app, dir, frame);
+    }
+    // not built yet: stay out of sight rather than appear as a stranger in a stock outfit
+    a.body.visible = false;
+    return a.body.texture;
   }
   private walkFrame(a: Actor, speed: number): number {
     return 1 + (Math.floor(a.t * 7 * speed) % (WALK_FRAMES - 1));
@@ -750,7 +820,7 @@ export class WorldLife {
     const cyc = 0.8;
     const k = (a.t % cyc) / cyc;
     const fr = Math.min(3, Math.floor(k * 4));
-    a.body.texture = this.d.sheets().person(a.look, a.dir, f.reduced ? 0 : ATTACK_FRAME + fr);
+    a.body.texture = this.tex(a, a.dir, f.reduced ? 0 : ATTACK_FRAME + fr);
     const strike = Math.floor(a.t / cyc);
     if ((a as unknown as { lastStrike?: number }).lastStrike !== strike) {
       (a as unknown as { lastStrike?: number }).lastStrike = strike;
@@ -775,7 +845,7 @@ export class WorldLife {
     }
     if (a.st === 'walk') {
       const done = this.moveTo(a, f.dt, 0.8);
-      a.body.texture = this.d.sheets().person(a.look, a.dir, this.walkFrame(a, 0.8));
+      a.body.texture = this.tex(a, a.dir, this.walkFrame(a, 0.8));
       if (done) {
         a.st = 'work';
         a.t = 0;
@@ -783,7 +853,7 @@ export class WorldLife {
     } else if (a.st === 'work') {
       // tending the crop: hoe strokes
       const fr = f.reduced ? 0 : ATTACK_FRAME + (Math.floor(a.t * 2.2) % 4);
-      a.body.texture = this.d.sheets().person(a.look, dirOf(0.5, 1), fr);
+      a.body.texture = this.tex(a, dirOf(0.5, 1), fr);
       if (a.t > 4 + Math.random()) {
         a.st = 'idle';
         a.t = 0;
@@ -828,7 +898,16 @@ export class WorldLife {
       return;
     }
     if (a.st === 'idle' && a.t > 1.2 + (a.phase % 3)) {
-      this.wander(a, a.home.r);
+      const f0 =
+        this.fronts.length && !this.festival ? this.fronts[Math.floor(Math.random() * this.fronts.length)]! : null;
+      if (f0 && Math.random() < 0.65) {
+        a.tx = f0.x + (Math.random() - 0.5) * 1.4;
+        a.ty = f0.y - 0.3;
+        a.slot2 = 1;
+      } else {
+        this.wander(a, a.home.r);
+        a.slot2 = 0;
+      }
       a.st = 'walk';
       a.t = 0;
     }
@@ -836,10 +915,14 @@ export class WorldLife {
       const wet = f.weather === 'rain' || f.weather === 'storm';
       const spd = (this.festival ? 0.9 : 1.15) * (wet ? 1.5 : 1);
       const done = this.moveTo(a, f.dt, spd);
-      a.body.texture = this.d.sheets().person(a.look, a.dir, this.walkFrame(a, spd));
+      a.body.texture = this.tex(a, a.dir, this.walkFrame(a, spd));
       if (done) {
         a.st = 'idle';
-        a.t = Math.random() < 0.3 ? -3 : 0;
+        // customers face the stall and linger over the goods
+        if (a.slot2) {
+          a.dir = dirOf(0, -1);
+          a.t = -4 - Math.random() * 5;
+        } else a.t = Math.random() < 0.3 ? -3 : 0;
       }
     } else {
       this.sit(a, f);
@@ -854,19 +937,32 @@ export class WorldLife {
     }
   }
 
+  private vendor(a: Actor, f: LifeFrame): void {
+    if (a.st === 'flee') return this.flee(a, f);
+    this.sit(a, f);
+    a.z = f.reduced ? 0 : Math.max(0, Math.sin(f.now / 500 + a.phase)) * 0.7;
+    const pd = Math.hypot(a.x - f.me.x, a.y - f.me.y);
+    if (!a.bark && pd < 7 && Math.random() < 0.006) this.say(a, pick(CRIES[a.slot]!, Math.random()), f.now);
+    // lean toward whoever is near
+    if (pd < 4) {
+      const sd = screenDir(f.me.x - a.x, f.me.y - a.y);
+      a.dir = dirOf(sd.x, sd.y);
+    }
+  }
+
   private mover(a: Actor, f: LifeFrame): void {
     if (a.st === 'flee') return this.flee(a, f);
     if (a.st === 'walk') {
       const done = this.moveTo(a, f.dt, a.speed);
       if (a.model >= 0 && a.rider) {
         a.body.texture = this.d.foes().frame(a.model, false, a.face, 'move', Math.floor(a.t * 6));
-        a.rider.texture = this.d.sheets().person(a.look, a.dir, 0);
+        a.rider.texture = this.tex(a, a.dir, 0);
         a.rider.scale.x = 1;
       } else if (a.body.anchor.y < 0.95 && a.model >= 0)
         a.body.texture = this.d
           .foes()
           .frame(a.model, false, a.face, 'move', Math.floor(a.t * 6) % this.d.foes().frames(a.model, 'move'));
-      else a.body.texture = this.d.sheets().person(a.look, a.dir, this.walkFrame(a, a.speed / 1.2));
+      else a.body.texture = this.tex(a, a.dir, this.walkFrame(a, a.speed / 1.2));
       if (done) {
         a.st = 'idle';
         a.t = 0;
@@ -875,7 +971,7 @@ export class WorldLife {
     } else {
       if (a.model >= 0 && a.rider) {
         a.body.texture = this.d.foes().frame(a.model, false, a.face, 'idle', 0);
-        a.rider.texture = this.d.sheets().person(a.look, a.dir, 0);
+        a.rider.texture = this.tex(a, a.dir, 0);
       } else if (a.model >= 0) a.body.texture = this.d.foes().frame(a.model, false, a.face, 'idle', 0);
       else this.sit(a, f);
       // visitors linger, then head back out the gate they came from
@@ -1016,7 +1112,7 @@ export class WorldLife {
 
   private flee(a: Actor, f: LifeFrame): void {
     this.moveTo(a, f.dt, 2.7);
-    a.body.texture = this.d.sheets().person(a.look, a.dir, this.walkFrame(a, 2));
+    a.body.texture = this.tex(a, a.dir, this.walkFrame(a, 2));
   }
 
   private umbrella(a: Actor, on: boolean): void {

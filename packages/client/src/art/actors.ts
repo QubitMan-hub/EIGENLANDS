@@ -1476,6 +1476,8 @@ export interface Sheets {
   person(outfit: number, dir: number, frame: number): Texture;
   /** a player with a chosen appearance (packed, see shared/appearance.ts) wearing outfit/armour look `look` */
   styled(look: number, app: number, dir: number, frame: number): Texture;
+  /** true when `styled(look, app, ...)` is already built (building one costs a frame or two, so callers can budget it) */
+  styledReady(look: number, app: number): boolean;
   /** unique sprite per village NPC; same layout as `person` */
   npc(npcId: string, dir: number, frame: number): Texture;
   /** passive fauna: 4 frames, always drawn facing right (flip the sprite to face left) */
@@ -1604,7 +1606,7 @@ export function buildActorSheets(): Sheets {
       const base = Texture.from(personSheet([outfit], 400 + (app % 997) * 7));
       base.source.scaleMode = 'nearest';
       e = { base, subs: new Map() };
-      while (styledAtlases.size >= 64) {
+      while (styledAtlases.size >= 160) {
         const [oldKey, old] = styledAtlases.entries().next().value!;
         styledAtlases.delete(oldKey);
         for (const t of old.subs.values()) t.destroy(false);
@@ -1674,6 +1676,7 @@ export function buildActorSheets(): Sheets {
       const c = col(f, o * 3 + d);
       return sub(base, `p${o}.${dd(d)}.${c}`, c * PERSON_W, (o * 8 + dd(d)) * PERSON_H, PERSON_W, PERSON_H);
     },
+    styledReady: (look, app) => !appearanceOf(app) || styledAtlases.has(`${look}:${app}`),
     styled: (look, app, d, f) => {
       if (!appearanceOf(app)) return sheet.person(look, d, f);
       const e = styledFor(look, app);

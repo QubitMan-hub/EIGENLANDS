@@ -759,8 +759,8 @@ function build(site: RealmSite, seed: number): Town {
   // ───── plaza
   const plaza = { x: cx - 9, y: plazaY - 3, w: 19, h: 9 };
   if (big) {
-    const pw = rnd(15, 25),
-      ph = rnd(8, 12);
+    const pw = site.kind === 'capital' ? rnd(26, 34) : rnd(20, 28),
+      ph = site.kind === 'capital' ? rnd(14, 18) : rnd(12, 15);
     plaza.w = pw;
     plaza.h = ph;
     plaza.x = cx - Math.floor(pw / 2);
@@ -775,22 +775,45 @@ function build(site: RealmSite, seed: number): Town {
       }
     const px = plaza.x + Math.floor(pw / 2),
       py = plaza.y + Math.floor(ph / 2);
-    const centre = pickOf(['well', 'statue', 'well', 'trophy']);
+    const centre = pickOf(['fountain', 'fountain', 'fountain', 'statue', 'well']);
     obj(px, py, 'deco', centre);
-    if (chance(0.5)) {
-      obj(px - 4, py, 'deco', 'bench');
-      obj(px + 4, py, 'deco', 'bench');
-    }
+    for (const [dx, dy] of [
+      [-4, 0],
+      [4, 0],
+    ] as const)
+      obj(px + dx, py + dy, 'deco', chance(0.6) ? 'bench' : 'planter');
     obj(plaza.x + 1, plaza.y + 1, 'deco', 'banner', { realm: site.realm });
     obj(plaza.x + pw - 2, plaza.y + 1, 'deco', 'banner', { realm: site.realm });
-    const stalls = rnd(2, 6);
-    for (let i = 0; i < stalls; i++)
-      obj(
-        plaza.x + 2 + Math.floor(((pw - 5) * i) / Math.max(1, stalls - 1)),
-        plaza.y + ph - 2,
-        'deco',
-        pickOf(['stall', 'stall', 'cart', 'barrel']),
-      );
+    for (const [lx, ly] of [
+      [plaza.x + 1, plaza.y + ph - 2],
+      [plaza.x + pw - 2, plaza.y + ph - 2],
+      [px - 6, py],
+      [px + 6, py],
+    ] as const)
+      obj(lx, ly, 'deco', 'street_lamp');
+    // the market proper: two ranks of stalls with an aisle between them and a gap at the fountain's axis, each with
+    // its own awning and wares, a stall-keeper's spot behind and a clutter of crates and baskets beside
+    const AWN = ['red', 'blue', 'green', 'gold', 'violet'];
+    const WARES = ['produce', 'fish', 'cloth', 'bread', 'pots', 'flowers', 'hung', 'herbs'];
+    let n = 0;
+    const awnStart = Math.floor(rnd(0, 5));
+    for (const row of [plaza.y + 2, plaza.y + ph - 3])
+      for (let sx = plaza.x + 3; sx < plaza.x + pw - 3; sx += 3) {
+        if (Math.abs(sx - px) <= 2) continue;
+        const sub = `stall_${AWN[(awnStart + n * 2) % AWN.length]}_${WARES[(n * 3 + awnStart) % WARES.length]}`;
+        obj(sx, row, 'deco', sub);
+        spot(`${site.id}.stall.${n++}`, sx, row - 1);
+        if (chance(0.55)) obj(sx + 1, row, 'deco', pickOf(['crate', 'barrel', 'basket', 'hay']));
+      }
+    // a few loose carts and sacks in the open middle
+    for (let i = 0; i < 3; i++)
+      if (chance(0.7))
+        obj(
+          plaza.x + 4 + Math.floor(rnd(0, pw - 8)),
+          py + (i % 2 ? 2 : -2),
+          'deco',
+          pickOf(['cart', 'barrel', 'basket']),
+        );
     mark(plaza.x - 1, plaza.y - 1, pw + 2, ph + 2, ROAD);
   } else if (site.kind === 'village') {
     obj(cx + rnd(4, 8), cy + 3, 'deco', 'well');

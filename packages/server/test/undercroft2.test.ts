@@ -12,7 +12,7 @@ import {
   type MineLine,
 } from '@eigenlands/shared';
 import type { App } from '../src/app';
-import { boot3, spawn3, tp, setLevel, dev, until, sleep, clearEnemies } from './p3helpers';
+import { boot3, spawn3, tp, setLevel, dev, until, sleep, clearEnemies, noon } from './p3helpers';
 
 let app: App;
 beforeAll(async () => {
@@ -186,6 +186,8 @@ it('adds travelling merchants with real stock and a daily round only in revision
   const p = await spawn3(app, 'Customer');
   const rounds = delverRounds(SEED);
   expect(rounds.every((r) => r.camps.length === 3)).toBe(true);
+  await noon(p);
+  await sleep(500);
   const odo = p.room.village.npc('delver_odo')!;
   expect(odo).toBeTruthy();
   const views: any[] = [];
