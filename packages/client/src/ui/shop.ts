@@ -16,7 +16,9 @@ function jobStyles(): void {
   const el = document.createElement('style');
   el.textContent = `.shop-job{grid-column:1/-1;display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;align-items:center;
     padding:8px 12px;margin-bottom:8px;background:var(--parch-hi);box-shadow:inset 0 0 0 1px #8a7143}
-    .shop-job b{font-family:var(--pix);color:var(--ink-head,#6a4519)} .shop-job span{color:var(--ink-dark)}`;
+    .shop-job b{font-family:var(--pix);color:var(--ink-head,#6a4519)} .shop-job span{color:var(--ink-dark)}
+    .shop-note{grid-column:1/-1;margin-bottom:8px;padding:6px 12px;color:var(--ink-dark);font-size:13px;
+    border-left:3px solid #b08a3e;background:var(--parch-hi)}`;
   document.head.append(el);
 }
 
@@ -63,6 +65,7 @@ export function buildShop(view: ShopViewMsg, profile: Profile, tip: Tooltip, act
     });
     if (!any) sell.append(h('div', { class: 'small dim', text: 'Nothing in your pack that they want.' }));
     root.append(h('div', { class: 'coins big', text: `${profile.coins} coins` }));
+    if (view.note) root.append(h('div', { class: 'shop-note', text: view.note }));
     if (view.job)
       root.append(
         h(

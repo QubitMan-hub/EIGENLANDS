@@ -885,7 +885,7 @@ export class AtlasClient implements ClientModule {
         const now = this.d.clock.serverNow(performance.now());
         for (const r of caravanRoutes(this.d.store().seed)) {
           const c = caravanAt(this.d.store().seed, r, now);
-          if (!c.hidden)
+          if (!c.hidden && !r.peddler)
             mark(
               { x: c.x, y: c.y, name: r.name.replace(' Road Caravan', ' caravan') },
               '#e3a35a',

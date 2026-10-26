@@ -112,7 +112,7 @@ describe('riding and roads', () => {
 describe('road caravans', () => {
   it('one per kingdom road, resting outside each settlement and rolling along the road between', async () => {
     const { caravanRoutes, caravanAt, caravanStock, tileAt, T, ITEMS } = await import('../src/index');
-    const routes = caravanRoutes(SEED);
+    const routes = caravanRoutes(SEED).filter((r) => !r.peddler);
     expect(routes.length).toBe(24);
     let samples = 0,
       onRoad = 0;
@@ -134,6 +134,28 @@ describe('road caravans', () => {
       expect(caravanStock(SEED, r, 13)).not.toEqual(stock); // wares rotate daily
     }
     expect(onRoad / samples).toBeGreaterThan(0.85);
+  });
+
+  it('the wandering peddler visits a different home town each day, keeping market hours', async () => {
+    const { caravanById, caravanAt, caravanStock, caravansNear, WORLD_EPOCH_MS, DAY_MS, ITEMS } =
+      await import('../src/index');
+    const r = caravanById(SEED, 'peddler')!;
+    expect(r.peddler).toBe(true);
+    const noon = (d: number) => WORLD_EPOCH_MS + d * DAY_MS + DAY_MS / 4; // the game day starts at 06:00
+    const towns = new Set<string>();
+    for (let d = 0; d < 6; d++) {
+      const p = caravanAt(SEED, r, noon(d));
+      expect(p.hidden).toBe(false);
+      expect(p.town).toBeTruthy();
+      towns.add(p.town!);
+      expect(caravansNear(SEED, p.x, p.y, 8, noon(d)).some((c) => c.route.id === 'peddler')).toBe(true);
+      // closed in the small hours
+      expect(caravanAt(SEED, r, WORLD_EPOCH_MS + d * DAY_MS + DAY_MS * 0.9).hidden).toBe(true);
+    }
+    expect(towns.size).toBeGreaterThanOrEqual(4);
+    const stock = caravanStock(SEED, r, 3);
+    expect(stock.some((s) => s.item === 'recall_shard')).toBe(true);
+    for (const s of stock) expect(ITEMS[s.item], s.item).toBeTruthy();
   });
 });
 

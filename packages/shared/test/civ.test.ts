@@ -79,3 +79,23 @@ describe('living kingdoms model', () => {
     expect(validCiv(SEED, null, 3).kingdoms.aurelion).toBeTruthy();
   });
 });
+
+describe('local economies', () => {
+  it('settlements make some goods cheap, want others and run short of one kind a day', async () => {
+    const { REALM_SITES, localEconomy, localPriceFactor } = await import('../src/index');
+    const farm = REALM_SITES.find((s) => s.kind === 'farm')!;
+    const outpost = REALM_SITES.find((s) => s.kind === 'outpost')!;
+    const ef = localEconomy(1234, farm.id, 5)!;
+    const eo = localEconomy(1234, outpost.id, 5)!;
+    expect(localPriceFactor(ef, 'crop')).toBeLessThan(1);
+    expect(localPriceFactor(eo, 'resource')).toBeLessThan(1);
+    expect(localPriceFactor(eo, 'food')).toBeGreaterThan(1);
+    expect(ef.produces).not.toContain(ef.shortage);
+    expect(ef.note).toMatch(/Short today/);
+    expect(localEconomy(1234, farm.id, 5)).toEqual(ef);
+    const shortages = new Set(Array.from({ length: 20 }, (_, d) => localEconomy(1234, farm.id, d)!.shortage));
+    expect(shortages.size).toBeGreaterThan(2);
+    expect(localEconomy(1234, 'nowhere', 5)).toBeNull();
+    expect(localPriceFactor(null, 'food')).toBe(1);
+  });
+});

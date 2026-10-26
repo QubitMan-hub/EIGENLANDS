@@ -90,7 +90,12 @@ export class CaravanModule implements Module {
     met.push(r.id);
     this.room.grantXp(p, 30 + p.level * 4);
     p.dirty('stats');
-    p.toast(`You meet ${r.master} of the ${r.name}. Caravans pay well and carry goods from the whole road.`, 'good');
+    p.toast(
+      r.peddler
+        ? `You meet ${r.master}, who wanders the home towns with curiosities from far away. Look for the wagon in a different town each day.`
+        : `You meet ${r.master} of the ${r.name}. Caravans pay well and carry goods from the whole road.`,
+      'good',
+    );
   }
 
   private view(p: ServerPlayer, r: CaravanRoute): ShopViewMsg {
@@ -159,8 +164,10 @@ export class CaravanModule implements Module {
         p.data.coins -= cost;
         p.dirty('inv', 'coins');
         p.toast(`Bought ${n} ${ITEMS[entry.item]!.name} for ${cost}.`, 'good', stack);
-        gainRep(p, r.realm, Math.max(1, Math.floor(cost / 40)), true);
-        recordCiv(this.room.seed, r.realm, 'trade', cost);
+        if (!r.peddler) {
+          gainRep(p, r.realm, Math.max(1, Math.floor(cost / 40)), true);
+          recordCiv(this.room.seed, r.realm, 'trade', cost);
+        }
       }
       return this.view(p, r);
     }
@@ -179,8 +186,10 @@ export class CaravanModule implements Module {
       p.data.coins += total;
       p.dirty('inv', 'coins');
       p.toast(`Sold ${n} ${name} for ${total}.`, 'good');
-      gainRep(p, r.realm, Math.max(1, Math.floor(total / 50)), true);
-      recordCiv(this.room.seed, r.realm, 'trade', total);
+      if (!r.peddler) {
+        gainRep(p, r.realm, Math.max(1, Math.floor(total / 50)), true);
+        recordCiv(this.room.seed, r.realm, 'trade', total);
+      }
       return this.view(p, r);
     }
     return this.view(p, r);

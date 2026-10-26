@@ -1,5 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { MSG, caravanAt, caravanRoutes, sanctuaryAt, type ShopViewMsg } from '@eigenlands/shared';
+import {
+  DAY_MS,
+  MSG,
+  WORLD_EPOCH_MS,
+  caravanAt,
+  caravanById,
+  caravanRoutes,
+  dayNumber,
+  sanctuaryAt,
+  type ShopViewMsg,
+} from '@eigenlands/shared';
 import type { App } from '../src/app';
 import { boot3, clearEnemies, sleep, spawn3, tp, until } from './p3helpers';
 
@@ -104,4 +114,26 @@ describe('road caravans', () => {
     }
     await p.r.leave();
   }, 120_000);
+
+  it('the wandering peddler keeps market hours in a home town and sells rare wares', async () => {
+    const p = await spawn3(app, 'Browser');
+    const views: ShopViewMsg[] = [];
+    p.r.onMessage(MSG.SHOP_VIEW, (m: ShopViewMsg) => views.push(m));
+    // wind the clock to the middle of the next market day (the game day starts at 06:00)
+    const now = p.room.wclock.now();
+    const noon = WORLD_EPOCH_MS + (dayNumber(now) + 1) * DAY_MS + DAY_MS / 4;
+    p.room.wclock.offset += noon - now;
+    const r = caravanById(p.room.seed, 'peddler')!;
+    const c = caravanAt(p.room.seed, r, p.room.wclock.now());
+    expect(c.hidden).toBe(false);
+    await tp(p, c.x + 1, c.y);
+    const rep = JSON.stringify(p.sp.data.rep ?? {});
+    p.r.send(MSG.SHOP, { npcId: 'caravan:peddler', action: 'open' });
+    await until(() => views.length > 0, 3000);
+    expect(views[0]!.name).toContain('Peddler');
+    expect(views[0]!.stock.some((s) => s.item === 'recall_shard')).toBe(true);
+    expect(views[0]!.job).toBeUndefined(); // the peddler hires no escort
+    expect(JSON.stringify(p.sp.data.rep ?? {})).toBe(rep); // and belongs to no kingdom
+    await p.r.leave();
+  });
 });

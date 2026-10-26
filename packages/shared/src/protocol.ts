@@ -403,6 +403,8 @@ export interface ShopViewMsg {
   coins: number;
   /** a caravan's escort job: ride with it to its next stop for pay (see features/caravans) */
   job?: { text: string; pay: number; active: boolean; offer: boolean };
+  /** a kingdom settlement's local trade: what it makes, wants and is short of today (shared economy.ts) */
+  note?: string;
 }
 
 export interface ChestMsg {

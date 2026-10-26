@@ -6,6 +6,8 @@ import {
   GIFT_POINTS,
   ITEMS,
   civPriceFactor,
+  localEconomy,
+  localPriceFactor,
   DELVER_MERCHANTS,
   type ScheduleBlock,
   KINGDOMS,
@@ -714,7 +716,9 @@ export class Village implements VillageSystem {
     const rep = repPriceMultiplier(p?.data.rep?.[realm] ?? 0);
     // the kingdom's state: its decree, wars, prosperity and granaries (shared civ.ts)
     const civ = civPriceFactor(civOf(this.host.seed)?.kingdoms[realm], ITEMS[itemId]?.kind === 'food');
-    return trade * rep * civ * (festivalOn(realm, day) ? 0.9 : 1);
+    // the settlement's own trade: what it makes is cheap, what it wants and today's shortage are dear
+    const local = def.site ? localPriceFactor(localEconomy(this.host.seed, def.site, day), ITEMS[itemId]?.kind) : 1;
+    return trade * rep * civ * local * (festivalOn(realm, day) ? 0.9 : 1);
   }
 
   private unitSell(def: NpcDef, itemId: string, extraSupply = 0, p: PlayerRef | null = null): number {
@@ -733,11 +737,14 @@ export class Village implements VillageSystem {
       p.data.inv.forEach((s, i) => {
         if (s && this.canBuyKind(def, s.id)) sell[i] = this.unitSell(def, s.id, 0, p);
       });
+    const local =
+      def.realm && def.site ? localEconomy(this.host.seed, def.site, Math.floor(this.host.clock.now() / DAY_MS)) : null;
     return {
       npcId: def.id,
       name: shop?.name ?? def.name,
       coins: p.data.coins,
       sell,
+      note: local?.note,
       stock: (shop?.stock ?? [])
         .filter((s) => !s.seasons || s.seasons.includes(season))
         .map((s) => ({

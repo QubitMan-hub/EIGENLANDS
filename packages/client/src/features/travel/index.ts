@@ -15,6 +15,7 @@ import { h } from '../../ui/dom';
 import type { ClientModule, P34Deps } from '../types';
 import { setCivSender, setCivState } from '../../game/civ-store';
 import { CaravanViews } from './caravans';
+import { SettlementViews } from './settlements';
 import { BridgeViews } from './bridges';
 import { VoyageCard } from '../../ui/voyage';
 
@@ -47,12 +48,14 @@ export class TravelClient implements ClientModule {
   onChange: (list: AttunedStone[]) => void = () => {};
   readonly caravans: CaravanViews;
   readonly bridges: BridgeViews;
+  readonly settlements: SettlementViews;
   private voyage: VoyageCard;
 
   constructor(private d: P34Deps) {
     this.gfx.zIndex = 9e8;
     this.d.fxLayer().addChild(this.gfx);
     this.caravans = new CaravanViews(d);
+    this.settlements = new SettlementViews(d);
     setCivSender((type, msg) => {
       try {
         this.d.net().send(type, msg);
@@ -159,6 +162,7 @@ export class TravelClient implements ClientModule {
   frame(now: number, dt = 16): void {
     this.caravans.frame(dt);
     this.bridges.frame(now);
+    this.settlements.frame(now, dt);
     const me = this.d.me();
     const g = this.gfx;
     g.clear();

@@ -85,3 +85,4 @@ export * from './mounts';
 export * from './caravans';
 export * from './bridges';
 export * from './civ';
+export * from './local-economy';
