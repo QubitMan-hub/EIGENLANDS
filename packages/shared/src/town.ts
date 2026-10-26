@@ -8,7 +8,7 @@ import { T } from './tiles';
 import { sampleClimate } from './worldgen';
 import { LEGACY_GENERATION } from './world-version';
 
-export type BuildingKind = 'smithy' | 'hall' | 'inn' | 'store' | 'house' | 'farmhouse';
+export type BuildingKind = 'smithy' | 'hall' | 'inn' | 'store' | 'house' | 'farmhouse' | 'tower';
 export interface Building {
   id: string;
   kind: BuildingKind;

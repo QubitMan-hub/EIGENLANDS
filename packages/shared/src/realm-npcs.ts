@@ -140,8 +140,8 @@ const TITLES: Record<RealmId, Partial<Record<Role, string>>> = {
 const ROSTER: Record<RealmSite['kind'], Array<[Role, Place, number]>> = {
   capital: [
     ['commander', 'barracks', 1],
-    ['guard', 'gate', 3],
-    ['archer', 'gate', 1],
+    ['guard', 'gate', 6],
+    ['archer', 'gate', 3],
     ['innkeeper', 'inn', 1],
     ['smith', 'smithy', 1],
     ['merchant', 'store', 1],
@@ -150,7 +150,7 @@ const ROSTER: Record<RealmSite['kind'], Array<[Role, Place, number]>> = {
   ],
   town: [
     ['elder', 'hall', 1],
-    ['guard', 'gate', 1],
+    ['guard', 'gate', 3],
     ['innkeeper', 'inn', 1],
     ['smith', 'smithy', 1],
     ['merchant', 'store', 1],
@@ -167,7 +167,7 @@ const ROSTER: Record<RealmSite['kind'], Array<[Role, Place, number]>> = {
   ],
   outpost: [
     ['commander', 'barracks', 1],
-    ['soldier', 'gate', 2],
+    ['soldier', 'gate', 5],
   ],
 };
 

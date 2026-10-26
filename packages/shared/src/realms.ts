@@ -46,11 +46,11 @@ export interface RealmSite {
 }
 
 const SIZE: Record<SiteKind, [number, number]> = {
-  capital: [160, 116],
-  town: [104, 76],
-  village: [60, 44],
-  farm: [52, 40],
-  outpost: [44, 36],
+  capital: [224, 168],
+  town: [120, 92],
+  village: [60, 50],
+  farm: [56, 44],
+  outpost: [50, 40],
 };
 const RINGS: Array<{ ring: 'n' | 'e' | 's' | 'w'; dx: number; dy: number }> = [
   { ring: 'n', dx: 0, dy: -SHARD },
