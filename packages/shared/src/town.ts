@@ -1,3 +1,4 @@
+import { cozyTown } from './cozy-town';
 import { frontierTownAt, frontierTownsNear } from './frontier';
 import type { RealmSite } from './realms';
 import { caveTowns } from './cavetowns';
@@ -302,6 +303,7 @@ export function townFor(seed: number): Town {
         }
       if (clear) set(x, y, T.TREE);
     }
+  cozyTown(t);
   cache.set(seed, t);
   return t;
 }

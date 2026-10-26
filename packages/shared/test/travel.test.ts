@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ChunkStore,
+  GLIMMERHART_MOUNT,
   REALM_IDS,
   arrivalOf,
   canTravel,
@@ -92,17 +93,24 @@ describe('riding and roads', () => {
   it('a horse is much faster than walking, the Stag faster still, and roads speed everyone', () => {
     const walk = run(0, open).x,
       horse = run(1, open).x,
-      stag = run(2, open).x;
+      stag = run(2, open).x,
+      hart = run(GLIMMERHART_MOUNT, open).x;
+    expect(hart / walk).toBeCloseTo(1.45);
+    expect(horse).toBeGreaterThan(hart);
     expect(horse).toBeGreaterThan(walk * 1.5);
     expect(stag).toBeGreaterThan(horse * 1.1);
     expect(run(0, road).x).toBeGreaterThan(walk * 1.08);
     expect(run(1, road).x).toBeGreaterThan(horse * 1.15);
   });
-  it('no dashing or sprinting from the saddle; attacking steps you down first', () => {
+  it('riding cannot sprint; dodge and attack step down before acting', () => {
     const p = { ...newPlayerSim(0, 0), mount: 1 };
-    expect(stepPlayer(p, sanitizeCmd({ seq: 1, dx: 1, dash: true }), open).dashed).toBe(false);
-    stepPlayer(p, sanitizeCmd({ seq: 2, dx: 1, sprint: true }), open);
+    expect(stepPlayer(p, sanitizeCmd({ seq: 1, dx: 1, sprint: true }), open).dashed).toBe(false);
     expect(p.sprint).toBe(0);
+    expect(stepPlayer(p, sanitizeCmd({ seq: 1, dx: 1, dash: true }), open).dashed).toBe(true);
+    expect(p.mount).toBe(0);
+    stepPlayer(p, sanitizeCmd({ seq: 2, dx: 1, sprint: true }), open);
+    p.mount = 1;
+    p.dashT = 0;
     const ev = stepPlayer(p, sanitizeCmd({ seq: 3, attack: true }), open);
     expect(p.mount).toBe(0);
     expect(ev.attacked).toBe(true);
@@ -192,6 +200,8 @@ describe('bridges, the Undercroft network and mount care', () => {
     expect([1, 2, 3, 4, 5, 6].map(mountKindOf)).toEqual(['horse', 'stag', 'griffin', 'horse', 'stag', 'griffin']);
     expect(mountCode('stag', true)).toBe(5);
     expect(mountCode('griffin', false)).toBe(3);
+    expect(mountKindOf(7)).toBeNull(); // a ranch Glimmerhart's care belongs to the ranch
+    expect(mountKindOf(99)).toBeNull();
     expect(MOUNT_SPEED_MULT[mountCode('horse', true)]!).toBeGreaterThan(
       MOUNT_SPEED_MULT[mountCode('horse', false)]! * 1.09,
     );

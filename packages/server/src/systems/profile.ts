@@ -1,3 +1,4 @@
+import { guildContract, validGuildJourney, contractKind } from '@eigenlands/shared';
 import {
   REALM_IDS,
   validMountName,
@@ -102,13 +103,16 @@ export function validQuests(v: unknown, today: number): QuestLog {
   const out: QuestLog = {};
   if (!v || typeof v !== 'object') return out;
   for (const [id, raw] of Object.entries(v as Record<string, unknown>)) {
-    const s = raw as { state?: unknown; progress?: unknown };
+    const s = raw as { state?: unknown; progress?: unknown; journey?: unknown };
     if (!s || (s.state !== 'active' && s.state !== 'done') || !Array.isArray(s.progress) || s.progress.length > 8)
       continue;
-    if (!QUEST_BY_ID[id] && !/^req:-?\d+:\d$/.test(id)) continue;
-    const n = QUEST_BY_ID[id]?.objectives.length ?? s.progress.length;
+    if (!QUEST_BY_ID[id] && !guildContract(0, id) && !/^req:-?\d+:\d$/.test(id)) continue;
+    const journey = validGuildJourney(s.journey);
+    if (guildContract(0, id) && s.state === 'active' && (!journey || journey.kind !== contractKind(id))) continue;
+    const n = (QUEST_BY_ID[id] ?? guildContract(0, id))?.objectives.length ?? s.progress.length;
     out[id] = {
       state: s.state,
+      ...(journey ? { journey } : {}),
       progress: Array.from({ length: n }, (_, i) => {
         const x = (s.progress as unknown[])[i];
         return typeof x === 'number' && Number.isFinite(x) ? Math.max(0, Math.min(999, Math.floor(x))) : 0;

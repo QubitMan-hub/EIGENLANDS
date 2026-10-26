@@ -1,5 +1,4 @@
-import { livestockTexture } from '../art/livestock';
-import { readHerd, LIVESTOCK, type FarmAnimal } from '@eigenlands/shared';
+import { diningSurface } from '@eigenlands/shared';
 import { Sprite, type Container } from 'pixi.js';
 import {
   C,
@@ -49,17 +48,7 @@ export function setExtraLights(key: string, fn: LightSource | null): void {
   else extraLights.delete(key);
 }
 
-interface FarmView {
-  animal: FarmAnimal;
-  sprite: Sprite;
-  shadow: Sprite;
-  x: number;
-  y: number;
-  young: boolean;
-  facing: number;
-}
 interface View {
-  farm: FarmView[];
   obj: WorldObj;
   def: ObjSpriteDef;
   root: Sprite;
@@ -119,6 +108,7 @@ export class WorldObjViews {
 
   /** Props stand with their back to a wall: a wall behind (north-east) faces them south-west, one to the north-west faces them south-east. */
   private facing(o: WorldObj): Facing {
+    if (o.data?.facing === 'sw' || o.data?.facing === 'se') return o.data.facing;
     return propFacing(
       (x, y) => {
         const t = this.store.getTile(x, y);
@@ -131,6 +121,8 @@ export class WorldObjViews {
 
   private seatTurn(o: WorldObj): number | undefined {
     if (o.sub !== 'chair') return undefined;
+    if (Number.isInteger(o.data?.seatTurn) && Number(o.data?.seatTurn) >= 0 && Number(o.data?.seatTurn) < 4)
+      return Number(o.data?.seatTurn);
     const dirs = [
       [0, 1],
       [-1, 0],
@@ -140,7 +132,7 @@ export class WorldObjViews {
     for (let i = 0; i < dirs.length; i++) {
       const [dx, dy] = dirs[i]!,
         near = this.store.objectAt(o.x + dx!, o.y + dy!);
-      if (near && ['table', 'desk', 'counter'].includes(near.sub)) return i;
+      if (near && diningSurface(near.sub)) return i;
     }
     return undefined;
   }
@@ -148,7 +140,7 @@ export class WorldObjViews {
     return o.sub === 'chair' ? `${sigOf(o)}:${this.seatTurn(o)}` : sigOf(o);
   }
   private refreshSeats(o: WorldObj): void {
-    if (!['table', 'desk', 'counter'].includes(o.sub)) return;
+    if (!diningSurface(o.sub)) return;
     for (const [dx, dy] of [
       [0, 1],
       [-1, 0],
@@ -206,33 +198,7 @@ export class WorldObjViews {
       this.layer.addChild(echo);
     }
     const ck = chunkKey(Math.floor(o.x / CHUNK_SIZE), Math.floor(o.y / CHUNK_SIZE));
-    const farm: FarmView[] = [];
-    if (o.kind === 'shelter' && o.sub !== 'apiary') {
-      const data = readHerd(o.data, o.sub, Number(o.data?.lastDay ?? 0));
-      for (let i = 0; i < data.herd.length; i++) {
-        const animal = data.herd[i]!,
-          x = o.x + (i % 2),
-          y = o.y + 1 + Math.floor(i / 2),
-          facing = animal.id % 2;
-        if (this.store.solidAt(x, y) || this.store.levelAt(x, y) !== this.store.levelAt(o.x, o.y)) continue;
-        const young = data.lastDay - animal.born < LIVESTOCK[animal.species].growth;
-        const sprite = new Sprite(livestockTexture(animal.species, 0, facing)),
-          shadow = new Sprite(sprite.texture);
-        sprite.anchor.set(24 / 48, 49 / 56);
-        sprite.scale.set(young ? 0.62 : 0.9);
-        sprite.position.set(Math.round(isoX(x + 0.5, y + 0.5)), Math.round(isoY(x + 0.5, y + 0.5)));
-        sprite.zIndex = depth(x + 0.5, y + 0.5);
-        shadow.anchor.copyFrom(sprite.anchor);
-        shadow.tint = SHADOW;
-        shadow.position.copyFrom(sprite);
-        shadow.scale.copyFrom(sprite.scale);
-        this.layer.addChild(sprite);
-        this.shadowLayer.addChild(shadow);
-        farm.push({ animal, sprite, shadow, x, y, young, facing });
-      }
-    }
     return {
-      farm,
       obj: o,
       def,
       root,
@@ -265,10 +231,6 @@ export class WorldObjViews {
   }
 
   private drop(key: string, v: View): void {
-    for (const f of v.farm) {
-      f.sprite.destroy();
-      f.shadow.destroy();
-    }
     v.root.destroy();
     v.shadow.destroy();
     v.echo?.destroy();
@@ -342,10 +304,7 @@ export class WorldObjViews {
       for (const v of this.views.values()) {
         const show = v.obj.x >= minX && v.obj.x <= maxX && v.obj.y >= minY && v.obj.y <= maxY && !this.hidden(v);
         v.root.visible = show;
-        for (const f of v.farm) {
-          f.sprite.visible = show;
-          if (!show) f.shadow.visible = false;
-        }
+
         if (v.echo) v.echo.visible = show;
         if (!show) v.shadow.visible = false;
       }
@@ -359,19 +318,7 @@ export class WorldObjViews {
         v.shadow.visible = false;
         return;
       }
-      for (const f of v.farm) {
-        const frame = !reduced && v.obj.data?.fed && Math.sin(t * 0.6 + f.animal.id * 3.1 + v.phase) > 0.94 ? 1 : 0;
-        f.sprite.texture = livestockTexture(f.animal.species, frame, f.facing);
-        f.shadow.texture = f.sprite.texture;
-        f.sprite.visible =
-          !hidden &&
-          !this.store.solidAt(f.x, f.y) &&
-          this.store.levelAt(f.x, f.y) === this.store.levelAt(v.obj.x, v.obj.y);
-        f.shadow.visible = f.sprite.visible && sun.alpha > 0.02;
-        f.shadow.alpha = sun.alpha * 0.8;
-        f.shadow.scale.set(f.young ? 0.62 : 0.9, -(f.young ? 0.62 : 0.9) * (0.22 + 0.14 * sun.len));
-        f.shadow.skew.x = sun.dx * sun.len * 0.9;
-      }
+
       const d = v.def;
       if (d.frames.length > 1) {
         const age = v.opened === undefined ? Infinity : (now - v.opened) / 1000;

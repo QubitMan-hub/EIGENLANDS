@@ -244,7 +244,13 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     abilities: ['glimmer'],
     passive: { name: 'Curious', desc: 'Everything is new.' },
     ultimate: { name: 'None yet', desc: 'Choose a class to unlock an ultimate.', secs: 0, glyph: '·' },
-    specs: [],
+    specs: [
+      {
+        id: 'guild_warden',
+        name: 'Wayguard',
+        desc: 'Guild rank B and level 10. Guild training reduces incoming enemy damage by 6%. A permanent alternative specialization.',
+      },
+    ],
   },
   superposer: {
     id: 'superposer',
@@ -270,6 +276,11 @@ export const CLASSES: Record<ClassId, ClassDef> = {
       glyph: '✺',
     },
     specs: [
+      {
+        id: 'guild_warden',
+        name: 'Wayguard',
+        desc: 'Guild rank B and level 10. Guild training reduces incoming enemy damage by 6%. A permanent alternative specialization.',
+      },
       { id: 'phantom', name: 'Phantom', desc: 'Echoes last 2 seconds longer and take hits for you more often.' },
       { id: 'splitter', name: 'Splitter', desc: 'Split Shot fires three bolts, and the heavy bolt hits harder.' },
       { id: 'collapse', name: 'Collapse', desc: 'Locked-in lines hit much harder.' },
@@ -295,6 +306,11 @@ export const CLASSES: Record<ClassId, ClassDef> = {
       glyph: '∞',
     },
     specs: [
+      {
+        id: 'guild_warden',
+        name: 'Wayguard',
+        desc: 'Guild rank B and level 10. Guild training reduces incoming enemy damage by 6%. A permanent alternative specialization.',
+      },
       { id: 'weaver', name: 'Weaver', desc: 'Hold five links at once, and echoes are stronger.' },
       {
         id: 'bondkeeper',

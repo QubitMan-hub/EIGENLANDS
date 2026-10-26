@@ -1943,6 +1943,28 @@ export const PROPS: Record<string, Mk> = {
   alchemy: anim(2, 2, alchemy),
   loom: one(loom),
   rack: one(rack),
+  guild_desk: one((face) =>
+    iso(46, 60, face, (p) => {
+      for (const x of [2, 13]) for (const y of [5, 11]) p.box(x, y, 0, 2, 2, 10, { ramp: DARKWOOD });
+      p.box(1, 4, 10, 16, 10, 2, { ramp: LIGHTWOOD });
+      p.box(2, 5, 12, 6, 5, 1, { ramp: LINEN });
+      for (const z of [13, 14, 15]) p.line(3, 7, z, 6, 7, z, C.steel);
+      p.box(11, 6, 12, 3, 3, 2, { ramp: BRASS });
+      p.box(1, 1, 0, 1.5, 1.5, 35, { ramp: DARKWOOD });
+      p.box(2.5, 1, 21, 9, 1, 13, { ramp: [C.q0, C.q1, C.q2, C.q3, C.q4] });
+      p.line(7, 2.2, 25, 7, 2.2, 31, C.e6);
+      p.line(4, 2.2, 28, 10, 2.2, 28, C.e6);
+      p.box(0, 0, 35, 4, 4, 2, { ramp: BRASS });
+    }),
+  ),
+  guild_clue: one((face) =>
+    iso(30, 30, face, (p) => {
+      p.box(3, 5, 0, 10, 7, 3, { ramp: LIGHTWOOD });
+      p.box(4, 6, 3, 7, 5, 1, { ramp: LINEN });
+      p.line(5, 9, 4, 9, 9, 4, C.steel);
+      p.box(10, 5, 0, 2, 2, 5, { ramp: BRASS });
+    }),
+  ),
   board: one(board),
   guild_board: one((face) => guildBoardArt(face)),
   guild_noticeboard: one((face) => guildBoardArt(face)),

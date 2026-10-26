@@ -1,3 +1,5 @@
+import { buildSettlement } from '../ui/settlement';
+import { rotatingGuildContracts } from '@eigenlands/shared';
 import { buildGuild } from '../ui/guild';
 import { GUILD_QUESTS, readHerd } from '@eigenlands/shared';
 // Dev-only UI lab: renders each panel with mock data (?panel=inventory|station|forge|dialogue|shop|journal|chest|shelter|rhythm).
@@ -218,6 +220,38 @@ switch (panel) {
   case 'chest':
     wins.show('c', 'Chest', buildChest(chestPanel, profile, tip, { put: noop, take: noop }).el, { wide: true });
     break;
+  case 'settlement': {
+    wins.show(
+      'settlement',
+      'Settlement charter',
+      buildSettlement(
+        {
+          kind: 'settlement',
+          tx: 0,
+          ty: 0,
+          sub: 'guild_noticeboard',
+          settlement: {
+            tier: 1,
+            bank: 480,
+            day: 4,
+            serial: 2,
+            name: 'Hamlet',
+            residents: [
+              { id: 0, name: 'Rowan', role: 'gardener', x: 12, y: 5, happy: 85 },
+              { id: 1, name: 'Sable', role: 'warden', x: 15, y: 8, happy: 60 },
+            ],
+            homes: [
+              { x: 12, y: 5, valid: true, reason: 'Enclosed, roofed and furnished' },
+              { x: 20, y: 5, valid: false, reason: 'Every interior cell needs your floor and a roof.' },
+            ],
+          },
+        },
+        noop,
+      ),
+      { wide: true },
+    );
+    break;
+  }
   case 'guild': {
     const g: PanelMsg = {
       kind: 'guild',
@@ -228,9 +262,15 @@ switch (panel) {
         name: 'Mira of Hadamere',
         card: 'WAY-00418726',
         rank: 'F',
-        contracts: GUILD_QUESTS.map((d) => ({
+        contracts: [...GUILD_QUESTS, ...rotatingGuildContracts(42, 4, 'F')].map((d) => ({
           id: d.id,
-          state: d.id === 'guild:rank:F' ? 'done' : d.id.startsWith('guild:F:') ? 'open' : 'locked',
+          definition: d,
+          state:
+            d.id === 'guild:rank:F'
+              ? 'done'
+              : d.id.startsWith('guild:F:') || d.id.startsWith('guild:job:')
+                ? 'open'
+                : 'locked',
           progress: d.objectives.map(() => 0),
         })),
       },

@@ -339,6 +339,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     on<ChestMsg>(MSG.CHEST, 'openBucket', (p, m) => handleChest(this, p, m));
     on<ShelterMsg>(MSG.SHELTER, 'openBucket', (p, m) => handleShelter(this, p, m));
     on<TalkMsg>(MSG.TALK, 'socialBucket', (p, m) => {
+      if (this.guildTalk?.(p, m?.npcId)) return;
       if (!this.npcNear(p, m?.npcId)) return;
       const d = this.village.talk(p, m.npcId, typeof m.topic === 'string' ? m.topic : undefined);
       if (d) p.client.send(MSG.DIALOGUE, d);
@@ -1319,7 +1320,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     this.state.enemies.delete(e.id);
     this.fx({ kind: 'die', x: e.x, y: e.y, id: e.id, v: e.def.kind, w: weight });
     const killer = e.lastHitBy ? this.players.get(e.lastHitBy) : undefined;
-    if (killer) {
+    if (killer && !e.noRewards) {
       const xp = e.def.xp * (e.night ? 1.5 : 1) * (e.elite ? ELITE_XP_MULT : 1) * enemyScale(e.level).xp;
       this.giveXp(killer, Math.round(xp));
       const rolls = e.elite ? 2 : 1;
@@ -1354,7 +1355,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       this.bombs.push({ e, x: e.x, y: e.y, t: BOMB_FUSE });
       this.fx({ kind: 'bomb', x: e.x, y: e.y, v: BOMB_FUSE, w: BOMB_RADIUS, id: e.id });
     }
-    this.hookKilled(e, killer);
+    if (!e.noRewards) this.hookKilled(e, killer);
   }
 
   private stepBombs(): void {
@@ -1809,6 +1810,14 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     return false;
   }
   protected hookFire(_e: Enemy, _dx: number, _dy: number): void {}
+  guildClear?: (p: ServerPlayer, id: string) => void;
+  guildStart?: (
+    p: ServerPlayer,
+    id: string,
+    board: WorldObj,
+  ) => Promise<import('@eigenlands/shared').GuildJourney | null>;
+  guildInteract?: (p: ServerPlayer, o: WorldObj) => boolean;
+  guildTalk?: (p: ServerPlayer, id: string) => boolean;
   protected hookKilled(_e: Enemy, _killer: ServerPlayer | undefined): void {}
   protected hookIncomingDamage(_p: ServerPlayer, dmg: number, _e: Enemy): number {
     return dmg;

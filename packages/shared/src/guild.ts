@@ -176,3 +176,39 @@ export function guildBoard(t: Town): WorldObj | null {
   boardCache.set(t, null);
   return null;
 }
+
+const fittingCache = new WeakMap<Town, WorldObj[]>();
+/** Add one original registration desk only on free hall floor, away from stairs, doors and the board. */
+export function guildFurnishings(t: Town): WorldObj[] {
+  const cached = fittingCache.get(t);
+  if (cached) return cached;
+  const board = guildBoard(t),
+    result: WorldObj[] = [];
+  const b =
+    board && t.buildings.find((b) => board.x > b.x && board.y > b.y && board.x < b.x + b.w && board.y < b.y + b.h);
+  if (board && b)
+    for (let y = b.y + 1; y < b.y + b.h - 2 && !result.length; y++)
+      for (let x = b.x + 1; x < b.x + b.w - 1; x++) {
+        const floor = (x: number, y: number) => t.tiles.get(x - t.x0 + (y - t.y0) * (t.x1 - t.x0 + 1)) === T.FLOOR;
+        if (
+          !floor(x, y) ||
+          Math.hypot(x - board.x, y - board.y) < 2 ||
+          Math.hypot(x - b.doorX, y - b.doorY) < 3 ||
+          t.objects.some((o) => Math.hypot(o.x - x, o.y - y) < 1.5)
+        )
+          continue;
+        if (
+          [
+            [1, 0],
+            [-1, 0],
+            [0, 1],
+            [0, -1],
+          ].filter(([dx, dy]) => floor(x + dx!, y + dy!)).length < 3
+        )
+          continue;
+        result.push({ x, y, kind: 'deco', sub: 'guild_desk', static: true });
+        break;
+      }
+  fittingCache.set(t, result);
+  return result;
+}

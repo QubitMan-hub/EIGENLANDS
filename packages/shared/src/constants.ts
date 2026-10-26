@@ -28,10 +28,11 @@ export const SPRINT_MIN = 10;
 export const BOAT_SPEED_MULT = 1.55;
 /**
  * Riding (PlayerSim.mount, see mounts.ts): 1 horse, 2 Moonlit Stag, 3 griffin; 4-6 the same mounts well fed (10%
- * faster for a while). No dashing, sprinting or tools from the saddle.
+ * faster for a while); 7 a trained ranch Glimmerhart. No sprinting or tools from the saddle.
  */
-export const MOUNT_SPEED_MULT: readonly number[] = [1, 1.6, 1.85, 1.95, 1.76, 2.03, 2.15];
-/** Kept roads and paths speed travellers a little, and riders more. */
+export const MOUNT_SPEED_MULT: readonly number[] = [
+  1, 1.6, 1.85, 1.95, 1.76, 2.03, 2.15, 1.45,
+]; /** Kept roads and paths speed travellers a little, and riders more. */
 export const ROAD_MULT = 1.12;
 export const ROAD_MULT_MOUNTED = 1.2;
 export const PLAYER_RADIUS = 0.3;

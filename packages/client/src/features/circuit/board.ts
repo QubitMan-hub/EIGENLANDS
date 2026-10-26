@@ -63,6 +63,7 @@ import { formName, orbName, stabilityWord } from './text';
 export type BoardTab = 'board' | 'codex' | 'path' | 'guides';
 
 export interface BoardHost {
+  guildRank?: () => import('@eigenlands/shared').GuildRank | null;
   progress: Progress;
   level(): number;
   coins(): number;
@@ -745,6 +746,7 @@ export class BoardView {
         qubits: this.qubits,
         pending: this.pathPending,
         tutorialChoose: this.host.tutorialActive(),
+        guildRank: this.host.guildRank?.(),
       },
       {
         pick: (x) => {

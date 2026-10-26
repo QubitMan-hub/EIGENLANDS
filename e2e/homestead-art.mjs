@@ -14,21 +14,21 @@ const report = { panels: [], art: null };
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   page.on('pageerror', (e) => errors.push(e.message));
-  for (const panel of ['guild', 'husbandry'])
+  for (const panel of ['guild', 'husbandry', 'settlement'])
     for (const [width, height] of [
       [1280, 720],
       [844, 390],
     ]) {
       await page.setViewportSize({ width, height });
       await page.goto(new URL(`labs/uilab.html?panel=${panel}`, base).href);
-      await page.waitForSelector(panel === 'guild' ? '.guild-ledger' : '.herd-panel');
+      await page.waitForSelector(panel === 'husbandry' ? '.herd-panel' : '.guild-ledger');
       const layout = await page.evaluate(() => ({
         viewport: innerWidth,
         width: document.documentElement.scrollWidth,
         text: document.body.innerText,
       }));
       assert.ok(layout.width <= layout.viewport, `${panel} horizontal overflow`);
-      assert.ok(layout.text.includes(panel === 'guild' ? 'Mira' : 'Glimmerhart'));
+      assert.ok(layout.text.includes(panel === 'guild' ? 'Mira' : panel === 'husbandry' ? 'Glimmerhart' : 'Hamlet'));
       if (panel === 'guild') {
         await page.getByRole('button', { name: 'Rank requirements', exact: true }).click();
         await page.getByRole('heading', { name: 'The Sixfold Covenant', exact: true }).scrollIntoViewIfNeeded();
@@ -47,6 +47,7 @@ try {
       const { orchardCanvas } = await import('/src/art/orchards.ts');
       const { worldObjDef } = await import('/src/art/worldobjs.ts');
       document.body.innerHTML = '';
+
       document.body.style =
         'background:#263b35;color:#efe1be;display:flex;flex-wrap:wrap;gap:12px;padding:12px;overflow:auto;height:auto';
       document.documentElement.style = 'overflow:auto;height:auto';
@@ -72,8 +73,8 @@ try {
         if (!pixels || edge > 0) throw new Error(`${label} empty or cropped: ${pixels}/${edge}`);
       };
       for (const species of Object.keys(shared.LIVESTOCK))
-        for (const frame of [0, 1])
-          for (const facing of [0, 1]) {
+        for (const frame of [0, 1, 2, 3])
+          for (const facing of [0, 1, 2, 3]) {
             const c = livestockCanvas(species, frame, facing);
             bounds(c, species);
             if (frame === 0) add(species + ' · ' + facing, c);
@@ -122,11 +123,12 @@ try {
           catalog++;
         }
       }
-      for (const face of ['sw', 'se']) {
-        const d = worldObjDef({ x: 0, y: 0, kind: 'deco', sub: 'guild_board' }, face);
-        bounds(d.frames[0].tex.source.resource, 'guild board');
-        add('Guild board ' + face, d.frames[0].tex.source.resource);
-      }
+      for (const sub of ['guild_board', 'guild_desk', 'guild_clue'])
+        for (const face of ['sw', 'se']) {
+          const d = worldObjDef({ x: 0, y: 0, kind: 'deco', sub }, face);
+          bounds(d.frames[0].tex.source.resource, sub + face);
+          add(sub + ' ' + face, d.frames[0].tex.source.resource);
+        }
       const { itemIconUrl } = await import('/src/art/icons.ts');
       let icons = 0;
       for (const id of Object.keys(shared.ITEMS)) {

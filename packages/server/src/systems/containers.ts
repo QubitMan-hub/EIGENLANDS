@@ -252,6 +252,7 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
     p.toast('You rest and recover health and stamina. The shared world clock keeps running.', 'good');
     return;
   }
+  if (room.guildInteract?.(p, o)) return;
   if (o.kind === 'crop') {
     const d = cropOf(o);
     if (!d.dead && isRipe(d)) harvestCrop(room, p, o);

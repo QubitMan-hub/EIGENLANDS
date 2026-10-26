@@ -128,6 +128,8 @@ describe('mounts', () => {
     // a struck rider (any loss of health) is thrown
     p.sp.hp -= 1;
     await until(() => p.sp.sim.mount === 0, 2000);
+    // Server state changes before the websocket toast reaches the client.
+    await until(() => p.toasts.some((t) => /thrown/.test(t.text)), 2000);
     expect(p.toasts.some((t) => /thrown/.test(t.text))).toBe(true);
     // the Stag answers only a seasoned wayfarer
     dev(p, { cmd: 'give', id: 'stag_bell', n: 1 });
@@ -229,8 +231,14 @@ describe('griffin flight', () => {
     p.r.send(MSG.USE, { slot: slot(), tx: 0, ty: 0 });
     await until(() => p.toasts.some((t) => /nowhere to land/.test(t.text)), 2000);
     expect(p.sp.sim.mount).toBe(mountCode('griffin', false));
+    // Space (the ranch's dismount) over water does not drop you either
+    const toasts = p.toasts.length;
+    p.r.send('ranch', { action: 'dismount' });
+    await until(() => p.toasts.slice(toasts).some((t) => /nowhere to land/.test(t.text)), 2000);
+    expect(p.sp.sim.mount).toBe(mountCode('griffin', false));
     // a blow does not throw a flying rider
     p.sp.hp -= 1;
+    p.room.ranch.incomingDamage(p.sp, 1);
     await sleep(400);
     expect(p.sp.sim.mount).toBe(mountCode('griffin', false));
     // back over the bank: land

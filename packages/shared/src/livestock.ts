@@ -16,6 +16,7 @@ export interface FarmAnimal {
   born: number;
   happy: number;
   bred: number;
+  trained?: boolean;
 }
 export interface HerdData extends Record<string, unknown> {
   animals: number;
@@ -44,6 +45,7 @@ export function readHerd(raw: Record<string, unknown> | undefined, shelter: stri
         a && isLivestock(a.species) && shelterAccepts(a.species, shelter)
           ? [
               {
+                trained: a.trained === true,
                 id: bounded(a.id, 0, 0, 1e9),
                 species: a.species,
                 born: bounded(a.born, day - 8, -1e9, day),

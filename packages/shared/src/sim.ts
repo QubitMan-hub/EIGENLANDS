@@ -84,8 +84,8 @@ export interface PlayerSim {
   /** 1 while sprinting */
   sprint: number;
   /**
-   * 0 on foot; otherwise a mount code (mounts.ts): horse, Moonlit Stag or griffin, fed or not. Attacking or skills
-   * step a rider down first; a griffin rider cannot fight from the air at all.
+   * 0 on foot; otherwise a mount code (mounts.ts): horse, Moonlit Stag or griffin, fed or not, or a trained ranch
+   * Glimmerhart. Attacking, skills or dodging step a rider down first; a griffin rider cannot fight from the air.
    */
   mount: number;
 }
@@ -303,8 +303,10 @@ export function chargeLevel(charge: number): number {
 export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepEvents {
   const sailing = p.boat > 0 && !!land.sea;
   const flying = !sailing && isFlying(p.mount) && !!land.fly;
-  // nobody fights or dashes from a griffin's back: those inputs simply do nothing in the air
+  // nobody fights or dashes from a griffin's back: those inputs simply do nothing in the air;
+  // on the ground, attacking, casting or dodging steps a rider down first
   if (flying) cmd = { ...cmd, attack: false, hold: false, skill: false, dash: false };
+  else if (p.mount && (cmd.attack || cmd.skill || cmd.dash || cmd.hold)) p.mount = 0;
   const solid: SolidQuery = sailing ? land.sea! : flying ? land.fly! : land;
   const ev: StepEvents = {
     dashed: false,

@@ -1,3 +1,4 @@
+import { cozyTown } from './cozy-town';
 import { CAVE_TOWNS, CAVE_RESIDENTS } from './undercroft';
 import { furnish, type Town, type Building } from './town';
 import { objSolid } from './objects';
@@ -117,7 +118,7 @@ export function caveTowns(seed: number): Town[] {
       });
     else
       t.objects.push({ x: p.cx + 3, y: p.cy + 5, kind: 'deco', sub: 'cave_lift', data: { cave: `townlift:${p.id}` } });
-    return t;
+    return cozyTown(t);
   });
   if (cache.size >= 8) cache.clear();
   cache.set(seed, towns);

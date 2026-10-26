@@ -18,6 +18,14 @@ Next: the follow-ups listed under "Limits and what is not built" in LIVING_WORLD
 
 ---
 
+# Current continuation: cozy settlements and integrated travel/guilds (2026-10-26)
+
+Read [COZY_TOWNS.md](COZY_TOWNS.md) first, then [HOMESTEADS_AND_GUILD.md](HOMESTEADS_AND_GUILD.md), [TRAVEL.md](TRAVEL.md) and the [master plan](EIGENLANDS_MASTER_PLAN.md). Integrated incoming main through `4d0c9ac`, including caravans, bridges, ferry voyages, underground waystones and named/fed travel mounts; retained adaptive graphics, legibility and travel while preserving our authored horse/Glimmerhart sprites. One mount state/renderer now supports ranch and whistle/bell riding; spell RPCs dismount correctly. Generated town furniture follows contextual seating/road-edge/doorway rules across all settlement families. Roofs use calmer courses, regional color families, wood eaves and fixed porch lighting. Player-owned layouts and world revisions are preserved.
+
+The focused doc lists checks and real remaining limits, including observed capital-entry spikes under software rendering. No hardware FPS or lag-free network claim. Continue inline: no subagents, preserve this art on overlap, and keep broader unchecked master-plan ambitions honest.
+
+---
+
 # Current continuation: travel, legibility, performance and collision (2026-10-26)
 
 **Travel (§14).** Read [TRAVEL.md](TRAVEL.md).
@@ -54,11 +62,11 @@ Next:
 
 # Current continuation: homesteads, guilds and crafting integration (2026-10-26)
 
-Read [HOMESTEADS_AND_GUILD.md](HOMESTEADS_AND_GUILD.md) first. Integrated main's crafting expansion (`5bbd3cf`, #41), retained authored livestock/orchard/guild art and connected the new pens/products/tools. Perennial orchards, water-connected irrigation, individual husbandry with breeding/happiness, safe bed rest, physical guild boards, registration/cards, F–SSS proofs and a craftable player-hall board now extend the existing systems. All material/food/gear catalogs stay intact; catalog furniture gained raster padding to fix clipping. No world layout reset.
+# Current continuation: living guilds, settlement residents and riding (2026-10-26)
 
-Next: actual escort/rescue/investigation/diplomacy guild missions, guild staff/architecture, party-shared guild kill credit, livestock free roaming/mount riding and settlement governance. See the focused doc for exact boundaries and tests; the master checklist is not blanket complete.
+Read [HOMESTEADS_AND_GUILD.md](HOMESTEADS_AND_GUILD.md) for the implemented rules and boundaries, then [plans/2026-10-26-living-guilds.md](plans/2026-10-26-living-guilds.md) and [EIGENLANDS_MASTER_PLAN.md](EIGENLANDS_MASTER_PLAN.md) for broader scope. This batch adds surveyed escort/rescue routes, ordered physical investigation evidence with decisions, resource-backed diplomacy, four daily jobs, nearby party kill quest credit, original guild desks/standards/stewards, rank-B Wayguard specialization, owned housing/charters/resident services, calm authoritative livestock roaming and trained horse/Glimmerhart riding. Saved layouts, catalogs and prior authored art remain.
 
----
+Remaining **broader** ambitions: purpose-built guild-building prefabs rather than the civic annex, authored world-changing campaigns, deeper resident schedules/government, unrestricted pasture migration, individual bees, and real hardware/network play measurements. They are not marked complete by the focused implementation. No Render deployment changes in this batch.
 
 # Current continuation: crafting and food expansion (§9, 2026-10-26)
 

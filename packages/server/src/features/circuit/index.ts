@@ -1,3 +1,4 @@
+import { GUILD_RANKS, guildRank } from '@eigenlands/shared';
 /**
  * Phase 3 server: Circuit Board progression and class abilities.
  * Progress lives in `character_progress` (validated on load), the board is attuned and evaluated with the shared
@@ -294,7 +295,7 @@ export class CircuitModule implements Module, CircuitApi {
 
   incomingDamage(p: ServerPlayer, dmg: number, e: Enemy): number {
     if (!this.states.has(p.id)) return dmg;
-    return this.engine.incoming(p, dmg, e);
+    return this.engine.incoming(p, this.states.get(p.id)?.pr.spec === 'guild_warden' ? dmg * 0.94 : dmg, e);
   }
 
   killed(e: Enemy): void {
@@ -350,6 +351,7 @@ export class CircuitModule implements Module, CircuitApi {
     const now = Date.now();
     const free = ability === 'swap' && s.freeSwap && s.pr.cls === 'entangler' && s.pr.spec === 'paradox';
     if ((s.cd.get(ability) ?? 0) > now && !free) return fail('Not ready yet.');
+    p.sim.mount = 0; // Circuit abilities use their own RPC, rather than stepPlayer's legacy skill input.
 
     const tgt = this.target(p, m.target);
     const [ax, ay] = tgt ? this.toward(p, tgt) : this.aim(p, m.aimX, m.aimY);
@@ -413,6 +415,7 @@ export class CircuitModule implements Module, CircuitApi {
     const now = Date.now();
     if ((s.cd.get('ult') ?? 0) > now) return fail('Not ready yet.');
     if (s.res < RESOURCE_MAX - 1e-6) return fail(`${CLASSES[cls].resource.name} is not full yet.`);
+    p.sim.mount = 0;
     const tgt = this.target(p, m.target);
     const [ax, ay] = tgt ? this.toward(p, tgt) : this.aim(p, m.aimX, m.aimY);
     const secs = CLASSES[cls].ultimate.secs;
@@ -459,6 +462,10 @@ export class CircuitModule implements Module, CircuitApi {
       }
       const spec = CLASSES[pr.cls].specs.find((x) => x.id === m.spec);
       if (!spec) return;
+      if (spec.id === 'guild_warden' && GUILD_RANKS.indexOf(guildRank(p.data.quests) ?? 'F') < 4) {
+        p.toast('Wayguard requires guild rank B.', 'bad');
+        return;
+      }
       pr.spec = spec.id;
       p.toast(`Specialization: ${spec.name}.`, 'good');
       this.sendProgress(s, ['spec']);

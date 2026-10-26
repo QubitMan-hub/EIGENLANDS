@@ -339,7 +339,7 @@ export interface DialogueChoice {
 export interface QuestMsg {
   npcId: string;
   quest: string;
-  action: 'accept' | 'turnin';
+  action: 'accept' | 'turnin' | 'abandon';
   tx?: number;
   ty?: number;
 }
@@ -422,7 +422,7 @@ export interface ShelterMsg {
 }
 
 export interface PanelMsg {
-  kind: 'station' | 'chest' | 'shelter' | 'sign' | 'lore' | 'board' | 'guild' | 'travel';
+  kind: 'station' | 'chest' | 'shelter' | 'sign' | 'lore' | 'board' | 'guild' | 'journey' | 'settlement' | 'travel';
   tx: number;
   ty: number;
   sub: string;
@@ -446,6 +446,18 @@ export interface PanelMsg {
   sign?: string;
   /** reading the statue (and other lore objects) */
   lore?: { title: string; plaque: string; epitaph: string; pages: string[]; remark?: { npc: string; text: string } };
+  settlement?: import('./settlement').Charter & {
+    name: string;
+    homes: Array<{ x: number; y: number; valid: boolean; reason: string }>;
+  };
+  journey?: {
+    id: string;
+    title: string;
+    text: string;
+    choices: Array<{ id: string; label: string }>;
+    target?: { x: number; y: number };
+    hp: number;
+  };
   /** a waystone, realm gate or ferry post: where it can take you */
   travel?: import('./travel').TravelPanel;
   guild?: {
@@ -453,7 +465,14 @@ export interface PanelMsg {
     generation?: number;
     name: string;
     card: string;
-    contracts: Array<{ id: string; state: 'open' | 'locked' | 'active' | 'ready' | 'done'; progress: number[] }>;
+    owned?: boolean;
+    contracts: Array<{
+      id: string;
+      state: 'open' | 'locked' | 'active' | 'ready' | 'done';
+      progress: number[];
+      definition?: import('./quests').QuestDef;
+      journey?: import('./guild-contracts').GuildJourney;
+    }>;
   };
   /** the daily request board */
   board?: { day: number; requests: BoardRequest[] };

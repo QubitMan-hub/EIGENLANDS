@@ -779,3 +779,16 @@ button.primary {
 .win-body .small.bad {
   color: var(--ink-bad);
 }
+/* Quantities overlap both parchment and item pixels: a small opaque ink badge preserves readable numerals. */
+.win-body .cell .cnt {
+  background: var(--walnut);
+  color: var(--parch-hi);
+  padding: 1px 2px;
+  line-height: 1;
+}
+/* Element colour remains on the rim; the small glyph always sits on a dark instrument face. */
+.win-body .cb-root .cb-medal {
+  background: var(--walnut);
+  color: var(--parch-hi);
+  border-color: var(--ca, var(--brass));
+}
