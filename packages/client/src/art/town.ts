@@ -50,392 +50,519 @@ function make(
   return finish(canvas, ax, ay);
 }
 
+const QM_W = 120,
+  QM_H = 160;
 /** QubitMan himself, cast in painted bronze: a wide hat with a glowing teal plume, a heavy red scarf, a long dark coat
  * over a crimson waistcoat, white puffed sleeves, gold studs and a gold scroll case at the hip. Drawn in a 108x128 frame
  * with the feet at y=114, facing the viewer. */
 let qubitMan: HTMLCanvasElement | null = null;
 function drawStoneGuardian(ctx: Ctx): void {
   if (!qubitMan) {
-    const { canvas, ctx: c } = makeCanvas(108, 128);
-    // light falls from the upper left: ramps run light -> dark left to right, with an optional top-down term
-    const shade =
-      (ramp: Ramp, x0: number, x1: number, y0 = 0, y1 = 0, bias = 0) =>
-      (x: number, y: number) =>
+    const { canvas, ctx: c } = makeCanvas(QM_W, QM_H);
+    // light from the upper left: every ramp runs light -> dark across a shape, a little darker toward its foot
+    const fill = (pts: Array<[number, number]>, ramp: Ramp, bias = 0) => {
+      const xs = pts.map((p) => p[0]),
+        ys = pts.map((p) => p[1]);
+      const x0 = Math.min(...xs),
+        x1 = Math.max(...xs),
+        y0 = Math.min(...ys),
+        y1 = Math.max(...ys);
+      poly(c, pts, (x, y) =>
         rampAt(
           ramp,
           Math.max(
             0.04,
             Math.min(
               0.96,
-              0.8 + bias - ((x - x0) / Math.max(1, x1 - x0)) * 0.5 - (y1 > y0 ? ((y - y0) / (y1 - y0)) * 0.22 : 0),
+              0.78 + bias - ((x - x0) / Math.max(1, x1 - x0)) * 0.5 - ((y - y0) / Math.max(1, y1 - y0)) * 0.16,
             ),
           ),
           x,
           y,
-        );
-    const fill = (pts: Array<[number, number]>, ramp: Ramp, bias = 0, vertical = false) => {
-      const xs = pts.map((p) => p[0]),
-        ys = pts.map((p) => p[1]);
-      poly(
-        c,
-        pts,
-        shade(
-          ramp,
-          Math.min(...xs),
-          Math.max(...xs),
-          vertical ? Math.min(...ys) : 0,
-          vertical ? Math.max(...ys) : 0,
-          bias,
         ),
       );
     };
-    const COAT: Ramp = [C.ink, C.e0, C.e1, C.e2, C.e3];
-    const GREY: Ramp = [C.night, C.slate, C.e1, C.steel, C.mist];
-    const RED: Ramp = [C.c0, C.c1, C.c2, C.r3, C.c3];
-    const WHITE: Ramp = [C.steel, C.mist, C.fog, C.pale, C.white];
-    const NAVY: Ramp = [C.w0, C.w1, C.w2, C.b0];
+    const COAT: Ramp = [C.ink, C.night, C.e0, C.e1, C.e2];
+    const MANTLE: Ramp = [C.ink, C.e0, C.e1, C.e2, C.e3];
+    const TRIM: Ramp = [C.e2, C.e3, C.e4, C.e5];
+    const RED: Ramp = [C.c0, C.c0, C.c1, C.c2, C.r3];
+    const SCARF: Ramp = [C.c0, C.c1, C.c1, C.c2, C.r3];
+    const WHITE: Ramp = [C.mist, C.fog, C.pale, C.white, C.white];
+    const NAVY: Ramp = [C.ink, C.w0, C.w1, C.b0];
+    const BOOT: Ramp = [C.ink, C.e0, C.e1, C.r0];
     const SKIN: Ramp = [C.e2, C.e3, C.e4, C.e5, C.e6];
-    const GOLD: Ramp = [C.e3, C.c3, C.c4, C.e6, C.e7];
+    const HAIR: Ramp = [C.ink, C.night, C.e0, C.e1];
     const TEAL: Ramp = [C.t0, C.t1, C.t2, C.w6, C.q7];
-    const diamond = (x: number, y: number) => {
+    const gem = (x: number, y: number, big = false) => {
       put(c, x, y - 2, C.c4);
       put(c, x - 1, y - 1, C.c4, 3, 1);
       put(c, x - 2, y, C.c3, 5, 1);
-      put(c, x - 1, y + 1, C.c4, 3, 1);
-      put(c, x, y + 2, C.c3);
-      put(c, x, y, C.e7);
+      put(c, x - 1, y + 1, C.c3, 3, 1);
+      put(c, x, y + 2, C.e3);
+      put(c, x - 1, y, C.e7, 2, 1);
+      if (big) {
+        put(c, x - 3, y, C.c3);
+        put(c, x + 3, y, C.e3);
+      }
+    };
+    const edge = (pts: Array<[number, number]>, col: number) => {
+      for (let i = 0; i < pts.length - 1; i++) line(c, pts[i]![0], pts[i]![1], pts[i + 1]![0], pts[i + 1]![1], col);
     };
 
-    // ── the long coat behind everything: wide at the shoulder, tight at the waist, flaring to the knee
+    // ── coat tails behind the legs, flaring out to points at both sides
     fill(
       [
-        [30, 34],
-        [78, 34],
-        [70, 62],
-        [82, 96],
-        [26, 96],
-        [38, 62],
+        [38, 60],
+        [82, 60],
+        [86, 96],
+        [100, 140],
+        [86, 146],
+        [60, 140],
+        [34, 146],
+        [20, 140],
+        [34, 96],
+      ],
+      COAT,
+      -0.08,
+    );
+    edge(
+      [
+        [34, 96],
+        [20, 140],
+        [34, 146],
+      ],
+      C.e3,
+    );
+    edge(
+      [
+        [86, 96],
+        [100, 140],
+        [86, 146],
+      ],
+      C.e2,
+    );
+    gem(30, 138);
+    gem(92, 138);
+    // ── navy trousers into heavy boots with turned-down cuffs and gold knee plates; toes turned out
+    fill(
+      [
+        [48, 100],
+        [59, 100],
+        [58, 132],
+        [47, 132],
+      ],
+      NAVY,
+      0.05,
+    );
+    fill(
+      [
+        [62, 100],
+        [73, 100],
+        [74, 132],
+        [63, 132],
+      ],
+      NAVY,
+      -0.1,
+    );
+    fill(
+      [
+        [44, 128],
+        [60, 128],
+        [60, 148],
+        [58, 154],
+        [38, 156],
+        [34, 152],
+        [44, 146],
+      ],
+      BOOT,
+      0.05,
+    );
+    fill(
+      [
+        [61, 128],
+        [77, 128],
+        [77, 146],
+        [88, 152],
+        [84, 156],
+        [64, 154],
+        [61, 148],
+      ],
+      BOOT,
+      -0.1,
+    );
+    fill(
+      [
+        [43, 126],
+        [61, 126],
+        [61, 131],
+        [43, 131],
+      ],
+      [C.e0, C.e1, C.e2, C.e3],
+    );
+    fill(
+      [
+        [60, 126],
+        [78, 126],
+        [78, 131],
+        [60, 131],
+      ],
+      [C.e0, C.e1, C.e2, C.e2],
+    );
+    gem(52, 136, true);
+    gem(69, 136, true);
+    line(c, 38, 155, 58, 153, C.e1);
+    line(c, 64, 153, 84, 155, C.e0);
+    // ── the long crimson tabard falling from the belt to a point at the knee, edged in tan
+    fill(
+      [
+        [49, 90],
+        [72, 90],
+        [70, 112],
+        [61, 124],
+        [51, 112],
+      ],
+      RED,
+      0.04,
+    );
+    edge(
+      [
+        [49, 92],
+        [51, 112],
+        [61, 124],
+        [70, 112],
+        [72, 92],
+      ],
+      C.e4,
+    );
+    line(c, 61, 94, 61, 121, C.c0);
+    // ── coat fronts: heavy dark panels from the waist, tan piping, a gold plate at each lower corner
+    fill(
+      [
+        [36, 62],
+        [48, 66],
+        [49, 92],
+        [46, 120],
+        [40, 132],
+        [30, 128],
+        [34, 96],
+      ],
+      COAT,
+      0.08,
+    );
+    fill(
+      [
+        [73, 66],
+        [84, 62],
+        [86, 96],
+        [90, 128],
+        [80, 132],
+        [74, 120],
+        [72, 92],
       ],
       COAT,
       -0.12,
-      true,
     );
-    // ── legs: navy trousers into tall black boots with pointed toes and gold ankle plates
-    fill(
+    edge(
       [
-        [43, 70],
-        [53, 70],
-        [52, 104],
-        [42, 104],
+        [48, 66],
+        [49, 92],
+        [46, 120],
+        [40, 132],
       ],
-      NAVY,
+      C.e5,
     );
-    fill(
+    edge(
       [
-        [55, 70],
-        [65, 70],
-        [67, 102],
-        [56, 104],
+        [73, 66],
+        [72, 92],
+        [74, 120],
+        [80, 132],
       ],
-      NAVY,
-      -0.1,
+      C.e3,
     );
+    gem(42, 126);
+    gem(79, 126);
+    // ── the crimson waistcoat with a darker centre seam
     fill(
       [
-        [40, 92],
-        [53, 92],
-        [54, 108],
-        [50, 115],
-        [32, 116],
-        [38, 106],
-      ],
-      [C.ink, C.e0, C.e1, C.e2],
-      0,
-      true,
-    );
-    fill(
-      [
-        [56, 92],
-        [69, 92],
-        [71, 106],
-        [78, 116],
-        [60, 115],
-        [55, 108],
-      ],
-      [C.ink, C.e0, C.e1, C.e2],
-      -0.1,
-      true,
-    );
-    line(c, 41, 95, 52, 94, C.e3);
-    line(c, 57, 94, 68, 95, C.e2);
-    diamond(44, 104);
-    diamond(66, 104);
-    // ── the red waistcoat, long and open, with tan piping and a darker centre seam
-    fill(
-      [
-        [46, 32],
-        [62, 32],
-        [62, 62],
-        [66, 94],
-        [42, 94],
-        [46, 62],
+        [47, 50],
+        [73, 50],
+        [74, 90],
+        [47, 90],
       ],
       RED,
       0.06,
-      true,
     );
-    line(c, 54, 38, 54, 92, C.c0);
-    line(c, 46, 34, 46, 62, C.e4);
-    line(c, 62, 34, 62, 62, C.e3);
-    // ── coat fronts: heavy panels folding back from the waist, edged in tan, the left one lit
-    fill(
-      [
-        [33, 50],
-        [45, 56],
-        [47, 66],
-        [43, 98],
-        [24, 99],
-      ],
-      COAT,
-      0.1,
-      true,
-    );
-    fill(
-      [
-        [63, 56],
-        [75, 50],
-        [84, 99],
-        [65, 98],
-        [62, 66],
-      ],
-      COAT,
-      -0.1,
-      true,
-    );
-    line(c, 45, 58, 43, 96, C.e5);
-    line(c, 46, 58, 44, 96, C.e3);
-    line(c, 63, 58, 65, 96, C.e3);
-    line(c, 24, 98, 33, 52, C.e4);
-    line(c, 84, 98, 75, 52, C.e2);
+    line(c, 60, 56, 60, 89, C.c0);
+    line(c, 48, 52, 48, 88, C.e3);
+    line(c, 72, 52, 73, 88, C.e2);
     // ── belt and buckle
     fill(
       [
-        [40, 60],
-        [68, 60],
-        [68, 65],
-        [40, 65],
+        [44, 84],
+        [77, 84],
+        [77, 90],
+        [44, 90],
       ],
       [C.ink, C.e0, C.e1, C.e2],
     );
-    line(c, 40, 60, 68, 60, C.e3);
-    put(c, 52, 60, C.c4, 5, 5);
-    put(c, 53, 61, C.e7, 3, 3);
-    put(c, 54, 62, C.c3);
-    // ── the gold scroll case hanging at the left hip, two rolls strapped together
+    line(c, 44, 84, 77, 84, C.e3);
+    put(c, 57, 84, C.c4, 7, 6);
+    put(c, 58, 85, C.e7, 5, 1);
+    put(c, 59, 86, C.e1, 3, 3);
+    // ── two gold coins hanging from a cord at the right hip (viewer's left), glinting
+    line(c, 46, 88, 42, 96, C.e4);
+    blob(c, 40, 100, 4.6, 4.6, [C.e3, C.c3, C.c4, C.e6, C.e7], { seed: 3, noise: 0, bright: 0.1, edgeDark: 0.3 });
+    blob(c, 43, 110, 4.6, 4.6, [C.e3, C.c3, C.c4, C.e6, C.e7], { seed: 4, noise: 0, bright: 0, edgeDark: 0.3 });
+    for (const [x, y] of [
+      [40, 100],
+      [43, 110],
+    ] as const) {
+      put(c, x - 1, y - 2, C.e3, 3, 1);
+      put(c, x - 2, y - 1, C.e3);
+      put(c, x + 2, y + 1, C.e3);
+      put(c, x - 1, y + 2, C.e3, 3, 1);
+      put(c, x - 1, y - 1, C.e7);
+    }
+    // ── long arms: white upper sleeves, dark bracers with gold bands, bare hands hanging at the thigh
     fill(
       [
-        [25, 64],
-        [43, 67],
-        [42, 74],
-        [24, 71],
+        [26, 58],
+        [40, 56],
+        [42, 82],
+        [27, 84],
       ],
-      GOLD,
+      WHITE,
+      0.1,
     );
     fill(
       [
-        [26, 72],
-        [44, 75],
-        [43, 81],
-        [25, 78],
+        [80, 56],
+        [94, 58],
+        [93, 84],
+        [78, 82],
       ],
-      GOLD,
-      -0.14,
+      WHITE,
+      -0.12,
     );
-    line(c, 25, 65, 42, 68, C.e7);
-    line(c, 26, 73, 43, 76, C.e6);
-    blob(c, 24, 70, 2.2, 3.2, GOLD, { seed: 3, noise: 0, edgeDark: 0.25 });
-    blob(c, 25, 77, 2.2, 3, GOLD, { seed: 4, noise: 0, edgeDark: 0.25 });
-    line(c, 33, 66, 33, 80, C.e2);
-    // ── broad shoulder mantle in grey-brown with a tan border, gold diamonds, then the white puffed sleeves
+    line(c, 33, 62, 34, 80, C.fog);
+    line(c, 87, 62, 86, 80, C.mist);
     fill(
       [
-        [24, 40],
-        [42, 30],
-        [49, 35],
-        [47, 47],
-        [27, 51],
+        [25, 82],
+        [40, 80],
+        [39, 104],
+        [26, 104],
       ],
-      GREY,
-      0.12,
-      true,
+      MANTLE,
+      0.1,
     );
     fill(
       [
-        [59, 35],
-        [66, 30],
-        [84, 40],
-        [81, 51],
-        [61, 47],
+        [80, 80],
+        [95, 82],
+        [94, 104],
+        [81, 104],
       ],
-      GREY,
-      -0.1,
-      true,
+      MANTLE,
+      -0.12,
     );
-    line(c, 24, 41, 42, 31, C.e5);
-    line(c, 66, 31, 84, 41, C.e4);
-    line(c, 27, 51, 47, 47, C.e3);
-    line(c, 61, 47, 81, 51, C.e2);
-    diamond(31, 45);
-    diamond(77, 45);
-    blob(c, 28, 56, 6, 7, WHITE, { seed: 4, noise: 0.04, bright: 0.12, edgeDark: 0.2 });
-    blob(c, 80, 56, 6, 7, WHITE, { seed: 5, noise: 0.04, bright: -0.08, edgeDark: 0.22 });
-    // ── forearms in dark bracers with gold studs, bare hands
+    for (const y of [84, 101]) {
+      line(c, 25, y, 40, y - 1, C.e4);
+      line(c, 80, y - 1, 95, y, C.e3);
+    }
+    gem(32, 92);
+    gem(88, 92);
     fill(
       [
-        [22, 60],
-        [33, 60],
-        [32, 78],
-        [23, 78],
-      ],
-      GREY,
-      0.08,
-      true,
-    );
-    fill(
-      [
-        [75, 60],
-        [86, 60],
-        [85, 78],
-        [76, 78],
-      ],
-      GREY,
-      -0.1,
-      true,
-    );
-    line(c, 22, 62, 33, 62, C.e5);
-    line(c, 75, 62, 86, 62, C.e4);
-    diamond(27, 70);
-    diamond(81, 70);
-    blob(c, 27, 82, 3, 3.6, SKIN, { seed: 7, noise: 0.04, edgeDark: 0.22 });
-    blob(c, 81, 82, 3, 3.6, SKIN, { seed: 8, noise: 0.04, edgeDark: 0.22 });
-    // ── the great scarf: two fat coils at the neck, one long tail down the chest
-    blob(c, 54, 35, 19, 6.5, RED, { seed: 9, noise: 0.08, bright: 0.04, edgeDark: 0.22 });
-    blob(c, 54, 32, 13, 5.5, RED, { seed: 10, noise: 0.08, bright: 0.18, edgeDark: 0.2 });
-    fill(
-      [
-        [40, 36],
-        [50, 38],
-        [48, 66],
-        [39, 62],
-      ],
-      RED,
-      0.12,
-      true,
-    );
-    line(c, 44, 40, 43, 62, C.c0);
-    line(c, 41, 38, 41, 58, C.c3);
-    put(c, 38, 64, C.c4, 7, 1);
-    put(c, 38, 65, C.c0, 7, 1);
-    // ── head: lean jaw, dark swept hair, brows, eyes, nose and a calm mouth
-    fill(
-      [
-        [46, 18],
-        [62, 18],
-        [61, 29],
-        [57, 33],
-        [51, 33],
-        [47, 29],
+        [27, 104],
+        [38, 104],
+        [39, 112],
+        [35, 117],
+        [29, 116],
+        [26, 110],
       ],
       SKIN,
       0.1,
     );
     fill(
       [
-        [45, 15],
-        [49, 17],
-        [48, 27],
-        [45, 23],
+        [82, 104],
+        [93, 104],
+        [94, 110],
+        [91, 116],
+        [85, 117],
+        [81, 112],
       ],
-      [C.ink, C.e0, C.e1],
+      SKIN,
+      -0.1,
+    );
+    line(c, 30, 112, 30, 116, C.e2);
+    line(c, 33, 113, 33, 117, C.e2);
+    line(c, 87, 112, 87, 116, C.e2);
+    line(c, 90, 113, 90, 116, C.e2);
+    // ── broad shoulder mantle draping into points over the upper arms, tan-edged, with gold studs
+    fill(
+      [
+        [22, 52],
+        [46, 40],
+        [54, 46],
+        [50, 60],
+        [40, 62],
+        [24, 66],
+      ],
+      MANTLE,
+      0.12,
     );
     fill(
       [
-        [63, 15],
-        [63, 23],
-        [60, 27],
-        [59, 17],
+        [66, 46],
+        [74, 40],
+        [98, 52],
+        [96, 66],
+        [80, 62],
+        [70, 60],
       ],
-      [C.ink, C.e0, C.e1],
+      MANTLE,
+      -0.12,
     );
-    put(c, 48, 22, C.e1, 4, 1);
-    put(c, 56, 22, C.e1, 4, 1);
-    put(c, 49, 24, C.ink, 3, 1);
-    put(c, 57, 24, C.ink, 3, 1);
-    put(c, 50, 24, C.white);
-    put(c, 58, 24, C.white);
-    put(c, 53, 25, C.e3, 2, 4);
-    put(c, 52, 29, C.e2, 4, 1);
-    line(c, 51, 31, 57, 31, C.e1);
-    // ── tricorn: broad brim dipping at the right, lifted at the left, a tall crown and a tan band
+    edge(
+      [
+        [22, 52],
+        [24, 66],
+        [40, 62],
+        [50, 60],
+      ],
+      C.e4,
+    );
+    edge(
+      [
+        [98, 52],
+        [96, 66],
+        [80, 62],
+        [70, 60],
+      ],
+      C.e3,
+    );
+    line(c, 23, 52, 46, 41, C.e3);
+    line(c, 74, 41, 97, 52, C.e2);
+    gem(30, 58);
+    gem(90, 58);
+    // ── the great scarf: a heavy coil at the throat and one long end down the chest
+    blob(c, 60, 46, 20, 7.5, SCARF, { seed: 9, noise: 0.08, bright: 0.02, edgeDark: 0.25 });
+    blob(c, 59, 42, 15, 6, SCARF, { seed: 10, noise: 0.08, bright: 0.14, edgeDark: 0.22 });
     fill(
       [
-        [28, 17],
-        [40, 12],
-        [54, 15],
-        [72, 11],
-        [82, 16],
-        [72, 22],
-        [54, 22],
-        [40, 21],
+        [46, 46],
+        [57, 49],
+        [56, 78],
+        [50, 82],
+        [45, 74],
       ],
-      [C.ink, C.e0, C.e1, C.e2],
-      0,
-      true,
+      SCARF,
+      0.12,
     );
-    line(c, 30, 17, 40, 13, C.e2);
-    line(c, 56, 15, 72, 12, C.e1);
+    line(c, 51, 52, 50, 78, C.c0);
+    line(c, 47, 50, 46, 72, C.r3);
+    for (let i = 0; i < 4; i++) put(c, 46 + i * 3, 80 + (i % 2), C.c0, 1, 3);
+    // a tan star brooch at the breastbone
+    put(c, 64, 54, C.e5, 1, 7);
+    put(c, 61, 57, C.e5, 7, 1);
+    put(c, 63, 56, C.e6, 3, 3);
+    put(c, 64, 57, C.e7);
+    // ── head: long face, square jaw, black hair swept off the brow, dark eyes, straight nose, a faint smile
     fill(
       [
-        [44, 16],
-        [45, 3],
-        [54, 1],
-        [63, 3],
-        [65, 16],
+        [51, 22],
+        [69, 22],
+        [69, 34],
+        [65, 41],
+        [56, 41],
+        [51, 34],
       ],
-      [C.ink, C.e0, C.e1, C.e2],
-      0.06,
-      true,
+      SKIN,
+      0.12,
     );
-    line(c, 44, 15, 65, 15, C.e4);
-    line(c, 45, 16, 64, 16, C.e3);
-    put(c, 48, 14, C.c4, 3, 2);
-    line(c, 47, 4, 54, 2, C.e2);
-    line(c, 54, 2, 62, 4, C.e2);
-    // ── the teal plume sweeping up and back from the hat
     fill(
       [
-        [44, 8],
-        [34, -1],
-        [22, -6],
-        [18, 1],
-        [28, 8],
-        [38, 14],
+        [49, 18],
+        [56, 20],
+        [53, 30],
+        [50, 36],
+        [48, 28],
       ],
-      TEAL,
+      HAIR,
       0.1,
     );
     fill(
       [
-        [40, 8],
-        [30, 3],
-        [21, -3],
-        [25, 4],
-        [33, 10],
+        [63, 20],
+        [71, 18],
+        [72, 28],
+        [70, 36],
+        [68, 26],
       ],
-      [C.w3, C.t2, C.w6, C.q7],
+      HAIR,
+      -0.05,
     );
-    line(c, 44, 8, 20, -5, C.white);
-    line(c, 38, 10, 27, 4, C.w7);
+    fill(
+      [
+        [51, 21],
+        [62, 20],
+        [56, 25],
+        [52, 26],
+      ],
+      HAIR,
+      0.1,
+    );
+    put(c, 54, 27, C.e1, 4, 1);
+    put(c, 62, 27, C.e1, 4, 1);
+    put(c, 55, 29, C.ink, 2, 2);
+    put(c, 63, 29, C.ink, 2, 2);
+    put(c, 55, 29, C.pale);
+    put(c, 63, 29, C.pale);
+    put(c, 59, 29, C.e3, 2, 5);
+    put(c, 58, 34, C.e2, 4, 1);
+    line(c, 56, 37, 63, 37, C.e1);
+    put(c, 63, 36, C.e1);
+    line(c, 66, 32, 66, 38, C.e3);
+    // ── wide hat: brim swept up at the left and dipping at the right, a dented crown and a tan band
+    fill(
+      [
+        [34, 22],
+        [44, 15],
+        [60, 17],
+        [80, 12],
+        [90, 17],
+        [80, 23],
+        [60, 24],
+        [44, 25],
+      ],
+      [C.ink, C.night, C.e0, C.e1],
+      0.04,
+    );
+    line(c, 36, 22, 44, 16, C.e2);
+    line(c, 62, 17, 80, 13, C.e1);
+    fill(
+      [
+        [49, 18],
+        [50, 4],
+        [58, 7],
+        [64, 2],
+        [72, 5],
+        [73, 18],
+      ],
+      [C.ink, C.night, C.e0, C.e1],
+      0.08,
+    );
+    line(c, 49, 17, 73, 17, C.e4);
+    line(c, 50, 18, 73, 18, C.e3);
+    put(c, 52, 16, C.c4, 2, 2);
+    // ── a soft glowing teal plume rising behind the crown at the left
+    blob(c, 44, 8, 8, 6.5, TEAL, { seed: 13, noise: 0.15, bright: 0.2, edgeDark: 0.1 });
+    blob(c, 38, 3, 6, 5, TEAL, { seed: 14, noise: 0.18, bright: 0.3, edgeDark: 0.08 });
+    blob(c, 48, 12, 5, 4, TEAL, { seed: 15, noise: 0.15, bright: 0, edgeDark: 0.15 });
+    line(c, 50, 13, 37, 2, C.w7);
     qubitMan = canvas;
   }
   ctx.drawImage(qubitMan, 0, 0);
@@ -445,11 +572,11 @@ function drawStoneGuardian(ctx: Ctx): void {
 function statueFrame(f: number): ObjSprite {
   // A projected stone plinth and a sculpted hero, both seated on the same ground plane.
   const W = 156,
-    H = 240,
+    H = 290,
     AX = 78,
-    AY = 202; // retain ground anchor, leave room under the lowest plinth edge
-  const FX = AX - 52,
-    FY = AY - PLINTH.top - 112; // figure offset (feet at y≈112 in its own frame)
+    AY = 252; // retain ground anchor, leave room under the lowest plinth edge
+  const FX = AX - QM_W / 2,
+    FY = AY - PLINTH.top - 152; // figure offset (feet at y≈152 in its own frame)
   const brazier = (ctx: Ctx, u: number, v: number) => {
     const I = new Iso(ctx, AX, AY - 8);
     I.cyl(u, v, PLINTH.z2, 2.6, 1.2, BRONZE, BRONZE);
