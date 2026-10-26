@@ -90,9 +90,17 @@ export class ArmyModule implements Module {
     for (const p of this.room.players.values()) l = Math.max(l, p.level);
     return l;
   }
-  private routeOf(site: RealmSite, phase: number): Array<[number, number]> {
-    const a = Math.min(Math.floor(site.w / 2) - 14, site.kind === 'capital' ? 92 : 30),
-      b = Math.min(Math.floor(site.h / 2) - 14, site.kind === 'capital' ? 70 : 24);
+  private routeOf(site: RealmSite, phase: number, inner = false): Array<[number, number]> {
+    const a = inner
+        ? site.kind === 'capital'
+          ? 26
+          : 16
+        : Math.min(Math.floor(site.w / 2) - 14, site.kind === 'capital' ? 92 : 30),
+      b = inner
+        ? site.kind === 'capital'
+          ? 14
+          : 9
+        : Math.min(Math.floor(site.h / 2) - 14, site.kind === 'capital' ? 70 : 24);
     const pts: Array<[number, number]> = [
       [site.cx - a, site.cy - b],
       [site.cx, site.cy - b],
@@ -123,7 +131,7 @@ export class ArmyModule implements Module {
     if (this.units.size >= MAX_UNITS) return null;
     const cls = ARMY_CLASSES[clsIndex]!;
     const en = createEnemy(armyKey(site.realm, cls), 0, 0, false, { level: Math.max(1, this.maxLevel() - 1) });
-    const route = this.routeOf(site, Math.floor(this.room.rand() * 8));
+    const route = this.routeOf(site, Math.floor(this.room.rand() * 8), clsIndex % 2 === 0 || site.kind === 'village');
     const start = at ?? this.freeSpot(route[0]![0], route[0]![1], 3);
     en.x = start[0];
     en.y = start[1];
@@ -449,18 +457,38 @@ export class ArmyModule implements Module {
           : def.names.seaward[site.ring as 'n'];
   }
 
+  private marchPaths = new Map<string, { path: Array<[number, number]>; at: number }>();
   private marchRaiders(r: ActiveRaid, dt: number): void {
     const solid = this.room.store.solidAt;
+    let planned = 0;
     for (const id of r.ids) {
       const e = this.room.enemies.get(id);
       if (!e || e.hp <= 0) continue;
       if (e.mode === 'windup' || e.mode === 'charge' || e.mode === 'leap' || e.mode === 'stagger') continue;
       // anything worth fighting nearby: players and the garrison are handled by the enemy AI itself
       if (e.targetId) continue;
-      const dx = r.goal.x - e.x,
-        dy = r.goal.y - e.y,
+      let gx = r.goal.x,
+        gy = r.goal.y;
+      if (!lineOfSight(solid, e.x, e.y, gx, gy)) {
+        let m = this.marchPaths.get(id);
+        if ((!m || this.t >= m.at) && planned < 1) {
+          planned++;
+          m = {
+            path: findPath(Math.floor(e.x), Math.floor(e.y), Math.floor(gx), Math.floor(gy), solid, 6000) ?? [],
+            at: this.t + 4,
+          };
+          this.marchPaths.set(id, m);
+        }
+        while (m?.path.length && Math.hypot(m.path[0]![0] + 0.5 - e.x, m.path[0]![1] + 0.5 - e.y) < 0.4) m.path.shift();
+        if (m?.path.length) {
+          gx = m.path[0]![0] + 0.5;
+          gy = m.path[0]![1] + 0.5;
+        }
+      }
+      const dx = gx - e.x,
+        dy = gy - e.y,
         d = Math.hypot(dx, dy);
-      if (d < 3) continue;
+      if (Math.hypot(r.goal.x - e.x, r.goal.y - e.y) < 3) continue;
       const step = e.def.speed * 0.8 * dt;
       moveBody(e, (dx / d) * step, (dy / d) * step, e.def.radius, solid);
       e.state.faceX = dx / d;
