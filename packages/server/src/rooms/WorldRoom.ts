@@ -940,6 +940,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     s.look = lookOf(p);
     s.app = p.data.appearance ?? 0;
     s.cart = p.sim.cart > 0;
+    s.mount = p.sim.mount;
     s.weapon = this.weaponOf(p)?.id ?? '';
     s.held = ITEMS[p.data.inv[p.heldSlot]?.id ?? '']?.tool?.type ?? '';
     p.client.send(MSG.ACK, encodeAck({ seq: p.lastSeq, tick, sim: p.sim }));

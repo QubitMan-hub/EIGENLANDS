@@ -1208,6 +1208,18 @@ r(
   'start',
   'Planks, sailcloth and iron fittings: a hull that rides the swell.',
 );
+r(
+  'recall_shard',
+  'workbench',
+  [
+    ['stone', 4],
+    ['qubit_crystal', 1],
+  ],
+  ['recall_shard', 2],
+  14,
+  'discover',
+  'Chip a waystone splinter around a crystal heart. Learned by attuning three waystones.',
+);
 r('heart_crystal', 'hand', [['shrine_shard', 4]], ['heart_crystal', 1], 20, 'start', 'Four solved shrines, fused.');
 r(
   'slime_crown',

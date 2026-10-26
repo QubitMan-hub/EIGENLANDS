@@ -12,6 +12,7 @@ import type { SolidQuery } from './sim';
 import { objSolid, propFootprint, type WorldObj } from './objects';
 import { townsFor } from './town';
 import { ruinObjectsIn } from './ruins';
+import { waystoneObjectsIn } from './travel';
 import { caveObjectsIn, isCaveY } from './caves';
 import { shrineObjectsIn } from './shrines';
 
@@ -184,6 +185,8 @@ export class ChunkStore {
         })
         .filter((o) => chunkOf(o.x) === cx && chunkOf(o.y) === cy)
         .map((o) => ({ ...o, static: true })),
+      // waystones, realm gates and ferry posts (settlement and wild); they stand on surface ground only
+      ...waystoneObjectsIn(this.seed, cx, cy, this.generation),
     ];
     const wild = isCaveY(cy * CHUNK_SIZE)
       ? [...caveObjectsIn(this.seed, cx, cy, this.generation), ...shrineObjectsIn(this.seed, cx, cy)]
@@ -258,6 +261,7 @@ export class ChunkStore {
     {
       sea: (x: number, y: number): boolean => this.seaSolidAt(x, y),
       level: (x: number, y: number): number => this.levelAt(x, y),
+      road: (x: number, y: number): boolean => this.getTile(x, y) === T.PATH,
       mine: (x: number, y: number) =>
         this.generation >= 4 ? mineLineAt(this.seed, x, y) : mineLoopAt(this.seed, x, y),
     },

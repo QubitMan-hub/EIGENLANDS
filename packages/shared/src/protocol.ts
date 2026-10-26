@@ -116,6 +116,7 @@ export type FxKind =
   | 'slam' // wall slam (id = enemy, v = bonus damage)
   | 'orb' // an enemy fired an orb (id = enemy, dx/dy direction)
   | 'reflect' // a player batted an orb back (id = player)
+  | 'warp' // waystone travel: v 0 channel begins, 2 vanishes here, 1 arrives here (id = player)
   | 'blast' // an area attack went off (v = radius)
   | 'bomb' // a volatile elite is about to burst (v = fuse s, w = radius)
   | 'crash' // a charging brute hit a wall (id = enemy)
@@ -417,7 +418,7 @@ export interface ShelterMsg {
 }
 
 export interface PanelMsg {
-  kind: 'station' | 'chest' | 'shelter' | 'sign' | 'lore' | 'board' | 'guild';
+  kind: 'station' | 'chest' | 'shelter' | 'sign' | 'lore' | 'board' | 'guild' | 'travel';
   tx: number;
   ty: number;
   sub: string;
@@ -441,6 +442,8 @@ export interface PanelMsg {
   sign?: string;
   /** reading the statue (and other lore objects) */
   lore?: { title: string; plaque: string; epitaph: string; pages: string[]; remark?: { npc: string; text: string } };
+  /** a waystone, realm gate or ferry post: where it can take you */
+  travel?: import('./travel').TravelPanel;
   guild?: {
     rank: import('./guild').GuildRank | null;
     generation?: number;
@@ -506,6 +509,7 @@ export const ACK_FIELDS = [
   'stamina',
   'staminaT',
   'sprint',
+  'mount',
 ] as const satisfies ReadonlyArray<keyof PlayerSim>;
 export const ACK_BYTES = 8 + ACK_FIELDS.length * 4;
 export interface Ack {
@@ -535,6 +539,7 @@ export function decodeAck(buf: Uint8Array): Ack {
   sim.hold = Math.round(sim.hold);
   sim.boat = Math.round(sim.boat);
   sim.sprint = Math.round(sim.sprint);
+  sim.mount = Math.round(sim.mount);
   return { seq: dv.getUint32(0, true), tick: dv.getUint32(4, true), sim };
 }
 

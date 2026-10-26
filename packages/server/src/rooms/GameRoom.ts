@@ -42,6 +42,7 @@ import { SailingModule } from '../features/sailing';
 import { ArmyModule } from '../features/armies';
 import { VoiceModule } from '../features/voice';
 import { ShrineModule } from '../features/shrines';
+import { TravelModule } from '../features/travel';
 import { SocialModule } from '../features/social';
 import type { BucketName, Carry, JoinOpts, Module, Registrar } from '../features/types';
 import type { VillageHost, VillageSystem } from '../systems/types';
@@ -83,6 +84,7 @@ export class GameRoom extends WorldRoom {
   bosses!: BossModule;
   caves!: CaveModule;
   shrines!: ShrineModule;
+  travel!: TravelModule;
   shardMod!: ShardModule;
   private modules: Module[] = [];
   private buckets = new Map<string, Map<BucketName, TokenBucket>>();
@@ -124,6 +126,7 @@ export class GameRoom extends WorldRoom {
     this.bosses = new BossModule(this);
     this.shrines = new ShrineModule(this);
     this.caves = new CaveModule(this);
+    this.travel = new TravelModule(this);
     this.modules = [
       this.shardMod,
       this.circuit,
@@ -133,6 +136,7 @@ export class GameRoom extends WorldRoom {
       this.caves,
       this.shrines,
       this.sailing,
+      this.travel,
       this.army,
       this.voice,
     ];
@@ -422,6 +426,15 @@ export class GameRoom extends WorldRoom {
   }
   shrineInteract(p: ServerPlayer, o: WorldObj): void {
     this.shrines?.interact(p, o);
+  }
+  travelInteract(p: ServerPlayer, o: WorldObj): void {
+    this.travel?.interact(p, o);
+  }
+  recall(p: ServerPlayer, slot: number): void {
+    this.travel?.recall(p, slot);
+  }
+  toggleMount(p: ServerPlayer, kind: string): void {
+    this.travel?.toggleMount(p, kind);
   }
 
   protected hookTargets(): Array<{ id: string; x: number; y: number; alive: boolean }> {

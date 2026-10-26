@@ -154,6 +154,8 @@ interface Snap extends Pose {
   weapon: string;
   held: string;
   cart: boolean;
+  /** riding: 0 on foot, 1 horse, 2 Moonlit Stag */
+  mount: number;
   /** combat 2.0 (enemies) */
   st: number;
   atk: number;
@@ -668,6 +670,7 @@ export class Game {
         weapon: e.weapon ?? '',
         held: e.held ?? '',
         cart: !!e.cart,
+        mount: e.mount ?? 0,
         st: e.st ?? 0,
         atk: e.atk ?? 0,
         tx: e.tx ?? 0,
@@ -1643,7 +1646,9 @@ export class Game {
         const boat = isMe ? this.predictor.sim.boat > 0 : ((s?.flags ?? 0) & 128) !== 0;
         this.combat.rig(v, boat, fx, fy, now / 1000);
         this.combat.minecart(v, cart, fx, fy);
-        if (heldItem && !boat && !cart && !deadP) {
+        const riding = !boat && !cart && !deadP ? (isMe ? this.predictor.sim.mount : (s?.mount ?? 0)) : 0;
+        this.combat.mount(v, riding, fx, fy, walking, v.travel);
+        if (heldItem && !boat && !cart && !deadP && !riding) {
           if (!v.held) {
             v.held = new Sprite();
             v.held.anchor.set(0.5, 0.75);

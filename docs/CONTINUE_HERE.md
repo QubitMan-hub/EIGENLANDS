@@ -1,3 +1,37 @@
+# Current continuation: travel, legibility, performance and collision (2026-10-26)
+
+**Travel (§14).** Read [TRAVEL.md](TRAVEL.md).
+
+- Waystones are discovered by walking up to them; Realm Gates and Ferries link the kingdoms.
+- The Recall Shard returns you to your bound home; Wayfarer ranks cut fares.
+- Riding Horse and Moonlit Stag mounts, and faster kept roads.
+- Shared and server tests, plus the `e2e/travel.mjs` browser proof.
+
+**Legibility.** The parchment page no longer inherits dark-panel colours. `e2e/ui-contrast.mjs` audits:
+
+- every window and journal tab;
+- the statue, villager talk and shops.
+
+Text now passes WCAG AA; only outlined glyphs are left. Scrollbars are thin brass rails.
+
+**Performance.** See [performance/2026-10-26-low-end.md](performance/2026-10-26-low-end.md).
+
+- New Performance tier: one canvas pixel per art pixel.
+- Auto mode adapts at runtime.
+- The lighting pass is skipped in daylight, and terrain gets a wide overscan.
+
+**Collision.** Stalls, rides, the statue and Realm Gates block every tile their art stands on, but never within two tiles
+of a door. Cave mouth and shaft art now fits its single tile.
+
+Next:
+
+- caravans on the kingdom roads;
+- mount stabling and care;
+- more exploration secrets;
+- the remaining items in [REMAINING_WORK.md](REMAINING_WORK.md).
+
+---
+
 # Current continuation: homesteads, guilds and crafting integration (2026-10-26)
 
 Read [HOMESTEADS_AND_GUILD.md](HOMESTEADS_AND_GUILD.md) first. Integrated main's crafting expansion (`5bbd3cf`, #41), retained authored livestock/orchard/guild art and connected the new pens/products/tools. Perennial orchards, water-connected irrigation, individual husbandry with breeding/happiness, safe bed rest, physical guild boards, registration/cards, F–SSS proofs and a craftable player-hall board now extend the existing systems. All material/food/gear catalogs stay intact; catalog furniture gained raster padding to fix clipping. No world layout reset.

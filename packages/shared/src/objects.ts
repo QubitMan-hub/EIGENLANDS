@@ -67,6 +67,10 @@ const FOOTPRINTS: Record<string, Array<[number, number]>> = {
   carousel: SQUARE(1),
   circus_tent: SQUARE(1),
   statue: SQUARE(2),
+  realm_gate: [
+    [-1, 0],
+    [1, 0],
+  ],
 };
 /** Additional solid tiles (beyond the object's own) for a prop at (x, y) with the given facing. */
 export function objFootprint(sub: string, x: number, y: number, facing: PropFacing = 'sw'): Array<[number, number]> {
@@ -125,6 +129,9 @@ export function objLight(kind: WorldObjKind, sub: string): ObjLight | null {
   if (sub === 'cave_ladder') return { radius: 6, color: C.pale }; // daylight down the shaft
   if (sub === 'ruin_monolith') return { radius: 4, color: C.q5 };
   if (sub === 'statue') return { radius: 6, color: C.q5 };
+  if (sub === 'waystone') return { radius: 4.5, color: C.w6 };
+  if (sub === 'realm_gate') return { radius: 7, color: C.q5 };
+  if (sub === 'ferry_post') return { radius: 4, color: C.e6 };
   if (sub === 'shrine_altar') return { radius: 5, color: C.q5 };
   if (sub === 'phase_lantern') return { radius: 4.5, color: C.q5 };
   if (sub === 'forge' || sub === 'furnace') return { radius: 3.5, color: C.r5 };

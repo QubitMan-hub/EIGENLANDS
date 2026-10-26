@@ -80,3 +80,4 @@ export * from './guild';
 export * from './catalog';
 export * from './gear-state';
 export * from './item-info';
+export * from './travel';

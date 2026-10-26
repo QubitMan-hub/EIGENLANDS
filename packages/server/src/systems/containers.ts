@@ -1,4 +1,4 @@
-import { ENEMY_DEFS, ENEMY_KEY_BY_KIND } from '@eigenlands/shared';
+import { ENEMY_DEFS, ENEMY_KEY_BY_KIND, WAY_SUBS } from '@eigenlands/shared';
 import { guildPanel } from './guild';
 import {
   readHerd,
@@ -254,6 +254,10 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
   }
   if ((o.kind === 'chest' || o.kind === 'shelter') && o.owner !== p.accountId) {
     p.toast("That isn't yours.");
+    return;
+  }
+  if (o.static && WAY_SUBS.has(o.sub)) {
+    room.travelInteract?.(p, o);
     return;
   }
   if (o.static && (o.sub === 'shrine_altar' || o.sub === 'shrine_pillar')) {

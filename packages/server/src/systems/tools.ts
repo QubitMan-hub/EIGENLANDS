@@ -63,6 +63,18 @@ export async function handleUse(room: RoomApi, p: ServerPlayer, msg: UseMsg): Pr
     room.toggleShip?.(p);
     return;
   }
+  if (def.special === 'recall') {
+    p.toolReadyAt = t0 + tuning.toolCooldownMs;
+    room.recall?.(p, msg.slot);
+    return;
+  }
+  if (def.special === 'mount') {
+    p.toolReadyAt = t0 + tuning.toolCooldownMs;
+    room.toggleMount?.(p, def.mount ?? 'horse');
+    return;
+  }
+  // tools and seeds are used on foot: step down from the saddle first
+  if (p.sim.mount) p.sim.mount = 0;
   if (def.special === 'summon') {
     p.toolReadyAt = t0 + tuning.toolCooldownMs;
     if (room.summonBoss?.(p, first.id, p.sim.x + p.sim.faceX * 4, p.sim.y + p.sim.faceY * 4)) {

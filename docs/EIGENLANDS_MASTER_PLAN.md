@@ -595,16 +595,17 @@ See [CRAFTING.md](CRAFTING.md) for the architecture, the data files and what is 
 
 ## 14. TELEPORTATION & TRAVEL
 
-- [ ] NOT STARTED — Add:
-- [ ] NOT STARTED — Discoverable fast-travel shrines.
-- [ ] NOT STARTED — Magical teleporters.
-- [ ] NOT STARTED — Kingdom waypoint networks.
-- [ ] NOT STARTED — Realm portals.
-- [ ] NOT STARTED — Horses and fantasy mounts.
-- [ ] NOT STARTED — Sailing and ocean travel.
-- [ ] NOT STARTED — Roads, bridges, ports, and caravan routes.
-- [ ] NOT STARTED — Meaningful exploration rewards and secrets.
-- [ ] NOT STARTED — Fast travel must be convenient without removing the satisfaction of discovering locations.
+See [TRAVEL.md](TRAVEL.md) for rules, files, validation and limits.
+
+- [x] DONE — Discoverable fast-travel shrines: waystones in every surface settlement and one per wild region, attuned by walking up (rewards, beacons, atlas).
+- [x] DONE — Magical teleporters: Recall Shard (learned at 3 attuned stones) returns you to a bound home from anywhere.
+- [x] DONE — Kingdom waypoint networks: travel between any attuned stones of one kingdom network, with fares and Wayfarer discounts.
+- [x] DONE — Realm portals: a Realm Gate in each capital and Hadamere links the networks.
+- [~] IN PROGRESS — Horses and fantasy mounts: Riding Horse (shop) and Moonlit Stag (12 stones) are ridden with shared-sim speed and saddle rules; no stabling, feeding, naming or flying mounts yet.
+- [~] IN PROGRESS — Sailing and ocean travel: Sloop Charter sailing (existing) plus Ferry posts at every kingdom's seaward outpost; no ferry voyage scene.
+- [~] IN PROGRESS — Roads, bridges, ports, and caravan routes: generated kingdom roads now speed travellers and riders, ports have ferries; caravans and dedicated bridges are not built.
+- [~] IN PROGRESS — Meaningful exploration rewards and secrets: wild stones pay XP and coins, Wayfarer ranks cut fares, the Recall recipe and the Stag are exploration rewards; more secrets remain.
+- [x] DONE — Fast travel must be convenient without removing the satisfaction of discovering locations: only attuned stones, only from a stone, never mid-fight, channels break on movement or damage.
 
 ## 15. QUANTUM PROGRESSION OVERHAUL
 
