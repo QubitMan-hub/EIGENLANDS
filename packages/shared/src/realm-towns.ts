@@ -561,6 +561,7 @@ function build(site: RealmSite, seed: number): Town {
       const b = addBuilding(`${site.id}.palace`, 'hall', kx, ky, kw, kh, v, midX, 'palace');
       for (let i = -1; i <= 1; i++) set(midX + i, b.doorY, T.FLOOR);
       throne = { x: midX, y: ky + 3 };
+      spot(`${site.id}.palace_door`, midX, b.doorY + 2);
       obj(throne.x, throne.y, 'deco', 'trophy');
       return b;
     };
@@ -603,6 +604,9 @@ function build(site: RealmSite, seed: number): Town {
         set(tx0 + 10, ty0 + 14, T.GRASS);
         rect(tx0 + 1, ty0 + 1, 19, 13, T.SAND);
         mark(tx0, ty0, 21, 15, RES);
+        spot(`${site.id}.tourney`, tx0 + 10, ty0 + 7);
+        spot(`${site.id}.tourney_a`, tx0 + 3, ty0 + 7);
+        spot(`${site.id}.tourney_b`, tx0 + 17, ty0 + 7);
         for (let i = 0; i < 4; i++)
           obj(tx0 + 3 + i * 4, ty0 - 1, 'deco', i % 2 ? 'banner' : 'stall', { realm: site.realm });
         for (let i = 0; i < 5; i++) obj(tx0 + 2 + i * 3, ty0 + 16, 'deco', 'bench');
@@ -793,6 +797,8 @@ function build(site: RealmSite, seed: number): Town {
     if (chance(0.7)) obj(cx - rnd(4, 8), cy + 3, 'deco', 'cart');
   }
   spot(`${site.id}.plaza`, cx, plazaY + 3);
+  spot(`${site.id}.plaza_a`, plaza.x, plaza.y);
+  spot(`${site.id}.plaza_b`, plaza.x + plaza.w, plaza.y + plaza.h);
 
   // ───── queue of buildings, services first
   const queue: Slot[] = [];

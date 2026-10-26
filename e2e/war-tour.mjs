@@ -7,7 +7,13 @@ mkdirSync(out, { recursive: true });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const browser = await chromium.launch({
   executablePath: process.env.CHROME ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
-  args: ['--use-angle=swiftshader', '--use-gl=angle', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'],
+  args: [
+    '--use-angle=swiftshader',
+    '--use-gl=angle',
+    '--enable-unsafe-swiftshader',
+    '--ignore-gpu-blocklist',
+    '--no-sandbox',
+  ],
 });
 const page = await (await browser.newContext({ viewport: { width: 1280, height: 720 } })).newPage();
 const errors = [];
@@ -23,7 +29,12 @@ const [cx, cy] = process.env.SITE ? process.env.SITE.split(',').map(Number) : [1
 await dev({ cmd: 'tp', x: cx, y: cy + 14 });
 await sleep(12000);
 await page.screenshot({ path: `${out}/1-garrison.png` });
-await dev({ cmd: 'raid', site: process.env.SITEID ?? 'aurelion_capital', attacker: process.env.ATT ?? 'nethrakar', scale: 2 });
+await dev({
+  cmd: 'raid',
+  site: process.env.SITEID ?? 'aurelion_capital',
+  attacker: process.env.ATT ?? 'nethrakar',
+  scale: 2,
+});
 await sleep(9000);
 await page.screenshot({ path: `${out}/2-raid-spawn.png` });
 await sleep(Number(process.env.FIGHT ?? 14000));

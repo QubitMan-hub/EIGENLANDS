@@ -35,7 +35,13 @@ export type Sfx =
   | 'heartbeat'
   | 'crash'
   | 'bomb'
-  | 'counter';
+  | 'counter'
+  // world life
+  | 'bell'
+  | 'anvil'
+  | 'horn'
+  | 'cheer'
+  | 'fanfare';
 
 /** Tiny WebAudio chiptune-style SFX synth; no asset files. Starts after the first user gesture. */
 export class Audio {
@@ -251,6 +257,28 @@ export class Audio {
         this.tone(523, 0.08, 'triangle', 0.14);
         this.tone(784, 0.14, 'triangle', 0.14, 0, 0.07);
         break;
+      case 'bell':
+        // a bronze bell: a struck fundamental with inharmonic partials ringing down
+        [[196, 0.1], [392, 0.07], [588, 0.05], [823, 0.03]].forEach(([f, g]) => this.tone(f!, 1.6, 'sine', g!, -4));
+        this.noise(0.08, 0.12, 'bandpass', 2200, 1800, 2);
+        break;
+      case 'anvil':
+        this.tone(1480, 0.12, 'square', 0.07, -300);
+        this.tone(2210, 0.18, 'triangle', 0.05, -400, 0.01);
+        this.noise(0.05, 0.14, 'highpass', 3000, 2500, 1);
+        break;
+      case 'horn':
+        this.tone(147, 0.9, 'sawtooth', 0.12, 20);
+        this.tone(220, 0.9, 'square', 0.06, 30, 0.02);
+        this.tone(196, 0.7, 'sawtooth', 0.1, 10, 0.95);
+        break;
+      case 'cheer':
+        this.noise(0.8, 0.12, 'bandpass', 900, 1500, 0.6, 0, 0.2);
+        this.noise(0.6, 0.08, 'bandpass', 1400, 2200, 0.5, 0.15, 0.2);
+        break;
+      case 'fanfare':
+        [392, 392, 523, 659, 784].forEach((f, i) => this.tone(f, i === 4 ? 0.5 : 0.14, 'square', 0.1, 0, i * 0.13));
+        break;
       case 'levelup':
         [523, 659, 784, 1046].forEach((f, i) => this.tone(f, 0.16, 'square', 0.14, 0, i * 0.08));
         break;
@@ -295,4 +323,9 @@ export const SFX_CAPTIONS: Record<Sfx, string> = {
   crash: 'crash',
   bomb: 'ticking',
   counter: 'counter!',
+  bell: 'bell tolls',
+  anvil: 'hammer on anvil',
+  horn: 'war horn',
+  cheer: 'crowd cheers',
+  fanfare: 'trumpets',
 };

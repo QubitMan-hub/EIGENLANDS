@@ -69,6 +69,10 @@ export type CritterKind =
   | 'raiju'
   | 'reef_naga'
   | 'hellhound'
+  | 'cow'
+  | 'sheep'
+  | 'pig'
+  | 'horse'
   | ArmyKey;
 
 export interface Def {
@@ -1421,6 +1425,103 @@ function realmBeast(form: number): Def {
   };
 }
 
+/** Farm and stable animals (client-only ambient life and the rideable horse): cow, sheep, pig, horse. */
+function farmAnimal(form: number): Def {
+  return {
+    w: 72,
+    h: 64,
+    ay: 54,
+    shadow: [9, 3.6],
+    n: { idle: 4, move: 6, windup: 2, attack: 2, hurt: 2, death: 3 },
+    draw(s, a, k, t) {
+      const moving = a === 'move';
+      const sw = Math.sin(t * TAU);
+      const R = (c: number, n = 3, hue = 8) => M(ramp(c, n, 2, { hue }));
+      const dark = R(ART_RGB.night, 3);
+      s.push([1.45, 0, 0, 0, 1.45, 0, 0, 0, 1.45], [0, 0, 0], [0, 0, 0]);
+      const legs = (x0: number, x1: number, zt: number, w: number, m: Mat, hoof: Mat, sp = 2.2) => {
+        for (const side of [-1, 1])
+          for (const [x, ph] of [
+            [x0, 0],
+            [x1, 0.5],
+          ] as const) {
+            const st = moving ? Math.sin(t * TAU + (ph + (side > 0 ? 0.5 : 0)) * TAU) * 2.2 : 0;
+            s.cap([x, side * sp, zt], [x + st, side * (sp + 0.3), 0.7], w, w * 0.7, m);
+            s.ell([x + st + 0.3, side * (sp + 0.3), 0.6], [w * 0.9, w * 0.8, 0.5], hoof);
+          }
+      };
+      const bob = moving ? 0.4 * Math.abs(sw) : 0.15 * Math.sin(t * TAU);
+      if (form === 0) {
+        // cow: cream hide, dark patches, short horns and a swinging tail
+        const hide = R(ART_RGB.pale, 3, 6),
+          patch = R(ART_RGB.night, 3),
+          pink = R(ART_RGB.c2, 3);
+        const z = 6.4 + bob;
+        s.ell([0, 0, z], [6.4, 3.2, 3.4], hide);
+        s.ell([-1, 0.4, z + 1], [2.8, 2.7, 2.2], patch);
+        s.ell([3, -1, z + 0.6], [1.8, 1.8, 1.8], patch);
+        s.ell([-1, 0, z - 2.6], [2.4, 1.6, 1.2], pink);
+        s.cap([-6.2, 0, z + 1], [-7.8, 0, z - 2 + sw * 1.4], 0.4, 0.3, hide);
+        s.cap([5, 0, z + 1], [7.6, 0, z + 2.6], 1.6, 1.3, hide);
+        s.ell([8.4, 0, z + 2.2], [2.1, 1.8, 1.6], hide);
+        s.ell([9.8, 0, z + 1.4], [1, 1.4, 0.9], pink);
+        for (const side of [-1, 1]) {
+          s.cap([8, side * 1.4, z + 3.4], [7.6, side * 2.6, z + 5], 0.35, 0.15, M(ramp(ART_RGB.pale, 2, 1)));
+          s.sph([9, side * 1.3, z + 2.8], 0.3, dark);
+        }
+        legs(4, -4, z - 1.6, 0.8, hide, dark);
+      } else if (form === 1) {
+        // sheep: a cloud of wool on dark legs and face
+        const wool = R(ART_RGB.white, 3, 4);
+        const z = 5.2 + bob;
+        for (const [x, y, zz, r] of [
+          [0, 0, z, 3.6],
+          [-2.4, 1.2, z + 0.4, 2.6],
+          [-2.4, -1.4, z + 0.4, 2.6],
+          [2.2, 0, z + 0.6, 2.8],
+          [0, 0, z + 1.6, 2.6],
+        ] as const)
+          s.sph([x, y, zz], r, wool);
+        s.ell([4.6, 0, z + 1.2], [1.6, 1.3, 1.5], dark);
+        for (const side of [-1, 1]) s.cap([4.2, side * 1, z + 2], [3.6, side * 2.4, z + 1.8], 0.5, 0.3, dark);
+        legs(2.2, -2.2, z - 1.6, 0.55, dark, dark, 1.6);
+      } else if (form === 2) {
+        // pig: round pink barrel, flat snout, curly tail
+        const pig = R(ART_RGB.c2, 3, 10);
+        const z = 4.6 + bob;
+        s.ell([0, 0, z], [4.6, 3, 3], pig);
+        s.ell([4.6, 0, z + 0.6], [2, 1.8, 1.8], pig);
+        s.ell([6.4, 0, z + 0.3], [0.9, 1.2, 0.9], R(ART_RGB.c3, 3));
+        for (const side of [-1, 1]) {
+          s.ell([4.4, side * 1.4, z + 2], [0.8, 0.6, 1.2], pig);
+          s.sph([5.6, side * 0.9, z + 1.4], 0.25, dark);
+        }
+        s.cap([-4.4, 0, z + 1], [-5.4, 0.5, z + 2.2], 0.4, 0.3, pig);
+        legs(2.4, -2.4, z - 1.4, 0.7, pig, dark, 1.8);
+      } else {
+        // horse: chestnut with a dark mane and tail
+        const coat = R(ART_RGB.e3, 4),
+          mane = R(ART_RGB.e0, 3);
+        const z = 9 + bob;
+        s.ell([0, 0, z], [7, 3, 3.6], coat);
+        s.ell([-4.6, 0, z + 0.4], [3.4, 3, 3.4], coat);
+        s.cap([-7.8, 0, z + 1], [-10.4, 0, z - 4 + sw * 1.2], 1.1, 0.4, mane);
+        s.cap([5, 0, z + 2], [8, 0, z + 7.6], 2, 1.4, coat);
+        s.ell([9.6, 0, z + 8], [3, 1.6, 1.6], coat);
+        s.sph([12, 0, z + 7.4], 0.8, dark);
+        for (const side of [-1, 1]) {
+          s.sph([9.8, side * 1.3, z + 9], 0.35, M(ramp(ART_RGB.e7, 2, 1), { glow: true }));
+          s.cap([8.4, side * 0.8, z + 9.4], [8, side * 1, z + 11.2], 0.3, 0.1, coat);
+        }
+        for (let i = 0; i < 4; i++)
+          s.cap([5.8 - i * 0.6, 0, z + 3 + i * 1.5], [4.6 - i * 0.6, 0.4, z + 4 + i * 1.5], 0.8, 0.5, mane);
+        legs(4.4, -4.8, z - 1.6, 0.9, coat, dark, 2.4);
+      }
+      s.pop();
+    },
+  };
+}
+
 const DEFS: Record<CritterKind, Def> = {
   echo_bat: caveFauna(0),
   spore_sage: caveFauna(1),
@@ -1447,6 +1548,10 @@ const DEFS: Record<CritterKind, Def> = {
   raiju: realmBeast(3),
   reef_naga: realmBeast(4),
   hellhound: realmBeast(5),
+  cow: farmAnimal(0),
+  sheep: farmAnimal(1),
+  pig: farmAnimal(2),
+  horse: farmAnimal(3),
   ...(Object.fromEntries(
     REALM_IDS.flatMap((r, ri) => ARMY_CLASSES.map((c) => [armyKey(r, c), armyUnitDef(ri, c)])),
   ) as Record<ArmyKey, Def>),
@@ -1582,6 +1687,8 @@ export function buildFoeSheets(): FoeSheets {
     'tide_leviathan',
   ] as const;
   const name = (k: number): CritterKind => {
+    const farm = (['cow', 'sheep', 'pig', 'horse'] as const)[k - 74];
+    if (farm) return farm;
     const army = armyOfKind(k);
     if (army) return armyKey(army.realm, army.cls);
     const realm = (['griffin', 'spirit_stag', 'iron_golem', 'raiju', 'reef_naga', 'hellhound'] as const)[k - 44];
