@@ -57,6 +57,31 @@ const report = await page.evaluate(async () => {
         c.style = 'width:128px;height:136px;image-rendering:pixelated';
         market.append(c);
       }
+  const fair = document.createElement('section');
+  fair.id = 'fair';
+  fair.style = 'display:flex;flex-wrap:wrap;gap:12px;padding:16px';
+  for (const id of ['ferris_wheel', 'carousel', 'swing_boat', 'circus_tent'])
+    for (const face of ['sw', 'se']) {
+      const def = PROPS[id](face);
+      for (const sp of def.frames) {
+        const source = sp.tex.source.resource;
+        const pixels = source.getContext('2d').getImageData(0, 0, source.width, source.height).data;
+        for (let y = 0; y < source.height; y++)
+          for (let x = 0; x < source.width; x++)
+            if (
+              (x === 0 || y === 0 || x === source.width - 1 || y === source.height - 1) &&
+              pixels[(y * source.width + x) * 4 + 3]
+            )
+              throw new Error('Clipped fair frame: ' + id + '/' + face);
+      }
+      const c = document.createElement('canvas');
+      const source = def.frames[0].tex.source.resource;
+      c.width = source.width;
+      c.height = source.height;
+      c.getContext('2d').drawImage(source, 0, 0);
+      c.style = `width:${c.width * 2}px;height:${c.height * 2}px;image-rendering:pixelated`;
+      fair.append(c);
+    }
   document.body.innerHTML = '';
   document.body.style = 'margin:0;background:#263b35;color:#f2e4c5;font:16px monospace;overflow:auto;height:auto';
   document.documentElement.style = 'overflow:auto;height:auto';
@@ -64,18 +89,19 @@ const report = await page.evaluate(async () => {
     const section = document.createElement('section');
     section.id = 'realm' + realm;
     section.style = 'display:flex;flex-wrap:wrap;gap:12px;padding:16px';
-    for (let v = 0; v < 5; v++) {
+    for (let v = 0; v < 7; v++) {
       const b = {
         id: 'preview-' + realm + '-' + v,
-        kind: v === 3 ? 'store' : v === 4 ? 'hall' : 'house',
+        kind: v === 3 ? 'store' : v === 4 ? 'hall' : v === 5 ? 'church' : v === 6 ? 'tower' : 'house',
         x: 0,
         y: 0,
         w: v === 4 ? 12 : 8 + (v % 2),
         h: v === 4 ? 9 : 6,
         doorX: 3,
         doorY: 5,
-        style: 4 + realm * 5 + v,
+        style: 4 + realm * 5 + Math.min(v, 4),
       };
+      b.doorY = b.h - 1;
       const art = buildBuildingArt(b);
       if (v === 1) {
         const baked = await worker.request(b);
@@ -90,13 +116,14 @@ const report = await page.evaluate(async () => {
         if (pixels[n] === 255) opaque++;
       }
       if (opaque < 500) throw new Error('Missing roof: ' + b.id);
+      if (v === 5 && opaque < 20000) throw new Error('Steep church roof plane missing: ' + b.id);
       if (art.roof.tex.source.scaleMode !== 'nearest') throw new Error('Filtered roof');
       report.push({ id: b.id, opaque, width: roof.width, height: roof.height });
       const c = document.createElement('canvas');
       c.width = 400;
-      c.height = 270;
+      c.height = v >= 5 ? 430 : 270;
       const ctx = c.getContext('2d');
-      ctx.translate(180, 110);
+      ctx.translate(180, v >= 5 ? 270 : 110);
       for (const p of art.walls.sort((a, b) => a.tx + a.ty - b.tx - b.ty))
         ctx.drawImage(p.day.source.resource, p.x, p.y);
       ctx.drawImage(art.roof.tex.source.resource, art.roof.x, art.roof.y);
@@ -109,11 +136,12 @@ const report = await page.evaluate(async () => {
     }
     document.body.append(section);
   }
-  document.body.append(market);
+  document.body.append(market, fair);
   return report;
 });
 for (let i = 0; i < 6; i++) await page.locator('#realm' + i).screenshot({ path: out + '/realm' + i + '.png' });
 await page.locator('#markets').screenshot({ path: out + '/markets.png' });
+await page.locator('#fair').screenshot({ path: out + '/fair.png' });
 // Render actual world objects, terrain, roof fading and worker-baked buildings.
 const capitals = [
   [1024, -512],
@@ -129,6 +157,7 @@ for (let i = 0; i < capitals.length; i++) {
   await page.waitForFunction(() => window.__lab?.ready, null, { timeout: 60000 });
   await page.waitForFunction(
     () => {
+      if (!window.__lab?.buildings) return false;
       const views = window.__lab.buildings.views;
       const visible = views.filter(
         (v) =>
@@ -149,6 +178,7 @@ await page.goto(new URL('labs/artlab.html?generation=5&x=1024&y=-494&scale=2&mot
 await page.waitForFunction(() => window.__lab?.ready, null, { timeout: 60000 });
 await page.waitForFunction(
   () => {
+    if (!window.__lab?.buildings) return false;
     const { buildings, bounds: b } = window.__lab;
     const visible = buildings.views.filter(
       (v) => v.b.x + v.b.w + 4 >= b[0] && v.b.x - 4 <= b[2] && v.b.y + v.b.h + 4 >= b[1] && v.b.y - 4 <= b[3],

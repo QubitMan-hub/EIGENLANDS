@@ -7,7 +7,7 @@ import { Texture } from 'pixi.js';
 import { mulberry32 } from '@eigenlands/shared';
 import type { ObjSprite } from './objects';
 import type { ObjSpriteDef } from './worldobjs';
-import { blob, C, makeCanvas, outline, poly, polish, put, undithered, type Ctx, type Ramp } from './shade';
+import { blob, C, line, makeCanvas, outline, poly, polish, put, undithered, type Ctx, type Ramp } from './shade';
 import { DARKWOOD, IRONM, Iso, Prop, STONEM, WOODM, rampAt, type Detail, type Facing, type PMat } from './isokit';
 
 const LIGHTWOOD: Ramp = [C.e1, C.e2, C.e3, C.e4, C.e5, C.e6];
@@ -932,6 +932,249 @@ function stall(face: Facing, f: number, awn: Awning = 'red', goods: Goods = 'pro
   );
 }
 
+// ───────────────────────── fairground ─────────────────────────
+const STRIPES: Array<[number, number]> = [
+  [C.c1, C.white],
+  [C.b0, C.e7],
+  [C.c4, C.c1],
+  [C.n2, C.white],
+];
+
+/** A vertical wheel in the local a/z plane, with actual axle depth.
+ * Its ring, spokes and hanging cabins all use the shared 2:1 projection. */
+function ferrisWheel(face: Facing, f: number): ObjSprite {
+  return iso(
+    132,
+    168,
+    face,
+    (p) => {
+      p.box(-14, 2, 0, 44, 12, 3, { ramp: STONEM });
+      const turn = (f / 8) * ((Math.PI * 2) / 8);
+      for (const b of [3, 13]) {
+        for (const a of [-10, 26]) {
+          p.line(a, b, 3, 8, b, 66, b === 3 ? C.e1 : C.e3);
+          p.line(a + 1, b, 3, 9, b, 66, C.e2);
+        }
+        p.line(-5, b, 22, 21, b, 22, C.e1);
+        // Front and rear hoops share the same world-space radius.
+        for (let k = 0; k < 192; k++) {
+          const t = (k / 192) * Math.PI * 2,
+            a = 8 + Math.cos(t) * 34,
+            z = 66 + Math.sin(t) * 34;
+          p.dot(a, b, z, b === 3 ? C.slate : C.mist);
+          p.dot(8 + Math.cos(t) * 31, b, 66 + Math.sin(t) * 31, b === 3 ? C.night : C.steel);
+        }
+        for (let i = 0; i < 16; i++) {
+          const t = turn + (i / 16) * Math.PI * 2;
+          p.line(8, b, 66, 8 + Math.cos(t) * 34, b, 66 + Math.sin(t) * 34, b === 3 ? C.slate : C.steel);
+        }
+      }
+      p.line(8, 1, 66, 8, 15, 66, C.e5);
+      // Cabins hang vertically from their attachment, never rotate with the rim.
+      const cabins = Array.from({ length: 8 }, (_, i) => {
+        const t = turn + (i / 8) * Math.PI * 2;
+        return { a: 8 + Math.cos(t) * 34, z: 66 + Math.sin(t) * 34, i };
+      }).sort((a, b) => a.a - b.a);
+      for (const { a, z } of cabins) {
+        const [colour, trim] = STRIPES[0]!;
+        p.line(a, 13, z, a, 13, z - 4, C.e1);
+        p.box(a - 3, 10, z - 10, 6, 6, 5, { ramp: [C.night, colour, colour, trim] });
+        p.box(a - 3.5, 9.5, z - 5, 7, 7, 1, { ramp: [C.e2, C.e4, C.e6, C.e7] });
+        p.line(a - 2, 16, z - 7, a + 2, 16, z - 7, C.night);
+      }
+      p.line(8, 13, 100, 8, 13, 111, C.e2);
+      p.box(8, 13, 106, 7, 0.6, 4, { ramp: [C.c0, C.c1, C.c2, C.c3] });
+    },
+    { margin: 22 },
+  );
+}
+
+/** Faceted striped canvas cone: actual projected triangles, not stacked rings. */
+function festivalCanopy(p: Prop, ctx: Ctx, radius: number, base: number, peak: number): void {
+  const facets = Array.from({ length: 16 }, (_, i) => {
+    const a = (i / 16) * Math.PI * 2,
+      b = ((i + 1) / 16) * Math.PI * 2;
+    return { i, a, b, depth: Math.cos((a + b) / 2) + Math.sin((a + b) / 2) };
+  }).sort((a, b) => a.depth - b.depth);
+  for (const { i, a, b } of facets) {
+    const u = 8 + Math.cos(a) * radius,
+      v = 8 + Math.sin(a) * radius;
+    const u1 = 8 + Math.cos(b) * radius,
+      v1 = 8 + Math.sin(b) * radius;
+    const [wu, wv] = p.uv(Math.cos((a + b) / 2), Math.sin((a + b) / 2));
+    const bright = wv - wu > 0;
+    poly(
+      ctx,
+      [
+        [p.X(8, 8), p.Y(8, 8, peak)],
+        [p.X(u, v), p.Y(u, v, base)],
+        [p.X(u1, v1), p.Y(u1, v1, base)],
+      ],
+      i % 2 ? (bright ? C.e7 : C.e5) : bright ? C.c2 : C.c0,
+    );
+    if (i % 4 === 0) p.line(8, 8, peak, u, v, base, C.e4);
+    p.line(u, v, base, u1, v1, base, i % 2 ? C.e5 : C.c1);
+  }
+}
+
+/** A carousel: a striped conical canopy on a turning platform of painted horses rising and falling on their poles. */
+function carousel(face: Facing, f: number): ObjSprite {
+  return iso(
+    96,
+    112,
+    face,
+    (p, ctx) => {
+      p.cyl(8, 8, 0, 20, 4, [C.e0, C.e1, C.e2, C.e3, C.e4], [C.e2, C.e3, C.e4, C.e5]);
+      p.cyl(8, 8, 4, 4, 30, [C.e2, C.e3, C.c4, C.e6], [C.e5, C.e6]);
+      const turn = (f / 6) * ((Math.PI * 2) / 8);
+      const horses: Array<[number, number, number]> = [];
+      for (let i = 0; i < 8; i++) {
+        const a = turn + (i / 8) * Math.PI * 2;
+        horses.push([a, 8 + Math.cos(a) * 15, 8 + Math.sin(a) * 15]);
+      }
+      // far horses first
+      horses.sort((h1, h2) => h1[1] + h1[2] - (h2[1] + h2[2]));
+      horses.forEach(([a, u, v]) => {
+        const bob = Math.sin(a * 2) * 2;
+        p.line(u, v, 4, u, v, 34, C.c4);
+        const coat = C.pale;
+        const z = 12 + bob;
+        const horse = { ramp: [C.slate, C.steel, coat, coat] };
+        p.box(u - 3, v - 1, z, 6, 2, 3, horse);
+        p.box(u + 1.5, v - 1, z + 2, 2, 2, 3.5, horse);
+        p.box(u + 2.5, v - 1, z + 4, 2, 2, 1.5, horse);
+        for (const dx of [-2, 2])
+          for (const dy of [-0.8, 0.6]) p.line(u + dx, v + dy, z, u + dx - 0.6, v + dy, z - 4, C.e2);
+        p.box(u - 1, v - 1.2, z + 3, 2.5, 2.4, 0.8, { ramp: [C.e2, C.c1, C.c2, C.e5] });
+      });
+      festivalCanopy(p, ctx, 22, 34, 54);
+      p.cyl(8, 8, 54, 1, 6, [C.e3, C.c4, C.e6], [C.e6]);
+      put(ctx, Math.round(p.X(8, 8)), Math.round(p.Y(8, 8, 62)), f % 2 ? C.c2 : C.c4, 4, 2);
+    },
+    { margin: 26 },
+  );
+}
+
+/** Swing boats: an A-frame from which a painted boat swings back and forth. */
+function swingBoat(face: Facing, f: number): ObjSprite {
+  return iso(
+    96,
+    104,
+    face,
+    (p) => {
+      for (const a of [-5, 21]) {
+        p.line(a, 0, 0, a, 8, 44, C.e2);
+        p.line(a, 16, 0, a, 8, 44, C.e3);
+        p.box(a - 1, -1, 0, 2, 18, 1.5, { ramp: STONEM });
+      }
+      p.line(-5, 8, 44, 21, 8, 44, C.e1);
+      const angle = Math.sin((f / 6) * Math.PI * 2) * 0.5;
+      const v = 8 + Math.sin(angle) * 21,
+        z = 44 - Math.cos(angle) * 25;
+      for (const a of [1, 15]) p.line(a, 8, 44, a, v, z + 4, C.steel);
+      p.box(-1, v - 3, z, 18, 6, 3, { ramp: [C.c0, C.c1, C.c2, C.e5] });
+      for (const a of [-1, 15]) p.box(a, v - 3, z + 3, 2, 6, 3, { ramp: [C.c0, C.c1, C.c2, C.c3] });
+      for (const a of [3, 9]) p.box(a, v - 2.5, z + 3, 2, 5, 1, { ramp: LIGHTWOOD });
+    },
+    { margin: 24 },
+  );
+}
+
+/** A striped circus tent with a pennant on its king pole. */
+function circusTent(face: Facing, f: number): ObjSprite {
+  return iso(
+    124,
+    120,
+    face,
+    (p, ctx) => {
+      // Low canvas walls and a separate conical roof establish a real entrance.
+      p.cyl(8, 8, 0, 24, 16, [C.c0, C.c1, C.c2, C.e6], [C.c0, C.c1]);
+      festivalCanopy(p, ctx, 26, 16, 55);
+      // A flat door belongs to a projected wall plane, never a pasted rectangle.
+      p.box(3, 30, 0, 10, 0.8, 15, { ramp: [C.ink, C.night, C.night, C.c4] });
+      p.line(3, 31, 16, 13, 31, 16, C.e6);
+      p.line(3, 31, 0, 3, 31, 16, C.c3);
+      p.line(13, 31, 0, 13, 31, 16, C.c3);
+      p.box(5, 31, 0, 6, 5, 1.5, { ramp: LIGHTWOOD });
+      p.line(8, 8, 55, 8, 8, 66, C.e2);
+      p.box(8, 8, 61, 7, 0.6, 4, { ramp: [C.c0, C.c1, f ? C.c3 : C.c2, C.e6] });
+      for (const a of [0, 16]) {
+        p.line(a, 28, 15, a, 33, 0, C.e3);
+        p.box(a - 0.5, 32.5, 0, 1, 1, 2, { ramp: LIGHTWOOD });
+      }
+    },
+    { margin: 32 },
+  );
+}
+
+// ───────────────────────── churchyard ─────────────────────────
+const GRAVESTONE: Ramp = [C.night, C.slate, C.steel, C.mist, C.fog, C.pale];
+function gravestone(face: Facing, kind: number): ObjSprite {
+  return iso(32, 44, face, (p, ctx) => {
+    // the mound of earth with a little grass
+    p.box(2, 4, 0, 12, 9, 1.5, { ramp: [C.e0, C.e1, C.e2, C.g2, C.g3] });
+    if (kind === 0) {
+      // rounded headstone
+      p.box(4, 3, 0, 8, 2.5, 13, { ramp: GRAVESTONE });
+      p.cyl(8, 4.2, 12, 4, 2.5, GRAVESTONE, GRAVESTONE);
+      line(ctx, p.X(6, 5.5), p.Y(6, 5.5, 9), p.X(10, 5.5), p.Y(10, 5.5, 9), C.slate);
+    } else if (kind === 1) {
+      // a cross
+      p.box(7, 3, 0, 2.2, 2.2, 18, { ramp: GRAVESTONE });
+      p.box(4, 3, 11, 8, 2.2, 2.2, { ramp: GRAVESTONE });
+    } else if (kind === 2) {
+      // an obelisk
+      p.box(5, 3, 0, 6, 6, 3, { ramp: GRAVESTONE });
+      p.box(6, 4, 3, 4, 4, 16, { ramp: GRAVESTONE });
+      p.box(6.8, 4.8, 19, 2.4, 2.4, 3, { ramp: GRAVESTONE });
+    } else {
+      // a tilted, mossy old stone
+      p.box(5, 4, 0, 7, 2.5, 10, { ramp: [C.night, C.g0, C.slate, C.g1, C.steel, C.mist] });
+      blob(ctx, p.X(7, 5), p.Y(7, 5, 9), 2, 1.4, [C.g1, C.g2, C.g3], { seed: 3, noise: 0.4 });
+    }
+    // flowers on some graves
+    if (kind % 2 === 0) for (let i = 0; i < 3; i++) p.dot(6 + i * 2, 10, 2, [C.c2, C.white, C.c4][i]!);
+  });
+}
+
+/** A small stone crypt with a pitched roof, columns and an iron door. */
+function crypt(face: Facing): ObjSprite {
+  return iso(48, 64, face, (p) => {
+    p.box(0, 1, 0, 16, 14, 2, { ramp: GRAVESTONE });
+    p.box(1, 2, 2, 14, 12, 18, {
+      ramp: GRAVESTONE,
+      front: (s, t, c) => (Math.round(t * 18) % 4 === 0 ? c(-1) : s > 0.38 && s < 0.62 && t < 0.7 ? C.night : null),
+    });
+    for (const a of [1.5, 13]) p.box(a, 13, 2, 1.6, 1.6, 18, { ramp: GRAVESTONE });
+    for (let k = 0; k < 6; k++) {
+      p.box(0.5 + k * 1.2, 1.5, 20 + k * 1.5, 15 - k * 2.4, 13, 1.5, { ramp: [C.night, C.slate, C.steel, C.mist] });
+    }
+    p.box(7.2, 6, 29, 1.6, 1.6, 5, { ramp: GRAVESTONE });
+    p.box(6, 6, 32, 4, 1.6, 1.4, { ramp: GRAVESTONE });
+  });
+}
+
+/** A gnarled leafless tree for the churchyard. */
+function deadTree(face: Facing): ObjSprite {
+  return iso(56, 84, face, (p, ctx) => {
+    const x = p.X(8, 8),
+      y = p.Y(8, 8, 0);
+    const bark = [C.ink, C.e0, C.e1, C.slate];
+    for (let w = 3; w >= 0; w--) line(ctx, x - 1 + (w % 2), y, x + (w > 1 ? 1 : 0), y - 34, bark[w % 4]!);
+    const branch = (x0: number, y0: number, a: number, len: number, d: number) => {
+      if (d === 0 || len < 3) return;
+      const x1 = x0 + Math.cos(a) * len,
+        y1 = y0 + Math.sin(a) * len;
+      line(ctx, x0, y0, x1, y1, d > 2 ? C.e0 : C.e1);
+      branch(x1, y1, a - 0.5, len * 0.7, d - 1);
+      branch(x1, y1, a + 0.45, len * 0.65, d - 1);
+    };
+    branch(x, y - 30, -Math.PI / 2 - 0.4, 16, 4);
+    branch(x, y - 34, -Math.PI / 2 + 0.5, 14, 4);
+    branch(x, y - 22, -Math.PI + 0.3, 10, 3);
+  });
+}
+
 /** A tiered stone fountain: a wide basin, a column and a small bowl, water spilling down and rippling. */
 function fountain(face: Facing, f: number): ObjSprite {
   return iso(72, 84, face, (p, ctx) => {
@@ -991,7 +1234,7 @@ function planter(face: Facing): ObjSprite {
         [C.w7, C.white],
         [C.e6, C.e7],
       ];
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 16; i++) {
       const x = Math.round(cx - 9 + rng() * 18),
         y = Math.round(cy - 6 + rng() * 6),
         c = cols[i % 4]!;
@@ -1643,6 +1886,16 @@ export const PROPS: Record<string, Mk> = {
   plant: one(plant, { sway: 0.01 }),
   stall: anim(2, 1.2, stall),
   fountain: anim(4, 6, fountain),
+  ferris_wheel: anim(8, 4, ferrisWheel),
+  carousel: anim(6, 6, carousel),
+  swing_boat: anim(6, 5, swingBoat),
+  circus_tent: anim(2, 2, circusTent),
+  grave: one((f) => gravestone(f, 0)),
+  grave_cross: one((f) => gravestone(f, 1)),
+  grave_obelisk: one((f) => gravestone(f, 2)),
+  grave_old: one((f) => gravestone(f, 3)),
+  crypt: one(crypt),
+  dead_tree: one(deadTree),
   ...Object.fromEntries(
     STALL_AWNINGS.flatMap((awn) =>
       STALL_GOODS.map(
