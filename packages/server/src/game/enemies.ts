@@ -35,6 +35,8 @@ import { EnemyState } from '@eigenlands/shared';
 export type EnemyMode = 'idle' | 'wander' | 'chase' | 'windup' | 'leap' | 'recover' | 'stagger' | 'charge';
 
 export interface Enemy {
+  /** Scripted rescue guards cannot be farmed for rewards or ordinary hunt credit. */
+  noRewards?: boolean;
   id: string;
   state: EnemyState;
   def: EnemyDef;

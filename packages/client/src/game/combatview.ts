@@ -1,3 +1,4 @@
+import { livestockTexture } from '../art/livestock';
 import { minecartSprite } from '../art/mining';
 import { MOUNT_FRAMES, SADDLE_Z, mountDir, mountSprite } from '../art/mounts';
 import { Rectangle, Texture } from 'pixi.js';
@@ -678,7 +679,7 @@ export class CombatView {
    * A riding player: the mount stands under them and gallops while they move; the rider is drawn from the hips up
    * (the legs are hidden by the flanks) and sits in the saddle.
    */
-  mount(v: CombatActor, kind: number, fx: number, fy: number, moving: boolean, travel: number): void {
+  mount(v: CombatActor, kind: number, fx: number, fy: number, moving: boolean, travel: number, reduced = false): void {
     if (!kind) {
       if (v.mountSprite?.visible) {
         v.mountSprite.visible = false;
@@ -692,12 +693,20 @@ export class CombatView {
       v.root.addChildAt(v.mountSprite, 0);
     }
     const frame = moving ? 1 + (Math.floor(travel / 0.32) % (MOUNT_FRAMES - 1)) : 0;
-    const art = mountSprite(kind % 2 === 0 ? 'stag' : 'horse', mountDir(fx, fy), frame);
+    const texture =
+      kind === 2 || kind === 4
+        ? null
+        : livestockTexture(
+            kind === 5 ? 'phasehart' : 'horse',
+            moving && !reduced ? 2 + (Math.floor(travel / 0.22) % 2) : 0,
+            Math.abs(fx) >= Math.abs(fy) ? (fx < 0 ? 2 : 0) : fy < 0 ? 3 : 1,
+          );
+    const art = texture ? { tex: texture, ax: 24, ay: 49 } : mountSprite('stag', mountDir(fx, fy), reduced ? 0 : frame);
     v.mountSprite.texture = art.tex;
     v.mountSprite.anchor.set(art.ax / art.tex.width, art.ay / art.tex.height);
     v.mountSprite.visible = true;
     v.sprite.texture = riderCrop(v.sprite.texture);
-    const bob = moving ? [0, 1, 0, 0][frame - 1]! : 0;
+    const bob = moving && !reduced ? [0, 1, 0, 0][frame - 1]! : 0;
     v.sprite.y = -SADDLE_Z - bob;
     v.fl.y = v.sprite.y;
   }

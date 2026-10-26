@@ -65,7 +65,7 @@ jobs:
         run: docker compose --env-file "$RUNNER_TEMP/render-test.env" -f deploy/render/compose.test.yml down --volumes
   solo-browser:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -83,6 +83,7 @@ jobs:
           node e2e/kingdom-materials.mjs http://127.0.0.1:5174/ /tmp/creature-art/kingdoms
           node --import tsx e2e/castle-frontier-art.mjs http://127.0.0.1:5174/ /tmp/creature-art/frontier
           node e2e/homestead-art.mjs http://127.0.0.1:5174/ /tmp/creature-art/homesteads
+          node --import tsx e2e/cozy-towns.mjs http://127.0.0.1:5174/ /tmp/creature-art/cozy-towns
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -99,3 +100,11 @@ jobs:
           node e2e/stormbound.mjs http://127.0.0.1:5240/ /tmp/stormbound-shots touch
           node --import tsx e2e/elevation.mjs http://127.0.0.1:5240/ /tmp/elevation-shots
           node e2e/homestead-gameplay.mjs http://127.0.0.1:5240/ /tmp/homestead-gameplay
+          node e2e/living-guilds.mjs http://127.0.0.1:5240/ /tmp/living-guilds-gameplay
+          node e2e/travel.mjs http://127.0.0.1:5240/ /tmp/living-guilds-gameplay/travel
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: living-guilds-gameplay
+          path: /tmp/living-guilds-gameplay/

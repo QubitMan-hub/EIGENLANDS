@@ -1,3 +1,6 @@
+import { Ranch } from '../features/ranch';
+import { Settlements } from '../features/settlements';
+import { GuildJourneys } from '../features/guild-journeys';
 import { CaveModule } from '../features/caves';
 import { matchMaker, type Client } from 'colyseus';
 import type { Schema } from '@colyseus/schema';
@@ -79,6 +82,9 @@ export class GameRoom extends WorldRoom {
   unsharded = false;
   /** set when another room already owns this shard: every join is redirected there */
   private redirectTo: string | null = null;
+  journeys!: GuildJourneys;
+  ranch!: Ranch;
+  settlements!: Settlements;
   circuit!: CircuitModule;
   social!: SocialModule;
   shadows!: ShadowModule;
@@ -121,6 +127,13 @@ export class GameRoom extends WorldRoom {
     await super.onCreate();
     if (this.redirectTo) return;
 
+    this.journeys = new GuildJourneys(this);
+    this.ranch = new Ranch(this);
+    this.settlements = new Settlements(this);
+    this.guildClear = (p, id) => this.journeys.clear(p, id);
+    this.guildStart = (p, id, b) => this.journeys.start(p, id, b);
+    this.guildInteract = (p, o) => this.journeys.interact(p, o);
+    this.guildTalk = (p, id) => this.journeys.talk(p, id) || this.settlements.talk(p, id);
     this.shardMod = new ShardModule(this);
     this.circuit = new CircuitModule(this);
     this.social = new SocialModule(this);
@@ -135,6 +148,9 @@ export class GameRoom extends WorldRoom {
     this.caravans = new CaravanModule(this);
     this.modules = [
       this.shardMod,
+      this.journeys,
+      this.ranch,
+      this.settlements,
       this.circuit,
       this.social,
       this.shadows,

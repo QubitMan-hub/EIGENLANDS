@@ -1,3 +1,4 @@
+import { GUILD_RANKS, type GuildRank } from '@eigenlands/shared';
 import {
   ABILITIES,
   CLASSES,
@@ -21,6 +22,7 @@ export interface PathState {
   /** a card the player has picked and must confirm */
   pending: { what: 'class' | 'second'; cls: ClassId } | { what: 'spec'; spec: string } | null;
   tutorialChoose: boolean;
+  guildRank?: GuildRank | null;
 }
 
 export interface PathActions {
@@ -184,7 +186,8 @@ export function buildPath(s: PathState, act: PathActions): HTMLElement {
   for (const sp of c.specs) {
     const chosen = s.spec === sp.id;
     const pend = s.pending?.what === 'spec' && s.pending.spec === sp.id;
-    const can = s.level >= SPEC_LEVEL && !s.spec;
+    const can =
+      s.level >= SPEC_LEVEL && !s.spec && (sp.id !== 'guild_warden' || GUILD_RANKS.indexOf(s.guildRank ?? 'F') >= 4);
     const card = h(
       'div',
       { class: `cb-spec${chosen ? ' chosen' : ''}${!can && !chosen ? ' locked' : ''}`, style: `--cc:${hex(c.color)}` },

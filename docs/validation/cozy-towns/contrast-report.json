@@ -1,0 +1,302 @@
+[
+  {
+    "label": "title",
+    "issues": [],
+    "scrolls": []
+  },
+  {
+    "label": "hud",
+    "issues": [],
+    "scrolls": []
+  },
+  {
+    "label": "inventory",
+    "issues": [],
+    "scrolls": [
+      {
+        "cls": "window panel wide",
+        "id": "",
+        "bar": 0,
+        "sw": "thin",
+        "over": "y"
+      }
+    ]
+  },
+  {
+    "label": "journal",
+    "issues": [],
+    "scrolls": []
+  },
+  {
+    "label": "journal-Quests",
+    "issues": [],
+    "scrolls": []
+  },
+  {
+    "label": "journal-Journey",
+    "issues": [],
+    "scrolls": [
+      {
+        "cls": "jbody",
+        "id": "",
+        "bar": 0,
+        "sw": "thin",
+        "over": "y"
+      }
+    ]
+  },
+  {
+    "label": "journal-Skills",
+    "issues": [],
+    "scrolls": []
+  },
+  {
+    "label": "journal-Friends",
+    "issues": [],
+    "scrolls": [
+      {
+        "cls": "jbody",
+        "id": "",
+        "bar": 0,
+        "sw": "thin",
+        "over": "y"
+      }
+    ]
+  },
+  {
+    "label": "journal-Kingdoms",
+    "issues": [],
+    "scrolls": []
+  },
+  {
+    "label": "journal-Recipes",
+    "issues": [],
+    "scrolls": [
+      {
+        "cls": "jbody",
+        "id": "",
+        "bar": 0,
+        "sw": "thin",
+        "over": "y"
+      }
+    ]
+  },
+  {
+    "label": "journal-How to…",
+    "issues": [],
+    "scrolls": [
+      {
+        "cls": "jbody",
+        "id": "",
+        "bar": 0,
+        "sw": "thin",
+        "over": "y"
+      }
+    ]
+  },
+  {
+    "label": "journal-Controls",
+    "issues": [],
+    "scrolls": [
+      {
+        "cls": "jbody",
+        "id": "",
+        "bar": 0,
+        "sw": "thin",
+        "over": "y"
+      }
+    ]
+  },
+  {
+    "label": "craft",
+    "issues": [],
+    "scrolls": [
+      {
+        "cls": "recipes",
+        "id": "",
+        "bar": 0,
+        "sw": "thin",
+        "over": "y"
+      }
+    ]
+  },
+  {
+    "label": "board",
+    "issues": [],
+    "scrolls": [
+      {
+        "cls": "window panel wide",
+        "id": "",
+        "bar": 0,
+        "sw": "thin",
+        "over": "y"
+      }
+    ]
+  },
+  {
+    "label": "party",
+    "issues": [],
+    "scrolls": []
+  },
+  {
+    "label": "shadows",
+    "issues": [],
+    "scrolls": []
+  },
+  {
+    "label": "map",
+    "issues": [],
+    "scrolls": [
+      {
+        "cls": "window panel wide",
+        "id": "",
+        "bar": 0,
+        "sw": "thin",
+        "over": "y"
+      }
+    ]
+  },
+  {
+    "label": "menu",
+    "issues": [],
+    "scrolls": []
+  },
+  {
+    "label": "menu-Quests",
+    "issues": [],
+    "scrolls": []
+  },
+  {
+    "label": "menu-Journey",
+    "issues": [],
+    "scrolls": [
+      {
+        "cls": "jbody",
+        "id": "",
+        "bar": 0,
+        "sw": "thin",
+        "over": "y"
+      }
+    ]
+  },
+  {
+    "label": "menu-Skills",
+    "issues": [],
+    "scrolls": []
+  },
+  {
+    "label": "menu-Friends",
+    "issues": [],
+    "scrolls": [
+      {
+        "cls": "jbody",
+        "id": "",
+        "bar": 0,
+        "sw": "thin",
+        "over": "y"
+      }
+    ]
+  },
+  {
+    "label": "menu-Kingdoms",
+    "issues": [],
+    "scrolls": []
+  },
+  {
+    "label": "menu-Recipes",
+    "issues": [],
+    "scrolls": [
+      {
+        "cls": "jbody",
+        "id": "",
+        "bar": 0,
+        "sw": "thin",
+        "over": "y"
+      }
+    ]
+  },
+  {
+    "label": "menu-How to…",
+    "issues": [],
+    "scrolls": [
+      {
+        "cls": "jbody",
+        "id": "",
+        "bar": 0,
+        "sw": "thin",
+        "over": "y"
+      }
+    ]
+  },
+  {
+    "label": "menu-Controls",
+    "issues": [],
+    "scrolls": [
+      {
+        "cls": "jbody",
+        "id": "",
+        "bar": 0,
+        "sw": "thin",
+        "over": "y"
+      }
+    ]
+  },
+  {
+    "label": "statue",
+    "issues": [],
+    "scrolls": []
+  },
+  {
+    "label": "statue-page",
+    "issues": [],
+    "scrolls": []
+  },
+  {
+    "label": "talk-orla",
+    "issues": [],
+    "scrolls": []
+  },
+  {
+    "label": "talk-choices-orla",
+    "issues": [],
+    "scrolls": []
+  },
+  {
+    "label": "talk-tobin",
+    "issues": [],
+    "scrolls": []
+  },
+  {
+    "label": "talk-choices-tobin",
+    "issues": [],
+    "scrolls": []
+  },
+  {
+    "label": "shop-tobin",
+    "issues": [],
+    "scrolls": []
+  },
+  {
+    "label": "talk-brannoch",
+    "issues": [],
+    "scrolls": []
+  },
+  {
+    "label": "talk-choices-brannoch",
+    "issues": [],
+    "scrolls": []
+  },
+  {
+    "label": "shop-brannoch",
+    "issues": [],
+    "scrolls": [
+      {
+        "cls": "window panel wide",
+        "id": "",
+        "bar": 0,
+        "sw": "thin",
+        "over": "y"
+      }
+    ]
+  }
+]

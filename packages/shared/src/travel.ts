@@ -373,7 +373,8 @@ export type TravelEvent =
 
 /** Mount codes in PlayerSim.mount: which animal, and whether it is well fed. */
 export type MountKind = 'horse' | 'stag';
-export const mountKindOf = (code: number): MountKind | null => (code <= 0 ? null : code % 2 === 0 ? 'stag' : 'horse');
+export const mountKindOf = (code: number): MountKind | null =>
+  code === 1 || code === 3 ? 'horse' : code === 2 || code === 4 ? 'stag' : null;
 export const mountCode = (kind: MountKind, fed: boolean): number => (kind === 'stag' ? 2 : 1) + (fed ? 2 : 0);
 /** What a mount will eat, and for how long a good feed lasts. */
 export const MOUNT_FEED = ['hay', 'carrot', 'apple', 'oats'] as const;

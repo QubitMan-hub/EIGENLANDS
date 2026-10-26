@@ -1,3 +1,5 @@
+import { livestockTexture } from '../art/livestock';
+import { isLivestock } from '@eigenlands/shared';
 import { FrameRateWindow } from './frame-rate';
 import { T, CAVE_BIOME_NAMES, caveRegionAt } from '@eigenlands/shared';
 import { ClickMining } from './click-mining';
@@ -154,8 +156,9 @@ interface Snap extends Pose {
   weapon: string;
   held: string;
   cart: boolean;
-  /** riding: 0 on foot, 1 horse, 2 Moonlit Stag */
   mount: number;
+  farm: string;
+  young: boolean;
   /** combat 2.0 (enemies) */
   st: number;
   atk: number;
@@ -184,6 +187,7 @@ interface ActorView {
   outfit: number;
   trail: number;
   held?: Sprite;
+  mountSprite?: Sprite;
   /** combat presentation (see combatview.ts) */
   fl: Sprite;
   kind: number;
@@ -343,6 +347,7 @@ export class Game {
     this.app.stage.addChild(this.lighting.sprite, this.weatherLayer, this.labelLayer);
     this.gameplay = new Gameplay({
       net: () => this.net,
+      ridingMount: () => this.predictor?.sim.mount > 0,
       ridingCart: () => this.predictor?.sim.cart > 0,
       caravanNear: () => this.ext?.travel.caravanNear() ?? null,
       clock: this.clock,
@@ -672,6 +677,8 @@ export class Game {
         held: e.held ?? '',
         cart: !!e.cart,
         mount: e.mount ?? 0,
+        farm: e.farm ?? '',
+        young: !!e.young,
         st: e.st ?? 0,
         atk: e.atk ?? 0,
         tx: e.tx ?? 0,
@@ -1000,7 +1007,7 @@ export class Game {
     let label: Text | undefined;
     if (type === 'npc') {
       label = new Text({
-        text: NPC_BY_ID[id]?.name.split(' ')[0] ?? '',
+        text: e.name || NPC_BY_ID[id]?.name.split(' ')[0] || '',
         style: {
           fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
           fontSize: 11,
@@ -1583,6 +1590,7 @@ export class Game {
       v.gfx.clear();
 
       if (v.type === 'player') {
+        const mount = isMe ? this.predictor.sim.mount : (s?.mount ?? 0);
         const cart = isMe ? this.predictor.sim.cart > 0 : !!s?.cart;
         const dash = isMe ? this.predictor.sim.dashT > 0 : ((s?.flags ?? 0) & 1) !== 0;
         const deadP = isMe ? this.dead : ((s?.flags ?? 0) & 4) !== 0;
@@ -1621,7 +1629,7 @@ export class Game {
               ? CAST_FRAME
               : ATTACK_FRAME;
         const frame =
-          deadP || cart
+          deadP || cart || mount
             ? -1
             : strike >= 0
               ? family + strike
@@ -1644,12 +1652,13 @@ export class Game {
         v.sprite.alpha = deadP ? 0.35 : dash ? 0.6 : 1;
         v.sprite.rotation = deadP ? Math.PI / 2 : 0;
         v.sprite.scale.set(1);
+        v.sprite.y = 1;
         const boat = isMe ? this.predictor.sim.boat > 0 : ((s?.flags ?? 0) & 128) !== 0;
         this.combat.rig(v, boat, fx, fy, now / 1000);
         this.combat.minecart(v, cart, fx, fy);
         const riding = !boat && !cart && !deadP ? (isMe ? this.predictor.sim.mount : (s?.mount ?? 0)) : 0;
-        this.combat.mount(v, riding, fx, fy, walking, v.travel);
-        if (heldItem && !boat && !cart && !deadP && !riding) {
+        this.combat.mount(v, riding, fx, fy, walking, v.travel, reduced);
+        if (heldItem && !boat && !cart && !deadP) {
           if (!v.held) {
             v.held = new Sprite();
             v.held.anchor.set(0.5, 0.75);
@@ -1661,6 +1670,7 @@ export class Game {
           const pose = v.sprite.texture.frame.x / 24;
           v.held.texture = this.heldWeapons.texture(heldItem, direction, pose);
           v.held.visible = true;
+          v.held.y = riding ? v.sprite.y + 9 : 0;
           v.held.alpha = v.sprite.alpha;
           v.root.setChildIndex(v.held, direction === 1 || direction >= 6 ? 1 : v.root.children.length - 1);
         } else if (v.held) v.held.visible = false;
@@ -1670,6 +1680,7 @@ export class Game {
           this.combat.decoratePlayer(v, s?.flags ?? 0, isMe ? this.predictor.sim : null, x, y, now, dtMs / 1000);
         v.flash *= Math.exp(-dtMs / 45);
         v.fl.texture = v.sprite.texture;
+        v.fl.y = v.sprite.y;
         v.fl.scale.copyFrom(v.sprite.scale);
         v.fl.rotation = v.sprite.rotation;
         v.fl.alpha = v.flash;
@@ -1694,7 +1705,20 @@ export class Game {
               ? -1
               : 0;
         const nd = screenDir(fx, fy);
-        v.sprite.texture = this.sheets.npc(v.id, dirOf(nd.x, nd.y), frame);
+        if (isLivestock(s?.farm)) {
+          v.sprite.texture = livestockTexture(
+            s!.farm as import('@eigenlands/shared').LivestockSpecies,
+            walking && !reduced ? 2 + (Math.floor(v.travel / 0.22) % 2) : 0,
+            Math.abs(fx) >= Math.abs(fy) ? (fx < 0 ? 2 : 0) : fy < 0 ? 3 : 1,
+          );
+          v.sprite.anchor.set(24 / 48, 49 / 56);
+          v.sprite.scale.set(s?.young ? 0.62 : 0.9);
+        } else
+          v.sprite.texture = this.sheets.npc(
+            NPC_BY_ID[v.id] ? v.id : ['odo', 'orla', 'juniper', 'tobin', 'fenwick'][Math.abs(s?.look ?? 0) % 5]!,
+            dirOf(nd.x, nd.y),
+            frame,
+          );
         v.gfx.ellipse(0, 0, 7, 3).fill({ color: 0x2a1060, alpha: 0.28 });
         if (v.label) {
           const near = Math.hypot(x - me.x, y - me.y) < 4;
@@ -1775,7 +1799,8 @@ export class Game {
     let best: { id: string; x: number; y: number } | null = null,
       bd = max;
     for (const v of this.views.values()) {
-      if (v.type !== 'npc' || !v.root.visible) continue;
+      if (v.type !== 'npc' || !v.root.visible || v.id.startsWith('livestock:') || v.id.startsWith('resident:'))
+        continue;
       const d = Math.hypot(v.lx - x, v.ly - y);
       if (d < bd) {
         bd = d;
@@ -1832,11 +1857,12 @@ export class Game {
     const sh = v.shadow;
     sh.visible = v.root.visible && v.type !== 'proj' && sun.alpha > 0.02;
     if (!sh.visible) return;
-    sh.texture = v.sprite.texture;
-    sh.anchor.copyFrom(v.sprite.anchor);
+    const source = v.mountSprite?.visible ? v.mountSprite : v.sprite;
+    sh.texture = source.texture;
+    sh.anchor.copyFrom(source.anchor);
     sh.position.set(v.root.x, v.root.y);
     sh.alpha = sun.alpha * v.sprite.alpha;
-    sh.scale.y = -(0.22 + 0.14 * sun.len);
+    sh.scale.set(source.scale.x, -(0.22 + 0.14 * sun.len) * source.scale.y);
     sh.skew.x = sun.dx * sun.len * 0.55;
     sh.rotation = v.sprite.rotation;
   }

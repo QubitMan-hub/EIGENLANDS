@@ -1,3 +1,4 @@
+import { buildSettlement } from '../ui/settlement';
 import { buildGuild } from '../ui/guild';
 import type { EquipMsg } from '@eigenlands/shared';
 import {
@@ -53,6 +54,7 @@ import { describeUse, fishingTarget, targetTile, type UseInfo } from './targetin
 
 export interface GameplayDeps {
   net: () => Net;
+  ridingMount?: () => boolean;
   ridingCart?: () => boolean;
   /** a road caravan in trading reach */
   caravanNear?: () => { id: string; name: string } | null;
@@ -367,6 +369,7 @@ export class Gameplay {
     } else if (m.kind === 'shelter') {
       const render = () =>
         buildShelter(m, this.profile, {
+          ranch: (action, id) => net.send('ranch', { action, id, tx: m.tx, ty: m.ty }),
           add: () => net.shelter({ tx: m.tx, ty: m.ty, action: 'add' }),
           feed: () => net.shelter({ tx: m.tx, ty: m.ty, action: 'feed' }),
           collect: () => net.shelter({ tx: m.tx, ty: m.ty, action: 'collect' }),
@@ -404,11 +407,29 @@ export class Gameplay {
       });
       if (this.wins.name === 'board') this.wins.update('board', el);
       else this.wins.show('board', 'Hadamere Request Board', el, { wide: true });
+    } else if (m.kind === 'settlement' && m.settlement) {
+      const body = buildSettlement(m, (action, extra = {}) =>
+        net.send('settlement', { tx: m.tx, ty: m.ty, action, ...extra }),
+      );
+      if (this.wins.name === 'settlement') this.wins.update('settlement', body);
+      else this.wins.show('settlement', 'Settlement charter', body, { wide: true });
+    } else if (m.kind === 'journey' && m.journey) {
+      const j = m.journey,
+        body = h('div', { class: 'guild-ledger' }, h('p', { text: j.text }));
+      for (const c of j.choices)
+        body.append(
+          h('button', {
+            text: c.label,
+            on: { click: () => net.send('guild_journey', { id: j.id, action: 'choose', choice: c.id }) },
+          }),
+        );
+      this.wins.show('journey', j.title, body);
     } else if (m.kind === 'guild' && m.guild) {
       const el = buildGuild(
         m,
         (quest, action) => net.send(MSG.QUEST, { npcId: 'guild', quest, action, tx: m.tx, ty: m.ty }),
         {
+          settlement: () => net.send('settlement', { tx: m.tx, ty: m.ty, action: 'inspect' }),
           classes: () => {
             this.wins.close();
             this.d.openBoard?.();
@@ -512,6 +533,10 @@ export class Gameplay {
       return true;
     }
     const store = this.d.store();
+    if (this.d.ridingMount?.()) {
+      net.send('ranch', { action: 'dismount' });
+      return true;
+    }
     if (this.d.ridingCart?.()) {
       net.open(Math.floor(p.x), Math.floor(p.y));
       return true;
@@ -623,6 +648,13 @@ export class Gameplay {
   prompt(): { info: UseInfo | null; tx: number; ty: number; label: string | null } {
     const p = this.d.player();
     const store = this.d.store();
+    if (this.d.ridingMount?.())
+      return {
+        info: null,
+        tx: Math.floor(p.x),
+        ty: Math.floor(p.y),
+        label: `${binding(this.d.input.keys, 'interact')}: Dismount`,
+      };
     if (this.d.ridingCart?.())
       return {
         info: { kind: 'open', label: 'Step off the minecart', ok: true },

@@ -4,8 +4,8 @@ import { ensureP2Styles } from './p2style';
 import './homestead.css';
 export function buildGuild(
   m: PanelMsg,
-  act: (id: string, action: 'accept' | 'turnin') => void,
-  options: { classes?: () => void; party?: () => void } = {},
+  act: (id: string, action: 'accept' | 'turnin' | 'abandon') => void,
+  options: { classes?: () => void; party?: () => void; settlement?: () => void } = {},
 ): HTMLElement {
   ensureP2Styles();
   const g = m.guild!,
@@ -32,6 +32,8 @@ export function buildGuild(
   const services = h('div', { class: 'dbtns' });
   if (options.classes) services.append(h('button', { text: 'Choose class & circuit', on: { click: options.classes } }));
   if (options.party) services.append(h('button', { text: 'Form an adventuring party', on: { click: options.party } }));
+  if (g.owned && options.settlement)
+    services.append(h('button', { text: 'Manage settlement', on: { click: options.settlement } }));
   root.append(services);
   if ((g.generation ?? 6) < 5)
     root.append(
@@ -49,13 +51,27 @@ export function buildGuild(
   const render = (mode: 'current' | 'record' | 'future') => {
     body.replaceChildren();
     for (const entry of g.contracts) {
-      const d = GUILD_QUESTS.find((d) => d.id === entry.id)!;
+      const d = entry.definition ?? GUILD_QUESTS.find((d) => d.id === entry.id)!;
       if (mode === 'current' && !['open', 'active', 'ready'].includes(entry.state)) continue;
       if (mode === 'record' && entry.state !== 'done') continue;
       if (mode === 'future' && entry.state !== 'locked') continue;
       const card = h('article', { class: 'guild-contract' }, h('h3', { text: d.title }), h('p', { text: d.summary }));
       for (let i = 0; i < d.objectives.length; i++)
         card.append(h('div', { class: 'small', text: objectiveText(d.objectives[i]!, entry.progress[i] ?? 0) }));
+      if (entry.journey && entry.state === 'active') {
+        const j = entry.journey,
+          point = j.kind === 'rescue' && j.released ? j.home : j.points[Math.min(2, j.stage)];
+        card.append(
+          h('p', {
+            class: 'small',
+            text: j.failed
+              ? 'Journey failed · abandon to retry'
+              : `Journey ${j.stage}/3 · traveller health ${Math.ceil(j.hp)} · rendezvous ${Math.floor(point!.x)}, ${Math.floor(point!.y)}`,
+          }),
+        );
+      }
+      if (entry.journey && entry.state === 'active')
+        card.append(h('button', { text: 'Abandon journey', on: { click: () => act(entry.id, 'abandon') } }));
       if (entry.state === 'locked')
         card.append(
           h('p', {

@@ -247,12 +247,12 @@ export function handleQuestMsg(room: RoomApi, p: ServerPlayer, m: QuestMsg): voi
   if (
     !m ||
     typeof m.quest !== 'string' ||
-    (m.action !== 'accept' && m.action !== 'turnin') ||
+    (m.action !== 'accept' && m.action !== 'turnin' && !(m.npcId === 'guild' && m.action === 'abandon')) ||
     typeof m.npcId !== 'string'
   )
     return;
   if (m.npcId === 'guild') {
-    handleGuild(room, p, m);
+    void handleGuild(room, p, m).catch(() => p.toast('The guild could not survey that route. Please try again.'));
     return;
   }
   if (m.npcId === 'board') {

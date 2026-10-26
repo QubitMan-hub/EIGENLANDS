@@ -6,6 +6,13 @@ import type { VillageSystem } from './types';
 
 /** What the Phase 2 systems may use from the world room. */
 export interface RoomApi {
+  guildClear?: (p: ServerPlayer, id: string) => void;
+  guildStart?: (
+    p: ServerPlayer,
+    id: string,
+    board: import('@eigenlands/shared').WorldObj,
+  ) => Promise<import('@eigenlands/shared').GuildJourney | null>;
+  guildInteract?: (p: ServerPlayer, o: import('@eigenlands/shared').WorldObj) => boolean;
   seed: number;
   store: ChunkStore;
   state: WorldState;

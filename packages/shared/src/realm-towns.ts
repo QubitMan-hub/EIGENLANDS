@@ -1,3 +1,4 @@
+import { cozyTown } from './cozy-town';
 import { KINGDOMS } from './kingdoms';
 import { residentsOfSite, type Place, type ResidentPlan } from './realm-npcs';
 import { REALM_IDS, REALM_SITES, type RealmId, type RealmSite } from './realms';
@@ -1305,5 +1306,5 @@ export function buildRealmTown(site: RealmSite, seed: number, generation = 5): T
       }
   }
   void buildingsAt;
-  return t;
+  return cozyTown(t);
 }

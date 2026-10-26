@@ -1,3 +1,4 @@
+import { guildContract } from './guild-contracts';
 import { CAVE_RESIDENTS } from './undercroft';
 import { PORT_RESIDENTS } from './settlements';
 import { ITEMS, type Stack } from './items';
@@ -523,7 +524,11 @@ QUESTS.push(
 QUESTS.push(...realmQuests(), ...GUILD_QUESTS);
 
 export const QUEST_BY_ID: Record<string, QuestDef> = Object.fromEntries(QUESTS.map((x) => [x.id, x]));
-export type QuestState = { state: 'active' | 'done'; progress: number[] };
+export type QuestState = {
+  state: 'active' | 'done';
+  progress: number[];
+  journey?: import('./guild-contracts').GuildJourney;
+};
 export type QuestLog = Record<string, QuestState>;
 
 export const questsFrom = (npcId: string): QuestDef[] => QUESTS.filter((x) => x.giver === npcId);
@@ -546,7 +551,7 @@ export function targetMatches(target: string, ev: QuestEvent): boolean {
 
 /** Story quests by id, request-board jobs regenerated from (seed, day, index). */
 export function questDef(id: string, seed: number): QuestDef | undefined {
-  return QUEST_BY_ID[id] ?? requestDef(seed, id);
+  return QUEST_BY_ID[id] ?? guildContract(seed, id) ?? requestDef(seed, id);
 }
 
 /** Counts an event toward every active quest objective it matches. Returns the ids of quests that changed. */

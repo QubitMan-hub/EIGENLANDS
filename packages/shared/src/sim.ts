@@ -82,7 +82,7 @@ export interface PlayerSim {
   staminaT: number;
   /** 1 while sprinting */
   sprint: number;
-  /** 0 on foot; 1 riding a horse, 2 the Moonlit Stag (MOUNT_SPEED_MULT). Attacking or skills step you down first. */
+  /** 0 on foot; 1 riding a horse, 2 the Moonlit Stag, 5 a trained Glimmerhart (MOUNT_SPEED_MULT). Attacking or skills step you down first. */
   mount: number;
 }
 
@@ -295,6 +295,7 @@ export function chargeLevel(charge: number): number {
  * - phase slip (set by the server on a perfect dodge): the next attack is a critical counter.
  */
 export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepEvents {
+  if (p.mount && (cmd.attack || cmd.skill || cmd.dash || cmd.hold)) p.mount = 0;
   const sailing = p.boat > 0 && !!land.sea;
   const solid: SolidQuery = sailing ? land.sea! : land;
   const ev: StepEvents = {

@@ -210,3 +210,15 @@ for (const n of npcs.slice(0, 3)) {
 }
 writeFileSync(`${out}/report.json`, JSON.stringify(results, null, 1));
 await b.close();
+
+if (process.argv.includes('--assert')) {
+  const bad = results.flatMap((r) => r.issues.map((i) => ({ page: r.label, ...i }))),
+    horizontal = results.flatMap((r) => r.scrolls.filter((s) => s.over === 'x').map((s) => ({ page: r.label, ...s })));
+  if (bad.length || horizontal.length)
+    throw new Error(
+      `Contrast/overflow regression: ${bad.length} low-contrast text nodes, ${horizontal.length} horizontal scrollers`,
+    );
+  console.log(
+    'PASS all audited title, HUD, windows, journal pages, dialogue and shops meet contrast and horizontal overflow checks',
+  );
+}

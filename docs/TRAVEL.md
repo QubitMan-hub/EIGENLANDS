@@ -34,7 +34,7 @@ Breath of the Wild's towers, where reaching one is a reward in itself.
   - **Riding Horse:** buy its whistle from Fenwick at Hartley Farm Supply (900c). Rides at 1.6× walking speed.
   - **Moonlit Stag:** a silver bell given for attuning 12 stones. Rides at 1.85× walking speed.
   - **Mounting and dismounting:** use the item. You cannot mount indoors.
-  - **Restrictions:** no dashing, sprinting, tools or fighting from the saddle. Attacking, charging or casting steps you
+  - **Restrictions:** no dashing, sprinting, tools or fighting from the saddle. Attacking, charging, dodging or casting steps you
     down first, and the blow still lands. A rider who takes damage is thrown.
 - **Roads.** Kept paths (`T.PATH`) are faster: ×1.12 on foot and ×1.2 when riding. The kingdoms already have generated
   road networks (`roadDistance`) linking the capital, towns, villages and outposts.
@@ -127,3 +127,5 @@ when they walk across a border.
 - **Caravan escort quests:** taking a job to ride with a caravan to its far end. Ambush defence and trade exist.
 - **Gamepad hardware review:** focus order in the travel window works with the keyboard but has not been checked on a
   physical gamepad.
+
+Ranch integration preserves the original authored horse/Glimmerhart art and the seated rider. Codes 1/2 are travel horse/Stag, 3/4 their fed forms, and 5 is an individually trained Glimmerhart at 1.45×. Space dismounts every mode; spell and dodge paths dismount before acting. Ranch authority validates only its own riders, while travel care/expiry handles only codes 1–4. The separate earned Moonlit Stag keeps its own model.

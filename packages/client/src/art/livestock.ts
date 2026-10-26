@@ -25,10 +25,25 @@ export function livestockCanvas(species: LivestockSpecies, frame = 0, facing = 0
         : [C.slate, C.mist, C.fog, C.pale, C.white];
   const coat = mat(ramp),
     hoof = mat([C.ink, C.night, C.slate, C.steel, C.mist]);
-  const box = (x: number, y: number, z: number, w: number, d: number, h: number, m: BoxMat = coat) =>
-    facing ? iso.box(y, x, z, d, w, h, m) : iso.box(x, y, z, w, d, h, m);
-  const dot = (x: number, y: number, z: number, c: number, w = 1, h = 1) =>
-    facing ? iso.dot(y, x, z, c, w, h) : iso.dot(x, y, z, c, w, h);
+  const turn = (x: number, y: number): [number, number] => {
+    if (facing & 1) [x, y] = [y, x];
+    return facing >= 2 ? [16 - x, 16 - y] : [x, y];
+  };
+  const box = (x: number, y: number, z: number, w: number, d: number, h: number, m: BoxMat = coat) => {
+    if (facing & 1) {
+      [x, y] = [y, x];
+      [w, d] = [d, w];
+    }
+    if (facing >= 2) {
+      x = 16 - x - w;
+      y = 16 - y - d;
+    }
+    iso.box(x, y, z, w, d, h, m);
+  };
+  const dot = (x: number, y: number, z: number, c: number, w = 1, h = 1) => {
+    const [u, v] = turn(x, y);
+    iso.dot(u, v, z, c, w, h);
+  };
   // Ray-intersect rounded volumes in the same 2:1 model axes as the legs and props.
   const body = (
     cx: number,
@@ -40,9 +55,13 @@ export function livestockCanvas(species: LivestockSpecies, frame = 0, facing = 0
     colors: readonly number[] = ramp,
     patch = false,
   ) => {
-    if (facing) {
+    if (facing & 1) {
       [cx, cy] = [cy, cx];
       [rx, ry] = [ry, rx];
+    }
+    if (facing >= 2) {
+      cx = 16 - cx;
+      cy = 16 - cy;
     }
     const sx = 24 + cx - cy,
       sy = 41 + (cx + cy) / 2 - cz,
@@ -83,16 +102,17 @@ export function livestockCanvas(species: LivestockSpecies, frame = 0, facing = 0
   } else {
     for (const x of [3, 11])
       for (const y of [5, 10]) {
-        box(x, y, 0, 1.5, 1.5, 3, hoof);
-        box(x, y, 3, 1.5, 1.5, horse ? 5 : 3);
+        const stride = frame >= 2 ? (((x === 3) === (y === 5)) === (frame === 2) ? 0.7 : -0.7) : 0;
+        box(x + stride, y, 0, 1.5, 1.5, 3, hoof);
+        box(x + stride * 0.5, y, 3, 1.5, 1.5, horse ? 5 : 3);
       }
     const z = horse ? 7 : 5;
     body(7.5, 8, z + 3, 6, 4, wool ? 5 : 3.8, ramp, species === 'cow');
-    const head = frame ? z + 1 : z + 4;
+    const head = frame === 1 ? z + 1 : z + 4;
     if (horse || magic) body(11.5, 7, z + 6, 2, 2.4, 5);
     body(13, 6.5, head + 2, 3, 2.5, 3);
     body(15, 6.5, head + 1, 2.6, 2, 1.6);
-    box(12, 4, head + 4, 1, 2, frame ? 1 : 3);
+    box(12, 4, head + 4, 1, 2, frame === 1 ? 1 : 3);
     box(14, 7, head + 4, 1, 2, 2);
     dot(15, 8, head + 3, C.ink);
     if (species === 'cow') {
@@ -110,7 +130,7 @@ export function livestockCanvas(species: LivestockSpecies, frame = 0, facing = 0
     if (horse) {
       box(9, 5, z + 6, 2, 1, 4, hoof);
       box(0, 7, z, 1, 2, 5, hoof);
-    } else box(1, 6, z + 1, 1, 1, frame ? 3 : 2, coat);
+    } else box(1, 6, z + 1, 1, 1, frame === 1 ? 3 : 2, coat);
     if (pig) {
       dot(17, 7, head + 1, C.r0);
       dot(16, 6, head + 1, C.r0);

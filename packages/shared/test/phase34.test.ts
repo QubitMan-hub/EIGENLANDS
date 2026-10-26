@@ -391,11 +391,13 @@ describe('circuit board', () => {
 });
 
 describe('classes', () => {
-  it('two playable classes with 4 abilities, 3 specs, a resource and an ultimate', () => {
+  it('two playable classes with 4 abilities, 3 original specs plus Wayguard, a resource and an ultimate', () => {
     for (const id of ['superposer', 'entangler'] as const) {
       const c = CLASSES[id];
       expect(c.abilities).toHaveLength(4);
-      expect(c.specs).toHaveLength(3);
+      expect(c.specs).toHaveLength(4);
+      expect(c.specs.some((s) => s.id === 'guild_warden')).toBe(true);
+      expect(c.specs.filter((s) => s.id !== 'guild_warden')).toHaveLength(3);
       expect(c.ultimate.secs).toBeGreaterThan(0);
       for (const a of c.abilities) expect(ABILITIES[a].cls).toBe(id);
     }

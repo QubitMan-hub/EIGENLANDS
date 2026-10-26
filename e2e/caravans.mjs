@@ -1,5 +1,6 @@
 // Caravan proof on the solo build: find a road caravan in Aurelion, stand beside it and open its wagon shop.
 // Usage: node e2e/caravans.mjs <solo-url> <output-dir>
+import assert from 'node:assert/strict';
 import { chromium } from 'playwright-core';
 import { mkdirSync } from 'node:fs';
 const base = process.argv[2] ?? 'http://127.0.0.1:5301/';
@@ -62,6 +63,7 @@ await tp(found.x + found.fx * 2 - found.fy * 1.6, found.y + found.fy * 2 + found
 await page.screenshot({ path: `${out}/1-caravan.png` });
 const near = await page.evaluate(() => window.__eigen.game.ext.travel.caravanNear());
 console.log('in reach', JSON.stringify(near));
+assert(near, 'caravan must be in interaction reach');
 if (near) {
   console.log(
     'server side',
@@ -85,7 +87,9 @@ if (near) {
   await page.evaluate((id) => window.__eigen.game.net.shop({ npcId: `caravan:${id}`, action: 'open' }), near.id);
   await page.waitForTimeout(1000);
   await page.screenshot({ path: `${out}/2-shop.png` });
-  console.log('shop title', await page.locator('#window-title').textContent());
+  const title = await page.locator('#window-title').textContent();
+  console.log('shop title', title);
+  assert(title?.includes(near.name), 'the actual caravan shop must open');
   console.log(
     'toasts',
     await page.evaluate(() => [...document.querySelectorAll('#toasts *, .toast')].map((e) => e.textContent).slice(-5)),
@@ -104,3 +108,4 @@ if (near) {
 }
 await b.close();
 console.log('errors', errors.slice(0, 6));
+assert.deepEqual(errors, [], 'no browser errors');
