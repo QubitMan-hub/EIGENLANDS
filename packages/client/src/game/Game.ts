@@ -115,6 +115,7 @@ import { buildFoeSheets, type FoeSheets } from '../art/foes';
 import { CombatView } from './combatview';
 import { WindField } from './windfield';
 import { Ambient } from './ambient';
+import { WorldLife } from './life';
 import {
   HUE_PALETTE,
   ITEMS,
@@ -266,6 +267,7 @@ export class Game {
   private aimGfx = new Graphics();
   readonly wind = new WindField();
   private ambient!: Ambient;
+  private life!: WorldLife;
   private targetId: string | null = null;
   private targetFrame = new TargetFrame();
   private bobber = new Graphics();
@@ -401,6 +403,20 @@ export class Game {
       sheets: () => this.sheets,
       fx: () => this.fx,
       toScreen: (x, y) => ({ x: this.world.x + isoX(x, y) * this.scale, y: this.world.y + isoY(x, y) * this.scale }),
+    });
+    this.life = new WorldLife({
+      layer: () => this.entityLayer,
+      labels: () => this.labelLayer,
+      store: () => this.store,
+      seed: () => this.seed,
+      sheets: () => this.sheets,
+      foes: () => this.foes,
+      art: () => this.ambient.artOf(),
+      fx: () => this.fx,
+      sound: (s, x, y) => this.sound(s, x, y),
+      toScreen: (x, y) => ({ x: this.world.x + isoX(x, y) * this.scale, y: this.world.y + isoY(x, y) * this.scale }),
+      hostiles: () =>
+        [...this.views.values()].filter((v) => v.type === 'enemy' && v.root.visible).map((v) => ({ x: v.lx, y: v.ly })),
     });
     this.combat = new CombatView(
       {
@@ -1201,6 +1217,16 @@ export class Game {
       season: this.seasonIdx,
       wind: this.wind.w,
       reduced,
+    });
+    this.life.frame({
+      now,
+      dt,
+      me,
+      hour,
+      day: dayNumber(this.clock.serverNow(now)),
+      weather,
+      reduced,
+      underground,
     });
     this.updateTarget34(renderT, me);
     this.syncFocus(now);

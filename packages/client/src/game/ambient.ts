@@ -102,6 +102,9 @@ export class Ambient {
 
   constructor(private d: AmbientDeps) {}
 
+  artOf(): AmbientArt | null {
+    return this.art;
+  }
   count(): number {
     return this.crits.length;
   }

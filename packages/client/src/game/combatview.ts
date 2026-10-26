@@ -5,6 +5,7 @@ import { Sprite, type Container, type Graphics } from 'pixi.js';
 import { SHIP_AX, SHIP_AY, headingOf, type Ships } from '../art/ships';
 import {
   HUE_PALETTE,
+  armyOfKind,
   ATK,
   BRUTE_SLAM_RADIUS,
   C,
@@ -856,10 +857,16 @@ export class CombatView {
         g.rect(Math.round(Math.cos(a) * 6) - 1, Math.round(-20 * big + Math.sin(a) * 2) - 1, 2, 2).fill(pc(38));
       }
     }
-    const top = Math.min(
-      kind === 33 ? -76 : kind === 5 ? -27 : kind === 3 ? -30 : kind === 8 ? -26 : -18,
-      -Math.abs(v.sprite.height) - 4,
-    );
+    // army sprites sit on a tall canvas; their bar belongs just over the helm, not over the empty canvas
+    const unit = armyOfKind(kind);
+    const top = unit
+      ? unit.cls === 'cavalry'
+        ? -50
+        : -42
+      : Math.min(
+          kind === 33 ? -76 : kind === 5 ? -27 : kind === 3 ? -30 : kind === 8 ? -26 : -18,
+          -Math.abs(v.sprite.height) - 4,
+        );
     if (s && def && !def.passive && (s.hp < s.maxHp || s.elite)) {
       const frac = s.hp / Math.max(1, s.maxHp);
       // the pale trail holds what was just lost, then drains; reduced motion keeps it equal to the fill
