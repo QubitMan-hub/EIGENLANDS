@@ -865,17 +865,23 @@ function buildRoof(
               const course = Math.floor(dpx) % 10;
               t += (strand - 0.5) * 0.14 + (course === 0 ? -0.18 : course < 2 ? 0.1 : 0);
             } else {
-              const rowH = st.roofKind === 'slate' ? 6 : st.roofKind === 'tile' ? 6 : 5;
+              const rowH = st.roofKind === 'slate' ? 6 : st.roofKind === 'tile' ? 5 : 5;
               const row = Math.floor(dpx / rowH);
-              const len = st.roofKind === 'tile' ? 7 : st.roofKind === 'slate' ? 11 : 8;
+              const len = st.roofKind === 'tile' ? 8 : st.roofKind === 'slate' ? 11 : 8;
               const off = (row % 2) * (len / 2);
               const k = Math.floor((apx + off) / len);
               const fr = apx + off - k * len,
                 fz = dpx - row * rowH;
-              if (fz < 0.7)
+              if (st.roofKind === 'tile') {
+                // scalloped clay tiles: each tile is a rounded fish-scale lit from the upper left, overlapped by the next row
+                const u = (fr / len - 0.5) * 2,
+                  v = fz / rowH;
+                const arc = 0.5 + 0.5 * Math.sqrt(Math.max(0, 1 - u * u));
+                if (v > arc) t -= 0.34;
+                else if (v > arc - 0.24) t -= 0.14;
+                else t += 0.1 * (1 - v) - u * 0.05 + (hash2(seed, k, row, 10) - 0.5) * 0.22;
+              } else if (fz < 0.7)
                 t -= 0.18; // course shadow line
-              else if (st.roofKind === 'tile')
-                t += Math.cos((fr / len) * Math.PI * 2) * 0.06 + (fz > rowH - 1 ? 0.04 : 0);
               else {
                 if (fr < 0.7) t -= 0.14;
                 t += (hash2(seed, k, row, 10) - 0.5) * 0.16 + (fz > rowH - 1.5 ? 0.1 : 0);
