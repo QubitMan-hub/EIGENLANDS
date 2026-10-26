@@ -335,6 +335,7 @@ export const NPCS: NpcDef[] = [
       stock: [
         { item: 'chicken', markup: 1 },
         { item: 'cow', markup: 1 },
+        { item: 'horse_whistle', markup: 1 },
         { item: 'hay', markup: 1.1 },
         { item: 'fertilizer', markup: 1.1 },
         { item: 'coop', markup: 1.1 },
@@ -720,6 +721,7 @@ NPCS.push(
                 { item: 'healing_potion', markup: 1.4 },
                 { item: 'plank', markup: 1.2 },
                 { item: n.local % 2 ? 'rod' : 'hay', markup: 1.1 },
+                { item: 'recall_shard', markup: 1.5 },
               ],
             },
           }

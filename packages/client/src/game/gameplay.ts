@@ -29,7 +29,7 @@ import type { Audio, Sfx } from '../audio';
 import type { Input } from '../input/input';
 import type { ServerClock } from '../net/interp';
 import type { Net } from '../net/session';
-import { sanctuaryAt } from '@eigenlands/shared';
+import { MSG_TRAVEL, sanctuaryAt } from '@eigenlands/shared';
 import { FIRST_STEPS, buildFirstSteps, controlText, binding } from '../ui/first-steps';
 import { TUTORIAL, freshActs, type Acts } from '../ui/ui';
 import { buildChest, buildShelter, buildSign } from '../ui/containers';
@@ -44,6 +44,7 @@ import { RhythmOverlay } from '../ui/rhythm';
 import { buildShop } from '../ui/shop';
 import { VillageOverlay, type NpcScreen } from '../ui/overlay';
 import { buildBoard, buildLore } from '../ui/village';
+import { buildTravel } from '../ui/travel';
 import { buildStation } from '../ui/station';
 import { Toasts } from '../ui/toast';
 import { Moments } from '../ui/moments';
@@ -376,6 +377,17 @@ export class Gameplay {
         });
       if (this.wins.name === 'shelter') this.wins.update('shelter', render());
       else this.wins.show('shelter', m.shelter?.name ?? 'Shelter', render());
+    } else if (m.kind === 'travel' && m.travel) {
+      const here = m.travel.here.id;
+      const body = buildTravel(m.travel, {
+        go: (to) => {
+          net.send(MSG_TRAVEL.GO, { from: here, to });
+          this.wins.close();
+        },
+        bind: () => net.send(MSG_TRAVEL.GO, { from: here, bind: true }),
+      });
+      if (this.wins.name === 'travel') this.wins.update('travel', body);
+      else this.wins.show('travel', 'Waystone', body);
     } else if (m.kind === 'lore' && m.lore) {
       this.acts.statue = true;
       this.wins.show('lore', m.lore.title, buildLore(m, this.d.portrait));

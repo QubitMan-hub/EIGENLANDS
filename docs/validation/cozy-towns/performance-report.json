@@ -1,0 +1,53 @@
+{
+  "base": "http://localhost:5244/",
+  "graphics": "performance",
+  "viewport": "1366x768@1",
+  "scenes": [
+    {
+      "scene": "hadamere",
+      "frames": 190,
+      "fps": 23.5,
+      "frameP50": 33.4,
+      "frameP95": 66.7,
+      "workMean": 1.86,
+      "workP95": 3.2,
+      "workMax": 10.8,
+      "longTasks": 0,
+      "longMax": 0,
+      "entities": 12,
+      "chunks": 30,
+      "hot": []
+    },
+    {
+      "scene": "aurelion-capital",
+      "frames": 118,
+      "fps": 14.7,
+      "frameP50": 50,
+      "frameP95": 266.7,
+      "workMean": 6.74,
+      "workP95": 30.3,
+      "workMax": 124.5,
+      "longTasks": 6,
+      "longMax": 162,
+      "entities": 22,
+      "chunks": 35,
+      "hot": []
+    },
+    {
+      "scene": "wilderness",
+      "frames": 221,
+      "fps": 27.5,
+      "frameP50": 33.3,
+      "frameP95": 66.6,
+      "workMean": 1.45,
+      "workP95": 3.1,
+      "workMax": 22.6,
+      "longTasks": 0,
+      "longMax": 0,
+      "entities": 7,
+      "chunks": 25,
+      "hot": []
+    }
+  ],
+  "errors": []
+}

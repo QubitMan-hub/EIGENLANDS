@@ -1,4 +1,7 @@
+import { livestockTexture } from '../art/livestock';
 import { minecartSprite } from '../art/mining';
+import { MOUNT_FRAMES, SADDLE_Z, mountDir, mountSprite } from '../art/mounts';
+import { Rectangle, Texture } from 'pixi.js';
 import type { HeldWeapons } from '../art/weapons';
 import { type Critters, type CritterId } from '../art/critters';
 import { Sprite, type Container, type Graphics } from 'pixi.js';
@@ -69,6 +72,8 @@ export interface CombatActor {
   /** hull sprite under a sailing player */
   ship?: Sprite;
   cartSprite?: Sprite;
+  /** horse or Stag under a riding player */
+  mountSprite?: Sprite;
 }
 
 /** Synced fields combat reads from interpolated snapshots. */
@@ -355,6 +360,15 @@ export class CombatView {
         fx.burst(f.x, f.y, [47, 30, 7], 8);
         this.d.sound('reflect', f.x, f.y);
         this.hitStop(60);
+        return true;
+      case 'warp':
+        // waystone travel: a ring gathers as the spell begins, a burst of rune light where you vanish and arrive
+        if (f.v === 0) fx.ring(f.x, f.y, 30, 1.2, 0.6, 2);
+        else {
+          fx.burst(f.x, f.y, [30, 31, 46, 7], 14);
+          fx.ring(f.x, f.y, 46, 1.4, 0.35, 2);
+        }
+        this.d.sound(f.v === 0 ? 'charge' : 'perfect', f.x, f.y);
         return true;
       case 'blast':
         fx.shockwave(f.x, f.y, f.v ?? 1.8, 36);
@@ -659,6 +673,42 @@ export class CombatView {
     v.cartSprite.visible = true;
     v.sprite.y = -6;
     v.fl.y = -6;
+  }
+
+  /**
+   * A riding player: the mount stands under them and gallops while they move; the rider is drawn from the hips up
+   * (the legs are hidden by the flanks) and sits in the saddle.
+   */
+  mount(v: CombatActor, kind: number, fx: number, fy: number, moving: boolean, travel: number, reduced = false): void {
+    if (!kind) {
+      if (v.mountSprite?.visible) {
+        v.mountSprite.visible = false;
+        v.sprite.y = 0;
+        v.fl.y = 0;
+      }
+      return;
+    }
+    if (!v.mountSprite) {
+      v.mountSprite = new Sprite();
+      v.root.addChildAt(v.mountSprite, 0);
+    }
+    const frame = moving ? 1 + (Math.floor(travel / 0.32) % (MOUNT_FRAMES - 1)) : 0;
+    const texture =
+      kind === 2
+        ? null
+        : livestockTexture(
+            kind === 3 ? 'phasehart' : 'horse',
+            moving && !reduced ? 2 + (Math.floor(travel / 0.22) % 2) : 0,
+            Math.abs(fx) >= Math.abs(fy) ? (fx < 0 ? 2 : 0) : fy < 0 ? 3 : 1,
+          );
+    const art = texture ? { tex: texture, ax: 24, ay: 49 } : mountSprite('stag', mountDir(fx, fy), reduced ? 0 : frame);
+    v.mountSprite.texture = art.tex;
+    v.mountSprite.anchor.set(art.ax / art.tex.width, art.ay / art.tex.height);
+    v.mountSprite.visible = true;
+    v.sprite.texture = riderCrop(v.sprite.texture);
+    const bob = moving && !reduced ? [0, 1, 0, 0][frame - 1]! : 0;
+    v.sprite.y = -SADDLE_Z - bob;
+    v.fl.y = v.sprite.y;
   }
 
   /** Enemy sprite, animation, flash, squash/stretch, stagger, elite aura, bars and its telegraph. */
@@ -1012,4 +1062,17 @@ export class CombatView {
   noticeEnemies(nearest: number): void {
     if (nearest < 9) this.showTip('combo');
   }
+}
+
+/** Rider frames from the hips up: the bottom of a person frame (legs) is hidden by the mount's flanks. */
+const RIDER_LEGS = 9;
+const riderCrops = new WeakMap<Texture, Texture>();
+function riderCrop(t: Texture): Texture {
+  let c = riderCrops.get(t);
+  if (!c) {
+    const f = t.frame;
+    c = new Texture({ source: t.source, frame: new Rectangle(f.x, f.y, f.width, Math.max(1, f.height - RIDER_LEGS)) });
+    riderCrops.set(t, c);
+  }
+  return c;
 }

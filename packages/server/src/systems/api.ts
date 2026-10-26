@@ -36,6 +36,9 @@ export interface RoomApi {
   nearby(x: number, y: number, radius: number): ServerPlayer[];
   /** call a boss at (x, y); false = refused (the module toasts why) */
   shrineInteract?(p: ServerPlayer, o: import('@eigenlands/shared').WorldObj): void;
+  travelInteract?(p: ServerPlayer, o: import('@eigenlands/shared').WorldObj): void;
+  recall?(p: ServerPlayer, slot: number): void;
+  toggleMount?(p: ServerPlayer, kind: string): void;
   toggleShip?(p: ServerPlayer): void;
   summonBoss?(p: ServerPlayer, itemId: string, x: number, y: number): boolean;
   vaultGuard?(p: ServerPlayer, o: import('@eigenlands/shared').WorldObj): boolean;

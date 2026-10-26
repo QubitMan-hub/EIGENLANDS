@@ -9,6 +9,9 @@ import {
   DASH_SPEED,
   DASH_TIME,
   BOAT_SPEED_MULT,
+  MOUNT_SPEED_MULT,
+  ROAD_MULT,
+  ROAD_MULT_MOUNTED,
   EXHAUST_DELAY,
   SPRINT_DRAIN,
   SPRINT_MIN,
@@ -73,14 +76,14 @@ export interface PlayerSim {
   boat: number;
   /** 0 walking; otherwise progress + 1 on a shared mine circuit. */
   cart: number;
-  /** Authoritative trained mount: 0 foot, 1 horse, 2 Glimmerhart. */
-  mount: number;
   /** sprint stamina 0..STAMINA_MAX, quantised to 1/64 so client replay and server agree exactly */
   stamina: number;
   /** seconds before stamina starts refilling */
   staminaT: number;
   /** 1 while sprinting */
   sprint: number;
+  /** 0 on foot; 1 riding a horse, 2 the Moonlit Stag, 3 a trained Glimmerhart (MOUNT_SPEED_MULT). Attacking or skills step you down first. */
+  mount: number;
 }
 
 export interface InputCmd {
@@ -126,6 +129,8 @@ export type SolidQuery = ((tx: number, ty: number) => boolean) & {
   mine?: (x: number, y: number) => MineTrack | null;
   /** terrain elevation level of a tile; steps of CLIFF levels or more are impassable (revision 3) */
   level?: (tx: number, ty: number) => number;
+  /** a kept road or path tile: walking and riding on it is a little faster */
+  road?: (tx: number, ty: number) => boolean;
 };
 
 /** Switching families cannot carry a finisher/charge across weapons or erase recovery. */
@@ -174,8 +179,8 @@ export function newPlayerSim(x: number, y: number): PlayerSim {
     atkBuf: 0,
     slipT: 0,
     boat: 0,
-    cart: 0,
     mount: 0,
+    cart: 0,
     stamina: STAMINA_MAX,
     staminaT: 0,
     sprint: 0,
@@ -367,8 +372,12 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepE
     }
   };
 
+  // a rider who attacks, charges or casts steps down from the saddle first (then the blow lands on foot)
+  if (p.mount > 0 && (sailing || cmd.attack || cmd.hold || cmd.skill)) p.mount = 0;
+  const riding = p.mount > 0;
+
   // dash (always available while a charge remains: cancels swing recovery and a held charge)
-  if (cmd.dash && p.dashT <= 0 && p.dashN >= 1 && !sailing) {
+  if (cmd.dash && p.dashT <= 0 && p.dashN >= 1 && !sailing && !riding) {
     p.dashN -= 1;
     if (p.dashCd <= 0) p.dashCd = DASH_COOLDOWN;
     p.dashT = DASH_TIME;
@@ -446,11 +455,14 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepE
   } else {
     // committed swing slows you; so does holding a charge
     const k = p.atkCd > 0.15 ? SWING_MOVE_MULT : p.charge > 0 ? CHARGE_MOVE_MULT : 1;
-    const sp = sailing ? PLAYER_SPEED * BOAT_SPEED_MULT : PLAYER_SPEED * (p.mount ? 1.45 : 1);
-    // sprint only while moving freely: not mid-swing, charging or sailing; it needs a little stamina to begin
+    const onRoad = !sailing && !!land.road?.(Math.floor(p.x), Math.floor(p.y));
+    const sp = sailing
+      ? PLAYER_SPEED * BOAT_SPEED_MULT
+      : PLAYER_SPEED * (MOUNT_SPEED_MULT[p.mount] ?? 1) * (onRoad ? (riding ? ROAD_MULT_MOUNTED : ROAD_MULT) : 1);
+    // sprint only while moving freely: not mid-swing, charging, sailing or riding; it needs a little stamina to begin
     const moving = cmd.dx !== 0 || cmd.dy !== 0;
     const sprinting =
-      cmd.sprint && moving && !sailing && !p.mount && k === 1 && p.stamina >= (p.sprint ? 0.01 : SPRINT_MIN) ? 1 : 0;
+      cmd.sprint && moving && !sailing && !riding && k === 1 && p.stamina >= (p.sprint ? 0.01 : SPRINT_MIN) ? 1 : 0;
     p.sprint = sprinting;
     vx = cmd.dx * sp * k * (sprinting ? SPRINT_MULT : 1);
     vy = cmd.dy * sp * k * (sprinting ? SPRINT_MULT : 1);

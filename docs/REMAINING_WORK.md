@@ -49,14 +49,15 @@ Remaining cave expansion: stacked geological floors/coordinate migration, additi
 - Companion fixes completed in [PR #21](https://github.com/QubitMan-hub/EIGENLANDS/pull/21): bounded cached obstacle routes, smooth walking catch-up, owner-centered threat sight/leash, and safe recall to the owner tile. Support deer retain their noncombat role; neutral wildlife is not attacked automatically.
 
 - Expand the existing single paid guild-fighter contract into resident-specific recruitment with clear ownership/lease visibility, payment/dismissal, persistence and multiplayer identity. The existing contract already checks friendship and expires; wildlife bonds and extracted echoes also work.
-- Travelling merchants: actual routes/schedules, stock/economy, discovery, interaction and persistence.
+- Travelling merchants and caravans: actual routes along the kingdom roads (see [TRAVEL.md](TRAVEL.md)), schedules, stock/economy, discovery, interaction and persistence.
+- Travel follow-ups: mount stabling/feeding/naming, further fantasy and flying mounts, ferry voyage scenes, dedicated bridges, an Undercroft network, gamepad review of the travel window. Waystones, gates, ferries, Recall Shards, horse/Stag riding and road speed are implemented.
 - Further weapon families and equipment progression beyond the existing sword, spear, battle axe, warhammer, crossbow and Foci; keep displayed and authoritative attack values shared.
 - More authored biome/cave/shore/mountain discoveries and occupied interior variety. Preserve existing landmark IDs, world edits, floor transitions and collision.
 - Broader creature/monster diversity with coherent art and meaningful habitats; preserve current separate wildlife/hostile budgets and settlement wards.
 - Broader shrine challenge variety, ocean discoveries, settlement identity and environmental storytelling beyond the existing playable systems.
-- Implemented: modular owned two-floor houses with eight craftable pieces, pitched roofs/cutaways, doors, paired stairs, collision, safe refunds and durable solo/server ownership. See [building guide and limits](PLAYER_BUILDING.md). Further expansion: arbitrary-height towers, shared owner permissions, house benefits and construction across horizontal shard edit boundaries.
+- Implemented: modular owned two-floor houses with 33 craftable pieces, pitched roofs/cutaways, doors, paired stairs, collision, safe refunds and durable solo/server ownership. See [building guide and limits](PLAYER_BUILDING.md). Further expansion: arbitrary-height towers, shared owner permissions, house benefits and construction across horizontal shard edit boundaries.
 - Survival depth: temperature/exposure, injuries, purification, richer nutrition, bandages and Hardcore. Cozy/Adventure food and water already work.
-- Kingdoms, guild progression, realms and private friend-world hosting remain larger unfinished systems; consult the master checklist before claiming them implemented.
+- Six kingdoms/frontier cities, F–SSS guild progression, daily journeys and owned resident charters are implemented; replacement guild prefabs, authored world-changing campaigns, the requested new realms and private friend-world hosting remain larger unfinished systems. See COZY_TOWNS.md and HOMESTEADS_AND_GUILD.md for exact boundaries.
 - Cross-device atlas synchronization and private-world chart identity. Local durable IndexedDB chart history is implemented.
 
 ## Art and release constraints

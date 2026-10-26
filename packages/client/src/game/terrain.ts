@@ -118,6 +118,15 @@ export class Terrain {
     return shader;
   }
 
+  private pad = TERRAIN_PAD;
+  private view: [number, number] = [0, 0];
+  /** Overscan in art pixels: wider means fewer shader paints while the camera travels, at a larger texture. */
+  setPad(pad: number): void {
+    if (pad === this.pad) return;
+    this.pad = pad;
+    if (this.view[0] > 0) this.resize(this.view[0], this.view[1]);
+  }
+
   get originX(): number {
     return this.painted?.x ?? 0;
   }
@@ -133,8 +142,9 @@ export class Terrain {
 
   /** Visible region in art pixels (1 texel = 1 art pixel). */
   resize(wPx: number, hPx: number): void {
-    wPx = Math.ceil(wPx) + TERRAIN_PAD * 2;
-    hPx = Math.ceil(hPx) + TERRAIN_PAD * 2;
+    this.view = [wPx, hPx];
+    wPx = Math.ceil(wPx) + this.pad * 2;
+    hPx = Math.ceil(hPx) + this.pad * 2;
     if (wPx === this.w && hPx === this.h) return;
     this.w = wPx;
     this.h = hPx;
@@ -309,7 +319,7 @@ export class Terrain {
     wind?: { dx: number; dy: number; strength: number },
     detail = 1,
   ): void {
-    const window = terrainWindow(isoX, isoY, time, motion, detail);
+    const window = terrainWindow(isoX, isoY, time, motion, detail, this.pad);
     isoX = window.x;
     isoY = window.y;
     const changed = this.winDirty || pcx !== this.winCx || pcy !== this.winCy;

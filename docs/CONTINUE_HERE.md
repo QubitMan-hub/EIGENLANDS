@@ -1,3 +1,47 @@
+# Current continuation: cozy settlements and integrated travel/guilds (2026-10-26)
+
+Read [COZY_TOWNS.md](COZY_TOWNS.md) first, then [HOMESTEADS_AND_GUILD.md](HOMESTEADS_AND_GUILD.md), [TRAVEL.md](TRAVEL.md) and the [master plan](EIGENLANDS_MASTER_PLAN.md). Integrated the three latest main commits through `a9d5b6d`; retained adaptive graphics, legibility and travel while preserving our authored horse/Glimmerhart sprites. One mount state/renderer now supports ranch and whistle/bell riding; spell RPCs dismount correctly. Generated town furniture follows contextual seating/road-edge/doorway rules across all settlement families. Roofs use calmer courses, regional color families, wood eaves and fixed porch lighting. Player-owned layouts and world revisions are preserved.
+
+The focused doc lists checks and real remaining limits, including observed capital-entry spikes under software rendering. No hardware FPS or lag-free network claim. Continue inline: no subagents, preserve this art on overlap, and keep broader unchecked master-plan ambitions honest.
+
+---
+
+# Current continuation: travel, legibility, performance and collision (2026-10-26)
+
+**Travel (§14).** Read [TRAVEL.md](TRAVEL.md).
+
+- Waystones are discovered by walking up to them; Realm Gates and Ferries link the kingdoms.
+- The Recall Shard returns you to your bound home; Wayfarer ranks cut fares.
+- Riding Horse and Moonlit Stag mounts, and faster kept roads.
+- Shared and server tests, plus the `e2e/travel.mjs` browser proof.
+
+**Legibility.** The parchment page no longer inherits dark-panel colours. `e2e/ui-contrast.mjs` audits:
+
+- every window and journal tab;
+- the statue, villager talk and shops.
+
+Text now passes WCAG AA; only outlined glyphs are left. Scrollbars are thin brass rails.
+
+**Performance.** See [performance/2026-10-26-low-end.md](performance/2026-10-26-low-end.md).
+
+- New Performance tier: one canvas pixel per art pixel.
+- Auto mode adapts at runtime.
+- The lighting pass is skipped in daylight, and terrain gets a wide overscan.
+
+**Collision.** Stalls, rides, the statue and Realm Gates block every tile their art stands on, but never within two tiles
+of a door. Cave mouth and shaft art now fits its single tile.
+
+Next:
+
+- caravans on the kingdom roads;
+- mount stabling and care;
+- more exploration secrets;
+- the remaining items in [REMAINING_WORK.md](REMAINING_WORK.md).
+
+---
+
+# Current continuation: homesteads, guilds and crafting integration (2026-10-26)
+
 # Current continuation: living guilds, settlement residents and riding (2026-10-26)
 
 Read [HOMESTEADS_AND_GUILD.md](HOMESTEADS_AND_GUILD.md) for the implemented rules and boundaries, then [plans/2026-10-26-living-guilds.md](plans/2026-10-26-living-guilds.md) and [EIGENLANDS_MASTER_PLAN.md](EIGENLANDS_MASTER_PLAN.md) for broader scope. This batch adds surveyed escort/rescue routes, ordered physical investigation evidence with decisions, resource-backed diplomacy, four daily jobs, nearby party kill quest credit, original guild desks/standards/stewards, rank-B Wayguard specialization, owned housing/charters/resident services, calm authoritative livestock roaming and trained horse/Glimmerhart riding. Saved layouts, catalogs and prior authored art remain.

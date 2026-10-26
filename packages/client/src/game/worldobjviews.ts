@@ -1,3 +1,4 @@
+import { diningSurface } from '@eigenlands/shared';
 import { Sprite, type Container } from 'pixi.js';
 import {
   C,
@@ -7,6 +8,7 @@ import {
   chunkKey,
   hash2,
   objLight,
+  propFacing,
   sampleClimate,
   type ChunkStore,
   type WorldObj,
@@ -106,17 +108,21 @@ export class WorldObjViews {
 
   /** Props stand with their back to a wall: a wall behind (north-east) faces them south-west, one to the north-west faces them south-east. */
   private facing(o: WorldObj): Facing {
-    const wall = (x: number, y: number) => {
-      const t = this.store.getTile(x, y);
-      return t === T.WALL || t === T.FACE;
-    };
-    if (wall(o.x, o.y - 1)) return 'sw';
-    if (wall(o.x - 1, o.y)) return 'se';
-    return 'sw';
+    if (o.data?.facing === 'sw' || o.data?.facing === 'se') return o.data.facing;
+    return propFacing(
+      (x, y) => {
+        const t = this.store.getTile(x, y);
+        return t === T.WALL || t === T.FACE;
+      },
+      o.x,
+      o.y,
+    );
   }
 
   private seatTurn(o: WorldObj): number | undefined {
     if (o.sub !== 'chair') return undefined;
+    if (Number.isInteger(o.data?.seatTurn) && Number(o.data?.seatTurn) >= 0 && Number(o.data?.seatTurn) < 4)
+      return Number(o.data?.seatTurn);
     const dirs = [
       [0, 1],
       [-1, 0],
@@ -126,7 +132,7 @@ export class WorldObjViews {
     for (let i = 0; i < dirs.length; i++) {
       const [dx, dy] = dirs[i]!,
         near = this.store.objectAt(o.x + dx!, o.y + dy!);
-      if (near && ['table', 'desk', 'counter'].includes(near.sub)) return i;
+      if (near && diningSurface(near.sub)) return i;
     }
     return undefined;
   }
@@ -134,7 +140,7 @@ export class WorldObjViews {
     return o.sub === 'chair' ? `${sigOf(o)}:${this.seatTurn(o)}` : sigOf(o);
   }
   private refreshSeats(o: WorldObj): void {
-    if (!['table', 'desk', 'counter'].includes(o.sub)) return;
+    if (!diningSurface(o.sub)) return;
     for (const [dx, dy] of [
       [0, 1],
       [-1, 0],

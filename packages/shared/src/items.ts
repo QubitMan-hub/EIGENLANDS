@@ -189,7 +189,9 @@ export interface ItemDef {
   /** Main-hand weapon id; the forged sword remains a plain quick-bar weapon. */
   weapon?: WeaponId;
   /** consumed on use for a special effect: a Heart Crystal (+10 max health) or a boss summon */
-  special?: 'heart' | 'summon' | 'ship';
+  special?: 'heart' | 'summon' | 'ship' | 'recall' | 'mount';
+  /** special 'mount': which mount it calls */
+  mount?: 'horse' | 'stag';
   tags?: string[];
   /** catalog fields: rarity 0..5, material tier, UI category, the kingdom it belongs to */
   rarity?: Rarity;
@@ -905,6 +907,40 @@ def(
   C.e5,
   "Use it at the water's edge to board your sloop; use it again at a shore to step off. Fire cannons with attack.",
   { special: 'ship', stack: 1 },
+);
+// ── travel (§14): a waystone splinter that carries you home, and the mounts you ride
+def(
+  'recall_shard',
+  'Recall Shard',
+  'misc',
+  60,
+  'gem',
+  C.q5,
+  C.e6,
+  'A splinter of waystone. Use it to return to your bound Recall home after five quiet seconds. Bind a home at any attuned waystone.',
+  { special: 'recall', stack: 10 },
+);
+def(
+  'horse_whistle',
+  'Riding Horse',
+  'misc',
+  900,
+  'tooth',
+  C.e4,
+  C.e6,
+  'A carved whistle your horse answers. Use it to mount or dismount: much faster on roads and open ground, but no fighting or tools from the saddle.',
+  { special: 'mount', mount: 'horse', stack: 1 },
+);
+def(
+  'stag_bell',
+  'Moonlit Stag Bell',
+  'misc',
+  0,
+  'ring',
+  C.q6,
+  C.w7,
+  'A silver bell from the waystones. The Moonlit Stag, swifter than any horse, comes when it rings. A reward for twelve attuned stones.',
+  { special: 'mount', mount: 'stag', stack: 1 },
 );
 def('doubloon', 'Doubloon', 'misc', 55, 'gem', C.e6, C.e4, "A pirate's gold coin. Merchants pay well for them.");
 def(

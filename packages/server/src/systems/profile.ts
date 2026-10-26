@@ -247,6 +247,9 @@ export function validProg(raw: unknown): PlayerData['prog'] {
     bosses: ids(r.bosses),
     shrines: ids(r.shrines),
     ruins: ids(r.ruins),
+    ways: ids(r.ways),
+    home: typeof r.home === 'string' && r.home.length <= 40 ? r.home : null,
+    mounts: ids(r.mounts).filter((m) => m === 'horse' || m === 'stag'),
   };
 }
 

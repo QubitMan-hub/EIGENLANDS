@@ -6,7 +6,7 @@ import {
   ITEMS,
   MAX_DISC,
   MAX_UPGRADE,
-  RARITY_COLORS,
+  RARITY_INK,
   RARITY_NAMES,
   STATION_BY_ID,
   STATION_NAMES,
@@ -51,7 +51,7 @@ type Sort = 'level' | 'name' | 'rarity';
 
 const rarityOf = (id: string): number => ITEMS[id]?.rarity ?? 0;
 const nameOf = (id: string): string => ITEMS[id]?.name ?? id;
-const colorOf = (id: string): string => (rarityOf(id) ? RARITY_COLORS[rarityOf(id)]! : '');
+const colorOf = (id: string): string => (rarityOf(id) ? RARITY_INK[rarityOf(id)]! : '');
 const groupOf = (r: Recipe): string => {
   const cat = ITEMS[r.out.id]?.cat;
   return CAT_GROUPS.find((g) => cat && g.cats.includes(cat))?.id ?? 'other';

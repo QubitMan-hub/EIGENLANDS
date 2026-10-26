@@ -84,7 +84,7 @@ export class Ranch implements Module {
         return;
       }
       this.riders.set(p.id, { x: o.x, y: o.y, animal: a.id, species: a.species });
-      p.sim.mount = a.species === 'horse' ? 1 : 2;
+      p.sim.mount = a.species === 'horse' ? 1 : 3;
       p.sim.dashT = 0;
       p.toast('Mounted. Space, an attack, a skill or dodge dismounts.', 'good');
     }
@@ -104,10 +104,7 @@ export class Ranch implements Module {
     this.clock += dt;
     for (const p of this.room.players.values()) {
       const rider = this.riders.get(p.id);
-      if (!rider) {
-        p.sim.mount = 0;
-        continue;
-      }
+      if (!rider) continue;
       const o = this.room.store.objectAt(rider.x, rider.y),
         a = o && readHerd(o.data, o.sub, this.room.wclock.day()).herd.find((a) => a.id === rider.animal);
       if (

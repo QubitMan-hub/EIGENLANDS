@@ -58,7 +58,18 @@ export interface PlayerData {
   /** heart events already seen ("npc:index") */
   events: string[];
   /** adventure progress: Heart Crystals used, bosses defeated, shrines solved */
-  prog: { hearts: number; bosses: string[]; shrines: string[]; ruins: string[] };
+  prog: {
+    hearts: number;
+    bosses: string[];
+    shrines: string[];
+    ruins: string[];
+    /** attuned waystones, realm gates and ferry posts (travel.ts ids) */
+    ways?: string[];
+    /** the stone a Recall Shard returns to */
+    home?: string | null;
+    /** mounts owned ('horse', 'stag') */
+    mounts?: string[];
+  };
 }
 
 export type DirtyPart =

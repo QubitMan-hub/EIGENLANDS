@@ -94,7 +94,7 @@ it('predicts mount speed through packed ACKs and dismounts before attacks', () =
   };
   stepPlayer(p, cmd, () => false);
   stepPlayer(q, cmd, () => false);
-  expect(p.x / q.x).toBeCloseTo(1.45);
+  expect(p.x / q.x).toBeCloseTo(1.6);
   expect(decodeAck(encodeAck({ seq: 1, tick: 1, sim: p })).sim.mount).toBe(1);
   stepPlayer(p, { ...cmd, attack: true }, () => false);
   expect(p.mount).toBe(0);

@@ -351,6 +351,7 @@ export class CircuitModule implements Module, CircuitApi {
     const now = Date.now();
     const free = ability === 'swap' && s.freeSwap && s.pr.cls === 'entangler' && s.pr.spec === 'paradox';
     if ((s.cd.get(ability) ?? 0) > now && !free) return fail('Not ready yet.');
+    p.sim.mount = 0; // Circuit abilities use their own RPC, rather than stepPlayer's legacy skill input.
 
     const tgt = this.target(p, m.target);
     const [ax, ay] = tgt ? this.toward(p, tgt) : this.aim(p, m.aimX, m.aimY);
@@ -414,6 +415,7 @@ export class CircuitModule implements Module, CircuitApi {
     const now = Date.now();
     if ((s.cd.get('ult') ?? 0) > now) return fail('Not ready yet.');
     if (s.res < RESOURCE_MAX - 1e-6) return fail(`${CLASSES[cls].resource.name} is not full yet.`);
+    p.sim.mount = 0;
     const tgt = this.target(p, m.target);
     const [ax, ay] = tgt ? this.toward(p, tgt) : this.aim(p, m.aimX, m.aimY);
     const secs = CLASSES[cls].ultimate.secs;

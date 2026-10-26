@@ -1,3 +1,4 @@
+import { TRAVEL_PROPS } from './waystones';
 import { orchardCanvas } from './orchards';
 import { railSprite, minecartSprite } from './mining';
 import { caveArchitecture } from './caves';
@@ -729,6 +730,15 @@ export function worldObjDef(o: WorldObj, facing: Facing = 'sw', seatTurn?: numbe
       objCache.set(key, d);
     }
     return d;
+  }
+  if (TRAVEL_PROPS[o.sub]) {
+    const k = `travel:${o.sub}:${facing}`;
+    let td = objCache.get(k);
+    if (!td) {
+      td = { ...TRAVEL_PROPS[o.sub]!(facing), interactive: true };
+      objCache.set(k, td);
+    }
+    return td;
   }
   const ps = propSub(o);
   if (ps) {

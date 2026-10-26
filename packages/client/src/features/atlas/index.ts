@@ -82,6 +82,9 @@ export class AtlasClient implements ClientModule {
   private warned = false;
   private state: any;
   private solved = new Set<string>();
+  /** attuned waystones, gates and ferries (from the travel module), always charted */
+  private waystones: Array<{ id: string; name: string; kind: string; x: number; y: number }> = [];
+  private homeStone: string | null = null;
   private landmarks = new Map<string, Landmark>();
   private waypoints: Point[] = [];
   private cache = new Map<
@@ -298,6 +301,15 @@ export class AtlasClient implements ClientModule {
     this.plane = planeOf(route.point.y);
     const layer = document.querySelector<HTMLSelectElement>('[aria-label="Map layer"]');
     if (layer) layer.value = this.plane;
+  }
+  /** The travel module's attuned stones: drawn as diamonds wherever the chart reaches. */
+  setWaystones(
+    list: Array<{ id: string; name: string; kind: string; x: number; y: number }>,
+    home: string | null,
+  ): void {
+    this.waystones = list;
+    this.homeStone = home;
+    this.changed = true;
   }
   setSolved(ids: string[]): void {
     this.solved = new Set(ids);
@@ -846,6 +858,15 @@ export class AtlasClient implements ClientModule {
         ctx.arc(at.x, at.y, 4, 0, Math.PI * 2);
         ctx.stroke();
         ctx.fill();
+      } else if (shape === 'diamond') {
+        ctx.beginPath();
+        ctx.moveTo(at.x, at.y - 5);
+        ctx.lineTo(at.x + 4, at.y);
+        ctx.lineTo(at.x, at.y + 5);
+        ctx.lineTo(at.x - 4, at.y);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fill();
       } else if (shape === 'triangle') {
         ctx.beginPath();
         ctx.moveTo(at.x, at.y - 5);
@@ -869,6 +890,14 @@ export class AtlasClient implements ClientModule {
       for (const t of townsFor(this.d.store().seed)) mark({ x: t.cx, y: t.cy, name: t.name }, '#eed093', true);
       for (const p of this.landmarks.values())
         if (!p.shrine || !this.solved.has(p.shrine)) mark(p, '#b7d6c6', true, 'ring');
+      for (const st of this.waystones)
+        mark(
+          { x: st.x + 0.5, y: st.y + 0.5, name: st.id === this.homeStone ? `⌂ ${st.name}` : st.name },
+          st.kind === 'gate' ? '#c9a8e6' : st.kind === 'harbor' ? '#7cc8ff' : '#6fd0bd',
+          true,
+          'diamond',
+          false,
+        );
     }
     for (const p of this.waypoints) mark(p, '#df84a5', true, 'square', false);
     for (const [group, on, color] of [

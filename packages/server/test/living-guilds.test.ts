@@ -14,7 +14,7 @@ import {
   type WorldObj,
 } from '@eigenlands/shared';
 import type { App } from '../src/app';
-import { boot3, spawn3, tp, sleep, until } from './p3helpers';
+import { boot3, spawn3, tp, sleep, until, cast, st } from './p3helpers';
 import { handleGuild } from '../src/systems/guild';
 import { validQuests } from '../src/systems/profile';
 let app: App;
@@ -300,5 +300,20 @@ it('gates the Wayguard specialization by real guild rank, not level alone', asyn
     p.sp.data.quests[`guild:rank:${rank}`] = { state: 'done', progress: [] };
   p.r.send(MSG34.CHOOSE, { what: 'spec', spec: 'guild_warden' });
   await until(() => p.prog.spec === 'guild_warden');
+  await p.r.leave();
+});
+
+it('casts real Circuit abilities and ultimates on foot even when a travel or ranch mount was active', async () => {
+  const p = await spawn3(app, 'Mounted caster');
+  p.sp.sim.mount = 1;
+  expect((await cast(p, 0)).ok).toBe(true);
+  expect(p.sp.sim.mount).toBe(0);
+  p.r.send(MSG34.CHOOSE, { what: 'class', cls: 'superposer' });
+  await until(() => p.prog.cls === 'superposer');
+  st(p).res = 100;
+  p.sp.sim.mount = 3;
+  p.r.send(MSG34.ULT, { aimX: 1, aimY: 0 });
+  await until(() => p.casts.some((c) => c.ult && c.ok));
+  expect(p.sp.sim.mount).toBe(0);
   await p.r.leave();
 });

@@ -1,0 +1,168 @@
+{
+  "models": [
+    {
+      "style": 0,
+      "night": false,
+      "pixels": 23697,
+      "lights": 6
+    },
+    {
+      "style": 0,
+      "night": true,
+      "pixels": 23697,
+      "lights": 6
+    },
+    {
+      "style": 1,
+      "night": false,
+      "pixels": 33123,
+      "lights": 7
+    },
+    {
+      "style": 1,
+      "night": true,
+      "pixels": 33123,
+      "lights": 7
+    },
+    {
+      "style": 2,
+      "night": false,
+      "pixels": 23657,
+      "lights": 6
+    },
+    {
+      "style": 2,
+      "night": true,
+      "pixels": 23657,
+      "lights": 6
+    },
+    {
+      "style": 3,
+      "night": false,
+      "pixels": 26045,
+      "lights": 6
+    },
+    {
+      "style": 3,
+      "night": true,
+      "pixels": 26045,
+      "lights": 6
+    },
+    {
+      "style": 4,
+      "night": false,
+      "pixels": 30265,
+      "lights": 7
+    },
+    {
+      "style": 4,
+      "night": true,
+      "pixels": 30265,
+      "lights": 7
+    },
+    {
+      "style": 9,
+      "night": false,
+      "pixels": 26005,
+      "lights": 6
+    },
+    {
+      "style": 9,
+      "night": true,
+      "pixels": 26005,
+      "lights": 6
+    },
+    {
+      "style": 14,
+      "night": false,
+      "pixels": 25390,
+      "lights": 8
+    },
+    {
+      "style": 14,
+      "night": true,
+      "pixels": 25390,
+      "lights": 8
+    },
+    {
+      "style": 19,
+      "night": false,
+      "pixels": 33123,
+      "lights": 7
+    },
+    {
+      "style": 19,
+      "night": true,
+      "pixels": 33123,
+      "lights": 7
+    },
+    {
+      "style": 24,
+      "night": false,
+      "pixels": 21902,
+      "lights": 6
+    },
+    {
+      "style": 24,
+      "night": true,
+      "pixels": 21902,
+      "lights": 6
+    },
+    {
+      "style": 29,
+      "night": false,
+      "pixels": 26045,
+      "lights": 8
+    },
+    {
+      "style": 29,
+      "night": true,
+      "pixels": 26045,
+      "lights": 8
+    }
+  ],
+  "scenes": [
+    {
+      "name": "home",
+      "hour": 12,
+      "x": 75,
+      "y": -3
+    },
+    {
+      "name": "home",
+      "hour": 23,
+      "x": 75,
+      "y": -3
+    },
+    {
+      "name": "capital",
+      "hour": 12,
+      "x": 1003,
+      "y": -569
+    },
+    {
+      "name": "capital",
+      "hour": 23,
+      "x": 1003,
+      "y": -569
+    },
+    {
+      "name": "harbour",
+      "hour": 12,
+      "x": -496.5,
+      "y": -11
+    },
+    {
+      "name": "harbour",
+      "hour": 23,
+      "x": -496.5,
+      "y": -11
+    },
+    {
+      "name": "home-mobile",
+      "hour": 18,
+      "x": 60,
+      "y": 8
+    }
+  ]
+}
