@@ -1,4 +1,5 @@
 import { T } from './tiles';
+import { catalogSources } from './catalog';
 
 export type SkillId = 'farming' | 'mining' | 'foraging' | 'fishing' | 'crafting';
 export interface Drop {
@@ -7,6 +8,10 @@ export interface Drop {
   max: number;
   chance: number;
   minTier?: number;
+  /** only in this kingdom's land (a realm id) */
+  realm?: string;
+  /** only in this Undercroft biome */
+  cave?: string;
 }
 export interface NodeDef {
   tile: number;
@@ -313,3 +318,23 @@ export const FORAGE_BY_SEASON: string[][] = [
 
 export const toolDamage = (tier: number, skillLevel: number, hasteBonus = 0): number =>
   Math.round((3 + 2 * tier) * (1 + 0.05 * skillLevel + hasteBonus));
+
+// The catalog adds drops to the existing nodes (realm metals, cave minerals, woods, gems ...): data, not code.
+for (const { item, src } of catalogSources())
+  if (src.k === 'node') {
+    const node = NODES[src.tile];
+    if (!node) throw new Error(`catalog: ${item} drops from unknown node tile ${src.tile}`);
+    node.drops.push({
+      item,
+      min: src.min,
+      max: src.max,
+      chance: src.chance,
+      minTier: src.tier,
+      ...(src.realm ? { realm: src.realm } : {}),
+      ...(src.cave ? { cave: src.cave } : {}),
+    });
+  }
+
+/** May this drop fall here? `realm` is the kingdom of the tile (null on the home continent and at sea), `cave` the biome underground. */
+export const dropAllowed = (d: Drop, realm: string | null, cave: string | null): boolean =>
+  (!d.realm || d.realm === realm) && (!d.cave || d.cave === cave);

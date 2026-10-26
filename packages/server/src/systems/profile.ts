@@ -28,6 +28,10 @@ import {
   type ProfileMsg,
   type QuestLog,
   type Stack,
+  recipeById,
+  GEAR_SLOTS,
+  QUALITY_POWER,
+  validDisc,
 } from '@eigenlands/shared';
 import type { Buff, DirtyPart, FriendRec, PlayerData } from './types';
 
@@ -38,6 +42,13 @@ export interface DerivedStats {
   haste: number;
   /** damage reduction 0..0.6 */ def: number;
   /** chance a hit passes straight through */ phase: number;
+  /** catalog gear extras (see ProfileMsg.stats) */
+  warm: number;
+  cool: number;
+  drain: number;
+  light: number;
+  craft: number;
+  stamina: number;
 }
 
 const BUFF_KINDS = new Set<string>(BUFF_KIND_LIST);
@@ -73,6 +84,7 @@ export function newPlayerData(season: number): PlayerData {
     coins: 100,
     skills: validSkills(null),
     recipes: new Set(startRecipes()),
+    disc: validDisc(null),
     equip: emptyEquip(),
     friends: {},
     rep: {},
@@ -126,7 +138,9 @@ export function fitsSlot(slot: EquipSlotKey, v: unknown): v is Stack {
   if (!d) return false;
   if (slot === 'ring1' || slot === 'ring2') return d.kind === 'ring';
   if (slot === 'weapon') return d.kind === 'weapon' && !!d.weapon;
-  return d.kind === 'armor' && d.armor?.slot === slot;
+  if (slot === 'head' || slot === 'chest' || slot === 'legs' || slot === 'feet')
+    return d.kind === 'armor' && d.armor?.slot === slot;
+  return d.kind === 'gear' && d.gear?.slot === slot;
 }
 
 const isRing = (s: unknown): s is Stack =>
@@ -137,8 +151,7 @@ export function loadPlayerData(raw: unknown, season: number, nowMs: number): Pla
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   if (!Array.isArray(r.inv)) return newPlayerData(season);
   const known = new Set(startRecipes());
-  if (Array.isArray(r.recipes))
-    for (const id of r.recipes) if (typeof id === 'string' && RECIPES.some((x) => x.id === id)) known.add(id);
+  if (Array.isArray(r.recipes)) for (const id of r.recipes) if (typeof id === 'string' && recipeById(id)) known.add(id);
   const eq = (r.equip ?? {}) as Record<string, unknown>;
   const slotStack = (slot: EquipSlotKey, v: unknown): Stack | null =>
     fitsSlot(slot, v) ? { id: v.id, n: 1, ...(v.p ? { p: v.p } : {}) } : null;
@@ -191,6 +204,7 @@ export function loadPlayerData(raw: unknown, season: number, nowMs: number): Pla
     coins,
     skills: validSkills(r.skills),
     recipes: known,
+    disc: validDisc(r.disc),
     equip: {
       ring1: ring(eq.ring1),
       ring2: ring(eq.ring2),
@@ -200,6 +214,12 @@ export function loadPlayerData(raw: unknown, season: number, nowMs: number): Pla
       chest: slotStack('chest', eq.chest),
       legs: slotStack('legs', eq.legs),
       feet: slotStack('feet', eq.feet),
+      shield: slotStack('shield', eq.shield),
+      back: slotStack('back', eq.back),
+      neck: slotStack('neck', eq.neck),
+      belt: slotStack('belt', eq.belt),
+      charm: slotStack('charm', eq.charm),
+      light: slotStack('light', eq.light),
     },
     friends,
     rep,
@@ -236,6 +256,7 @@ export function serializePlayerData(d: PlayerData): Record<string, unknown> {
     coins: d.coins,
     skills: d.skills,
     recipes: [...d.recipes],
+    disc: d.disc,
     equip: d.equip,
     friends: d.friends,
     rep: d.rep,
@@ -247,8 +268,24 @@ export function serializePlayerData(d: PlayerData): Record<string, unknown> {
   };
 }
 
+/** Stat multiplier of a piece from its crafted quality and upgrade level. */
+export const gearPower = (p: Stack['p']): number => QUALITY_POWER[p?.qt ?? 1]! * (1 + 0.06 * (p?.up ?? 0));
+
 export function deriveStats(d: PlayerData): DerivedStats {
-  const s: DerivedStats = { hpBonus: 0, atkBonus: 0, luck: 0, haste: 0, def: 0, phase: 0 };
+  const s: DerivedStats = {
+    hpBonus: 0,
+    atkBonus: 0,
+    luck: 0,
+    haste: 0,
+    def: 0,
+    phase: 0,
+    warm: 0,
+    cool: 0,
+    drain: 0,
+    light: 0,
+    craft: 0,
+    stamina: 0,
+  };
   for (const r of [d.equip.ring1, d.equip.ring2]) {
     if (!r?.p?.stat || !Number.isFinite(r.p.val)) continue;
     const v = r.p.val!;
@@ -280,6 +317,26 @@ export function deriveStats(d: PlayerData): DerivedStats {
     s.luck += b.luck ?? 0;
     s.haste += b.haste ?? 0;
   }
+  // catalog gear: shields, cloaks, amulets, belts, charms, lanterns; quality and upgrades scale what it gives
+  for (const slot of GEAR_SLOTS) {
+    const g = d.equip[slot];
+    const spec = g ? ITEMS[g.id]?.gear : undefined;
+    if (!g || !spec) continue;
+    const k = gearPower(g.p);
+    const b = spec.bonus;
+    s.hpBonus += Math.round((b.hp ?? 0) * k);
+    s.atkBonus += Math.round((b.atk ?? 0) * k);
+    s.def += (b.def ?? 0) * k;
+    s.luck += (b.luck ?? 0) * k;
+    s.haste += (b.haste ?? 0) * k;
+    s.phase += (b.phase ?? 0) * k;
+    s.warm += b.warm ?? 0;
+    s.cool += b.cool ?? 0;
+    s.drain += b.drain ?? 0;
+    s.light = Math.max(s.light, b.light ?? 0);
+    s.craft += b.craft ?? 0;
+    s.stamina += b.stamina ?? 0;
+  }
   s.hpBonus += d.prog.hearts * 10;
   s.def = Math.min(0.6, s.def);
   return s;
@@ -292,6 +349,7 @@ export function profileMsg(d: PlayerData, stats: DerivedStats, parts: Iterable<D
           'inv',
           'coins',
           'skills',
+          'disc',
           'recipes',
           'equip',
           'friends',
@@ -307,6 +365,7 @@ export function profileMsg(d: PlayerData, stats: DerivedStats, parts: Iterable<D
   if (set.has('inv')) m.inv = d.inv as Inventory;
   if (set.has('coins')) m.coins = d.coins;
   if (set.has('skills')) m.skills = d.skills;
+  if (set.has('disc')) m.disc = d.disc;
   if (set.has('recipes')) m.recipes = [...d.recipes];
   if (set.has('equip')) m.equip = d.equip;
   if (set.has('friends')) m.friends = d.friends;

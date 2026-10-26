@@ -3,7 +3,8 @@ import type { InputCmd, PlayerSim } from './sim';
 import type { Slot, Stack } from './items';
 import type { RhythmPlan } from './rhythm';
 import type { SkillXp } from './skills';
-import type { StationId } from './recipes';
+import type { DiscXp } from './crafting';
+import type { StationId } from './crafting';
 import type { Template, ForgePreview } from './forge';
 import type { WorldObj } from './objects';
 import type { Weather } from './weather';
@@ -161,6 +162,8 @@ export interface ProfileMsg {
   inv?: Slot[];
   coins?: number;
   skills?: SkillXp;
+  /** crafting discipline XP */
+  disc?: DiscXp;
   /** ids of recipes the player knows */
   recipes?: string[];
   equip?: EquipState;
@@ -175,7 +178,21 @@ export interface ProfileMsg {
   /** heart events seen ("npc:index"), sent with quests */
   events?: string[];
   /** derived stats from equipment/buffs */
-  stats?: { hpBonus: number; atkBonus: number; luck: number; haste: number; def: number; phase: number };
+  stats?: {
+    hpBonus: number;
+    atkBonus: number;
+    luck: number;
+    haste: number;
+    def: number;
+    phase: number;
+    /** catalog gear: warmth/coolness points, fraction less hunger and thirst drain, light radius, ingredient-save %, stamina */
+    warm?: number;
+    cool?: number;
+    drain?: number;
+    light?: number;
+    craft?: number;
+    stamina?: number;
+  };
   /** selected quick-bar slot is client-side; this is the server's last accepted USE slot (diagnostics) */
 }
 
@@ -208,12 +225,33 @@ export interface EquipState {
   chest: Stack | null;
   legs: Stack | null;
   feet: Stack | null;
+  /** catalog gear slots (absent in old saves) */
+  shield?: Stack | null;
+  back?: Stack | null;
+  neck?: Stack | null;
+  belt?: Stack | null;
+  charm?: Stack | null;
+  light?: Stack | null;
 }
-export const EQUIP_SLOTS = ['ring1', 'ring2', 'weapon', 'head', 'chest', 'legs', 'feet'] as const;
+export const EQUIP_SLOTS = [
+  'ring1',
+  'ring2',
+  'weapon',
+  'head',
+  'chest',
+  'legs',
+  'feet',
+  'shield',
+  'back',
+  'neck',
+  'belt',
+  'charm',
+  'light',
+] as const;
 export type EquipSlotKey = (typeof EQUIP_SLOTS)[number];
 export interface EquipMsg {
   slot: number;
-  as: 'ring1' | 'ring2' | 'outfit' | 'weapon' | 'head' | 'chest' | 'legs' | 'feet' | `unequip_${EquipSlotKey}`;
+  as: 'outfit' | EquipSlotKey | `unequip_${EquipSlotKey}`;
 }
 export interface CraftMsg {
   station: StationId;

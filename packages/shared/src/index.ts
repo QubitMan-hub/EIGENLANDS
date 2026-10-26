@@ -23,6 +23,7 @@ export * from './skills';
 export * from './economy';
 export * from './fish';
 export * from './rhythm';
+export * from './crafting';
 export * from './recipes';
 export * from './forge';
 export * from './npcs';
@@ -73,3 +74,4 @@ export * from './army';
 export * from './wars';
 
 export * from './frontier';
+export * from './catalog';

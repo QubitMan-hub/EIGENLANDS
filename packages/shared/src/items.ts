@@ -20,10 +20,14 @@ export type ItemKind =
   | 'animal'
   | 'fertilizer'
   | 'misc'
-  | 'armor';
+  | 'armor'
+  | 'gear'
+  | 'scroll'
+  | 'rune';
 
 /** Glyph vocabulary the art pipeline must draw (16x16 inventory icons). `a` = main, `b` = accent palette index. */
 export type Glyph =
+  | CatalogGlyph
   | 'log'
   | 'plank'
   | 'stone'
@@ -96,6 +100,10 @@ export type Glyph =
   | 'boots';
 
 import { BUILD_PIECES } from './construction';
+import { catalogItems } from './catalog';
+import type { GearSpec, ItemUse } from './catalog/types';
+import type { CatalogGlyph } from './catalog/glyphs';
+import type { ItemCat, Rarity } from './crafting';
 import {
   ARMOR_SETS,
   ARMOR_SLOTS,
@@ -160,6 +168,15 @@ export interface ItemDef {
   /** consumed on use for a special effect: a Heart Crystal (+10 max health) or a boss summon */
   special?: 'heart' | 'summon' | 'ship';
   tags?: string[];
+  /** catalog fields: rarity 0..5, material tier, UI category, the kingdom it belongs to */
+  rarity?: Rarity;
+  tier?: number;
+  cat?: ItemCat;
+  realm?: string;
+  /** worn/wielded stats of data-driven gear (see catalog/gear.ts) */
+  gear?: GearSpec;
+  /** what using it does beyond eating or drinking (recipe scrolls, runes, repair kits ...) */
+  use?: ItemUse;
 }
 
 export interface Props {
@@ -176,6 +193,9 @@ export interface Props {
   b?: string; // superposed seed: two crops
   note?: string;
   stats?: Record<string, number>; // forged stat breakdown
+  qt?: number; // crafted quality tier 0..4 (Crude..Masterwork)
+  up?: number; // upgrade level (+N)
+  ench?: string; // enchantment key set into the gear
 }
 export interface Stack {
   id: string;
@@ -245,7 +265,15 @@ function def(
     id,
     name,
     kind,
-    stack: kind === 'tool' || kind === 'weapon' || kind === 'ring' || kind === 'outfit' || kind === 'armor' ? 1 : 99,
+    stack:
+      kind === 'tool' ||
+      kind === 'weapon' ||
+      kind === 'ring' ||
+      kind === 'outfit' ||
+      kind === 'armor' ||
+      kind === 'gear'
+        ? 1
+        : 99,
     value,
     desc,
     ...(kind === 'food' ? { nourishment: 25 } : {}),
@@ -1100,3 +1128,9 @@ def(
   'A crystal signet forged from Veyr’s heart. Grants attack when crafted.',
   { tags: ['atk'] },
 );
+
+// ── data-driven catalog (shared/src/catalog): the content waves, merged last so ids never shadow the hand-written ones
+for (const d of catalogItems()) {
+  if (I[d.id]) throw new Error(`catalog item ${d.id} duplicates a built-in item`);
+  I[d.id] = d;
+}

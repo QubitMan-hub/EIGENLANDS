@@ -1,31 +1,9 @@
 import { BUILD_PIECES } from './construction';
 import { ITEMS } from './items';
 import { ARMOR_SLOTS, armorId } from './equipment';
-
-export type StationId =
-  'hand' | 'workbench' | 'furnace' | 'forge' | 'cooking_pot' | 'alchemy' | 'loom' | 'jeweler' | 'carpenter';
-export const STATION_NAMES: Record<StationId, string> = {
-  hand: 'Field crafting',
-  workbench: 'Workbench',
-  furnace: 'Furnace',
-  forge: 'Anvil & Forge',
-  cooking_pot: 'Cooking Pot',
-  alchemy: 'Alchemy Table',
-  loom: 'Loom',
-  jeweler: 'Jeweler Bench',
-  carpenter: 'Carpenter Bench',
-};
-/** Placeable-object subtype -> station id (town stations use the same ids). */
-export const STATION_SUBS: Record<string, StationId> = {
-  workbench: 'workbench',
-  furnace: 'furnace',
-  forge: 'forge',
-  cooking_pot: 'cooking_pot',
-  alchemy: 'alchemy',
-  loom: 'loom',
-  jeweler: 'jeweler',
-  carpenter: 'carpenter',
-};
+import { catalogRecipes } from './catalog';
+import { STATION_BY_ID, discLevel, type DiscXp, type Discipline, type ItemCat, type StationId } from './crafting';
+import { repTier } from './kingdoms';
 
 export interface Recipe {
   id: string;
@@ -33,10 +11,31 @@ export interface Recipe {
   inputs: Array<{ id: string; n: number }>;
   out: { id: string; n: number; p?: Record<string, unknown> };
   xp: number;
-  /** 'start' known from the beginning; 'discover' found by experimenting; 'npc:<id>' taught by an NPC at 4 hearts */
-  learn: 'start' | 'discover' | `npc:${string}`;
+  /**
+   * How it becomes known. 'start' from the beginning; 'discover' found by experimenting; 'npc:<id>' taught by an NPC at
+   * 4 hearts; 'level' once the discipline reaches `lvl`; 'realm:<id>' once you stand at least Friendly with that
+   * kingdom (and are level enough); 'scroll' only from a recipe scroll, a quest or a vault.
+   */
+  learn: 'start' | 'discover' | 'level' | 'scroll' | `npc:${string}` | `realm:${string}`;
   hint: string;
+  /** discipline it trains (inferred from the station when a recipe does not name one) */
+  disc: Discipline;
+  /** discipline level needed to craft it */
+  lvl: number;
+  /** 1 = raw to part, 2 = part to component, 3 = component to finished piece (for recipe trees) */
+  stage?: 1 | 2 | 3;
+  /** the kingdom whose craft this is (its recipes need standing there) */
+  realm?: string;
+  /** UI category of the output */
+  cat?: ItemCat;
+  /** crafted quality scales the output's stats and durability */
+  quality?: boolean;
+  /** the output is worn or wielded: it is made with full durability and carries `up` 0 */
+  gear?: boolean;
 }
+
+/** The discipline a station defaults to. */
+export const stationDisc = (s: StationId): Discipline => STATION_BY_ID[s].disc[0]!;
 
 const R: Recipe[] = [];
 function r(
@@ -57,6 +56,8 @@ function r(
     xp,
     learn,
     hint,
+    disc: stationDisc(station),
+    lvl: 1,
   });
 }
 
@@ -1237,38 +1238,6 @@ r(
 );
 
 export const RECIPES: ReadonlyArray<Recipe> = R;
-export const recipeById = (id: string): Recipe | undefined => R.find((x) => x.id === id);
-export const recipesFor = (station: StationId): Recipe[] => R.filter((x) => x.station === station);
-
-/** Does the offered multiset exactly match a recipe at this station? ('*seed' wildcards match any two distinct seeds.) */
-export function matchExperiment(station: StationId, offered: Array<{ id: string; n: number }>): Recipe | null {
-  const norm = (list: Array<{ id: string; n: number }>) => {
-    const m = new Map<string, number>();
-    for (const { id, n } of list) m.set(id, (m.get(id) ?? 0) + n);
-    return m;
-  };
-  const have = norm(offered);
-  for (const rec of recipesFor(station)) {
-    if (rec.inputs.some((i) => i.id.startsWith('*'))) {
-      const seeds = [...have.entries()].filter(([id]) => ITEMS[id]?.kind === 'seed' && id !== 'superposed_seed');
-      const others = [...have.entries()].filter(([id]) => !(ITEMS[id]?.kind === 'seed' && id !== 'superposed_seed'));
-      const fixed = rec.inputs.filter((i) => !i.id.startsWith('*'));
-      const wild = rec.inputs.filter((i) => i.id.startsWith('*')).reduce((a, i) => a + i.n, 0);
-      const seedCount = seeds.reduce((a, [, n]) => a + n, 0);
-      if (
-        seeds.length === 2 &&
-        seedCount === wild &&
-        fixed.length === others.length &&
-        fixed.every((f) => have.get(f.id) === f.n)
-      )
-        return rec;
-      continue;
-    }
-    const need = norm(rec.inputs);
-    if (need.size === have.size && [...need].every(([id, n]) => have.get(id) === n)) return rec;
-  }
-  return null;
-}
 
 /** Can the player afford this recipe from `count`? (Wildcard recipes are handled by the experiment path.) */
 export const canCraft = (rec: Recipe, count: (id: string) => number, times = 1): boolean =>
@@ -1315,3 +1284,90 @@ r(
   'Bind a Storm Heart in gold.',
   { stat: 'atk', val: 7 },
 );
+
+// Catalog recipes (the data-driven content waves) join the hand-written ones above.
+for (const rec of catalogRecipes()) R.push(rec);
+
+const BY_ID = new Map<string, Recipe>(R.map((x) => [x.id, x]));
+const BY_STATION = new Map<StationId, Recipe[]>();
+for (const rec of R) {
+  const l = BY_STATION.get(rec.station);
+  if (l) l.push(rec);
+  else BY_STATION.set(rec.station, [rec]);
+}
+/** recipes that produce an item (for the recipe tree and "how do I get this") */
+const BY_OUTPUT = new Map<string, Recipe[]>();
+for (const rec of R) BY_OUTPUT.set(rec.out.id, [...(BY_OUTPUT.get(rec.out.id) ?? []), rec]);
+export const recipeById = (id: string): Recipe | undefined => BY_ID.get(id);
+export const recipesFor = (station: StationId): Recipe[] => BY_STATION.get(station) ?? [];
+export const recipesMaking = (item: string): readonly Recipe[] => BY_OUTPUT.get(item) ?? [];
+/** recipes that consume an item */
+const BY_INPUT = new Map<string, Recipe[]>();
+for (const rec of R) for (const i of rec.inputs) BY_INPUT.set(i.id, [...(BY_INPUT.get(i.id) ?? []), rec]);
+export const recipesUsing = (item: string): readonly Recipe[] => BY_INPUT.get(item) ?? [];
+
+/** Experiment signature: sorted `id:n` of the offered multiset; wildcard recipes are matched separately. */
+const sig = (list: Array<{ id: string; n: number }>) =>
+  [...list]
+    .sort((a, b) => (a.id < b.id ? -1 : 1))
+    .map((x) => `${x.id}:${x.n}`)
+    .join('|');
+const EXP = new Map<string, Recipe>();
+const WILD: Recipe[] = [];
+for (const rec of R) {
+  if (rec.inputs.some((i) => i.id.startsWith('*'))) WILD.push(rec);
+  else EXP.set(`${rec.station}#${sig(rec.inputs)}`, rec);
+}
+
+/** Does the offered multiset exactly match a recipe at this station? ('*seed' wildcards match any two distinct seeds.) */
+export function matchExperiment(station: StationId, offered: Array<{ id: string; n: number }>): Recipe | null {
+  const merged = new Map<string, number>();
+  for (const { id, n } of offered) merged.set(id, (merged.get(id) ?? 0) + n);
+  const list = [...merged].map(([id, n]) => ({ id, n }));
+  const hit = EXP.get(`${station}#${sig(list)}`);
+  if (hit) return hit;
+  const have = merged;
+  for (const rec of WILD) {
+    if (rec.station !== station) continue;
+    const seeds = [...have.entries()].filter(([id]) => ITEMS[id]?.kind === 'seed' && id !== 'superposed_seed');
+    const others = [...have.entries()].filter(([id]) => !(ITEMS[id]?.kind === 'seed' && id !== 'superposed_seed'));
+    const fixed = rec.inputs.filter((i) => !i.id.startsWith('*'));
+    const wild = rec.inputs.filter((i) => i.id.startsWith('*')).reduce((a, i) => a + i.n, 0);
+    const seedCount = seeds.reduce((a, [, n]) => a + n, 0);
+    if (
+      seeds.length === 2 &&
+      seedCount === wild &&
+      fixed.length === others.length &&
+      fixed.every((f) => have.get(f.id) === f.n)
+    )
+      return rec;
+  }
+  return null;
+}
+
+/** What a character brings to the question "may I craft this?": learned ids, discipline XP and standing with each kingdom. */
+export interface CraftProfile {
+  learned: ReadonlySet<string>;
+  disc: DiscXp;
+  rep: Readonly<Record<string, number | undefined>>;
+}
+/**
+ * Is a recipe known? 'start' always; 'level' once the discipline reaches its level; 'realm:<id>' once the discipline
+ * reaches its level and you stand at least Friendly with that kingdom; the rest (discover, npc, scroll) only when learned.
+ */
+export function recipeKnown(rec: Recipe, who: CraftProfile): boolean {
+  if (who.learned.has(rec.id)) return true;
+  if (rec.learn === 'start') return true;
+  if (rec.learn === 'level') return discLevel(who.disc[rec.disc]) >= rec.lvl;
+  if (rec.learn.startsWith('realm:'))
+    return discLevel(who.disc[rec.disc]) >= rec.lvl && repTier(who.rep[rec.learn.slice(6)] ?? 0) >= 1;
+  return false;
+}
+/** Why a known recipe cannot be made yet, or null. */
+export function recipeBlock(rec: Recipe, who: CraftProfile): string | null {
+  const lv = discLevel(who.disc[rec.disc]);
+  if (lv < rec.lvl) return `Needs ${rec.disc} level ${rec.lvl}`;
+  if (rec.realm && rec.realm !== 'any' && repTier(who.rep[rec.realm] ?? 0) < 1)
+    return `Needs standing with ${rec.realm}`;
+  return null;
+}

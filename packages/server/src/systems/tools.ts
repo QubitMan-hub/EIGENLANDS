@@ -1,4 +1,7 @@
 import {
+  caveBiomeAt,
+  dropAllowed,
+  inRealmLand,
   isCaveY,
   FORAGE_BY_SEASON,
   HEARTS_MAX,
@@ -220,8 +223,11 @@ function hitNode(room: RoomApi, p: ServerPlayer, tool: Stack, tx: number, ty: nu
   if (st.hp > 0) return;
 
   const drops: Stack[] = [];
+  const realm = isCaveY(ty) ? null : (inRealmLand(room.seed, tx, ty) ?? null),
+    cave = isCaveY(ty) ? caveBiomeAt(room.seed, tx, ty, room.store.generation) : null;
   for (const d of node.drops) {
     if (d.minTier && tier < d.minTier) continue;
+    if (!dropAllowed(d, realm, cave)) continue;
     const chance = d.chance >= 1 ? 1 : d.chance * (1 + 0.15 * p.stats.luck);
     if (room.rand() >= chance) continue;
     let n = d.min + Math.floor(room.rand() * (d.max - d.min + 1));
