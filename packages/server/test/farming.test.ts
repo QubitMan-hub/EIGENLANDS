@@ -50,7 +50,8 @@ describe('the crop lifecycle', () => {
     expect(o.sub).toBe('turnip');
     expect(o.owner).toBe(p.accountId);
     expect(count(p, 'turnip_seed')).toBe(seeds - 1);
-    expect(p.objs.some((m) => m.x === X + 1 && m.y === Y && m.obj?.sub === 'turnip')).toBe(true);
+    // Inventory authority can arrive before the asynchronously delivered object broadcast.
+    await until(() => p.objs.some((m) => m.x === X + 1 && m.y === Y && m.obj?.sub === 'turnip'));
 
     // an unwatered day does not grow it
     await nextDay(p.room);
