@@ -60,7 +60,13 @@ export type CritterKind =
   | 'geode_tyrant'
   | 'cinder_wyrm'
   | 'rime_sovereign'
-  | 'tide_leviathan';
+  | 'tide_leviathan'
+  | 'griffin'
+  | 'spirit_stag'
+  | 'iron_golem'
+  | 'raiju'
+  | 'reef_naga'
+  | 'hellhound';
 
 interface Def {
   w: number;
@@ -1064,6 +1070,167 @@ function caveBeast(form: number): Def {
   };
 }
 
+/** Mythical beasts of the six kingdoms (world revision 5): griffin, spirit stag, iron golem, raiju, reef naga, hellhound. */
+function realmBeast(form: number): Def {
+  return {
+    w: 84,
+    h: 76,
+    ay: 66,
+    shadow: [11, 4.5],
+    n: { idle: 4, move: 6, windup: 4, attack: 3, hurt: 2, death: 5 },
+    draw(s, a, k, t) {
+      const moving = a === 'move',
+        wind = a === 'windup',
+        dead = a === 'death',
+        bite = a === 'attack';
+      const sw = Math.sin(t * TAU);
+      const R = (c: number, n = 3) => M(ramp(c, n, 2, { hue: 9 }));
+      const eye = (c: number) => M(ramp(c, 2, 1), { glow: true });
+      const glow = (c: number) => M(ramp(c, 3, 2), { glow: true });
+      const ivory = M(ramp(ART_RGB.e6, 2, 1));
+      const sink = dead ? t * 6 : 0;
+      const lift = wind ? 3 : 0;
+      s.push([1.45, 0, 0, 0, 1.45, 0, 0, 0, 1.45], [0, 0, 0], [bite ? (1 - t) * 3 : 0, 0, -sink]);
+      const legs = (x0: number, x1: number, zb: number, w: number, m: Mat, spread = 2.4) => {
+        for (const side of [-1, 1])
+          for (const [x, ph] of [
+            [x0, 0],
+            [x1, 0.5],
+          ] as const) {
+            const st = moving ? Math.sin(t * TAU + (ph + (side > 0 ? 0.5 : 0)) * TAU) * 2 : 0;
+            s.cap([x, side * spread, zb], [x + st, side * (spread + 0.8), 0.8], w, w * 0.55, m);
+          }
+      };
+      if (form === 0) {
+        // griffin: lion body, eagle head and wings, gold-and-cream plumage
+        const fur = R(ART_RGB.e4),
+          plume = R(ART_RGB.pale, 3),
+          wing = R(ART_RGB.e6, 3),
+          beak = M(ramp(ART_RGB.e5, 2, 1));
+        const z = 7 + (moving ? 0.5 * Math.abs(sw) : 0);
+        s.ell([0, 0, z], [7, 3.4, 3.6], fur);
+        s.cap([-7, 0, z], [-13, 0, z - 1 + sw * 1.6], 1.2, 0.5, fur);
+        s.sph([-13.6, 0, z - 1 + sw * 1.6], 1.4, wing);
+        s.ell([5.5, 0, z + 3 + lift], [3.4, 2.8, 3.8], plume);
+        s.ell([8.4, 0, z + 6 + lift], [2.6, 2.1, 2.2], plume);
+        s.cap([9.6, 0, z + 5.8 + lift], [12.6, 0, z + 4.4 + lift - (bite ? 1.5 : 0)], 1.1, 0.35, beak);
+        const flap = moving ? sw * 3 : wind ? 5 : 1;
+        for (const side of [-1, 1]) {
+          s.cap([0, side * 3, z + 3], [-3, side * 10, z + 8 + flap], 1.4, 0.8, wing);
+          s.cap([-3, side * 10, z + 8 + flap], [-8, side * 13, z + 5 + flap], 0.9, 0.3, plume);
+          s.sph([9.2, side * 1.5, z + 7 + lift], 0.55, eye(ART_RGB.e7));
+        }
+        legs(4, -4, z - 1, 1.1, fur);
+      } else if (form === 1) {
+        // spirit stag: pale glowing deer with a crown of antlers and drifting motes
+        const hide = M(ramp(ART_RGB.pale, 3, 2, { hue: 6 })),
+          horn = glow(ART_RGB.g5),
+          mote = glow(ART_RGB.w6);
+        const z = 8.5 + (moving ? 0.6 * Math.abs(sw) : 0);
+        s.ell([0, 0, z], [6.5, 3, 3.4], hide);
+        s.ell([6, 0, z + 4 + lift], [2.6, 2, 3.6], hide);
+        s.ell([8.6, 0, z + 7.4 + lift], [2.4, 1.6, 1.8], hide);
+        for (const side of [-1, 1]) {
+          s.cap([7.6, side * 1, z + 8.6 + lift], [6.4, side * 4, z + 14 + lift], 0.4, 0.3, horn);
+          s.cap([6.4, side * 4, z + 14 + lift], [8.6, side * 6, z + 17 + lift], 0.3, 0.2, horn);
+          s.cap([6.8, side * 3.4, z + 12 + lift], [9.2, side * 4.6, z + 14.4 + lift], 0.25, 0.18, horn);
+          s.sph([9.6, side * 1.2, z + 8 + lift], 0.5, eye(ART_RGB.g6));
+        }
+        legs(4, -4, z - 1, 0.8, hide);
+        for (let i = 0; i < 4; i++)
+          s.sph(
+            [-3 + i * 2.5, Math.sin(t * TAU + i * 1.7) * 5, z + 6 + ((i * 3 + k) % 6)],
+            0.45 + (i % 2) * 0.25,
+            mote,
+          );
+      } else if (form === 2) {
+        // iron golem: riveted slab body, hammer fists, a furnace glow in its chest
+        const iron = R(ART_RGB.slate, 4),
+          plate = R(ART_RGB.steel, 3),
+          fire = glow(ART_RGB.e5);
+        const z = 10 + (moving ? 0.5 * Math.abs(sw) : 0);
+        s.ell([0, 0, z], [5.8, 5.4, 7], iron);
+        s.ell([1, 0, z + 9], [3, 3, 2.6], plate);
+        s.sph([4, 0, z + 2], 1.9, fire);
+        s.cap([3.5, -2, z + 10.4], [3.5, 2, z + 10.4], 0.5, 0.4, fire);
+        for (const side of [-1, 1]) {
+          const arm = wind ? 9 : bite ? -3 : 0;
+          s.cap([0, side * 5.4, z + 4], [2.6, side * 8, z - 3 + arm], 2.2, 1.6, plate);
+          s.sph([3.2, side * 8, z - 4 + arm], 2.5, iron);
+          s.cap([0, side * 2.6, z - 6], [moving ? sw * 2 * side : 0, side * 3, 1], 2, 1.2, iron);
+          s.sph([4, side * 1.4, z + 9.8], 0.6, eye(ART_RGB.e7));
+          for (const rz of [2, 6]) s.sph([4.8, side * 2.4, z + rz], 0.4, plate);
+        }
+      } else if (form === 3) {
+        // raiju: a sleek thunder-wolf, white mane crackling with blue-violet bolts
+        const fur = R(ART_RGB.fog, 3),
+          dark = R(ART_RGB.slate, 3),
+          bolt = glow(ART_RGB.w6);
+        const z = 5.4 + (moving ? 0.5 * Math.abs(sw) : 0);
+        s.ell([0, 0, z], [6.4, 2.6, 3], fur);
+        s.ell([6, 0, z + 2.4 + lift], [3, 2.2, 2.4], fur);
+        s.cap([8, 0, z + 1.8 + lift], [10.6, 0, z + 1.2 + lift - (bite ? 1.4 : 0)], 1.1, 0.5, dark);
+        s.cap([-6, 0, z + 1], [-12, 0, z + 2 + sw * 1.6], 1.6, 0.4, fur);
+        for (let i = 0; i < 5; i++) {
+          const j = (i * 5 + Math.floor(t * 8)) % 4;
+          s.cap(
+            [-3 + i * 2, 0, z + 3],
+            [-4 + i * 2.2, (i % 2 ? 1 : -1) * (3 + j), z + 6 + j + (wind ? 2 : 0)],
+            0.35,
+            0.12,
+            bolt,
+          );
+        }
+        s.cap([5, 0, z + 4 + lift], [3.6, 0, z + 8 + lift], 0.35, 0.2, bolt);
+        for (const side of [-1, 1]) s.sph([8.4, side * 1.3, z + 3.2 + lift], 0.5, eye(ART_RGB.w7));
+        legs(4, -4, z - 1, 1, dark);
+        if (wind || bite) s.sph([12, 0, z + 1.6], 1.6, bolt);
+      } else if (form === 4) {
+        // reef naga: coiled serpent body of teal scales, a pearl-crowned hooded head and coral fins
+        const scale = R(ART_RGB.w3, 3),
+          belly = R(ART_RGB.pale, 2),
+          coral = R(ART_RGB.r4, 3),
+          pearl = glow(ART_RGB.white);
+        const segs = 8;
+        for (let i = 0; i < segs; i++) {
+          const x = (-10 + i * 2.4) * (moving ? 1 : 0.8),
+            y = Math.sin(t * TAU * (moving ? 1 : 0.4) - i * 0.8) * 2.6,
+            r = 2.6 + i * 0.12,
+            zz = 3 + (i > 5 ? (i - 5) * 2.6 : 0);
+          s.sph([x, y, zz], r, i % 2 ? scale : belly);
+          if (i % 2 === 0 && i > 0) s.cap([x, y, zz + r * 0.7], [x - 0.6, y, zz + r * 1.9], 0.3, 0.1, coral);
+        }
+        const hz = 3 + 3 * 2.6 + 3 + lift;
+        s.ell([9.4, 0, hz], [3.2, 2.6, 2.6], scale);
+        for (const side of [-1, 1]) {
+          s.cap([8, side * 2, hz], [7, side * 5.5, hz - 1.4], 1.6, 0.4, coral);
+          s.sph([11.4, side * 1.3, hz + 0.8], 0.55, eye(ART_RGB.e7));
+        }
+        s.sph([9.4, 0, hz + 3.3], 0.9, pearl);
+        if (wind || bite) s.cap([12, 0, hz - 0.6], [15, 0, hz - (bite ? 2 : 0.4)], 0.7, 0.2, ivory);
+      } else {
+        // hellhound: obsidian-black hound with magma seams, ember mane and a burning maw
+        const hide = R(ART_RGB.ink, 3),
+          crack = R(ART_RGB.night, 3),
+          fire = glow(ART_RGB.r5);
+        const z = 5.6 + (moving ? 0.5 * Math.abs(sw) : 0);
+        s.ell([0, 0, z], [6.6, 3, 3.4], hide);
+        for (let i = 0; i < 5; i++) s.sph([-3 + i * 2.2, 0, z + 3.2], 0.8, i % 2 ? fire : crack);
+        s.ell([6.6, 0, z + 2.2 + lift], [3.2, 2.4, 2.6], hide);
+        s.cap([8.6, 0, z + 1.4 + lift], [11.4, 0, z + 0.8 + lift - (bite ? 1.4 : 0)], 1.2, 0.6, crack);
+        if (wind || bite) s.sph([12.4, 0, z + 1.2 + lift], 1.7, fire);
+        s.cap([-6.4, 0, z + 1], [-12, 0, z + 3 + sw * 1.6], 1.4, 0.4, fire);
+        for (const side of [-1, 1]) {
+          s.cap([6, side * 1.4, z + 4 + lift], [4.6, side * 2.4, z + 8 + lift], 0.5, 0.15, fire);
+          s.sph([9, side * 1.4, z + 3.4 + lift], 0.6, eye(ART_RGB.e6));
+        }
+        legs(4, -4, z - 1, 1.1, crack);
+      }
+      s.pop();
+    },
+  };
+}
+
 const DEFS: Record<CritterKind, Def> = {
   echo_bat: caveFauna(0),
   spore_sage: caveFauna(1),
@@ -1084,6 +1251,12 @@ const DEFS: Record<CritterKind, Def> = {
   cinder_wyrm: caveBeast(7),
   rime_sovereign: caveBeast(8),
   tide_leviathan: caveBeast(9),
+  griffin: realmBeast(0),
+  spirit_stag: realmBeast(1),
+  iron_golem: realmBeast(2),
+  raiju: realmBeast(3),
+  reef_naga: realmBeast(4),
+  hellhound: realmBeast(5),
   reed_stalker: encounterDef(false),
   cinder_moth: encounterDef(true),
   fox: wildDef('fox'),
@@ -1216,6 +1389,8 @@ export function buildFoeSheets(): FoeSheets {
     'tide_leviathan',
   ] as const;
   const name = (k: number): CritterKind => {
+    const realm = (['griffin', 'spirit_stag', 'iron_golem', 'raiju', 'reef_naga', 'hellhound'] as const)[k - 44];
+    if (realm) return realm;
     const cave = caveNames[k - 24] ?? newCave[k - 34];
     if (cave) return cave;
     if (k === 22) return 'reed_stalker';

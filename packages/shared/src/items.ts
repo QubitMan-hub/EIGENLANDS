@@ -767,6 +767,58 @@ def(
   C.e6,
   'A heart that still beats slowly, in time with the forest.',
 );
+// Mythical-beast trophies (world revision 5)
+def(
+  'griffin_plume',
+  'Griffin Plume',
+  'resource',
+  120,
+  'feather',
+  C.e5,
+  C.e7,
+  'A gilded flight feather. Aurelion lords pay in gold.',
+);
+def(
+  'stag_antler',
+  'Spirit Antler',
+  'resource',
+  120,
+  'leaf',
+  C.g5,
+  C.pale,
+  'Warm to the touch and faintly luminous. Sylvaris holds it sacred.',
+);
+def(
+  'iron_heart',
+  'Iron Heart',
+  'resource',
+  140,
+  'ore',
+  C.slate,
+  C.e6,
+  'A fist-sized core of folded iron, still faintly warm.',
+);
+def('raiju_fang', 'Raiju Fang', 'resource', 130, 'feather', C.pale, C.w6, 'A crackling fang. It tingles in your pack.');
+def(
+  'naga_pearl',
+  'Naga Pearl',
+  'resource',
+  150,
+  'orb',
+  C.white,
+  C.w6,
+  'A tide-bright pearl from a reef naga. Thalassara adores them.',
+);
+def(
+  'hellhound_ember',
+  'Hellhound Ember',
+  'resource',
+  130,
+  'coal',
+  C.r2,
+  C.e6,
+  'A coal that will not cool. Nethrakar smiths prize it.',
+);
 def('void_core', 'Void Core', 'resource', 900, 'orb', C.q3, C.q7, 'A crystal that is mostly absence.');
 def(
   'slime_crown',

@@ -10,7 +10,13 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const errors = [];
 const browser = await chromium.launch({
   executablePath: process.env.CHROME ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
-  args: ['--use-angle=swiftshader', '--use-gl=angle', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'],
+  args: [
+    '--use-angle=swiftshader',
+    '--use-gl=angle',
+    '--enable-unsafe-swiftshader',
+    '--ignore-gpu-blocklist',
+    '--no-sandbox',
+  ],
 });
 const page = await (await browser.newContext({ viewport: { width: 1280, height: 720 } })).newPage();
 page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
@@ -30,10 +36,20 @@ const CAPITALS = {
   nethrakar: [-1024, 256],
 };
 for (const [name, [x, y]] of Object.entries(CAPITALS)) {
-  await page.evaluate(([x, y]) => window.__eigen.game.net.dev({ cmd: 'tp', x, y }), [x, y + Number(process.env.DY ?? 0)]);
+  await page.evaluate(
+    ([x, y]) => window.__eigen.game.net.dev({ cmd: 'tp', x, y }),
+    [x, y + Number(process.env.DY ?? 0)],
+  );
   await sleep(Number(process.env.WAIT ?? 6000));
   const s = await page.evaluate(() => window.__eigen.state());
-  console.log(name, JSON.stringify({g: s.generation, b: s.buildings}), s.x?.toFixed(1), s.y?.toFixed(1), 'chunks', s.chunks);
+  console.log(
+    name,
+    JSON.stringify({ g: s.generation, b: s.buildings }),
+    s.x?.toFixed(1),
+    s.y?.toFixed(1),
+    'chunks',
+    s.chunks,
+  );
   await page.screenshot({ path: `${out}/${name}.png` });
 }
 console.log(errors.length ? `errors:\n${errors.slice(0, 10).join('\n')}` : 'no errors');

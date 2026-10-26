@@ -390,7 +390,13 @@ export const ENEMY_DEFS: Record<
   | 'geode_tyrant'
   | 'cinder_wyrm'
   | 'rime_sovereign'
-  | 'tide_leviathan',
+  | 'tide_leviathan'
+  | 'griffin'
+  | 'spirit_stag'
+  | 'iron_golem'
+  | 'raiju'
+  | 'reef_naga'
+  | 'hellhound',
   EnemyDef
 > = {
   slime: {
@@ -1349,6 +1355,142 @@ export const ENEMY_DEFS: Record<
       { item: 'gold_ingot', min: 3, max: 5, chance: 1 },
     ],
   },
+  griffin: {
+    kind: 44,
+    name: 'Gilded Griffin',
+    hp: 120,
+    speed: 3.4,
+    radius: 0.6,
+    damage: 13,
+    sight: 12,
+    windup: 0.7,
+    strikeRange: 3.2,
+    xp: 85,
+    ai: 'harrier',
+    poise: 30,
+    staggerTime: 1.2,
+    cooldown: 2.2,
+    budget: 3,
+    drops: [
+      { item: 'griffin_plume', min: 1, max: 2, chance: 0.9 },
+      { item: 'feather', min: 2, max: 4, chance: 0.9 },
+      { item: 'raw_meat', min: 1, max: 2, chance: 0.7 },
+    ],
+  },
+  spirit_stag: {
+    kind: 45,
+    name: 'Spirit Stag',
+    neutral: true,
+    hp: 150,
+    speed: 3.6,
+    radius: 0.55,
+    damage: 12,
+    sight: 8,
+    windup: 0.8,
+    strikeRange: 2.4,
+    xp: 80,
+    ai: 'boar',
+    poise: 40,
+    staggerTime: 1.2,
+    cooldown: 1.8,
+    budget: 2,
+    drops: [
+      { item: 'stag_antler', min: 1, max: 1, chance: 0.9 },
+      { item: 'hide', min: 2, max: 3, chance: 0.9 },
+      { item: 'healing_herb', min: 2, max: 4, chance: 0.8 },
+    ],
+  },
+  iron_golem: {
+    kind: 46,
+    name: 'Iron Golem',
+    hp: 240,
+    speed: 1.3,
+    radius: 0.7,
+    damage: 18,
+    sight: 8,
+    windup: 1.3,
+    strikeRange: 6,
+    xp: 110,
+    ai: 'brute',
+    armor: true,
+    poise: 70,
+    staggerTime: 1.8,
+    resist: 0.3,
+    cooldown: 3,
+    aoe: 1.2,
+    budget: 4,
+    drops: [
+      { item: 'iron_heart', min: 1, max: 1, chance: 0.85 },
+      { item: 'iron_ore', min: 3, max: 6, chance: 1 },
+      { item: 'coal', min: 2, max: 4, chance: 0.8 },
+    ],
+  },
+  raiju: {
+    kind: 47,
+    name: 'Raiju',
+    hp: 85,
+    speed: 3.8,
+    radius: 0.45,
+    damage: 11,
+    sight: 13,
+    windup: 0.75,
+    strikeRange: 2.6,
+    xp: 75,
+    ai: 'caster',
+    poise: 14,
+    staggerTime: 0.9,
+    cooldown: 2,
+    budget: 3,
+    drops: [
+      { item: 'raiju_fang', min: 1, max: 1, chance: 0.8 },
+      { item: 'hide', min: 1, max: 2, chance: 0.7 },
+      { item: 'qubit_crystal', min: 1, max: 1, chance: 0.3 },
+    ],
+  },
+  reef_naga: {
+    kind: 48,
+    name: 'Reef Naga',
+    hp: 110,
+    speed: 2.6,
+    radius: 0.55,
+    damage: 14,
+    sight: 11,
+    windup: 0.85,
+    strikeRange: 3.6,
+    xp: 80,
+    ai: 'ambusher',
+    poise: 24,
+    staggerTime: 1.1,
+    cooldown: 2.4,
+    budget: 3,
+    drops: [
+      { item: 'naga_pearl', min: 1, max: 1, chance: 0.8 },
+      { item: 'hide', min: 1, max: 2, chance: 0.8 },
+      { item: 'doubloon', min: 1, max: 3, chance: 0.5 },
+    ],
+  },
+  hellhound: {
+    kind: 49,
+    name: 'Hellhound',
+    hp: 100,
+    speed: 3.5,
+    radius: 0.5,
+    damage: 14,
+    sight: 12,
+    windup: 0.7,
+    strikeRange: 3,
+    xp: 80,
+    ai: 'harrier',
+    poise: 22,
+    staggerTime: 1,
+    cooldown: 2,
+    budget: 3,
+    drops: [
+      { item: 'hellhound_ember', min: 1, max: 2, chance: 0.85 },
+      { item: 'coal', min: 2, max: 3, chance: 0.9 },
+      { item: 'raw_meat', min: 1, max: 2, chance: 0.6 },
+    ],
+  },
 };
 export const ENEMY_BY_KIND: EnemyDef[] = [
   ENEMY_DEFS.slime,
@@ -1395,6 +1537,12 @@ export const ENEMY_BY_KIND: EnemyDef[] = [
   ENEMY_DEFS.cinder_wyrm,
   ENEMY_DEFS.rime_sovereign,
   ENEMY_DEFS.tide_leviathan,
+  ENEMY_DEFS.griffin,
+  ENEMY_DEFS.spirit_stag,
+  ENEMY_DEFS.iron_golem,
+  ENEMY_DEFS.raiju,
+  ENEMY_DEFS.reef_naga,
+  ENEMY_DEFS.hellhound,
 ];
 export type EnemyKindName = keyof typeof ENEMY_DEFS;
 /** ENEMY_DEFS key by numeric kind, for rules that are written by species name. */
@@ -1565,3 +1713,16 @@ export function pickSpawn(
 export function spawnBudget(level: number, night: boolean, biome: Biome = 'meadow'): number {
   return (night ? 4 : 3) + Math.min(2, Math.max(0, level - 1) * 0.2) + (biome === 'corrupted' ? 1 : 0);
 }
+
+/** Each kingdom's signature mythical beast, spawned in its wilds from revision 5. */
+export const REALM_BEAST: Record<
+  'aurelion' | 'sylvaris' | 'khardum' | 'raijin' | 'thalassara' | 'nethrakar',
+  EnemyKindName
+> = {
+  aurelion: 'griffin',
+  sylvaris: 'spirit_stag',
+  khardum: 'iron_golem',
+  raijin: 'raiju',
+  thalassara: 'reef_naga',
+  nethrakar: 'hellhound',
+};

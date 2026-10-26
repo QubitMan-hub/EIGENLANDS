@@ -55,6 +55,9 @@ import {
   setMeleeWeapon,
   isPerfectDodge,
   pickSpawn,
+  REALM_BEAST,
+  inRealmLand,
+  type EnemyKindName,
   resolveHit,
   rollCrit,
   shapeHits,
@@ -1547,7 +1550,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
         const x = Math.floor(p.sim.x + Math.cos(a) * d) + 0.5,
           y = Math.floor(p.sim.y + Math.sin(a) * d) + 0.5;
         const habitat = biomeAt(this.seed, x, y);
-        const kind = pickSpawn(
+        let kind: EnemyKindName = pickSpawn(
             p.level,
             night,
             this.rand(),
@@ -1557,6 +1560,14 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
             this.store.generation >= 4,
           ),
           def = ENEMY_DEFS[kind];
+        // the wilds of a kingdom also hold its mythical beast (revision 5)
+        if (this.store.generation >= 5 && p.level >= 3 && !isCaveY(y) && this.rand() < 0.2) {
+          const realm = inRealmLand(this.seed, x, y);
+          if (realm) {
+            kind = REALM_BEAST[realm];
+            def = ENEMY_DEFS[kind];
+          }
+        }
         const cost = def.budget ?? 1;
         if (
           used + cost > budget ||
