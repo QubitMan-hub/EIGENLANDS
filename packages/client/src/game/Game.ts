@@ -3,7 +3,8 @@ import { T, CAVE_BIOME_NAMES, caveRegionAt } from '@eigenlands/shared';
 import { ClickMining } from './click-mining';
 import { WorldPreparer } from './world-preparer';
 import { applyChunkSnapshot } from './chunk-updates';
-import { economyGraphics, pixelResolution } from './visual-budget';
+import { AdaptiveQuality, initialTier, tierResolution, type Tier } from './visual-budget';
+import { TERRAIN_PAD, TERRAIN_PAD_WIDE } from './terrain-window';
 import { constructionTexture, BUILD_AX, BUILD_AY } from '../art/construction';
 import { isBuildPiece, buildTile, simulationBudget } from '@eigenlands/shared';
 import { ConstructionViews } from './constructionviews';
@@ -283,7 +284,12 @@ export class Game {
     const h = new URLSearchParams(location.search).get('hour');
     return h !== null && !Number.isNaN(Number(h)) ? Number(h) : null;
   })();
-  private economy = false;
+  /** renderer tier; Auto follows measured frame times through `quality` */
+  private tier: Tier = 'high';
+  private quality = new AdaptiveQuality();
+  private get economy(): boolean {
+    return this.tier !== 'high';
+  }
   private graphicsMode = '';
   private frameMs = 0;
   private lastFrameAt = 0;
@@ -301,19 +307,16 @@ export class Game {
   // ───────────── boot ─────────────
   async init(canvas: HTMLCanvasElement): Promise<void> {
     this.app = new Application();
-    this.economy = economyGraphics(
-      this.settings().graphics,
-      matchMedia('(pointer: coarse)').matches,
-      navigator.hardwareConcurrency,
-      (navigator as Navigator & { deviceMemory?: number }).deviceMemory,
-    );
+    const graphics = this.settings().graphics;
+    this.graphicsMode = graphics;
+    this.tier = this.deviceTier(graphics);
     await this.app.init({
       canvas,
       resizeTo: window,
       background: 0x0b0c1a,
       antialias: false,
       roundPixels: true,
-      resolution: pixelResolution(window.devicePixelRatio || 1, this.economy),
+      resolution: tierResolution(window.devicePixelRatio || 1, this.tier === 'performance' ? 'economy' : this.tier),
       autoDensity: true,
       preference: 'webgl',
     });
@@ -573,23 +576,33 @@ export class Game {
   private layout(): void {
     const w = window.innerWidth,
       h = window.innerHeight;
-    const dpr = this.app.renderer.resolution || 1;
+    // The tier's normal backing resolution frames the scene; Performance then draws one canvas pixel per art pixel
+    // and the browser upscales the canvas (nearest neighbour), so framing and pixel grid stay the same.
+    const dpr = tierResolution(window.devicePixelRatio || 1, this.tier === 'performance' ? 'economy' : this.tier);
     // Landscape phones need phone-sized artwork too. Width alone classified
     // them as desktops and quadrupled the terrain fill cost at a tiny zoom.
     const phone = matchMedia('(pointer: coarse)').matches && Math.min(w, h) < 600;
     const base = phone ? (this.economy ? (w > h ? 8 : 6) : w > h ? 12 : 9) : w < 700 ? 9 : 18;
     const target = base * ZOOM_TILES[this.settings().zoom];
-    this.scale = Math.max(1, Math.floor((w * dpr) / (32 * target))) / dpr;
+    const artScale = Math.max(1, Math.floor((w * dpr) / (32 * target)));
+    this.scale = artScale / dpr;
+    const res = tierResolution(window.devicePixelRatio || 1, this.tier, artScale);
+    if (Math.abs(this.app.renderer.resolution - res) > 1e-6) {
+      this.app.renderer.resolution = res;
+      this.app.renderer.resize(w, h);
+    }
+    this.app.canvas.style.imageRendering = 'pixelated';
     this.world.scale.set(this.scale);
     this.lighting.sprite.scale.set(this.scale);
     const vw = Math.ceil(w / this.scale) + 2,
       vh = Math.ceil(h / this.scale) + 2;
     this.lighting.resize(vw, vh);
     if (this.terrain) {
+      this.terrain.setPad(this.tier === 'performance' ? TERRAIN_PAD_WIDE : TERRAIN_PAD);
       this.terrain.resize(vw, vh);
       this.terrain.sprite.scale.set(this.scale);
     }
-    this.fx.textRes = this.scale * dpr;
+    this.fx.textRes = this.scale * res;
   }
 
   /** Resolves when the first state containing the local player has been received and the area is drawn. */
@@ -796,6 +809,23 @@ export class Game {
       const k = KINGDOMS[realm];
       this.gameplay.toasts.add(`Entering ${k.name} · ${k.epithet}`, 'info');
     }
+  }
+
+  /** The starting tier for a graphics preference on this device. */
+  private deviceTier(mode: Settings['graphics']): Tier {
+    return initialTier(
+      mode,
+      matchMedia('(pointer: coarse)').matches,
+      navigator.hardwareConcurrency,
+      (navigator as Navigator & { deviceMemory?: number }).deviceMemory,
+    );
+  }
+
+  private setTier(tier: Tier, now: number): void {
+    this.quality.reset(now);
+    if (tier === this.tier) return;
+    this.tier = tier;
+    this.layout();
   }
 
   private toast(text: string): void {
@@ -1120,17 +1150,17 @@ export class Game {
     const mode = this.settings().graphics;
     if (mode !== this.graphicsMode) {
       this.graphicsMode = mode;
-      const economy = economyGraphics(
-        mode,
-        matchMedia('(pointer: coarse)').matches,
-        navigator.hardwareConcurrency,
-        (navigator as Navigator & { deviceMemory?: number }).deviceMemory,
-      );
-      if (economy !== this.economy) {
-        this.economy = economy;
-        this.app.renderer.resolution = pixelResolution(window.devicePixelRatio || 1, economy);
-        this.app.renderer.resize(window.innerWidth, window.innerHeight);
-        this.layout();
+      this.setTier(this.deviceTier(mode), now);
+    } else if (mode === 'auto') {
+      const next = this.quality.sample(now, frameInterval, this.tier);
+      if (next) {
+        this.setTier(next, now);
+        this.gameplay.toasts.add(
+          next === 'high'
+            ? 'Graphics raised back to High.'
+            : `Graphics lowered to ${next === 'economy' ? 'Economy' : 'Performance'} to keep the game smooth (Settings → Graphics).`,
+          'info',
+        );
       }
     }
     const reduced = this.settings().reducedMotion;
@@ -1175,7 +1205,8 @@ export class Game {
         chunkOf(Math.floor(me.y)),
         now / 1000,
         this.seasonIdx,
-        !reduced,
+        // Performance freezes cosmetic terrain animation (as reduced motion does) so a still camera costs no paints.
+        !reduced && this.tier !== 'performance',
         this.wind.w,
         this.economy ? 0 : 1,
       );

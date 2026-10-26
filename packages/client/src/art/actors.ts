@@ -1593,19 +1593,28 @@ export function buildActorSheets(): Sheets {
   };
 
   // Players with a chosen appearance get their own small atlas, built on first sight and recycled least-recently-used.
-  const styledAtlases = new Map<string, { base: Texture; subs: Map<string, Texture> }>();
-  const styledFor = (look: number, app: number) => {
+  // Villagers only walk, so an atlas starts with the ten walk/idle columns (a third of the work) and is rebuilt with the
+  // strike/run/aim/cast columns only when someone actually asks for one of those frames.
+  const styledAtlases = new Map<string, { base: Texture; subs: Map<string, Texture>; cols: number }>();
+  const styledFor = (look: number, app: number, needCol = 0) => {
     const key = `${look}:${app}`;
     let e = styledAtlases.get(key);
+    if (e && needCol >= e.cols) {
+      for (const t of e.subs.values()) t.destroy(false);
+      e.base.destroy(true);
+      styledAtlases.delete(key);
+      e = undefined;
+    }
     if (e) {
       styledAtlases.delete(key);
     } else {
       const a = appearanceOf(app)!;
       const baseLook = OUTFITS[((look % OUTFITS.length) + OUTFITS.length) % OUTFITS.length]!;
       const outfit = outfitFromAppearance(baseLook, a, look === 0);
-      const base = Texture.from(personSheet([outfit], 400 + (app % 997) * 7));
+      const cols = needCol >= WALK_FRAMES + 1 ? COLS : WALK_FRAMES + 1;
+      const base = Texture.from(personSheet([outfit], 400 + (app % 997) * 7, cols));
       base.source.scaleMode = 'nearest';
-      e = { base, subs: new Map() };
+      e = { base, subs: new Map(), cols };
       while (styledAtlases.size >= 160) {
         const [oldKey, old] = styledAtlases.entries().next().value!;
         styledAtlases.delete(oldKey);
@@ -1679,8 +1688,8 @@ export function buildActorSheets(): Sheets {
     styledReady: (look, app) => !appearanceOf(app) || styledAtlases.has(`${look}:${app}`),
     styled: (look, app, d, f) => {
       if (!appearanceOf(app)) return sheet.person(look, d, f);
-      const e = styledFor(look, app);
       const c = col(f, (app % 31) * 3 + d);
+      const e = styledFor(look, app, c);
       const k = `${dd(d)}.${c}`;
       let t = e.subs.get(k);
       if (!t) {

@@ -13,6 +13,8 @@ export interface Light {
 const hex = (r: number, g: number, b: number) =>
   (Math.round(Math.min(1, r) * 255) << 16) | (Math.round(Math.min(1, g) * 255) << 8) | Math.round(Math.min(1, b) * 255);
 const paletteInt = (i: number) => parseInt(PALETTE[i]!.slice(1), 16);
+/** ambient level (every channel) at which the lightmap is visually a no-op */
+export const DAYLIGHT = 0.98;
 
 /** Day/night: a low-res lightmap (ambient colour + additive point lights) multiplied over the world. */
 export class Lighting {
@@ -56,6 +58,10 @@ export class Lighting {
   }
 
   render(ambient: [number, number, number], lights: Light[]): void {
+    // Near-white daylight multiplies by ~1 and additive lights saturate on it: skip the pass and its full-screen blend.
+    const daylight = Math.min(ambient[0], ambient[1], ambient[2]) >= DAYLIGHT;
+    this.sprite.visible = !daylight;
+    if (daylight) return;
     const color = hex(ambient[0], ambient[1], ambient[2]);
     if (color !== this.ambientHex) {
       this.ambientHex = color;

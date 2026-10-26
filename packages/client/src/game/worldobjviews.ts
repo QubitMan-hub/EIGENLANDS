@@ -9,6 +9,7 @@ import {
   chunkKey,
   hash2,
   objLight,
+  propFacing,
   sampleClimate,
   type ChunkStore,
   type WorldObj,
@@ -118,13 +119,14 @@ export class WorldObjViews {
 
   /** Props stand with their back to a wall: a wall behind (north-east) faces them south-west, one to the north-west faces them south-east. */
   private facing(o: WorldObj): Facing {
-    const wall = (x: number, y: number) => {
-      const t = this.store.getTile(x, y);
-      return t === T.WALL || t === T.FACE;
-    };
-    if (wall(o.x, o.y - 1)) return 'sw';
-    if (wall(o.x - 1, o.y)) return 'se';
-    return 'sw';
+    return propFacing(
+      (x, y) => {
+        const t = this.store.getTile(x, y);
+        return t === T.WALL || t === T.FACE;
+      },
+      o.x,
+      o.y,
+    );
   }
 
   private seatTurn(o: WorldObj): number | undefined {
