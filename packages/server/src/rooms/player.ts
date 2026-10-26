@@ -63,6 +63,8 @@ export class ServerPlayer implements PlayerRef {
   dashTick = -1;
   slipTick = -2;
   stats: DerivedStats;
+  /** seconds a lantern has burned toward its next point of wear */
+  lightWearT = 0;
   dirtyParts = new Set<DirtyPart>();
   toolReadyAt = 0;
   regenT = 0;
@@ -104,7 +106,7 @@ export class ServerPlayer implements PlayerRef {
 
   dirty(...parts: DirtyPart[]): void {
     for (const p of parts) this.dirtyParts.add(p);
-    if (parts.includes('inv') || parts.includes('equip')) {
+    if (parts.includes('inv') || parts.includes('equip') || parts.includes('buffs')) {
       this.stats = deriveStats(this.data);
       this.dirtyParts.add('stats');
     }

@@ -309,6 +309,8 @@ export class Gameplay {
             net.craft({ station: st, tx: m.tx, ty: m.ty, recipe, n });
             this.acts.crafted = true;
           },
+          gear: (action, ref, rune) =>
+            net.gear({ action, station: st, tx: m.tx, ty: m.ty, ref, ...(rune !== undefined ? { rune } : {}) }),
         });
         const alloy = buildForge(this.profile, this.tip, {
           start: (template: Template, slots: number[]) => net.forgeStart({ tx: m.tx, ty: m.ty, template, slots }),
@@ -336,6 +338,8 @@ export class Gameplay {
               this.acts.crafted = true;
             },
             experiment: (items) => net.experiment({ station: st, tx: m.tx, ty: m.ty, items }),
+            gear: (action, ref, rune) =>
+              net.gear({ action, station: st, tx: m.tx, ty: m.ty, ref, ...(rune !== undefined ? { rune } : {}) }),
           }),
           { wide: true },
         );
@@ -368,7 +372,7 @@ export class Gameplay {
           breed: (species) => net.shelter({ tx: m.tx, ty: m.ty, action: 'breed', species }),
         });
       if (this.wins.name === 'shelter') this.wins.update('shelter', render());
-      else this.wins.show('shelter', m.sub === 'coop' ? 'Chicken coop' : 'Barn', render());
+      else this.wins.show('shelter', m.shelter?.name ?? 'Shelter', render());
     } else if (m.kind === 'lore' && m.lore) {
       this.acts.statue = true;
       this.wins.show('lore', m.lore.title, buildLore(m, this.d.portrait));
@@ -381,7 +385,20 @@ export class Gameplay {
       if (this.wins.name === 'board') this.wins.update('board', el);
       else this.wins.show('board', 'Hadamere Request Board', el, { wide: true });
     } else if (m.kind === 'guild' && m.guild) {
-      const el = buildGuild(m, (quest, action) => net.send(MSG.QUEST, { npcId: 'guild', quest, action, tx: m.tx, ty: m.ty }), { classes: () => { this.wins.close(); this.d.openBoard?.(); }, party: () => { this.wins.close(); this.d.openParty?.(); } });
+      const el = buildGuild(
+        m,
+        (quest, action) => net.send(MSG.QUEST, { npcId: 'guild', quest, action, tx: m.tx, ty: m.ty }),
+        {
+          classes: () => {
+            this.wins.close();
+            this.d.openBoard?.();
+          },
+          party: () => {
+            this.wins.close();
+            this.d.openParty?.();
+          },
+        },
+      );
       if (this.wins.name === 'guild') this.wins.update('guild', el);
       else this.wins.show('guild', 'Adventurer Guild', el, { wide: true });
     } else if (m.kind === 'sign') this.wins.show('sign', 'Sign', buildSign(m));
@@ -543,7 +560,9 @@ export class Gameplay {
             o.kind === 'chest' ||
             o.kind === 'shelter' ||
             o.kind === 'sign' ||
-            o.sub === 'statue')
+            ['statue', 'guild_board', 'guild_noticeboard', 'bed', 'double_bed', 'canopy_bed', 'hammock'].includes(
+              o.sub,
+            ))
         ) {
           net.open(tx, ty);
           return true;

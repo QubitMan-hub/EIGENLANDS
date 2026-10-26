@@ -79,7 +79,7 @@ export function handleEquip(p: ServerPlayer, msg: EquipMsg): void {
   }
   const old = eq[slot];
   eq[slot] = { id: s.id, n: 1, ...(s.p ? { p: s.p } : {}) };
-  p.data.inv[msg.slot] = old; // swap: the previous piece lands in the freed slot
+  p.data.inv[msg.slot] = old ?? null; // swap: the previous piece lands in the freed slot
   p.state.look = lookOf(p);
   p.dirty('inv', 'equip', 'stats');
 }

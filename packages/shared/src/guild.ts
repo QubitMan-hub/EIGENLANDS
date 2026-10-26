@@ -41,7 +41,7 @@ const assignments: Array<[string, Objective[], string, Objective[]]> = [
   ],
   [
     'The living circuit',
-    [O('discover', '*', 2, 'Discover 2 recipes by experiment')],
+    [O('discover', '#recipe', 2, 'Discover 2 recipes by experiment')],
     'A village supplied',
     [O('deliver', 'healing_potion', 6, 'Supply 6 healing potions')],
   ],
@@ -96,7 +96,11 @@ for (let i = 0; i < 8; i++) {
       requires: [`guild:rank:${rank}`],
       rewards: { coins: 35 + 35 * i },
       where: 'Any Adventurer Guild board',
-      lines: { offer: title, progress: 'The ledger records real work after acceptance.', done: 'Commission verified.' },
+      lines: {
+        offer: `Commission: ${title}.`,
+        progress: 'The ledger records real work after acceptance.',
+        done: 'Commission verified.',
+      },
     });
   }
   const trials: Objective[] =
@@ -152,8 +156,10 @@ export function guildRank(log: QuestLog): GuildRank | null {
   }
   return rank;
 }
+const boardCache = new WeakMap<Town, WorldObj | null>();
 /** Place a physical board in the existing civic hall without moving saved walls or furnishings. */
 export function guildBoard(t: Town): WorldObj | null {
+  if (boardCache.has(t)) return boardCache.get(t)!;
   const halls = t.buildings.filter((b) => b.kind === 'hall' && !/palace|keep/.test(b.id));
   const b = halls[0] ?? t.buildings.find((b) => b.kind === 'hall') ?? t.buildings.find((b) => b.kind === 'inn');
   if (!b) return null;
@@ -163,7 +169,10 @@ export function guildBoard(t: Town): WorldObj | null {
       const tile = t.tiles.get(x - t.x0 + (y - t.y0) * (t.x1 - t.x0 + 1));
       if (tile !== T.FLOOR || occupied.has(`${x},${y}`) || Math.hypot(x - b.doorX, y - b.doorY) < 3) continue;
       if (t.objects.some((o) => o.sub.startsWith('stairs_') && Math.hypot(o.x - x, o.y - y) < 2)) continue;
-      return { x, y, kind: 'deco', sub: 'guild_board', static: true, data: { town: t.name } };
+      const board: WorldObj = { x, y, kind: 'deco', sub: 'guild_board', static: true, data: { town: t.name } };
+      boardCache.set(t, board);
+      return board;
     }
+  boardCache.set(t, null);
   return null;
 }

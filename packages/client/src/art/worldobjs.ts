@@ -1,3 +1,4 @@
+import { orchardCanvas } from './orchards';
 import { railSprite, minecartSprite } from './mining';
 import { caveArchitecture } from './caves';
 /**
@@ -5,11 +6,22 @@ import { caveArchitecture } from './caves';
  * Everything is drawn from the fixed palette with Lambert-shaded blobs/slabs; `worldObjDef` caches per look.
  */
 import { Texture } from 'pixi.js';
-import { CROPS, cropStage, type CropData, type CropDef, type WorldObj, mulberry32 } from '@eigenlands/shared';
+import {
+  CROPS,
+  FARM_ANIMALS,
+  PROP_SPECS,
+  STATION_SUBS,
+  cropStage,
+  type CropData,
+  type CropDef,
+  type WorldObj,
+  mulberry32,
+} from '@eigenlands/shared';
 import type { ObjSprite } from './objects';
 import type { Facing } from './isokit';
 import { PROPS, ruinIso, treasureChest, diningChair } from './props';
 import { TOWN_DECO as TOWN_ART } from './town';
+import './catalog-props';
 import {
   blob,
   C,
@@ -250,9 +262,21 @@ function cropDef(d: CropData | undefined, sub: string): ObjSpriteDef {
   const def = CROPS[a] ?? CROPS.turnip!;
   const dead = !!d?.dead;
   const stage = d ? cropStage(d) : 3;
-  const key = `crop:${a}:${b ?? ''}:${stage}:${dead}`;
+  const key = `crop:${a}:${b ?? ''}:${stage}:${dead}:${d?.dormant}:${d?.established}`;
   const hit = cropCache.get(key);
   if (hit) return hit;
+  if (def.shape === 'tree' || def.shape === 'trellis') {
+    const tex = Texture.from(
+      orchardCanvas(
+        def,
+        d ?? { crop: a, growth: def.days, planted: 0, watered: 0, lastDay: 0, owner: '', established: true },
+      ),
+    );
+    tex.source.scaleMode = 'nearest';
+    const out: ObjSpriteDef = { frames: [{ tex, ax: 24, ay: 70 }], fps: 0, sway: 0.008 };
+    cropCache.set(key, out);
+    return out;
+  }
   let out: ObjSpriteDef;
   if (!b || dead) {
     out = still(
@@ -661,7 +685,8 @@ function ruinDef(sub: string, biome: string): ObjSpriteDef {
 
 /** All furniture and signs use native geometry; exterior lanterns have their own subtype. */
 function propSub(o: WorldObj): string | null {
-  const sub = o.kind === 'chest' ? 'chest' : o.kind === 'sign' && !PROPS[o.sub] ? 'sign' : o.sub;
+  const sub =
+    o.kind === 'chest' ? (PROPS[o.sub] ? o.sub : 'chest') : o.kind === 'sign' && !PROPS[o.sub] ? 'sign' : o.sub;
   if (!PROPS[sub]) return null;
   return o.kind === 'deco' || o.kind === 'furniture' || o.kind === 'station' || o.kind === 'chest' || o.kind === 'sign'
     ? sub
@@ -756,8 +781,8 @@ export function worldObjDef(o: WorldObj, facing: Facing = 'sw', seatTurn?: numbe
       d = TOWN_DECO[o.sub]!();
     else if (o.kind === 'station') d = PROPS.crate!(facing);
     else if (o.kind === 'sprinkler')
-      d = sprinkler(o.sub === 'sprinkler2', !!(o.data as { watering?: boolean } | undefined)?.watering);
-    else if (o.kind === 'shelter') d = PROPS[o.sub === 'barn' ? 'barn' : 'coop']!(facing);
+      d = sprinkler(o.sub !== 'sprinkler1', !!(o.data as { watering?: boolean } | undefined)?.watering);
+    else if (o.kind === 'shelter') d = (PROPS[o.sub] ?? PROPS.coop)!(facing);
     else if (o.kind === 'chest') d = chest();
     else if (o.kind === 'sign') d = PROPS.sign!(facing);
     else d = TOWN_DECO[o.sub]?.() ?? SEATS[o.sub]?.() ?? PROPS.crate!(facing);
@@ -817,6 +842,10 @@ export const GALLERY_OBJECTS: Array<{ kind: WorldObj['kind']; sub: string }> = [
     'lamp',
   ].map((sub) => ({ kind: 'deco' as const, sub })),
   { kind: 'sign', sub: 'plaque' },
+  ...Object.keys(PROP_SPECS).map((sub) => ({
+    kind: (FARM_ANIMALS[sub] ? 'shelter' : STATION_SUBS[sub] ? 'station' : 'furniture') as WorldObj['kind'],
+    sub,
+  })),
 ];
 
 export function clearWorldObjCache(): void {

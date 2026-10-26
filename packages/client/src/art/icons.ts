@@ -4,6 +4,7 @@
  * on any panel colour. Unknown ids get a "?" box.
  */
 import { constructionIcon } from './construction';
+import { CATALOG_DRAW } from './icons-catalog';
 import { ITEMS, isBuildPiece, type Glyph } from '@eigenlands/shared';
 import { blob, C, dk, line, lt, makeCanvas, outline, poly, put, ramp4, slab, undithered, type Ctx } from './shade';
 
@@ -622,6 +623,7 @@ const ITEM_ART: Record<string, Draw> = {
 };
 
 const G: Record<Glyph, Draw> = {
+  ...CATALOG_DRAW,
   log: (c, a, b) => {
     slab(c, 2, 5, 11, 7, ramp4(a), 3, 0.3);
     put(c, 2, 5, lt(a), 11, 1);

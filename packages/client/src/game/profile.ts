@@ -3,6 +3,11 @@ import {
   INV_SIZE,
   emptyInventory,
   emptySkills,
+  emptyDisc,
+  recipeKnown,
+  type CraftProfile,
+  type DiscXp,
+  type Recipe,
   type EquipState,
   type Inventory,
   type ProfileMsg,
@@ -29,6 +34,8 @@ export class Profile {
   coins = 0;
   skills: SkillXp = emptySkills();
   recipes = new Set<string>();
+  /** crafting discipline XP */
+  disc: DiscXp = emptyDisc();
   equip: EquipState = {
     ring1: null,
     ring2: null,
@@ -43,7 +50,7 @@ export class Profile {
   friends: Record<string, FriendView> = {};
   /** standing with each kingdom */
   rep: Record<string, number> = {};
-  stats = { hpBonus: 0, atkBonus: 0, luck: 0, haste: 0, def: 0, phase: 0 };
+  stats: NonNullable<ProfileMsg['stats']> = { hpBonus: 0, atkBonus: 0, luck: 0, haste: 0, def: 0, phase: 0 };
   quests: QuestLog = {};
   /** heart events already seen */
   events: string[] = [];
@@ -83,6 +90,10 @@ export class Profile {
       this.recipes = new Set(m.recipes);
       changed.add('recipes');
     }
+    if (m.disc) {
+      this.disc = { ...this.disc, ...m.disc };
+      changed.add('disc');
+    }
     if (m.equip) {
       this.equip = m.equip;
       changed.add('equip');
@@ -110,6 +121,14 @@ export class Profile {
     if (m.events) this.events = m.events;
     this.loaded = true;
     for (const l of this.listeners) l(changed);
+  }
+
+  /** What the recipe rules need to judge what this character knows and can make. */
+  craftProfile(): CraftProfile {
+    return { learned: this.recipes, disc: this.disc, rep: this.rep };
+  }
+  knows(rec: Recipe): boolean {
+    return recipeKnown(rec, this.craftProfile());
   }
 
   count(id: string): number {

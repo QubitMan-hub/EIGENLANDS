@@ -1,3 +1,6 @@
+import { channelWatered, sprinklerNear } from '../src/systems/farming';
+import { handleOpen } from '../src/systems/containers';
+import { T } from '@eigenlands/shared';
 import { beforeAll, afterAll, expect, it } from 'vitest';
 import { MSG, guildBoard, townFor, guildRank, countItem, addStack, type HerdData } from '@eigenlands/shared';
 import { handleShelter } from '../src/systems/containers';
@@ -111,3 +114,52 @@ it('owns, adopts, feeds, grows, breeds and collects a persistent individual herd
   expect((again.room.store.objectAt(x, y)?.data as unknown as HerdData).herd).toHaveLength(3);
   await again.r.leave();
 }, 30000);
+
+it('waters adjacent crops only through connected owned channels and provides bounded safe bed rest', async () => {
+  const p = await spawn3(app, 'Irrigator'),
+    x = 210,
+    y = 212;
+  await p.room.ensureChunk(6, 6);
+  p.sp.sim.x = x + 0.5;
+  p.sp.sim.y = y + 0.5;
+  for (let dy = -2; dy <= 2; dy++)
+    for (let dx = -2; dx <= 4; dx++) {
+      p.room.store.setTile(x + dx, y + dy, T.GRASS);
+      p.room.store.get(6, 6).levels?.fill(0);
+    }
+  for (let dx = 0; dx < 3; dx++)
+    p.room.objects.put({
+      x: x + dx,
+      y,
+      kind: 'structure',
+      sub: 'cell',
+      owner: p.accountId,
+      data: { floor: 'irrigation_channel' },
+    });
+  expect(channelWatered(p.room, x, y)).toBe(false);
+  p.room.store.setTile(x + 3, y, T.WATER);
+  expect(channelWatered(p.room, x, y)).toBe(true);
+  expect(sprinklerNear(p.room, x, y + 1)).toBe(true);
+  const middle = p.room.store.structureAt(x + 1, y)!;
+  middle.owner = 'other';
+  expect(channelWatered(p.room, x, y)).toBe(false);
+  middle.owner = p.accountId;
+  p.room.enemies.clear();
+  p.room.state.enemies.clear();
+  p.room.objects.put({ x: x - 1, y, kind: 'furniture', sub: 'bed', owner: p.accountId });
+  p.sp.hp = 10;
+  p.sp.sim.stamina = 5;
+  await handleOpen(p.room, p.sp, { tx: x - 1, ty: y });
+  expect(p.sp.hp).toBeGreaterThan(10);
+  expect(p.sp.sim.stamina).toBe(100);
+  const hp = p.sp.hp;
+  await handleOpen(p.room, p.sp, { tx: x - 1, ty: y });
+  expect(p.sp.hp).toBe(hp);
+  const hostile = p.room.spawnEnemy('slime', x + 0.5, y + 0.5, false);
+  delete p.sp.data.buffs.bed_rest;
+  await handleOpen(p.room, p.sp, { tx: x - 1, ty: y });
+  expect(p.sp.hp).toBe(hp);
+  p.room.enemies.delete(hostile.id);
+  p.room.state.enemies.delete(hostile.id);
+  await p.r.leave();
+});

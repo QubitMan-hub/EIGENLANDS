@@ -2,7 +2,11 @@ import { GUILD_QUESTS, GUILD_RANKS, objectiveText, type PanelMsg } from '@eigenl
 import { h } from './dom';
 import { ensureP2Styles } from './p2style';
 import './homestead.css';
-export function buildGuild(m: PanelMsg, act: (id: string, action: 'accept' | 'turnin') => void, options: { classes?: () => void; party?: () => void } = {}): HTMLElement {
+export function buildGuild(
+  m: PanelMsg,
+  act: (id: string, action: 'accept' | 'turnin') => void,
+  options: { classes?: () => void; party?: () => void } = {},
+): HTMLElement {
   ensureP2Styles();
   const g = m.guild!,
     root = h('div', { class: 'guild-ledger' });
@@ -25,10 +29,17 @@ export function buildGuild(m: PanelMsg, act: (id: string, action: 'accept' | 'tu
       text: 'Accept work here, earn credit through your own actions, and report to any hall. Each promotion needs commissions and a practical trial. Classes: open Your Path; parties: open Social.',
     }),
   );
-  const services=h('div',{class:'dbtns'});
-  if(options.classes)services.append(h('button',{text:'Choose class & circuit',on:{click:options.classes}}));
-  if(options.party)services.append(h('button',{text:'Form an adventuring party',on:{click:options.party}}));
+  const services = h('div', { class: 'dbtns' });
+  if (options.classes) services.append(h('button', { text: 'Choose class & circuit', on: { click: options.classes } }));
+  if (options.party) services.append(h('button', { text: 'Form an adventuring party', on: { click: options.party } }));
   root.append(services);
+  if ((g.generation ?? 6) < 5)
+    root.append(
+      h('p', {
+        class: 'small',
+        text: 'The Sixfold Covenant requires the kingdoms and raids of world revision 5 or later. This saved world retains its original generation.',
+      }),
+    );
   const ladder = h('div', { class: 'guild-ladder' });
   ladder.setAttribute('aria-label', 'Guild ranks');
   for (const r of GUILD_RANKS) ladder.append(h('span', { class: r === g.rank ? 'current' : '', text: r }));
@@ -78,6 +89,8 @@ export function buildGuild(m: PanelMsg, act: (id: string, action: 'accept' | 'tu
       body.append(card);
     }
     if (!body.childElementCount) body.append(h('p', { text: 'No entries on this page yet.' }));
+    const scroller = root.closest<HTMLElement>('.win-body');
+    if (scroller) scroller.scrollTop = 0;
     for (const button of tabs.querySelectorAll('button'))
       button.setAttribute('aria-pressed', String(button.dataset.mode === mode));
   };

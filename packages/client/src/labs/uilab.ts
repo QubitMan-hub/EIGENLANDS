@@ -219,14 +219,53 @@ switch (panel) {
     wins.show('c', 'Chest', buildChest(chestPanel, profile, tip, { put: noop, take: noop }).el, { wide: true });
     break;
   case 'guild': {
-    const g: PanelMsg = {kind:'guild',tx:0,ty:0,sub:'guild_board',guild:{name:'Mira of Hadamere',card:'WAY-00418726',rank:'F',contracts:GUILD_QUESTS.map(d=>({id:d.id,state:d.id==='guild:rank:F'?'done':d.id.startsWith('guild:F:')?'open':'locked',progress:d.objectives.map(()=>0)}))}};
-    wins.show('guild','Adventurer Guild',buildGuild(g,noop,{classes:noop,party:noop}),{wide:true});
+    const g: PanelMsg = {
+      kind: 'guild',
+      tx: 0,
+      ty: 0,
+      sub: 'guild_board',
+      guild: {
+        name: 'Mira of Hadamere',
+        card: 'WAY-00418726',
+        rank: 'F',
+        contracts: GUILD_QUESTS.map((d) => ({
+          id: d.id,
+          state: d.id === 'guild:rank:F' ? 'done' : d.id.startsWith('guild:F:') ? 'open' : 'locked',
+          progress: d.objectives.map(() => 0),
+        })),
+      },
+    };
+    wins.show('guild', 'Adventurer Guild', buildGuild(g, noop, { classes: noop, party: noop }), { wide: true });
     break;
   }
   case 'husbandry': {
-    const data=readHerd({herd:[{id:0,species:'cow',born:0,happy:82},{id:1,species:'sheep',born:0,happy:70},{id:2,species:'goat',born:8,happy:64},{id:3,species:'phasehart',born:0,happy:88}],stock:{milk:2,fiber:1,qubit_crystal:1},lastDay:10},'barn',10);
-    const m:PanelMsg={kind:'shelter',tx:0,ty:0,sub:'barn',shelter:{...data,type:'barn',max:4,day:10,cared:false}};
-    wins.show('herd','Livestock shelter',buildShelter(m,profile,{add:noop,feed:noop,collect:noop,buy:noop,care:noop,breed:noop}),{wide:true});
+    const data = readHerd(
+      {
+        herd: [
+          { id: 0, species: 'cow', born: 0, happy: 82 },
+          { id: 1, species: 'sheep', born: 0, happy: 70 },
+          { id: 2, species: 'goat', born: 8, happy: 64 },
+          { id: 3, species: 'phasehart', born: 0, happy: 88 },
+        ],
+        stock: { milk: 2, fiber: 1, qubit_crystal: 1 },
+        lastDay: 10,
+      },
+      'barn',
+      10,
+    );
+    const m: PanelMsg = {
+      kind: 'shelter',
+      tx: 0,
+      ty: 0,
+      sub: 'barn',
+      shelter: { ...data, type: 'barn', max: 4, day: 10, cared: false },
+    };
+    wins.show(
+      'herd',
+      'Livestock shelter',
+      buildShelter(m, profile, { add: noop, feed: noop, collect: noop, buy: noop, care: noop, breed: noop }),
+      { wide: true },
+    );
     break;
   }
   case 'shelter':

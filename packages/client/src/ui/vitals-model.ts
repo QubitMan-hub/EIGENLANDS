@@ -127,6 +127,28 @@ export const STATUS_DEFS: Record<string, StatusDef> = {
     icon: 'st_chill',
     desc: () => 'Frostbite drains health. Warm up by a fire or use a burn salve.',
   },
+  vigor: { label: 'Vigor', tone: 'buff', icon: 'st_regen', desc: (p) => `Maximum health +${Math.round(p)}.` },
+  fortune: {
+    label: 'Fortune',
+    tone: 'buff',
+    icon: 'st_might',
+    desc: (p) => `Luck +${Math.round(p * 10) / 10}: better drops and finds.`,
+  },
+  swift: {
+    label: 'Swift',
+    tone: 'buff',
+    icon: 'st_might',
+    desc: (p) => `Haste +${Math.round(p * 10) / 10}: gather and work faster.`,
+  },
+  fury: { label: 'Fury', tone: 'buff', icon: 'st_might', desc: (p) => `Attack +${Math.round(p)}.` },
+  bulwark: { label: 'Bulwark', tone: 'buff', icon: 'st_ward', desc: (p) => `Damage taken -${pct(p)}.` },
+  steady: { label: 'Steady', tone: 'buff', icon: 'st_ward', desc: (p) => `Stamina +${Math.round(p)}.` },
+  focus: {
+    label: 'Focus',
+    tone: 'buff',
+    icon: 'st_lantern',
+    desc: (p) => `${Math.round(p)}% chance to save an ingredient when crafting.`,
+  },
   warmth: { label: 'Warm tonic', tone: 'buff', icon: 'st_heat', desc: () => 'Cold barely touches you.' },
   coolness: { label: 'Cool tonic', tone: 'buff', icon: 'st_chill', desc: () => 'Heat barely touches you.' },
   chill: {

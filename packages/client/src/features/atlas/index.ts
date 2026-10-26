@@ -261,6 +261,7 @@ export class AtlasClient implements ClientModule {
         this.state?.npcs ?? new Map(),
         (x, y) => this.seen(x, y),
         true,
+        this.guildPoints(),
       ).find((p) => p.questId === this.tracked) ?? null
     );
   }
@@ -627,6 +628,14 @@ export class AtlasClient implements ClientModule {
       },
     });
   }
+  private guildPoints(): Array<{ x: number; y: number }> {
+    const self = this.state?.players?.get(this.d.myId());
+    const boards = [...this.d.store().objects.values()].filter(
+      (o) => o.sub === 'guild_board' || o.sub === 'guild_noticeboard',
+    );
+    if (self) boards.sort((a, b) => Math.hypot(a.x - self.x, a.y - self.y) - Math.hypot(b.x - self.x, b.y - self.y));
+    return boards;
+  }
   private refreshDestinations(): void {
     this.destinations.quests = questDestinations(
       this.d.store().seed,
@@ -634,6 +643,8 @@ export class AtlasClient implements ClientModule {
       (id) => this.d.profile.count(id),
       this.state?.npcs ?? new Map(),
       (x, y) => this.seen(x, y),
+      false,
+      this.guildPoints(),
     );
     this.destinations.party = partyDestinations(this.party(), this.d.identity?.() ?? '', this.d.myId());
     for (const directory of this.directories) {

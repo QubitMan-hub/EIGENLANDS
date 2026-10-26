@@ -63,11 +63,11 @@
   border: 1px solid #b7a580;
 }
 .herd-animal img {
-  width: 72px;
-  height: 64px;
+  width: 96px;
+  height: 96px;
   object-fit: contain;
   image-rendering: pixelated;
-  float: left;
+  float: none;
   margin-right: 8px;
 }
 .herd-actions {
@@ -110,4 +110,14 @@
     display: flex;
     flex-wrap: wrap;
   }
+}
+
+.herd-animal img {
+  display: block;
+  margin: 0 auto 6px;
+}
+.herd-animal strong {
+  display: block;
+  text-align: center;
+  margin-bottom: 6px;
 }

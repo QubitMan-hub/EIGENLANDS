@@ -10,13 +10,13 @@ import type { ObjSpriteDef } from './worldobjs';
 import { blob, C, line, makeCanvas, outline, poly, polish, put, undithered, type Ctx, type Ramp } from './shade';
 import { DARKWOOD, IRONM, Iso, Prop, STONEM, WOODM, rampAt, type Detail, type Facing, type PMat } from './isokit';
 
-const LIGHTWOOD: Ramp = [C.e1, C.e2, C.e3, C.e4, C.e5, C.e6];
+export const LIGHTWOOD: Ramp = [C.e1, C.e2, C.e3, C.e4, C.e5, C.e6];
 const BRICK: Ramp = [C.r0, C.r1, C.r2, C.r3, C.r4, C.e6];
-const LINEN: Ramp = [C.steel, C.mist, C.fog, C.pale, C.white, C.white];
-const STRAW: Ramp = [C.e2, C.e3, C.e4, C.e5, C.e6, C.e7];
-const LEAF: Ramp = [C.g0, C.g1, C.g2, C.g3, C.g4, C.g5];
+export const LINEN: Ramp = [C.steel, C.mist, C.fog, C.pale, C.white, C.white];
+export const STRAW: Ramp = [C.e2, C.e3, C.e4, C.e5, C.e6, C.e7];
+export const LEAF: Ramp = [C.g0, C.g1, C.g2, C.g3, C.g4, C.g5];
 const WATER: Ramp = [C.w1, C.w2, C.w3, C.w4, C.w5, C.w6];
-const BRASS: Ramp = [C.e2, C.e3, C.e4, C.e5, C.e6, C.e7];
+export const BRASS: Ramp = [C.e2, C.e3, C.e4, C.e5, C.e6, C.e7];
 const BOOKS: Array<[number, number]> = [
   [C.r2, C.r3],
   [C.w2, C.w3],
@@ -26,13 +26,13 @@ const BOOKS: Array<[number, number]> = [
   [C.r4, C.r5],
   [C.slate, C.steel],
 ];
-const FIRE = [C.r3, C.r5, C.r6, C.r7, C.e7, C.white];
+export const FIRE = [C.r3, C.r5, C.r6, C.r7, C.e7, C.white];
 
 const hash = (a: number, b: number, k = 0) =>
   ((((a * 73856093) ^ (b * 19349663) ^ (k * 83492791)) >>> 0) % 1000) / 1000;
 
 /** Build one prop sprite: tile anchor at (W/2, H-10), outline + rim light + contact shadow. */
-function iso(
+export function iso(
   W: number,
   H: number,
   face: Facing,
@@ -53,7 +53,7 @@ function iso(
   tex.source.scaleMode = 'nearest';
   return { tex, ax, ay };
 }
-const nf = (n: number, mk: (f: number) => ObjSprite): ObjSprite[] => Array.from({ length: n }, (_, f) => mk(f));
+export const nf = (n: number, mk: (f: number) => ObjSprite): ObjSprite[] => Array.from({ length: n }, (_, f) => mk(f));
 
 /** plank seams every `step` px up a face of height h */
 const planks =
@@ -1768,7 +1768,7 @@ function barn(face: Facing): ObjSprite {
 // ───────────────────────── the Statue of QubitMan: a grand iso plinth ─────────────────────────
 const MARB: Ramp = [C.g0, C.g1, C.g2, C.g3, C.g5, C.fog];
 const GRAN: Ramp = [C.night, C.g0, C.g1, C.g2, C.g3, C.g4];
-const BRONZE: Ramp = [C.e1, C.r0, C.r1, C.r4, C.r5, C.r6];
+export const BRONZE: Ramp = [C.e1, C.r0, C.r1, C.r4, C.r5, C.r6];
 
 /** The plinth: a broad three-step base, a dado with bronze plaques (inscription on the lit face, a Bloch-sphere
  * emblem on the shaded one), corner pilasters and rune seams that pulse, a cornice and a cap. */
@@ -1897,11 +1897,11 @@ function royalThrone(face: Facing): ObjSprite {
 }
 
 // ───────────────────────── registry ─────────────────────────
-type Mk = (face: Facing) => ObjSpriteDef;
-const one =
+export type Mk = (face: Facing) => ObjSpriteDef;
+export const one =
   (fn: (face: Facing) => ObjSprite, o: Partial<ObjSpriteDef> = {}): Mk =>
   (face) => ({ frames: [fn(face)], fps: 0, ...o });
-const anim =
+export const anim =
   (n: number, fps: number, fn: (face: Facing, f: number) => ObjSprite, o: Partial<ObjSpriteDef> = {}): Mk =>
   (face) => ({ frames: nf(n, (f) => fn(face, f)), fps, ...o });
 
@@ -1945,6 +1945,7 @@ export const PROPS: Record<string, Mk> = {
   rack: one(rack),
   board: one(board),
   guild_board: one((face) => guildBoardArt(face)),
+  guild_noticeboard: one((face) => guildBoardArt(face)),
   trophy: one(trophy),
   street_lamp: anim(2, 2, streetLamp),
   candles: anim(2, 5, candles),

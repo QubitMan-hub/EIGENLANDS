@@ -1,4 +1,12 @@
-import { LIVESTOCK, ITEMS, HERD_CAPACITY, type LivestockSpecies, type PanelMsg } from '@eigenlands/shared';
+import {
+  LIVESTOCK,
+  ITEMS,
+  HERD_CAPACITY,
+  FARM_ANIMALS,
+  shelterAccepts,
+  type LivestockSpecies,
+  type PanelMsg,
+} from '@eigenlands/shared';
 import type { Profile } from '../game/profile';
 import { h } from './dom';
 import { livestockPortrait } from '../art/livestock';
@@ -16,7 +24,7 @@ export function buildHusbandry(p: PanelMsg, profile: Profile, act: HerdActions):
     day = s.day ?? 0,
     root = h('div', { class: 'herd-panel' });
   root.append(
-    h('h2', { text: s.type === 'coop' ? 'The chicken yard' : 'Your livestock shelter' }),
+    h('h2', { text: s.name ?? (s.type === 'coop' ? 'The chicken yard' : 'Your livestock shelter') }),
     h('p', {
       text: `${s.animals} / ${HERD_CAPACITY} stalls · ${s.fed ? 'Fed for the next dawn' : 'Needs hay'} · ${profile.coins} coins`,
     }),
@@ -79,7 +87,7 @@ export function buildHusbandry(p: PanelMsg, profile: Profile, act: HerdActions):
     );
   const adoption = h('details', { class: 'herd-adoption' }, h('summary', { text: 'Adopt or breed livestock' }));
   for (const [species, def] of Object.entries(LIVESTOCK))
-    if (def.shelter === s.type) {
+    if (shelterAccepts(species as LivestockSpecies, s.type)) {
       adoption.append(
         h('button', {
           text: `Adopt ${def.name} · ${def.price} coins`,
@@ -99,7 +107,7 @@ export function buildHusbandry(p: PanelMsg, profile: Profile, act: HerdActions):
           }),
         );
     }
-  const base = s.type === 'coop' ? 'chicken' : 'cow';
+  const base = FARM_ANIMALS[s.type]?.animal ?? 'cow';
   if (profile.count(base) > 0)
     adoption.append(
       h('button', { text: `House a ${base} from your pack`, disabled: s.animals >= s.max, on: { click: act.add } }),

@@ -1,10 +1,11 @@
+import { FARM_ANIMALS } from './objects';
 /** Catalog-independent husbandry: the parallel item expansion may replace product IDs here. */
 export const LIVESTOCK = {
   chicken: { name: 'Chicken', shelter: 'coop', product: 'egg', price: 160, growth: 2, interval: 1 },
   cow: { name: 'Cow', shelter: 'barn', product: 'milk', price: 520, growth: 3, interval: 1 },
-  sheep: { name: 'Sheep', shelter: 'barn', product: 'fiber', price: 380, growth: 3, interval: 2 },
-  goat: { name: 'Goat', shelter: 'barn', product: 'milk', price: 420, growth: 3, interval: 1 },
-  pig: { name: 'Pig', shelter: 'barn', product: 'mushroom', price: 460, growth: 3, interval: 2 },
+  sheep: { name: 'Sheep', shelter: 'barn', product: 'wool', price: 380, growth: 3, interval: 2 },
+  goat: { name: 'Goat', shelter: 'barn', product: 'goat_milk', price: 420, growth: 3, interval: 1 },
+  pig: { name: 'Pig', shelter: 'barn', product: 'truffle', price: 460, growth: 3, interval: 2 },
   horse: { name: 'Horse', shelter: 'barn', product: 'fertilizer', price: 900, growth: 5, interval: 2 },
   phasehart: { name: 'Glimmerhart', shelter: 'barn', product: 'qubit_crystal', price: 2400, growth: 6, interval: 4 },
 } as const;
@@ -30,26 +31,28 @@ export const HERD_CAPACITY = 4;
 const bounded = (v: unknown, fallback: number, lo: number, hi: number) =>
   typeof v === 'number' && Number.isFinite(v) ? Math.max(lo, Math.min(hi, Math.floor(v))) : fallback;
 export const isLivestock = (v: unknown): v is LivestockSpecies => typeof v === 'string' && Object.hasOwn(LIVESTOCK, v);
+export function shelterAccepts(species: LivestockSpecies, shelter: string): boolean {
+  return (shelter === 'barn' && species !== 'chicken') || FARM_ANIMALS[shelter]?.animal === species;
+}
+
 /** Old count-only saves become adult individuals, preserving uncollected products. */
 export function readHerd(raw: Record<string, unknown> | undefined, shelter: string, day: number): HerdData {
   const r = raw ?? {},
-    base = shelter === 'coop' ? 'chicken' : 'cow';
+    base = (FARM_ANIMALS[shelter]?.animal ?? 'cow') as LivestockSpecies;
   const herd: FarmAnimal[] = Array.isArray(r.herd)
-    ? r.herd
-        .slice(0, HERD_CAPACITY)
-        .flatMap((a) =>
-          a && isLivestock(a.species) && LIVESTOCK[a.species as LivestockSpecies].shelter === shelter
-            ? [
-                {
-                  id: bounded(a.id, 0, 0, 1e9),
-                  species: a.species,
-                  born: bounded(a.born, day - 8, -1e9, day),
-                  happy: bounded(a.happy, 60, 0, 100),
-                  bred: bounded(a.bred, -1e9, -1e9, day),
-                },
-              ]
-            : [],
-        )
+    ? r.herd.slice(0, HERD_CAPACITY).flatMap((a) =>
+        a && isLivestock(a.species) && shelterAccepts(a.species, shelter)
+          ? [
+              {
+                id: bounded(a.id, 0, 0, 1e9),
+                species: a.species,
+                born: bounded(a.born, day - 8, -1e9, day),
+                happy: bounded(a.happy, 60, 0, 100),
+                bred: bounded(a.bred, -1e9, -1e9, day),
+              },
+            ]
+          : [],
+      )
     : Array.from({ length: bounded(r.animals, 0, 0, HERD_CAPACITY) }, (_, id) => ({
         id,
         species: base as LivestockSpecies,

@@ -2,6 +2,7 @@ import { CAVE_RESIDENTS, CAVE_TOWNS } from './undercroft';
 import { PORT_RESIDENTS, PORTS } from './settlements';
 import type { Weather } from './weather';
 import { ITEMS, type ItemKind } from './items';
+import { catalogShopStock } from './catalog';
 import { realmNpcs } from './realm-npcs';
 
 export interface ScheduleBlock {
@@ -1043,3 +1044,20 @@ export const hoursText = (h: [number, number]): string =>
 
 export const SHOP_NPCS = [...NPCS, ...DELVER_MERCHANTS, ...realmNpcs()].filter((n) => n.shop).map((n) => n.id);
 export const itemExists = (id: string): boolean => !!ITEMS[id];
+
+// The catalog's goods go on the shelves of the shops that fit them (seeds at the general store, tools at the smithy ...).
+const SHOP_ROLE: Record<string, string> = {
+  'Greenbough General Store': 'general',
+  'Ironhand Smithy': 'smith',
+  'The Crooked Spoon': 'inn',
+  'Hartley Farm Supply': 'farm',
+  "Marlow's Tackle": 'fishing',
+  'Thistle & Thyme': 'herbalist',
+  'Loomis & Daughter': 'tailor',
+  'Plank & Peg': 'carpenter',
+};
+for (const n of NPCS) {
+  const role = n.shop ? SHOP_ROLE[n.shop.name] : undefined;
+  if (n.shop && role)
+    n.shop.stock.push(...catalogShopStock(role).filter((s) => !n.shop!.stock.some((x) => x.item === s.item)));
+}

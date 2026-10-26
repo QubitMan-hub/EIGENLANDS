@@ -48,7 +48,8 @@ export const setQuestSeed = (s: number): void => {
 export const questSeed = (): number => SEED;
 
 const d0 = (): number => dayNumber(Date.now());
-const giverName = (id: string) => NPC_BY_ID[id]?.name.split(' ')[0] ?? 'the villager';
+const giverName = (id: string) =>
+  id === 'guild' ? 'any Adventurer Guild board' : (NPC_BY_ID[id]?.name.split(' ')[0] ?? 'the villager');
 
 /** Something quest-relevant happened. Updates progress, tells the player about finished objectives/quests. */
 export function questEvent(p: PlayerRef, ev: QuestEvent, seed = SEED): void {

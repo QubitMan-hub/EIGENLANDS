@@ -1840,7 +1840,7 @@ export class Game {
     out.push({
       ...toL(me.x, me.y),
       y: toL(me.x, me.y).y - 10,
-      radius: lantern ? 8 : isCaveY(me.y) ? 6.5 : 4.5,
+      radius: Math.max(lantern ? 8 : isCaveY(me.y) ? 6.5 : 4.5, this.gameplay.profile.stats.light ?? 0),
       color: pc(22),
       intensity: Math.min(1, dark * (lantern ? 1.4 : 1.1)),
     });

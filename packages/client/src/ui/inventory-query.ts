@@ -2,8 +2,8 @@ import { HOTBAR, ITEMS, type Inventory } from '@eigenlands/shared';
 export type InventoryCategory = 'all' | 'equipment' | 'supplies' | 'materials';
 export type InventorySort = 'slot' | 'name' | 'value';
 const categories = {
-  equipment: new Set(['tool', 'weapon', 'armor', 'ring', 'outfit']),
-  supplies: new Set(['food', 'potion', 'seed', 'fertilizer']),
+  equipment: new Set(['tool', 'weapon', 'armor', 'ring', 'outfit', 'gear']),
+  supplies: new Set(['food', 'potion', 'seed', 'fertilizer', 'scroll', 'rune']),
   materials: new Set(['resource', 'material', 'crop', 'forage', 'fish', 'bug']),
 };
 /** View indices only: sorting must never rearrange the server's inventory or hotbar. */

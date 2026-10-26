@@ -536,6 +536,8 @@ export function furnish(b: Building, rawObj: ObjAdd, spot: SpotAdd, royal = fals
       obj(ix + 3, iy, 'station', 'furnace');
       obj(right, iy, 'station', 'workbench');
       obj(right - 1, iy, 'station', 'jeweler');
+      obj(ix + 5, iy, 'station', 'masonry');
+      obj(right, iy + 1, 'station', 'engineering');
       deco(ix, iy, 'rack');
       deco(ix + 2, iy, 'rack');
       deco(right, iy + 2, 'barrel');
@@ -554,6 +556,8 @@ export function furnish(b: Building, rawObj: ObjAdd, spot: SpotAdd, royal = fals
       break;
     case 'inn':
       obj(ix + 1, iy, 'station', 'cooking_pot');
+      obj(ix + 3, iy, 'station', 'oven');
+      obj(right - 2, iy, 'station', 'brewery');
       deco(ix + 3, iy, 'counter');
       deco(ix + 4, iy, 'counter');
       deco(ix + 5, iy, 'counter');
@@ -593,6 +597,7 @@ export function furnish(b: Building, rawObj: ObjAdd, spot: SpotAdd, royal = fals
       deco(ix, iy + 2, 'chair');
       deco(right, iy, 'shelf');
       deco(right - 1, iy, 'wardrobe');
+      obj(right, iy + 2, 'station', 'dairy');
       deco(ix, bottom, 'basket');
       deco(right, bottom, 'crate');
       deco(ix + 4, iy, 'barrel');
@@ -612,6 +617,7 @@ export function furnish(b: Building, rawObj: ObjAdd, spot: SpotAdd, royal = fals
         },
         tailor: () => {
           obj(right, iy + 1, 'station', 'loom');
+          obj(right - 1, iy + 1, 'station', 'tannery');
           deco(right, iy, 'wardrobe');
           deco(ix + 2, iy, 'basket');
           rug(midX, midY);
@@ -624,6 +630,7 @@ export function furnish(b: Building, rawObj: ObjAdd, spot: SpotAdd, royal = fals
         },
         bakery: () => {
           obj(right, iy + 1, 'station', 'cooking_pot');
+          obj(right - 1, iy + 1, 'station', 'oven');
           deco(right, iy, 'stove');
           deco(ix, iy + 1, 'counter');
           deco(ix + 1, iy + 1, 'counter');
@@ -634,6 +641,8 @@ export function furnish(b: Building, rawObj: ObjAdd, spot: SpotAdd, royal = fals
           for (let x = ix + 1; x < right; x++) deco(x, iy, x % 2 ? 'bookcase' : 'shelf');
           deco(right, iy, 'candles');
           deco(right, iy + 1, 'desk');
+          obj(right, iy + 2, 'station', 'enchanting');
+          obj(right - 1, iy + 2, 'station', 'runeforge');
           rug(midX, midY);
         },
         fisher: () => {

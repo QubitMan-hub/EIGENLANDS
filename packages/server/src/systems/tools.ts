@@ -1,6 +1,9 @@
 import {
+  caveBiomeAt,
+  dropAllowed,
+  inRealmLand,
   isCaveY,
-  FORAGE_BY_SEASON,
+  pickForage,
   HEARTS_MAX,
   ITEMS,
   NODES,
@@ -14,6 +17,7 @@ import {
 } from '@eigenlands/shared';
 import { useConstruction } from './construction';
 import { tuning } from '../rooms/runtime';
+import { useCatalogItem } from './gear';
 import type { ServerPlayer } from '../rooms/player';
 import type { RoomApi } from './api';
 import { startCast } from './fishing';
@@ -80,6 +84,13 @@ export async function handleUse(room: RoomApi, p: ServerPlayer, msg: UseMsg): Pr
     p.data.inv[msg.slot] = { id: 'waterskin_empty', n: 1 };
     p.dirty('needs', 'inv');
     room.fx({ kind: 'water', x: p.sim.x, y: p.sim.y });
+    return;
+  }
+
+  // items with a special use: recipe scrolls, repair kits, lamp oil, whetstones
+  if (def.use) {
+    p.toolReadyAt = t0 + tuning.toolCooldownMs;
+    useCatalogItem(room, p, msg.slot);
     return;
   }
 
@@ -220,8 +231,11 @@ function hitNode(room: RoomApi, p: ServerPlayer, tool: Stack, tx: number, ty: nu
   if (st.hp > 0) return;
 
   const drops: Stack[] = [];
+  const realm = isCaveY(ty) ? null : (inRealmLand(room.seed, tx, ty) ?? null),
+    cave = isCaveY(ty) ? caveBiomeAt(room.seed, tx, ty, room.store.generation) : null;
   for (const d of node.drops) {
     if (d.minTier && tier < d.minTier) continue;
+    if (!dropAllowed(d, realm, cave)) continue;
     const chance = d.chance >= 1 ? 1 : d.chance * (1 + 0.15 * p.stats.luck);
     if (room.rand() >= chance) continue;
     let n = d.min + Math.floor(room.rand() * (d.max - d.min + 1));
@@ -256,8 +270,11 @@ function cutGrass(room: RoomApi, p: ServerPlayer, tx: number, ty: number): void 
 }
 
 function gatherForage(room: RoomApi, p: ServerPlayer, tx: number, ty: number): void {
-  const list = FORAGE_BY_SEASON[room.wclock.season()]!;
-  const id = list[Math.floor(room.rand() * list.length)]!;
+  const id = pickForage(
+    room.wclock.season(),
+    () => room.rand(),
+    isCaveY(ty) ? null : (inRealmLand(room.seed, tx, ty) ?? null),
+  );
   const n = room.rand() < 0.05 * skillLv(p, 'foraging') + 0.04 * p.stats.luck ? 2 : 1;
   if (!giveStacks(p, [{ id, n }])) {
     p.toast('Your pack is full.', 'bad');

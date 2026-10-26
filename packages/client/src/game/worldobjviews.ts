@@ -73,7 +73,8 @@ interface View {
 
 const sigOf = (o: WorldObj): string => {
   const d = o.data as Record<string, unknown> | undefined;
-  if (o.kind === 'crop') return `${o.sub}|${d?.growth}|${d?.dead ? 1 : 0}|${d?.alt ?? ''}`;
+  if (o.kind === 'crop')
+    return `${o.sub}|${d?.growth}|${d?.dead ? 1 : 0}|${d?.alt ?? ''}:${d?.dormant}:${d?.established}`;
   if (o.kind === 'shelter') return `${o.sub}:${JSON.stringify(d?.herd ?? d?.animals)}:${d?.lastDay}`;
   if (o.kind === 'sprinkler') return `${o.sub}|${d?.watering ? 1 : 0}`;
   return `${o.kind}|${o.sub}`;
@@ -204,7 +205,7 @@ export class WorldObjViews {
     }
     const ck = chunkKey(Math.floor(o.x / CHUNK_SIZE), Math.floor(o.y / CHUNK_SIZE));
     const farm: FarmView[] = [];
-    if (o.kind === 'shelter') {
+    if (o.kind === 'shelter' && o.sub !== 'apiary') {
       const data = readHerd(o.data, o.sub, Number(o.data?.lastDay ?? 0));
       for (let i = 0; i < data.herd.length; i++) {
         const animal = data.herd[i]!,
@@ -215,7 +216,7 @@ export class WorldObjViews {
         const young = data.lastDay - animal.born < LIVESTOCK[animal.species].growth;
         const sprite = new Sprite(livestockTexture(animal.species, 0, facing)),
           shadow = new Sprite(sprite.texture);
-        sprite.anchor.set(24 / 48, 45 / 48);
+        sprite.anchor.set(24 / 48, 49 / 56);
         sprite.scale.set(young ? 0.62 : 0.9);
         sprite.position.set(Math.round(isoX(x + 0.5, y + 0.5)), Math.round(isoY(x + 0.5, y + 0.5)));
         sprite.zIndex = depth(x + 0.5, y + 0.5);
@@ -357,10 +358,14 @@ export class WorldObjViews {
         return;
       }
       for (const f of v.farm) {
-        const frame = reduced ? 0 : Math.sin(t * 0.6 + f.animal.id * 3.1) > 0.94 ? 1 : 0;
+        const frame = !reduced && v.obj.data?.fed && Math.sin(t * 0.6 + f.animal.id * 3.1 + v.phase) > 0.94 ? 1 : 0;
         f.sprite.texture = livestockTexture(f.animal.species, frame, f.facing);
         f.shadow.texture = f.sprite.texture;
-        f.shadow.visible = !hidden && sun.alpha > 0.02;
+        f.sprite.visible =
+          !hidden &&
+          !this.store.solidAt(f.x, f.y) &&
+          this.store.levelAt(f.x, f.y) === this.store.levelAt(v.obj.x, v.obj.y);
+        f.shadow.visible = f.sprite.visible && sun.alpha > 0.02;
         f.shadow.alpha = sun.alpha * 0.8;
         f.shadow.scale.set(f.young ? 0.62 : 0.9, -(f.young ? 0.62 : 0.9) * (0.22 + 0.14 * sun.len));
         f.shadow.skew.x = sun.dx * sun.len * 0.9;

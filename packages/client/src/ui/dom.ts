@@ -1,4 +1,19 @@
-import { ITEMS, PALETTE, TIER_NAMES, CROPS, itemName, type Stack } from '@eigenlands/shared';
+import {
+  CAT_GROUPS,
+  CROPS,
+  ITEMS,
+  PALETTE,
+  RARITY_COLORS,
+  RARITY_NAMES,
+  TIER_NAMES,
+  conditionLines,
+  effectLines,
+  equipmentLevel,
+  gearClassOf,
+  gearPower,
+  itemName,
+  type Stack,
+} from '@eigenlands/shared';
 import { itemIconUrl } from '../art/icons';
 
 type Child = Node | string | null | undefined | false;
@@ -92,8 +107,26 @@ export function tooltipFor(s: Stack): HTMLElement {
     return root;
   }
   const q = s.p?.qname ? ` q-${s.p.qname.toLowerCase()}` : '';
-  root.append(h('div', { class: `tip-name${q}`, text: itemName(s) }));
-  root.append(h('div', { class: 'tip-kind', text: d.kind }));
+  const rarity = d.rarity ?? 0;
+  root.append(
+    h('div', { class: `tip-name${q}`, text: itemName(s), style: rarity ? `color:${RARITY_COLORS[rarity]}` : '' }),
+  );
+  const group = d.cat ? CAT_GROUPS.find((g) => g.cats.includes(d.cat!))?.name : undefined;
+  root.append(
+    h('div', {
+      class: 'tip-kind',
+      text: [rarity ? RARITY_NAMES[rarity] : '', d.cat ? d.cat : d.kind, group && group !== d.cat ? group : '']
+        .filter(Boolean)
+        .join(' · '),
+    }),
+  );
+  if (gearClassOf(s.id)) {
+    const lv = equipmentLevel(s.id);
+    if (lv > 1) root.append(h('div', { class: 'tip-line', text: `Needs level ${lv}` }));
+    for (const t of effectLines(s, gearPower(s.p))) root.append(h('div', { class: 'tip-line good', text: t }));
+    for (const t of conditionLines(s))
+      root.append(h('div', { class: `tip-line${t.startsWith('Broken') ? ' bad' : ''}`, text: t }));
+  }
   if (d.tool)
     root.append(
       h('div', { class: 'tip-line', text: `Tier ${s.p?.tier ?? 1} (${TIER_NAMES[(s.p?.tier ?? 1) - 1] ?? '?'})` }),
@@ -124,7 +157,7 @@ export function tooltipFor(s: Stack): HTMLElement {
     );
   if (d.nourishment) root.append(h('div', { class: 'tip-line good', text: `Restores ${d.nourishment} food` }));
   if (d.heal) root.append(h('div', { class: 'tip-line good', text: `Heals ${d.heal}` }));
-  if (d.buff) root.append(h('div', { class: 'tip-line good', text: `${d.buff.kind} for ${d.buff.secs}s` }));
+  if (!gearClassOf(s.id)) for (const t of effectLines(s)) root.append(h('div', { class: 'tip-line good', text: t }));
   if (d.kind === 'seed' && d.crop && CROPS[d.crop]) {
     const c = CROPS[d.crop]!;
     root.append(

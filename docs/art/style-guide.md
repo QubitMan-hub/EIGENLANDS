@@ -189,3 +189,9 @@ Revision-6 watchrooms contain a rack, barrel and stool; royal halls use a projec
 Run `CHROME=/path/to/chromium node --import tsx e2e/castle-frontier-art.mjs http://localhost:5176/ /tmp/frontier-art` against source Vite. This captures six palace families, real capitals, three distant settlements, a furnished interior, fortification props and desktop/mobile dialogue contrast. The UI lab must load `identity.css` so it reproduces the shipping dialogue theme.
 
 Ground must support the actors: broad quiet base planes, sparse low-contrast tuft clusters and restrained seasonal flowers. Do not stack clumps, clover blobs, bright pebbles, glitter and scribbled cracks over the same grass. No procedural curved contour lines on grass, sand or snow. Keep tilled rows and genuine shoreline edges readable; preserve resource sprites. Both quality modes use this direction.
+
+## Homesteads and guilds
+
+Livestock uses original rounded model-space volumes with fixed ground contact and short head/ear/feed poses. Keep the seven silhouettes and juvenile scale readable; freeze cosmetic idles under reduced motion. Draw on clear level yard cells only, using shared day/sun shadows and existing object culling. Do not add continuous wandering or whole-body bobbing to make a stationary animal appear alive.
+
+Perennial trees use one grounded trunk/canopy per tile, trellises real diagonal posts/beams, and dormant forms retain branches/supports. Harvest must not shrink an established plant. Guild boards have thick projected wood, braced feet, parchment sheets and a restrained quantum crest. Keep text-heavy guild/herd screens in the existing parchment modal, with no permanent extra HUD panels. Larger catalog props need raster margin while retaining their anchors; check all facings and animation frames before shipping.

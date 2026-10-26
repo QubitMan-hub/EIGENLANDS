@@ -1,6 +1,7 @@
 import { hash2 } from './rng';
 import { KINGDOMS, type KingdomDef, type Person } from './kingdoms';
 import { ITEMS } from './items';
+import { catalogShopStock } from './catalog';
 import { REALM_IDS, REALM_SITES, type RealmId, type RealmSite } from './realms';
 import type { NpcDef, ScheduleBlock } from './npcs';
 
@@ -271,7 +272,23 @@ function scheduleFor(p: ResidentPlan): ScheduleBlock[] {
   ];
 }
 
+const SHOP_ROLE_OF: Partial<Record<Role, string>> = {
+  merchant: 'merchant',
+  innkeeper: 'inn',
+  smith: 'smith',
+  herbalist: 'herbalist',
+  farmer: 'farm',
+  scholar: 'scholar',
+};
 function shopFor(p: ResidentPlan, def: KingdomDef): NpcDef['shop'] | undefined {
+  const shop = baseShopFor(p, def);
+  const role = SHOP_ROLE_OF[p.role];
+  if (!shop || !role) return shop;
+  const have = new Set(shop.stock.map((s) => s.item));
+  return { ...shop, stock: [...shop.stock, ...catalogShopStock(role, p.realm).filter((s) => !have.has(s.item))] };
+}
+
+function baseShopFor(p: ResidentPlan, def: KingdomDef): NpcDef['shop'] | undefined {
   const [d1, d2] = DISHES[p.realm];
   const mk = (items: string[], markup: number) => valid(items).map((item) => ({ item, markup }));
   switch (p.role) {

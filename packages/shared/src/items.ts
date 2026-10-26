@@ -20,10 +20,14 @@ export type ItemKind =
   | 'animal'
   | 'fertilizer'
   | 'misc'
-  | 'armor';
+  | 'armor'
+  | 'gear'
+  | 'scroll'
+  | 'rune';
 
 /** Glyph vocabulary the art pipeline must draw (16x16 inventory icons). `a` = main, `b` = accent palette index. */
 export type Glyph =
+  | CatalogGlyph
   | 'log'
   | 'plank'
   | 'stone'
@@ -96,6 +100,10 @@ export type Glyph =
   | 'boots';
 
 import { BUILD_PIECES } from './construction';
+import { catalogItems } from './catalog';
+import type { GearSpec, ItemUse } from './catalog/types';
+import type { CatalogGlyph } from './catalog/glyphs';
+import type { ItemCat, Rarity } from './crafting';
 import {
   ARMOR_SETS,
   ARMOR_SLOTS,
@@ -112,7 +120,23 @@ export interface ToolSpec {
 }
 /** Timed effects stored as server buffs: boons, resistances and injuries. */
 export type BuffKind =
-  'regen' | 'might' | 'ward' | 'lantern' | 'bleed' | 'poison' | 'burn' | 'frostbite' | 'warmth' | 'coolness';
+  | 'regen'
+  | 'might'
+  | 'ward'
+  | 'lantern'
+  | 'bleed'
+  | 'poison'
+  | 'burn'
+  | 'frostbite'
+  | 'warmth'
+  | 'coolness'
+  | 'vigor'
+  | 'fortune'
+  | 'swift'
+  | 'fury'
+  | 'bulwark'
+  | 'steady'
+  | 'focus';
 export const BUFF_KIND_LIST: readonly BuffKind[] = [
   'regen',
   'might',
@@ -124,6 +148,13 @@ export const BUFF_KIND_LIST: readonly BuffKind[] = [
   'frostbite',
   'warmth',
   'coolness',
+  'vigor',
+  'fortune',
+  'swift',
+  'fury',
+  'bulwark',
+  'steady',
+  'focus',
 ];
 
 export interface ItemDef {
@@ -160,6 +191,17 @@ export interface ItemDef {
   /** consumed on use for a special effect: a Heart Crystal (+10 max health) or a boss summon */
   special?: 'heart' | 'summon' | 'ship';
   tags?: string[];
+  /** catalog fields: rarity 0..5, material tier, UI category, the kingdom it belongs to */
+  rarity?: Rarity;
+  tier?: number;
+  cat?: ItemCat;
+  realm?: string;
+  /** fertiliser: days of growth saved and extra harvest yield */
+  fert?: { days: number; yield: number };
+  /** worn/wielded stats of data-driven gear (see catalog/gear.ts) */
+  gear?: GearSpec;
+  /** what using it does beyond eating or drinking (recipe scrolls, runes, repair kits ...) */
+  use?: ItemUse;
 }
 
 export interface Props {
@@ -176,6 +218,9 @@ export interface Props {
   b?: string; // superposed seed: two crops
   note?: string;
   stats?: Record<string, number>; // forged stat breakdown
+  qt?: number; // crafted quality tier 0..4 (Crude..Masterwork)
+  up?: number; // upgrade level (+N)
+  ench?: string; // enchantment key set into the gear
 }
 export interface Stack {
   id: string;
@@ -245,7 +290,15 @@ function def(
     id,
     name,
     kind,
-    stack: kind === 'tool' || kind === 'weapon' || kind === 'ring' || kind === 'outfit' || kind === 'armor' ? 1 : 99,
+    stack:
+      kind === 'tool' ||
+      kind === 'weapon' ||
+      kind === 'ring' ||
+      kind === 'outfit' ||
+      kind === 'armor' ||
+      kind === 'gear'
+        ? 1
+        : 99,
     value,
     desc,
     ...(kind === 'food' ? { nourishment: 25 } : {}),
@@ -289,7 +342,7 @@ for (const [id, piece] of Object.entries(BUILD_PIECES)) {
     piece.material === 'stone' || piece.material === 'slate' ? C.steel : C.e3,
     C.e6,
     `Craft and place on your own foundation. ${piece.layer === 'stairs' ? 'Links two floors; includes an upper landing.' : 'Pickaxe + Use returns the piece.'}`,
-    { place: { kind: 'structure', sub: id }, tags: ['building'] },
+    { place: { kind: 'structure', sub: id }, tags: ['building'], cat: 'building' },
   );
 }
 
@@ -876,7 +929,8 @@ const SET_COLORS: Record<string, [number, number]> = {
 };
 const SLOT_GLYPH: Record<ArmorSlot, Glyph> = { head: 'helm', chest: 'cuirass', legs: 'greaves', feet: 'boots' };
 for (const set of ARMOR_SETS) {
-  const [a, b] = SET_COLORS[set.id]!;
+  const [a, b] = set.colors ?? SET_COLORS[set.id]!;
+  const rarity = Math.min(5, Math.floor(set.level / 7)) as 0 | 1 | 2 | 3 | 4 | 5;
   for (const slot of ARMOR_SLOTS) {
     const parts = [
       set.piece.def ? `-${Math.round(set.piece.def * 1000) / 10}% damage` : '',
@@ -895,7 +949,7 @@ for (const set of ARMOR_SETS) {
       a,
       b,
       `${ARMOR_SLOT_NAMES[slot]} armour of ${set.name}. ${parts}. Level ${set.level}. ${set.blurb}`,
-      { armor: { slot, set: set.id } },
+      { armor: { slot, set: set.id }, cat: 'armor', rarity },
     );
   }
 }
@@ -912,25 +966,29 @@ const WEAPON_COLORS: Record<string, [number, number]> = {
 };
 for (const w of Object.values(WEAPONS)) {
   if (w.id === 'sword') continue;
-  const [a, b] = WEAPON_COLORS[w.id]!;
+  const [a, b] = w.tint ?? WEAPON_COLORS[w.id]!;
+  const fam = w.fam ?? w.id;
+  const wrarity = Math.min(5, Math.floor(w.level / 7)) as 0 | 1 | 2 | 3 | 4 | 5;
   def(
     w.id,
     w.name,
     'weapon',
     120 + w.level * 20,
-    w.id === 'spear'
-      ? 'spear'
-      : w.id === 'battle_axe'
-        ? 'battle_axe'
-        : w.id === 'warhammer'
-          ? 'warhammer'
-          : w.cls === 'crossbow'
-            ? 'crossbow'
-            : 'staff',
+    fam === 'sword'
+      ? 'sword'
+      : fam === 'spear'
+        ? 'spear'
+        : fam === 'battle_axe'
+          ? 'battle_axe'
+          : fam === 'warhammer'
+            ? 'warhammer'
+            : w.cls === 'crossbow'
+              ? 'crossbow'
+              : 'staff',
     a,
     b,
     `${w.blurb} ${w.quantum} Level ${w.level}.`,
-    { weapon: w.id },
+    { weapon: w.id, cat: 'weapon', rarity: wrarity },
   );
 }
 
@@ -943,7 +1001,7 @@ export const itemName = (s: Stack): string => {
   if (s.p?.qname) return `${s.p.qname} ${d.name}`;
   return d.name;
 };
-export const TIER_NAMES = ['Wooden', 'Copper', 'Iron', 'Silver', 'Crystal'] as const;
+export const TIER_NAMES = ['Wooden', 'Copper', 'Iron', 'Silver', 'Crystal', 'Mithril', 'Adamant', 'Voidsteel'] as const;
 
 /** Equal stacks can merge: same id and identical unique properties (or none). */
 export function sameStack(a: Stack, b: Stack): boolean {
@@ -1050,7 +1108,7 @@ export function validInventory(v: unknown): Inventory {
 /** The authoritative level gate for an equipment item. */
 export function equipmentLevel(id: string): number {
   const d = ITEMS[id];
-  return d?.weapon ? WEAPONS[d.weapon].level : d?.armor ? (SET_BY_ID[d.armor.set]?.level ?? 1) : 1;
+  return d?.weapon ? WEAPONS[d.weapon].level : d?.armor ? (SET_BY_ID[d.armor.set]?.level ?? 1) : (d?.gear?.level ?? 1);
 }
 /** Forged swords contribute only the strongest bonus in the quick-bar, including when a Focus is equipped. */
 export const quickbarAttack = (inv: Inventory): number =>
@@ -1100,3 +1158,9 @@ def(
   'A crystal signet forged from Veyr’s heart. Grants attack when crafted.',
   { tags: ['atk'] },
 );
+
+// ── data-driven catalog (shared/src/catalog): the content waves, merged last so ids never shadow the hand-written ones
+for (const d of catalogItems()) {
+  if (I[d.id]) throw new Error(`catalog item ${d.id} duplicates a built-in item`);
+  I[d.id] = d;
+}

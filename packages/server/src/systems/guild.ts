@@ -20,6 +20,7 @@ export function guildPanel(room: RoomApi, p: ServerPlayer, board: WorldObj): Pan
     ty: board.y,
     sub: 'guild_board',
     guild: {
+      generation: room.store.generation,
       name: p.name,
       rank: guildRank(p.data.quests),
       card: `WAY-${Math.floor(
@@ -54,8 +55,8 @@ export function handleGuild(room: RoomApi, p: ServerPlayer, m: QuestMsg): void {
   if (!Number.isInteger(m.tx) || !Number.isInteger(m.ty) || p.deadT > 0) return;
   const board = room.store.objectAt(m.tx!, m.ty!);
   if (
-    !board?.static ||
-    board.sub !== 'guild_board' ||
+    !board ||
+    !((board.static && board.sub === 'guild_board') || board.sub === 'guild_noticeboard') ||
     Math.hypot(p.sim.x - board.x - 0.5, p.sim.y - board.y - 0.5) > 3.5
   )
     return;

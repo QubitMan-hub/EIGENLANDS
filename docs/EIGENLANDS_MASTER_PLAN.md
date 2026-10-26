@@ -496,68 +496,69 @@ Slice delivered 2026-10-25: legacy navy/rounded styles in `style.css` (toasts, c
 
 ## 9. MASSIVE ITEM, CRAFTING & FOOD EXPANSION
 
-- [ ] NOT STARTED — Create a deeply expandable, data-driven item system with a long-term target of **thousands of meaningful items**.
-- [ ] NOT STARTED — Include:
-- [ ] NOT STARTED — Resources, ores, metals, gems, crystals, fibers, monster drops, and magical materials.
-- [ ] NOT STARTED — Weapons, armor, shields, tools, accessories, and class equipment.
-- [ ] NOT STARTED — Building materials, roofs, walls, furniture, and decorations.
-- [ ] NOT STARTED — Farming tools, seeds, fertilizer, irrigation equipment, and animal supplies.
-- [ ] NOT STARTED — Food ingredients, spices, fruits, vegetables, meats, fish, grains, and dairy.
-- [ ] NOT STARTED — Hundreds of potential cooking recipes and culturally distinct dishes.
-- [ ] NOT STARTED — Potions, alchemy reagents, runes, scrolls, and magical artifacts.
-- [ ] NOT STARTED — Exploration tools, backpacks, lanterns, saddles, and mount equipment.
-- [ ] NOT STARTED — Legendary equipment, rare collectibles, and realm-specific resources.
+See [CRAFTING.md](CRAFTING.md) for the architecture, the data files and what is deliberately not built.
+
+- [~] IN PROGRESS — Create a deeply expandable, data-driven item system with a long-term target of **thousands of meaningful items**. (1,240 items and 902 recipes today, 860 items from data tables in `shared/src/catalog/`; every one has a source or a recipe and a use, enforced by a test. Not yet thousands.)
+- [~] IN PROGRESS — Include:
+- [x] IMPLEMENTED & TESTED — Resources, ores, metals, gems, crystals, fibers, monster drops, and magical materials. (12 metals with plate/rod/wire, 12 gems raw and cut, 6 elemental crystals, 8 woods, 6 stones, textiles, leather, 17 monster parts, essences; found in the kingdom or cave that has them.)
+- [~] IN PROGRESS — Weapons, armor, shields, tools, accessories, and class equipment. (27 armour sets, 63 weapons across spear/axe/hammer/sword/crossbow in 11 metals plus 4 legendaries, 15 shields, cloaks, packs, amulets, belts, charms and lanterns in six new gear slots, 61 accessories, craft tools. No class-specific equipment and no new weapon families (dagger, bow, greatsword) yet.)
+- [x] IMPLEMENTED & TESTED — Building materials, roofs, walls, furniture, and decorations. (21 new wall, floor, roof, door and stair pieces in brick, marble, sandstone, granite, plaster, log, glass, tile, copper; 44 furniture and decoration pieces with isometric art, including storage, hearths and lamps that really warm and light.)
+- [~] IN PROGRESS — Farming tools, seeds, fertilizer, irrigation equipment, and animal supplies. (57 new crops with seeds sold by the kingdoms that grow them, four fertilisers, a three-tile sprinkler, sickle/shears/trowel/pail that matter, sheep, goats, pigs and bees with their pens. Breeding, growth and animal happiness are §10.)
+- [x] IMPLEMENTED & TESTED — Food ingredients, spices, fruits, vegetables, meats, fish, grains, and dairy. (Grains, vegetables, orchard and vine fruit, spices, tea, cocoa, coffee, 7 wild meats, 15 new fish and shellfish, culinary herbs, and the mill, dairy, oil and preserving chain.)
+- [x] IMPLEMENTED & TESTED — Hundreds of potential cooking recipes and culturally distinct dishes. (156 dishes and 51 drinks, each with a weight and a profile that gives a distinct buff; six kingdom cuisines of 9-12 dishes each that need standing in that kingdom; dozens found only by experimenting.)
+- [x] IMPLEMENTED & TESTED — Potions, alchemy reagents, runes, scrolls, and magical artifacts. (13 herbs, mineral reagents, 22 potions, 34 enchantment runes in three strengths, 15 recipe scrolls, charged crystals, six legendary artifacts.)
+- [~] IN PROGRESS — Exploration tools, backpacks, lanterns, saddles, and mount equipment. (Backpacks, lanterns, compass and spyglass charms and a campfire kit exist; **saddles and mount equipment are NOT built**: there is no mount system for them to serve.)
+- [x] IMPLEMENTED & TESTED — Legendary equipment, rare collectibles, and realm-specific resources. (4 legendary weapons, a legendary armour set, 6 artifacts, 7 collectibles from vaults; six realm metals, realm woods, gems, seeds and dishes that only their kingdom provides.)
 
 ### Crafting disciplines
 
-- [ ] NOT STARTED — Smithing, woodworking, tailoring, leatherworking, cooking, brewing, alchemy, enchanting, engineering, masonry, farming, and magical crafting.
+- [x] IMPLEMENTED & TESTED — Smithing, woodworking, tailoring, leatherworking, cooking, brewing, alchemy, enchanting, engineering, masonry, farming, and magical crafting. (12 disciplines with XP, levels 1-40 and a perk line each; saved with the character.)
 
 ### Systems
 
-- [ ] NOT STARTED — Multiple crafting stations.
-- [ ] NOT STARTED — Crafting progression and recipe discovery.
-- [ ] NOT STARTED — Multi-stage advanced recipes.
-- [ ] NOT STARTED — Equipment upgrades and repair.
-- [ ] NOT STARTED — Material rarity.
-- [ ] NOT STARTED — Specialized crafting resources.
-- [ ] NOT STARTED — Kingdom-specific and realm-specific recipes.
-- [ ] NOT STARTED — Excellent searchable crafting UI.
-- [ ] NOT STARTED — Crafting favorites, categories, ingredient tracking, and recipe trees.
-- [ ] NOT STARTED — Avoid generating thousands of meaningless duplicates. Every major item category should serve actual gameplay.
-- [ ] NOT STARTED — Build a robust foundation first, then expand the content systematically.
+- [x] IMPLEMENTED & TESTED — Multiple crafting stations. (17 stations; 8 new ones can be crafted and placed, and appear in Hadamere's trade houses.)
+- [x] IMPLEMENTED & TESTED — Crafting progression and recipe discovery. (Levelling unlocks recipes; kingdoms, villagers and scrolls teach others; 100 recipes are found by experimenting, and only learned recipes are saved.)
+- [x] IMPLEMENTED & TESTED — Multi-stage advanced recipes. (Ore to ingot to plate to armour; fibre to thread to cloth to garment; and so on, shown as a recipe tree in the book.)
+- [x] IMPLEMENTED & TESTED — Equipment upgrades and repair. (Quality Crude to Masterwork, durability, repair at the bench or with kits, upgrades to +5, one enchantment per piece; broken gear stays on you and gives nothing.)
+- [x] IMPLEMENTED & TESTED — Material rarity. (Six rarity tiers scale value and power; gear needs rarer gear for stronger runes.)
+- [x] IMPLEMENTED & TESTED — Specialized crafting resources. (Tools in the pack open trades; realm metals, cave crystals and monster parts feed particular recipes.)
+- [x] IMPLEMENTED & TESTED — Kingdom-specific and realm-specific recipes. (132 recipes need a kingdom's friendship; their materials are sold or found only there.)
+- [x] IMPLEMENTED & TESTED — Excellent searchable crafting UI. (Search by item, category or ingredient; filters; paging; discipline bars; a gear bench.)
+- [x] IMPLEMENTED & TESTED — Crafting favorites, categories, ingredient tracking, and recipe trees. (Favourites and tracked recipes are kept in the browser.)
+- [~] IN PROGRESS — Avoid generating thousands of meaningless duplicates. Every major item category should serve actual gameplay. (A test fails any item no recipe or source reaches, or nothing uses. Metal parts nothing uses are not made.)
+- [x] IMPLEMENTED & TESTED — Build a robust foundation first, then expand the content systematically.
 
 ## 10. FARMING, ANIMAL HUSBANDRY & BUILDING
 
-- [ ] NOT STARTED — Players should be able to create their own homes, farms, ranches, workshops, and settlements.
+- [~] IN PROGRESS — Players can build durable owned homes, farms, ranches, workshops and guild halls from modular architecture and functional objects. Settlement governance/NPC housing remains open.
 
 ### Agriculture
 
-- [ ] NOT STARTED — Crop growth, planting, watering, harvesting, seasonal effects, irrigation, fertilizers, magical crops, orchards, and vineyards.
+- [x] IMPLEMENTED & TESTED — Planting, watered growth, harvesting, seasons, sprinklers and water-connected irrigation, fertilizer, superposed crops, perennial orchards and grape trellises. See HOMESTEADS_AND_GUILD.md.
 
 ### Animal husbandry
 
-- [ ] NOT STARTED — Chickens, cows, sheep, goats, pigs, horses, and fantasy livestock.
-- [ ] NOT STARTED — Include feeding, breeding, growth, shelter, animal happiness, resource collection, and proper animations.
+- [x] IMPLEMENTED & TESTED — Chickens, cows, sheep, goats, pigs, horses and Glimmerhart fantasy livestock.
+- [x] IMPLEMENTED & TESTED — Owned shelters, feeding, breeding, growth, happiness, bounded products, tool-gated atomic collection and grounded quiet animations. Apiaries retain their colony model; free-roaming animals and mounts remain open.
 
 ### Building
 
-- [ ] NOT STARTED — Cottages, houses, farms, barns, stables, inns, towers, castles, guild halls, workshops, and expandable settlements.
-- [ ] NOT STARTED — Allow customization of walls, roofs, flooring, windows, lighting, gardens, and interiors.
-- [ ] NOT STARTED — Furniture must be genuinely isometric and functional where appropriate.
+- [~] IN PROGRESS — Cottages, houses, farms, barns, stables, inns, towers, castles, guild halls and workshops can be composed from 33 modular pieces and the furniture/station catalog; support, collision, roofs, stairs and ownership persist. Settlement governance and bespoke prefab plans remain open.
+- [x] IMPLEMENTED & TESTED — Wall, roof, floor, window, lighting, garden and interior customization via construction and placed objects.
+- [~] IN PROGRESS — Native isometric furniture; functional storage, benches, lights, warmth, safe bed rest and player-hall guild boards. Additional furniture-specific interactions remain open.
 
 ## 11. ADVENTURER GUILD SYSTEM — F TO SSS
 
-- [ ] NOT STARTED — Every major settlement should have an Adventurer Guild Hall.
-- [ ] NOT STARTED — Players can register, receive guild identity cards, select classes, accept quests, form parties, and gain reputation.
-- [ ] NOT STARTED — Ranks:
-- [ ] NOT STARTED — **F → E → D → C → B → A → S → SS → SSS**
-- [ ] NOT STARTED — SSS should be extraordinarily difficult to obtain.
-- [ ] NOT STARTED — It must require intelligence, planning, extraordinary accomplishments, strategic mastery, and meaningful world-changing quests—not merely grinding.
+- [~] IN PROGRESS — Existing civic halls/inns host physical guild boards, including frontier settlements; player-built halls can craft their own. Dedicated guild architecture/staff remain open.
+- [x] IMPLEMENTED & TESTED — Register, receive a persistent ledger identity card, accept verified commissions, select classes and form parties through the existing systems.
+- [x] IMPLEMENTED & TESTED — **F → E → D → C → B → A → S → SS → SSS** with two commissions and a practical trial per promotion.
+- [x] IMPLEMENTED & TESTED — SSS requires distinct credited defenses in all six kingdoms plus two legendary bosses after acceptance, following all previous promotions. No repeatable rank-XP shortcut.
+- [~] IN PROGRESS — Practical/cross-profession/boss mastery and actual raid-outcome proofs implemented; authored branching world-changing guild storylines remain open.
 
 ### Quest boards
 
-- [ ] NOT STARTED — Monster hunts, escorts, rescues, investigations, dungeon exploration, resource gathering, crafting commissions, farming contracts, diplomatic missions, kingdom defense, and legendary quests.
-- [ ] NOT STARTED — Each guild hall should have a beautiful physical quest board with a fully functional matching UI.
+- [~] IN PROGRESS — 25 ledger entries covering hunts, supplies, crafting, farming, fishing, trade, archives, experimentation, bosses and kingdom defense. Escort/rescue, branching investigation and diplomacy missions remain open.
+- [x] IMPLEMENTED & TESTED — Original projected physical boards with a readable matching desktop/mobile ledger, server reach/eligibility checks and one-time rewards.
 
 ## 12. MORE PLAYER CLASSES
 

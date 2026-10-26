@@ -1,5 +1,5 @@
 import { buildHusbandry, type HerdActions } from './husbandry';
-import { type PanelMsg, type Slot } from '@eigenlands/shared';
+import { FARM_ANIMALS, type PanelMsg, type Slot } from '@eigenlands/shared';
 import type { Profile } from '../game/profile';
 import { clear, h, iconCell, tooltipFor, type Tooltip } from './dom';
 
@@ -72,6 +72,27 @@ export function buildChest(
 }
 
 export function buildShelter(p: PanelMsg, profile: Profile, act: HerdActions): HTMLElement {
+  if (p.shelter?.type === 'apiary') {
+    const d = p.shelter,
+      f = FARM_ANIMALS.apiary!;
+    return h(
+      'div',
+      { class: 'herd-panel' },
+      h('h2', { text: f.name }),
+      h('p', { text: `${d.animals}/${d.max} colonies · ${d.ready} honey ready` }),
+      h('button', {
+        text: 'House a bee colony',
+        disabled: d.animals >= d.max || profile.count(f.animal) < 1,
+        on: { click: act.add },
+      }),
+      h('button', {
+        text: `Feed (${d.animals} hay)`,
+        disabled: d.fed || !d.animals || profile.count('hay') < d.animals,
+        on: { click: act.feed },
+      }),
+      h('button', { text: 'Collect honey', disabled: d.ready < 1, on: { click: act.collect } }),
+    );
+  }
   return buildHusbandry(p, profile, act);
 }
 

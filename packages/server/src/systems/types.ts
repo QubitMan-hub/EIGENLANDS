@@ -42,6 +42,8 @@ export interface PlayerData {
   coins: number;
   skills: SkillXp;
   recipes: Set<string>;
+  /** crafting discipline XP */
+  disc: import('@eigenlands/shared').DiscXp;
   equip: EquipState;
   friends: Record<string, FriendRec>;
   /** standing with each kingdom (world revision 5) */
@@ -60,7 +62,18 @@ export interface PlayerData {
 }
 
 export type DirtyPart =
-  'inv' | 'coins' | 'skills' | 'recipes' | 'equip' | 'friends' | 'rep' | 'buffs' | 'stats' | 'quests' | 'needs';
+  | 'inv'
+  | 'coins'
+  | 'skills'
+  | 'disc'
+  | 'recipes'
+  | 'equip'
+  | 'friends'
+  | 'rep'
+  | 'buffs'
+  | 'stats'
+  | 'quests'
+  | 'needs';
 
 export interface PlayerRef {
   /** colyseus session id */
