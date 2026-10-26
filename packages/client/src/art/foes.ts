@@ -1112,12 +1112,12 @@ function realmBeast(form: number): Def {
       };
       if (form === 0) {
         // ───────── griffin: lion body, eagle head, great spread wings
-        const fur = R(ART_RGB.e4, 4),
-          furD = R(ART_RGB.e2, 3),
+        const fur = R(ART_RGB.c4, 4),
+          furD = R(ART_RGB.c3, 3),
           plume = R(ART_RGB.pale, 4, 6),
-          gold = M(ramp(ART_RGB.e6, 3, 1), { shiny: true }),
-          wingA = R(ART_RGB.e5, 4),
-          wingB = R(ART_RGB.fog, 4, 6);
+          gold = M(ramp(ART_RGB.c4, 3, 1), { shiny: true }),
+          wingA = R(ART_RGB.e3, 4),
+          wingB = R(ART_RGB.e6, 4, 6);
         const z = 8.5 + (moving ? 0.6 * Math.abs(sw) : 0.25 * sw);
         s.ell([0, 0, z], [7.6, 3.5, 3.8], fur);
         s.ell([-5.4, 0, z + 0.4], [4, 3.7, 4], fur); // haunch
@@ -1164,8 +1164,8 @@ function realmBeast(form: number): Def {
         // ───────── spirit stag: ghostly white deer, glowing antler crown, halo, drifting petals
         const hide = M(ramp(ART_RGB.pale, 4, 2, { hue: 6 })),
           shade = M(ramp(ART_RGB.fog, 3, 2, { hue: 6 })),
-          horn = glow(ART_RGB.g5, 4),
-          bloom = glow(ART_RGB.r5, 3),
+          horn = glow(ART_RGB.n5, 4),
+          bloom = glow(ART_RGB.c2, 3),
           halo = glow(ART_RGB.e7, 3),
           mote = glow(ART_RGB.w6, 2);
         const z = 11.4 + (moving ? 0.7 * Math.abs(sw) : 0.3 * sw);
@@ -1215,8 +1215,8 @@ function realmBeast(form: number): Def {
         const iron = R(ART_RGB.slate, 5, 8),
           plate = R(ART_RGB.steel, 4, 8),
           dark = R(ART_RGB.night, 3, 8),
-          fire = glow(ART_RGB.e5, 4),
-          rune = glow(ART_RGB.e6, 3);
+          fire = glow(ART_RGB.c3, 4),
+          rune = glow(ART_RGB.t2, 3);
         const z = 13.5 + (moving ? 0.5 * Math.abs(sw) : 0.2 * sw);
         s.ell([0, 0, z + 1], [6.6, 6.4, 8.4], iron); // torso
         s.ell([0, 0, z - 6], [5.4, 5.2, 3.4], dark); // belt
@@ -1262,7 +1262,7 @@ function realmBeast(form: number): Def {
         const fur = R(ART_RGB.fog, 4, 6),
           mane = R(ART_RGB.pale, 4, 6),
           dark = R(ART_RGB.slate, 3, 8),
-          bolt = glow(ART_RGB.w7, 3),
+          bolt = glow(ART_RGB.b1, 3),
           bolt2 = glow(ART_RGB.q5, 3);
         const z = 8.6 + (moving ? Math.abs(sw) * 0.8 : 0.4 * sw);
         s.ell([0, 0, z], [7.6, 2.8, 3.2], fur);
@@ -1310,13 +1310,13 @@ function realmBeast(form: number): Def {
         if (wind || bite) s.sph([14.4, 0, z + 1], 2.1 + (bite ? 0.8 : 0), bolt);
       } else if (form === 4) {
         // ───────── reef naga: serpent coil rising into a hooded, pearl-crowned warrior with a coral trident
-        const scale = R(ART_RGB.w3, 4, 10),
-          scaleD = R(ART_RGB.w1, 3, 10),
+        const scale = R(ART_RGB.t1, 4, 10),
+          scaleD = R(ART_RGB.t0, 3, 10),
           belly = R(ART_RGB.pale, 3, 6),
-          coral = R(ART_RGB.r4, 4, 12),
+          coral = R(ART_RGB.c2, 4, 12),
           pearl = glow(ART_RGB.white, 3),
-          skin = R(ART_RGB.w5, 3, 8),
-          gold = M(ramp(ART_RGB.e6, 3, 1), { shiny: true });
+          skin = R(ART_RGB.t2, 3, 8),
+          gold = M(ramp(ART_RGB.c4, 3, 1), { shiny: true });
         const segs = 10;
         for (let i = 0; i < segs; i++) {
           const f = i / (segs - 1);
@@ -1363,10 +1363,10 @@ function realmBeast(form: number): Def {
         }
       } else {
         // ───────── hellhound: three-headed, lava-veined obsidian hide wreathed in flame
-        const hide = R(ART_RGB.r0, 4, 9),
+        const hide = R(ART_RGB.c0, 4, 9),
           rock = R(ART_RGB.night, 4, 9),
-          fire = glow(ART_RGB.r5, 4),
-          hot = glow(ART_RGB.e6, 3),
+          fire = glow(ART_RGB.c2, 4),
+          hot = glow(ART_RGB.c4, 3),
           bone = M(ramp(ART_RGB.pale, 3, 1));
         const z = 9.4 + (moving ? 0.7 * Math.abs(sw) : 0.3 * sw);
         s.ell([0, 0, z], [8.2, 3.6, 4], hide);
