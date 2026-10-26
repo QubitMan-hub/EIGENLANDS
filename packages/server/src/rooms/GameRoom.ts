@@ -28,6 +28,8 @@ import {
   type StrikeShape,
   type WeaponShot,
   type WorldObj,
+  type ShopMsg,
+  type ShopViewMsg,
 } from '@eigenlands/shared';
 import type { Enemy } from '../game/enemies';
 import { TokenBucket } from '../rate';
@@ -43,6 +45,7 @@ import { ArmyModule } from '../features/armies';
 import { VoiceModule } from '../features/voice';
 import { ShrineModule } from '../features/shrines';
 import { TravelModule } from '../features/travel';
+import { CaravanModule } from '../features/caravans';
 import { SocialModule } from '../features/social';
 import type { BucketName, Carry, JoinOpts, Module, Registrar } from '../features/types';
 import type { VillageHost, VillageSystem } from '../systems/types';
@@ -85,6 +88,7 @@ export class GameRoom extends WorldRoom {
   caves!: CaveModule;
   shrines!: ShrineModule;
   travel!: TravelModule;
+  caravans!: CaravanModule;
   shardMod!: ShardModule;
   private modules: Module[] = [];
   private buckets = new Map<string, Map<BucketName, TokenBucket>>();
@@ -127,6 +131,7 @@ export class GameRoom extends WorldRoom {
     this.shrines = new ShrineModule(this);
     this.caves = new CaveModule(this);
     this.travel = new TravelModule(this);
+    this.caravans = new CaravanModule(this);
     this.modules = [
       this.shardMod,
       this.circuit,
@@ -137,6 +142,7 @@ export class GameRoom extends WorldRoom {
       this.shrines,
       this.sailing,
       this.travel,
+      this.caravans,
       this.army,
       this.voice,
     ];
@@ -426,6 +432,9 @@ export class GameRoom extends WorldRoom {
   }
   shrineInteract(p: ServerPlayer, o: WorldObj): void {
     this.shrines?.interact(p, o);
+  }
+  caravanShop(p: ServerPlayer, m: ShopMsg): ShopViewMsg | null {
+    return this.caravans?.shop(p, m) ?? null;
   }
   travelInteract(p: ServerPlayer, o: WorldObj): void {
     this.travel?.interact(p, o);

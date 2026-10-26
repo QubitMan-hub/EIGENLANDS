@@ -69,6 +69,8 @@ export interface PlayerData {
     home?: string | null;
     /** mounts owned ('horse', 'stag') */
     mounts?: string[];
+    /** road caravans met (caravans.ts route ids) */
+    caravans?: string[];
   };
 }
 

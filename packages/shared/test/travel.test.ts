@@ -107,3 +107,31 @@ describe('riding and roads', () => {
     expect(ev.attacked).toBe(true);
   });
 });
+
+describe('road caravans', () => {
+  it('one per kingdom road, resting outside each settlement and rolling along the road between', async () => {
+    const { caravanRoutes, caravanAt, caravanStock, tileAt, T, ITEMS } = await import('../src/index');
+    const routes = caravanRoutes(SEED);
+    expect(routes.length).toBe(24);
+    let samples = 0,
+      onRoad = 0;
+    for (const r of routes.slice(0, 8)) {
+      expect(r.stops.length).toBe(4);
+      expect(r.stops.map((s) => s.d)).toEqual([...r.stops.map((s) => s.d)].sort((a, b) => a - b));
+      for (let t = 0; t < r.period * 1000; t += 9000) {
+        const p = caravanAt(SEED, r, t);
+        // deterministic: the same moment gives the same place
+        expect(caravanAt(SEED, r, t)).toEqual(p);
+        samples++;
+        if (tileAt(SEED, Math.floor(p.x), Math.floor(p.y), 6) === T.PATH) onRoad++;
+        if (!p.moving) expect(tileAt(SEED, Math.floor(p.x), Math.floor(p.y), 6)).toBe(T.PATH);
+      }
+      const stock = caravanStock(SEED, r, 12);
+      expect(stock.length).toBeGreaterThanOrEqual(8);
+      for (const s of stock) expect(ITEMS[s.item], s.item).toBeTruthy();
+      expect(caravanStock(SEED, r, 12)).toEqual(stock);
+      expect(caravanStock(SEED, r, 13)).not.toEqual(stock); // wares rotate daily
+    }
+    expect(onRoad / samples).toBeGreaterThan(0.85);
+  });
+});

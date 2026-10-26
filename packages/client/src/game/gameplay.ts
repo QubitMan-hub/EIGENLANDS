@@ -54,6 +54,8 @@ import { describeUse, fishingTarget, targetTile, type UseInfo } from './targetin
 export interface GameplayDeps {
   net: () => Net;
   ridingCart?: () => boolean;
+  /** a road caravan in trading reach */
+  caravanNear?: () => { id: string; name: string } | null;
   clock: ServerClock;
   audio: Audio;
   input: Input;
@@ -508,6 +510,11 @@ export class Gameplay {
       net.open(Math.floor(p.x), Math.floor(p.y));
       return true;
     }
+    const caravan = this.d.caravanNear?.();
+    if (caravan) {
+      net.shop({ npcId: `caravan:${caravan.id}`, action: 'open' });
+      return true;
+    }
     const selection = this.selected();
     if (selection && ITEMS[selection.id]?.tool?.type === 'rod') {
       if (this.fishing) {
@@ -616,6 +623,14 @@ export class Gameplay {
         tx: Math.floor(p.x),
         ty: Math.floor(p.y),
         label: `${binding(this.d.input.keys, 'interact')}: Step off · hold movement to ride`,
+      };
+    const wagon = this.d.caravanNear?.();
+    if (wagon)
+      return {
+        info: { kind: 'talk', label: `Trade at the ${wagon.name}`, ok: true },
+        tx: Math.floor(p.x),
+        ty: Math.floor(p.y),
+        label: `${binding(this.d.input.keys, 'interact')}: Trade at the ${wagon.name}`,
       };
     const npc = this.d.npcNear(p.x + p.fx * 0.8, p.y + p.fy * 0.8, 1.9) ?? this.d.npcNear(p.x, p.y, 1.3);
     const mouse = this.d.input.mouseActive ? this.d.input.mouseTile : null;

@@ -11,6 +11,7 @@ import { isoX, isoY } from '../../game/iso';
 import { keyLabel } from '../../input/keymap';
 import { h } from '../../ui/dom';
 import type { ClientModule, P34Deps } from '../types';
+import { CaravanViews } from './caravans';
 
 export interface AttunedStone {
   id: string;
@@ -39,10 +40,12 @@ export class TravelClient implements ClientModule {
   private nearAt = 0;
   private nearest: Waystone | null = null;
   onChange: (list: AttunedStone[]) => void = () => {};
+  readonly caravans: CaravanViews;
 
   constructor(private d: P34Deps) {
     this.gfx.zIndex = 9e8;
     this.d.fxLayer().addChild(this.gfx);
+    this.caravans = new CaravanViews(d);
     this.fill = h('i');
     this.label = h('span');
     this.bar = h('div', { id: 'travel-bar', class: 'cast-bar' }, this.label, h('b', {}, this.fill));
@@ -108,8 +111,16 @@ export class TravelClient implements ClientModule {
     }
   }
 
+  /** The caravan in trading reach (the interact key opens its wagon shop). */
+  caravanNear(): { id: string; name: string } | null {
+    const c = this.caravans.reachable();
+    return c ? { id: c.route.id, name: c.route.name } : null;
+  }
+
   hint(): string | null {
-    if (this.channel || this.d.wins.open || !this.nearest) return null;
+    if (this.channel || this.d.wins.open) return null;
+    // a caravan in reach is offered by the interaction prompt itself
+    if (!this.nearest || this.caravanNear()) return null;
     const s = this.nearest;
     const k = this.d.keys().interact[0];
     const key = k ? keyLabel(k) : 'Use';
@@ -119,7 +130,8 @@ export class TravelClient implements ClientModule {
       : `A ${what} hums nearby: walk up to it to attune ${s.name}`;
   }
 
-  frame(now: number): void {
+  frame(now: number, dt = 16): void {
+    this.caravans.frame(dt);
     const me = this.d.me();
     const g = this.gfx;
     g.clear();

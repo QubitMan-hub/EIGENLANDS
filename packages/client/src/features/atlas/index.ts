@@ -1,5 +1,7 @@
 import './atlas.css';
 import {
+  caravanAt,
+  caravanRoutes,
   ENEMY_BY_KIND,
   NPC_BY_ID,
   caveExitRoutes,
@@ -878,6 +880,20 @@ export class AtlasClient implements ClientModule {
       for (const t of townsFor(this.d.store().seed)) mark({ x: t.cx, y: t.cy, name: t.name }, '#eed093', true);
       for (const p of this.landmarks.values())
         if (!p.shrine || !this.solved.has(p.shrine)) mark(p, '#b7d6c6', true, 'ring');
+      // road caravans where you have charted the road (their schedule is shared, so this is where they truly are)
+      if (this.d.store().generation >= 5) {
+        const now = this.d.clock.serverNow(performance.now());
+        for (const r of caravanRoutes(this.d.store().seed)) {
+          const c = caravanAt(this.d.store().seed, r, now);
+          if (!c.hidden)
+            mark(
+              { x: c.x, y: c.y, name: r.name.replace(' Road Caravan', ' caravan') },
+              '#e3a35a',
+              canvas !== this.small,
+              'square',
+            );
+        }
+      }
       for (const st of this.waystones)
         mark(
           { x: st.x + 0.5, y: st.y + 0.5, name: st.id === this.homeStone ? `⌂ ${st.name}` : st.name },

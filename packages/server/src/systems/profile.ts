@@ -246,6 +246,7 @@ export function validProg(raw: unknown): PlayerData['prog'] {
     ways: ids(r.ways),
     home: typeof r.home === 'string' && r.home.length <= 40 ? r.home : null,
     mounts: ids(r.mounts).filter((m) => m === 'horse' || m === 'stag'),
+    caravans: ids(r.caravans),
   };
 }
 

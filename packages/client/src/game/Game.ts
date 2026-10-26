@@ -344,6 +344,7 @@ export class Game {
     this.gameplay = new Gameplay({
       net: () => this.net,
       ridingCart: () => this.predictor?.sim.cart > 0,
+      caravanNear: () => this.ext?.travel.caravanNear() ?? null,
       clock: this.clock,
       audio: this.audio,
       input: this.input,
