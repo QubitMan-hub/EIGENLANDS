@@ -1,5 +1,6 @@
+import { FLY_Z, SADDLE_Z } from '../art/mounts';
 import { FrameRateWindow } from './frame-rate';
-import { T, CAVE_BIOME_NAMES, caveRegionAt } from '@eigenlands/shared';
+import { T, CAVE_BIOME_NAMES, caveRegionAt, isFlying } from '@eigenlands/shared';
 import { ClickMining } from './click-mining';
 import { WorldPreparer } from './world-preparer';
 import { applyChunkSnapshot } from './chunk-updates';
@@ -1678,8 +1679,10 @@ export class Game {
         }
         if (v.label) {
           if (s?.name && v.label.text !== s.name) v.label.text = s.name;
+          // riders' names float above the saddle, and a griffin's rider higher still
+          const above = 30 + (riding ? SADDLE_Z + (isFlying(riding) ? FLY_Z : 0) : 0);
           v.label.x = Math.round(this.world.x + v.root.x * this.scale);
-          v.label.y = Math.round(this.world.y + (v.root.y - 30) * this.scale);
+          v.label.y = Math.round(this.world.y + (v.root.y - above) * this.scale);
         }
       } else if (v.type === 'npc') {
         const inside = ((s?.flags ?? 0) & 2) !== 0;

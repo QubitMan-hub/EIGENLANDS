@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { MSG, caravanAt, caravanRoutes, sanctuaryAt, type ShopViewMsg } from '@eigenlands/shared';
 import type { App } from '../src/app';
-import { boot3, clearEnemies, spawn3, tp, until } from './p3helpers';
+import { boot3, clearEnemies, sleep, spawn3, tp, until } from './p3helpers';
 
 let app: App;
 beforeAll(async () => {
@@ -64,4 +64,44 @@ describe('road caravans', () => {
     expect(p.toasts.some((t) => /owes you/.test(t.text))).toBe(true);
     await p.r.leave();
   });
+
+  it('an escort rides with the wagon to its next stop and is paid; one who wanders off loses the job', async () => {
+    const p = await spawn3(app, 'Escort');
+    clearEnemies(p.room);
+    const views: ShopViewMsg[] = [];
+    p.r.onMessage(MSG.SHOP_VIEW, (m: ShopViewMsg) => views.push(m));
+    const soon = p.room.wclock.now() + 1500;
+    const r = caravanRoutes(p.room.seed).find((route) => !caravanAt(p.room.seed, route, soon).hidden)!;
+    let c = caravanAt(p.room.seed, r, soon);
+    await tp(p, c.x + 1, c.y);
+    p.r.send(MSG.SHOP, { npcId: `caravan:${r.id}`, action: 'open' });
+    await until(() => views.some((v) => v.job?.offer), 3000);
+    const pay = views.find((v) => v.job?.offer)!.job!.pay;
+    p.r.send(MSG.SHOP, { npcId: `caravan:${r.id}`, action: 'job' });
+    await until(() => !!p.room.caravans.escorting(p.sp), 3000);
+    const coins = p.sp.data.coins;
+    // ride along: wind the world clock forward and keep beside the wagon (and beat off any wolves)
+    for (let i = 0; i < 80 && p.room.caravans.escorting(p.sp); i++) {
+      p.room.wclock.offset += 15000;
+      c = caravanAt(p.room.seed, r, p.room.wclock.now());
+      if (!c.hidden) await tp(p, c.x + 1, c.y);
+      p.r.send(MSG.DEV, { cmd: 'kill', d: 30 });
+      await sleep(1100);
+    }
+    expect(p.room.caravans.escorting(p.sp)).toBeNull();
+    // the fare is fixed at sign-on (the road left by then); a wolf bounty may come on top
+    expect(p.sp.data.coins).toBeGreaterThanOrEqual(coins + Math.floor(pay * 0.8));
+    expect(p.toasts.some((t) => /pays you/.test(t.text))).toBe(true);
+    // a second job, abandoned
+    c = caravanAt(p.room.seed, r, p.room.wclock.now() + 1500);
+    if (!c.hidden) {
+      await tp(p, c.x + 1, c.y);
+      p.r.send(MSG.SHOP, { npcId: `caravan:${r.id}`, action: 'job' });
+      await until(() => !!p.room.caravans.escorting(p.sp), 3000);
+      await tp(p, c.x + 200, c.y + 200);
+      (p.room.caravans as unknown as { escorts: Map<string, { away: number }> }).escorts.get(p.sp.id)!.away = 40;
+      await until(() => p.toasts.some((t) => /find another guard/.test(t.text)), 3000);
+    }
+    await p.r.leave();
+  }, 120_000);
 });

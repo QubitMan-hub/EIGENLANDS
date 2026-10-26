@@ -207,3 +207,40 @@ export function caravanStock(seed: number, r: CaravanRoute, day: number): Array<
 }
 /** A caravan buys anything ordinary at 60% of its value (town shops pay about half). */
 export const CARAVAN_BUY = 0.6;
+
+/**
+ * Where the caravan will rest next (not counting the stop it is resting at now) and when it gets there. Escort jobs
+ * ride with it to this stop.
+ */
+export function caravanNextStop(
+  seed: number,
+  r: CaravanRoute,
+  nowMs: number,
+): { site: RealmSite; atMs: number; distance: number } | null {
+  const here = caravanAt(seed, r, nowMs);
+  const from = here.at?.id ?? null;
+  let travelled = 0,
+    last = here;
+  for (let t = 1000; t < r.period * 1000; t += 1000) {
+    const p = caravanAt(seed, r, nowMs + t);
+    travelled += Math.hypot(p.x - last.x, p.y - last.y);
+    last = p;
+    if (!p.moving && p.at && p.at.id !== from) return { site: p.at, atMs: nowMs + t, distance: travelled };
+  }
+  return null;
+}
+/** Escort pay: by road distance and the escort's level. */
+export const escortPay = (distance: number, level: number): number => Math.round(30 + distance * 0.45 + level * 6);
+
+/** A kingdom settlement's proper name (capital, town, village, or seaward farm/outpost of its ring). */
+export function siteName(site: RealmSite): string {
+  if (site.name) return site.name;
+  const k = KINGDOMS[site.realm];
+  if (site.kind === 'capital' || site.ring === 'c') return k.capital;
+  const ring = site.ring as Ring;
+  return site.kind === 'town'
+    ? k.names.towns[ring]
+    : site.kind === 'village'
+      ? k.names.villages[ring]
+      : k.names.seaward[ring];
+}

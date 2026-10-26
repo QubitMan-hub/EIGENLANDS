@@ -457,6 +457,7 @@ export class Gameplay {
     const el = buildShop(v, this.profile, this.tip, {
       buy: (item, n) => net.shop({ npcId: v.npcId, action: 'buy', item, n }),
       sell: (slot, n) => net.shop({ npcId: v.npcId, action: 'sell', slot, n }),
+      job: () => net.shop({ npcId: v.npcId, action: 'job' }),
     });
     if (this.wins.name === 'shop') this.wins.update('shop', el);
     else this.wins.show('shop', v.name, el, { wide: true });

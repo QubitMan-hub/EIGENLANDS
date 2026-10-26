@@ -14,6 +14,9 @@ import {
   caravanById,
   caravanStock,
   caravansNear,
+  caravanNextStop,
+  escortPay,
+  siteName,
   sanctuaryAt,
   type CaravanRoute,
   type ShopMsg,
@@ -31,6 +34,20 @@ const AMBUSH_CHANCE = 0.06;
 const AMBUSH_COOLDOWN = 600; // a caravan is left in peace for ten minutes after an attack
 const DEFEND_REACH = 30;
 
+/** A signed-on escort: ride with the caravan to `dest` (a settlement's rest stop) and stay close. */
+interface Escort {
+  route: CaravanRoute;
+  dest: string;
+  destName: string;
+  pay: number;
+  /** seconds spent too far from the wagon */
+  away: number;
+  ambushed: boolean;
+  deadline: number;
+}
+const ESCORT_NEAR = 16;
+const ESCORT_GRACE = 30;
+
 interface Ambush {
   route: CaravanRoute;
   enemies: Set<string>;
@@ -42,6 +59,8 @@ export class CaravanModule implements Module {
   private next = 0;
   private ambushes = new Map<string, Ambush>();
   private calm = new Map<string, number>();
+  private escorts = new Map<string, Escort>();
+  private escortTick = 0;
 
   constructor(private room: GameRoom) {}
 
@@ -79,8 +98,28 @@ export class CaravanModule implements Module {
       const v = s ? (ITEMS[s.id]?.value ?? 0) : 0;
       if (s && v > 0) sell[i] = Math.max(1, Math.floor(v * CARAVAN_BUY));
     });
+    const mine = this.escorts.get(p.id);
+    const next = caravanNextStop(this.room.seed, r, this.now());
+    const job = mine
+      ? mine.route.id === r.id
+        ? {
+            text: `Stay within ${ESCORT_NEAR} tiles of the wagon until it rests at ${mine.destName}.`,
+            pay: mine.pay,
+            active: true,
+            offer: false,
+          }
+        : { text: `You are already escorting the ${mine.route.name}.`, pay: 0, active: false, offer: false }
+      : next
+        ? {
+            text: `${r.master} needs a guard to ${siteName(next.site)} (about ${Math.round(next.distance)} tiles). Wolves stalk this road.`,
+            pay: escortPay(next.distance, p.level),
+            active: false,
+            offer: true,
+          }
+        : undefined;
     return {
       npcId: CARAVAN_NPC + r.id,
+      job,
       name: `${r.name} · ${r.master}`,
       stock: caravanStock(this.room.seed, r, this.day()).map((s) => ({
         item: s.item,
@@ -99,6 +138,10 @@ export class CaravanModule implements Module {
     }
     this.meet(p, r);
     const n = m.n === undefined ? 1 : m.n;
+    if (m.action === 'job') {
+      this.signOn(p, r);
+      return this.view(p, r);
+    }
     if (m.action === 'open' || !Number.isInteger(n) || n < 1 || n > 99) return this.view(p, r);
     if (m.action === 'buy') {
       const entry = caravanStock(this.room.seed, r, this.day()).find((s) => s.item === m.item);
@@ -140,8 +183,76 @@ export class CaravanModule implements Module {
     return this.view(p, r);
   }
 
+  private signOn(p: ServerPlayer, r: CaravanRoute): void {
+    if (this.escorts.has(p.id)) {
+      p.toast('You are already escorting a caravan.', 'bad');
+      return;
+    }
+    const next = caravanNextStop(this.room.seed, r, this.now());
+    if (!next) return;
+    const name = siteName(next.site);
+    this.escorts.set(p.id, {
+      route: r,
+      dest: next.site.id,
+      destName: name,
+      pay: escortPay(next.distance, p.level),
+      away: 0,
+      ambushed: false,
+      deadline: this.t + (next.atMs - this.now()) / 1000 + 120,
+    });
+    p.toast(`You sign on with ${r.master}. Keep close to the wagon until it rests at ${name}.`, 'good');
+  }
+
+  /** Escorts: stay near, see the wagon to its stop, and be paid; wander off and the job is lost. */
+  private stepEscorts(): void {
+    const now = this.now();
+    for (const [pid, e] of this.escorts) {
+      const p = this.room.players.get(pid);
+      if (!p) {
+        this.escorts.delete(pid);
+        continue;
+      }
+      const c = caravanAt(this.room.seed, e.route, now);
+      const near = !c.hidden && Math.hypot(c.x - p.sim.x, c.y - p.sim.y) <= ESCORT_NEAR;
+      // inside a settlement's streets the wagon is out of sight: that is not the escort's fault
+      e.away = near || c.hidden ? 0 : e.away + 1;
+      if (e.away === Math.floor(ESCORT_GRACE / 2)) p.toast(`Get back to the ${e.route.name}!`, 'bad');
+      if (e.away > ESCORT_GRACE || this.t > e.deadline || p.deadT > 0) {
+        this.escorts.delete(pid);
+        p.toast(`You left the ${e.route.name}. ${e.route.master} will find another guard.`, 'bad');
+        continue;
+      }
+      // the road is dangerous with a guard aboard: one ambush on the open road, guaranteed
+      if (!e.ambushed && c.moving && !c.hidden && !sanctuaryAt(this.room.seed, c.x, c.y) && this.room.rand() < 0.08) {
+        if (this.ambush(e.route, c.x, c.y, c.fx, c.fy, p.level, true)) e.ambushed = true;
+      }
+      if (!c.moving && c.at?.id === e.dest && near) {
+        this.escorts.delete(pid);
+        p.data.coins += e.pay;
+        p.dirty('coins');
+        this.room.grantXp(p, 50 + p.level * 8);
+        gainRep(p, e.route.realm, 25);
+        this.meet(p, e.route);
+        p.toast(`${e.route.master} pays you ${e.pay} coins at ${e.destName}: "Safe roads, friend."`, 'good');
+      }
+    }
+  }
+
+  escorting(p: { id: string }): { route: string; dest: string } | null {
+    const e = this.escorts.get(p.id);
+    return e ? { route: e.route.id, dest: e.dest } : null;
+  }
+
+  leave(p: ServerPlayer): void {
+    this.escorts.delete(p.id);
+  }
+
   tick(_now: number, dt: number): void {
     this.t += dt;
+    if (this.t >= this.escortTick) {
+      this.escortTick = this.t + 1;
+      this.stepEscorts();
+    }
     for (const [id, a] of this.ambushes) {
       // wolves that left the world another way (despawned, warded) no longer count
       for (const e of a.enemies) if (!this.room.enemies.has(e)) a.enemies.delete(e);
@@ -163,7 +274,8 @@ export class CaravanModule implements Module {
   }
 
   /** Wolves (and at higher levels a brute) burst from the verge beside the road ahead of the wagon. */
-  ambush(r: CaravanRoute, x: number, y: number, fx: number, fy: number, level: number): boolean {
+  ambush(r: CaravanRoute, x: number, y: number, fx: number, fy: number, level: number, force = false): boolean {
+    if (this.ambushes.has(r.id) && !force) return false;
     const enemies = new Set<string>();
     const kinds = level >= 10 ? (['wolf', 'wolf', 'brute'] as const) : (['wolf', 'wolf', 'wolf'] as const);
     kinds.forEach((kind, i) => {

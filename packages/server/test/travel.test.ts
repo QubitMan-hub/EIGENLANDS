@@ -1,5 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { MSG, MSG_TRAVEL, arrivalOf, waystonesNear, type TravelEvent, type Waystone } from '@eigenlands/shared';
+import {
+  MSG,
+  MSG_TRAVEL,
+  T,
+  arrivalOf,
+  mountCode,
+  sanctuaryAt,
+  waystonesNear,
+  type TravelEvent,
+  type Waystone,
+} from '@eigenlands/shared';
 import type { App } from '../src/app';
 import { validProg } from '../src/systems/profile';
 import { boot3, clearEnemies, dev, sleep, spawn3, tp, until, type P3 } from './p3helpers';
@@ -180,8 +190,53 @@ describe('ferries and the hitching post', () => {
     await until(() => (p.sp.data.prog.mountFed?.horse ?? 0) > p.room.wclock.now(), 2000);
     await tp(p, gate.x + 6.5, gate.y + 8.5);
     p.r.send(MSG.USE, { slot: p.sp.data.inv.findIndex((s) => s?.id === 'horse_whistle'), tx: 0, ty: 0 });
-    await until(() => p.sp.sim.mount === 3, 2000); // a fed horse
+    await until(() => p.sp.sim.mount === mountCode('horse', true), 2000); // a fed horse
     expect(p.toasts.some((t) => /Old Bess/.test(t.text))).toBe(true);
     await p.r.leave();
   });
+});
+
+describe('griffin flight', () => {
+  it('takes off outside towns, flies over water, lands only on open ground and is not thrown', async () => {
+    const { p, gate } = await traveller('Skyrider');
+    clearEnemies(p.room);
+    dev(p, { cmd: 'give', id: 'griffin_whistle', n: 1 });
+    await until(() => p.sp.data.inv.some((s) => s?.id === 'griffin_whistle'), 2000);
+    const slot = () => p.sp.data.inv.findIndex((s) => s?.id === 'griffin_whistle');
+    // inside Hadamere's ward: refused
+    await tp(p, gate.x + 0.5, gate.y + 3.5);
+    p.r.send(MSG.USE, { slot: slot(), tx: 0, ty: 0 });
+    await until(() => p.toasts.some((t) => /town wards/.test(t.text)), 2000);
+    expect(p.sp.sim.mount).toBe(0);
+    // open water beside dry ground, away from any town
+    const st = p.room.store;
+    let spot: { x: number; y: number } | null = null;
+    for (let r = 60; r < 400 && !spot; r += 3)
+      for (let a = 0; a < 6.28 && !spot; a += 0.07) {
+        const x = Math.floor(Math.cos(a) * r),
+          y = Math.floor(Math.sin(a) * r);
+        await p.room.ensureChunk(Math.floor(x / 32), Math.floor(y / 32));
+        const t = st.getTile(x + 1, y);
+        if (!st.solidAt(x, y) && (t === T.WATER || t === T.DEEP_WATER) && !sanctuaryAt(p.room.seed, x, y))
+          spot = { x, y };
+      }
+    expect(spot).not.toBeNull();
+    await tp(p, spot!.x + 0.5, spot!.y + 0.5);
+    p.r.send(MSG.USE, { slot: slot(), tx: 0, ty: 0 });
+    await until(() => p.sp.sim.mount === mountCode('griffin', false), 2000);
+    // over the water: no landing there
+    await tp(p, spot!.x + 1.5, spot!.y + 0.5);
+    p.r.send(MSG.USE, { slot: slot(), tx: 0, ty: 0 });
+    await until(() => p.toasts.some((t) => /nowhere to land/.test(t.text)), 2000);
+    expect(p.sp.sim.mount).toBe(mountCode('griffin', false));
+    // a blow does not throw a flying rider
+    p.sp.hp -= 1;
+    await sleep(400);
+    expect(p.sp.sim.mount).toBe(mountCode('griffin', false));
+    // back over the bank: land
+    await tp(p, spot!.x + 0.5, spot!.y + 0.5);
+    p.r.send(MSG.USE, { slot: slot(), tx: 0, ty: 0 });
+    await until(() => p.sp.sim.mount === 0, 2000);
+    await p.r.leave();
+  }, 60_000);
 });

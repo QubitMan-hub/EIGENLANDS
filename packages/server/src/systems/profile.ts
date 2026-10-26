@@ -232,10 +232,13 @@ export function loadPlayerData(raw: unknown, season: number, nowMs: number): Pla
   };
 }
 
-function mountRecord<T>(raw: unknown, ok: (v: unknown) => T | undefined): Partial<Record<'horse' | 'stag', T>> {
-  const out: Partial<Record<'horse' | 'stag', T>> = {};
+function mountRecord<T>(
+  raw: unknown,
+  ok: (v: unknown) => T | undefined,
+): Partial<Record<'horse' | 'stag' | 'griffin', T>> {
+  const out: Partial<Record<'horse' | 'stag' | 'griffin', T>> = {};
   if (!raw || typeof raw !== 'object') return out;
-  for (const k of ['horse', 'stag'] as const) {
+  for (const k of ['horse', 'stag', 'griffin'] as const) {
     const v = ok((raw as Record<string, unknown>)[k]);
     if (v !== undefined) out[k] = v;
   }
