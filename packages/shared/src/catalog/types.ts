@@ -41,7 +41,7 @@ export interface GearSpec {
 /** What using an item does besides eating it or drinking it. */
 export type ItemUse =
   | { t: 'recipe'; id: string }
-  | { t: 'repair'; pct: number; kinds: Array<'weapon' | 'armor' | 'tool' | 'gear'>; tier: number }
+  | { t: 'repair'; pct: number; kinds: Array<'weapon' | 'armor' | 'tool' | 'gear' | 'light'>; tier: number }
   | { t: 'rune'; key: string }
   | { t: 'whetstone'; atk: number; secs: number }
   | { t: 'reveal' };
@@ -53,6 +53,22 @@ export interface EnchantDef {
   bonus: GearBonus;
   /** minimum gear rarity to take it (0 = anything) */
   minRarity: number;
+  /** the kinds of gear that can carry it */
+  on: Array<'weapon' | 'armor' | 'gear'>;
+  /** what it does, in a sentence */
+  blurb: string;
+}
+
+/** A catalog fish: the same fields as FISH_TABLE (see fish.ts), written by the catalog and merged in by fish.ts. */
+export interface FishSpec {
+  seasons: number[];
+  water: 'shallow' | 'deep' | 'any';
+  hours: [number, number];
+  weight: number;
+  difficulty: number;
+  rainBonus?: boolean;
+  oceanOnly?: boolean;
+  minLevel?: number;
 }
 
 /** How an item enters the world, so every item can be traced to a source (the catalog test walks these). */
@@ -60,8 +76,8 @@ export type Source =
   | { k: 'node'; tile: number; chance: number; min: number; max: number; tier: number; realm?: string; cave?: string }
   | { k: 'mob'; family: string; chance: number; min: number; max: number; minLevel?: number; realm?: string }
   | { k: 'forage'; seasons: number[]; realm?: string; weight: number }
-  | { k: 'fish'; water: 'shallow' | 'deep' | 'any'; ocean?: boolean }
-  | { k: 'shop'; realm?: string; role: string; markup: number }
+  | { k: 'fish'; def: FishSpec }
+  | { k: 'shop'; realm?: string; role: string; markup: number; seasons?: number[] }
   | { k: 'vault'; table: string; weight: number }
   | { k: 'animal'; kind: string }
   | { k: 'crop' }

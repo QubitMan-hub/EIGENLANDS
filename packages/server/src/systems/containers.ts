@@ -1,4 +1,5 @@
 import {
+  catalogVaultDrops,
   isMineLine,
   mineLineKey,
   mineLinePosition,
@@ -72,11 +73,20 @@ function panelFor(o: WorldObj, p: ServerPlayer): PanelMsg | null {
   if (o.kind === 'chest') return { kind: 'chest', ...base, chest: chestSlots(o) };
   if (o.kind === 'shelter') {
     const d = o.data as { animals: number; fed: boolean; ready: number };
-    const f = FARM_ANIMALS[o.sub as 'coop' | 'barn'];
+    const f = FARM_ANIMALS[o.sub]!;
     return {
       kind: 'shelter',
       ...base,
-      shelter: { type: o.sub as 'coop' | 'barn', animals: d.animals, max: f.max, fed: d.fed, ready: d.ready },
+      shelter: {
+        type: o.sub,
+        name: f.name,
+        animal: f.animalName,
+        product: f.productName,
+        animals: d.animals,
+        max: f.max,
+        fed: d.fed,
+        ready: d.ready,
+      },
     };
   }
   if (o.kind === 'sign')
@@ -282,7 +292,7 @@ export function handleShelter(room: RoomApi, p: ServerPlayer, msg: ShelterMsg): 
   const o = ownedAt(room, p, msg.tx, msg.ty, 'shelter');
   if (!o) return;
   const d = o.data as { animals: number; fed: boolean; ready: number };
-  const f = FARM_ANIMALS[o.sub as 'coop' | 'barn'];
+  const f = FARM_ANIMALS[o.sub]!;
   if (msg.action === 'add') {
     if (d.animals >= f.max) {
       p.toast('It is full.');
@@ -363,6 +373,9 @@ function vaultLoot(theme: string, depth: number, rand: () => number): Array<{ id
     ],
   };
   const out = [...(table[theme] ?? table.limestone!)];
+  // scrolls, collectibles and gems the catalog places in this kind of vault (deeper vaults pay a little more often)
+  for (const d of catalogVaultDrops(theme))
+    if (rand() < d.weight * (0.7 + 0.15 * depth)) out.push({ id: d.item, n: 1 });
   if (rand() < 0.05) out.push({ id: 'heart_crystal', n: 1 });
   return out;
 }

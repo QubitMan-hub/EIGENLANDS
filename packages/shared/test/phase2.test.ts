@@ -223,7 +223,8 @@ describe('crafting data', () => {
     for (const r of RECIPES) {
       expect(ITEMS[r.out.id], r.id).toBeTruthy();
       for (const i of r.inputs) if (!i.id.startsWith('*')) expect(ITEMS[i.id], `${r.id}:${i.id}`).toBeTruthy();
-      expect(r.inputs.length).toBeLessThanOrEqual(4);
+      // only discoverable recipes are limited to the four experiment slots; catalog recipes may ask for more
+      expect(r.inputs.length).toBeLessThanOrEqual(r.learn === 'discover' ? 4 : 6);
     }
     expect(new Set(RECIPES.map((r) => r.id)).size).toBe(RECIPES.length);
   });

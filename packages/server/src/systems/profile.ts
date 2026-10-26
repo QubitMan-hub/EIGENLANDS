@@ -29,8 +29,12 @@ import {
   type QuestLog,
   type Stack,
   recipeById,
+  EQUIP_SLOTS,
   GEAR_SLOTS,
-  QUALITY_POWER,
+  enchantBonus,
+  gearPower,
+  isBroken,
+  type GearBonus,
   validDisc,
 } from '@eigenlands/shared';
 import type { Buff, DirtyPart, FriendRec, PlayerData } from './types';
@@ -268,9 +272,6 @@ export function serializePlayerData(d: PlayerData): Record<string, unknown> {
   };
 }
 
-/** Stat multiplier of a piece from its crafted quality and upgrade level. */
-export const gearPower = (p: Stack['p']): number => QUALITY_POWER[p?.qt ?? 1]! * (1 + 0.06 * (p?.up ?? 0));
-
 export function deriveStats(d: PlayerData): DerivedStats {
   const s: DerivedStats = {
     hpBonus: 0,
@@ -295,35 +296,10 @@ export function deriveStats(d: PlayerData): DerivedStats {
     else if (r.p.stat === 'haste') s.haste += v;
   }
   s.atkBonus += quickbarAttack(d.inv);
-  // armor (with set bonuses) and the wielded Focus
-  const a = armorTotals({
-    head: d.equip.head?.id ?? null,
-    chest: d.equip.chest?.id ?? null,
-    legs: d.equip.legs?.id ?? null,
-    feet: d.equip.feet?.id ?? null,
-  });
-  s.hpBonus += a.bonus.hp;
-  s.atkBonus += a.bonus.atk;
-  s.luck += a.bonus.luck;
-  s.haste += a.bonus.haste;
-  s.def += a.bonus.def;
-  s.phase += a.bonus.phase;
-  const w = d.equip.weapon ? ITEMS[d.equip.weapon.id]?.weapon : undefined;
-  if (w) {
-    const b = WEAPONS[w].bonus;
-    s.hpBonus += b.hp ?? 0;
-    s.atkBonus += b.atk ?? 0;
-    s.def += b.def ?? 0;
-    s.luck += b.luck ?? 0;
-    s.haste += b.haste ?? 0;
-  }
-  // catalog gear: shields, cloaks, amulets, belts, charms, lanterns; quality and upgrades scale what it gives
-  for (const slot of GEAR_SLOTS) {
-    const g = d.equip[slot];
-    const spec = g ? ITEMS[g.id]?.gear : undefined;
-    if (!g || !spec) continue;
-    const k = gearPower(g.p);
-    const b = spec.bonus;
+  // Broken pieces give nothing; quality and upgrades scale what a piece gives; enchantments add on top.
+  const live = (st: Stack | null | undefined): Stack | null => (st && !isBroken(st.p) ? st : null);
+  const add = (b: GearBonus | null, k = 1): void => {
+    if (!b) return;
     s.hpBonus += Math.round((b.hp ?? 0) * k);
     s.atkBonus += Math.round((b.atk ?? 0) * k);
     s.def += (b.def ?? 0) * k;
@@ -336,7 +312,40 @@ export function deriveStats(d: PlayerData): DerivedStats {
     s.light = Math.max(s.light, b.light ?? 0);
     s.craft += b.craft ?? 0;
     s.stamina += b.stamina ?? 0;
+  };
+  // armour (with set bonuses), averaging the quality of the pieces worn
+  const worn = (['head', 'chest', 'legs', 'feet'] as const).map((k) => live(d.equip[k]));
+  const a = armorTotals({
+    head: worn[0]?.id ?? null,
+    chest: worn[1]?.id ?? null,
+    legs: worn[2]?.id ?? null,
+    feet: worn[3]?.id ?? null,
+  });
+  const present = worn.filter((x): x is Stack => !!x);
+  const ak = present.length ? present.reduce((t, x) => t + gearPower(x.p), 0) / present.length : 1;
+  add(a.bonus, ak);
+  // the wielded weapon or Focus
+  const weapon = live(d.equip.weapon);
+  const w = weapon ? ITEMS[weapon.id]?.weapon : undefined;
+  if (weapon && w) add(WEAPONS[w].bonus, gearPower(weapon.p));
+  // shields, cloaks, amulets, belts, charms, lanterns
+  for (const slot of GEAR_SLOTS) {
+    const g = live(d.equip[slot]);
+    const spec = g ? ITEMS[g.id]?.gear : undefined;
+    if (g && spec) add(spec.bonus, gearPower(g.p));
   }
+  // enchantments on anything worn
+  for (const slot of [...EQUIP_SLOTS])
+    if (slot !== 'ring1' && slot !== 'ring2') add(enchantBonus(live(d.equip[slot])?.p));
+  // food and potion effects that change stats while they last (expired buffs are removed by the room each second)
+  const bp = (k: string): number => d.buffs[k]?.power ?? 0;
+  s.hpBonus += Math.round(bp('vigor'));
+  s.luck += bp('fortune');
+  s.haste += bp('swift');
+  s.atkBonus += Math.round(bp('fury'));
+  s.def += bp('bulwark');
+  s.stamina += bp('steady');
+  s.craft += bp('focus');
   s.hpBonus += d.prog.hearts * 10;
   s.def = Math.min(0.6, s.def);
   return s;

@@ -33,6 +33,7 @@ export const MSG = {
   APPEARANCE: 'appearance', // {app}: packed Appearance (cosmetic, validated)
   CRAFT: 'craft', // CraftMsg
   EXPERIMENT: 'experiment', // ExperimentMsg
+  GEAR: 'gear', // GearMsg: repair, upgrade or enchant a piece at its bench
   FORGE_PREVIEW: 'forge_preview', // ForgePreviewMsg -> FORGE_PREVIEW_R
   FORGE_START: 'forge_start', // ForgeStartMsg -> RHYTHM_START
   RHYTHM_DONE: 'rhythm_done', // RhythmDoneMsg -> RHYTHM_RESULT
@@ -266,6 +267,17 @@ export interface ExperimentMsg {
   ty: number;
   items: Array<{ slot: number; n: number }>;
 }
+/** Where a piece of gear is: worn in an equipment slot, or in a pack slot. */
+export type GearRef = { where: 'equip'; slot: EquipSlotKey } | { where: 'inv'; slot: number };
+export interface GearMsg {
+  action: 'repair' | 'upgrade' | 'enchant';
+  station: StationId;
+  tx: number;
+  ty: number;
+  ref: GearRef;
+  /** enchant: the pack slot of the rune to bind */
+  rune?: number;
+}
 export interface ForgePreviewMsg {
   materials: string[];
 }
@@ -409,7 +421,16 @@ export interface PanelMsg {
   station?: StationId;
   /** chest contents (30 slots) */
   chest?: Slot[];
-  shelter?: { type: 'coop' | 'barn'; animals: number; max: number; fed: boolean; ready: number };
+  shelter?: {
+    type: string;
+    name?: string;
+    animal?: string;
+    product?: string;
+    animals: number;
+    max: number;
+    fed: boolean;
+    ready: number;
+  };
   sign?: string;
   /** reading the statue (and other lore objects) */
   lore?: { title: string; plaque: string; epitaph: string; pages: string[]; remark?: { npc: string; text: string } };

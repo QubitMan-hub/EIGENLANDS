@@ -5,11 +5,22 @@ import { caveArchitecture } from './caves';
  * Everything is drawn from the fixed palette with Lambert-shaded blobs/slabs; `worldObjDef` caches per look.
  */
 import { Texture } from 'pixi.js';
-import { CROPS, cropStage, type CropData, type CropDef, type WorldObj, mulberry32 } from '@eigenlands/shared';
+import {
+  CROPS,
+  FARM_ANIMALS,
+  PROP_SPECS,
+  STATION_SUBS,
+  cropStage,
+  type CropData,
+  type CropDef,
+  type WorldObj,
+  mulberry32,
+} from '@eigenlands/shared';
 import type { ObjSprite } from './objects';
 import type { Facing } from './isokit';
 import { PROPS, ruinIso, treasureChest, diningChair } from './props';
 import { TOWN_DECO as TOWN_ART } from './town';
+import './catalog-props';
 import {
   blob,
   C,
@@ -661,7 +672,8 @@ function ruinDef(sub: string, biome: string): ObjSpriteDef {
 
 /** All furniture and signs use native geometry; exterior lanterns have their own subtype. */
 function propSub(o: WorldObj): string | null {
-  const sub = o.kind === 'chest' ? 'chest' : o.kind === 'sign' && !PROPS[o.sub] ? 'sign' : o.sub;
+  const sub =
+    o.kind === 'chest' ? (PROPS[o.sub] ? o.sub : 'chest') : o.kind === 'sign' && !PROPS[o.sub] ? 'sign' : o.sub;
   if (!PROPS[sub]) return null;
   return o.kind === 'deco' || o.kind === 'furniture' || o.kind === 'station' || o.kind === 'chest' || o.kind === 'sign'
     ? sub
@@ -757,7 +769,7 @@ export function worldObjDef(o: WorldObj, facing: Facing = 'sw', seatTurn?: numbe
     else if (o.kind === 'station') d = PROPS.crate!(facing);
     else if (o.kind === 'sprinkler')
       d = sprinkler(o.sub === 'sprinkler2', !!(o.data as { watering?: boolean } | undefined)?.watering);
-    else if (o.kind === 'shelter') d = PROPS[o.sub === 'barn' ? 'barn' : 'coop']!(facing);
+    else if (o.kind === 'shelter') d = (PROPS[o.sub] ?? PROPS.coop)!(facing);
     else if (o.kind === 'chest') d = chest();
     else if (o.kind === 'sign') d = PROPS.sign!(facing);
     else d = TOWN_DECO[o.sub]?.() ?? SEATS[o.sub]?.() ?? PROPS.crate!(facing);
@@ -817,6 +829,10 @@ export const GALLERY_OBJECTS: Array<{ kind: WorldObj['kind']; sub: string }> = [
     'lamp',
   ].map((sub) => ({ kind: 'deco' as const, sub })),
   { kind: 'sign', sub: 'plaque' },
+  ...Object.keys(PROP_SPECS).map((sub) => ({
+    kind: (FARM_ANIMALS[sub] ? 'shelter' : STATION_SUBS[sub] ? 'station' : 'furniture') as WorldObj['kind'],
+    sub,
+  })),
 ];
 
 export function clearWorldObjCache(): void {

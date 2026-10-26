@@ -120,7 +120,23 @@ export interface ToolSpec {
 }
 /** Timed effects stored as server buffs: boons, resistances and injuries. */
 export type BuffKind =
-  'regen' | 'might' | 'ward' | 'lantern' | 'bleed' | 'poison' | 'burn' | 'frostbite' | 'warmth' | 'coolness';
+  | 'regen'
+  | 'might'
+  | 'ward'
+  | 'lantern'
+  | 'bleed'
+  | 'poison'
+  | 'burn'
+  | 'frostbite'
+  | 'warmth'
+  | 'coolness'
+  | 'vigor'
+  | 'fortune'
+  | 'swift'
+  | 'fury'
+  | 'bulwark'
+  | 'steady'
+  | 'focus';
 export const BUFF_KIND_LIST: readonly BuffKind[] = [
   'regen',
   'might',
@@ -132,6 +148,13 @@ export const BUFF_KIND_LIST: readonly BuffKind[] = [
   'frostbite',
   'warmth',
   'coolness',
+  'vigor',
+  'fortune',
+  'swift',
+  'fury',
+  'bulwark',
+  'steady',
+  'focus',
 ];
 
 export interface ItemDef {
@@ -173,6 +196,8 @@ export interface ItemDef {
   tier?: number;
   cat?: ItemCat;
   realm?: string;
+  /** fertiliser: days of growth saved and extra harvest yield */
+  fert?: { days: number; yield: number };
   /** worn/wielded stats of data-driven gear (see catalog/gear.ts) */
   gear?: GearSpec;
   /** what using it does beyond eating or drinking (recipe scrolls, runes, repair kits ...) */
@@ -317,7 +342,7 @@ for (const [id, piece] of Object.entries(BUILD_PIECES)) {
     piece.material === 'stone' || piece.material === 'slate' ? C.steel : C.e3,
     C.e6,
     `Craft and place on your own foundation. ${piece.layer === 'stairs' ? 'Links two floors; includes an upper landing.' : 'Pickaxe + Use returns the piece.'}`,
-    { place: { kind: 'structure', sub: id }, tags: ['building'] },
+    { place: { kind: 'structure', sub: id }, tags: ['building'], cat: 'building' },
   );
 }
 
@@ -904,7 +929,8 @@ const SET_COLORS: Record<string, [number, number]> = {
 };
 const SLOT_GLYPH: Record<ArmorSlot, Glyph> = { head: 'helm', chest: 'cuirass', legs: 'greaves', feet: 'boots' };
 for (const set of ARMOR_SETS) {
-  const [a, b] = SET_COLORS[set.id]!;
+  const [a, b] = set.colors ?? SET_COLORS[set.id]!;
+  const rarity = Math.min(5, Math.floor(set.level / 7)) as 0 | 1 | 2 | 3 | 4 | 5;
   for (const slot of ARMOR_SLOTS) {
     const parts = [
       set.piece.def ? `-${Math.round(set.piece.def * 1000) / 10}% damage` : '',
@@ -923,7 +949,7 @@ for (const set of ARMOR_SETS) {
       a,
       b,
       `${ARMOR_SLOT_NAMES[slot]} armour of ${set.name}. ${parts}. Level ${set.level}. ${set.blurb}`,
-      { armor: { slot, set: set.id } },
+      { armor: { slot, set: set.id }, cat: 'armor', rarity },
     );
   }
 }
@@ -940,17 +966,19 @@ const WEAPON_COLORS: Record<string, [number, number]> = {
 };
 for (const w of Object.values(WEAPONS)) {
   if (w.id === 'sword') continue;
-  const [a, b] = WEAPON_COLORS[w.id]!;
+  const [a, b] = w.tint ?? WEAPON_COLORS[w.id]!;
+  const fam = w.fam ?? w.id;
+  const wrarity = Math.min(5, Math.floor(w.level / 7)) as 0 | 1 | 2 | 3 | 4 | 5;
   def(
     w.id,
     w.name,
     'weapon',
     120 + w.level * 20,
-    w.id === 'spear'
+    fam === 'spear'
       ? 'spear'
-      : w.id === 'battle_axe'
+      : fam === 'battle_axe'
         ? 'battle_axe'
-        : w.id === 'warhammer'
+        : fam === 'warhammer'
           ? 'warhammer'
           : w.cls === 'crossbow'
             ? 'crossbow'
@@ -958,7 +986,7 @@ for (const w of Object.values(WEAPONS)) {
     a,
     b,
     `${w.blurb} ${w.quantum} Level ${w.level}.`,
-    { weapon: w.id },
+    { weapon: w.id, cat: 'weapon', rarity: wrarity },
   );
 }
 

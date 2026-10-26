@@ -28,6 +28,8 @@ export interface Recipe {
   realm?: string;
   /** UI category of the output */
   cat?: ItemCat;
+  /** a tool item that must be in the pack (it is not used up) */
+  tool?: string;
   /** crafted quality scales the output's stats and durability */
   quality?: boolean;
   /** the output is worn or wielded: it is made with full durability and carries `up` 0 */
@@ -61,16 +63,26 @@ function r(
   });
 }
 
-for (const [id, piece] of Object.entries(BUILD_PIECES))
+for (const [id, piece] of Object.entries(BUILD_PIECES) as Array<
+  [string, { name: string; cost: readonly (readonly [string, number])[]; station?: StationId; lvl?: number }]
+>) {
+  // the first pieces are free to build by hand; the catalog's materials ask for a bench and some skill
+  const station: StationId = piece.station ?? 'hand';
   r(
     id,
-    'hand',
+    station,
     piece.cost.map(([id, n]) => [id, n]),
     [id, 1],
-    1,
-    'start',
-    `Build freely: ${piece.name}. Place a floor first, then walls, roofs or stairs.`,
+    piece.station ? 4 + (piece.lvl ?? 1) * 2 : 1,
+    piece.station && (piece.lvl ?? 1) > 1 ? 'level' : 'start',
+    piece.station
+      ? `${piece.name}: cut, fire or saw it at the ${station === 'hand' ? 'bench' : station.replace('_', ' ')}.`
+      : `Build freely: ${piece.name}. Place a floor first, then walls, roofs or stairs.`,
   );
+  const made = R[R.length - 1]!;
+  made.lvl = piece.lvl ?? 1;
+  made.cat = 'building';
+}
 
 // Field crafting (no station)
 r(

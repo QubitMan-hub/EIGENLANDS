@@ -264,6 +264,6 @@ export function harvestCrop(room: RoomApi, p: ServerPlayer, o: WorldObj): void {
 }
 
 export function describeShelter(sub: string): { max: number; animal: string; product: string } {
-  const f = FARM_ANIMALS[sub as 'coop' | 'barn'];
+  const f = FARM_ANIMALS[sub]!;
   return { max: f.max, animal: f.animal, product: f.product };
 }

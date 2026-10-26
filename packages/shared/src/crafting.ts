@@ -64,10 +64,10 @@ export const DISC_BY_ID: Readonly<Record<Discipline, DisciplineDef>> = Object.fr
 ) as Record<Discipline, DisciplineDef>;
 export const DISCIPLINE_IDS: readonly Discipline[] = DISCIPLINES.map((d) => d.id);
 
-export const MAX_DISC = 20;
+export const MAX_DISC = 40;
 export type DiscXp = Record<Discipline, number>;
 export const emptyDisc = (): DiscXp => Object.fromEntries(DISCIPLINE_IDS.map((d) => [d, 0])) as DiscXp;
-/** Total XP needed to reach `level` (level 1 = 0). A steady climb: level 10 at ~1.6k, level 20 at ~9k. */
+/** Total XP needed to reach `level` (level 1 = 0). A steady climb: level 10 at ~1.6k, level 20 at ~5k, level 40 at ~18k. */
 export const xpForDiscLevel = (level: number): number => (level <= 1 ? 0 : Math.round(30 * Math.pow(level - 1, 1.75)));
 export function discLevel(xp: number): number {
   let l = 1;

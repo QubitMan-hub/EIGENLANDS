@@ -2,6 +2,9 @@
  * Armor sets, melee weapons and Foci. Pure data shared by server (stats, attacks), client (tooltips, looks) and recipes.
  * Quantum flavour: staves are Foci that bias which element your attacks collapse into, armor can phase-slip a hit.
  */
+import { CATALOG_SETS } from './catalog/armor';
+import { buildVariantWeapons } from './catalog/weapons-data';
+
 export type ArmorSlot = 'head' | 'chest' | 'legs' | 'feet';
 export const ARMOR_SLOTS: ArmorSlot[] = ['head', 'chest', 'legs', 'feet'];
 export const ARMOR_SLOT_NAMES: Record<ArmorSlot, string> = { head: 'Head', chest: 'Body', legs: 'Legs', feet: 'Feet' };
@@ -31,6 +34,10 @@ export interface ArmorSet {
   pieces: Record<ArmorSlot, string>;
   /** player level to wear */
   level: number;
+  /** inventory icon colours (catalog sets; the first five are listed in items.ts) */
+  colors?: [number, number];
+  /** the metal / cloth / hide the pieces are made of, for recipes */
+  mat?: string;
 }
 
 const names = (a: string, b: string, c: string, d: string): Record<ArmorSlot, string> => ({
@@ -97,6 +104,7 @@ export const ARMOR_SETS: ArmorSet[] = [
     pieces: names('Voidglass Circlet', 'Voidglass Mail', 'Voidglass Greaves', 'Voidglass Treads'),
   },
 ];
+ARMOR_SETS.push(...CATALOG_SETS);
 export const SET_BY_ID: Record<string, ArmorSet> = Object.fromEntries(ARMOR_SETS.map((s) => [s.id, s]));
 export const armorId = (set: string, slot: ArmorSlot): string => `armor_${set}_${slot}`;
 export function parseArmorId(id: string): { set: ArmorSet; slot: ArmorSlot } | null {
@@ -141,7 +149,7 @@ export function armorTotals(worn: WornArmor): {
     const s = SET_BY_ID[id]!;
     if (n >= 2) sum = add(sum, s.two);
     if (n >= 4) sum = add(sum, s.four);
-    if (n >= 3 && n > best) {
+    if (n >= 3 && n > best && s.look >= 0) {
       best = n;
       look = s.look;
     }
@@ -155,7 +163,7 @@ export function armorTotals(worn: WornArmor): {
 // ───────────────────────── weapons ─────────────────────────
 
 export type WeaponClass = 'blade' | 'crossbow' | 'staff';
-export type WeaponId =
+export type BaseWeaponId =
   | 'sword'
   | 'spear'
   | 'battle_axe'
@@ -166,6 +174,8 @@ export type WeaponId =
   | 'verdant_staff'
   | 'radiant_staff'
   | 'morph_staff';
+/** A base weapon or a catalog variant (a metal-tier spear, a heavier hammer...). */
+export type WeaponId = string;
 
 /** One attack of a weapon, expressed with the same fields the ability engine understands. */
 export interface WeaponShot {
@@ -189,6 +199,10 @@ export interface WeaponShot {
 
 export interface WeaponDef {
   id: WeaponId;
+  /** catalog variants: the base weapon whose moves, held look and combo they borrow */
+  fam?: BaseWeaponId;
+  /** held-sprite and icon tint [metal, accent] palette indexes (variants) */
+  tint?: [number, number];
   name: string;
   cls: WeaponClass;
   hue: number;
@@ -346,6 +360,7 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     quantum: 'Each strike is a coin flip between Wolf (light) and Bear (crushing). Hold to Collapse both at once.',
   },
 };
+for (const w of buildVariantWeapons(WEAPONS)) WEAPONS[w.id] = w;
 export const isWeaponId = (v: unknown): v is WeaponId => typeof v === 'string' && Object.hasOwn(WEAPONS, v);
 /** A sloop's guns: the attack button fires cannonballs, held and released a chain-shot broadside. Hue 5 = ember. */
 export const CANNON = {

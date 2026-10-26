@@ -1,4 +1,6 @@
 import { C } from './palette';
+import { PEN_DATA } from './catalog/pen-data';
+import { PROP_LIGHT } from './catalog/home';
 
 /** Things placed on top of the tile grid. Persisted per chunk (crops, stations...) or static (town furnishing). */
 export type WorldObjKind =
@@ -48,6 +50,7 @@ export function objLight(kind: WorldObjKind, sub: string): ObjLight | null {
   if (sub === 'magma_fall') return { radius: 3.5, color: C.r5 };
   if (sub === 'cave_waterfall') return { radius: 2, color: C.w4 };
   if (sub === 'lamp' || sub === 'street_lamp' || sub === 'cave_lamp') return { radius: 5.5, color: C.e6 };
+  if (PROP_LIGHT[sub]) return PROP_LIGHT[sub]!;
   if (sub === 'campfire') return { radius: 7, color: C.e6 };
   if (sub === 'merchant_cart') return { radius: 3.5, color: C.e6 };
   if (sub === 'trial_brazier') return { radius: 5, color: C.q5 };
@@ -73,10 +76,28 @@ export function objLight(kind: WorldObjKind, sub: string): ObjLight | null {
 
 export const objKey = (x: number, y: number): number => x * 4194304 + y + 2097152 * 0; // unique for |coords| < 2M
 
-export const FARM_ANIMALS = {
-  coop: { max: 4, animal: 'chicken', product: 'egg' },
-  barn: { max: 4, animal: 'cow', product: 'milk' },
-} as const;
+export interface ShelterDef {
+  max: number;
+  animal: string;
+  product: string;
+  name: string;
+  animalName: string;
+  productName: string;
+}
+export const FARM_ANIMALS: Record<string, ShelterDef> = {
+  coop: { max: 4, animal: 'chicken', product: 'egg', name: 'Chicken coop', animalName: 'chicken', productName: 'eggs' },
+  barn: { max: 4, animal: 'cow', product: 'milk', name: 'Barn', animalName: 'cow', productName: 'milk' },
+};
+// the catalog's pens (sheep, goats, pigs, bees) are data too
+for (const p of PEN_DATA)
+  FARM_ANIMALS[p.sub] = {
+    max: p.max,
+    animal: p.animal,
+    product: p.product,
+    name: p.name,
+    animalName: p.animalName.toLowerCase(),
+    productName: p.productName,
+  };
 
 /** Crops within this Chebyshev radius of a Phase Lantern are protected from the season (greenhouse effect). */
 export const LANTERN_RADIUS = 2;

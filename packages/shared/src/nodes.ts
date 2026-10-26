@@ -316,6 +316,25 @@ export const FORAGE_BY_SEASON: string[][] = [
   ['snow_yam', 'crocus'],
 ];
 
+/** Catalog forage per season (weighted): herbs, spices, wild fruit. Rolled alongside the base list so old finds stay common. */
+export const FORAGE_EXTRA_BY_SEASON: Array<Array<{ item: string; weight: number; realm?: string }>> = [[], [], [], []];
+for (const { item, src } of catalogSources())
+  if (src.k === 'forage')
+    for (const s of src.seasons)
+      FORAGE_EXTRA_BY_SEASON[s]?.push({ item, weight: src.weight, ...(src.realm ? { realm: src.realm } : {}) });
+/** What a forage tile gives: mostly the base list, a third of the time something from the catalog. */
+export function pickForage(season: number, rand: () => number, realm: string | null): string {
+  const extra = (FORAGE_EXTRA_BY_SEASON[season] ?? []).filter((e) => !e.realm || e.realm === realm);
+  if (extra.length && rand() < 0.38) {
+    let total = 0;
+    for (const e of extra) total += e.weight;
+    let r = rand() * total;
+    for (const e of extra) if ((r -= e.weight) < 0) return e.item;
+  }
+  const list = FORAGE_BY_SEASON[season]!;
+  return list[Math.floor(rand() * list.length)]!;
+}
+
 export const toolDamage = (tier: number, skillLevel: number, hasteBonus = 0): number =>
   Math.round((3 + 2 * tier) * (1 + 0.05 * skillLevel + hasteBonus));
 

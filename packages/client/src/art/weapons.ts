@@ -27,14 +27,16 @@ export class HeldWeapons {
             x = g.x + 16,
             y = g.y + 16;
           const w = isWeaponId(id) ? WEAPONS[id] : null,
+            fam: string = w?.fam ?? id,
+            [metal, shine] = w?.tint ?? [C.steel, C.pale],
             bow = w?.cls === 'crossbow',
             staff = w?.cls === 'staff',
             tool = !w;
           const aimedTool = (id === 'can' || id === 'rod') && n >= CAST_FRAME;
-          const thrust = id === 'spear' && n >= ATTACK_FRAME && n < ATTACK_FRAME + 4;
+          const thrust = fam === 'spear' && n >= ATTACK_FRAME && n < ATTACK_FRAME + 4;
           // Broad heads rest outside the face; grip/arm anchors remain unchanged.
           const resting =
-            (id === 'spear' || id === 'battle_axe' || id === 'warhammer' || (tool && id !== 'can')) &&
+            (fam === 'spear' || fam === 'battle_axe' || fam === 'warhammer' || (tool && id !== 'can')) &&
             (n < ATTACK_FRAME || (n >= RUN_FRAME && n < SHOT_FRAME));
           const angle =
             id === 'can' && !aimedTool
@@ -104,31 +106,31 @@ export class HeldWeapons {
                   line(b.ctx, ...a, ...q, C.fog);
                 }
               }
-            } else if (id === 'spear') {
+            } else if (fam === 'spear') {
               stroke(-5, 11, C.e1, 0.8);
               stroke(-5, 11, C.e4);
-              poly(b.ctx, [pt(10, -2), pt(15), pt(10, 2), pt(9)], C.steel);
-              poly(b.ctx, [pt(10, -2), pt(15), pt(10)], C.pale);
+              poly(b.ctx, [pt(10, -2), pt(15), pt(10, 2), pt(9)], metal);
+              poly(b.ctx, [pt(10, -2), pt(15), pt(10)], shine);
               for (const z of [-2, 0, 7]) {
                 const a = pt(z, -1),
                   q = pt(z, 1);
                 line(b.ctx, ...a, ...q, C.e6);
               }
-            } else if (id === 'battle_axe') {
+            } else if (fam === 'battle_axe') {
               stroke(-5, 11, C.e1, 0.8);
               stroke(-5, 11, C.e4);
               stroke(-4, 0, C.r3);
-              poly(b.ctx, [pt(7, -1), pt(9, -6), pt(13, -5), pt(14, 1), pt(11, 5), pt(8, 3)], C.steel);
-              poly(b.ctx, [pt(9, -6), pt(13, -5), pt(14, 1), pt(11, 5), pt(12, 0), pt(11, -4)], C.pale);
+              poly(b.ctx, [pt(7, -1), pt(9, -6), pt(13, -5), pt(14, 1), pt(11, 5), pt(8, 3)], metal);
+              poly(b.ctx, [pt(9, -6), pt(13, -5), pt(14, 1), pt(11, 5), pt(12, 0), pt(11, -4)], shine);
               const a = pt(8, -2),
                 q = pt(10, 2);
               line(b.ctx, ...a, ...q, C.e6);
-            } else if (id === 'warhammer') {
+            } else if (fam === 'warhammer') {
               stroke(-5, 9, C.e1, 0.8);
               stroke(-5, 9, C.e4);
               stroke(-4, 0, C.e2);
-              poly(b.ctx, [pt(7, -5), pt(11, -5), pt(13, -2), pt(9, -2)], C.pale);
-              poly(b.ctx, [pt(7, -5), pt(9, -2), pt(9, 5), pt(7, 2)], C.steel);
+              poly(b.ctx, [pt(7, -5), pt(11, -5), pt(13, -2), pt(9, -2)], shine);
+              poly(b.ctx, [pt(7, -5), pt(9, -2), pt(9, 5), pt(7, 2)], metal);
               poly(b.ctx, [pt(9, -2), pt(13, -2), pt(13, 5), pt(9, 5)], C.slate);
               const a = pt(10, -1),
                 q = pt(10, 4);

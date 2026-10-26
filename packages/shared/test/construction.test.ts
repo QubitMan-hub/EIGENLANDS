@@ -35,9 +35,13 @@ describe('owned structural layer', () => {
     expect(s.solidAt(33, UPPER_OY + 35)).toBe(false);
     expect(s.solidAt(34, UPPER_OY + 35)).toBe(true);
   });
-  it('makes every reusable block craftable from the start', () => {
-    for (const id of Object.keys(BUILD_PIECES))
-      expect(Object.values(RECIPES).some((r) => r.out.id === id && r.learn === 'start')).toBe(true);
+  it('makes every reusable block craftable, the first ones from the start', () => {
+    for (const [id, piece] of Object.entries(BUILD_PIECES)) {
+      const recs = Object.values(RECIPES).filter((r) => r.out.id === id);
+      expect(recs.length).toBeGreaterThan(0);
+      // the original pieces are free by hand; catalog materials (brick, marble ...) ask for a bench and some skill
+      if (!('station' in piece)) expect(recs.some((r) => r.learn === 'start')).toBe(true);
+    }
   });
 });
 

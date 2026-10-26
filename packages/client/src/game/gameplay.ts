@@ -363,7 +363,7 @@ export class Gameplay {
           collect: () => net.shelter({ tx: m.tx, ty: m.ty, action: 'collect' }),
         });
       if (this.wins.name === 'shelter') this.wins.update('shelter', render());
-      else this.wins.show('shelter', m.sub === 'coop' ? 'Chicken coop' : 'Barn', render());
+      else this.wins.show('shelter', m.shelter?.name ?? 'Shelter', render());
     } else if (m.kind === 'lore' && m.lore) {
       this.acts.statue = true;
       this.wins.show('lore', m.lore.title, buildLore(m, this.d.portrait));

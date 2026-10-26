@@ -3,7 +3,7 @@ import type { ItemCat, Rarity, StationId, Discipline } from '../crafting';
 import { STATION_BY_ID } from '../crafting';
 import type { Glyph, ItemDef, ItemKind } from '../items';
 import type { Recipe } from '../recipes';
-import type { Source } from './types';
+import type { FishSpec, Source } from './types';
 
 /**
  * Authoring kit for the catalog: terse builders that fill one registry. Content files are plain data run through
@@ -88,6 +88,8 @@ export interface RecOpts {
   cat?: ItemCat;
   quality?: boolean;
   gear?: boolean;
+  /** a tool item that must be in the pack */
+  tool?: string;
   p?: Record<string, unknown>;
   /** recipe id (defaults to the output's id, with a suffix for a second recipe of the same output) */
   id?: string;
@@ -122,6 +124,7 @@ export function rec(
     ...(o.cat ? { cat: o.cat } : {}),
     ...(o.quality ? { quality: true } : {}),
     ...(o.gear ? { gear: true } : {}),
+    ...(o.tool ? { tool: o.tool } : {}),
   };
   OUT.recipes.push(r);
   return r;
@@ -164,16 +167,13 @@ export const src = {
     weight,
     ...(realm ? { realm } : {}),
   }),
-  fish: (water: 'shallow' | 'deep' | 'any' = 'any', ocean = false): Source => ({
-    k: 'fish',
-    water,
-    ...(ocean ? { ocean } : {}),
-  }),
-  shop: (role: string, markup = 1.3, realm?: string): Source => ({
+  fish: (def: FishSpec): Source => ({ k: 'fish', def }),
+  shop: (role: string, markup = 1.3, realm?: string, seasons?: number[]): Source => ({
     k: 'shop',
     role,
     markup,
     ...(realm ? { realm } : {}),
+    ...(seasons ? { seasons } : {}),
   }),
   vault: (table: string, weight = 1): Source => ({ k: 'vault', table, weight }),
   animal: (kind: string): Source => ({ k: 'animal', kind }),

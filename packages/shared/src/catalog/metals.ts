@@ -34,6 +34,9 @@ export interface Metal {
   blurb: string;
 }
 
+/** Parts no recipe uses are not made: every part in the catalog earns its place. */
+const NO_PART = new Set(['tin_rod', 'tin_wire', 'bronze_wire', 'silver_rod', 'gold_plate', 'gold_rod']);
+
 export const METALS: Metal[] = [
   {
     id: 'copper',
@@ -156,6 +159,7 @@ export const METALS: Metal[] = [
       src.node(T.CAVE_GEODE, 1, 2, 0.4, 4, { cave: 'frost' }),
       src.node(T.CAVE_CRYSTAL, 1, 1, 0.22, 4, { cave: 'crystal' }),
     ],
+    wire: true,
     blurb: 'Pale blue, light as cloth, hard as a promise. Found deep in the frost.',
   },
   {
@@ -294,6 +298,7 @@ export const METALS: Metal[] = [
       src.node(T.ORE_SILVER, 1, 2, 0.4, 3, { realm: 'sylvaris' }),
       src.node(T.CAVE_SILVER, 1, 1, 0.12, 3, { cave: 'glowmoss' }),
     ],
+    wire: true,
     blurb: 'Sylvaris silver that drinks moonlight and gives a little back.',
   },
 ];
@@ -359,41 +364,46 @@ for (const m of METALS) {
   // plate (armour, shields) and rod (blades, hafts, tools): the intermediate parts every gear recipe asks for
   const pl = `${m.id}_plate`,
     rod = `${m.id}_rod`;
-  item(pl, `${m.name} Plate`, 'component', {
-    v: 40 + m.tier * 26 + m.rarity * 36,
-    g: 'plate',
-    a: m.ing[0],
-    b: m.ing[1],
-    d: `Hammered ${m.name.toLowerCase()} sheet for armour and shields.`,
-    rarity: m.rarity,
-    tier: m.tier,
-    ...(m.realm ? { realm: m.realm } : {}),
-  });
-  item(rod, `${m.name} Rod`, 'component', {
-    v: 34 + m.tier * 22 + m.rarity * 30,
-    g: 'rod',
-    a: m.ing[0],
-    b: m.ing[1],
-    d: `A drawn ${m.name.toLowerCase()} bar for blades, hafts and tool heads.`,
-    rarity: m.rarity,
-    tier: m.tier,
-    ...(m.realm ? { realm: m.realm } : {}),
-  });
-  rec('forge', [[ing, 2]], [pl, 1], {
-    lvl: m.lvl,
-    stage: 2,
-    cat: 'component',
-    ...(m.realm ? { realm: m.realm } : {}),
-    hint: `Two ingots hammered flat.`,
-  });
-  rec('forge', [[ing, 1]], [rod, 1], {
-    lvl: m.lvl,
-    stage: 2,
-    cat: 'component',
-    ...(m.realm ? { realm: m.realm } : {}),
-    hint: `An ingot drawn long.`,
-  });
-  if (m.wire) {
+  const wants = (part: 'plate' | 'rod' | 'wire'): boolean => !NO_PART.has(`${m.id}_${part}`);
+  if (wants('plate'))
+    item(pl, `${m.name} Plate`, 'component', {
+      v: 40 + m.tier * 26 + m.rarity * 36,
+      g: 'plate',
+      a: m.ing[0],
+      b: m.ing[1],
+      d: `Hammered ${m.name.toLowerCase()} sheet for armour and shields.`,
+      rarity: m.rarity,
+      tier: m.tier,
+      ...(m.realm ? { realm: m.realm } : {}),
+    });
+  if (wants('rod'))
+    item(rod, `${m.name} Rod`, 'component', {
+      v: 34 + m.tier * 22 + m.rarity * 30,
+      g: 'rod',
+      a: m.ing[0],
+      b: m.ing[1],
+      d: `A drawn ${m.name.toLowerCase()} bar for blades, hafts and tool heads.`,
+      rarity: m.rarity,
+      tier: m.tier,
+      ...(m.realm ? { realm: m.realm } : {}),
+    });
+  if (wants('plate'))
+    rec('forge', [[ing, 2]], [pl, 1], {
+      lvl: m.lvl,
+      stage: 2,
+      cat: 'component',
+      ...(m.realm ? { realm: m.realm } : {}),
+      hint: `Two ingots hammered flat.`,
+    });
+  if (wants('rod'))
+    rec('forge', [[ing, 1]], [rod, 1], {
+      lvl: m.lvl,
+      stage: 2,
+      cat: 'component',
+      ...(m.realm ? { realm: m.realm } : {}),
+      hint: `An ingot drawn long.`,
+    });
+  if (m.wire && wants('wire')) {
     const w = `${m.id}_wire`;
     item(w, `${m.name} Wire`, 'component', {
       v: 18 + m.tier * 14 + m.rarity * 20,

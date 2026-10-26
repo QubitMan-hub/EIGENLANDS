@@ -1,4 +1,4 @@
-import { type PanelMsg, type Slot } from '@eigenlands/shared';
+import { FARM_ANIMALS, type PanelMsg, type Slot } from '@eigenlands/shared';
 import type { Profile } from '../game/profile';
 import { clear, h, iconCell, tooltipFor, type Tooltip } from './dom';
 
@@ -76,11 +76,12 @@ export function buildShelter(
   act: { add(): void; feed(): void; collect(): void },
 ): HTMLElement {
   const s = p.shelter!;
-  const animal = s.type === 'coop' ? 'chicken' : 'cow';
-  const product = s.type === 'coop' ? 'eggs' : 'milk';
+  const animal = s.animal ?? (s.type === 'coop' ? 'chicken' : 'cow');
+  const product = s.product ?? (s.type === 'coop' ? 'eggs' : 'milk');
+  const animalId = FARM_ANIMALS[s.type]?.animal ?? animal;
   const root = h('div', { class: 'shelter' });
   root.append(
-    h('div', { class: 'side-title', text: s.type === 'coop' ? 'Chicken coop' : 'Barn' }),
+    h('div', { class: 'side-title', text: s.name ?? (s.type === 'coop' ? 'Chicken coop' : 'Barn') }),
     h('div', { text: `${s.animals} / ${s.max} ${animal}s housed` }),
     h('div', {
       class: s.fed ? 'good' : 'bad',
@@ -92,7 +93,7 @@ export function buildShelter(
       { class: 'dbtns' },
       h('button', {
         text: `Add a ${animal}`,
-        disabled: s.animals >= s.max || profile.count(animal) < 1,
+        disabled: s.animals >= s.max || profile.count(animalId) < 1,
         on: { click: act.add },
       }),
       h('button', {

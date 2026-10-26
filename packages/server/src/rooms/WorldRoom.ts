@@ -1,4 +1,4 @@
-import { generationMeta, tileAt, isSolid, validAppearance } from '@eigenlands/shared';
+import { generationMeta, tileAt, isSolid, validAppearance, catalogMobDrops } from '@eigenlands/shared';
 import {
   DIFFICULTY_RULES,
   ENEMY_KEY_BY_KIND,
@@ -108,6 +108,7 @@ import {
   type EquipMsg,
   type CraftMsg,
   type ExperimentMsg,
+  type GearMsg,
   type ForgePreviewMsg,
   type ForgeStartMsg,
   type RhythmDoneMsg,
@@ -136,6 +137,7 @@ import type { RoomApi } from '../systems/api';
 import type { ServerClock } from '../systems/clock';
 import { handleChest, handleOpen, handleShelter } from '../systems/containers';
 import { handleCraft, handleExperiment } from '../systems/crafting';
+import { handleGear, wearLight, wearOnHit, wearWeapon } from '../systems/gear';
 import { dailyRollover, refreshCrop, rollShelter } from '../systems/farming';
 import { handleHook, tickFishing } from '../systems/fishing';
 import { handleForgePreview, handleForgeStart, handleRhythmDone } from '../systems/forging';
@@ -328,6 +330,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     });
     on<CraftMsg>(MSG.CRAFT, 'craftBucket', (p, m) => handleCraft(this, p, m));
     on<ExperimentMsg>(MSG.EXPERIMENT, 'craftBucket', (p, m) => handleExperiment(this, p, m));
+    on<GearMsg>(MSG.GEAR, 'craftBucket', (p, m) => handleGear(this, p, m));
     on<ForgePreviewMsg>(MSG.FORGE_PREVIEW, 'craftBucket', (p, m) => handleForgePreview(p, m));
     on<ForgeStartMsg>(MSG.FORGE_START, 'craftBucket', (p, m) => handleForgeStart(this, p, m));
     on<RhythmDoneMsg>(MSG.RHYTHM_DONE, 'craftBucket', (p, m) => handleRhythmDone(this, p, m));
@@ -860,6 +863,15 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     for (const r of [...this.respawns.values()]) if (r.at <= now) this.applyRespawn(r);
     for (const p of this.players.values()) {
       tickTravelNeeds(this, p);
+      // a lit lantern burns down, a little each minute it is needed (night or underground)
+      if (
+        p.data.equip.light &&
+        (isCaveY(p.sim.y) || this.wclock.hour() < 6 || this.wclock.hour() >= 20) &&
+        ++p.lightWearT >= 60
+      ) {
+        p.lightWearT = 0;
+        wearLight(p);
+      }
       let changed = false;
       for (const [k, b] of Object.entries(p.data.buffs))
         if (b.until <= now) {
@@ -1242,6 +1254,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
           { crit, staggered, counter: o.counter },
         );
     e.hp -= r.damage;
+    if (by) wearWeapon(by);
     e.state.hp = Math.max(0, e.hp);
     const res = staggered ? Math.min(1, e.resist * 2.5) : e.resist;
     e.kx += dx * r.knockback * res;
@@ -1306,6 +1319,12 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       for (let i = 0; i < rolls; i++) {
         for (const d of e.def.drops ?? []) {
           if (d.max <= 0 || this.rand() >= d.chance * (1 + 0.15 * killer.stats.luck)) continue;
+          const stack: Stack = { id: d.item, n: d.min + Math.floor(this.rand() * (d.max - d.min + 1)) };
+          if (!giveStacks(killer, [stack])) killer.toast('Your pack is full.', 'bad');
+        }
+        // monster parts and trophies the catalog adds (bone, scales, glands, dragon bone ...)
+        for (const d of catalogMobDrops(ENEMY_KEY_BY_KIND[e.def.kind] ?? '')) {
+          if (e.level < d.minLevel || this.rand() >= d.chance * (1 + 0.15 * killer.stats.luck)) continue;
           const stack: Stack = { id: d.item, n: d.min + Math.floor(this.rand() * (d.max - d.min + 1)) };
           if (!giveStacks(killer, [stack])) killer.toast('Your pack is full.', 'bad');
         }
@@ -1446,6 +1465,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     if (dmg <= 0) return false; // dodged or absorbed by a Phase 3 ability
     p.hp = Math.max(0, p.hp - (p.data.needs.mode === 'hardcore' ? Math.round(dmg * 1.25) : dmg));
     p.invuln = 0.5;
+    wearOnHit(p, () => this.rand());
     // wounds: some creatures leave an injury behind (Adventure and Hardcore only)
     const hit = injuryOnHit(ENEMY_KEY_BY_KIND[e.def.kind] ?? '');
     if (hit && this.rand() < Math.min(0.9, hit.chance * DIFFICULTY_RULES[p.data.needs.mode].injury))

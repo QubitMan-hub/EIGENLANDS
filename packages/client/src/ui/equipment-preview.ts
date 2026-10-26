@@ -94,11 +94,11 @@ function weaponGuide(w: WeaponDef, stats: Profile['stats']): WeaponGuide {
   const melee = (form?: (typeof MORPH_FORMS)[number]): AttackGuide => ({
     name:
       form?.name ??
-      (w.id === 'spear'
+      ((w.fam ?? w.id) === 'spear'
         ? 'Thrust combo'
-        : w.id === 'battle_axe'
+        : (w.fam ?? w.id) === 'battle_axe'
           ? 'Sweeping combo'
-          : w.id === 'warhammer'
+          : (w.fam ?? w.id) === 'warhammer'
             ? 'Crushing combo'
             : 'Three-hit combo'),
     damage: hits.map((h) => attackDamage(form ? Math.round(h.damage * form.dmg) : h.damage, stats.atkBonus)),
@@ -111,11 +111,11 @@ function weaponGuide(w: WeaponDef, stats: Profile['stats']): WeaponGuide {
     details: form
       ? ['Each tap chooses one form at random; the two forms do not hit together.']
       : [
-          w.id === 'spear'
+          (w.fam ?? w.id) === 'spear'
             ? 'Narrow thrusts: long reach, limited side coverage.'
-            : w.id === 'battle_axe'
+            : (w.fam ?? w.id) === 'battle_axe'
               ? 'Broad sweeps trade reach and speed for side coverage.'
-              : w.id === 'warhammer'
+              : (w.fam ?? w.id) === 'warhammer'
                 ? 'Slow blows; the finisher bypasses light-hit armour.'
                 : 'Two slashes, then a lunging finisher.',
           `Tap poise: ${hits.map((h) => h.poise).join(' / ')}; arc: ${hits.map((h) => Math.round((Math.acos(h.arc) * 360) / Math.PI)).join(' / ')} degrees.`,
@@ -149,11 +149,11 @@ function weaponGuide(w: WeaponDef, stats: Profile['stats']): WeaponGuide {
       ? shot(w.charged, true)
       : {
           name:
-            w.id === 'spear'
+            (w.fam ?? w.id) === 'spear'
               ? 'Driving thrust'
-              : w.id === 'battle_axe'
+              : (w.fam ?? w.id) === 'battle_axe'
                 ? 'Whirling cleave'
-                : w.id === 'warhammer'
+                : (w.fam ?? w.id) === 'warhammer'
                   ? 'Crushing blow'
                   : 'Phase cleave',
           damage: [attackDamage(low.damage, stats.atkBonus), attackDamage(high.damage, stats.atkBonus)],

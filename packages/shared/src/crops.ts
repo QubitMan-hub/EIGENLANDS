@@ -1,3 +1,4 @@
+import { CROP_ROWS } from './catalog/crop-data';
 import { weatherForDay, waters, seasonOfDay } from './weather';
 
 export interface CropDef {
@@ -45,6 +46,9 @@ export const CROPS: Record<string, CropDef> = Object.fromEntries(
     c('frostroot', 'Frostroot', [3], 3, 0, 1, 2, 15, 30, 'root'),
   ].map((d) => [d.id, d]),
 );
+
+// Catalog crops (grains, vegetables, orchards, spices ...) are data in catalog/crop-data.ts.
+for (const row of CROP_ROWS) CROPS[row.def.id] = row.def;
 
 export const STAGES = 4; // 0 seed, 1 sprout, 2 growing, 3 ripe
 

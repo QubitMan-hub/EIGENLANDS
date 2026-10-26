@@ -11,6 +11,7 @@ import {
   craftQuality,
   discLevel,
   isStationId,
+  newGearProps,
   recipeBlock,
   recipeKnown,
   matchExperiment,
@@ -19,6 +20,7 @@ import {
   removeItem,
   type CraftMsg,
   type CraftProfile,
+  type Discipline,
   type ExperimentMsg,
   type Props,
   type Recipe,
@@ -53,20 +55,20 @@ const STATION_REACH = 3.5;
 const profileOf = (p: ServerPlayer): CraftProfile => ({ learned: p.data.recipes, disc: p.data.disc, rep: p.data.rep });
 
 /** Discipline XP, with a toast on level-up. */
-export function addDiscXp(p: ServerPlayer, rec: Recipe, amount: number): void {
+export function addDiscXp(p: ServerPlayer, disc: Discipline, amount: number): void {
   if (amount <= 0) return;
-  const before = discLevel(p.data.disc[rec.disc]);
-  p.data.disc[rec.disc] += Math.round(amount);
+  const before = discLevel(p.data.disc[disc]);
+  p.data.disc[disc] += Math.round(amount);
   p.dirty('disc');
-  const after = discLevel(p.data.disc[rec.disc]);
+  const after = discLevel(p.data.disc[disc]);
   if (after > before) {
-    p.toast(`${DISC_BY_ID[rec.disc].name} level ${after}!`, 'good');
-    unlockedByLevel(p, rec.disc, before, after);
+    p.toast(`${DISC_BY_ID[disc].name} level ${after}!`, 'good');
+    unlockedByLevel(p, disc, before, after);
   }
 }
 
 /** Announce recipes a new discipline level opens up. */
-function unlockedByLevel(p: ServerPlayer, disc: Recipe['disc'], from: number, to: number): void {
+function unlockedByLevel(p: ServerPlayer, disc: Discipline, from: number, to: number): void {
   const n = RECIPES.filter(
     (r) => r.disc === disc && r.lvl > from && r.lvl <= to && (r.learn === 'level' || r.learn.startsWith('realm:')),
   ).length;
@@ -105,6 +107,10 @@ export function handleCraft(room: RoomApi, p: ServerPlayer, msg: CraftMsg): void
     p.toast('You need to be at the right station.', 'bad');
     return;
   }
+  if (rec.tool && countItem(p.data.inv, rec.tool) < 1) {
+    p.toast(`You need ${ITEMS[rec.tool]?.name ?? rec.tool} in your pack.`, 'bad');
+    return;
+  }
   if (rec.inputs.some((i) => i.id.startsWith('*'))) {
     p.toast('Use the experiment slots for this one.');
     return;
@@ -131,15 +137,19 @@ export function handleCraft(room: RoomApi, p: ServerPlayer, msg: CraftMsg): void
   const dlv = discLevel(p.data.disc[rec.disc]);
   const rarity = ITEMS[rec.out.id]?.rarity ?? 0;
   // stacks with props never merge: split them into singles; gear rolls its own quality
-  const singles: Stack[] = rec.quality
-    ? Array.from({ length: out.n }, () => ({
-        id: out.id,
-        n: 1,
-        p: { ...out.p, qt: craftQuality(dlv, rec.lvl, rarity, p.stats.luck, room.rand()) },
-      }))
-    : out.p
-      ? Array.from({ length: out.n }, () => ({ id: out.id, n: 1, p: { ...out.p } }))
-      : [out];
+  const singles: Stack[] =
+    rec.quality || rec.gear
+      ? Array.from({ length: out.n }, () => ({
+          id: out.id,
+          n: 1,
+          p: {
+            ...out.p,
+            ...newGearProps(out.id, rec.quality ? craftQuality(dlv, rec.lvl, rarity, p.stats.luck, room.rand()) : 1),
+          },
+        }))
+      : out.p
+        ? Array.from({ length: out.n }, () => ({ id: out.id, n: 1, p: { ...out.p } }))
+        : [out];
   for (const s of singles)
     if (addStack(sim, s) > 0) {
       p.toast('Your pack is full.', 'bad');
@@ -148,7 +158,7 @@ export function handleCraft(room: RoomApi, p: ServerPlayer, msg: CraftMsg): void
   p.data.inv.splice(0, p.data.inv.length, ...sim);
   p.dirty('inv');
   addSkillXp(p, 'crafting', rec.xp * msg.n);
-  addDiscXp(p, rec, rec.xp * msg.n);
+  addDiscXp(p, rec.disc, rec.xp * msg.n);
   room.fx({ kind: 'craft', x: p.sim.x, y: p.sim.y, id: p.id });
   const qt = singles[0]?.p?.qt;
   const qtext = qt !== undefined && qt !== 1 && singles.length === 1 ? `${CRAFT_QUALITY[qt]} ` : '';
@@ -221,8 +231,16 @@ export function handleExperiment(room: RoomApi, p: ServerPlayer, msg: Experiment
     p.toast(`You discovered ${ITEMS[rec.out.id]?.name ?? rec.id}!`, 'good');
   }
   addSkillXp(p, 'crafting', rec.xp);
-  addDiscXp(p, rec, rec.xp);
+  addDiscXp(p, rec.disc, rec.xp);
   room.fx({ kind: 'craft', x: p.sim.x, y: p.sim.y, id: p.id });
   p.client.send(MSG.TOAST, { text: `Made ${ITEMS[out.id]?.name ?? out.id}`, kind: 'item', item: out });
   made(room, p, rec, 1, discovered);
+}
+
+/** Teach a recipe (a scroll, a quest, a teacher). False when it is unknown or already known. */
+export function learnRecipe(p: ServerPlayer, id: string): boolean {
+  if (!recipeById(id) || p.data.recipes.has(id)) return false;
+  p.data.recipes.add(id);
+  p.dirty('recipes');
+  return true;
 }
