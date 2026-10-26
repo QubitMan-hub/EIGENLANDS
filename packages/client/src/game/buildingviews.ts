@@ -1,7 +1,7 @@
 import { buildingArtWorker } from '../art/building-worker-client';
 import { CALM, type WindField } from './windfield';
 import { Sprite, Texture, type Container } from 'pixi.js';
-import { townsFor, type Building } from '@eigenlands/shared';
+import { chunkOf, townsFor, type Building } from '@eigenlands/shared';
 import { buildBuildingArt, type BuildingArt } from '../art/buildings';
 import { makeCanvas, put, C } from '../art/shade';
 import { depth } from './iso';
@@ -55,6 +55,8 @@ function puffTexture(): Texture {
  */
 export class BuildingViews {
   private views: BView[] = [];
+  private buckets = new Map<string, BView[]>();
+  private nearby: BView[] = [];
   private last = 0;
   private darkness = 0;
   private builtThisFrame = 0;
@@ -68,7 +70,7 @@ export class BuildingViews {
   ) {
     roofLayer.sortableChildren = true;
     for (const b of townsFor(seed).flatMap((t) => t.buildings)) {
-      this.views.push({
+      const view: BView = {
         b,
         art: null,
         walls: [],
@@ -80,9 +82,34 @@ export class BuildingViews {
         wallA: 1,
         cut: false,
         night: false,
-      });
+      };
+      this.views.push(view);
+      for (let cy = chunkOf(b.y); cy <= chunkOf(b.y + b.h); cy++)
+        for (let cx = chunkOf(b.x); cx <= chunkOf(b.x + b.w); cx++) {
+          const key = `${cx},${cy}`;
+          const bucket = this.buckets.get(key) ?? [];
+          if (!this.buckets.has(key)) this.buckets.set(key, bucket);
+          bucket.push(view);
+        }
     }
     setBuildingLights((a, b2, c, d) => this.lights(a, b2, c, d));
+  }
+
+  private query(minX: number, minY: number, maxX: number, maxY: number): BView[] {
+    const found = new Set<BView>();
+    for (let cy = chunkOf(minY); cy <= chunkOf(maxY); cy++)
+      for (let cx = chunkOf(minX); cx <= chunkOf(maxX); cx++)
+        for (const v of this.buckets.get(`${cx},${cy}`) ?? []) found.add(v);
+    return [...found];
+  }
+
+  private hide(v: BView): void {
+    if (!v.art) return;
+    for (const w of v.walls) w.s.visible = false;
+    v.roof!.visible = false;
+    v.shadow!.visible = false;
+    if (v.sign) v.sign.visible = false;
+    for (const p of v.puffs) p.s.visible = false;
   }
 
   private prepare(v: BView): boolean {
@@ -149,7 +176,7 @@ export class BuildingViews {
   }
 
   insideBuilding(tx: number, ty: number): string | null {
-    for (const v of this.views) {
+    for (const v of this.query(tx, ty, tx, ty)) {
       const b = v.b;
       if (tx === b.doorX && ty === b.doorY) return b.id;
       if (tx >= b.x + 1 && tx <= b.x + b.w - 2 && ty >= b.y + 1 && ty <= b.y + b.h - 2) return b.id;
@@ -184,18 +211,27 @@ export class BuildingViews {
     const dt = this.last ? Math.min(0.1, (now - this.last) / 1000) : 0.016;
     this.last = now;
     this.builtThisFrame = 0;
-    const priority = `${playerTx},${playerTy}`;
+    const priority = `${playerTx},${playerTy},${Math.floor(minX)},${Math.floor(minY)},${Math.floor(maxX)},${Math.floor(maxY)}`;
     if (priority !== this.priority) {
       this.priority = priority;
-      const dist = (b: Building) =>
-        Math.max(b.x - playerTx, 0, playerTx - b.x - b.w) + Math.max(b.y - playerTy, 0, playerTy - b.y - b.h);
-      this.views.sort((a, b) => dist(a.b) - dist(b.b));
+      const next = this.query(minX - 44, minY - 44, maxX + 44, maxY + 44);
+      const keep = new Set(next);
+      for (const v of this.nearby) if (!keep.has(v)) this.hide(v);
+      this.nearby = next;
+      const cx = (minX + maxX) / 2,
+        cy = (minY + maxY) / 2;
+      const dist = (b: Building) => Math.max(b.x - cx, 0, cx - b.x - b.w) + Math.max(b.y - cy, 0, cy - b.y - b.h);
+      const visible = (b: Building) =>
+        b.x + b.w + 4 >= minX && b.x - 4 <= maxX && b.y + b.h + 4 >= minY && b.y - 4 <= maxY;
+      // Finish on-screen architecture before spending the single bake slot on
+      // off-screen warmup. Camera-only tours must not load half a city first.
+      this.nearby.sort((a, b) => Number(visible(b.b)) - Number(visible(a.b)) || dist(a.b) - dist(b.b));
     }
     const inside = this.insideBuilding(playerTx, playerTy);
     if (sun.dark !== undefined) this.darkness = sun.dark;
     const dark = this.darkness;
     const k = Math.min(1, (dt / 0.25) * (reduced ? 4 : 1));
-    for (const v of this.views) {
+    for (const v of this.nearby) {
       const b = v.b;
       const vis = b.x + b.w + 4 >= minX && b.x - 4 <= maxX && b.y + b.h + 4 >= minY && b.y - 4 <= maxY;
       // pre-build one building per frame while it is still off screen (within ~40 tiles), so walking into town never hitches
@@ -214,13 +250,7 @@ export class BuildingViews {
         }
       }
       if (!vis) {
-        if (v.art) {
-          v.walls.forEach((w) => (w.s.visible = false));
-          v.roof!.visible = false;
-          v.shadow!.visible = false;
-          if (v.sign) v.sign.visible = false;
-          v.puffs.forEach((p) => (p.s.visible = false));
-        }
+        this.hide(v);
         continue;
       }
       if (!v.art) {
@@ -281,7 +311,7 @@ export class BuildingViews {
     const dark = this.darkness;
     if (dark < 0.25) return [];
     const out: TileLight[] = [];
-    for (const v of this.views) {
+    for (const v of this.nearby) {
       const b = v.b;
       if (!v.art || b.x + b.w < minX || b.x > maxX || b.y + b.h < minY || b.y > maxY) continue;
       for (const w of v.art.windows)

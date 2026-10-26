@@ -80,6 +80,7 @@ jobs:
           node e2e/creature-art.mjs /tmp/creature-art
           node e2e/hydrology-art.mjs /tmp/creature-art/hydrology
           node e2e/fluid-materials.mjs /tmp/creature-art/fluids
+          node e2e/kingdom-materials.mjs http://127.0.0.1:5174/ /tmp/creature-art/kingdoms
       - uses: actions/upload-artifact@v4
         if: always()
         with:

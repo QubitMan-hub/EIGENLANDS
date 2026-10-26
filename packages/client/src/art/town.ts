@@ -1,6 +1,6 @@
 /**
  * The Statue of QubitMan, Hadamere's plaza centrepiece: a stepped iso plinth (props.ts) with braziers and runes, and
- * a weathered stone guardian holding the qubit aloft. The other town props live in props.ts.
+ * a carved adventurer beneath a floating qubit. The other town props live in props.ts.
  */
 import { Texture } from 'pixi.js';
 import { mulberry32 } from '@eigenlands/shared';
@@ -50,368 +50,458 @@ function make(
   return finish(canvas, ax, ay);
 }
 
-/** An authored stone guardian: three-quarter face, overlapping carved cloth and a planted staff.
- * The reference informs pose/material only; every silhouette and fold below is original pixel geometry. */
+/** Original three-quarter adventurer sculpture: coat, tricorn, scarf and star.
+ * References inform tailoring and stance, not traced pixels. Both boots meet
+ * the existing plinth; stone planes are lit from the same upper-left source. */
 let stoneGuardian: HTMLCanvasElement | null = null;
 function drawStoneGuardian(ctx: Ctx): void {
   if (!stoneGuardian) {
     const { canvas, ctx: c } = makeCanvas(108, 128);
     const shape = (pts: Array<[number, number]>, colour: number) => poly(c, pts, colour);
     const dark = C.g0,
-      shadow = C.g1,
-      stone = C.g2,
-      mid = C.g3,
-      light = C.g5,
-      edge = C.fog;
-    // Rear mantle: broad shoulder and trailing, broken hem. Negative space separates staff and body.
+      shadow = C.slate,
+      stone = C.steel,
+      mid = C.mist,
+      light = C.fog;
+    const bronze = C.e3,
+      gold = C.e5;
+    // Rear cape and split coat tails leave space around both legs.
     shape(
       [
-        [46, 43],
-        [58, 43],
-        [70, 54],
-        [72, 77],
-        [82, 99],
-        [77, 107],
-        [66, 103],
-        [34, 110],
-        [27, 104],
-        [35, 88],
-        [36, 59],
+        [41, 42],
+        [58, 41],
+        [68, 49],
+        [69, 78],
+        [80, 106],
+        [69, 110],
+        [55, 96],
+        [35, 108],
+        [26, 102],
+        [36, 73],
       ],
       dark,
     );
     shape(
       [
-        [44, 49],
-        [49, 48],
-        [44, 76],
-        [35, 103],
-        [29, 104],
-        [37, 85],
-      ],
-      stone,
-    );
-    shape(
-      [
-        [63, 51],
+        [63, 50],
         [68, 55],
-        [67, 78],
-        [78, 100],
-        [72, 102],
-        [60, 83],
+        [66, 78],
+        [76, 103],
+        [70, 103],
+        [59, 82],
       ],
       shadow,
     );
-    // Staff is seated on the same projected base as the robe; sculpted bifurcated finial.
+    // Trousers and two planted boots in a three-quarter stance.
     shape(
       [
-        [24, 32],
-        [27, 32],
-        [25, 108],
-        [22, 107],
-      ],
-      shadow,
-    );
-    line(c, 24, 35, 23, 104, C.e5);
-    shape(
-      [
-        [25, 21],
-        [30, 27],
-        [28, 34],
-        [23, 37],
-        [18, 32],
-        [18, 26],
-        [21, 22],
-        [20, 29],
-        [24, 32],
-        [27, 28],
-      ],
-      light,
-    );
-    put(c, 24, 27, C.q7, 2, 3);
-    // Long robe flares into a projected, stepped hem, with the weight over the right foot.
-    shape(
-      [
-        [44, 61],
-        [61, 61],
-        [62, 82],
-        [68, 106],
-        [57, 112],
-        [38, 108],
-        [34, 103],
-        [41, 81],
-      ],
-      stone,
-    );
-    shape(
-      [
-        [44, 65],
-        [49, 68],
-        [46, 91],
-        [40, 105],
-        [35, 103],
-      ],
-      light,
-    );
-    shape(
-      [
-        [49, 69],
-        [53, 68],
-        [50, 99],
-        [47, 109],
-        [41, 107],
-      ],
-      mid,
-    );
-    shape(
-      [
-        [55, 68],
-        [58, 68],
-        [59, 99],
-        [64, 107],
-        [57, 110],
-        [53, 95],
-      ],
-      light,
-    );
-    shape(
-      [
-        [60, 70],
-        [62, 83],
-        [67, 105],
-        [64, 106],
-        [58, 91],
-      ],
-      shadow,
-    );
-    shape(
-      [
-        [50, 74],
-        [52, 77],
-        [49, 103],
-        [47, 108],
-      ],
-      shadow,
-    );
-    line(c, 36, 103, 56, 110, C.e5);
-    line(c, 56, 110, 67, 105, C.e3);
-    // Sandalled feet peek from the hem, planted on the plinth rather than floating above it.
-    shape(
-      [
-        [40, 106],
+        [43, 74],
+        [53, 75],
+        [51, 94],
         [46, 108],
-        [46, 112],
-        [38, 112],
-        [36, 110],
-      ],
-      mid,
-    );
-    shape(
-      [
-        [58, 109],
-        [63, 107],
-        [69, 110],
-        [67, 114],
-        [58, 114],
-      ],
-      stone,
-    );
-    line(c, 38, 110, 44, 111, edge);
-    line(c, 59, 112, 66, 112, mid);
-    // Torso is draped, not an exposed muscular mannequin. Lit diagonal sash crosses the chest.
-    shape(
-      [
-        [43, 44],
-        [50, 41],
-        [59, 44],
-        [63, 53],
-        [60, 66],
-        [51, 70],
-        [42, 64],
-        [40, 53],
-      ],
-      mid,
-    );
-    shape(
-      [
-        [43, 45],
-        [47, 44],
-        [46, 57],
-        [56, 64],
-        [51, 67],
-        [41, 58],
-      ],
-      light,
-    );
-    shape(
-      [
-        [56, 45],
-        [60, 47],
-        [60, 60],
-        [56, 64],
-        [52, 61],
-      ],
-      stone,
-    );
-    shape(
-      [
-        [46, 43],
-        [50, 43],
-        [60, 59],
-        [57, 62],
-        [50, 54],
-      ],
-      edge,
-    );
-    line(c, 43, 62, 52, 67, C.e5);
-    line(c, 52, 67, 60, 63, C.e3);
-    put(c, 52, 64, C.e6, 3, 3);
-    // Left sleeve, elbow and fingers curl around the staff.
-    shape(
-      [
-        [42, 45],
-        [47, 50],
-        [39, 65],
-        [34, 67],
-        [25, 59],
-        [28, 54],
-        [35, 58],
-      ],
-      stone,
-    );
-    shape(
-      [
-        [41, 48],
-        [43, 51],
-        [36, 62],
-        [28, 57],
-        [28, 55],
-        [35, 59],
-      ],
-      light,
-    );
-    shape(
-      [
-        [25, 53],
-        [29, 55],
-        [28, 61],
-        [24, 60],
-        [22, 57],
-      ],
-      mid,
-    );
-    put(c, 24, 55, edge, 2, 1);
-    line(c, 24, 58, 27, 59, shadow);
-    // Right arm bends upward into a clear supporting palm under the qubit.
-    shape(
-      [
-        [59, 45],
-        [63, 43],
-        [68, 34],
-        [68, 23],
-        [72, 20],
-        [76, 23],
-        [74, 37],
-        [68, 50],
-        [64, 54],
+        [37, 107],
+        [41, 92],
       ],
       shadow,
     );
     shape(
       [
-        [62, 44],
-        [66, 35],
-        [69, 24],
-        [72, 24],
-        [71, 37],
-        [65, 48],
+        [53, 75],
+        [62, 72],
+        [64, 92],
+        [69, 108],
+        [61, 111],
+        [54, 94],
       ],
-      light,
+      dark,
     );
     shape(
       [
-        [69, 21],
-        [67, 18],
-        [68, 16],
-        [72, 19],
-        [77, 16],
-        [80, 17],
-        [77, 22],
-        [72, 24],
-      ],
-      mid,
-    );
-    line(c, 69, 19, 74, 21, edge);
-    // Neck, jaw, cheek and a turned nose establish a calm human face at native resolution.
-    shape(
-      [
-        [49, 35],
-        [56, 35],
-        [56, 43],
-        [52, 47],
-        [47, 42],
+        [43, 81],
+        [47, 83],
+        [45, 97],
+        [41, 106],
+        [38, 105],
       ],
       stone,
     );
     shape(
       [
-        [46, 24],
-        [51, 20],
-        [57, 23],
-        [59, 28],
-        [62, 31],
-        [59, 33],
-        [58, 38],
-        [53, 41],
-        [48, 37],
+        [57, 83],
+        [60, 81],
+        [62, 96],
+        [66, 106],
+        [63, 107],
+      ],
+      shadow,
+    );
+    shape(
+      [
+        [37, 105],
+        [46, 106],
+        [47, 111],
+        [39, 114],
+        [29, 111],
+        [30, 108],
+      ],
+      dark,
+    );
+    shape(
+      [
+        [60, 106],
+        [68, 106],
+        [75, 111],
+        [73, 115],
+        [62, 114],
+        [58, 111],
+      ],
+      dark,
+    );
+    line(c, 31, 109, 40, 111, stone);
+    line(c, 63, 111, 71, 112, shadow);
+    // Sculpted waistcoat and tailored lapels.
+    shape(
+      [
+        [42, 43],
+        [51, 40],
+        [62, 45],
+        [65, 61],
+        [60, 78],
+        [46, 81],
+        [38, 65],
+      ],
+      stone,
+    );
+    shape(
+      [
+        [43, 48],
+        [51, 46],
+        [55, 65],
+        [49, 78],
+        [41, 72],
       ],
       mid,
+    );
+    shape(
+      [
+        [55, 47],
+        [61, 48],
+        [62, 65],
+        [57, 75],
+        [53, 65],
+      ],
+      shadow,
+    );
+    shape(
+      [
+        [40, 50],
+        [48, 52],
+        [49, 65],
+        [40, 91],
+        [33, 100],
+        [36, 76],
+      ],
+      shadow,
+    );
+    shape(
+      [
+        [57, 51],
+        [63, 49],
+        [61, 73],
+        [70, 101],
+        [62, 98],
+        [51, 77],
+      ],
+      dark,
+    );
+    line(c, 40, 63, 35, 95, bronze);
+    line(c, 58, 72, 67, 98, bronze);
+    shape(
+      [
+        [44, 53],
+        [49, 55],
+        [46, 62],
+        [49, 66],
+        [43, 73],
+      ],
+      light,
+    );
+    shape(
+      [
+        [57, 52],
+        [60, 55],
+        [55, 63],
+        [57, 68],
+        [52, 72],
+      ],
+      stone,
+    );
+    // Belts wrap diagonally around the turned torso.
+    shape(
+      [
+        [41, 70],
+        [59, 66],
+        [61, 70],
+        [42, 75],
+      ],
+      dark,
+    );
+    shape(
+      [
+        [48, 69],
+        [54, 68],
+        [55, 73],
+        [49, 74],
+      ],
+      bronze,
+    );
+    put(c, 50, 70, gold, 3, 2);
+    // Far sleeve, then nearer sleeve with angular shoulder armour and cuff.
+    shape(
+      [
+        [61, 47],
+        [68, 50],
+        [70, 65],
+        [75, 80],
+        [70, 84],
+        [63, 67],
+      ],
+      dark,
+    );
+    shape(
+      [
+        [63, 48],
+        [71, 47],
+        [75, 54],
+        [66, 58],
+        [60, 53],
+      ],
+      shadow,
+    );
+    line(c, 64, 49, 71, 49, mid);
+    shape(
+      [
+        [69, 76],
+        [75, 76],
+        [77, 82],
+        [72, 86],
+        [68, 82],
+      ],
+      stone,
+    );
+    line(c, 71, 80, 74, 82, light);
+    shape(
+      [
+        [39, 46],
+        [43, 53],
+        [37, 66],
+        [31, 77],
+        [25, 74],
+        [30, 60],
+      ],
+      stone,
+    );
+    shape(
+      [
+        [37, 46],
+        [43, 48],
+        [40, 55],
+        [30, 58],
+        [29, 54],
+      ],
+      mid,
+    );
+    line(c, 31, 53, 39, 48, light);
+    shape(
+      [
+        [26, 72],
+        [32, 75],
+        [29, 81],
+        [23, 80],
+        [22, 76],
+      ],
+      shadow,
+    );
+    shape(
+      [
+        [24, 79],
+        [29, 80],
+        [28, 86],
+        [24, 88],
+        [21, 85],
+        [21, 82],
+      ],
+      mid,
+    );
+    put(c, 23, 83, light, 1, 3);
+    // A planted walking staff, separate from the legs and coat.
+    line(c, 23, 84, 20, 111, dark);
+    line(c, 24, 85, 21, 110, bronze);
+    // Neck and a turned face with cheek, nose and one readable eye.
+    shape(
+      [
+        [47, 33],
+        [56, 34],
+        [57, 43],
+        [51, 47],
+        [45, 42],
+      ],
+      shadow,
+    );
+    shape(
+      [
+        [45, 23],
+        [53, 20],
+        [59, 24],
+        [59, 30],
+        [63, 33],
+        [59, 35],
+        [58, 39],
+        [53, 43],
+        [47, 39],
+        [44, 32],
+      ],
+      stone,
     );
     shape(
       [
         [49, 25],
-        [53, 23],
-        [57, 25],
-        [56, 30],
-        [59, 32],
-        [56, 34],
-        [56, 37],
-        [52, 38],
-        [49, 34],
+        [55, 24],
+        [57, 29],
+        [56, 33],
+        [60, 33],
+        [56, 36],
+        [55, 39],
+        [51, 39],
+        [48, 34],
       ],
       light,
     );
-    line(c, 54, 29, 57, 29, shadow);
-    put(c, 56, 30, dark);
-    line(c, 56, 35, 58, 35, stone);
-    put(c, 59, 31, edge);
-    // Swept stone hair and circlet, with a distinct ear and locks behind the jaw.
+    line(c, 53, 29, 57, 29, dark);
+    put(c, 57, 30, dark);
+    line(c, 55, 37, 58, 36, shadow);
+    // Swept hair beneath an asymmetric, sculpted tricorn brim.
     shape(
       [
-        [45, 29],
-        [44, 23],
-        [47, 19],
-        [54, 17],
-        [58, 21],
-        [59, 25],
-        [54, 23],
-        [49, 24],
-        [48, 32],
-        [49, 37],
-        [46, 35],
+        [43, 25],
+        [45, 21],
+        [51, 20],
+        [49, 27],
+        [47, 32],
+        [47, 38],
+        [44, 35],
+        [42, 29],
+      ],
+      dark,
+    );
+    line(c, 45, 25, 44, 32, shadow);
+    shape(
+      [
+        [33, 24],
+        [41, 16],
+        [47, 15],
+        [54, 7],
+        [60, 14],
+        [67, 12],
+        [65, 24],
+        [57, 28],
+        [46, 26],
+        [38, 29],
+      ],
+      dark,
+    );
+    shape(
+      [
+        [35, 23],
+        [45, 20],
+        [53, 11],
+        [55, 17],
+        [64, 15],
+        [60, 23],
+        [48, 23],
+        [39, 27],
       ],
       shadow,
     );
-    line(c, 47, 23, 52, 20, mid);
-    line(c, 46, 26, 46, 31, stone);
-    line(c, 47, 24, 53, 22, C.e5);
-    line(c, 53, 22, 58, 25, C.e3);
-    put(c, 49, 30, stone, 1, 3);
-    // Deliberate chips and hairline fractures follow folds; no random surface speckle.
-    line(c, 39, 90, 42, 87, shadow);
-    line(c, 42, 87, 42, 83, shadow);
-    line(c, 64, 96, 61, 93, dark);
-    put(c, 61, 92, mid);
+    line(c, 36, 24, 46, 22, stone);
+    line(c, 46, 22, 53, 13, mid);
+    line(c, 55, 24, 63, 21, stone);
+    put(c, 42, 19, bronze, 2, 2);
+    // Carved scarf winds around the collar, a restrained oxblood inlay.
+    shape(
+      [
+        [44, 38],
+        [51, 41],
+        [59, 37],
+        [65, 40],
+        [62, 47],
+        [52, 51],
+        [41, 48],
+        [37, 44],
+      ],
+      C.r0,
+    );
+    shape(
+      [
+        [40, 42],
+        [48, 44],
+        [58, 42],
+        [62, 40],
+        [60, 45],
+        [49, 48],
+        [41, 46],
+      ],
+      C.r1,
+    );
+    line(c, 42, 44, 49, 46, C.e2);
+    shape(
+      [
+        [59, 45],
+        [66, 47],
+        [63, 57],
+        [59, 63],
+        [58, 55],
+      ],
+      C.r0,
+    );
+    // Star medal and two belt seals: original heraldic silhouette.
+    shape(
+      [
+        [52, 51],
+        [54, 54],
+        [59, 55],
+        [55, 58],
+        [55, 63],
+        [52, 60],
+        [48, 62],
+        [49, 58],
+        [46, 55],
+        [51, 54],
+      ],
+      bronze,
+    );
+    line(c, 52, 53, 52, 58, gold);
+    put(c, 52, 55, C.e6, 2, 2);
+    for (const [x, y] of [
+      [39, 72],
+      [37, 79],
+    ]) {
+      shape(
+        [
+          [x, y - 2],
+          [x + 3, y - 1],
+          [x + 4, y + 2],
+          [x + 1, y + 4],
+          [x - 2, y + 2],
+          [x - 2, y],
+        ],
+        bronze,
+      );
+      put(c, x, y, gold, 2, 2);
+    }
+    // A few deliberate chips follow carved folds, never random speckle.
+    line(c, 35, 91, 38, 88, dark);
+    line(c, 64, 95, 67, 98, stone);
     stoneGuardian = canvas;
   }
   ctx.drawImage(stoneGuardian, 0, 0);
@@ -478,15 +568,6 @@ function statueFrame(f: number): ObjSprite {
       ctx.translate(FX, FY);
       // emissive bits after the outline: chest emblem (a tiny Bloch circle) and the glowing orb
       const pulse = [0, 1, 2, 1][f]!;
-      for (let a = 0; a < 16; a++)
-        put(
-          ctx,
-          Math.round(53 + Math.cos((a / 16) * 6.283) * 3.6),
-          Math.round(55 + Math.sin((a / 16) * 6.283) * 3),
-          C.q7,
-        );
-      put(ctx, 53, 54, C.white);
-      put(ctx, 54, 53, C.q6);
       const ox = 73,
         oy = 8;
       blob(ctx, ox, oy, 6 + pulse * 0.35, 6 + pulse * 0.35, ORB, {
