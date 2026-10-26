@@ -684,6 +684,18 @@ function board(face: Facing): ObjSprite {
   });
 }
 
+function guildBoardArt(face: Facing): ObjSprite {
+  return iso(38, 50, face, (p) => {
+    for (const a of [2, 12.5]) p.box(a, 3, 0, 1.6, 1.6, 25, { ramp: DARKWOOD });
+    p.box(1, 4.6, 8, 14, 1.2, 16, { ramp: LIGHTWOOD });
+    for (const a of [3, 8.5]) p.box(a, 6, 11, 4.5, 0.5, 9, { ramp: [C.e4, C.e5, C.e6, C.pale, C.white] });
+    p.box(0.5, 4.2, 24, 15, 2, 1.5, { ramp: BRASS });
+    p.box(6, 5, 25.5, 4, 1.5, 5, { ramp: BRASS });
+    p.line(8, 6.8, 26, 8, 6.8, 29.5, C.q7);
+    for (const z of [13, 16, 19]) for (const a of [3.5, 9]) p.line(a, 6.6, z, a + 3, 6.6, z, C.steel);
+  });
+}
+
 function trophy(face: Facing): ObjSprite {
   return iso(26, 34, face, (p) => {
     p.box(5, 5, 0, 6, 6, 5, { ramp: DARKWOOD });
@@ -1932,6 +1944,7 @@ export const PROPS: Record<string, Mk> = {
   loom: one(loom),
   rack: one(rack),
   board: one(board),
+  guild_board: one((face) => guildBoardArt(face)),
   trophy: one(trophy),
   street_lamp: anim(2, 2, streetLamp),
   candles: anim(2, 5, candles),

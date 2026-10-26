@@ -1,3 +1,5 @@
+import { guildPanel } from './guild';
+import { readHerd, advanceHerd, breedHerd, isLivestock, LIVESTOCK, HERD_CAPACITY } from '@eigenlands/shared';
 import {
   isMineLine,
   mineLineKey,
@@ -71,12 +73,21 @@ function panelFor(o: WorldObj, p: ServerPlayer): PanelMsg | null {
   if (o.kind === 'station') return { kind: 'station', ...base, station: STATION_SUBS[o.sub] };
   if (o.kind === 'chest') return { kind: 'chest', ...base, chest: chestSlots(o) };
   if (o.kind === 'shelter') {
-    const d = o.data as { animals: number; fed: boolean; ready: number };
-    const f = FARM_ANIMALS[o.sub as 'coop' | 'barn'];
+    const d = readHerd(o.data, o.sub, Number(o.data?.lastDay ?? 0));
     return {
       kind: 'shelter',
       ...base,
-      shelter: { type: o.sub as 'coop' | 'barn', animals: d.animals, max: f.max, fed: d.fed, ready: d.ready },
+      shelter: {
+        type: o.sub as 'coop' | 'barn',
+        animals: d.animals,
+        max: HERD_CAPACITY,
+        fed: d.fed,
+        ready: d.ready,
+        herd: d.herd,
+        stock: d.stock,
+        day: d.lastDay,
+        cared: d.cared === d.lastDay,
+      },
     };
   }
   if (o.kind === 'sign')
@@ -227,6 +238,10 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
     });
     return;
   }
+  if (o.static && o.sub === 'guild_board') {
+    p.client.send(MSG.PANEL, guildPanel(room, p, o));
+    return;
+  }
   if (o.static && o.sub === 'board') {
     p.client.send(MSG.PANEL, boardPanel(p, room.wclock.day(), room.seed, { x: o.x, y: o.y }));
     return;
@@ -278,50 +293,85 @@ export function handleChest(room: RoomApi, p: ServerPlayer, msg: ChestMsg): void
 }
 
 export function handleShelter(room: RoomApi, p: ServerPlayer, msg: ShelterMsg): void {
-  if (!msg || (msg.action !== 'add' && msg.action !== 'feed' && msg.action !== 'collect')) return;
+  if (!msg || !['add', 'feed', 'collect', 'buy', 'care', 'breed'].includes(msg.action) || p.deadT > 0) return;
   const o = ownedAt(room, p, msg.tx, msg.ty, 'shelter');
   if (!o) return;
-  const d = o.data as { animals: number; fed: boolean; ready: number };
-  const f = FARM_ANIMALS[o.sub as 'coop' | 'barn'];
-  if (msg.action === 'add') {
-    if (d.animals >= f.max) {
-      p.toast('It is full.');
+  const day = room.wclock.day();
+  let d = advanceHerd(readHerd(o.data, o.sub, day), day);
+  const base = FARM_ANIMALS[o.sub as 'coop' | 'barn'];
+  if (!base) return;
+  if (msg.action === 'add' || msg.action === 'buy') {
+    const species = msg.action === 'add' ? base.animal : msg.species;
+    if (!isLivestock(species) || LIVESTOCK[species].shelter !== o.sub) return;
+    if (d.herd.length >= HERD_CAPACITY) {
+      p.toast('This shelter is full. Build another for a larger ranch.');
       return;
     }
-    if (!removeItem(p.data.inv, f.animal, 1)) {
-      p.toast(`You need a ${ITEMS[f.animal]?.name.toLowerCase()}.`);
-      return;
+    if (msg.action === 'add') {
+      if (!removeItem(p.data.inv, species, 1)) {
+        p.toast(`Bring a ${species} from the farmer, or adopt one here.`);
+        return;
+      }
+      p.dirty('inv');
+    } else {
+      if (p.data.coins < LIVESTOCK[species].price) {
+        p.toast('Not enough coins.', 'bad');
+        return;
+      }
+      p.data.coins -= LIVESTOCK[species].price;
+      p.dirty('coins');
     }
-    d.animals += 1;
-    p.dirty('inv');
+    d.herd.push({ id: d.serial++, species, born: day - (msg.action === 'add' ? 8 : 0), happy: 60, bred: -1e9 });
+    d.animals = d.herd.length;
   } else if (msg.action === 'feed') {
-    if (d.animals <= 0) {
-      p.toast('There is nobody to feed.');
+    if (d.fed || !d.herd.length) {
+      p.toast(d.fed ? 'Already fed today.' : 'There is nobody to feed.');
       return;
     }
-    if (d.fed) {
-      p.toast('They are already fed today.');
+    if (!removeItem(p.data.inv, 'hay', d.herd.length)) {
+      p.toast(`You need ${d.herd.length} hay.`, 'bad');
       return;
     }
-    if (countItem(p.data.inv, 'hay') < d.animals) {
-      p.toast(`You need ${d.animals} hay.`, 'bad');
-      return;
-    }
-    removeItem(p.data.inv, 'hay', d.animals);
     d.fed = true;
     p.dirty('inv');
+  } else if (msg.action === 'care') {
+    if (d.cared === day || !d.herd.length) {
+      p.toast('Care for them again tomorrow.');
+      return;
+    }
+    d.cared = day;
+    d.herd.forEach((a) => (a.happy = Math.min(100, a.happy + 6)));
+  } else if (msg.action === 'breed') {
+    if (!isLivestock(msg.species)) return;
+    const next = breedHerd(d, msg.species, day);
+    if (!next) {
+      p.toast('Need two fed, happy adults of the same species, a free stall, and four days between births.');
+      return;
+    }
+    if (!removeItem(p.data.inv, 'hay', 2)) {
+      p.toast('Breeding needs 2 extra hay.');
+      return;
+    }
+    d = next;
+    p.dirty('inv');
+    p.toast('A new arrival! Young animals grow over several days.', 'good');
   } else {
-    if (d.ready <= 0) {
-      p.toast(`No ${f.product} yet.`);
+    const products = Object.entries(d.stock)
+      .filter(([, n]) => n > 0)
+      .map(([id, n]) => ({ id, n }));
+    if (!products.length) {
+      p.toast('No products ready yet. Feed and care for your adults.');
       return;
     }
-    if (!giveStacks(p, [{ id: f.product, n: d.ready }])) {
-      p.toast('Your pack is full.', 'bad');
+    if (!giveStacks(p, products)) {
+      p.toast('Make room for the whole collection.', 'bad');
       return;
     }
+    d.stock = {};
     d.ready = 0;
     addSkillXp(p, 'farming', 3);
   }
+  o.data = d;
   room.objects.update(o);
   sendPanel(p, o);
 }

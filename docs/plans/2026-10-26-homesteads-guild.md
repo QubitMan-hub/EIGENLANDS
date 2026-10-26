@@ -1,0 +1,11 @@
+# Homesteads and Adventurer Guild implementation plan
+
+Implement inline without subagents. Extend existing authoritative systems and durable data; preserve old saves, art projection, controls, and the parallel item/crafting/food expansion.
+
+1. Add a pure livestock model with species definitions, legacy shelter migration, daily feeding/growth/happiness/production, bounded storage and breeding. Add deterministic tests before integrating shelter actions. Keep products tied to existing item IDs; publish extension points for the item agent rather than editing its catalogs.
+2. Extend owned shelter messages/panels with species purchase, care, breeding and atomic product collection; retain old chicken/cow inventory addition. Render original, grounded species sprites with quiet idle/feed animation and bounded culling. Verify ownership, reach, costs, full inventory, day replay and persistence.
+3. Add guild contracts and F–SSS progression using persistent quest history and actual server quest events. Registration and unique promotion trials gate ranks, with varied professions/boss/discovery objectives rather than repeatable kill grinding. Add physical isometric boards to existing civic halls using local object injection, retaining saved town geometry. Integrate a readable mobile/desktop guild card/board panel using the existing modal system.
+4. Extend modular structure customization with projected windows/material variation where coherent; retain functional stairs, doors, roofs and owner collision. Document how existing home/farm/workshop construction and furniture work.
+5. Validate types, formatting, units, server authority/persistence and real browser art/gameplay. Update master checklist accurately, distinguishing existing systems, delivered extensions and remaining orchard/vineyard, escort/rescue/diplomacy and settlement governance scope.
+
+Design calls: reuse quest history for guild identity/rank instead of a second progression ledger; use shelter object data for individual livestock instead of unconstrained wandering enemies; add content in focused files and small registration hooks. No new dependencies, mass item catalog changes, or migrations that reset worlds.

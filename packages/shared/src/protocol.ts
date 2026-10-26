@@ -289,6 +289,8 @@ export interface QuestMsg {
   npcId: string;
   quest: string;
   action: 'accept' | 'turnin';
+  tx?: number;
+  ty?: number;
 }
 export interface GiftMsg {
   npcId: string;
@@ -360,21 +362,38 @@ export interface ChestMsg {
 export interface ShelterMsg {
   tx: number;
   ty: number;
-  action: 'add' | 'feed' | 'collect';
+  action: 'add' | 'feed' | 'collect' | 'buy' | 'care' | 'breed';
+  species?: import('./livestock').LivestockSpecies;
 }
 
 export interface PanelMsg {
-  kind: 'station' | 'chest' | 'shelter' | 'sign' | 'lore' | 'board';
+  kind: 'station' | 'chest' | 'shelter' | 'sign' | 'lore' | 'board' | 'guild';
   tx: number;
   ty: number;
   sub: string;
   station?: StationId;
   /** chest contents (30 slots) */
   chest?: Slot[];
-  shelter?: { type: 'coop' | 'barn'; animals: number; max: number; fed: boolean; ready: number };
+  shelter?: {
+    type: 'coop' | 'barn';
+    animals: number;
+    max: number;
+    fed: boolean;
+    ready: number;
+    herd?: import('./livestock').FarmAnimal[];
+    stock?: Record<string, number>;
+    day?: number;
+    cared?: boolean;
+  };
   sign?: string;
   /** reading the statue (and other lore objects) */
   lore?: { title: string; plaque: string; epitaph: string; pages: string[]; remark?: { npc: string; text: string } };
+  guild?: {
+    rank: import('./guild').GuildRank | null;
+    name: string;
+    card: string;
+    contracts: Array<{ id: string; state: 'open' | 'locked' | 'active' | 'ready' | 'done'; progress: number[] }>;
+  };
   /** the daily request board */
   board?: { day: number; requests: BoardRequest[] };
 }

@@ -1,3 +1,4 @@
+import { handleGuild } from './guild';
 /**
  * Quests: story quests from villagers and the daily request board. Objective progress comes from real events reported by
  * every system (`questEvent`), deliveries track the pack, rewards are atomic. See shared/src/quests.ts for the data.
@@ -249,6 +250,10 @@ export function handleQuestMsg(room: RoomApi, p: ServerPlayer, m: QuestMsg): voi
     typeof m.npcId !== 'string'
   )
     return;
+  if (m.npcId === 'guild') {
+    handleGuild(room, p, m);
+    return;
+  }
   if (m.npcId === 'board') {
     const b = boardPos(room.seed);
     if (!b || Math.hypot(b.x + 0.5 - p.sim.x, b.y + 0.5 - p.sim.y) > 4) {

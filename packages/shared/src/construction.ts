@@ -3,6 +3,7 @@ import type { WorldObj } from './objects';
 
 /** Structural pieces share a cell; furnishings continue to occupy the ordinary object layer. */
 export const BUILD_PIECES = {
+  irrigation_channel: { name: 'Irrigation Channel', layer: 'floor', material: 'stone', cost: [['stone', 3], ['wood', 1]] },
   timber_floor: { name: 'Timber Floor', layer: 'floor', material: 'timber', cost: [['wood', 2]] },
   stone_floor: { name: 'Flagstone Floor', layer: 'floor', material: 'stone', cost: [['stone', 3]] },
   timber_wall: {
@@ -15,6 +16,42 @@ export const BUILD_PIECES = {
     ],
   },
   stone_wall: { name: 'Stone Wall', layer: 'wall', material: 'stone', cost: [['stone', 5]] },
+  timber_window: {
+    name: 'Timber Window Wall',
+    layer: 'wall',
+    material: 'timber',
+    cost: [
+      ['wood', 5],
+      ['stone', 1],
+    ],
+  },
+  stone_window: {
+    name: 'Stone Window Wall',
+    layer: 'wall',
+    material: 'stone',
+    cost: [
+      ['stone', 7],
+      ['wood', 1],
+    ],
+  },
+  terracotta_roof: {
+    name: 'Terracotta Roof',
+    layer: 'roof',
+    material: 'tile',
+    cost: [
+      ['stone', 3],
+      ['wood', 2],
+    ],
+  },
+  moss_roof: {
+    name: 'Living Moss Roof',
+    layer: 'roof',
+    material: 'moss',
+    cost: [
+      ['fiber', 6],
+      ['wood', 2],
+    ],
+  },
   timber_door: { name: 'Timber Door', layer: 'wall', material: 'timber', cost: [['wood', 4]] },
   shingle_roof: {
     name: 'Slate Roof',
@@ -47,9 +84,9 @@ export const BUILD_PIECES = {
 export type BuildPiece = keyof typeof BUILD_PIECES;
 export type BuildTurn = 0 | 1 | 2 | 3;
 export interface BuildData extends Record<string, unknown> {
-  floor?: 'timber_floor' | 'stone_floor';
-  wall?: 'timber_wall' | 'stone_wall' | 'timber_door';
-  roof?: 'shingle_roof' | 'thatch_roof';
+  floor?: 'timber_floor' | 'stone_floor' | 'irrigation_channel';
+  wall?: 'timber_wall' | 'stone_wall' | 'timber_door' | 'timber_window' | 'stone_window';
+  roof?: 'shingle_roof' | 'thatch_roof' | 'terracotta_roof' | 'moss_roof';
   stairs?: 'up' | 'down';
   wallTurn?: BuildTurn;
   roofTurn?: BuildTurn;

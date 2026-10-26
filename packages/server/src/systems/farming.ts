@@ -1,3 +1,4 @@
+import { readHerd, advanceHerd } from '@eigenlands/shared';
 import {
   CROPS,
   FARM_ANIMALS,
@@ -34,10 +35,30 @@ export const lanternNear = (room: RoomApi, x: number, y: number): boolean => {
   return false;
 };
 
+/** Short connected channels carry real water; isolated/deeply extended channels stay dry. */
+export function channelWatered(room: RoomApi, x: number, y: number): boolean {
+  const first=room.store.structureAt(x,y);
+  if(first?.data.floor!=='irrigation_channel')return false;
+  const queue:Array<[number,number]>=[[x,y]],seen=new Set<string>(),level=room.store.levelAt(x,y);
+  for(let i=0;i<queue.length&&i<64;i++){
+    const [cx,cy]=queue[i]!,key=`${cx},${cy}`;
+    if(seen.has(key))continue;seen.add(key);
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx=cx+dx!,ny=cy+dy!,tile=room.store.getTile(nx,ny);
+      if(room.store.levelAt(nx,ny)!==level)continue;
+      if(tile===T.WATER||tile===T.DEEP_WATER)return true;
+      const next=room.store.structureAt(nx,ny);
+      if(next?.owner===first.owner&&next.data.floor==='irrigation_channel'&&!seen.has(`${nx},${ny}`))queue.push([nx,ny]);
+    }
+  }
+  return false;
+}
+
 export const sprinklerNear = (room: RoomApi, x: number, y: number): boolean => {
   for (let dy = -1; dy <= 1; dy++) {
     for (let dx = -1; dx <= 1; dx++) {
       if (!dx && !dy) continue;
+      if (Math.abs(dx) + Math.abs(dy) === 1 && channelWatered(room, x + dx, y + dy)) return true;
       const o = room.store.objectAt(x + dx, y + dy);
       if (o && o.kind === 'sprinkler' && sprinklerCovers(o.sub, -dx, -dy)) return true;
     }
@@ -67,13 +88,10 @@ export function refreshCrop(room: RoomApi, o: WorldObj, today: number): boolean 
 
 /** Shelters produce once per day when fed. */
 export function rollShelter(o: WorldObj, day: number): boolean {
-  const d = o.data as { animals: number; fed: boolean; ready: number; lastDay?: number };
-  if (!d || (d.lastDay !== undefined && d.lastDay >= day)) return false;
-  d.lastDay = day;
-  if (d.fed) {
-    d.ready += d.animals;
-    d.fed = false;
-  }
+  const d = readHerd({ ...o.data, lastDay: o.data?.lastDay ?? day - 1 }, o.sub, day);
+  const n = advanceHerd(d, day);
+  if (n === d && o.data?.herd) return false;
+  o.data = n;
   return true;
 }
 

@@ -36,6 +36,11 @@ export function constructionCanvas(
             ? C.e4
             : C.e3;
     });
+    if (id === 'irrigation_channel') {
+      iso.top(2,2,0.1,12,12,C.w2);
+      iso.box(0,0,0,16,2,2,stone);iso.box(0,14,0,16,2,2,stone);
+      iso.line3(3,7,.2,9,7,.2,C.w4);
+    }
   } else if (layer === 'wall') {
     const h = cut ? 6 : 36,
       door = id === 'timber_door',
@@ -58,7 +63,7 @@ export function constructionCanvas(
       }
     } else {
       const m =
-        id === 'stone_wall'
+        id === 'stone_wall' || id === 'stone_window'
           ? stone
           : {
               top: C.e4,
@@ -67,12 +72,19 @@ export function constructionCanvas(
               right: ((s, t) => (s < 0.13 || s > 0.87 || t < 0.09 || t > 0.93 ? C.e0 : C.e4)) as Paint,
             };
       panel(0, 6, 0, 16, 4, h, m);
-      if (id === 'stone_wall' && !cut)
+      if ((id === 'stone_wall' || id === 'stone_window') && !cut)
         for (let z = 6; z < h; z += 7) {
           along ? iso.line3(0, 10, z, 16, 10, z, C.slate) : iso.line3(10, 0, z, 10, 16, z, C.night);
           for (let s = z % 14 === 6 ? 3 : 7; s < 16; s += 8)
             along ? iso.line3(s, 10, z, s, 10, z + 6, C.steel) : iso.line3(10, s, z, 10, s, z + 6, C.slate);
         }
+    }
+    if (id.endsWith('_window') && !cut) {
+      panel(3, 9.7, 10, 10, 0.8, 17, mat([C.w0, C.w1, C.w2, C.w4, C.w5]));
+      panel(2, 9.3, 8, 12, 2, 2, stone);
+      panel(7, 9.1, 10, 1.5, 2, 17, wood);
+      panel(3, 9.1, 18, 10, 2, 1.5, wood);
+      panel(2, 9.1, 27, 12, 2, 1.5, wood);
     }
   } else if (layer === 'stairs') {
     if (open) {
@@ -96,7 +108,14 @@ export function constructionCanvas(
       : iso.line3(2, sign > 0 ? 0 : 16, 29, 2, sign > 0 ? 16 : 0, 5, C.e5);
   } else {
     const thatch = id === 'thatch_roof',
-      ramp = thatch ? [C.e1, C.e2, C.e3, C.e4, C.e5] : [C.night, C.slate, C.w1, C.steel, C.mist];
+      ramp =
+        id === 'terracotta_roof'
+          ? [C.r0, C.r1, C.r2, C.r3, C.r4]
+          : id === 'moss_roof'
+            ? [C.g0, C.g1, C.g2, C.g3, C.g4]
+            : thatch
+              ? [C.e1, C.e2, C.e3, C.e4, C.e5]
+              : [C.night, C.slate, C.w1, C.steel, C.mist];
     const paint: Paint = (s, t) => {
       const row = Math.floor(t * 24),
         seam = (s * 16 + (Math.floor(row / 4) % 2) * 3) % 6;

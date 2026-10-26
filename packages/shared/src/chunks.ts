@@ -1,3 +1,4 @@
+import { guildBoard } from './guild';
 import { frontierTownAt, frontierTownsNear } from './frontier';
 import { mineLineAt, mineLoopAt } from './mines';
 import { buildTile, type BuildCell } from './construction';
@@ -162,7 +163,10 @@ export class ChunkStore {
   townObjectsIn(cx: number, cy: number): WorldObj[] {
     if (!this.townByChunk) {
       this.townByChunk = new Map();
-      for (const o of townsFor(this.seed).flatMap((t) => t.objects)) {
+      for (const o of townsFor(this.seed).flatMap((t) => {
+        const board = guildBoard(t);
+        return board ? [...t.objects, board] : t.objects;
+      })) {
         const k = chunkKey(chunkOf(o.x), chunkOf(o.y));
         const list = this.townByChunk.get(k) ?? [];
         list.push({ x: o.x, y: o.y, kind: o.kind, sub: o.sub, static: true, ...(o.data ? { data: o.data } : {}) });
@@ -172,7 +176,10 @@ export class ChunkStore {
     const town = [
       ...(this.townByChunk.get(chunkKey(cx, cy)) ?? []),
       ...frontierTownsNear(this.seed, cx * 32, cy * 32, cx * 32 + 31, cy * 32 + 31, this.generation)
-        .flatMap((t) => t.objects)
+        .flatMap((t) => {
+          const board = guildBoard(t);
+          return board ? [...t.objects, board] : t.objects;
+        })
         .filter((o) => chunkOf(o.x) === cx && chunkOf(o.y) === cy)
         .map((o) => ({ ...o, static: true })),
     ];

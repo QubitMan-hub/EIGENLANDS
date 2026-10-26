@@ -1,3 +1,4 @@
+import { questEvent } from '../../systems/quests';
 /**
  * Standing armies and border wars (world revision 5). Settlements are garrisoned by their kingdom's soldiers, who
  * patrol the walls and fight anything hostile; the seasonal war calendar (shared wars.ts) sends raiding parties of a
@@ -513,6 +514,7 @@ export class ArmyModule implements Module {
       if (repelled && r.contrib.has(p.id)) {
         const rep = 25 * r.plan.scale,
           coins = 30 * r.plan.scale;
+        questEvent(p, { type: 'discover', target: `guild:defend:${r.plan.defender}`, n: 1 });
         gainRep(p, r.plan.defender, rep);
         p.data.coins += coins;
         p.dirty('coins');

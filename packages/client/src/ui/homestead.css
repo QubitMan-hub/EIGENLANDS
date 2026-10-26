@@ -1,0 +1,113 @@
+.guild-ledger,
+.herd-panel {
+  color: var(--ink-dark, #2a1f16);
+  background: var(--parchment, #ecdfb8);
+  padding: 16px;
+  line-height: 1.5;
+}
+.guild-card {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  border-bottom: 2px solid var(--bronze, #917148);
+  padding-bottom: 12px;
+}
+.guild-card h2,
+.guild-contract h3 {
+  margin: 0 0 6px;
+}
+.guild-seal {
+  display: grid;
+  place-items: center;
+  min-width: 58px;
+  height: 58px;
+  background: #304e46;
+  color: #f0dfb8;
+  border: 3px double #b69a62;
+  font-size: 25px;
+}
+.guild-ladder {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+.guild-ladder span {
+  padding: 2px 7px;
+  border-bottom: 2px solid #b7a580;
+}
+.guild-ladder .current {
+  background: #304e46;
+  color: #f5e6c7;
+  border-color: #be943f;
+}
+.guild-contract {
+  padding: 14px 0;
+  border-bottom: 1px solid #b7a580;
+}
+.guild-contract p {
+  margin: 6px 0;
+}
+.guild-ledger button,
+.herd-panel button {
+  min-height: 40px;
+}
+.herd-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+.herd-animal {
+  padding: 10px;
+  border: 1px solid #b7a580;
+}
+.herd-animal img {
+  width: 72px;
+  height: 64px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  float: left;
+  margin-right: 8px;
+}
+.herd-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.herd-adoption {
+  margin: 10px 0;
+}
+.herd-adoption summary {
+  cursor: pointer;
+  padding: 8px 0;
+}
+.herd-adoption button {
+  margin: 4px;
+}
+@media (max-width: 600px) {
+  .guild-ledger,
+  .herd-panel {
+    padding: 10px;
+  }
+  .guild-card {
+    gap: 10px;
+  }
+  .guild-card h2 {
+    font-size: 18px;
+  }
+  .herd-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .herd-animal {
+    padding: 6px;
+  }
+  .herd-animal img {
+    float: none;
+    display: block;
+  }
+  .guild-ledger .dbtns {
+    display: flex;
+    flex-wrap: wrap;
+  }
+}
