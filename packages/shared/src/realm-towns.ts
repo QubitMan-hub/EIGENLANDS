@@ -43,10 +43,10 @@ interface Profile {
 const PROFILE: Record<RealmId, Profile> = {
   aurelion: {
     houses: [
-      [10, 8],
-      [12, 8],
-      [11, 9],
-      [13, 9],
+      [7, 6],
+      [9, 6],
+      [8, 7],
+      [10, 7],
     ],
     manor: 0.2,
     wall: 'stone',
@@ -57,10 +57,10 @@ const PROFILE: Record<RealmId, Profile> = {
   },
   sylvaris: {
     houses: [
-      [9, 7],
-      [11, 7],
-      [14, 6],
-      [8, 8],
+      [6, 5],
+      [8, 5],
+      [11, 5],
+      [6, 6],
     ],
     manor: 0.1,
     wall: 'hedge',
@@ -71,10 +71,10 @@ const PROFILE: Record<RealmId, Profile> = {
   },
   khardum: {
     houses: [
-      [8, 9],
-      [9, 8],
-      [10, 10],
-      [12, 8],
+      [6, 7],
+      [6, 6],
+      [7, 8],
+      [9, 6],
     ],
     manor: 0.12,
     wall: 'stone',
@@ -85,10 +85,10 @@ const PROFILE: Record<RealmId, Profile> = {
   },
   raijin: {
     houses: [
-      [9, 7],
-      [10, 7],
-      [8, 8],
-      [12, 8],
+      [6, 5],
+      [7, 5],
+      [6, 6],
+      [9, 6],
     ],
     manor: 0.15,
     wall: 'palisade',
@@ -99,10 +99,10 @@ const PROFILE: Record<RealmId, Profile> = {
   },
   thalassara: {
     houses: [
-      [9, 8],
-      [10, 7],
-      [12, 8],
-      [11, 9],
+      [6, 6],
+      [7, 5],
+      [9, 6],
+      [8, 7],
     ],
     manor: 0.15,
     wall: 'canal',
@@ -113,10 +113,10 @@ const PROFILE: Record<RealmId, Profile> = {
   },
   nethrakar: {
     houses: [
-      [9, 9],
-      [10, 8],
-      [11, 10],
+      [6, 7],
+      [7, 6],
       [8, 8],
+      [6, 6],
     ],
     manor: 0.2,
     wall: 'obsidian',

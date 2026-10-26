@@ -75,6 +75,39 @@ interface Style {
   shape?: RoofShape;
 }
 export type RoofShape = 'gable' | 'hip' | 'pagoda' | 'dome' | 'flat' | 'spire';
+/** How a gabled house's roof is cut: a plain ridge, a cross-gable wing, two-slope gambrel, rolled barrel, swept curve or clipped hip. */
+type Form = 'plain' | 'cross' | 'gambrel' | 'barrel' | 'swoop' | 'jerkin';
+const FORMS_BY_REALM: Form[][] = [
+  ['plain', 'cross', 'cross', 'jerkin', 'gambrel', 'plain'], // aurelion: timbered gables
+  ['barrel', 'swoop', 'barrel', 'cross', 'swoop', 'plain'], // sylvaris: living, curved roofs
+  ['plain', 'jerkin', 'gambrel', 'plain', 'cross', 'jerkin'], // khardum: steep and heavy
+  ['swoop', 'cross', 'swoop', 'jerkin', 'plain', 'barrel'], // raijin
+  ['barrel', 'barrel', 'swoop', 'cross', 'gambrel', 'barrel'], // thalassara
+  ['jerkin', 'cross', 'plain', 'gambrel', 'jerkin', 'cross'], // nethrakar
+];
+/** Roof colours a house can wear instead of its kingdom's default: terracotta, teal, violet slate, blue, moss, honey thatch. */
+const ALT_ROOFS: Array<{ ramp: Ramp; kind: Style['roofKind'] }> = [
+  { ramp: [C.w1, C.t0, C.t1, C.t2, C.w5], kind: 'tile' },
+  { ramp: [C.q0, C.q1, C.q2, C.q3, C.q4], kind: 'slate' },
+  { ramp: [C.c0, C.c1, C.c2, C.c3, C.e5], kind: 'tile' },
+  { ramp: [C.w1, C.b0, C.b1, C.w5, C.w6], kind: 'tile' },
+  { ramp: [C.g1, C.n1, C.n2, C.n3, C.n4], kind: 'shingle' },
+  { ramp: [C.e2, C.e4, C.e5, C.e6, C.e7], kind: 'thatch' },
+  { ramp: [C.r1, C.r2, C.r3, C.e5, C.e6], kind: 'tile' },
+];
+/** An extra solid on a building's roof sprite (a corner tower), tested before the roof along every ray. */
+interface Vol {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+  zmin: number;
+  ztop: number;
+  /** colour at a point inside the bounding box and below `ztop`, or -1 where the volume is empty */
+  hit: (x: number, y: number, z: number, px: number, py: number) => number;
+}
+const x1Of = (b: Building) => b.x + b.w;
+const HOUSE_KINDS = ['house', 'farmhouse', 'inn', 'store', 'hall', 'smithy'];
 const STYLES: Style[] = [
   {
     wall: [C.e4, C.e5, C.e6, C.e7, C.white],
@@ -502,14 +535,44 @@ const SEA_STYLE: Style = {
   roofKind: 'tile',
   trim: C.pale,
 };
+/** Shutter and trim colours a house may be painted with, whatever its kingdom. */
+const SHUTTERS: Ramp[] = [
+  [C.g1, C.g2, C.g3, C.g4],
+  [C.w1, C.b0, C.b1, C.w5],
+  [C.r0, C.r1, C.r2, C.r3],
+  [C.t0, C.t1, C.t2, C.w6],
+  [C.q0, C.q1, C.q2, C.q3],
+  [C.e0, C.e1, C.e2, C.e3],
+  [C.c0, C.c1, C.c2, C.c3],
+];
+/** Plaster washes: honey, rose, sky, sage, sand, lilac, buttermilk. */
+const PLASTERS: Ramp[] = [
+  [C.e4, C.e5, C.e6, C.e7, C.white],
+  [C.r4, C.r5, C.r6, C.e6, C.white],
+  [C.w4, C.w5, C.w6, C.pale, C.white],
+  [C.g4, C.g5, C.g6, C.pale, C.white],
+  [C.e3, C.e4, C.e5, C.e6, C.pale],
+  [C.q3, C.q4, C.q5, C.pale, C.white],
+  [C.e5, C.e6, C.e7, C.white, C.white],
+];
+/** A house's own paint: a third of plastered houses take another wash, most take their own shutter colour. */
+function paint(b: Building, st: Style): Style {
+  if (!HOUSE_KINDS.includes(b.kind) || buildingRealm(b) !== 'surface') return st;
+  const h = (k: number) => hash2(b.x * 31 + b.y * 17, k, 55, 93);
+  const out = { ...st };
+  if (st.kind === 'plaster' && h(1) < 0.45) out.wall = PLASTERS[Math.floor(h(2) * PLASTERS.length)]!;
+  if (st.shutter && h(3) < 0.75) out.shutter = SHUTTERS[Math.floor(h(4) * SHUTTERS.length)]!;
+  if (st.timber && h(5) < 0.25) out.timber = [C.ink, C.night, C.slate, C.steel];
+  return out;
+}
 const styleFor = (b: Building) =>
   buildingRealm(b) === 'cave'
     ? CAVE_STYLE
     : buildingRealm(b) === 'sea'
       ? SEA_STYLE
       : b.style >= 4
-        ? realmStyle(b)
-        : STYLES[b.style % 4]!;
+        ? paint(b, realmStyle(b))
+        : paint(b, STYLES[b.style % 4]!);
 function realmStyle(b: Building): Style {
   const st = REALM_STYLES[(b.style - 4) % REALM_STYLES.length]!;
   return (b.kind as string) === 'tower' ? { ...st, shape: 'spire' } : st;
@@ -595,6 +658,14 @@ function wallMat(b: Building, st: Style, seed: number, interior: boolean, capC: 
         iz,
       );
     }
+    // a stone ground floor under a plastered, timbered upper storey (a third of the plastered houses)
+    if (st.kind === 'plaster' && hash2(seed, 3, 7, 88) < 0.34 && z < 19) {
+      const row = Math.floor((z - 6) / 6);
+      const off = row % 2 ? 6 : 0;
+      if (Math.floor(z - 6) % 6 === 5 || Math.floor(upx + off) % 12 === 0) return C.steel;
+      const blk = Math.floor((upx + off) / 12);
+      return rampAt(GRANITE, 0.6 + lightOff + (hash2(seed, blk, row, 4) - 0.5) * 0.3, ix, iz);
+    }
     // plaster + timber framing
     const tim = st.timber!;
     const post = fu < 0.07 || fu > 0.93 || atCorner;
@@ -633,7 +704,15 @@ function buildRoof(
   const span = alongX ? b.h / 2 + o : b.w / 2 + o;
   const realm = buildingRealm(b);
   const shape: RoofShape = realm === 'surface' ? (st.shape ?? 'gable') : 'gable';
-  const baseRise = Math.min(span * 11, 40);
+  const hv = (k: number) => hash2(seed, k, 77, 91);
+  const realmIdx = b.style >= 4 ? Math.floor((b.style - 4) / 5) % FORMS_BY_REALM.length : 0;
+  const house = realm === 'surface' && shape === 'gable' && HOUSE_KINDS.includes(b.kind);
+  const form: Form = house ? FORMS_BY_REALM[realmIdx]![Math.floor(hv(1) * 6)]! : 'plain';
+  const pitch = house ? 0.85 + hv(2) * 0.7 : 1;
+  // a third of the houses wear another colour of roof than their kingdom's default
+  const alt = house && hv(3) < 0.4 ? ALT_ROOFS[Math.floor(hv(4) * ALT_ROOFS.length)]! : null;
+  const rk = alt ? alt.kind : st.roofKind;
+  const baseRise = Math.min(span * 11 * pitch * (form === 'gambrel' ? 1.2 : 1), 54);
   const rise =
     shape === 'spire'
       ? Math.min(span * 15, 54)
@@ -659,11 +738,40 @@ function buildRoof(
     if (shape === 'dome') return Math.sqrt(Math.max(0, 1 - across * across - along * along));
     return 1;
   };
+  /** distance from the ridge across the slope, 0 at the ridge to 1 at the eave, and the form's height over it */
+  const profile = (d: number): number => {
+    if (form === 'gambrel') return d < 0.4 ? 1 - d * 0.55 : 0.78 - (d - 0.4) * 1.3;
+    if (form === 'barrel') return Math.sqrt(Math.max(0, 1 - d * d));
+    if (form === 'swoop') return Math.pow(1 - d, 1.8) + (d > 0.88 ? (d - 0.88) * 0.5 : 0);
+    return 1 - d;
+  };
+  const mainZ = (x: number, y: number): number => {
+    const d = Math.min(1, Math.abs((alongX ? y : x) - mid) / span);
+    let h = profile(d);
+    if (form === 'jerkin') h = Math.min(h, (alongHalf - Math.abs((alongX ? x : y) - aMid)) / (span * 0.62));
+    return zE + rise * Math.max(0, h);
+  };
+  // a cross-gable wing: a second, lower ridge running across the main one toward the street
+  const wing =
+    form === 'cross'
+      ? {
+          a: aMid + (hv(5) - 0.5) * alongHalf * 0.7,
+          half: Math.min(span * 0.9, alongHalf * 0.42),
+          rise: rise * 0.8,
+        }
+      : null;
+  const wingZ = (x: number, y: number): number => {
+    if (!wing) return -Infinity;
+    const a = alongX ? x : y,
+      n = alongX ? y : x;
+    if (n < mid || Math.abs(a - wing.a) > wing.half) return -Infinity;
+    return zE + wing.rise * (1 - Math.abs(a - wing.a) / wing.half);
+  };
   const roofZ = (x: number, y: number) => {
     const d = Math.min(1, Math.abs((alongX ? y : x) - mid) / span);
     if (realm === 'cave') return zE + 18 * Math.sqrt(Math.max(0, 1 - d * d));
     if (realm === 'sea') return zE + 28 * Math.sqrt(Math.max(0, 1 - d * d));
-    if (shape === 'gable') return zE + rise * (1 - d);
+    if (shape === 'gable') return Math.max(mainZ(x, y), wingZ(x, y));
     if (shape === 'flat') {
       // crenellated parapet around a low platform
       const ex = Math.min(x - b.x, b.x + b.w - x),
@@ -689,17 +797,80 @@ function buildRoof(
       ? { x0: alongX ? b.x + b.w * 0.7 : mid + 0.2, y0: alongX ? mid - 0.9 : b.y + b.h * 0.3, s: 0.75 }
       : null;
   const chTop = zR + 8;
-  const L = Math.floor((X0 - Y1) * 16) - 2,
+  // a round corner tower under a cone of roof tiles, on some of the larger houses (the kingdoms of keeps favour them)
+  const R0 = alt ? alt.ramp : st.roof;
+  const turretOdds = realmIdx === 2 || realmIdx === 0 || realmIdx === 5 ? 0.3 : 0.16;
+  const towered = house && b.w >= 7 && b.h >= 6 && form !== 'barrel' && hv(7) < turretOdds;
+  const vols: Vol[] = [];
+  if (towered) {
+    const cx = b.doorX - b.x > b.w / 2 ? b.x + 1.3 : x1Of(b) - 1.3,
+      cy = b.y + b.h - 1.3,
+      r = 1.5,
+      bodyTop = zE + 8,
+      coneH = 30;
+    const mask = [R0[1]!, R0[2]!, R0[3]!, R0[4]!];
+    vols.push({
+      x0: cx - r - 0.5,
+      x1: cx + r + 0.5,
+      y0: cy - r - 0.5,
+      y1: cy + r + 0.5,
+      zmin: 0,
+      ztop: bodyTop + coneH,
+      hit: (x, y, z, px, py) => {
+        const dx = x - cx,
+          dy = y - cy,
+          rho = Math.hypot(dx, dy);
+        if (rho > r + 0.4) return -1;
+        const lit = -(dx - dy) / (Math.SQRT2 * Math.max(rho, 0.001)); // +1 faces the light (screen left)
+        const cone = bodyTop + coneH * (1 - rho / (r + 0.4));
+        if (z >= bodyTop - 1.5 && z <= cone) {
+          if (z > bodyTop + coneH - 3 && rho < 0.2) return C.e6; // finial
+          const course = Math.floor((r + 0.4 - rho) * 16) % 4;
+          const ang = Math.floor(((Math.atan2(dy, dx) + Math.PI) / (Math.PI * 2)) * 14);
+          const t =
+            0.5 +
+            lit * 0.26 +
+            (course === 0 ? -0.16 : 0.06) +
+            (hash2(seed, ang, Math.floor((r + 0.4 - rho) * 4), 21) - 0.5) * 0.14;
+          return rampAt(R0, Math.max(0.1, Math.min(0.95, t)), px, py);
+        }
+        if (rho <= r && z < bodyTop - 1.5) {
+          const ang = Math.atan2(dy, dx);
+          if (Math.abs(ang - Math.PI / 4) < 0.16 && z > bodyTop - 17 && z < bodyTop - 7)
+            return Math.abs(ang - Math.PI / 4) < 0.07 ? GLASS_DAY[2]! : C.night; // an arrow-slit
+          if (z > bodyTop - 5) return rampAt(st.wall, 0.45 + lit * 0.25, px, py); // plaster collar
+          const row = Math.floor(z / 5);
+          const blk = Math.floor(((ang + Math.PI) / (Math.PI * 2)) * 18 + (row % 2) * 0.5);
+          if (Math.floor(z) % 5 === 4) return C.steel;
+          return rampAt(GRANITE, 0.55 + lit * 0.3 + (hash2(seed, blk, row, 22) - 0.5) * 0.25, px, py);
+        }
+        return -1;
+      },
+    });
+    void mask;
+  }
+  let L = Math.floor((X0 - Y1) * 16) - 2,
     R = Math.ceil((X1 - Y0) * 16) + 2;
+  let vTop = chTop,
+    vBot = zE;
+  for (const v of vols) {
+    L = Math.min(L, Math.floor((v.x0 - v.y1) * 16) - 2);
+    R = Math.max(R, Math.ceil((v.x1 - v.y0) * 16) + 2);
+    vTop = Math.max(vTop, v.ztop);
+    vBot = Math.min(vBot, v.zmin);
+  }
   const hasCanopy =
     realm === 'surface' && (b.kind === 'hall' || b.kind === 'inn' || b.kind === 'store' || b.id === 'bakery');
-  const top = Math.floor((X0 + Y0) * 8 - chTop) - 3,
-    bot = Math.ceil((X1 + Y1) * 8 - zE) + (hasCanopy ? 28 : 6);
+  const top = Math.floor(Math.min((X0 + Y0) * 8 - chTop, ...vols.map((v) => (v.x0 + v.y0) * 8 - v.ztop))) - 3,
+    bot =
+      Math.ceil(
+        Math.max((X1 + Y1) * 8 - zE + (hasCanopy ? 28 : 6) - 6, ...vols.map((v) => (v.x1 + v.y1) * 8 - v.zmin)),
+      ) + 6;
   // Small cross-gables emerge from the camera-facing slope. Their volume is
   // intersected by the same world-space rays as the main roof, so valleys and
   // chimney occlusion remain correct in both ridge orientations.
   const count =
-    realm !== 'surface' || shape !== 'gable'
+    realm !== 'surface' || shape !== 'gable' || form === 'cross' || form === 'barrel' || form === 'swoop'
       ? 0
       : b.kind === 'inn' || b.kind === 'hall'
         ? 2
@@ -716,7 +887,6 @@ function buildRoof(
   const w = R - L,
     h = bot - top;
   const { canvas, ctx } = makeCanvas(w, h);
-  const R0 = st.roof;
   const windows: Array<{ x: number; y: number }> = [];
   const glass: Array<[number, number, number]> = [];
   // Rays move (+1/16,+1/16) in tile space per vertical pixel. Intersect their
@@ -747,12 +917,13 @@ function buildRoof(
           X1,
           Y1,
           realm === 'surface'
-            ? shape === 'gable'
+            ? shape === 'gable' && form === 'plain'
               ? gableCap(alongX ? ay : ax, mid, zE, rise, rise / span)
               : zE + rise + 6
             : zE + (realm === 'cave' ? 18 : 28),
         );
         if (ch) cap = Math.max(cap, boxCap(ax, ay, ch.x0, ch.y0, ch.x0 + ch.s, ch.y0 + ch.s, chTop));
+        for (const v of vols) cap = Math.max(cap, boxCap(ax, ay, v.x0, v.y0, v.x1, v.y1, v.ztop));
         for (const d of dormers)
           cap = Math.max(
             cap,
@@ -768,7 +939,7 @@ function buildRoof(
           );
         if (!Number.isFinite(cap)) continue;
         const start = chTop - Math.max(0, Math.floor((chTop - cap) * 2)) * 0.5;
-        for (let z = start; z >= zE - 4; z -= 0.5) {
+        for (let z = start; z >= vBot - 1 && z >= (vols.length ? 0 : zE - 4); z -= 0.5) {
           const Q = (sy + z) / 8,
             x = (Q + P) / 2,
             y = (Q - P) / 2;
@@ -798,6 +969,16 @@ function buildRoof(
             put(ctx, px, py, c);
             break;
           }
+          let volHit = false;
+          for (const v of vols) {
+            if (x < v.x0 || x > v.x1 || y < v.y0 || y > v.y1 || z > v.ztop) continue;
+            const c = v.hit(x, y, z, px, py);
+            if (c < 0) continue;
+            put(ctx, px, py, c);
+            volHit = true;
+            break;
+          }
+          if (volHit) break;
           let dormerHit = false;
           for (const d of dormers) {
             const a = alongX ? x : y,
@@ -839,17 +1020,25 @@ function buildRoof(
               put(ctx, px, py, alongX ? (y > mid ? st.trim : R0[0]!) : x > mid ? st.trim : R0[0]!);
               break;
             }
-            // roof surface: courses run along the ridge
-            const along = alongX ? x : y,
-              down = Math.abs((alongX ? y : x) - mid);
-            const side = (alongX ? y : x) > mid ? 1 : -1; // +1 = south/east slope (faces the camera)
-            const lit = alongX ? (side > 0 ? 0.18 : -0.02) : side > 0 ? -0.25 : 0.12;
+            // roof surface: courses run along the ridge (of the cross-gable wing where that is the higher surface)
+            const onWing = !!wing && wingZ(x, y) > mainZ(x, y);
+            const ridgeX = onWing ? !alongX : alongX,
+              ridgeAt = onWing ? wing!.a : mid;
+            const along = ridgeX ? x : y,
+              down = Math.abs((ridgeX ? y : x) - ridgeAt);
+            const side = (ridgeX ? y : x) > ridgeAt ? 1 : -1; // +1 = south/east slope (faces the camera)
+            const lit = ridgeX ? (side > 0 ? 0.18 : -0.02) : side > 0 ? -0.25 : 0.12;
             const dpx =
                 shape === 'gable' || shape === 'flat' ? down * 16 : (1 - Math.min(1, (rz - zE) / rise)) * span * 16,
               apx = along * 16;
             let t = 0.55 + lit;
             let c: number;
-            if ((shape === 'gable' || shape === 'hip') && Math.abs(down) < 0.12) {
+            if (
+              (shape === 'gable' || shape === 'hip') &&
+              form !== 'barrel' &&
+              form !== 'swoop' &&
+              Math.abs(down) < 0.12
+            ) {
               c = rampAt(R0, 0.85 + lit, px, py);
               put(ctx, px, py, c);
               break;
@@ -860,19 +1049,19 @@ function buildRoof(
             } else if (realm === 'sea') {
               const rib = Math.floor(apx) % 24;
               t += (rib < 2 ? 0.25 : 0) + (Math.floor(dpx) % 6 === 0 ? -0.12 : 0);
-            } else if (st.roofKind === 'thatch') {
+            } else if (rk === 'thatch') {
               const strand = hash2(seed, Math.floor(apx / 3), Math.floor(dpx / 4), 9);
               const course = Math.floor(dpx) % 10;
               t += (strand - 0.5) * 0.14 + (course === 0 ? -0.18 : course < 2 ? 0.1 : 0);
             } else {
-              const rowH = st.roofKind === 'slate' ? 6 : st.roofKind === 'tile' ? 5 : 5;
+              const rowH = rk === 'slate' ? 6 : rk === 'tile' ? 5 : 5;
               const row = Math.floor(dpx / rowH);
-              const len = st.roofKind === 'tile' ? 8 : st.roofKind === 'slate' ? 11 : 8;
+              const len = rk === 'tile' ? 8 : rk === 'slate' ? 11 : 8;
               const off = (row % 2) * (len / 2);
               const k = Math.floor((apx + off) / len);
               const fr = apx + off - k * len,
                 fz = dpx - row * rowH;
-              if (st.roofKind === 'tile') {
+              if (rk === 'tile') {
                 // scalloped clay tiles: each tile is a rounded fish-scale lit from the upper left, overlapped by the next row
                 const u = (fr / len - 0.5) * 2,
                   v = fz / rowH;
@@ -886,7 +1075,7 @@ function buildRoof(
                 if (fr < 0.7) t -= 0.14;
                 t += (hash2(seed, k, row, 10) - 0.5) * 0.16 + (fz > rowH - 1.5 ? 0.1 : 0);
               }
-              if (st.roofKind === 'shingle' && hash2(seed, k, row, 11) > 0.93) t -= 0.25; // the odd mossy shingle
+              if (rk === 'shingle' && hash2(seed, k, row, 11) > 0.93) t -= 0.25; // the odd mossy shingle
             }
             // eave darkening: the lowest course reads as an overhang
             if (dpx > span * 16 - 3) t -= 0.18;
@@ -896,11 +1085,28 @@ function buildRoof(
           }
           // below the slab: the gable wall (only the part above the walls, inside the wall footprint)
           if (shape === 'gable' && z >= zE && inWalls(x, y)) {
-            const gableFace = alongX ? (x > b.x + b.w - 0.05 ? 'east' : null) : y > b.y + b.h - 0.05 ? 'south' : null;
+            let gableFace: 'east' | 'south' | null = alongX
+              ? x > b.x + b.w - 0.05
+                ? 'east'
+                : null
+              : y > b.y + b.h - 0.05
+                ? 'south'
+                : null;
+            let cu = mid,
+              zMid = zE + rise * 0.35;
+            // the cross-gable wing shows its own triangle on the street side
+            if (wing) {
+              const a = alongX ? x : y;
+              if (alongX ? y > b.y + b.h - 0.05 : x > b.x + b.w - 0.05) {
+                if (Math.abs(a - wing.a) <= wing.half) {
+                  gableFace = alongX ? 'south' : 'east';
+                  cu = wing.a;
+                  zMid = zE + wing.rise * 0.35;
+                } else if (!gableFace) continue;
+              }
+            }
             if (!gableFace) continue;
             const u = gableFace === 'east' ? y : x;
-            const cu = alongX ? mid : mid;
-            const zMid = zE + rise * 0.35;
             const win = Math.abs(u - cu) < 0.32 && Math.abs(z - zMid) < 5;
             let c: number;
             if (win) {
