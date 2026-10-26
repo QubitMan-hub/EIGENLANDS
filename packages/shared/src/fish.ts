@@ -1,4 +1,5 @@
 import { hash2 } from './rng';
+import { catalogSources } from './catalog';
 import type { Weather } from './weather';
 
 export interface FishDef {
@@ -46,6 +47,9 @@ export const FISH_TABLE: FishDef[] = [
   },
   { id: 'glowfin', seasons: [0, 1, 2, 3], water: 'deep', hours: [20, 4], weight: 2, difficulty: 0.9 },
 ];
+
+// the catalog adds species (sea fish, shellfish, river fish ...) as data
+for (const { item, src } of catalogSources()) if (src.k === 'fish') FISH_TABLE.push({ id: item, ...src.def });
 
 const inHours = (h: number, [a, b]: [number, number]) => (a <= b ? h >= a && h < b : h >= a || h < b);
 

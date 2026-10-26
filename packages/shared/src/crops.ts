@@ -1,3 +1,4 @@
+import { CROP_ROWS } from './catalog/crop-data';
 import { weatherForDay, waters, seasonOfDay } from './weather';
 
 export interface CropDef {
@@ -46,6 +47,9 @@ export const CROPS: Record<string, CropDef> = Object.fromEntries(
   ].map((d) => [d.id, d]),
 );
 
+// Catalog crops (grains, vegetables, orchards, spices ...) are data in catalog/crop-data.ts.
+for (const row of CROP_ROWS) CROPS[row.def.id] = row.def;
+
 export const STAGES = 4; // 0 seed, 1 sprout, 2 growing, 3 ripe
 
 export interface CropData {
@@ -60,7 +64,10 @@ export interface CropData {
   watered: number;
   /** last world day processed by the day rollover */
   lastDay: number;
-  fert?: boolean;
+  /** fertiliser: true (old saves) or the days of growth it saves */
+  fert?: boolean | number;
+  /** extra harvest yield from fertiliser */
+  yb?: number;
   dead?: boolean;
   owner: string;
 }
@@ -72,7 +79,7 @@ export const cropSeasonOk = (crop: string, season: number, greenhouse = false): 
 export function daysToRipe(d: CropData): number {
   const a = CROPS[d.crop]!.days,
     b = d.alt ? CROPS[d.alt]!.days : 0;
-  return Math.max(a, b) - (d.fert ? 1 : 0);
+  return Math.max(a, b) - (d.fert === true ? 1 : Number(d.fert) || 0);
 }
 
 export function cropStage(d: CropData): number {
@@ -117,9 +124,9 @@ export function collapseCrop(d: CropData, rand: () => number): string {
   return rand() < pA ? d.crop : d.alt;
 }
 
-export function harvestYield(crop: string, rand: () => number, farmingLevel: number, luck = 0): number {
+export function harvestYield(crop: string, rand: () => number, farmingLevel: number, luck = 0, bonus = 0): number {
   const def = CROPS[crop]!;
-  let n = def.yieldMin + Math.floor(rand() * (def.yieldMax - def.yieldMin + 1));
+  let n = def.yieldMin + Math.floor(rand() * (def.yieldMax - def.yieldMin + 1)) + bonus;
   if (rand() < 0.05 * farmingLevel + 0.04 * luck) n += 1;
   return n;
 }

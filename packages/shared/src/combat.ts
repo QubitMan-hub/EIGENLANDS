@@ -1,5 +1,6 @@
 import type { CaveBiome } from './undercroft';
 import type { Biome } from './worldgen';
+import { WEAPONS } from './equipment';
 import { IFRAME_TIME, PERFECT_WINDOW, PROJECTILE_DAMAGE } from './constants';
 
 /**
@@ -50,8 +51,12 @@ export function heavyHit(level: number): ComboHit {
 
 export const MELEE_FAMILIES = ['sword', 'spear', 'battle_axe', 'warhammer'] as const;
 export type MeleeFamily = (typeof MELEE_FAMILIES)[number];
-export const meleeFamily = (id: unknown): MeleeFamily =>
-  MELEE_FAMILIES.includes(id as MeleeFamily) ? (id as MeleeFamily) : 'sword';
+export const meleeFamily = (id: unknown): MeleeFamily => {
+  if (MELEE_FAMILIES.includes(id as MeleeFamily)) return id as MeleeFamily;
+  // catalog variants (a steel spear) move like the base weapon they borrow from
+  const fam = typeof id === 'string' ? WEAPONS[id]?.fam : undefined;
+  return MELEE_FAMILIES.includes(fam as MeleeFamily) ? (fam as MeleeFamily) : 'sword';
+};
 /** Sidegrades: reach, cleave or poise instead of a straight increase to sword damage per recovery. */
 export const MELEE_COMBOS: Record<MeleeFamily, readonly ComboHit[]> = {
   sword: COMBO,

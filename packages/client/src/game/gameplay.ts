@@ -307,6 +307,8 @@ export class Gameplay {
             net.craft({ station: st, tx: m.tx, ty: m.ty, recipe, n });
             this.acts.crafted = true;
           },
+          gear: (action, ref, rune) =>
+            net.gear({ action, station: st, tx: m.tx, ty: m.ty, ref, ...(rune !== undefined ? { rune } : {}) }),
         });
         const alloy = buildForge(this.profile, this.tip, {
           start: (template: Template, slots: number[]) => net.forgeStart({ tx: m.tx, ty: m.ty, template, slots }),
@@ -334,6 +336,8 @@ export class Gameplay {
               this.acts.crafted = true;
             },
             experiment: (items) => net.experiment({ station: st, tx: m.tx, ty: m.ty, items }),
+            gear: (action, ref, rune) =>
+              net.gear({ action, station: st, tx: m.tx, ty: m.ty, ref, ...(rune !== undefined ? { rune } : {}) }),
           }),
           { wide: true },
         );
@@ -363,7 +367,7 @@ export class Gameplay {
           collect: () => net.shelter({ tx: m.tx, ty: m.ty, action: 'collect' }),
         });
       if (this.wins.name === 'shelter') this.wins.update('shelter', render());
-      else this.wins.show('shelter', m.sub === 'coop' ? 'Chicken coop' : 'Barn', render());
+      else this.wins.show('shelter', m.shelter?.name ?? 'Shelter', render());
     } else if (m.kind === 'lore' && m.lore) {
       this.acts.statue = true;
       this.wins.show('lore', m.lore.title, buildLore(m, this.d.portrait));

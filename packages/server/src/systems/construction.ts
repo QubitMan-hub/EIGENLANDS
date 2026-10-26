@@ -1,5 +1,6 @@
 import {
   BUILD_PIECES,
+  isDoor,
   BUILD_WORLD_LIMIT,
   UPPER_OY,
   T,
@@ -308,7 +309,7 @@ export async function openConstruction(room: RoomApi, p: ServerPlayer, x: number
     p.toast(d.stairs === 'up' ? 'You climb to your upper floor.' : 'You return downstairs.');
     return true;
   }
-  if (d.wall === 'timber_door') {
+  if (isDoor(d.wall)) {
     if (cell.owner !== p.accountId) {
       p.toast('Only the owner can open or close this door.');
       return true;

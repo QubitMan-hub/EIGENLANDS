@@ -1,4 +1,5 @@
 import {
+  PROP_WARM,
   CONDITION_RULES,
   DIFFICULTY_RULES,
   T,
@@ -17,7 +18,16 @@ import {
 import type { ServerPlayer } from '../rooms/player';
 import type { RoomApi } from './api';
 
-const WARM_OBJECTS = new Set(['campfire', 'furnace', 'forge', 'hearth', 'cooking_pot', 'street_lamp']);
+const WARM_OBJECTS = new Set([
+  'campfire',
+  'furnace',
+  'forge',
+  'hearth',
+  'cooking_pot',
+  'street_lamp',
+  'oven',
+  ...PROP_WARM,
+]);
 
 export function setTravelMode(p: ServerPlayer, msg: { mode?: unknown } | null): void {
   if (p.deadT > 0 || !msg || (msg.mode !== 'cozy' && msg.mode !== 'adventure' && msg.mode !== 'hardcore')) return;
@@ -71,6 +81,7 @@ export function tickTravelNeeds(room: RoomApi, p: ServerPlayer): void {
     paused,
     exerted: p.travelExerted,
     desert: biomeAt(room.seed, x, y) === 'desert',
+    drain: p.stats.drain,
   });
   const rules = DIFFICULTY_RULES[next.mode];
   const now = room.wclock.now();
@@ -89,8 +100,8 @@ export function tickTravelNeeds(room: RoomApi, p: ServerPlayer): void {
       season: room.wclock.season(),
       indoors: !!buildingAt(room.seed, Math.floor(x), Math.floor(y)) || isUpperY(y),
       fire: nearFire(room, x, y),
-      coldResist: buff('warmth'),
-      heatResist: buff('coolness'),
+      coldResist: Math.min(0.92, buff('warmth') + p.stats.warm * 0.06),
+      heatResist: Math.min(0.92, buff('coolness') + p.stats.cool * 0.06),
       exerted: p.travelExerted,
     });
     next.temp = stepBodyTemp(before.temp, ambient, 1);

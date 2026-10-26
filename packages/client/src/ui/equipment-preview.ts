@@ -8,7 +8,7 @@ import {
   MORPH_FORMS,
   WEAPONS,
   attackDamage,
-  armorTotals,
+  equipmentStats,
   cloneStack,
   equipmentLevel,
   heavyHit,
@@ -37,37 +37,28 @@ export function equipmentPreview(
       ? !!def.weapon
       : slot === 'ring1' || slot === 'ring2'
         ? def.kind === 'ring'
-        : def.armor?.slot === slot);
+        : def.armor
+          ? def.armor.slot === slot
+          : def.gear?.slot === slot);
   if (!valid || !item) return { ...profile.stats };
-  const bonuses = (e: EquipState): Profile['stats'] => {
-    const a = armorTotals({
-      head: e.head?.id ?? null,
-      chest: e.chest?.id ?? null,
-      legs: e.legs?.id ?? null,
-      feet: e.feet?.id ?? null,
-    }).bonus;
-    const s = { hpBonus: a.hp, atkBonus: a.atk, luck: a.luck, haste: a.haste, def: a.def, phase: a.phase };
-    for (const r of [e.ring1, e.ring2]) {
-      if (!r?.p?.stat || !Number.isFinite(r.p.val)) continue;
-      const key = r.p.stat === 'hp' ? 'hpBonus' : r.p.stat === 'atk' ? 'atkBonus' : r.p.stat;
-      s[key] += r.p.val!;
-    }
-    const w = e.weapon && ITEMS[e.weapon.id]?.weapon;
-    if (w) {
-      const b = WEAPONS[w].bonus;
-      s.hpBonus += b.hp ?? 0;
-      s.atkBonus += b.atk ?? 0;
-      s.luck += b.luck ?? 0;
-      s.haste += b.haste ?? 0;
-      s.def += b.def ?? 0;
-    }
-    return s;
-  };
-  const before = bonuses(profile.equip),
-    after = bonuses({ ...profile.equip, [slot]: item });
+  const before = equipmentStats(profile.equip),
+    after = equipmentStats({ ...profile.equip, [slot]: item });
   const next = { ...profile.stats };
-  for (const key of ['hpBonus', 'atkBonus', 'luck', 'haste', 'phase'] as const) next[key] += after[key] - before[key];
-  next.def = Math.min(0.6, after.def);
+  for (const key of [
+    'hpBonus',
+    'atkBonus',
+    'luck',
+    'haste',
+    'phase',
+    'warm',
+    'cool',
+    'drain',
+    'craft',
+    'stamina',
+  ] as const)
+    next[key] = (next[key] ?? 0) + after[key] - before[key];
+  next.light = Math.max(next.light ?? 0, after.light);
+  next.def = Math.min(0.6, profile.stats.def + after.def - before.def);
   return next;
 }
 
@@ -94,11 +85,11 @@ function weaponGuide(w: WeaponDef, stats: Profile['stats']): WeaponGuide {
   const melee = (form?: (typeof MORPH_FORMS)[number]): AttackGuide => ({
     name:
       form?.name ??
-      (w.id === 'spear'
+      ((w.fam ?? w.id) === 'spear'
         ? 'Thrust combo'
-        : w.id === 'battle_axe'
+        : (w.fam ?? w.id) === 'battle_axe'
           ? 'Sweeping combo'
-          : w.id === 'warhammer'
+          : (w.fam ?? w.id) === 'warhammer'
             ? 'Crushing combo'
             : 'Three-hit combo'),
     damage: hits.map((h) => attackDamage(form ? Math.round(h.damage * form.dmg) : h.damage, stats.atkBonus)),
@@ -111,11 +102,11 @@ function weaponGuide(w: WeaponDef, stats: Profile['stats']): WeaponGuide {
     details: form
       ? ['Each tap chooses one form at random; the two forms do not hit together.']
       : [
-          w.id === 'spear'
+          (w.fam ?? w.id) === 'spear'
             ? 'Narrow thrusts: long reach, limited side coverage.'
-            : w.id === 'battle_axe'
+            : (w.fam ?? w.id) === 'battle_axe'
               ? 'Broad sweeps trade reach and speed for side coverage.'
-              : w.id === 'warhammer'
+              : (w.fam ?? w.id) === 'warhammer'
                 ? 'Slow blows; the finisher bypasses light-hit armour.'
                 : 'Two slashes, then a lunging finisher.',
           `Tap poise: ${hits.map((h) => h.poise).join(' / ')}; arc: ${hits.map((h) => Math.round((Math.acos(h.arc) * 360) / Math.PI)).join(' / ')} degrees.`,
@@ -149,11 +140,11 @@ function weaponGuide(w: WeaponDef, stats: Profile['stats']): WeaponGuide {
       ? shot(w.charged, true)
       : {
           name:
-            w.id === 'spear'
+            (w.fam ?? w.id) === 'spear'
               ? 'Driving thrust'
-              : w.id === 'battle_axe'
+              : (w.fam ?? w.id) === 'battle_axe'
                 ? 'Whirling cleave'
-                : w.id === 'warhammer'
+                : (w.fam ?? w.id) === 'warhammer'
                   ? 'Crushing blow'
                   : 'Phase cleave',
           damage: [attackDamage(low.damage, stats.atkBonus), attackDamage(high.damage, stats.atkBonus)],

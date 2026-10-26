@@ -1,3 +1,9 @@
+# Current continuation: crafting and food expansion (§9, 2026-10-26)
+
+A data-driven catalog (`packages/shared/src/catalog/`) now adds 860 items, 750 recipes, 17 stations, 70 crops, 27 armour sets, 63 weapons, 34 enchants, 156 dishes and 51 drinks, with discipline XP, craft quality, gear durability/repair/upgrade/enchant (`MSG.GEAR`), recipe discovery, a searchable crafting book (favorites, tracker, recipe tree) and rich item tooltips. Read [CRAFTING.md](CRAFTING.md) for architecture, how to add content and the explicit "Not built" list (saddles/mounts are not built; counts are 1,240 items, not thousands). Tests: `catalog.test.ts`, `catalog-systems.test.ts`, server `crafting2.test.ts`.
+
+---
+
 # Current continuation: castles, frontier provinces and travel fixes (2026-10-26)
 
 Revision 6 adds sparse, seeded frontier settlements on broad province islands, using the six existing realm cultures and town builder. Discovery is local and bounded; collision, furnished buildings, sanctuary protection, construction exclusion, ambient residents and atlas discovery use existing systems. New worlds default to 6; saved revisions 1–5 keep their layouts. Read [FRONTIER_CITIES.md](FRONTIER_CITIES.md) for the implementation, validation and explicit limits.

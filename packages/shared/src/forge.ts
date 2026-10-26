@@ -3,6 +3,7 @@
  * phases interfere: in-phase materials reinforce (bonus stats), out-of-phase ones cancel (flaws shrink).
  * A short rhythm minigame at the anvil tunes the result.
  */
+import { METALS } from './catalog/metals';
 export type Stat = 'atk' | 'dur' | 'eff' | 'spd' | 'mag';
 export type StatVec = Partial<Record<Stat, number>>;
 
@@ -102,7 +103,7 @@ export function preview(ids: string[], quality = 0.5): ForgePreview | null {
   const avgGrade = grade / mats.length;
   const tier = Math.max(
     1,
-    Math.min(5, Math.round(avgGrade * (0.9 + 0.12 * quality) + 0.3 * Math.max(0, C) - 0.15 * Math.max(0, -C))),
+    Math.min(8, Math.round(avgGrade * (0.9 + 0.12 * quality) + 0.3 * Math.max(0, C) - 0.15 * Math.max(0, -C))),
   );
   const note =
     C > 0.6
@@ -136,4 +137,27 @@ export function forge(template: Template, ids: string[], accuracy: number): Forg
       },
     },
   };
+}
+
+// The catalog's metals can be forged too: each ingot is a material with its own colour (phase) and strengths, so a
+// smith can chase an alloy that sings (or cancels) and reach tool tiers beyond crystal (6 mithril, 7 adamant, 8 voidsteel).
+const STRENGTH: Record<string, { main: StatVec; flaw: StatVec }> = {
+  tin_ingot: { main: { eff: 3 }, flaw: { atk: -2, dur: -3 } },
+  bronze_ingot: { main: { atk: 5, dur: 5, eff: 4 }, flaw: { spd: -2 } },
+  steel_ingot: { main: { atk: 9, dur: 8, eff: 7 }, flaw: { spd: -3 } },
+  mithril_ingot: { main: { atk: 10, spd: 9, mag: 8, eff: 8 }, flaw: { dur: -3 } },
+  adamant_ingot: { main: { atk: 14, dur: 14, eff: 11 }, flaw: { spd: -5 } },
+  voidsteel_ingot: { main: { atk: 18, mag: 14, eff: 12, spd: 6 }, flaw: { dur: -6 } },
+  skysteel_ingot: { main: { atk: 8, spd: 9, eff: 7 }, flaw: { dur: -2 } },
+  deepsteel_ingot: { main: { atk: 9, dur: 12, eff: 9 }, flaw: { spd: -4 } },
+  stormiron_ingot: { main: { atk: 11, spd: 8, mag: 5 }, flaw: { dur: -3 } },
+  tidesilver_ingot: { main: { mag: 9, eff: 9, spd: 5 }, flaw: { atk: -2 } },
+  hellsteel_ingot: { main: { atk: 14, mag: 6, eff: 8 }, flaw: { dur: -4, spd: -2 } },
+  moonsilver_ingot: { main: { mag: 11, spd: 9, eff: 7 }, flaw: { dur: -3 } },
+};
+for (const m of METALS) {
+  const id = `${m.id}_ingot`,
+    s = STRENGTH[id];
+  if (s && !MATERIALS[id])
+    MATERIALS[id] = { id, grade: Math.min(8, m.tier), phase: m.phase, main: s.main, flaw: s.flaw };
 }

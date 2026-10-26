@@ -18,11 +18,17 @@ export function validTravelNeeds(raw: unknown): TravelNeeds {
 export function stepTravelNeeds(
   needs: TravelNeeds,
   seconds: number,
-  ctx: { exerted: boolean; desert: boolean; paused: boolean },
+  ctx: {
+    exerted: boolean;
+    desert: boolean;
+    paused: boolean;
+    /** fraction less hunger and thirst (gear, food) */ drain?: number;
+  },
 ): TravelNeeds {
   const n = validTravelNeeds(needs);
   if (n.mode === 'cozy' || ctx.paused || !Number.isFinite(seconds) || seconds <= 0) return n;
-  const effort = (ctx.exerted ? 1.25 : 1) * DIFFICULTY_RULES[n.mode].drain;
+  const effort =
+    (ctx.exerted ? 1.25 : 1) * DIFFICULTY_RULES[n.mode].drain * (1 - Math.max(0, Math.min(0.6, ctx.drain ?? 0)));
   return {
     ...n,
     food: Math.max(0, n.food - ((seconds * 100) / 1800) * effort),

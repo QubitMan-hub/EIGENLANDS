@@ -15,6 +15,8 @@ import {
   type WorldObj,
   RUIN_NAMES,
   BUILD_PIECES,
+  FARM_ANIMALS,
+  isDoor,
   isBuildPiece,
   type BuildCell,
 } from '@eigenlands/shared';
@@ -80,8 +82,8 @@ export function describeUse(
   }
   if (cell?.data.stairs)
     return { kind: 'open', label: cell.data.stairs === 'up' ? 'Climb to upper floor' : 'Return downstairs', ok: true };
-  if (cell?.data.wall === 'timber_door')
-    return { kind: 'open', label: cell.data.open ? 'Close door (owner only)' : 'Open door (owner only)', ok: true };
+  if (isDoor(cell?.data.wall))
+    return { kind: 'open', label: cell?.data.open ? 'Close door (owner only)' : 'Open door (owner only)', ok: true };
   if (obj) {
     if (obj.sub === 'minecart')
       return {
@@ -123,7 +125,7 @@ export function describeUse(
       return { kind: 'open', label: `Use ${STATION_NAMES[STATION_SUBS[obj.sub] ?? 'hand']}`, ok: true };
     if (obj.kind === 'chest') return { kind: 'open', label: 'Open chest', ok: true };
     if (obj.kind === 'shelter')
-      return { kind: 'open', label: obj.sub === 'coop' ? 'Visit the coop' : 'Visit the barn', ok: true };
+      return { kind: 'open', label: `Visit the ${(FARM_ANIMALS[obj.sub]?.name ?? 'shelter').toLowerCase()}`, ok: true };
     if (obj.sub === 'statue' || obj.sub === 'plaque')
       return { kind: 'open', label: 'Read the Statue of QubitMan', ok: true };
     if (obj.sub === 'board') return { kind: 'open', label: 'Check the request board', ok: true };

@@ -3,7 +3,8 @@ import type { InputCmd, PlayerSim } from './sim';
 import type { Slot, Stack } from './items';
 import type { RhythmPlan } from './rhythm';
 import type { SkillXp } from './skills';
-import type { StationId } from './recipes';
+import type { DiscXp } from './crafting';
+import type { StationId } from './crafting';
 import type { Template, ForgePreview } from './forge';
 import type { WorldObj } from './objects';
 import type { Weather } from './weather';
@@ -32,6 +33,7 @@ export const MSG = {
   APPEARANCE: 'appearance', // {app}: packed Appearance (cosmetic, validated)
   CRAFT: 'craft', // CraftMsg
   EXPERIMENT: 'experiment', // ExperimentMsg
+  GEAR: 'gear', // GearMsg: repair, upgrade or enchant a piece at its bench
   FORGE_PREVIEW: 'forge_preview', // ForgePreviewMsg -> FORGE_PREVIEW_R
   FORGE_START: 'forge_start', // ForgeStartMsg -> RHYTHM_START
   RHYTHM_DONE: 'rhythm_done', // RhythmDoneMsg -> RHYTHM_RESULT
@@ -161,6 +163,8 @@ export interface ProfileMsg {
   inv?: Slot[];
   coins?: number;
   skills?: SkillXp;
+  /** crafting discipline XP */
+  disc?: DiscXp;
   /** ids of recipes the player knows */
   recipes?: string[];
   equip?: EquipState;
@@ -175,7 +179,21 @@ export interface ProfileMsg {
   /** heart events seen ("npc:index"), sent with quests */
   events?: string[];
   /** derived stats from equipment/buffs */
-  stats?: { hpBonus: number; atkBonus: number; luck: number; haste: number; def: number; phase: number };
+  stats?: {
+    hpBonus: number;
+    atkBonus: number;
+    luck: number;
+    haste: number;
+    def: number;
+    phase: number;
+    /** catalog gear: warmth/coolness points, fraction less hunger and thirst drain, light radius, ingredient-save %, stamina */
+    warm?: number;
+    cool?: number;
+    drain?: number;
+    light?: number;
+    craft?: number;
+    stamina?: number;
+  };
   /** selected quick-bar slot is client-side; this is the server's last accepted USE slot (diagnostics) */
 }
 
@@ -208,12 +226,33 @@ export interface EquipState {
   chest: Stack | null;
   legs: Stack | null;
   feet: Stack | null;
+  /** catalog gear slots (absent in old saves) */
+  shield?: Stack | null;
+  back?: Stack | null;
+  neck?: Stack | null;
+  belt?: Stack | null;
+  charm?: Stack | null;
+  light?: Stack | null;
 }
-export const EQUIP_SLOTS = ['ring1', 'ring2', 'weapon', 'head', 'chest', 'legs', 'feet'] as const;
+export const EQUIP_SLOTS = [
+  'ring1',
+  'ring2',
+  'weapon',
+  'head',
+  'chest',
+  'legs',
+  'feet',
+  'shield',
+  'back',
+  'neck',
+  'belt',
+  'charm',
+  'light',
+] as const;
 export type EquipSlotKey = (typeof EQUIP_SLOTS)[number];
 export interface EquipMsg {
   slot: number;
-  as: 'ring1' | 'ring2' | 'outfit' | 'weapon' | 'head' | 'chest' | 'legs' | 'feet' | `unequip_${EquipSlotKey}`;
+  as: 'outfit' | EquipSlotKey | `unequip_${EquipSlotKey}`;
 }
 export interface CraftMsg {
   station: StationId;
@@ -227,6 +266,17 @@ export interface ExperimentMsg {
   tx: number;
   ty: number;
   items: Array<{ slot: number; n: number }>;
+}
+/** Where a piece of gear is: worn in an equipment slot, or in a pack slot. */
+export type GearRef = { where: 'equip'; slot: EquipSlotKey } | { where: 'inv'; slot: number };
+export interface GearMsg {
+  action: 'repair' | 'upgrade' | 'enchant';
+  station: StationId;
+  tx: number;
+  ty: number;
+  ref: GearRef;
+  /** enchant: the pack slot of the rune to bind */
+  rune?: number;
 }
 export interface ForgePreviewMsg {
   materials: string[];
@@ -371,7 +421,16 @@ export interface PanelMsg {
   station?: StationId;
   /** chest contents (30 slots) */
   chest?: Slot[];
-  shelter?: { type: 'coop' | 'barn'; animals: number; max: number; fed: boolean; ready: number };
+  shelter?: {
+    type: string;
+    name?: string;
+    animal?: string;
+    product?: string;
+    animals: number;
+    max: number;
+    fed: boolean;
+    ready: number;
+  };
   sign?: string;
   /** reading the statue (and other lore objects) */
   lore?: { title: string; plaque: string; epitaph: string; pages: string[]; remark?: { npc: string; text: string } };

@@ -496,35 +496,37 @@ Slice delivered 2026-10-25: legacy navy/rounded styles in `style.css` (toasts, c
 
 ## 9. MASSIVE ITEM, CRAFTING & FOOD EXPANSION
 
-- [ ] NOT STARTED — Create a deeply expandable, data-driven item system with a long-term target of **thousands of meaningful items**.
-- [ ] NOT STARTED — Include:
-- [ ] NOT STARTED — Resources, ores, metals, gems, crystals, fibers, monster drops, and magical materials.
-- [ ] NOT STARTED — Weapons, armor, shields, tools, accessories, and class equipment.
-- [ ] NOT STARTED — Building materials, roofs, walls, furniture, and decorations.
-- [ ] NOT STARTED — Farming tools, seeds, fertilizer, irrigation equipment, and animal supplies.
-- [ ] NOT STARTED — Food ingredients, spices, fruits, vegetables, meats, fish, grains, and dairy.
-- [ ] NOT STARTED — Hundreds of potential cooking recipes and culturally distinct dishes.
-- [ ] NOT STARTED — Potions, alchemy reagents, runes, scrolls, and magical artifacts.
-- [ ] NOT STARTED — Exploration tools, backpacks, lanterns, saddles, and mount equipment.
-- [ ] NOT STARTED — Legendary equipment, rare collectibles, and realm-specific resources.
+See [CRAFTING.md](CRAFTING.md) for the architecture, the data files and what is deliberately not built.
+
+- [~] IN PROGRESS — Create a deeply expandable, data-driven item system with a long-term target of **thousands of meaningful items**. (1,240 items and 902 recipes today, 860 items from data tables in `shared/src/catalog/`; every one has a source or a recipe and a use, enforced by a test. Not yet thousands.)
+- [~] IN PROGRESS — Include:
+- [x] IMPLEMENTED & TESTED — Resources, ores, metals, gems, crystals, fibers, monster drops, and magical materials. (12 metals with plate/rod/wire, 12 gems raw and cut, 6 elemental crystals, 8 woods, 6 stones, textiles, leather, 17 monster parts, essences; found in the kingdom or cave that has them.)
+- [~] IN PROGRESS — Weapons, armor, shields, tools, accessories, and class equipment. (27 armour sets, 63 weapons across spear/axe/hammer/sword/crossbow in 11 metals plus 4 legendaries, 15 shields, cloaks, packs, amulets, belts, charms and lanterns in six new gear slots, 61 accessories, craft tools. No class-specific equipment and no new weapon families (dagger, bow, greatsword) yet.)
+- [x] IMPLEMENTED & TESTED — Building materials, roofs, walls, furniture, and decorations. (21 new wall, floor, roof, door and stair pieces in brick, marble, sandstone, granite, plaster, log, glass, tile, copper; 44 furniture and decoration pieces with isometric art, including storage, hearths and lamps that really warm and light.)
+- [~] IN PROGRESS — Farming tools, seeds, fertilizer, irrigation equipment, and animal supplies. (57 new crops with seeds sold by the kingdoms that grow them, four fertilisers, a three-tile sprinkler, sickle/shears/trowel/pail that matter, sheep, goats, pigs and bees with their pens. Breeding, growth and animal happiness are §10.)
+- [x] IMPLEMENTED & TESTED — Food ingredients, spices, fruits, vegetables, meats, fish, grains, and dairy. (Grains, vegetables, orchard and vine fruit, spices, tea, cocoa, coffee, 7 wild meats, 15 new fish and shellfish, culinary herbs, and the mill, dairy, oil and preserving chain.)
+- [x] IMPLEMENTED & TESTED — Hundreds of potential cooking recipes and culturally distinct dishes. (156 dishes and 51 drinks, each with a weight and a profile that gives a distinct buff; six kingdom cuisines of 9-12 dishes each that need standing in that kingdom; dozens found only by experimenting.)
+- [x] IMPLEMENTED & TESTED — Potions, alchemy reagents, runes, scrolls, and magical artifacts. (13 herbs, mineral reagents, 22 potions, 34 enchantment runes in three strengths, 15 recipe scrolls, charged crystals, six legendary artifacts.)
+- [~] IN PROGRESS — Exploration tools, backpacks, lanterns, saddles, and mount equipment. (Backpacks, lanterns, compass and spyglass charms and a campfire kit exist; **saddles and mount equipment are NOT built**: there is no mount system for them to serve.)
+- [x] IMPLEMENTED & TESTED — Legendary equipment, rare collectibles, and realm-specific resources. (4 legendary weapons, a legendary armour set, 6 artifacts, 7 collectibles from vaults; six realm metals, realm woods, gems, seeds and dishes that only their kingdom provides.)
 
 ### Crafting disciplines
 
-- [ ] NOT STARTED — Smithing, woodworking, tailoring, leatherworking, cooking, brewing, alchemy, enchanting, engineering, masonry, farming, and magical crafting.
+- [x] IMPLEMENTED & TESTED — Smithing, woodworking, tailoring, leatherworking, cooking, brewing, alchemy, enchanting, engineering, masonry, farming, and magical crafting. (12 disciplines with XP, levels 1-40 and a perk line each; saved with the character.)
 
 ### Systems
 
-- [ ] NOT STARTED — Multiple crafting stations.
-- [ ] NOT STARTED — Crafting progression and recipe discovery.
-- [ ] NOT STARTED — Multi-stage advanced recipes.
-- [ ] NOT STARTED — Equipment upgrades and repair.
-- [ ] NOT STARTED — Material rarity.
-- [ ] NOT STARTED — Specialized crafting resources.
-- [ ] NOT STARTED — Kingdom-specific and realm-specific recipes.
-- [ ] NOT STARTED — Excellent searchable crafting UI.
-- [ ] NOT STARTED — Crafting favorites, categories, ingredient tracking, and recipe trees.
-- [ ] NOT STARTED — Avoid generating thousands of meaningless duplicates. Every major item category should serve actual gameplay.
-- [ ] NOT STARTED — Build a robust foundation first, then expand the content systematically.
+- [x] IMPLEMENTED & TESTED — Multiple crafting stations. (17 stations; 8 new ones can be crafted and placed, and appear in Hadamere's trade houses.)
+- [x] IMPLEMENTED & TESTED — Crafting progression and recipe discovery. (Levelling unlocks recipes; kingdoms, villagers and scrolls teach others; 100 recipes are found by experimenting, and only learned recipes are saved.)
+- [x] IMPLEMENTED & TESTED — Multi-stage advanced recipes. (Ore to ingot to plate to armour; fibre to thread to cloth to garment; and so on, shown as a recipe tree in the book.)
+- [x] IMPLEMENTED & TESTED — Equipment upgrades and repair. (Quality Crude to Masterwork, durability, repair at the bench or with kits, upgrades to +5, one enchantment per piece; broken gear stays on you and gives nothing.)
+- [x] IMPLEMENTED & TESTED — Material rarity. (Six rarity tiers scale value and power; gear needs rarer gear for stronger runes.)
+- [x] IMPLEMENTED & TESTED — Specialized crafting resources. (Tools in the pack open trades; realm metals, cave crystals and monster parts feed particular recipes.)
+- [x] IMPLEMENTED & TESTED — Kingdom-specific and realm-specific recipes. (132 recipes need a kingdom's friendship; their materials are sold or found only there.)
+- [x] IMPLEMENTED & TESTED — Excellent searchable crafting UI. (Search by item, category or ingredient; filters; paging; discipline bars; a gear bench.)
+- [x] IMPLEMENTED & TESTED — Crafting favorites, categories, ingredient tracking, and recipe trees. (Favourites and tracked recipes are kept in the browser.)
+- [~] IN PROGRESS — Avoid generating thousands of meaningless duplicates. Every major item category should serve actual gameplay. (A test fails any item no recipe or source reaches, or nothing uses. Metal parts nothing uses are not made.)
+- [x] IMPLEMENTED & TESTED — Build a robust foundation first, then expand the content systematically.
 
 ## 10. FARMING, ANIMAL HUSBANDRY & BUILDING
 
