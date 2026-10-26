@@ -84,6 +84,7 @@ jobs:
           node --import tsx e2e/castle-frontier-art.mjs http://127.0.0.1:5174/ /tmp/creature-art/frontier
           node e2e/homestead-art.mjs http://127.0.0.1:5174/ /tmp/creature-art/homesteads
           node --import tsx e2e/cozy-towns.mjs http://127.0.0.1:5174/ /tmp/creature-art/cozy-towns
+          node --import tsx e2e/guild-halls-art.mjs http://127.0.0.1:5174/ /tmp/creature-art/guild-halls
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -101,6 +102,7 @@ jobs:
           node --import tsx e2e/elevation.mjs http://127.0.0.1:5240/ /tmp/elevation-shots
           node e2e/homestead-gameplay.mjs http://127.0.0.1:5240/ /tmp/homestead-gameplay
           node e2e/living-guilds.mjs http://127.0.0.1:5240/ /tmp/living-guilds-gameplay
+          node e2e/guild-halls.mjs http://127.0.0.1:5240/ /tmp/living-guilds-gameplay/halls
           node e2e/travel.mjs http://127.0.0.1:5240/ /tmp/living-guilds-gameplay/travel
 
       - uses: actions/upload-artifact@v4

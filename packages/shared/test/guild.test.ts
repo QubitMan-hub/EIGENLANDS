@@ -3,6 +3,7 @@ import { GUILD_QUESTS, GUILD_RANKS, guildRank, guildBoard } from '../src/guild';
 import { ENEMY_DEFS } from '../src/combat';
 import { ITEMS } from '../src/items';
 import { townFor, townsFor } from '../src/town';
+import { isUpperY } from '../src/floors';
 import { ChunkStore } from '../src/chunks';
 import type { QuestLog } from '../src/quests';
 it('defines a complete, ordered, non-grindable rank path with valid content', () => {
@@ -32,6 +33,10 @@ it('places reachable boards inside civic buildings without overwriting furnishin
   expect(ts.length).toBeGreaterThan(30);
   for (const t of [townFor(seed), ...ts]) {
     const b = guildBoard(t);
+    if (t.abandoned || isUpperY(t.cy)) {
+      expect(b).toBeNull();
+      continue;
+    }
     expect(b, `${t.name} board`).toBeTruthy();
     if (!b) continue;
     expect(t.objects.some((o) => o.x === b.x && o.y === b.y)).toBe(false);

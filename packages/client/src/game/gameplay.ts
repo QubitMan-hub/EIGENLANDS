@@ -429,6 +429,7 @@ export class Gameplay {
         m,
         (quest, action) => net.send(MSG.QUEST, { npcId: 'guild', quest, action, tx: m.tx, ty: m.ty }),
         {
+          track: (id, map) => this.d.trackQuest?.(id, map),
           settlement: () => net.send('settlement', { tx: m.tx, ty: m.ty, action: 'inspect' }),
           classes: () => {
             this.wins.close();

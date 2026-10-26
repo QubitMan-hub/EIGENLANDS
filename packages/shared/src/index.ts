@@ -88,3 +88,5 @@ export * from './travel';
 export * from './cozy-town';
 export * from './caravans';
 export * from './bridges';
+
+export * from './guild-halls';

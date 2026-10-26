@@ -50,7 +50,7 @@
 }
 .guild-ledger button,
 .herd-panel button {
-  min-height: 40px;
+  min-height: 44px;
 }
 .herd-grid {
   display: grid;
@@ -120,4 +120,25 @@
   display: block;
   text-align: center;
   margin-bottom: 6px;
+}
+
+.guild-workload {
+  padding: 8px 10px;
+  border-left: 3px solid #536e58;
+  background: #e1d1a7;
+}
+.guild-entry-state {
+  color: #304e46;
+  font-weight: bold;
+}
+.guild-rewards {
+  color: #48331c;
+}
+.guild-ledger .dbtns {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.guild-card > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }

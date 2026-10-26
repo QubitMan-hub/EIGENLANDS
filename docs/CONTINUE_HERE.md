@@ -1,3 +1,11 @@
+# Active continuation: regional guild halls, then classes and bestiary (2026-10-27)
+
+Read [GUILD_HALLS.md](GUILD_HALLS.md), the [hall plan](superpowers/plans/2026-10-26-guild-halls.md), [HOMESTEADS_AND_GUILD.md](HOMESTEADS_AND_GUILD.md), [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) and the [master plan](EIGENLANDS_MASTER_PLAN.md). Current work follows merged PR #43. Regional guild designation/furnishing, projected identity, expedition tracking and a discovered-hall atlas directory are implemented with focused art/gameplay proof. Rest persistence was genuinely broken and fixed at the buff allowlist. Full integration checks remain pending.
+
+The user expanded the task to complete master-plan §§12–13: thirty named class paths across six families, meaningful progression/skills/passives/equipment and cooperative mechanics; audit/expand the bestiary, habitats, taming and phased bosses. Preserve Superposer/Entangler, authored art, controls and saves; no placeholder completion claims. Continue inline without subagents, integrate incoming main, and require tested final-head CI before merging. Render remains the user's work.
+
+---
+
 # Current continuation: cozy settlements and integrated travel/guilds (2026-10-26)
 
 Read [COZY_TOWNS.md](COZY_TOWNS.md) first, then [HOMESTEADS_AND_GUILD.md](HOMESTEADS_AND_GUILD.md), [TRAVEL.md](TRAVEL.md) and the [master plan](EIGENLANDS_MASTER_PLAN.md). Integrated incoming main through `4d0c9ac`, including caravans, bridges, ferry voyages, underground waystones and named/fed travel mounts; retained adaptive graphics, legibility and travel while preserving our authored horse/Glimmerhart sprites. One mount state/renderer now supports ranch and whistle/bell riding; spell RPCs dismount correctly. Generated town furniture follows contextual seating/road-edge/doorway rules across all settlement families. Roofs use calmer courses, regional color families, wood eaves and fixed porch lighting. Player-owned layouts and world revisions are preserved.

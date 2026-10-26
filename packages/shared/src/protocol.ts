@@ -457,6 +457,8 @@ export interface PanelMsg {
   /** a waystone, realm gate or ferry post: where it can take you */
   travel?: import('./travel').TravelPanel;
   guild?: {
+    day?: number;
+    hall?: string;
     rank: import('./guild').GuildRank | null;
     generation?: number;
     name: string;

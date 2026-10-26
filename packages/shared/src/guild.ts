@@ -1,3 +1,4 @@
+import { guildHall } from './guild-halls';
 import type { Objective, QuestDef, QuestLog } from './quests';
 import type { Town } from './town';
 import type { WorldObj } from './objects';
@@ -160,10 +161,9 @@ const boardCache = new WeakMap<Town, WorldObj | null>();
 /** Place a physical board in the existing civic hall without moving saved walls or furnishings. */
 export function guildBoard(t: Town): WorldObj | null {
   if (boardCache.has(t)) return boardCache.get(t)!;
-  const halls = t.buildings.filter((b) => b.kind === 'hall' && !/palace|keep/.test(b.id));
-  const b = halls[0] ?? t.buildings.find((b) => b.kind === 'hall') ?? t.buildings.find((b) => b.kind === 'inn');
+  const b = guildHall(t);
   if (!b) return null;
-  const occupied = new Set(t.objects.map((o) => `${o.x},${o.y}`));
+  const occupied = new Set([...t.objects, ...Object.values(t.spots)].map((o) => `${o.x},${o.y}`));
   for (let y = b.y + 1; y < b.y + b.h - 2; y++)
     for (let x = b.x + 1; x < b.x + b.w - 1; x++) {
       const tile = t.tiles.get(x - t.x0 + (y - t.y0) * (t.x1 - t.x0 + 1));

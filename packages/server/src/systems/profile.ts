@@ -52,7 +52,8 @@ export interface DerivedStats {
   stamina: number;
 }
 
-const BUFF_KINDS = new Set<string>(BUFF_KIND_LIST);
+// Rest is a persisted cooldown, not a consumable item effect.
+const BUFF_KINDS = new Set<string>([...BUFF_KIND_LIST, 'bed_rest']);
 
 export function startRecipes(): string[] {
   return RECIPES.filter((r) => r.learn === 'start').map((r) => r.id);

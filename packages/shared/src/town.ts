@@ -13,6 +13,8 @@ import { LEGACY_GENERATION } from './world-version';
 
 export type BuildingKind = 'smithy' | 'hall' | 'inn' | 'store' | 'house' | 'farmhouse' | 'tower' | 'church';
 export interface Building {
+  /** A guild reception uses this existing civic footprint. */
+  guild?: boolean;
   id: string;
   kind: BuildingKind;
   x: number;
