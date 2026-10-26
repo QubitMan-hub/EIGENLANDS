@@ -39,6 +39,7 @@ import { nullVillage } from '../features/shard/nullVillage';
 import { BossModule } from '../features/bosses';
 import { ShadowModule } from '../features/shadows';
 import { SailingModule } from '../features/sailing';
+import { ArmyModule } from '../features/armies';
 import { VoiceModule } from '../features/voice';
 import { ShrineModule } from '../features/shrines';
 import { SocialModule } from '../features/social';
@@ -77,6 +78,7 @@ export class GameRoom extends WorldRoom {
   social!: SocialModule;
   shadows!: ShadowModule;
   sailing!: SailingModule;
+  army!: ArmyModule;
   voice!: VoiceModule;
   bosses!: BossModule;
   caves!: CaveModule;
@@ -117,6 +119,7 @@ export class GameRoom extends WorldRoom {
     this.social = new SocialModule(this);
     this.shadows = new ShadowModule(this);
     this.sailing = new SailingModule(this);
+    this.army = new ArmyModule(this);
     this.voice = new VoiceModule(this);
     this.bosses = new BossModule(this);
     this.shrines = new ShrineModule(this);
@@ -130,6 +133,7 @@ export class GameRoom extends WorldRoom {
       this.caves,
       this.shrines,
       this.sailing,
+      this.army,
       this.voice,
     ];
     const reg: Registrar = {
@@ -421,10 +425,18 @@ export class GameRoom extends WorldRoom {
   }
 
   protected hookTargets(): Array<{ id: string; x: number; y: number; alive: boolean }> {
-    return this.shadows?.targets() ?? [];
+    return [...(this.shadows?.targets() ?? []), ...(this.army?.targets() ?? [])];
   }
   protected hookStrike(e: Enemy, shape: StrikeShape, dmg: number): void {
     this.shadows?.strikeShadows(e, shape, dmg);
+    this.army?.strikeUnits(e, shape, dmg);
+  }
+
+  protected hookWarZone(x: number, y: number): boolean {
+    return this.army?.warZone(x, y) ?? false;
+  }
+  protected hookFire(e: Enemy, dx: number, dy: number): void {
+    this.army?.shot(e, dx, dy);
   }
 
   protected hookKilled(e: Enemy, killer: ServerPlayer | undefined): void {

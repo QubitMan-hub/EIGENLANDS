@@ -478,4 +478,6 @@ export type DevMsg =
   /** combat testing: spawn n enemies of `kind` around the player (d tiles away), optionally elite / night variants */
   | { cmd: 'spawn'; kind: string; n?: number; elite?: number; night?: boolean; d?: number }
   /** defeat every enemy within d tiles as the player (drops, XP, Shadow residues) */
-  | { cmd: 'kill'; d?: number };
+  | { cmd: 'kill'; d?: number }
+  /** start a war party against `site` from the `attacker` realm (scale 1..3) */
+  | { cmd: 'raid'; site: string; attacker: string; scale?: number };

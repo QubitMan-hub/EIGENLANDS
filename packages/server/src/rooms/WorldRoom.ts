@@ -776,21 +776,21 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
 
     // Wards disperse intruders without loot, XP or kill credit; they are resting places, not farming spots.
     for (const e of this.enemies.values())
-      if (!e.def.passive && sanctuaryAt(this.seed, e.x, e.y)) {
+      if (!e.def.passive && !e.state.fac && this.warded(e.x, e.y)) {
         this.enemies.delete(e.id);
         this.state.enemies.delete(e.id);
       }
-    const targets = [...this.players.values()]
-      .map(
-        (p) => ({
+    const targets = [
+      ...[...this.players.values()]
+        .map((p) => ({
           id: p.client.sessionId,
           x: p.sim.x,
           y: p.sim.y,
-          alive: p.deadT <= 0 && !sanctuaryAt(this.seed, p.sim.x, p.sim.y),
-        }),
-        ...this.hookTargets(),
-      )
-      .filter((t) => !sanctuaryAt(this.seed, t.x, t.y));
+          alive: p.deadT <= 0 && !this.warded(p.sim.x, p.sim.y),
+        }))
+        .filter((t) => !this.warded(t.x, t.y)),
+      ...this.hookTargets(),
+    ];
     stepEnemies(this.enemies.values(), TICK_DT, tick, targets, solid, this.rand, {
       telegraph: (en) => this.fx({ kind: 'telegraph', x: en.x, y: en.y, v: en.t, w: en.atk, id: en.id }),
       strike: (en, x, y, r, mult) => this.enemyStrike(en, x, y, r, mult),
@@ -1127,6 +1127,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       );
     }
     this.fx({ kind: 'orb', x: e.x, y: e.y, dx, dy, id: e.id });
+    this.hookFire(e, dx, dy);
   }
 
   /** A melee swing batted an orb back: it now flies where the player faces, faster and harder. */
@@ -1226,8 +1227,8 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     if (
       !this.enemies.has(e.id) ||
       e.hp <= 0 ||
-      sanctuaryAt(this.seed, e.x, e.y) ||
-      (by && sanctuaryAt(this.seed, by.sim.x, by.sim.y))
+      (!e.state.fac && this.warded(e.x, e.y)) ||
+      (by && this.warded(by.sim.x, by.sim.y))
     )
       return;
     const weight = o.weight ?? 0;
@@ -1427,7 +1428,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
 
   /** Apply an enemy hit to a player (ward buff, Phase 3 hook, shove, death). Returns whether damage was dealt. */
   private hurtPlayer(p: ServerPlayer, raw: number, e: Enemy, weight: number, dirX: number, dirY: number): boolean {
-    if (sanctuaryAt(this.seed, p.sim.x, p.sim.y)) return false;
+    if (this.warded(p.sim.x, p.sim.y)) return false;
     // armour: a hit may pass straight through (phase), otherwise worn defence trims it
     if (p.stats.phase > 0 && this.rand() < p.stats.phase) {
       this.fx({ kind: 'shadow', x: p.sim.x, y: p.sim.y, v: 5, id: p.id });
@@ -1770,6 +1771,14 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   protected hookWeaponShot(_p: ServerPlayer, _shot: WeaponShot, _ax: number, _ay: number, _power: number): boolean {
     return false;
   }
+  /** a settlement's ward holds unless a war party is assaulting it */
+  protected warded(x: number, y: number): boolean {
+    return !!sanctuaryAt(this.seed, x, y) && !this.hookWarZone(x, y);
+  }
+  protected hookWarZone(_x: number, _y: number): boolean {
+    return false;
+  }
+  protected hookFire(_e: Enemy, _dx: number, _dy: number): void {}
   protected hookKilled(_e: Enemy, _killer: ServerPlayer | undefined): void {}
   protected hookIncomingDamage(_p: ServerPlayer, dmg: number, _e: Enemy): number {
     return dmg;

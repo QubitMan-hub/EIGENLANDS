@@ -346,7 +346,7 @@ export const REFLECT_SPEED_MULT = 1.7;
 export const REFLECT_DAMAGE = 18;
 
 const melee = { ai: 'melee' as const };
-export const ENEMY_DEFS: Record<
+const BASE_ENEMY_DEFS: Record<
   | 'slime'
   | 'hopper'
   | 'rabbit'
@@ -1492,6 +1492,11 @@ export const ENEMY_DEFS: Record<
     ],
   },
 };
+import { ARMY_DEFS, type ArmyKey } from './army';
+export const ENEMY_DEFS = { ...BASE_ENEMY_DEFS, ...ARMY_DEFS } as Record<
+  keyof typeof BASE_ENEMY_DEFS | ArmyKey,
+  EnemyDef
+>;
 export const ENEMY_BY_KIND: EnemyDef[] = [
   ENEMY_DEFS.slime,
   ENEMY_DEFS.hopper,
@@ -1543,6 +1548,7 @@ export const ENEMY_BY_KIND: EnemyDef[] = [
   ENEMY_DEFS.raiju,
   ENEMY_DEFS.reef_naga,
   ENEMY_DEFS.hellhound,
+  ...Object.values(ARMY_DEFS),
 ];
 export type EnemyKindName = keyof typeof ENEMY_DEFS;
 /** ENEMY_DEFS key by numeric kind, for rules that are written by species name. */

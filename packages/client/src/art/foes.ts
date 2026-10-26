@@ -1,4 +1,6 @@
 import { ART_RGB } from './creature-pixels';
+import { armyUnitDef } from './army-units';
+import { ARMY_CLASSES, REALM_IDS, armyKey, armyOfKind, type ArmyKey } from '@eigenlands/shared';
 import { wildDef } from './fauna';
 import type { Texture } from 'pixi.js';
 import {
@@ -66,9 +68,10 @@ export type CritterKind =
   | 'iron_golem'
   | 'raiju'
   | 'reef_naga'
-  | 'hellhound';
+  | 'hellhound'
+  | ArmyKey;
 
-interface Def {
+export interface Def {
   w: number;
   h: number;
   ay?: number;
@@ -1444,6 +1447,9 @@ const DEFS: Record<CritterKind, Def> = {
   raiju: realmBeast(3),
   reef_naga: realmBeast(4),
   hellhound: realmBeast(5),
+  ...(Object.fromEntries(
+    REALM_IDS.flatMap((r, ri) => ARMY_CLASSES.map((c) => [armyKey(r, c), armyUnitDef(ri, c)])),
+  ) as Record<ArmyKey, Def>),
   reed_stalker: encounterDef(false),
   cinder_moth: encounterDef(true),
   fox: wildDef('fox'),
@@ -1576,6 +1582,8 @@ export function buildFoeSheets(): FoeSheets {
     'tide_leviathan',
   ] as const;
   const name = (k: number): CritterKind => {
+    const army = armyOfKind(k);
+    if (army) return armyKey(army.realm, army.cls);
     const realm = (['griffin', 'spirit_stag', 'iron_golem', 'raiju', 'reef_naga', 'hellhound'] as const)[k - 44];
     if (realm) return realm;
     const cave = caveNames[k - 24] ?? newCave[k - 34];

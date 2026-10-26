@@ -649,6 +649,7 @@ export class Game {
     s.enemies.forEach((e: any, id: string) => push(id, e, 'enemy'));
     s.projectiles.forEach((p: any, id: string) => push(id, p, 'proj'));
     s.shadows?.forEach((p: any, id: string) => push(id, p, 'shadow'));
+    s.army?.forEach((p: any, id: string) => push(`ar:${id}`, p, 'shadow'));
     s.npcs?.forEach((n: any, id: string) => push(id, n, 'npc'));
     for (const id of [...this.views.keys()]) if (!present.has(id)) this.dropView(id);
 

@@ -56,6 +56,10 @@ export class EnemyState extends Schema {
   @type('uint8') poise = 100;
   /** elite modifier bits (ELITE.*) */
   @type('uint8') elite = 0;
+  /** army unit: 0 = ordinary creature, else realm index + 1 */
+  @type('uint8') fac = 0;
+  /** army unit that defends (friendly to players, cannot be hurt by them) */
+  @type('boolean') ally = false;
 }
 
 /** Village NPCs: public, synced to everyone in range. */
@@ -91,6 +95,8 @@ export class WorldState extends Schema {
   @view() @type({ map: ShadowState }) shadows = new MapSchema<ShadowState>();
   @type('float64') serverTime = 0;
   @type('uint32') tick = 0;
+  /** standing army garrisons (world revision 5): soldiers patrolling settlements */
+  @view() @type({ map: ShadowState }) army = new MapSchema<ShadowState>();
 }
 
 export const WS_LIMITS = { name: 16 };
