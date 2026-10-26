@@ -128,6 +128,7 @@ export function describeUse(
       return { kind: 'open', label: `Visit the ${(FARM_ANIMALS[obj.sub]?.name ?? 'shelter').toLowerCase()}`, ok: true };
     if (obj.sub === 'statue' || obj.sub === 'plaque')
       return { kind: 'open', label: 'Read the Statue of QubitMan', ok: true };
+    if (obj.sub === 'guild_clue') return { kind: 'open', label: 'Inspect the commission evidence', ok: true };
     if (obj.sub === 'guild_board' || obj.sub === 'guild_noticeboard')
       return { kind: 'open', label: 'Visit the Adventurer Guild', ok: true };
     if (['bed', 'double_bed', 'canopy_bed', 'hammock'].includes(obj.sub))

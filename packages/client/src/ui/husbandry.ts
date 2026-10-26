@@ -17,6 +17,7 @@ export type HerdActions = {
   collect(): void;
   buy(s: LivestockSpecies): void;
   care(): void;
+  ranch?: (action: string, id: number) => void;
   breed(s: LivestockSpecies): void;
 };
 export function buildHusbandry(p: PanelMsg, profile: Profile, act: HerdActions): HTMLElement {
@@ -33,12 +34,20 @@ export function buildHusbandry(p: PanelMsg, profile: Profile, act: HerdActions):
   for (const a of s.herd ?? []) {
     const def = LIVESTOCK[a.species],
       young = day - a.born < def.growth;
+    const riding = !!act.ranch && !young && a.happy >= 70 && ['horse', 'phasehart'].includes(a.species);
+    const actions = riding
+      ? h('button', {
+          text: a.trained ? 'Saddle up' : 'Train mount · 100 coins + 5 hay',
+          on: { click: () => act.ranch?.(a.trained ? 'ride' : 'train', a.id) },
+        })
+      : h('span');
     grid.append(
       h(
         'article',
         { class: 'herd-animal' },
         h('img', { src: livestockPortrait(a.species), alt: def.name }),
         h('strong', { text: def.name }),
+        actions,
         h('div', {
           class: 'small',
           text: young ? `Young · ${def.growth - (day - a.born)} days to adulthood` : 'Adult',

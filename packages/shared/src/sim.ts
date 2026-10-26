@@ -73,6 +73,8 @@ export interface PlayerSim {
   boat: number;
   /** 0 walking; otherwise progress + 1 on a shared mine circuit. */
   cart: number;
+  /** Authoritative trained mount: 0 foot, 1 horse, 2 Glimmerhart. */
+  mount: number;
   /** sprint stamina 0..STAMINA_MAX, quantised to 1/64 so client replay and server agree exactly */
   stamina: number;
   /** seconds before stamina starts refilling */
@@ -173,6 +175,7 @@ export function newPlayerSim(x: number, y: number): PlayerSim {
     slipT: 0,
     boat: 0,
     cart: 0,
+    mount: 0,
     stamina: STAMINA_MAX,
     staminaT: 0,
     sprint: 0,
@@ -287,6 +290,7 @@ export function chargeLevel(charge: number): number {
  * - phase slip (set by the server on a perfect dodge): the next attack is a critical counter.
  */
 export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepEvents {
+  if (p.mount && (cmd.attack || cmd.skill || cmd.dash || cmd.hold)) p.mount = 0;
   const sailing = p.boat > 0 && !!land.sea;
   const solid: SolidQuery = sailing ? land.sea! : land;
   const ev: StepEvents = {
@@ -442,11 +446,11 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepE
   } else {
     // committed swing slows you; so does holding a charge
     const k = p.atkCd > 0.15 ? SWING_MOVE_MULT : p.charge > 0 ? CHARGE_MOVE_MULT : 1;
-    const sp = sailing ? PLAYER_SPEED * BOAT_SPEED_MULT : PLAYER_SPEED;
+    const sp = sailing ? PLAYER_SPEED * BOAT_SPEED_MULT : PLAYER_SPEED * (p.mount ? 1.45 : 1);
     // sprint only while moving freely: not mid-swing, charging or sailing; it needs a little stamina to begin
     const moving = cmd.dx !== 0 || cmd.dy !== 0;
     const sprinting =
-      cmd.sprint && moving && !sailing && k === 1 && p.stamina >= (p.sprint ? 0.01 : SPRINT_MIN) ? 1 : 0;
+      cmd.sprint && moving && !sailing && !p.mount && k === 1 && p.stamina >= (p.sprint ? 0.01 : SPRINT_MIN) ? 1 : 0;
     p.sprint = sprinting;
     vx = cmd.dx * sp * k * (sprinting ? SPRINT_MULT : 1);
     vy = cmd.dy * sp * k * (sprinting ? SPRINT_MULT : 1);

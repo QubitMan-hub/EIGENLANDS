@@ -1,3 +1,4 @@
+import { guildRank } from '@eigenlands/shared';
 import './circuit.css';
 import {
   ABILITIES,
@@ -64,6 +65,7 @@ export class CircuitClient implements ClientModule {
     this.dialog.onIdle = () => this.afterDialog();
     this.board = new BoardView({
       progress: this.progress,
+      guildRank: () => guildRank(d.profile.quests),
       level: () => d.level(),
       coins: () => d.profile.coins,
       now: () => this.now(),

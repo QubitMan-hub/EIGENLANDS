@@ -253,6 +253,18 @@ export class AtlasClient implements ClientModule {
       };
     }
     if (!this.tracked) return null;
+    const journey = this.d.profile.quests[this.tracked]?.journey;
+    if (journey && !this.d.profile.quests[this.tracked]?.progress[0] && !journey.failed) {
+      const point =
+        journey.kind === 'rescue' && journey.released ? journey.home : journey.points[Math.min(2, journey.stage)]!;
+      return {
+        id: this.tracked,
+        questId: this.tracked,
+        title: 'Guild rendezvous',
+        detail: 'Stay close to your traveller. Inspect evidence or talk with Space.',
+        point,
+      };
+    }
     return (
       questDestinations(
         this.d.store().seed,

@@ -30,6 +30,7 @@ export class PlayerState extends Schema {
   @type('boolean') cart = false;
   /** Packed Appearance (see appearance.ts); 0 = never chosen. Appended for schema field compatibility. */
   @type('uint32') app = 0;
+  @type('uint8') mount = 0;
 }
 
 export class EnemyState extends Schema {
@@ -72,6 +73,9 @@ export class NpcState extends Schema {
   @type('uint8') look = 0;
   /** bit0 walking, bit1 inside a building (hidden), bit2 talking */
   @type('uint8') flags = 0;
+  @type('string') name = '';
+  @type('string') farm = '';
+  @type('boolean') young = false;
 }
 
 export class ProjectileState extends Schema {

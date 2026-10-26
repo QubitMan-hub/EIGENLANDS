@@ -530,7 +530,7 @@ See [CRAFTING.md](CRAFTING.md) for the architecture, the data files and what is 
 
 ## 10. FARMING, ANIMAL HUSBANDRY & BUILDING
 
-- [~] IN PROGRESS — Players can build durable owned homes, farms, ranches, workshops and guild halls from modular architecture and functional objects. Settlement governance/NPC housing remains open.
+- [~] IN PROGRESS — Players can build durable owned homes, farms, ranches, workshops and guild halls from modular architecture and functional objects. Charters, valid housing assignments, resident happiness/upkeep and services are now implemented; deeper governance remains open.
 
 ### Agriculture
 
@@ -539,25 +539,25 @@ See [CRAFTING.md](CRAFTING.md) for the architecture, the data files and what is 
 ### Animal husbandry
 
 - [x] IMPLEMENTED & TESTED — Chickens, cows, sheep, goats, pigs, horses and Glimmerhart fantasy livestock.
-- [x] IMPLEMENTED & TESTED — Owned shelters, feeding, breeding, growth, happiness, bounded products, tool-gated atomic collection and grounded quiet animations. Apiaries retain their colony model; free-roaming animals and mounts remain open.
+- [x] IMPLEMENTED & TESTED — Owned shelters, feeding, breeding, growth, happiness, bounded products, tool-gated atomic collection and grounded quiet animations. Calm bounded server yard roaming and trained horse/Glimmerhart riding are implemented; apiaries retain their colony model.
 
 ### Building
 
-- [~] IN PROGRESS — Cottages, houses, farms, barns, stables, inns, towers, castles, guild halls and workshops can be composed from 33 modular pieces and the furniture/station catalog; support, collision, roofs, stairs and ownership persist. Settlement governance and bespoke prefab plans remain open.
+- [~] IN PROGRESS — Cottages, houses, farms, barns, stables, inns, towers, castles, guild halls and workshops can be composed from 33 modular pieces and the furniture/station catalog; support, collision, roofs, stairs and ownership persist. Owned charters and resident services are implemented; bespoke prefab plans and deeper governance remain open.
 - [x] IMPLEMENTED & TESTED — Wall, roof, floor, window, lighting, garden and interior customization via construction and placed objects.
 - [~] IN PROGRESS — Native isometric furniture; functional storage, benches, lights, warmth, safe bed rest and player-hall guild boards. Additional furniture-specific interactions remain open.
 
 ## 11. ADVENTURER GUILD SYSTEM — F TO SSS
 
-- [~] IN PROGRESS — Existing civic halls/inns host physical guild boards, including frontier settlements; player-built halls can craft their own. Dedicated guild architecture/staff remain open.
-- [x] IMPLEMENTED & TESTED — Register, receive a persistent ledger identity card, accept verified commissions, select classes and form parties through the existing systems.
+- [~] IN PROGRESS — Existing civic halls/inns host physical guild boards, including frontier settlements; player-built halls can craft their own. Original guild desks/standards and dedicated stewards form civic annexes; replacement hall prefabs remain open.
+- [x] IMPLEMENTED & TESTED — Register, receive a persistent ledger identity card, accept verified commissions, select classes and form parties through the existing systems, share nearby living-party kill credit and unlock rank-B Wayguard specialization.
 - [x] IMPLEMENTED & TESTED — **F → E → D → C → B → A → S → SS → SSS** with two commissions and a practical trial per promotion.
 - [x] IMPLEMENTED & TESTED — SSS requires distinct credited defenses in all six kingdoms plus two legendary bosses after acceptance, following all previous promotions. No repeatable rank-XP shortcut.
 - [~] IN PROGRESS — Practical/cross-profession/boss mastery and actual raid-outcome proofs implemented; authored branching world-changing guild storylines remain open.
 
 ### Quest boards
 
-- [~] IN PROGRESS — 25 ledger entries covering hunts, supplies, crafting, farming, fishing, trade, archives, experimentation, bosses and kingdom defense. Escort/rescue, branching investigation and diplomacy missions remain open.
+- [~] IN PROGRESS — 25 ledger entries covering hunts, supplies, crafting, farming, fishing, trade, archives, experimentation, bosses and kingdom defense. Four daily surveyed escort/rescue, physical branching investigation and resource-backed diplomacy jobs supplement the fixed ledger; authored world-changing campaigns remain open.
 - [x] IMPLEMENTED & TESTED — Original projected physical boards with a readable matching desktop/mobile ledger, server reach/eligibility checks and one-time rewards.
 
 ## 12. MORE PLAYER CLASSES

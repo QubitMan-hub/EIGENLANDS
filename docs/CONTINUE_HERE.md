@@ -1,10 +1,8 @@
-# Current continuation: homesteads, guilds and crafting integration (2026-10-26)
+# Current continuation: living guilds, settlement residents and riding (2026-10-26)
 
-Read [HOMESTEADS_AND_GUILD.md](HOMESTEADS_AND_GUILD.md) first. Integrated main's crafting expansion (`5bbd3cf`, #41), retained authored livestock/orchard/guild art and connected the new pens/products/tools. Perennial orchards, water-connected irrigation, individual husbandry with breeding/happiness, safe bed rest, physical guild boards, registration/cards, F–SSS proofs and a craftable player-hall board now extend the existing systems. All material/food/gear catalogs stay intact; catalog furniture gained raster padding to fix clipping. No world layout reset.
+Read [HOMESTEADS_AND_GUILD.md](HOMESTEADS_AND_GUILD.md) for the implemented rules and boundaries, then [plans/2026-10-26-living-guilds.md](plans/2026-10-26-living-guilds.md) and [EIGENLANDS_MASTER_PLAN.md](EIGENLANDS_MASTER_PLAN.md) for broader scope. This batch adds surveyed escort/rescue routes, ordered physical investigation evidence with decisions, resource-backed diplomacy, four daily jobs, nearby party kill quest credit, original guild desks/standards/stewards, rank-B Wayguard specialization, owned housing/charters/resident services, calm authoritative livestock roaming and trained horse/Glimmerhart riding. Saved layouts, catalogs and prior authored art remain.
 
-Next: actual escort/rescue/investigation/diplomacy guild missions, guild staff/architecture, party-shared guild kill credit, livestock free roaming/mount riding and settlement governance. See the focused doc for exact boundaries and tests; the master checklist is not blanket complete.
-
----
+Remaining **broader** ambitions: purpose-built guild-building prefabs rather than the civic annex, authored world-changing campaigns, deeper resident schedules/government, unrestricted pasture migration, individual bees, and real hardware/network play measurements. They are not marked complete by the focused implementation. No Render deployment changes in this batch.
 
 # Current continuation: crafting and food expansion (§9, 2026-10-26)
 

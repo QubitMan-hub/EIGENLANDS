@@ -64,6 +64,18 @@ export function questDestinations(
       });
       continue;
     }
+    if (state.journey && !state.journey.failed) {
+      const j = state.journey,
+        point = j.kind === 'rescue' && j.released ? j.home : j.points[Math.min(2, j.stage)]!;
+      result.push({
+        id: `${id}:journey`,
+        questId: id,
+        title: q.title,
+        detail: 'Surveyed rendezvous · stay close to the traveller; inspect with Space',
+        point,
+      });
+      continue;
+    }
     q.objectives.forEach((o, i) => {
       if (progress[i]! >= o.n) return;
       let location: Pick<Destination, 'point' | 'detail'> = { detail: 'No fixed destination · consult the Journal' };
