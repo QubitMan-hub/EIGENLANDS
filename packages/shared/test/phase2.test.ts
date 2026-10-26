@@ -447,7 +447,7 @@ describe('quests', () => {
   it('every quest references real givers, items and prerequisites', () => {
     for (const q of QUESTS) {
       expect(
-        NPCS.find((n) => n.id === q.giver),
+        NPCS.find((n) => n.id === q.giver) ?? (q.realm ? NPC_BY_ID[q.giver] : undefined),
         q.id,
       ).toBeTruthy();
       for (const r of q.requires ?? []) expect(QUEST_BY_ID[r], `${q.id} requires ${r}`).toBeTruthy();
