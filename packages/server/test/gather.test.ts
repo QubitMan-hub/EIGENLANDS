@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { FORAGE_BY_SEASON, T } from '@eigenlands/shared';
+import { FORAGE_BY_SEASON, FORAGE_EXTRA_BY_SEASON, T } from '@eigenlands/shared';
 import type { App } from '../src/app';
 import {
   boot,
@@ -101,7 +101,8 @@ describe('forage, bugs, fauna', () => {
     await use(p, 'axe', X - 1, Y);
     await until(() => p.room.store.getTile(X - 1, Y) === T.GRASS);
     const season = p.room.wclock.season();
-    const got = p.sp.data.inv.some((s) => s && FORAGE_BY_SEASON[season]!.includes(s.id));
+    const yields = [...FORAGE_BY_SEASON[season]!, ...FORAGE_EXTRA_BY_SEASON[season]!.map((e) => e.item)];
+    const got = p.sp.data.inv.some((s) => s && yields.includes(s.id));
     expect(got).toBe(true);
     await nextDay(p.room);
     await until(() => p.room.store.getTile(X - 1, Y) === T.FORAGE, 4000);
