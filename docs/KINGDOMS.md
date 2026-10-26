@@ -18,6 +18,17 @@ The master palette grew from 48 to 64 colours (emerald, teal, crimson, gold, blu
 
 Deterministic `Town` objects per plot: avenue and main street, rows of buildings with south doors, plaza with well and banners, walls and gates (capital/town/outpost), fields and fences (farms/villages), palace and throne for capitals. Building `style` 4–9 selects the client's realm architecture (`client/src/art/buildings.ts`). Settlements are sanctuaries (no monsters).
 
+### Markets, churches, fairs and houses (this pass)
+
+- Plazas are markets: two ranks of stalls (`stall_<awning>_<wares>`: five awnings × produce, fish, cloth, bread, pots, flowers, hung meat, herbs) with crates and baskets, a tiered fountain (or statue/well), lamps and banners. Every stall has a `.stall.N` keeper spot.
+- Capitals, towns and villages get a church (`BuildingKind 'church'`: pews, altar, steep gable, rose window, stone bell tower with spire) and a hedged churchyard (graves, crosses, obelisks, a crypt, dead trees). Capitals and towns get a fairground (Ferris wheel, carousel, swing boats, big top, game booths).
+- Houses are smaller and each one differs: roof form per kingdom (`plain`, `cross` gable wing, `gambrel`, `barrel`, `swoop`, `jerkin`), pitch, a 40% chance of another roof colour, plaster washes, shutter colours, stone ground floors and round corner towers with cone roofs (`client/src/art/buildings.ts`).
+- The QubitMan statue was redrawn after the reference character (wide hat, teal plume, red scarf, mantle, white sleeves, bracers, crimson tabard, gold coins).
+
+### World life (`client/src/game/life.ts`)
+
+Visual-only, built for the settlement you stand in: market vendors calling their wares and customers browsing, tavern patrons in the evening, smiths at the forge, farmers and farm animals, a fisherman, rooftop pigeons, fairgoers, mourners, caravans at the gates, a royal procession and jousting in capitals, bells at 6/12/18, festival bunting and fireworks, umbrellas in rain, people fleeing monsters. Every villager has a unique packed appearance (built one sheet per frame). Army bars sit at helm height.
+
 ## People (`kingdoms.ts`, `realm-npcs.ts`, `dialogue.ts`)
 
 `KINGDOMS` holds ruler, court, units, economy, festivals, ranks and relations. `realmNpcs()` builds ~360 residents (ruler/court/commander/guards/archers/innkeeper/smith/merchant/herbalist/scholar in capitals; smaller rosters elsewhere) with schedules and shops. They are not in `NPCS`; the server village adds them at revision 5 for the shard owning their plot. Voices are generated from lore. On a kingdom's festival day its folk gather at their `.plaza` spot from noon.
@@ -32,8 +43,8 @@ Deterministic `Town` objects per plot: avenue and main street, rows of buildings
 
 ## Not built
 
-Marching armies/mounted units, wars and treaties that change the world, atlas realm borders, underwater cities and aquatic farming, kingdom ship fleets, mythical army units as enemies/allies, branching faction quests, per-realm music.
+Server-side NPC routines beyond schedules (guard rotation, gossip, trade routes), rideable mounts, story sites and ruins, a redraw of every older monster in the style of the latest references, treaties that change the world, underwater cities and aquatic farming, kingdom ship fleets, mythical army units as enemies/allies, branching faction quests, per-realm music.
 
 ## Checks
 
-`shared/test/realms.test.ts`, `realm-towns.test.ts`, `realm-quests.test.ts`, `server/test/kingdoms.test.ts`; visual tours `e2e/kingdoms-art.mjs`, `e2e/realm-beasts-art.mjs`.
+`shared/test/realms.test.ts`, `realm-towns.test.ts`, `realm-quests.test.ts`, `server/test/kingdoms.test.ts`; visual tours `e2e/kingdoms-art.mjs`, `e2e/realm-beasts-art.mjs`, `e2e/life-tour.mjs`, `e2e/houses-tour.mjs` (`NAMED=church;graveyard;.fair`), `e2e/lab-shot.mjs`.
