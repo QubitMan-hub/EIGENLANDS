@@ -8,7 +8,7 @@ import { T } from './tiles';
 import { sampleClimate } from './worldgen';
 import { LEGACY_GENERATION } from './world-version';
 
-export type BuildingKind = 'smithy' | 'hall' | 'inn' | 'store' | 'house' | 'farmhouse' | 'tower';
+export type BuildingKind = 'smithy' | 'hall' | 'inn' | 'store' | 'house' | 'farmhouse' | 'tower' | 'church';
 export interface Building {
   id: string;
   kind: BuildingKind;
@@ -509,6 +509,19 @@ export function furnish(b: Building, rawObj: ObjAdd, spot: SpotAdd): void {
     midY = iy + Math.floor(ih / 2);
 
   switch (b.kind) {
+    case 'church': {
+      // an altar under the east window, candles either side, and pews in two ranks down a central aisle
+      deco(midX, iy, 'shrine_altar');
+      deco(midX - 1, iy, 'candles');
+      deco(midX + 1, iy, 'candles');
+      deco(ix, iy, 'banner');
+      deco(right, iy, 'banner');
+      for (let y = iy + 2; y <= bottom - 2; y += 2)
+        for (let x = ix; x <= right; x++) if (Math.abs(x - midX) > 0) deco(x, y, 'bench');
+      for (let y = iy + 1; y <= bottom; y++) rug(midX, y);
+      spot('church.work', midX, iy + 1);
+      break;
+    }
     case 'smithy':
       obj(ix + 1, iy, 'station', 'forge');
       obj(ix + 3, iy, 'station', 'furnace');

@@ -703,16 +703,17 @@ function buildRoof(
   const alongX = b.w >= b.h;
   const span = alongX ? b.h / 2 + o : b.w / 2 + o;
   const realm = buildingRealm(b);
-  const shape: RoofShape = realm === 'surface' ? (st.shape ?? 'gable') : 'gable';
+  const shape: RoofShape = realm === 'surface' ? (b.kind === 'church' ? 'gable' : (st.shape ?? 'gable')) : 'gable';
   const hv = (k: number) => hash2(seed, k, 77, 91);
   const realmIdx = b.style >= 4 ? Math.floor((b.style - 4) / 5) % FORMS_BY_REALM.length : 0;
   const house = realm === 'surface' && shape === 'gable' && HOUSE_KINDS.includes(b.kind);
   const form: Form = house ? FORMS_BY_REALM[realmIdx]![Math.floor(hv(1) * 6)]! : 'plain';
-  const pitch = house ? 0.85 + hv(2) * 0.7 : 1;
+  const church = b.kind === 'church' && realm === 'surface';
+  const pitch = house ? 0.85 + hv(2) * 0.7 : church ? 1.9 : 1;
   // a third of the houses wear another colour of roof than their kingdom's default
   const alt = house && hv(3) < 0.4 ? ALT_ROOFS[Math.floor(hv(4) * ALT_ROOFS.length)]! : null;
   const rk = alt ? alt.kind : st.roofKind;
-  const baseRise = Math.min(span * 11 * pitch * (form === 'gambrel' ? 1.2 : 1), 54);
+  const baseRise = Math.min(span * 11 * pitch * (form === 'gambrel' ? 1.2 : 1), church ? 76 : 54);
   const rise =
     shape === 'spire'
       ? Math.min(span * 15, 54)
@@ -802,6 +803,52 @@ function buildRoof(
   const turretOdds = realmIdx === 2 || realmIdx === 0 || realmIdx === 5 ? 0.3 : 0.16;
   const towered = house && b.w >= 7 && b.h >= 6 && form !== 'barrel' && hv(7) < turretOdds;
   const vols: Vol[] = [];
+  if (church) {
+    // the bell tower: a square stone shaft at the front corner, louvred belfry openings, a tall slate spire and a cross
+    const half = Math.min(1.7, b.w * 0.2),
+      cx = b.x + half + 0.1,
+      cy = b.y + b.h - half - 0.1,
+      bodyTop = zE + rise + 12,
+      spireH = 58;
+    vols.push({
+      x0: cx - half - 0.3,
+      x1: cx + half + 0.3,
+      y0: cy - half - 0.3,
+      y1: cy + half + 0.3,
+      zmin: 0,
+      ztop: bodyTop + spireH + 10,
+      hit: (x, y, z, px, py) => {
+        const dx = x - cx,
+          dy = y - cy;
+        const m = Math.max(Math.abs(dx), Math.abs(dy));
+        // the cross on the spire's tip
+        if (Math.abs(dx) < 0.08 && Math.abs(dy) < 0.08 && z > bodyTop + spireH - 2 && z < bodyTop + spireH + 9)
+          return C.e6;
+        if (Math.abs(dy) < 0.08 && Math.abs(dx) < 0.35 && z > bodyTop + spireH + 4 && z < bodyTop + spireH + 6)
+          return C.e6;
+        if (z >= bodyTop - 1) {
+          const h = bodyTop + spireH * (1 - m / (half + 0.3));
+          if (m > half + 0.3 || z > h) return -1;
+          const southFace = dy > dx;
+          const course = Math.floor((bodyTop + spireH - z) / 4) % 2;
+          return rampAt(R0, (southFace ? 0.7 : 0.35) + (course ? -0.08 : 0.06), px, py);
+        }
+        if (m > half) return -1;
+        const southFace = dy >= dx;
+        const along = southFace ? dx : dy;
+        // belfry openings and a clock face
+        if (z > bodyTop - 16 && z < bodyTop - 4 && Math.abs(along) < half * 0.45)
+          return Math.floor(z) % 3 === 0 ? C.e1 : C.ink;
+        if (Math.abs(z - (bodyTop - 26)) < 4.5 && Math.hypot(along * 16, z - (bodyTop - 26)) < 4.5)
+          return Math.hypot(along * 16, z - (bodyTop - 26)) < 1 ? C.ink : C.pale;
+        if (z > bodyTop - 4) return C.fog; // cornice
+        const row = Math.floor(z / 6);
+        const blk = Math.floor((along + half) * 2 + (row % 2) * 0.5);
+        if (Math.floor(z) % 6 === 5) return C.steel;
+        return rampAt(GRANITE, (southFace ? 0.66 : 0.32) + (hash2(seed, blk, row, 23) - 0.5) * 0.22, px, py);
+      },
+    });
+  }
   if (towered) {
     const cx = b.doorX - b.x > b.w / 2 ? b.x + 1.3 : x1Of(b) - 1.3,
       cy = b.y + b.h - 1.3,
@@ -1107,6 +1154,28 @@ function buildRoof(
             }
             if (!gableFace) continue;
             const u = gableFace === 'east' ? y : x;
+            if (church) {
+              // a rose window high in the west front: a ring of coloured lights round a golden boss
+              const rz = zE + rise * 0.42,
+                rr = Math.hypot((u - cu) * 16, z - rz);
+              if (rr < 9) {
+                const ang = Math.atan2(z - rz, (u - cu) * 16);
+                const petal = Math.floor(((ang + Math.PI) / (Math.PI * 2)) * 12);
+                put(
+                  ctx,
+                  px,
+                  py,
+                  rr > 8
+                    ? C.fog
+                    : rr < 2
+                      ? C.c4
+                      : Math.abs(((ang + Math.PI) / (Math.PI * 2)) * 12 - petal - 0.5) > 0.4
+                        ? C.slate
+                        : [C.b0, C.c1, C.c4, C.n2, C.q2, C.t1][petal % 6]!,
+                );
+                break;
+              }
+            }
             const win = Math.abs(u - cu) < 0.32 && Math.abs(z - zMid) < 5;
             let c: number;
             if (win) {

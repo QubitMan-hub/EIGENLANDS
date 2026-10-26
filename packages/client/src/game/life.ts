@@ -191,6 +191,15 @@ export class WorldLife {
     const a = this.cast.find((c) => c.role === role);
     return a ? { x: a.x, y: a.y } : null;
   }
+  /** a named spot of the settlement being animated, by suffix, or the door of its first building of a kind (tests) */
+  spotOf(suffix: string): { x: number; y: number } | null {
+    const t = this.town;
+    if (!t) return null;
+    const k = Object.keys(t.spots).find((n) => n.endsWith(suffix));
+    if (k) return t.spots[k]!;
+    const b = t.buildings.find((b) => b.kind === suffix);
+    return b ? { x: b.doorX, y: b.doorY + 2 } : null;
+  }
   /** the settlement being animated, for tests and screenshots */
   where(): string | null {
     return this.site?.id ?? null;
@@ -334,6 +343,36 @@ export class WorldLife {
       v.phase = (n++ % 7) * 0.9;
       this.fronts.push({ x: sp.x + 0.5, y: sp.y + 3 });
     }
+    // fairgoers among the rides, out late into the evening
+    const fair = t.spots[`${site.id}.fair`];
+    if (fair) {
+      const goers = Math.round((8 + hs(n, 11) * 5) * big);
+      for (let i = 0; i < goers; i++) {
+        const a = this.person(
+          'crowd',
+          look(n + 40 + i),
+          fair.x + (hs(i, 12) - 0.5) * 12,
+          fair.y + (hs(i, 13) - 0.5) * 8,
+          {
+            hours: [10, 22.5],
+            home: { x: fair.x, y: fair.y, r: 8 },
+          },
+        );
+        a.slot = 50 + i;
+        a.st = 'idle';
+        a.t = rnd(0, 3);
+      }
+    }
+    // a mourner or two among the graves by day
+    const yard = t.spots[`${site.id}.graveyard`];
+    if (yard)
+      for (let i = 0; i < 2; i++) {
+        const a = this.person('crowd', look(n + 70 + i), yard.x + (i ? 2 : -2), yard.y - 2, {
+          hours: i ? [9, 12] : [15, 18],
+          home: { x: yard.x, y: yard.y - 3, r: 3 },
+        });
+        a.slot = 90 + i;
+      }
     // market and festival crowd around the plaza
     const pa = t.spots[`${site.id}.plaza_a`],
       pb = t.spots[`${site.id}.plaza_b`],
@@ -697,7 +736,7 @@ export class WorldLife {
       !shelter &&
       !(a.role === 'farmer' && f.weather === 'storm') &&
       !(a.role === 'fisher' && f.weather === 'storm') &&
-      !(a.role === 'crowd' && !this.festival && crowdIdx >= 4 && (h >= 18 || h < 8) && a.slot < 100);
+      !(a.role === 'crowd' && !this.festival && crowdIdx >= 4 && (h >= 18 || h < 8) && a.slot < 50);
     // festivals pull everyone out at all hours
     const festivalOut = this.festival && a.role === 'crowd' && h >= 8 && h < 23.5;
     const visible = out || festivalOut || a.ttl !== undefined || a.role === 'knight';

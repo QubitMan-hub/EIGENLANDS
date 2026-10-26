@@ -68,7 +68,8 @@ describe('realm towns', () => {
         expect(seen.has(key(b.doorX, b.doorY + 1)), `${t.name} ${b.id} door street`).toBe(true);
       }
       for (const [name, sp] of Object.entries(t.spots)) {
-        if (/\.(wall|throne|gate|field|plaza_[ab]|tourney.*|palace_door|stall\.\d+)$/.test(name)) continue;
+        if (/\.(wall|throne|gate|field|plaza_[ab]|tourney.*|palace_door|stall\.\d+|graveyard|fair(_[ab])?)$/.test(name))
+          continue;
         expect(seen.has(key(sp.x, sp.y)), `${t.name} ${name}`).toBe(true);
       }
     }

@@ -26,6 +26,20 @@ await page.waitForFunction(() => window.__eigen?.state().ready, null, { timeout:
 const dev = (m) => page.evaluate((m) => window.__eigen.game.net.dev(m), m);
 await dev({ cmd: 'level', level: 8 });
 const spots = (process.env.SPOTS ?? '1024,-512').split(';').map((p) => p.split(',').map(Number));
+// named places of the settlement around the first spot (church, graveyard, fair ...): NAMED="church:0,6;graveyard:0,0"
+if (process.env.NAMED) {
+  await dev({ cmd: 'tp', x: spots[0][0], y: spots[0][1] });
+  await sleep(6000);
+  spots.length = 0;
+  for (const part of process.env.NAMED.split(';')) {
+    const [name, off] = part.split(':');
+    const [dx, dy] = (off ?? '0,0').split(',').map(Number);
+    const p = await page.evaluate((n) => window.__eigen.game.life.spotOf(n), name);
+    console.log(name, JSON.stringify(p));
+    if (p) spots.push([Math.round(p.x + dx), Math.round(p.y + dy)]);
+    else console.log('missing', name);
+  }
+}
 for (const [i, [x, y]] of spots.entries()) {
   await dev({ cmd: 'tp', x, y });
   await sleep(Number(process.env.WAIT ?? 9000));

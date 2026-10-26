@@ -130,7 +130,7 @@ const PROFILE: Record<RealmId, Profile> = {
 // ───────────────────────── building slots ─────────────────────────
 
 interface Slot {
-  place: Place | 'home';
+  place: Place | 'home' | 'church';
   kind: BuildingKind;
   /** furnish() trade id for buildings that are kind 'house' but have a trade interior */
   trade?: string;
@@ -844,6 +844,15 @@ function build(site: RealmSite, seed: number): Town {
     queue.push({ place: 'home', kind: 'hall', w: rnd(14, 17), h: 9, v: 3 });
     queue.push({ place: 'home', kind: 'house', w: rnd(14, 17), h: 8, v: 3 });
   }
+  // a church on a street near the middle (a cathedral in a capital)
+  if (site.kind === 'capital' || site.kind === 'town' || site.kind === 'village')
+    queue.push({
+      place: 'church',
+      kind: 'church',
+      w: site.kind === 'capital' ? 11 : site.kind === 'town' ? 9 : 7,
+      h: site.kind === 'capital' ? 12 : site.kind === 'town' ? 11 : 9,
+      v: 4,
+    });
   const homes =
     site.kind === 'capital'
       ? rnd(40, 50)
@@ -890,6 +899,79 @@ function build(site: RealmSite, seed: number): Town {
           else if (chance(0.18 + prof.green * 0.2)) set(x, y, T.FLOWERS);
         }
       if (!pond) obj(px + Math.floor(pw / 2), py + Math.floor(ph / 2), 'deco', pickOf(['statue', 'bench', 'well']));
+      break;
+    }
+
+  // ───── the churchyard: rows of graves inside a hedge, a crypt and a couple of dead trees
+  if (site.kind === 'capital' || site.kind === 'town' || site.kind === 'village')
+    for (let tries = 0; tries < 40; tries++) {
+      const gw = site.kind === 'capital' ? rnd(16, 20) : site.kind === 'town' ? rnd(13, 16) : rnd(10, 12),
+        gh = site.kind === 'capital' ? rnd(11, 13) : rnd(9, 11);
+      const gx = rnd(x0 + keepOut, x1 - keepOut - gw),
+        gy = rnd(y0 + keepOut, y1 - keepOut - gh);
+      if (!isFree(gx - 1, gy - 1, gw + 2, gh + 2)) continue;
+      mark(gx, gy, gw, gh, RES);
+      const gate = gx + Math.floor(gw / 2);
+      for (let x = gx; x < gx + gw; x++) {
+        obj(x, gy, 'deco', 'hedge');
+        if (Math.abs(x - gate) > 1) obj(x, gy + gh - 1, 'deco', 'hedge');
+      }
+      for (let y = gy + 1; y < gy + gh - 1; y++) {
+        obj(gx, y, 'deco', 'hedge');
+        obj(gx + gw - 1, y, 'deco', 'hedge');
+      }
+      for (let y = gy + 1; y < gy + gh - 1; y++) set(gate, y, T.PATH);
+      obj(gate, gy + 1, 'deco', 'crypt');
+      const GRAVES = ['grave', 'grave', 'grave_cross', 'grave_obelisk', 'grave_old', 'grave_old'];
+      for (let y = gy + 3; y < gy + gh - 2; y += 2)
+        for (let x = gx + 2; x < gx + gw - 2; x += 2) {
+          if (Math.abs(x - gate) <= 1) continue;
+          if (chance(0.85)) obj(x, y, 'deco', pickOf(GRAVES));
+        }
+      obj(gx + 1, gy + 1, 'deco', 'dead_tree');
+      if (chance(0.6)) obj(gx + gw - 2, gy + gh - 2, 'deco', 'dead_tree');
+      obj(gate + 1, gy + gh - 1, 'deco', 'street_lamp');
+      spot(`${site.id}.graveyard`, gate, gy + gh - 2);
+      break;
+    }
+
+  // ───── the fairground: a Ferris wheel, a carousel, swing boats, a big top and game booths on beaten earth
+  if (site.kind === 'capital' || site.kind === 'town')
+    for (let tries = 0; tries < 40; tries++) {
+      const fw = site.kind === 'capital' ? rnd(22, 26) : rnd(18, 21),
+        fh = site.kind === 'capital' ? rnd(15, 17) : rnd(13, 15);
+      const fx = rnd(x0 + keepOut, x1 - keepOut - fw),
+        fy = rnd(y0 + keepOut, y1 - keepOut - fh);
+      if (!isFree(fx - 1, fy - 1, fw + 2, fh + 2)) continue;
+      mark(fx, fy, fw, fh, RES);
+      for (let y = fy; y < fy + fh; y++) for (let x = fx; x < fx + fw; x++) set(x, y, T.PATH);
+      obj(fx + 4, fy + 4, 'deco', 'ferris_wheel');
+      obj(fx + Math.floor(fw / 2) + 1, fy + Math.floor(fh / 2), 'deco', 'carousel');
+      obj(fx + fw - 5, fy + 4, 'deco', 'circus_tent');
+      obj(fx + fw - 4, fy + fh - 4, 'deco', 'swing_boat');
+      const AWN = ['red', 'blue', 'green', 'gold', 'violet'];
+      const booths = site.kind === 'capital' ? 5 : 4;
+      for (let i = 0; i < booths; i++) {
+        const bx = fx + 2 + i * 3;
+        obj(
+          bx,
+          fy + fh - 2,
+          'deco',
+          `stall_${AWN[(i + fw) % AWN.length]}_${['bread', 'flowers', 'cloth', 'pots', 'produce'][i % 5]}`,
+        );
+      }
+      for (const [lx, ly] of [
+        [fx, fy],
+        [fx + fw - 1, fy],
+        [fx, fy + fh - 1],
+        [fx + fw - 1, fy + fh - 1],
+      ] as const)
+        obj(lx, ly, 'deco', 'banner', { realm: site.realm });
+      obj(fx + Math.floor(fw / 2) - 4, fy + Math.floor(fh / 2) + 3, 'deco', 'street_lamp');
+      obj(fx + Math.floor(fw / 2) + 5, fy + Math.floor(fh / 2) - 3, 'deco', 'street_lamp');
+      spot(`${site.id}.fair`, fx + Math.floor(fw / 2) - 2, fy + Math.floor(fh / 2) + 1);
+      spot(`${site.id}.fair_a`, fx + 1, fy + 1);
+      spot(`${site.id}.fair_b`, fx + fw - 2, fy + fh - 2);
       break;
     }
 
@@ -1123,7 +1205,7 @@ function build(site: RealmSite, seed: number): Town {
       gates.push(g);
 
   // ───── resident spots
-  const byPlace = new Map<Place | 'home', Placed[]>();
+  const byPlace = new Map<Place | 'home' | 'church', Placed[]>();
   for (const p of placed) byPlace.set(p.slot.place, [...(byPlace.get(p.slot.place) ?? []), p]);
   const homesPlaced = placed.filter((p) => p.slot.place === 'home' || p.slot.kind === 'farmhouse');
   const doorSpot = (b: Building, i: number) => ({ x: b.doorX + (i % 2), y: b.doorY - 1 });
