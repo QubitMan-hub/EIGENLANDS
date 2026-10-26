@@ -259,7 +259,12 @@ export class Audio {
         break;
       case 'bell':
         // a bronze bell: a struck fundamental with inharmonic partials ringing down
-        [[196, 0.1], [392, 0.07], [588, 0.05], [823, 0.03]].forEach(([f, g]) => this.tone(f!, 1.6, 'sine', g!, -4));
+        [
+          [196, 0.1],
+          [392, 0.07],
+          [588, 0.05],
+          [823, 0.03],
+        ].forEach(([f, g]) => this.tone(f!, 1.6, 'sine', g!, -4));
         this.noise(0.08, 0.12, 'bandpass', 2200, 1800, 2);
         break;
       case 'anvil':
