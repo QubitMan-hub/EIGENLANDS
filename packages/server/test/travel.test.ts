@@ -118,6 +118,8 @@ describe('mounts', () => {
     // a struck rider (any loss of health) is thrown
     p.sp.hp -= 1;
     await until(() => p.sp.sim.mount === 0, 2000);
+    // Server state changes before the websocket toast reaches the client.
+    await until(() => p.toasts.some((t) => /thrown/.test(t.text)), 2000);
     expect(p.toasts.some((t) => /thrown/.test(t.text))).toBe(true);
     // the Stag answers only a seasoned wayfarer
     dev(p, { cmd: 'give', id: 'stag_bell', n: 1 });
