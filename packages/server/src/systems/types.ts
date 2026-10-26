@@ -44,6 +44,8 @@ export interface PlayerData {
   recipes: Set<string>;
   equip: EquipState;
   friends: Record<string, FriendRec>;
+  /** standing with each kingdom (world revision 5) */
+  rep: Partial<Record<import('@eigenlands/shared').RealmId, number>>;
   buffs: Record<string, Buff>;
   /** quest log (story quests + request-board jobs) */
   quests: QuestLog;
@@ -58,7 +60,7 @@ export interface PlayerData {
 }
 
 export type DirtyPart =
-  'inv' | 'coins' | 'skills' | 'recipes' | 'equip' | 'friends' | 'buffs' | 'stats' | 'quests' | 'needs';
+  'inv' | 'coins' | 'skills' | 'recipes' | 'equip' | 'friends' | 'rep' | 'buffs' | 'stats' | 'quests' | 'needs';
 
 export interface PlayerRef {
   /** colyseus session id */

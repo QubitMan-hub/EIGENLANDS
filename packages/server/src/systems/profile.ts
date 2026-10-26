@@ -1,4 +1,7 @@
 import {
+  REALM_IDS,
+  REP_MIN,
+  REP_MAX,
   validTravelNeeds,
   WORLD_GENERATION,
   BUFF_KIND_LIST,
@@ -72,6 +75,7 @@ export function newPlayerData(season: number): PlayerData {
     recipes: new Set(startRecipes()),
     equip: emptyEquip(),
     friends: {},
+    rep: {},
     buffs: {},
     quests: {},
     deeds: {},
@@ -153,6 +157,13 @@ export function loadPlayerData(raw: unknown, season: number, nowMs: number): Pla
         friends[id]!.noted = f.noted.filter((x): x is string => typeof x === 'string').slice(-6);
     }
   }
+  const rep: PlayerData['rep'] = {};
+  if (r.rep && typeof r.rep === 'object')
+    for (const id of REALM_IDS) {
+      const v = (r.rep as Record<string, unknown>)[id];
+      if (typeof v === 'number' && Number.isFinite(v) && v !== 0)
+        rep[id] = Math.max(REP_MIN, Math.min(REP_MAX, Math.round(v)));
+    }
   const buffs: Record<string, Buff> = {};
   if (r.buffs && typeof r.buffs === 'object') {
     for (const [k, v] of Object.entries(r.buffs as Record<string, unknown>)) {
@@ -191,6 +202,7 @@ export function loadPlayerData(raw: unknown, season: number, nowMs: number): Pla
       feet: slotStack('feet', eq.feet),
     },
     friends,
+    rep,
     buffs,
     quests: validQuests(r.quests, dayNumber(nowMs)),
     deeds,
@@ -226,6 +238,7 @@ export function serializePlayerData(d: PlayerData): Record<string, unknown> {
     recipes: [...d.recipes],
     equip: d.equip,
     friends: d.friends,
+    rep: d.rep,
     buffs: d.buffs,
     quests: d.quests,
     deeds: d.deeds,
@@ -282,6 +295,7 @@ export function profileMsg(d: PlayerData, stats: DerivedStats, parts: Iterable<D
           'recipes',
           'equip',
           'friends',
+          'rep',
           'buffs',
           'stats',
           'quests',
@@ -296,6 +310,7 @@ export function profileMsg(d: PlayerData, stats: DerivedStats, parts: Iterable<D
   if (set.has('recipes')) m.recipes = [...d.recipes];
   if (set.has('equip')) m.equip = d.equip;
   if (set.has('friends')) m.friends = d.friends;
+  if (set.has('rep')) m.rep = d.rep;
   if (set.has('buffs')) m.buffs = d.buffs;
   if (set.has('stats')) m.stats = stats;
   if (set.has('quests')) {

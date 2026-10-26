@@ -1,9 +1,17 @@
+import { gainRep } from '../reputation';
 import {
   DAY_MS,
   GIFT_EXTRA,
   GIFT_POINTS,
   ITEMS,
   DELVER_MERCHANTS,
+  type ScheduleBlock,
+  KINGDOMS,
+  REALM_IDS,
+  type RealmId,
+  festivalOn,
+  repPriceMultiplier,
+  tradeModifier,
   realmNpcs,
   NPCS,
   delverSpots,
@@ -101,6 +109,17 @@ export class Village implements VillageSystem {
     this.defs = opts.npcIds ? all.filter((n) => opts.npcIds!.includes(n.id)) : all;
   }
 
+  /** the schedule block for now; on a kingdom's festival day its folk gather in the plaza from noon until night */
+  private blockAt(def: NpcDef, hour: number, weather: ReturnType<VillageHost['clock']['weather']>): ScheduleBlock {
+    const block = scheduleAt(def, hour, weather);
+    if (def.realm && hour >= 12 && hour < 22 && def.role !== 'guard' && def.role !== 'archer' && def.role !== 'ruler') {
+      const day = Math.floor(this.host.clock.now() / DAY_MS);
+      if (festivalOn(def.realm as RealmId, day))
+        return { h0: 12, h1: 22, spot: `${def.id}.plaza`, doing: 'celebrating the festival' };
+    }
+    return block;
+  }
+
   get aiEnabled(): boolean {
     return this.ai.enabled;
   }
@@ -125,7 +144,7 @@ export class Village implements VillageSystem {
     const hour = this.host.clock.hour(),
       weather = this.host.clock.weather();
     for (const def of this.defs) {
-      const block = scheduleAt(def, hour, weather);
+      const block = this.blockAt(def, hour, weather);
       const sp = this.spots[block.spot] ?? this.spots[def.home]!;
       const st = new NpcState();
       st.id = def.id;
@@ -199,7 +218,7 @@ export class Village implements VillageSystem {
   }
 
   private reschedule(r: Runner): void {
-    const block = scheduleAt(r.def, this.host.clock.hour(), this.host.clock.weather());
+    const block = this.blockAt(r.def, this.host.clock.hour(), this.host.clock.weather());
     if (block.spot === r.spot && (r.path.length > r.pi || this.arrived(r))) return;
     r.spot = block.spot;
     this.plan(r);
@@ -391,7 +410,7 @@ export class Village implements VillageSystem {
       text,
       hearts: hearts(rec.pts),
       pts: rec.pts,
-      doing: scheduleAt(def, hour, this.host.clock.weather()).doing,
+      doing: this.blockAt(def, hour, this.host.clock.weather()).doing,
       canShop: !!def.shop && open,
       canGift: rec.gifted !== this.host.clock.day(),
       canChat: this.ai.enabled,
@@ -425,7 +444,7 @@ export class Village implements VillageSystem {
 
   private scriptedLine(p: PlayerRef, r: Runner, rec: FriendRec, first: boolean): string {
     const c = this.host.clock;
-    const doing = scheduleAt(r.def, c.hour(), c.weather()).doing;
+    const doing = this.blockAt(r.def, c.hour(), c.weather()).doing;
     const deed = this.deedFor(p, r, rec);
     const out = composeTalk(r.def, {
       pts: rec.pts,
@@ -669,7 +688,7 @@ export class Village implements VillageSystem {
       weather: c.weather(),
       hour: c.hour(),
       hearts: hearts(rec.pts),
-      doing: scheduleAt(r.def, c.hour(), c.weather()).doing,
+      doing: this.blockAt(r.def, c.hour(), c.weather()).doing,
     });
     // any failure (disabled, rate limited, timeout, bad output) falls back to the scripted line
     return this.message(p, r, rec, ai ?? this.scriptedLine(p, r, rec, false));
@@ -683,8 +702,23 @@ export class Village implements VillageSystem {
     return !!kind && !!b && (b.includes('all') || b.includes(kind));
   }
 
-  private unitSell(def: NpcDef, itemId: string, extraSupply = 0): number {
-    return Math.max(1, Math.floor(sellPrice(itemId, this.supply(itemId) + extraSupply) * (def.shop?.buyBonus ?? 1)));
+  /** price factor in a kingdom shop: standing, the season's diplomacy for foreign goods and festival cheer (1 elsewhere) */
+  private realmFactor(p: PlayerRef | null, def: NpcDef, itemId: string): number {
+    const realm = def.realm as RealmId | undefined;
+    if (!realm) return 1;
+    const day = Math.floor(this.host.clock.now() / DAY_MS);
+    const origin = REALM_IDS.find((r) => r !== realm && KINGDOMS[r].economy.exports.includes(itemId));
+    const trade = origin ? tradeModifier(this.host.seed, day, origin, realm) : 1;
+    const rep = repPriceMultiplier(p?.data.rep?.[realm] ?? 0);
+    return trade * rep * (festivalOn(realm, day) ? 0.9 : 1);
+  }
+
+  private unitSell(def: NpcDef, itemId: string, extraSupply = 0, p: PlayerRef | null = null): number {
+    const f = def.realm ? 1 / Math.max(0.7, this.realmFactor(p, def, itemId)) : 1;
+    return Math.max(
+      1,
+      Math.floor(sellPrice(itemId, this.supply(itemId) + extraSupply) * (def.shop?.buyBonus ?? 1) * f),
+    );
   }
 
   private view(p: PlayerRef, def: NpcDef): ShopViewMsg {
@@ -693,7 +727,7 @@ export class Village implements VillageSystem {
     const sell: Record<number, number> = {};
     if (shop)
       p.data.inv.forEach((s, i) => {
-        if (s && this.canBuyKind(def, s.id)) sell[i] = this.unitSell(def, s.id);
+        if (s && this.canBuyKind(def, s.id)) sell[i] = this.unitSell(def, s.id, 0, p);
       });
     return {
       npcId: def.id,
@@ -702,7 +736,10 @@ export class Village implements VillageSystem {
       sell,
       stock: (shop?.stock ?? [])
         .filter((s) => !s.seasons || s.seasons.includes(season))
-        .map((s) => ({ item: s.item, price: buyPrice(s.item, s.markup) })),
+        .map((s) => ({
+          item: s.item,
+          price: Math.max(1, Math.round(buyPrice(s.item, s.markup) * this.realmFactor(p, def, s.item))),
+        })),
     };
   }
 
@@ -743,7 +780,8 @@ export class Village implements VillageSystem {
         p.toast('Not for sale right now.', 'bad');
         return this.view(p, def);
       }
-      const cost = buyPrice(entry.item, entry.markup) * n;
+      const cost =
+        Math.max(1, Math.round(buyPrice(entry.item, entry.markup) * this.realmFactor(p, def, entry.item))) * n;
       if (p.data.coins < cost) {
         p.toast('You cannot afford that.', 'bad');
         return this.view(p, def);
@@ -757,6 +795,7 @@ export class Village implements VillageSystem {
       p.data.coins -= cost;
       p.dirty('inv', 'coins');
       p.toast(`Bought ${n} ${ITEMS[entry.item]!.name} for ${cost}.`, 'good', stack);
+      if (def.realm) gainRep(p, def.realm as RealmId, Math.max(1, Math.floor(cost / 30)), true);
       if (p.data.quests) syncQuests(p, this.host.seed);
       return this.view(p, def);
     }
@@ -771,7 +810,7 @@ export class Village implements VillageSystem {
         return this.view(p, def);
       }
       let total = 0;
-      for (let i = 0; i < n; i++) total += this.unitSell(def, stack.id, i); // price slides as the market saturates
+      for (let i = 0; i < n; i++) total += this.unitSell(def, stack.id, i, p); // price slides as the market saturates
       const id = stack.id;
       stack.n -= n;
       if (stack.n <= 0) p.data.inv[msg.slot as number] = null;
@@ -780,6 +819,7 @@ export class Village implements VillageSystem {
       this.marketDirty = true;
       p.dirty('inv', 'coins');
       p.toast(`Sold ${n} ${ITEMS[id]!.name} for ${total}.`, 'good');
+      if (def.realm) gainRep(p, def.realm as RealmId, Math.max(1, Math.floor(total / 40)), true);
       if (p.data.quests) {
         questEvent(p, { type: 'sell', target: id, n }, this.host.seed);
         syncQuests(p, this.host.seed);

@@ -168,6 +168,8 @@ export interface ProfileMsg {
   buffs?: Record<string, { until: number; power: number }>;
   /** friendship per NPC: points, last day talked, last day gifted */
   friends?: Record<string, { pts: number; talked: number; gifted: number }>;
+  /** standing with each kingdom */
+  rep?: Record<string, number>;
   /** quest log: state + per-objective progress */
   quests?: QuestLog;
   /** heart events seen ("npc:index"), sent with quests */

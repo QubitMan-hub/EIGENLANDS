@@ -8,6 +8,16 @@ import {
   QUESTS,
   RECIPES,
   SKILLS,
+  DAY_MS,
+  KINGDOMS,
+  REALM_IDS,
+  REP_TIERS,
+  type KingdomStance,
+  diplomacyAt,
+  nextFestival,
+  realmRankName,
+  relationsOf,
+  repTier,
   SKILL_NAMES,
   SKILL_PERKS,
   STATION_NAMES,
@@ -28,7 +38,7 @@ import { ACTIONS, ACTION_LABELS, DEFAULT_KEYS, type KeyMap } from '../input/keym
 import { binding } from './first-steps';
 import { heartsRow } from './dialogue';
 
-export type JournalTab = 'journey' | 'quests' | 'skills' | 'friends' | 'recipes' | 'guide' | 'help';
+export type JournalTab = 'journey' | 'quests' | 'skills' | 'friends' | 'kingdoms' | 'recipes' | 'guide' | 'help';
 
 /** "How do I…?" pages: everything Phase 2 adds, explained in-game. */
 export const GUIDE: Array<[string, string]> = [
@@ -134,6 +144,7 @@ export function buildJournal(
       ['journey', 'Journey'],
       ['skills', 'Skills'],
       ['friends', 'Friends'],
+      ['kingdoms', 'Kingdoms'],
       ['recipes', 'Recipes'],
       ['guide', 'How to…'],
       ['help', 'Controls'],
@@ -334,6 +345,8 @@ export function buildJournal(
           text: `${POINTS_PER_HEART} points per heart (max ${MAX_HEARTS}). Talk once a day, give one gift a day.`,
         }),
       );
+    } else if (tab === 'kingdoms') {
+      body.append(kingdomsPage(profile, seed));
     } else if (tab === 'recipes') {
       const by = new Map<StationId, (typeof RECIPES)[number][]>();
       for (const r of RECIPES)
@@ -431,5 +444,65 @@ export function buildJournal(
     render();
   });
   root.append(tabs, body);
+  return root;
+}
+
+const STANCE_LABEL: Record<KingdomStance, string> = {
+  allied: 'Allied',
+  friendly: 'Friendly',
+  neutral: 'Neutral',
+  rival: 'Rivals',
+  hostile: 'Hostile',
+};
+
+/** The six great kingdoms: lore, your standing, relations and the next festival. */
+function kingdomsPage(profile: Profile, seed: number): HTMLElement {
+  const day = Math.floor(Date.now() / DAY_MS);
+  const root = h('div', { class: 'kingdoms' });
+  root.append(
+    h('div', {
+      class: 'small dim',
+      text: 'Six kingdoms lie across the sea. Trade, quests and kindness raise your standing; standing lowers prices and opens doors. Allies of a kingdom warm to you a little, its rivals cool.',
+    }),
+  );
+  for (const id of REALM_IDS) {
+    const k = KINGDOMS[id];
+    const rep = profile.rep[id] ?? 0;
+    const tier = repTier(rep);
+    const next = tier >= 4 ? null : REP_TIERS[(Math.max(0, tier) + 1) as 1 | 2 | 3 | 4];
+    const prev = tier <= 0 ? 0 : REP_TIERS[tier as 1 | 2 | 3 | 4];
+    const pct = next ? Math.max(0, Math.min(100, ((rep - prev) / (next - prev)) * 100)) : 100;
+    const nf = nextFestival(id, day);
+    root.append(
+      h(
+        'details',
+        { class: 'kingdom' },
+        h(
+          'summary',
+          {},
+          h('b', { text: `${k.name} · ${k.epithet}` }),
+          h('span', { class: 'small dim', text: `  ${realmRankName(id, rep)} (${rep})` }),
+        ),
+        h('div', { class: 'bar xp' }, h('i', { style: `width:${pct}%` })),
+        h('div', { class: 'small', text: `${k.ruler.title}: ${k.ruler.name}, in ${k.capital}. ${k.ruler.trait}` }),
+        h('div', { class: 'small dim', text: k.culture }),
+        h('div', { class: 'small dim', text: `Cuisine: ${k.cuisine}` }),
+        h('div', { class: 'small dim', text: `Trade: ${k.economy.trade}` }),
+        h('div', {
+          class: 'small',
+          text: `Next festival: ${nf.festival.name}${nf.in === 0 ? ' (today!)' : ` in ${nf.in} day${nf.in === 1 ? '' : 's'}`}`,
+        }),
+        ...relationsOf(id).map((r) =>
+          h('div', { class: 'small dim', text: `${STANCE_LABEL[r.stance]} with ${KINGDOMS[r.other].name}: ${r.note}` }),
+        ),
+      ),
+    );
+  }
+  const rumors = diplomacyAt(seed, day).filter((d) => d.event);
+  if (rumors.length)
+    root.append(
+      h('div', { class: 'small' }, h('b', { text: 'Court rumours this season' })),
+      ...rumors.map((d) => h('div', { class: 'small dim', text: d.rumor })),
+    );
   return root;
 }

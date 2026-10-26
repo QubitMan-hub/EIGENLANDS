@@ -41,6 +41,8 @@ export class Profile {
   };
   buffs: Buffs = {};
   friends: Record<string, FriendView> = {};
+  /** standing with each kingdom */
+  rep: Record<string, number> = {};
   stats = { hpBonus: 0, atkBonus: 0, luck: 0, haste: 0, def: 0, phase: 0 };
   quests: QuestLog = {};
   /** heart events already seen */
@@ -92,6 +94,10 @@ export class Profile {
     if (m.friends) {
       this.friends = { ...this.friends, ...m.friends };
       changed.add('friends');
+    }
+    if (m.rep) {
+      this.rep = m.rep;
+      changed.add('rep');
     }
     if (m.stats) {
       this.stats = m.stats;

@@ -50,6 +50,7 @@ export interface QuestDef {
     friend?: number;
     xp?: number;
     /** recipe id taught on completion */ recipe?: string;
+    /** standing earned with the quest's kingdom */ rep?: number;
   };
   /** quests that must be done first */
   requires?: string[];
@@ -58,6 +59,8 @@ export interface QuestDef {
   daily?: { day: number };
   /** where to hand it in, in words (journal) */
   where?: string;
+  /** kingdom this quest belongs to (revision 5) */
+  realm?: string;
 }
 
 /** A quest-relevant thing that happened. `kind`/`station` let pattern targets match. */
@@ -69,6 +72,7 @@ export interface QuestEvent {
   station?: string;
 }
 
+import { realmQuests } from './realm-quests';
 const q = (d: QuestDef): QuestDef => d;
 export const QUESTS: QuestDef[] = [
   q({
@@ -514,6 +518,8 @@ QUESTS.push(
     };
   }),
 );
+
+QUESTS.push(...realmQuests());
 
 export const QUEST_BY_ID: Record<string, QuestDef> = Object.fromEntries(QUESTS.map((x) => [x.id, x]));
 export type QuestState = { state: 'active' | 'done'; progress: number[] };

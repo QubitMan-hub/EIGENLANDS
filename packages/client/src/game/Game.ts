@@ -36,6 +36,8 @@ import {
   season,
   PALETTE,
   townFor,
+  KINGDOMS,
+  inRealmLand,
   townsFor,
   weatherForDay,
   biomeWeather,
@@ -757,6 +759,23 @@ export class Game {
     while (box.children.length > 4) box.firstChild?.remove();
   }
 
+  private realmSeen: string | null = null;
+  private realmCheckAt = 0;
+  /** "Entering <Kingdom>" when the player crosses onto a kingdom's continent (world revision 5) */
+  private realmBanner(now: number): void {
+    if (now < this.realmCheckAt || this.store.generation < 5) return;
+    this.realmCheckAt = now + 1000;
+    const me = this.predictor?.sim;
+    if (!me) return;
+    const realm = inRealmLand(this.seed, Math.floor(me.x), Math.floor(me.y));
+    if (realm === this.realmSeen) return;
+    this.realmSeen = realm;
+    if (realm) {
+      const k = KINGDOMS[realm];
+      this.gameplay.toasts.add(`Entering ${k.name} · ${k.epithet}`, 'info');
+    }
+  }
+
   private toast(text: string): void {
     this.caption(text);
   }
@@ -1055,6 +1074,7 @@ export class Game {
     this.fps = this.frameRate.sample(now);
     const dt = Math.min(frameInterval, 250) / 1000;
     if (!this.predictor || !this.connected) return;
+    this.realmBanner(now);
 
     // fixed-step simulation (same step as the server)
     const budget = simulationBudget(this.acc, frameInterval);

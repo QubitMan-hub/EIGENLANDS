@@ -68,3 +68,4 @@ export * from './realms';
 export * from './kingdoms';
 export * from './realm-towns';
 export * from './realm-npcs';
+export * from './realm-quests';
