@@ -1,3 +1,9 @@
+# Current continuation: kingdom architectural polish (2026-10-26)
+
+Synced main through PR #37 (`483a3e5`) before editing. See [KINGDOMS.md](KINGDOMS.md#architectural-polish-2026-10-26) and the kingdom section in [art/style-guide.md](art/style-guide.md). Changed shared roof materials/geometry variation, gables, market stalls and the QubitMan sculpture; preserved durable world layouts, progression, controls and biome architecture. Visible buildings load before off-screen warmup. `e2e/kingdom-materials.mjs` checks 30 styles, worker/fallback roof parity, six capitals and mobile landscape; Art Lab now accepts revision 5. Remaining kingdom content is still listed in KINGDOMS.md and the master checklist; this is an art pass, not completion of all kingdom systems.
+
+---
+
 # Current continuation: the six kingdoms (§6, world revision 5, 2026-10-26)
 
 See docs/KINGDOMS.md for the full map of what exists and what does not. New worlds are revision 5; `activeGeneration(seed)` gates all kingdom content. Branch stack: PR #37 (survival) must merge first; kingdom commits sit on top of it.

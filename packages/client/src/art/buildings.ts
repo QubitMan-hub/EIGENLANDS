@@ -629,11 +629,16 @@ function buildRoof(
     X1 = b.x + b.w + o,
     Y0 = b.y - o,
     Y1 = b.y + b.h + o;
-  const alongX = b.w >= b.h;
+  // Vary street silhouettes without changing the durable footprint or entrance.
+  const design = hash2(seed, b.w, b.h, 91);
+  const ordinary = b.kind === 'house' || b.kind === 'farmhouse';
+  const alongX = ordinary && design > 0.72 ? b.w < b.h : b.w >= b.h;
   const span = alongX ? b.h / 2 + o : b.w / 2 + o;
   const realm = buildingRealm(b);
-  const shape: RoofShape = realm === 'surface' ? (st.shape ?? 'gable') : 'gable';
-  const baseRise = Math.min(span * 11, 40);
+  const baseShape = st.shape ?? 'gable';
+  const shape: RoofShape =
+    realm === 'surface' ? (ordinary && baseShape === 'gable' && design < 0.24 ? 'hip' : baseShape) : 'gable';
+  const baseRise = Math.min(span * (ordinary ? 10 + design * 3 : 12), 52);
   const rise =
     shape === 'spire'
       ? Math.min(span * 15, 54)
@@ -699,11 +704,11 @@ function buildRoof(
   // intersected by the same world-space rays as the main roof, so valleys and
   // chimney occlusion remain correct in both ridge orientations.
   const count =
-    realm !== 'surface' || shape !== 'gable'
+    realm !== 'surface' || (shape !== 'gable' && shape !== 'hip')
       ? 0
       : b.kind === 'inn' || b.kind === 'hall'
         ? 2
-        : b.kind === 'farmhouse' || b.id === 'library'
+        : b.kind === 'farmhouse' || b.kind === 'store' || b.id === 'library' || (b.kind === 'house' && design > 0.38)
           ? 1
           : 0;
   const dormers = Array.from({ length: count }, (_, i) => {
@@ -769,8 +774,8 @@ function buildRoof(
         if (!Number.isFinite(cap)) continue;
         const start = chTop - Math.max(0, Math.floor((chTop - cap) * 2)) * 0.5;
         for (let z = start; z >= zE - 4; z -= 0.5) {
-          const Q = (sy + z) / 8,
-            x = (Q + P) / 2,
+          const Q = (sy + z) / 8;
+          let x = (Q + P) / 2,
             y = (Q - P) / 2;
           // chimney (a brick box poking through the roof)
           if (ch && x >= ch.x0 && x <= ch.x0 + ch.s && y >= ch.y0 && y <= ch.y0 + ch.s && z <= chTop && z >= zE) {
@@ -830,26 +835,56 @@ function buildRoof(
           }
           if (dormerHit) break;
           if (!inFoot(x, y)) continue;
-          const rz = roofZ(x, y);
+          let rz = roofZ(x, y);
           if (z > rz) continue;
           const slab = z >= rz - 3;
           if (slab) {
-            const edge = z < rz - 0.75; // fascia/barge board (the slab's thickness)
+            // A sampled ray can land below the height field anywhere on a slope.
+            // Only the silhouette owns fascia; treating all sample error as a
+            // side face creates regular dark dots across the entire roof.
+            const border = Math.min(x - X0, X1 - x, y - Y0, Y1 - y);
+            const edge = border < 0.09 && z < rz - 0.6;
             if (edge) {
               put(ctx, px, py, alongX ? (y > mid ? st.trim : R0[0]!) : x > mid ? st.trim : R0[0]!);
               break;
             }
-            // roof surface: courses run along the ridge
-            const along = alongX ? x : y,
+            // Refine the half-pixel ray hit back onto its surface. Sampling
+            // texture coordinates inside the slab aliases seams into dotted
+            // bands on steep/back-facing planes. Linear planes solve exactly;
+            // curved roofs retain the bounded local interpolation.
+            if (inFoot(x + 1 / 32, y + 1 / 32)) {
+              const delta = 0.5 + rz - roofZ(x + 1 / 32, y + 1 / 32);
+              if (delta > 0.001) {
+                const f = Math.min(1, Math.max(0, (rz - z) / delta));
+                x += f / 32;
+                y += f / 32;
+                rz = roofZ(x, y);
+              }
+            }
+            // roof surface: courses run along each plane's own eave
+            const endPlane =
+              (shape === 'hip' || shape === 'pagoda' || shape === 'spire') &&
+              alongHalf - Math.abs((alongX ? x : y) - aMid) < span - Math.abs((alongX ? y : x) - mid);
+            const along = endPlane ? (alongX ? y : x) : alongX ? x : y,
               down = Math.abs((alongX ? y : x) - mid);
             const side = (alongX ? y : x) > mid ? 1 : -1; // +1 = south/east slope (faces the camera)
-            const lit = alongX ? (side > 0 ? 0.18 : -0.02) : side > 0 ? -0.25 : 0.12;
+            const lit = endPlane
+              ? alongX
+                ? -0.18
+                : 0.16
+              : alongX
+                ? side > 0
+                  ? 0.16
+                  : -0.08
+                : side > 0
+                  ? -0.22
+                  : 0.1;
             const dpx =
                 shape === 'gable' || shape === 'flat' ? down * 16 : (1 - Math.min(1, (rz - zE) / rise)) * span * 16,
               apx = along * 16;
             let t = 0.55 + lit;
             let c: number;
-            if ((shape === 'gable' || shape === 'hip') && Math.abs(down) < 0.12) {
+            if ((shape === 'gable' || shape === 'hip') && !endPlane && Math.abs(down) < 0.12) {
               c = rampAt(R0, 0.85 + lit, px, py);
               put(ctx, px, py, c);
               break;
@@ -863,33 +898,35 @@ function buildRoof(
             } else if (st.roofKind === 'thatch') {
               const strand = hash2(seed, Math.floor(apx / 3), Math.floor(dpx / 4), 9);
               const course = Math.floor(dpx) % 10;
-              t += (strand - 0.5) * 0.14 + (course === 0 ? -0.18 : course < 2 ? 0.1 : 0);
+              t += (strand - 0.5) * 0.06 + (course === 0 ? -0.1 : course < 2 ? 0.06 : 0);
             } else {
-              const rowH = st.roofKind === 'slate' ? 6 : st.roofKind === 'tile' ? 5 : 5;
+              // Broad overlapping shingles. All seams live in roof space;
+              // one material value per tile, never per-pixel noise or dots.
+              const rowH = st.roofKind === 'slate' ? 5 : 6;
               const row = Math.floor(dpx / rowH);
-              const len = st.roofKind === 'tile' ? 8 : st.roofKind === 'slate' ? 11 : 8;
+              const len = st.roofKind === 'tile' ? 7 : 9;
               const off = (row % 2) * (len / 2);
               const k = Math.floor((apx + off) / len);
               const fr = apx + off - k * len,
                 fz = dpx - row * rowH;
-              if (st.roofKind === 'tile') {
-                // scalloped clay tiles: each tile is a rounded fish-scale lit from the upper left, overlapped by the next row
-                const u = (fr / len - 0.5) * 2,
-                  v = fz / rowH;
-                const arc = 0.5 + 0.5 * Math.sqrt(Math.max(0, 1 - u * u));
-                if (v > arc) t -= 0.34;
-                else if (v > arc - 0.24) t -= 0.14;
-                else t += 0.1 * (1 - v) - u * 0.05 + (hash2(seed, k, row, 10) - 0.5) * 0.22;
-              } else if (fz < 0.7)
-                t -= 0.18; // course shadow line
-              else {
-                if (fr < 0.7) t -= 0.14;
-                t += (hash2(seed, k, row, 10) - 0.5) * 0.16 + (fz > rowH - 1.5 ? 0.1 : 0);
-              }
-              if (st.roofKind === 'shingle' && hash2(seed, k, row, 11) > 0.93) t -= 0.25; // the odd mossy shingle
+              t += (hash2(seed, k, row, 10) - 0.5) * 0.12;
+              if (fz > rowH - 0.85)
+                t -= 0.19; // under the overlapping lip
+              else if (fr < 0.65)
+                t -= 0.13; // staggered vertical joint
+              else if (fz > rowH - 1.7)
+                t += 0.12; // lit tile bevel
+              else if (st.roofKind === 'tile' && fr < 1.8) t += 0.06;
+              if (st.roofKind === 'shingle' && row > 1 && hash2(seed, k, row, 11) > 0.97) t -= 0.12; // occasional weathered shingle, not a noise mask
             }
             // eave darkening: the lowest course reads as an overhang
-            if (dpx > span * 16 - 3) t -= 0.18;
+            if (dpx > span * 16 - 1.5) t -= 0.14;
+            // Barge boards follow the actual gable ends in either orientation.
+            const endDistance = Math.min(along - (alongX ? X0 : Y0), (alongX ? X1 : Y1) - along);
+            if (shape === 'gable' && realm === 'surface' && endDistance < 0.12) {
+              put(ctx, px, py, endDistance < 0.05 ? st.trim : rampAt(st.wall, 0.65 + lit, px, py));
+              break;
+            }
             c = rampAt(R0, t, px, py);
             put(ctx, px, py, c);
             break;
@@ -914,7 +951,15 @@ function buildRoof(
                       ? C.w4
                       : C.w2;
             } else if (st.kind === 'stone') c = rampAt(st.wall, gableFace === 'east' ? 0.35 : 0.65, px, py);
-            else {
+            else if (st.kind === 'plaster') {
+              const edgeZ = zE + rise * (1 - Math.abs(u - cu) / span);
+              const timber =
+                Math.abs(u - cu) < 0.065 ||
+                edgeZ - z < 1.5 ||
+                z < zE + 2 ||
+                (Math.abs((u - cu) * 16) % 18 < 1 && z < zE + rise * 0.48);
+              c = rampAt(timber ? st.timber! : st.wall, gableFace === 'east' ? 0.36 : 0.74, px, py);
+            } else {
               const boards = Math.floor((u * 16) / 3);
               c =
                 Math.floor(u * 16) % 3 === 0
@@ -939,7 +984,7 @@ function buildRoof(
       for (const x of [u + 1, u + 23]) iso.line3(x, v, 24, x, v + 11, 31, C.e1);
       iso.para(iso.X(u, v), iso.Y(u, v, 36), 24, 12, -12, 10, (s, t) => {
         if (b.kind === 'inn' || b.id === 'bakery')
-          return Math.floor(s * 6) % 2 ? (t > 0.8 ? C.e5 : C.e7) : t > 0.8 ? C.r1 : C.r2;
+          return Math.floor(s * 6) % 2 ? (t > 0.8 ? C.e5 : C.e7) : (st.shutter ?? R0)[t > 0.8 ? 1 : 2]!;
         return Math.floor(t * 12) % 4 === 0 ? R0[1]! : R0[3]!;
       });
       iso.left(u, v + 12, 30, 24, 2, st.trim);

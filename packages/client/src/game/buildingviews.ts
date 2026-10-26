@@ -184,12 +184,17 @@ export class BuildingViews {
     const dt = this.last ? Math.min(0.1, (now - this.last) / 1000) : 0.016;
     this.last = now;
     this.builtThisFrame = 0;
-    const priority = `${playerTx},${playerTy}`;
+    const priority = `${playerTx},${playerTy},${Math.floor(minX)},${Math.floor(minY)}`;
     if (priority !== this.priority) {
       this.priority = priority;
-      const dist = (b: Building) =>
-        Math.max(b.x - playerTx, 0, playerTx - b.x - b.w) + Math.max(b.y - playerTy, 0, playerTy - b.y - b.h);
-      this.views.sort((a, b) => dist(a.b) - dist(b.b));
+      const cx = (minX + maxX) / 2,
+        cy = (minY + maxY) / 2;
+      const dist = (b: Building) => Math.max(b.x - cx, 0, cx - b.x - b.w) + Math.max(b.y - cy, 0, cy - b.y - b.h);
+      const visible = (b: Building) =>
+        b.x + b.w + 4 >= minX && b.x - 4 <= maxX && b.y + b.h + 4 >= minY && b.y - 4 <= maxY;
+      // Finish on-screen architecture before spending the single bake slot on
+      // off-screen warmup. Camera-only tours must not load half a city first.
+      this.views.sort((a, b) => Number(visible(b.b)) - Number(visible(a.b)) || dist(a.b) - dist(b.b));
     }
     const inside = this.insideBuilding(playerTx, playerTy);
     if (sun.dark !== undefined) this.darkness = sun.dark;

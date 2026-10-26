@@ -12,6 +12,7 @@ import { buildFoeSheets } from '../art/foes';
 //   ships    sloop and corsair hulls at every heading, the Brine Serpent
 import { Application, Container, Graphics, Sprite, Text } from 'pixi.js';
 import {
+  isWorldGeneration,
   CROPS,
   ChunkStore,
   LEVEL_PX,
@@ -568,7 +569,8 @@ if (mode === 'construction') {
   (window as unknown as { __lab: unknown }).__lab = { ready: true };
 } else {
   // ───────── isometric scene: the same render path as the game (GPU terrain, views, lightmap, weather) ─────────
-  const store = new ChunkStore(seed, 400, q.get('generation') === '1' ? 1 : q.get('generation') === '3' ? 3 : 2);
+  const requestedGeneration = num('generation', 2);
+  const store = new ChunkStore(seed, 400, isWorldGeneration(requestedGeneration) ? requestedGeneration : 2);
   setLift(store.generation >= 3 ? (x, y) => softLevel(store.levelAt, x, y) * LEVEL_PX : null);
   const world = new Container(),
     shadows = new Container(),
@@ -771,6 +773,7 @@ if (mode === 'construction') {
       objects: objects.count,
       wobjs: wobjs.count,
       buildings,
+      bounds: b,
     };
   });
   void T;

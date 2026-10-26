@@ -16,7 +16,7 @@ The master palette grew from 48 to 64 colours (emerald, teal, crimson, gold, blu
 
 ## Settlements (`realm-towns.ts`)
 
-Deterministic `Town` objects per plot: avenue and main street, rows of buildings with south doors, plaza with well and banners, walls and gates (capital/town/outpost), fields and fences (farms/villages), palace and throne for capitals. Building `style` 4–9 selects the client's realm architecture (`client/src/art/buildings.ts`). Settlements are sanctuaries (no monsters).
+Deterministic `Town` objects per plot: avenue and main street, rows of buildings with south doors, plaza with well and banners, walls and gates (capital/town/outpost), fields and fences (farms/villages), palace and throne for capitals. Building `style` 4–33 selects the client's realm architecture (`client/src/art/buildings.ts`). Settlements are sanctuaries (no monsters).
 
 ## People (`kingdoms.ts`, `realm-npcs.ts`, `dialogue.ts`)
 
@@ -37,3 +37,13 @@ Marching armies/mounted units, wars and treaties that change the world, atlas re
 ## Checks
 
 `shared/test/realms.test.ts`, `realm-towns.test.ts`, `realm-quests.test.ts`, `server/test/kingdoms.test.ts`; visual tours `e2e/kingdoms-art.mjs`, `e2e/realm-beasts-art.mjs`.
+
+## Architectural polish (2026-10-26)
+
+The shared building painter now varies home ridge orientation, pitch, gable/hip silhouettes and dormers without changing settlement generation or saved layouts. It fixes interior roof pixels being mistaken for fascia, refines ray-hit material coordinates, gives hip end planes their own tile orientation and shading, and adds staggered rectangular tile courses, gable framing and architecture-coloured entry awnings. Existing pagodas, domes, spires, battlements and realm palettes remain.
+
+Market stalls have wider counters, merchandise and price boards, front/back supports, braces, stone feet and projected canvas/valances in both orientations. QubitMan's original carved figure now has a tricorn, scarf inlay, star medal, split coat, staff and grounded boots, preserving the plinth, inscription and quantum effects. These shared textures reach existing kingdoms and older settlements too.
+
+Building loading prioritizes visible architecture before off-screen warmup, retaining a single build/upload per frame. Art Lab can now select revision 5, and the visual harness waits for all visible architecture rather than taking premature empty-floor screenshots.
+
+Validation harness: `e2e/kingdom-materials.mjs` (source Vite), plus `e2e/kingdoms-art.mjs` (playable solo). Scope: architectural art and loading order; this does not add new castle interiors, upper floors, districts or world-generation migrations. Those remain separate features.

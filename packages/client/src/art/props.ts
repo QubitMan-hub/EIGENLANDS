@@ -37,11 +37,11 @@ function iso(
   H: number,
   face: Facing,
   draw: (p: Prop, ctx: Ctx) => void,
-  o: { flat?: boolean; post?: (p: Prop, ctx: Ctx) => void } = {},
+  o: { flat?: boolean; margin?: number; post?: (p: Prop, ctx: Ctx) => void } = {},
 ): ObjSprite {
   const { canvas, ctx } = makeCanvas(W, H);
   const ax = Math.floor(W / 2),
-    ay = H - 10;
+    ay = H - (o.margin ?? 10);
   undithered(() => {
     const p = new Prop(ctx, ax, ay, face);
     draw(p, ctx);
@@ -867,49 +867,69 @@ function stallGoods(p: Prop, ctx: Ctx, goods: Goods): void {
 }
 
 function stall(face: Facing, f: number, awn: Awning = 'red', goods: Goods = 'produce'): ObjSprite {
-  return iso(46, 62, face, (p, ctx) => {
-    // counter of crates heaped with goods
-    p.box(0.5, 5, 0, 15, 9, 10, {
-      ramp: LIGHTWOOD,
-      front: (s, t, c) => (Math.round(t * 10) % 3 === 0 ? c(-1) : Math.round(s * 15) % 5 === 0 ? c(-2) : null),
-      end: planks(10),
-    });
-    p.box(0, 4.5, 10, 16, 10, 1.2, { ramp: WOODM });
-    stallGoods(p, ctx, goods);
-    // posts and the striped awning sloping out toward the customers
-    for (const [a, b, h] of [
-      [0.5, 0.5, 30],
-      [14, 0.5, 30],
-      [0.5, 14, 24],
-      [14, 14, 24],
-    ] as const)
-      p.box(a, b, 0, 1.4, 1.4, h, { ramp: DARKWOOD });
-    const lift = f ? 0.6 : 0;
-    const back = 30,
-      front = 22.5 + lift;
-    const [u0, v0] = p.uv(-0.5, 0),
-      [ua, va] = p.uv(17, 0),
-      [ub, vb] = p.uv(-0.5, 16.5);
-    const I = p.iso,
-      ax = I.X(u0, v0),
-      ay = I.Y(u0, v0, back);
-    const e1x = I.X(ua, va) - ax,
-      e1y = I.Y(ua, va, back) - ay,
-      e2x = I.X(ub, vb) - ax,
-      e2y = I.Y(ub, vb, front) - ay;
-    const [dark, light, edge] = AWN[awn];
-    I.para(ax, ay, e1x, e1y, e2x, e2y, (s, t) => {
-      const red = Math.floor((s * 17) / 2.8) % 2 === 0;
-      const lit = p.facing === 'sw' ? 1 : 0;
-      return red ? [dark, light][lit]! : [C.e6, C.e7][lit]!;
-    });
-    // scalloped valance along the front edge
-    for (let a = -0.5; a < 17; a += 1) {
-      const red = Math.floor((a + 0.5) / 2.8) % 2 === 0;
-      const drop = Math.round(a) % 2 === 0 ? 2 : 1;
-      for (let d = 0; d < drop + 1; d++) p.dot(a, 16.5, front - d, red ? edge : C.e5);
-    }
-  });
+  return iso(
+    64,
+    68,
+    face,
+    (p, ctx) => {
+      // Back posts precede the counter; front supports follow the merchandise.
+      // Every edge is rebuilt through Prop's world axes for both facings.
+      for (const a of [-1, 22]) {
+        p.box(a, 0, 0, 1.4, 1.4, 32, { ramp: DARKWOOD });
+        p.line(a + 0.7, 1, 24, a + 5 * (a < 0 ? 1 : -1), 1, 31, C.e3);
+      }
+      p.box(-1, 5, 0, 24, 9, 10, {
+        ramp: LIGHTWOOD,
+        front: (s, t, c) => (t < 0.12 || t > 0.88 ? c(-1) : Math.floor(s * 24) % 6 === 0 ? c(-2) : null),
+        end: planks(10),
+      });
+      p.box(-1.5, 4.5, 10, 25, 10, 1.2, { ramp: WOODM });
+      stallGoods(p, ctx, goods);
+      // Price board and a reserve crate sit at the far end, not across the wares.
+      p.box(17, 7, 11.2, 4.5, 5.5, 3, { ramp: LIGHTWOOD, front: planks(3) });
+      p.box(17.4, 10, 14.2, 3.5, 0.6, 4, { ramp: DARKWOOD });
+      p.line(18, 10.7, 16.5, 20, 10.7, 16.5, C.e6);
+      for (const a of [-1, 22]) {
+        p.box(a, 14, 0, 1.4, 1.4, 25, { ramp: DARKWOOD });
+        p.line(a + 0.7, 14.7, 19, a + 4 * (a < 0 ? 1 : -1), 14.7, 24, C.e3);
+        p.box(a - 0.3, 13.7, 0, 2, 2, 1.5, { ramp: STONEM });
+      }
+      const back = 32,
+        front = 24 + (f ? 0.35 : 0);
+      const [u0, v0] = p.uv(-2, -1),
+        [ua, va] = p.uv(25, -1),
+        [ub, vb] = p.uv(-2, 17);
+      const I = p.iso,
+        ax = I.X(u0, v0),
+        ay = I.Y(u0, v0, back);
+      const [dark, light, edge] = AWN[awn];
+      I.para(ax, ay, I.X(ua, va) - ax, I.Y(ua, va, back) - ay, I.X(ub, vb) - ax, I.Y(ub, vb, front) - ay, (s, t) => {
+        const stripe = Math.floor(s * 8) % 2 === 0;
+        return stripe
+          ? t > 0.9
+            ? dark
+            : p.facing === 'sw'
+              ? light
+              : dark
+          : t > 0.9
+            ? C.e5
+            : p.facing === 'sw'
+              ? C.e7
+              : C.e6;
+      });
+      // A real vertical valance, aligned to the projected counter rather than
+      // screen-horizontal scallops. The narrow seam separates canvas and wood.
+      for (let a = -2; a < 25; a += 0.5) {
+        const stripe = Math.floor((a + 2) / (27 / 8)) % 2 === 0;
+        const drop = 1.5 + Math.sin((((a + 2) / (27 / 8)) % 1) * Math.PI);
+        p.line(a, 17, front, a, 17, front - drop, stripe ? edge : C.e6);
+      }
+      p.line(-2, -1, back, 25, -1, back, C.e6);
+      p.line(-2, -1, back, -2, 17, front, edge);
+      p.line(25, -1, back, 25, 17, front, edge);
+    },
+    { margin: 14 },
+  );
 }
 
 /** A tiered stone fountain: a wide basin, a column and a small bowl, water spilling down and rippling. */
