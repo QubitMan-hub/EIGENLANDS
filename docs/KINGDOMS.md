@@ -60,3 +60,11 @@ Building loading prioritizes visible architecture before off-screen warmup, reta
 Validation harness: `e2e/kingdom-materials.mjs` (source Vite), plus `e2e/kingdoms-art.mjs` (playable solo). Scope: architectural art and loading order; this does not add new castle interiors, upper floors, districts or world-generation migrations. Those remain separate features.
 
 This pass also integrates the newer Living cities branch (PR #38, `9d8c741`), preserving its compact homes, house-specific paints, cross/gambrel/barrel/swept/clipped roof forms, corner turrets, churches and churchyards, fairgrounds and resident activities. The fair's wheel is now a true projected vertical circle with axle depth and box cabins; carousel horses and swing boats have projected volumes, and carousel/tent canvas uses faceted 3D cones with restrained stripes instead of stacked rings. All ride frames are checked for clipping in both facings. Tall church/turret rays start at the full volume height rather than the lower chimney cap. Steep church gables use a safe volume cap when the shallow-plane analytic intersection is invalid; the browser check catches missing roof planes. The new material harness runs in browser CI and its images are uploaded with the art evidence.
+
+## Settlement streaming and shopfronts
+
+The next batch spatially indexes immutable settlement buildings by the existing 32-tile chunk grid. Each frame updates only the nearby set, sorts visible bakes ahead of warmup, and hides sprites once when they leave that set. Roof visibility, interior detection and night lights retain their rules. Boundary-door and teleport-cleanup regression tests include 1,000 distant buildings. No new world-generation data or save format is introduced.
+
+Hanging shop lettering and icons are now projected onto thick upright boards; their bottoms retain the previous height above the walkway. Stone thresholds and small woven mats use the wall painter's real top/side geometry and existing low doorstep height. They improve entrance readability without creating new obstacles.
+
+The six source-rendered capital samples update 55–66 nearby buildings out of 1,141 total (about 94–95% fewer building-view candidates per frame). This measures architecture traversal, not overall FPS; terrain, NPCs and other render costs still exist. Evidence: `docs/validation/kingdom-art/report.json`.

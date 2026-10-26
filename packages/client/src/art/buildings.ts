@@ -14,9 +14,9 @@
  *  - a soft ground shadow cast to the lower right, and a hanging shop sign
  */
 import { Texture } from 'pixi.js';
-import { Iso } from './isokit';
+import { Iso, mat } from './isokit';
 import type { Building } from '@eigenlands/shared';
-import { hash2, isCaveY, isDiveY } from '@eigenlands/shared';
+import { hash2, isCaveY, isDiveY, PALETTE } from '@eigenlands/shared';
 import {
   bigTextC,
   bigTextWidth,
@@ -1390,7 +1390,22 @@ function signTexture(kind: string): HTMLCanvasElement | null {
   put(ctx, 2, 7, s.board[3]!, bw, 1);
   s.icon(ctx, 4, 9);
   bigTextC(ctx, s.text, 14 + tw / 2 + 0.5, 9, C.e7, s.board[0]!);
-  return canvas;
+  // Project the authored lettering and icon onto an upright world-space
+  // board. No rotated billboard: the top edge, thickness and chains share
+  // the same 2:1 axes as the wall it hangs beside.
+  const source = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const projected = makeCanvas(canvas.width + 8, canvas.height + Math.ceil(canvas.width / 2) + 6);
+  const I = new Iso(projected.ctx, 4, canvas.height + 2);
+  I.box(1, -2, 2, bw + 2, 2, bh, mat(s.board));
+  const colours = new Map(PALETTE.map((hex, i) => [parseInt(hex.slice(1), 16), i]));
+  I.left(0, 0, 0, canvas.width, canvas.height, (u, t) => {
+    const x = Math.min(canvas.width - 1, Math.floor(u * canvas.width));
+    const y = Math.min(canvas.height - 1, Math.floor((1 - t) * canvas.height));
+    const k = (y * canvas.width + x) * 4,
+      d = source.data;
+    return d[k + 3] ? (colours.get((d[k]! << 16) | (d[k + 1]! << 8) | d[k + 2]!) ?? C.e1) : -1;
+  });
+  return projected.canvas;
 }
 
 /** Build every texture for one building (call lazily; ~tens of ms). */
@@ -1464,6 +1479,32 @@ function buildBuildingArtInner(b: Building): BuildingArt {
           });
         } else out.push({ x0: tx, x1: east ? tx + 1 - T : tx + 1, y0: ty + 1 - T, y1: ty + 1, z0: 0, z1: zTop, mat });
         if (east) out.push({ x0: tx + 1 - T, x1: tx + 1, y0: ty + 1 - T, y1: ty + 1, z0: 0, z1: zTop, mat });
+      }
+      if (door) {
+        // Low entry stone and woven mat stay on the walkable threshold,
+        // with the same world-space top/side faces as the building walls.
+        out.push({
+          x0: tx + 0.12,
+          x1: tx + 0.88,
+          y0: ty + 0.95,
+          y1: ty + 1.28,
+          z0: 0,
+          z1: 1.5,
+          mat: (f) => (f === 'top' ? C.fog : f === 'south' ? C.mist : C.steel),
+        });
+        if (zTop > CUT_H)
+          out.push({
+            x0: tx + 0.25,
+            x1: tx + 0.75,
+            y0: ty + 0.92,
+            y1: ty + 1.18,
+            z0: 1.5,
+            z1: 1.7,
+            mat: (f, x, y) => {
+              const edge = x < tx + 0.3 || x > tx + 0.7 || y > ty + 1.13;
+              return f !== 'top' || edge ? C.e2 : (st.shutter ?? st.roof)[2]!;
+            },
+          });
       }
       // Window boxes are real projected volumes, attached below the sill.
       if (south && !east && !door && zTop > CUT_H && (tx - b.x) % 2 === 1) {
@@ -1549,7 +1590,7 @@ function buildBuildingArtInner(b: Building): BuildingArt {
       ? {
           tex: tex(sign),
           x: (b.doorX + 1.35 - (y1 + 0.15)) * 16 - 2,
-          y: (b.doorX + 1.35 + y1 + 0.15) * 8 - 38,
+          y: (b.doorX + 1.35 + y1 + 0.15) * 8 - 17 - sign.height,
           tx: b.doorX + 1.4,
           ty: y1 + 0.2,
         }

@@ -1,6 +1,32 @@
 {
   "roofs": 42,
   "capitals": 6,
+  "cityReport": [
+    {
+      "total": 1141,
+      "nearby": 59
+    },
+    {
+      "total": 1141,
+      "nearby": 59
+    },
+    {
+      "total": 1141,
+      "nearby": 55
+    },
+    {
+      "total": 1141,
+      "nearby": 66
+    },
+    {
+      "total": 1141,
+      "nearby": 55
+    },
+    {
+      "total": 1141,
+      "nearby": 65
+    }
+  ],
   "errors": 0,
   "report": [
     {
@@ -262,7 +288,7 @@
   "fairFacings": 2,
   "reducedMotion": true,
   "mobileViewport": [844, 390],
-  "clientTests": 174,
+  "clientTests": 176,
   "sharedTests": 245,
   "targetedMemoryServerTests": 11,
   "integratedBranch": "9d8c741"

@@ -151,6 +151,7 @@ const capitals = [
   [-256, 1024],
   [-1024, 256],
 ];
+const cityReport = [];
 for (let i = 0; i < capitals.length; i++) {
   const [x, y] = capitals[i];
   await page.goto(new URL(`labs/artlab.html?generation=5&x=${x}&y=${y + 18}&scale=2&motion=0&nonpc=1`, base).href);
@@ -170,6 +171,12 @@ for (let i = 0; i < capitals.length; i++) {
     },
     null,
     { timeout: 60000 },
+  );
+  cityReport.push(
+    await page.evaluate(() => ({
+      total: window.__lab.buildings.views.length,
+      nearby: window.__lab.buildings.nearby.length,
+    })),
   );
   await page.screenshot({ path: out + '/city' + i + '.png' });
 }
@@ -191,4 +198,4 @@ await page.waitForFunction(
 await page.screenshot({ path: out + '/mobile.png' });
 await browser.close();
 if (errors.length) throw new Error(errors.join('\n'));
-console.log(JSON.stringify({ roofs: report.length, capitals: 6, errors: errors.length, report }));
+console.log(JSON.stringify({ roofs: report.length, capitals: 6, cityReport, errors: errors.length, report }));

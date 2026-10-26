@@ -1,3 +1,9 @@
+# Next batch: settlement streaming and readable shopfronts (2026-10-26)
+
+Building views now index the existing 32-tile chunks and update/sort only nearby architecture. Interior queries use the same index; distant camera jumps hide old roofs, walls, signs and smoke. The one-bake-per-frame limit remains. Two regression tests cover cross-chunk doors/interiors, visible-first loading, 1,000 distant fixtures and stale-sprite cleanup. Shop sign text/icons are projected onto real thick boards with diagonal edges, and low stone thresholds/woven mats make entries readable without changing collision or saved doors. This is not a measured end-to-end FPS multiplier or a new world-layout migration.
+
+---
+
 # Current continuation: kingdom architectural polish (2026-10-26)
 
 Synced main through PR #37 (`483a3e5`), then integrated the newer Living cities work from PR #38 (`9d8c741`) after finding it on the open branch. See [KINGDOMS.md](KINGDOMS.md#architectural-polish-2026-10-26) and the kingdom section in [art/style-guide.md](art/style-guide.md). Preserved the new house forms, paints, turrets, churches, churchyards, fairgrounds and city life. Changed shared roof materials/geometry variation, gables, market stalls and the QubitMan sculpture; preserved durable world layouts, progression, controls and biome architecture. Visible buildings load before off-screen warmup. `e2e/kingdom-materials.mjs` checks 30 styles plus churches/towers (42 buildings), worker/fallback roof parity, 80 market combinations, every fair animation frame in both facings, six capitals and mobile landscape; Art Lab now accepts revision 5. Remaining kingdom content is still listed in KINGDOMS.md and the master checklist; this is an art pass, not completion of all kingdom systems.
