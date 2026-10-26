@@ -112,6 +112,7 @@ try {
   await page.getByRole('button', { name: 'Saddle up', exact: true }).click();
   await page.waitForFunction(() => window.__eigen.game.predictor.sim.mount === 1);
   await page.keyboard.press('Escape');
+  assert.match(await page.evaluate(() => window.__eigen.game.gameplay.prompt().label ?? ''), /Dismount/);
   await page.waitForTimeout(600);
   await tp(site.x + 0.5, site.y + 2.5);
   await page.waitForTimeout(400);

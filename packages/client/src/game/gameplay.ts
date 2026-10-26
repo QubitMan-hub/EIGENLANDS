@@ -623,6 +623,13 @@ export class Gameplay {
   prompt(): { info: UseInfo | null; tx: number; ty: number; label: string | null } {
     const p = this.d.player();
     const store = this.d.store();
+    if (this.d.ridingMount?.())
+      return {
+        info: null,
+        tx: Math.floor(p.x),
+        ty: Math.floor(p.y),
+        label: `${binding(this.d.input.keys, 'interact')}: Dismount`,
+      };
     if (this.d.ridingCart?.())
       return {
         info: { kind: 'open', label: 'Step off the minecart', ok: true },

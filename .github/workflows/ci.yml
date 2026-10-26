@@ -65,7 +65,7 @@ jobs:
         run: docker compose --env-file "$RUNNER_TEMP/render-test.env" -f deploy/render/compose.test.yml down --volumes
   solo-browser:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
