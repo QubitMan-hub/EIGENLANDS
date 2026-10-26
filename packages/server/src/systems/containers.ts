@@ -25,6 +25,12 @@ import {
   MSG,
   QUBITMAN,
   RUIN_LORE,
+  STORY_READ,
+  STORY_READABLE,
+  STORY_XP,
+  storyOfCell,
+  storyText,
+  type StoryKind,
   RUIN_NAMES,
   ruinLoot,
   type Biome,
@@ -289,6 +295,14 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
     await climb(room, p, o);
     return;
   }
+  if (o.static && o.sub === 'ruin_crypt') {
+    room.cryptInteract?.(p, o);
+    return;
+  }
+  if (o.static && STORY_READABLE.has(o.sub)) {
+    readStory(room, p, o);
+    return;
+  }
   if (o.static && RUIN_LORE[o.sub]) {
     const l = RUIN_LORE[o.sub]!;
     p.client.send(MSG.PANEL, {
@@ -514,6 +528,38 @@ function vaultLoot(theme: string, depth: number, rand: () => number): Array<{ id
     if (rand() < d.weight * (0.7 + 0.15 * depth)) out.push({ id: d.item, n: 1 });
   if (rand() < 0.05) out.push({ id: 'heart_crystal', n: 1 });
   return out;
+}
+
+/** Read a story scene's journal, grave, bill of lading, carving or shrine notes; the first reading pays a little XP. */
+function readStory(room: RoomApi, p: ServerPlayer, o: WorldObj): void {
+  const d = (o.data ?? {}) as { story?: string; biome?: string };
+  const id = typeof d.story === 'string' ? d.story : `${o.x},${o.y}`;
+  const kind = (Object.keys(STORY_READ) as StoryKind[]).find((k) => STORY_READ[k] === o.sub);
+  if (!kind) return;
+  const biome = (BIOMES as readonly string[]).includes(d.biome ?? '') ? (d.biome as Biome) : 'meadow';
+  // the scene's anchor is the story site, whichever of its props is read
+  const site = storyText(room.seed, id, kind, biome, ...storyAnchor(room.seed, id, o));
+  p.client.send(MSG.PANEL, {
+    kind: 'lore',
+    tx: o.x,
+    ty: o.y,
+    sub: o.sub,
+    lore: { title: site.title, plaque: site.plaque, epitaph: site.epitaph, pages: site.pages },
+  });
+  const read = (p.data.prog.lore ??= []);
+  if (!read.includes(id)) {
+    read.push(id);
+    p.dirty('stats');
+    room.grantXp?.(p, STORY_XP);
+    p.toast(`A story found: ${site.title}. (${read.length} so far)`, 'good');
+  }
+}
+
+/** a story's site coordinates, from its id ("st<gx>_<gy>") */
+function storyAnchor(seed: number, id: string, o: WorldObj): [number, number] {
+  const m = /^st(-?\d+)_(-?\d+)$/.exec(id);
+  const s = m ? storyOfCell(seed, Number(m[1]), Number(m[2])) : null;
+  return s ? [s.x, s.y] : [o.x, o.y];
 }
 
 function openRuinCache(room: RoomApi, p: ServerPlayer, o: WorldObj): void {

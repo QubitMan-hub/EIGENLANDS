@@ -75,6 +75,8 @@ export interface PlayerData {
     fest?: string[];
     /** titles won (tournament champion titles) */
     titles?: string[];
+    /** story scenes read (stories.ts ids) */
+    lore?: string[];
     /** mount names and well-fed-until times (world clock ms) */
     mountNames?: Partial<Record<'horse' | 'stag' | 'griffin', string>>;
     mountFed?: Partial<Record<'horse' | 'stag' | 'griffin', number>>;

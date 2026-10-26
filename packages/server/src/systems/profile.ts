@@ -263,6 +263,7 @@ export function validProg(raw: unknown): PlayerData['prog'] {
     caravans: ids(r.caravans),
     fest: ids(r.fest).slice(-40),
     titles: ids(r.titles).slice(0, 40),
+    lore: ids(r.lore),
     mountNames: mountRecord(r.mountNames, (v) => validMountName(v) ?? undefined),
     mountFed: mountRecord(r.mountFed, (v) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined)),
   };

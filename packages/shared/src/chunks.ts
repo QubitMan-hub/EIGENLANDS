@@ -12,6 +12,7 @@ import type { SolidQuery } from './sim';
 import { objSolid, propFootprint, type WorldObj } from './objects';
 import { townsFor } from './town';
 import { ruinObjectsIn } from './ruins';
+import { storyObjectsIn } from './stories';
 import { waystoneObjectsIn } from './travel';
 import { caveObjectsIn, isCaveY } from './caves';
 import { shrineObjectsIn } from './shrines';
@@ -198,6 +199,7 @@ export class ChunkStore {
             ...oceanObjectsIn(this.seed, cx, cy),
             ...shrineObjectsIn(this.seed, cx, cy),
             ...ruinObjectsIn(this.seed, cx, cy),
+            ...storyObjectsIn(this.seed, cx, cy, this.generation),
             ...caveObjectsIn(this.seed, cx, cy, this.generation),
           ];
     const placed = (this.generation >= 3 ? wild.filter((o) => this.seaSiteStillAtSea(o)) : wild).filter(

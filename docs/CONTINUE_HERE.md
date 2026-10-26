@@ -1,3 +1,23 @@
+# Current continuation: living world, economy and civilizations (2026-10-26)
+
+Read [LIVING_WORLD.md](LIVING_WORLD.md) (§16) and [TRAVEL.md](TRAVEL.md).
+
+- **Kingdoms:** they develop daily, building works, issuing decrees, going to war and making peace. Court intrigues
+  wait for a player's choice. All of it shows in the Journal.
+- **Festivals and tournaments:** Hadamere's four seasonal festivals and the kingdom feasts; three-bout royal
+  tournaments with champion titles.
+- **Trade:** local settlement economies with daily shortages; the Wandering Peddler; caravan escort jobs.
+- **Mounts and companions:** the flying Griffin mount; Emberbrush the fox, the fourth wildlife bond.
+- **Settlements and NPCs:** settlements dress for their kingdom's state, and residents gossip about their neighbours.
+- **The wild:** seed-written story scenes, and crypt trials under ruins (revision-6 worlds).
+- **Fix:** server-side festival and diplomacy days now follow the world calendar the client uses.
+- **Validation:** shared, client and server tests, plus the `e2e/living-world.mjs` browser proof.
+
+Next: the follow-ups listed under "Limits and what is not built" in LIVING_WORLD.md, and
+[REMAINING_WORK.md](REMAINING_WORK.md).
+
+---
+
 # Current continuation: travel, legibility, performance and collision (2026-10-26)
 
 **Travel (§14).** Read [TRAVEL.md](TRAVEL.md).
