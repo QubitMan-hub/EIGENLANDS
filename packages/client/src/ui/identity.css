@@ -1,0 +1,533 @@
+/*
+ * EIGENLANDS visual identity: a surveyor's field ledger. Dark walnut and leather plates bound in brass carry the
+ * live HUD; everything you read (journal, pack, shops, talk) sits on aged parchment in ink. Verdigris is the one
+ * accent, borrowed from the eigen-glow of the world itself. Pixelify Sans for plates and numbers, IM Fell English
+ * for prose. Loaded last so it can retune the older sheets without rewriting them.
+ */
+:root {
+  --walnut: #1c140f;
+  --leather: #34261b;
+  --leather-hi: #4a3626;
+  --brass: #c79a46;
+  --brass-lo: #7a5a22;
+  --brass-hi: #ecc873;
+  --parch: #dfcd9f;
+  --parch-lo: #cdb985;
+  --parch-hi: #ecdfb8;
+  --ink-dark: #2a1f16;
+  --ink-soft: #6a5840;
+  --verdigris: #2f8f84;
+  --verdigris-hi: #6fd0bd;
+  --ember: #b8452e;
+  --moss: #5b7f3a;
+  --pix: 'Pixelify Sans', 'Silkscreen', ui-monospace, monospace;
+  --prose: 'IM Fell English', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --bg: #130e0a;
+  --panel: #34261bf2;
+  --ink: #f0e2bd;
+  --mute: #c4b48e;
+  --accent: #6fd0bd;
+  --slate: #2a1e15;
+  --slate-deep: #1c140f;
+  --bronze: #7a5a22;
+  --bronze-lt: #c79a46;
+  --edge: #c79a46;
+}
+html,
+body {
+  font-family: var(--pix);
+  font-size: calc(15px * var(--ui-scale));
+  letter-spacing: 0.01em;
+}
+
+/* a stepped, studded plate: used by every piece of live HUD */
+#hud-left,
+#hud-right,
+#hotbar,
+.gatebtn,
+#hud-menu,
+.panel,
+#tooltip,
+.townhint {
+  background: linear-gradient(180deg, #ffffff0d, transparent 40%), var(--leather);
+  border: 0;
+  border-radius: 0;
+  box-shadow:
+    0 0 0 2px var(--walnut),
+    inset 0 0 0 1px var(--brass-lo),
+    inset 0 0 0 2px var(--walnut),
+    inset 0 0 0 3px #5b4430,
+    0 5px 0 0 #0a0705cc;
+  color: var(--ink);
+}
+#hud-left {
+  padding: 10px 14px 10px 12px;
+}
+#hud-left::before,
+#hud-left::after {
+  background: var(--brass-hi);
+  box-shadow:
+    inset -1px -1px 0 var(--brass-lo),
+    0 0 0 1px var(--walnut);
+}
+#hud-right {
+  background: linear-gradient(180deg, #ffffff0d, transparent 40%), var(--leather);
+}
+.pname {
+  font-family: var(--pix);
+  font-weight: 600;
+  color: var(--parch-hi);
+  letter-spacing: 0.06em;
+  text-shadow: 0 1px 0 var(--walnut);
+}
+.dialtime {
+  font-family: var(--pix);
+  font-weight: 600;
+  color: var(--brass-hi);
+}
+.dayinfo {
+  color: var(--mute);
+}
+.townhint {
+  color: var(--verdigris-hi);
+  box-shadow: none;
+  background: none;
+}
+.v-label {
+  font-family: var(--pix);
+  font-weight: 500;
+  font-size: 12px;
+  color: var(--parch-hi);
+  text-shadow: 0 1px 0 var(--walnut);
+}
+.xpbar {
+  background: var(--walnut);
+}
+.xpbar i {
+  background: linear-gradient(180deg, var(--brass-hi), var(--brass));
+}
+
+/* controls */
+button {
+  font-family: var(--pix);
+  font-weight: 500;
+  color: var(--parch-hi);
+  background: linear-gradient(180deg, var(--leather-hi), var(--leather));
+  border: 0;
+  border-radius: 0;
+  box-shadow:
+    0 0 0 2px var(--walnut),
+    inset 0 0 0 1px var(--brass-lo),
+    inset 0 -3px 0 0 #00000055,
+    0 3px 0 0 #0a0705cc;
+  padding: 9px 15px;
+  min-height: 40px;
+  transform: translateY(0);
+  transition:
+    transform 60ms steps(2),
+    background 80ms steps(2);
+}
+button:hover {
+  background: linear-gradient(180deg, #5b4430, var(--leather-hi));
+  box-shadow:
+    0 0 0 2px var(--walnut),
+    inset 0 0 0 1px var(--brass),
+    inset 0 -3px 0 0 #00000055,
+    0 3px 0 0 #0a0705cc;
+}
+button:active {
+  transform: translateY(2px);
+  box-shadow:
+    0 0 0 2px var(--walnut),
+    inset 0 0 0 1px var(--brass),
+    inset 0 3px 0 0 #00000066;
+}
+button:focus-visible,
+.gatebtn:focus-visible {
+  outline: 2px solid var(--verdigris-hi);
+  outline-offset: 3px;
+}
+button.primary {
+  background: linear-gradient(180deg, #3f9c8e, var(--verdigris));
+  color: #04201c;
+  text-shadow: 0 1px 0 #ffffff33;
+  box-shadow:
+    0 0 0 2px var(--walnut),
+    inset 0 0 0 1px var(--verdigris-hi),
+    inset 0 -3px 0 0 #00000044,
+    0 3px 0 0 #0a0705cc;
+}
+button.danger {
+  background: linear-gradient(180deg, #c95a40, var(--ember));
+  color: #fff1e0;
+}
+.gatebtn {
+  color: var(--parch-hi);
+  font-family: var(--pix);
+}
+.gatebtn:hover {
+  background: linear-gradient(180deg, #5b4430, var(--leather-hi));
+  border-color: transparent;
+}
+input[type='text'],
+input[type='search'],
+input[type='url'],
+input:not([type]),
+select,
+textarea {
+  font-family: var(--pix);
+  color: var(--parch-hi);
+  background: var(--walnut);
+  border: 0;
+  border-radius: 0;
+  box-shadow:
+    inset 0 2px 0 #00000088,
+    inset 0 0 0 1px var(--brass-lo),
+    0 1px 0 #ffffff14;
+  padding: 9px 11px;
+}
+input::placeholder {
+  color: #9a8a68;
+}
+select {
+  appearance: none;
+  padding-right: 28px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--brass) 50%),
+    linear-gradient(135deg, var(--brass) 50%, transparent 50%);
+  background-position:
+    calc(100% - 15px) 55%,
+    calc(100% - 10px) 55%;
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+}
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--verdigris-hi);
+  outline-offset: 2px;
+}
+
+/* wells for items: recessed into the leather */
+.slot,
+.hslot,
+.portrait-box,
+.portrait,
+.cell.unk {
+  background: radial-gradient(ellipse at 50% 35%, #2c2016, #130d08);
+  border: 0;
+  border-radius: 0;
+  box-shadow:
+    inset 0 3px 0 #000000a0,
+    inset 0 0 0 1px #5b4430,
+    0 0 0 1px var(--walnut),
+    0 1px 0 1px #ffffff12;
+}
+.cell.unk {
+  box-shadow:
+    inset 0 0 0 2px var(--brass-lo),
+    0 0 0 1px var(--walnut);
+  color: var(--brass-lo);
+}
+.slot.on,
+.slot:hover,
+.hslot:hover {
+  box-shadow:
+    inset 0 3px 0 #000000a0,
+    inset 0 0 0 2px var(--verdigris-hi),
+    0 0 0 1px var(--walnut);
+}
+.slot.hot {
+  box-shadow:
+    inset 0 3px 0 #000000a0,
+    inset 0 0 0 1px var(--brass),
+    0 0 0 1px var(--walnut);
+}
+.hslot.sel {
+  box-shadow:
+    inset 0 3px 0 #000000a0,
+    inset 0 0 0 2px var(--brass-hi),
+    0 0 12px 1px #ecc87355,
+    0 0 0 1px var(--walnut);
+  transform: translateY(-4px);
+}
+#hotbar {
+  padding: 6px;
+  gap: 4px;
+}
+.cnt {
+  font-family: var(--pix);
+  font-weight: 600;
+  color: var(--parch-hi);
+}
+.tier {
+  color: var(--brass-hi);
+}
+.hkey {
+  font-family: var(--pix);
+  color: var(--brass);
+}
+
+/* windows: a walnut frame around a parchment page */
+.window {
+  background: var(--walnut);
+  border: 0;
+  padding: 6px;
+  box-shadow:
+    0 0 0 3px #0a0705,
+    inset 0 0 0 2px var(--brass-lo),
+    inset 0 0 0 3px var(--brass),
+    inset 0 0 0 5px var(--walnut),
+    0 16px 0 -6px #00000066;
+  scrollbar-color: var(--brass-lo) var(--walnut);
+}
+.window.wide {
+  width: min(1000px, 98vw);
+}
+.window .win-head,
+.win-head {
+  background: linear-gradient(180deg, var(--leather-hi), var(--leather));
+  border-bottom: 0;
+  padding: 8px 10px 8px 16px;
+  margin: 0 0 6px;
+  box-shadow:
+    inset 0 0 0 1px var(--brass-lo),
+    inset 0 -3px 0 #00000055;
+}
+.window .win-title,
+.win-title {
+  font-family: var(--pix);
+  font-weight: 600;
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  color: var(--brass-hi);
+  text-shadow: 0 2px 0 var(--walnut);
+}
+.win-x {
+  min-width: 40px;
+  min-height: 40px;
+  font-size: 18px;
+}
+.window .win-body,
+.win-body {
+  --ink: var(--ink-dark);
+  --mute: var(--ink-soft);
+  --accent: #1f6f66;
+  --slate: var(--parch-lo);
+  --slate-deep: var(--parch-lo);
+  color: var(--ink-dark);
+  font-family: var(--prose);
+  font-size: 17px;
+  line-height: 1.45;
+  padding: 18px 20px 20px;
+  background:
+    repeating-linear-gradient(0deg, #00000008 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse at 50% 0%, var(--parch-hi), var(--parch) 55%, var(--parch-lo));
+  box-shadow:
+    inset 0 0 0 1px #8a7143,
+    inset 0 0 40px #7a5a2255;
+}
+.win-body h1,
+.win-body h2,
+.win-body h3,
+.win-body .side-title,
+.win-body b,
+.win-body strong {
+  font-family: var(--pix);
+  font-weight: 600;
+  color: #4a2f12;
+  text-shadow: none;
+  letter-spacing: 0.02em;
+}
+.win-body .side-title {
+  font-size: 14px;
+  letter-spacing: 0.1em;
+  text-transform: none;
+  border-bottom: 2px solid #b79a5c;
+  padding-bottom: 3px;
+  margin: 12px 0 8px;
+  color: #6a4519;
+}
+.win-body .small,
+.win-body .dim,
+.win-body .eqlabel,
+.win-body .stats {
+  color: var(--ink-soft);
+}
+.win-body .coins,
+.win-body .price {
+  font-family: var(--pix);
+  color: #7a4d0a;
+}
+.win-body .good {
+  color: #2d6a28;
+}
+.win-body .bad {
+  color: #a3361f;
+}
+.win-body hr,
+.win-body [class*='sep'] {
+  border-color: #b79a5c;
+}
+.win-body button {
+  color: var(--parch-hi);
+}
+.win-body input[type='text'],
+.win-body input[type='search'],
+.win-body input:not([type]),
+.win-body select {
+  background-color: var(--parch-hi);
+  color: var(--ink-dark);
+  font-family: var(--prose);
+  font-size: 16px;
+  box-shadow:
+    inset 0 2px 0 #8a714355,
+    inset 0 0 0 1px #8a7143;
+}
+.win-body input::placeholder {
+  color: #8c7a58;
+}
+.win-body select {
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--brass-lo) 50%),
+    linear-gradient(135deg, var(--brass-lo) 50%, transparent 50%);
+  background-position:
+    calc(100% - 15px) 55%,
+    calc(100% - 10px) 55%;
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+}
+.slot .eqlabel,
+.eqlabel {
+  color: #a58a5a;
+}
+.win-body .slot,
+.win-body .hslot,
+.win-body .portrait-box,
+.win-body .portrait {
+  --ink: var(--parch-hi);
+  color: var(--parch-hi);
+}
+.win-body .slot .cnt,
+.win-body .cnt {
+  color: var(--parch-hi);
+}
+.win-body .trash {
+  border: 2px dashed #8a5a2a;
+  color: #7a4a1c;
+}
+.win-body details summary {
+  font-family: var(--pix);
+  color: #6a4519;
+}
+
+/* journal tabs read as leather bookmarks standing proud of the page */
+.win-body > div:first-child:has(> button[data-tab]),
+.win-body .tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: -6px 0 14px;
+  padding-bottom: 6px;
+  border-bottom: 3px solid #8a7143;
+}
+.win-body button[data-tab] {
+  background: linear-gradient(180deg, var(--leather-hi), var(--leather));
+  color: var(--parch-hi);
+  min-height: 34px;
+  padding: 6px 12px;
+  font-size: 14px;
+}
+.win-body button[data-tab].primary {
+  background: linear-gradient(180deg, var(--brass-hi), var(--brass));
+  color: var(--ink-dark);
+  text-shadow: 0 1px 0 #ffffff55;
+  box-shadow:
+    0 0 0 2px var(--walnut),
+    inset 0 0 0 1px var(--brass-hi),
+    0 3px 0 0 #0a0705cc;
+  transform: translateY(-2px);
+}
+
+/* tooltips, prompts and talk */
+#tooltip {
+  background: repeating-linear-gradient(0deg, #00000008 0 1px, transparent 1px 3px), var(--parch);
+  color: var(--ink-dark);
+  font-family: var(--prose);
+  font-size: 15px;
+  box-shadow:
+    0 0 0 2px var(--walnut),
+    inset 0 0 0 1px #8a7143,
+    0 5px 0 0 #0a0705aa;
+}
+#tooltip .tip-name {
+  font-family: var(--pix);
+  color: #4a2f12;
+}
+.dialogue .dtext {
+  font-family: var(--prose);
+  font-size: 19px;
+  line-height: 1.45;
+  background: var(--parch-hi);
+  color: var(--ink-dark);
+  border: 0;
+  box-shadow:
+    inset 0 0 0 1px #8a7143,
+    inset 0 0 22px #7a5a2244;
+}
+.dialogue .dname {
+  font-family: var(--pix);
+  color: #6a4519;
+  font-size: 20px;
+}
+.hearts .hf {
+  color: var(--ember);
+}
+.hearts .he {
+  color: #a99568;
+}
+.overlay {
+  background: #0d0805e6;
+}
+.card {
+  background: var(--leather);
+  border: 0;
+  box-shadow:
+    0 0 0 3px #0a0705,
+    inset 0 0 0 2px var(--brass-lo),
+    inset 0 0 0 3px var(--brass),
+    inset 0 0 0 5px var(--walnut);
+  padding: 26px 30px;
+}
+h1 {
+  font-family: var(--pix);
+  color: var(--brass-hi);
+  text-shadow: 0 3px 0 var(--walnut);
+  letter-spacing: 0.18em;
+}
+.reduced-motion button,
+.reduced-motion button:active {
+  transition: none;
+}
+.hc #hud-left,
+.hc #hotbar,
+.hc .window {
+  background: #000;
+  box-shadow: 0 0 0 2px #fff;
+}
+
+#voice-chip {
+  font-family: var(--pix);
+  background: var(--leather);
+  color: var(--parch-hi);
+  border: 0;
+  box-shadow:
+    0 0 0 2px var(--walnut),
+    inset 0 0 0 1px var(--brass-lo);
+}
+.win-body .atlas-legend {
+  color: var(--ink-soft);
+}

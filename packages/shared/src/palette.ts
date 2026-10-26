@@ -54,6 +54,23 @@ export const PALETTE = [
   '#c65197',
   '#df84a5',
   '#7fe3d3',
+  // vivid extension (world revision 5 art pass): emerald, teal, crimson, gold and blue foliage for lush, saturated scenes
+  '#17382a',
+  '#1f5a36',
+  '#2f8040',
+  '#4fa043',
+  '#82bf4a',
+  '#b9d95c',
+  '#1b5f63',
+  '#2a8c86',
+  '#4cb8a8',
+  '#6b1c2c',
+  '#a62b34',
+  '#d44b3a',
+  '#e08a2d',
+  '#f2c230',
+  '#3d63a8',
+  '#5aa0d8',
 ] as const;
 
 export const C = {
@@ -105,6 +122,22 @@ export const C = {
   q5: 45,
   q6: 46,
   q7: 47,
+  n0: 48,
+  n1: 49,
+  n2: 50,
+  n3: 51,
+  n4: 52,
+  n5: 53,
+  t0: 54,
+  t1: 55,
+  t2: 56,
+  c0: 57,
+  c1: 58,
+  c2: 59,
+  c3: 60,
+  c4: 61,
+  b0: 62,
+  b1: 63,
 } as const;
 
 export function paletteHex(i: number): string {
