@@ -239,7 +239,10 @@ opens the lore panel. The first reading pays 40 XP and counts toward your storie
   the sky in a shower (on any other clear night one goes by now and then). One star comes down near each traveller out
   in the open (not in a town, a sanctuary, a cave or indoors), 10–22 tiles away, with a flash and a word of the
   direction. It lies glowing in its crater until mid-morning; anyone may break it open for 2–4 **star shards** (a
-  valuable trade good, 140 coins each), sometimes a qubit crystal, and some experience.
+  valuable trade good, 140 coins each), sometimes a qubit crystal, and some experience. Star shards make a
+  **Starstone** at the enchanting table (5 shards and 2 qubit crystals, enchanting level 6), the **Starlight Draught**
+  at the alchemy table (heals 40 and wards for five minutes) and **Stardust Cake** in the oven (heals over three
+  minutes).
 - **Aurora** curtains ripple over the taiga on clear nights.
 - **Rainbow:** the morning after a rainy day, if it has cleared, a rainbow hangs over the land from 7:00 to 10:00.
 - **Well rested:** sleeping in your own bed under your own roof (a bed you placed, in a roofed cell you built) leaves you
@@ -248,6 +251,30 @@ opens the lore panel. The first reading pays 40 XP and counts toward your storie
   Unmade, Grimclaw, the Bramble Knight and more). Walk into the town to hear of it and which way it was seen. Out there,
   48–70 tiles from the town, it waits, hardened and a level above you. Everyone within 25 tiles when it falls is paid
   the bounty (120–220 coins), gains experience and, in a kingdom, standing. Each bounty is brought down once a day.
+  A bounty beast is drawn larger, in its own colouring, and fights its own way: the wolf leaps for the throat and
+  howls in two wolves when wounded, the boar gores the ground and charges, the brute slams and its wounds close, the
+  badger springs from hiding and blinks away when hurt, the thornling looses thorns from range and grows back. Every
+  town without a request board raises a **notice board** by its well; it (and Hadamere's request board) carries the
+  day's WANTED poster: the beast, where it was seen, how it fights, the reward and whether it is still out.
+
+### Cottage families
+
+The families in the crown's new cottages can be talked to: walk up to them by their door. Each has a surname, two
+grown-ups and a child, and a trade (weavers, beekeepers, bakers, shepherds, fisherfolk and more). They talk about
+their work, the weather and how their kingdom is faring (a war, lean times or good ones), and once a day they press a
+little of their work on you: bread, eggs, wool, honey, planks.
+
+### The Sunken Vault (a crypt's second floor)
+
+Behind every opened reliquary a stair leads down to the Sunken Vault, on a plane of its own:
+
+1. **The hall of levers.** Three levers guard the gate; each turns over its own seal and one beside it. Bring all three
+   seals to flame (the plaque tells which burn) and the gate rises for everyone down there.
+2. **The Crypt Lord.** It rises from its bier when you enter the chamber beyond: a hardened warden two levels above
+   the strongest of you.
+3. **The statues' riddle.** When it falls, the inscription describes one of three statues (the King, the Thief, the
+   Saint, the Smith, the Bard, the Hunter). Touch the right one and the vault opens with the crypt's richest hoard;
+   touch another and the dead answer.
 
 ## Efficient simulation
 
@@ -327,23 +354,26 @@ opens the lore panel. The first reading pays 40 XP and counts toward your storie
 
 ## Limits and what is not built
 
-- Crypts have three floor plans and one riddle (the braziers). There are no multi-floor dungeons, crypt bosses or
-  other puzzle types, and the riddle's flames are told by toasts rather than drawn alight.
+- Crypts have three floor plans and two floors. The puzzles are the braziers, the levers' seals and the statues'
+  riddle; their states (flames, seals, the gate) are told by toasts rather than drawn, and the gate is passed through
+  by using it rather than raised in the world. The lever and Crypt Lord state is held by the server in memory and
+  resets when the room restarts (progress through the gate, the lord and the vault is saved per player).
 - Tournaments are fought against ordinary soldier AI; there is no mounted jousting minigame. The jousting knights
   in Goldspire are cosmetic.
 - NPC ties follow seeded arcs; the player can sway how residents feel about them (word travels) but cannot change
   who loves or quarrels with whom.
-- Settlement growth adds cottages on the outskirts only, and existing town layouts never change. The cottage families
-  are drawn on each client (like wild folk): they cannot be talked to, traded with or hired. A cottage is only raised in the room that holds its
+- Settlement growth adds cottages on the outskirts only. The cottage families are drawn on each client (like wild
+  folk); they can be talked to and give a daily gift, but cannot be traded with or hired. A cottage is only raised in the room that holds its
   settlement, and plots on slopes, roads or occupied ground are skipped, so a settlement can have fewer cottages than
   it has earned.
-- Hired residents use the existing companion AI. They gain a level per renewal but cannot be given gear, and they
-  go back to their post when the contract ends.
+- Hired residents use the existing companion AI. They gain a level per renewal and can be lent a weapon and armour
+  (Companions & Echoes: Lend gear), which makes their blows harder and their health deeper and comes back to you
+  when the contract ends. Lent armour does not change how they look; a lent weapon does.
 - Wayfarers and wild folk are drawn on each client from the seed and the clock. They cannot be fought, traded with
   or followed home, and other players see the same people only because they compute the same thing.
 - Story scenes, crypts, wrecks, cairns and settlement growth exist only in revision-6 worlds, so older worlds' ground
   is untouched.
 - The subsequent bestiary batch adds seven wildlife bonds and matching original portraits; see ADVENTURER_PATHS_AND_BESTIARY.md.
-- Star shards are a trade good only: no recipes use them yet. Bounty beasts are ordinary hardened creatures with no
-  unique attacks or art, and a bounty is told by a toast rather than a notice on a board. The sky effects are drawn in
+- Bounty beasts reuse their kind's sprite, drawn larger and recoloured, and borrow existing behaviours (leaps,
+  slams, charges, ambush, ranged volleys, regrowth, blinking) rather than new animations. The sky effects are drawn in
   screen space over the world.
