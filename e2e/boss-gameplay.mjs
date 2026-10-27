@@ -32,6 +32,19 @@ try {
   await page.evaluate(async () => {
     const g = window.__eigen.game;
     g.app.ticker.maxFPS = 20;
+    g.app.ticker.add(
+      () => {
+        const probe = window.__bossPoseProbe;
+        if (!probe || probe.attackDrawn) return;
+        const v = [...g.views.values()].find((v) => v.type === 'enemy' && v.kind === probe.kind);
+        if (!v) return;
+        const f = v.sprite.texture.frame;
+        const pose = (Math.floor(f.y / probe.h) % probe.poseRows) * probe.cols + Math.floor(f.x / probe.w);
+        if (pose === 6 || pose === 7) probe.attackDrawn = true;
+      },
+      undefined,
+      -100,
+    );
     g.ext.circuit.send('p3_tutorial', { action: 'skip' });
     g.net.dev({ cmd: 'level', level: 40 });
     const r = window.__eigenSolo.raw().find((r) => r.players.size);
@@ -104,12 +117,16 @@ try {
     assert.deepEqual(check.scale, [1, 1]);
     await page.screenshot({ path: out + '/' + id + '-world.png' });
     // Let the real AI walk, turn, anticipate and attack; no manually swapped sprite frames.
-    await page.evaluate(() => {
-      const r = window.__eigenSolo.raw().find((r) => r.players.size),
-        e = [...r.enemies.values()].find((e) => e.def.boss);
-      e.mode = 'chase';
-      e.t = 0;
-    });
+    await page.evaluate(
+      (probe) => {
+        window.__bossPoseProbe = { ...probe, attackDrawn: false };
+        const r = window.__eigenSolo.raw().find((r) => r.players.size),
+          e = [...r.enemies.values()].find((e) => e.def.boss);
+        e.mode = 'chase';
+        e.t = 0;
+      },
+      { kind, w: d.w, h: d.h, cols: d.cols, poseRows: d.poseRows },
+    );
     const states = new Set();
     let attackDrawn = false;
     for (let i = 0; i < 20; i++) {
@@ -119,16 +136,12 @@ try {
         kind,
       );
       if (st !== undefined) states.add(st);
-      attackDrawn ||= await page.evaluate(
-        ({ kind, w, h, cols, poseRows }) => {
-          const v = [...window.__eigen.game.views.values()].find((v) => v.type === 'enemy' && v.kind === kind);
-          if (!v) return false;
-          const f = v.sprite.texture.frame;
-          const pose = (Math.floor(f.y / h) % poseRows) * cols + Math.floor(f.x / w);
-          return pose === 6 || pose === 7;
-        },
-        { kind, w: d.w, h: d.h, cols: d.cols, poseRows: d.poseRows },
-      );
+      attackDrawn ||= await page.evaluate(() => window.__bossPoseProbe.attackDrawn);
+    }
+    if (['primordial_dragon', 'world_serpent', 'sealed_entity'].includes(id)) {
+      // Wait for actual rendered attack frames. Wall-clock polling can miss a short pose or a slow first AI tick.
+      await page.waitForFunction(() => window.__bossPoseProbe.attackDrawn, null, { timeout: 15000 });
+      attackDrawn = true;
     }
     if (['primordial_dragon', 'world_serpent', 'sealed_entity', 'forgotten_titan', 'realm_guardian'].includes(id)) {
       await page.screenshot({ path: out + '/' + id + '-combat.png' });

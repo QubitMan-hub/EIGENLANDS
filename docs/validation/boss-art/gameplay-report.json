@@ -9,10 +9,10 @@
       "shadowAnchor": 0.9423076923076923,
       "shadowAt": [0, 0],
       "atlas": {
-        "loaded": 1,
+        "loaded": 2,
         "pending": 0,
         "failed": 0,
-        "pixels": 1996800
+        "pixels": 2323400
       },
       "states": [2, 4, 0, 1],
       "attackDrawn": true
@@ -26,10 +26,10 @@
       "shadowAnchor": 0.9423076923076923,
       "shadowAt": [0, 0],
       "atlas": {
-        "loaded": 2,
+        "loaded": 4,
         "pending": 0,
         "failed": 0,
-        "pixels": 3860480
+        "pixels": 4509080
       },
       "states": [2, 4, 0, 1],
       "attackDrawn": true
@@ -43,12 +43,12 @@
       "shadowAnchor": 0.9423076923076923,
       "shadowAt": [0, 0],
       "atlas": {
-        "loaded": 3,
-        "pending": 1,
+        "loaded": 5,
+        "pending": 0,
         "failed": 0,
-        "pixels": 5591040
+        "pixels": 6239640
       },
-      "states": [2, 4, 0, 1],
+      "states": [2, 4, 1],
       "attackDrawn": true
     },
     {
@@ -82,7 +82,7 @@
         "failed": 0,
         "pixels": 9967000
       },
-      "states": [1, 2],
+      "states": [1, 2, 4],
       "attackDrawn": false
     },
     {
@@ -99,7 +99,7 @@
         "failed": 0,
         "pixels": 10888600
       },
-      "states": [1, 2, 3],
+      "states": [1, 2, 3, 4],
       "attackDrawn": true
     },
     {
@@ -116,7 +116,7 @@
         "failed": 0,
         "pixels": 12117400
       },
-      "states": [2, 3, 4],
+      "states": [2, 3, 4, 0, 1],
       "attackDrawn": true
     },
     {
@@ -128,10 +128,10 @@
       "shadowAnchor": 0.9318181818181818,
       "shadowAt": [0, 0],
       "atlas": {
-        "loaded": 9,
+        "loaded": 8,
         "pending": 0,
         "failed": 0,
-        "pixels": 11359640
+        "pixels": 11033040
       },
       "states": [2, 3, 4],
       "attackDrawn": true
@@ -148,7 +148,7 @@
         "loaded": 9,
         "pending": 0,
         "failed": 0,
-        "pixels": 10791320
+        "pixels": 12328400
       },
       "states": [1, 2, 3, 4, 0],
       "attackDrawn": true
@@ -167,7 +167,7 @@
         "failed": 0,
         "pixels": 12020120
       },
-      "states": [1, 2, 3, 4],
+      "states": [1, 2, 3, 4, 0],
       "attackDrawn": true
     },
     {
@@ -184,7 +184,7 @@
         "failed": 0,
         "pixels": 11641240
       },
-      "states": [1, 2, 3, 4],
+      "states": [1, 2, 3, 4, 0],
       "attackDrawn": true
     },
     {
@@ -218,7 +218,7 @@
         "failed": 0,
         "pixels": 10673560
       },
-      "states": [1, 2, 3, 4],
+      "states": [1, 2, 3, 4, 0],
       "attackDrawn": true
     },
     {
@@ -241,11 +241,11 @@
   ],
   "errors": [],
   "assets": [
+    "http://127.0.0.1:5244/art/bestiary/unicorn-day.png",
     "http://127.0.0.1:5244/art/bestiary/primordial_dragon-day.png",
+    "http://127.0.0.1:5244/art/bestiary/woodland_spirit-day.png",
     "http://127.0.0.1:5244/art/bestiary/world_serpent-day.png",
     "http://127.0.0.1:5244/art/bestiary/sealed_entity-day.png",
-    "http://127.0.0.1:5244/art/bestiary/woodland_spirit-day.png",
-    "http://127.0.0.1:5244/art/bestiary/unicorn-day.png",
     "http://127.0.0.1:5244/art/bestiary/forgotten_titan-day.png",
     "http://127.0.0.1:5244/art/bestiary/realm_guardian-day.png",
     "http://127.0.0.1:5244/art/bestiary/slime_king-day.png",
