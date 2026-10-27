@@ -4,7 +4,7 @@ This is the practical remaining-work index. The full original requirements and d
 
 ## Player and NPC overhaul — active
 
-Directional work/transport/swim/conversation pose foundations and a modular face/clothing pass are implemented. The complete authored character redesign and every bespoke interaction are **not finished**. See [CHARACTER_ACTIONS.md](CHARACTER_ACTIONS.md) for exact coverage, verification and remaining items.
+The legacy person painter is replaced with original native 32×48 art across players, residents and saved appearances. Eighteen directional action families now have eight poses, including station work, hurt, dodge and death. Variable-height physical contacts, richer combat/charge keys, occupation schedules and every bespoke prop interaction remain open. See [CHARACTER_ACTIONS.md](CHARACTER_ACTIONS.md) for exact coverage, verification and remaining items.
 
 ## Adventurer paths, bestiary and boss sprites
 

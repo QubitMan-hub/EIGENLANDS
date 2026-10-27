@@ -1109,7 +1109,7 @@ export class CombatView {
 }
 
 /** Rider frames from the hips up: the bottom of a person frame (legs) is hidden by the mount's flanks. */
-const RIDER_LEGS = 9;
+const RIDER_LEGS = 14;
 const riderCrops = new WeakMap<Texture, Texture>();
 function riderCrop(t: Texture): Texture {
   let c = riderCrops.get(t);

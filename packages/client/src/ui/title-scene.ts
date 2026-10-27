@@ -4,7 +4,7 @@
  * (still under reduced motion). The wanderer follows the character creator live.
  */
 import { C, type Appearance } from '@eigenlands/shared';
-import { OUTFITS, renderPersonCanvas } from '../art/actors';
+import { OUTFITS, PERSON_W, PERSON_H, renderPersonCanvas } from '../art/actors';
 import { outfitFromAppearance } from '../art/appearance';
 import { Iso, mat, rampAt, STONEM, WOODM } from '../art/isokit';
 import { blob, makeCanvas, rasterPixels, R } from '../art/shade';
@@ -89,8 +89,8 @@ export function mountTitleScene(host: HTMLElement, initial: Appearance): { setLo
   const { canvas, ctx } = makeCanvas(W, H);
   island(ctx);
   const hero = h('canvas', { class: 'ts-hero' });
-  hero.width = 24;
-  hero.height = 32;
+  hero.width = PERSON_W;
+  hero.height = PERSON_H;
   hero.setAttribute('aria-hidden', 'true');
   canvas.className = 'ts-island';
   canvas.setAttribute('aria-hidden', 'true');
@@ -106,7 +106,7 @@ export function mountTitleScene(host: HTMLElement, initial: Appearance): { setLo
   const draw = (a: Appearance) => {
     const c = renderPersonCanvas(outfitFromAppearance(OUTFITS[0]!, a, true), 0, 0);
     const g = hero.getContext('2d')!;
-    g.clearRect(0, 0, 24, 32);
+    g.clearRect(0, 0, PERSON_W, PERSON_H);
     g.drawImage(c, 0, 0);
   };
   draw(initial);

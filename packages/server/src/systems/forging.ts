@@ -146,7 +146,7 @@ function finishForge(room: RoomApi, p: ServerPlayer, msg: RhythmDoneMsg): void {
   questEvent(p, { type: 'forge', target: res.item.id, n: 1 });
   recordDeed(p, qualityName(accuracy) === 'Perfect' ? 'perfect_forge' : 'forge', s.template!, room.wclock.day());
   syncQuests(p);
-  room.fx({ kind: 'craft', x: p.sim.x, y: p.sim.y, id: p.id });
+  room.fx({ kind: 'craft', station: 'forge', x: p.sim.x, y: p.sim.y, id: p.id });
   p.client.send(MSG.RHYTHM_RESULT, {
     id: s.id,
     kind: 'forge',

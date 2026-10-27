@@ -17,6 +17,12 @@ Read [REALMS.md](REALMS.md).
 
 ---
 
+# Latest continuation: gameplay QA and native character replacement (2026-10-27)
+
+Farming repetition/zero-damage spell exploits and enemy cover/navigation fixes are pushed to main. See [QA findings](qa/2026-10-27-findings.md). The person painter is replaced with native 32×48 original art, eight facings and saved-appearance compatibility; eighteen supplemental action families have eight poses, including station work, hurt, dodge and death. [Character coverage and remaining limits](CHARACTER_ACTIONS.md) supersedes the older foundation-only status below. Preserve current art, keep integrating main, work without subagents and ship confirmed fixes after focused checks; the user does not want a large CI/testing wait between batches. Render remains the user's work.
+
+---
+
 # Latest continuation: directional character actions (2026-10-27)
 
 Read [CHARACTER_ACTIONS.md](CHARACTER_ACTIONS.md) for the implemented animation rig, art changes, proof commands and explicit remaining work. Current main through `d37f5c0` is integrated, including the deeper-world, crypt-roof, wonders and hunts updates. Eleven appended directional action families preserve legacy combat/walk/run indices and appearance saves; full higher-resolution authored player/NPC replacement and every bespoke interaction remain open. Keep the existing boss art and the no-subagent workflow.

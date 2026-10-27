@@ -134,6 +134,8 @@ export interface FxMsg {
   id?: string;
   /** Combat weapon or successful harvesting tool for matching remote poses; absent on older effects. */
   weapon?: string;
+  /** Successful crafting station for observer-safe occupation poses. */
+  station?: import('./crafting').StationId;
   /** hit weight: 0 light, 1 finisher, 2 heavy, 3 full heavy (hit-stop, shake, sound) */
   w?: number;
   /** 1 = critical hit */
