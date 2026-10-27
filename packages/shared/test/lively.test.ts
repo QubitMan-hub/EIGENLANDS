@@ -85,3 +85,23 @@ describe('nutrition', () => {
     expect(balanced(recordMeal(m, 'hearty', 3_600_000))).toBe(false);
   });
 });
+
+describe('weapon families', () => {
+  it('twin daggers are the quickest and shortest, the greatsword the longest and slowest, and both come in every metal', async () => {
+    const { MELEE_COMBOS, meleeHeavy, WEAPONS, ITEMS, RECIPES } = await import('../src/index');
+    const recovery = (f: keyof typeof MELEE_COMBOS) => MELEE_COMBOS[f].reduce((a, h) => a + h.recovery, 0);
+    const reach = (f: keyof typeof MELEE_COMBOS) => Math.max(...MELEE_COMBOS[f].map((h) => h.range));
+    for (const f of ['sword', 'spear', 'battle_axe', 'warhammer'] as const) {
+      expect(recovery('dagger')).toBeLessThan(recovery(f));
+      expect(reach('greatsword')).toBeGreaterThan(reach('battle_axe'));
+    }
+    expect(meleeHeavy('dagger', 1).lunge).toBeGreaterThan(meleeHeavy('sword', 1).lunge);
+    expect(meleeHeavy('greatsword', 1).arc).toBeLessThan(meleeHeavy('battle_axe', 1).arc); // a wider sweep
+    for (const id of ['dagger', 'greatsword', 'dagger_steel', 'greatsword_mithril']) {
+      expect(WEAPONS[id], id).toBeTruthy();
+      expect(ITEMS[id]?.kind).toBe('weapon');
+      expect(RECIPES.some((r) => r.out.id === id), id).toBe(true);
+    }
+    expect(meleeHeavy('dagger_steel', 0)).toEqual(meleeHeavy('dagger', 0));
+  });
+});

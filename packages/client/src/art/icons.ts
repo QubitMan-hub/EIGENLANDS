@@ -1245,6 +1245,26 @@ const G: Record<Glyph, Draw> = {
     );
     put(c, 9, 4, C.e6, 2, 2);
   },
+  dagger: (c, a, b) => {
+    // two crossed daggers
+    for (const [x0, y0, x1, y1] of [
+      [3, 13, 11, 4],
+      [13, 13, 5, 4],
+    ] as const) {
+      line(c, x0, y0, x0 + (x1 - x0) * 0.25, y0 + (y1 - y0) * 0.25, C.e2);
+      line(c, x0 + (x1 - x0) * 0.3, y0 + (y1 - y0) * 0.3, x1, y1, C.steel);
+      put(c, x1, y1, C.pale);
+    }
+    put(c, 7, 9, b, 2, 1);
+  },
+  greatsword: (c, a, b) => {
+    line(c, 2, 14, 5, 11, C.e2);
+    line(c, 3, 10, 7, 13, b);
+    line(c, 5, 11, 14, 2, C.steel);
+    line(c, 6, 11, 14, 3, C.pale);
+    line(c, 6, 10, 13, 3, C.slate);
+    put(c, 14, 2, C.white);
+  },
   warhammer: (c, a, b) => {
     line(c, 3, 14, 10, 5, C.e1);
     line(c, 4, 14, 11, 5, C.e4);

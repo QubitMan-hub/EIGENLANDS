@@ -168,6 +168,8 @@ export type BaseWeaponId =
   | 'spear'
   | 'battle_axe'
   | 'warhammer'
+  | 'dagger'
+  | 'greatsword'
   | 'crossbow'
   | 'ember_staff'
   | 'rime_staff'
@@ -257,6 +259,32 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     bonus: {},
     blurb: 'Short, deliberate blows. The finisher bypasses light-hit armour; a full heavy crushes 60 poise.',
     quantum: 'Phase Slip counters turn patient positioning into a guaranteed critical smash.',
+  },
+  dagger: {
+    id: 'dagger',
+    name: 'Twin Daggers',
+    cls: 'blade',
+    hue: -1,
+    level: 4,
+    cd: 0,
+    basic: null,
+    charged: null,
+    bonus: { haste: 1 },
+    blurb: 'Quick, short cuts that keep a foe off balance; charge for a darting stab that closes the gap.',
+    quantum: 'Phase Slip counters land before the foe has finished turning.',
+  },
+  greatsword: {
+    id: 'greatsword',
+    name: 'Iron Greatsword',
+    cls: 'blade',
+    hue: -1,
+    level: 12,
+    cd: 0,
+    basic: null,
+    charged: null,
+    bonus: {},
+    blurb: 'Long, wide two-handed strokes; a full charge spins a sweep that clears everything around you.',
+    quantum: 'The blade is heavy in this world and light in the next.',
   },
   sword: {
     id: 'sword',
