@@ -1,3 +1,16 @@
+# Current continuation: wonders and hunts (2026-10-27)
+
+- **Fix:** crypt rock rendered as a field of zigzag triangles because the terrain shader did not treat the crypt plane
+  as enclosed (`gl/terrain.frag.ts` `enclosed`); crypt levels are now flat like the Undercroft's
+  (`worldgen.ts` `cryptLevels`).
+- **New:** `shared/src/wonders.ts` (starfall nights, rainbow, aurora, well rested, bounties, `compassWord`); server
+  `features/wonders` (fallen stars, bounty hunts; `openStar` via `systems/containers.ts`; rested XP in
+  `WorldRoom.giveXp`); client `game/skyfx.ts` (shooting stars, aurora, rainbow; `Game.skyFx`), fallen-star art in
+  `art/stories.ts`. `seasonOfDay` now wraps negative days.
+- **Validation:** shared `wonders.test.ts`, server `wonders.test.ts`, browser `e2e/wonders.mjs`.
+
+---
+
 # Current continuation: deeper world, second pass (2026-10-27)
 
 Builds on the section below. New this pass (see [LIVING_WORLD.md](LIVING_WORLD.md) and [TRAVEL.md](TRAVEL.md)):

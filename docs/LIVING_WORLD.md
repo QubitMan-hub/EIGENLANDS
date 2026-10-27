@@ -233,6 +233,22 @@ Revision-6 worlds also have:
 Each scene's words are generated from the seed: names, the nearest kingdom, its capital and the land. Reading one
 opens the lore panel. The first reading pays 40 XP and counts toward your stories found.
 
+### Wonders and hunts
+
+- **Starfall nights:** about one clear night in seven, from 21:00 to 04:00, stars fall. Shooting stars streak across
+  the sky in a shower (on any other clear night one goes by now and then). One star comes down near each traveller out
+  in the open (not in a town, a sanctuary, a cave or indoors), 10–22 tiles away, with a flash and a word of the
+  direction. It lies glowing in its crater until mid-morning; anyone may break it open for 2–4 **star shards** (a
+  valuable trade good, 140 coins each), sometimes a qubit crystal, and some experience.
+- **Aurora** curtains ripple over the taiga on clear nights.
+- **Rainbow:** the morning after a rainy day, if it has cleared, a rainbow hangs over the land from 7:00 to 10:00.
+- **Well rested:** sleeping in your own bed under your own roof (a bed you placed, in a roofed cell you built) leaves you
+  well rested: +15% experience for half an hour.
+- **Town bounties:** most towns post a named beast on most days (Old Greymaw the wolf, Mother Bristle the boar, the
+  Unmade, Grimclaw, the Bramble Knight and more). Walk into the town to hear of it and which way it was seen. Out there,
+  48–70 tiles from the town, it waits, hardened and a level above you. Everyone within 25 tiles when it falls is paid
+  the bounty (120–220 coins), gains experience and, in a kingdom, standing. Each bounty is brought down once a day.
+
 ## Efficient simulation
 
 - **Kingdom state:** one small JSON blob per world (`civ:<seed>`). The server steps it once per world day and catches
@@ -302,6 +318,13 @@ opens the lore panel. The first reading pays 40 XP and counts toward your storie
   gift warms a friend and cools a rival) and the furnished cottage in `realism.test.ts`. Browser proof
   `e2e/deeper-world.mjs`: the three crypt plans, the plaque's riddle text and a pitched tent; no page errors.
 
+- **Wonders and hunts:** shared `wonders.test.ts` (starfall frequency and weather, the rainbow's morning, the screen
+  compass, bounties placed out in the hills and the same for everyone); server `wonders.test.ts` (a star falls near a
+  traveller once per night and breaks open for shards, a home bed leaves you well rested and XP comes 15% easier, a
+  town's bounty is heard of, met and paid). Browser proof `e2e/wonders.mjs` (2026-10-27): a starfall night on the
+  server with a fallen star beside the traveller and shooting stars in flight; aurora and the rainbow drawn with forced
+  sky inputs; no page errors.
+
 ## Limits and what is not built
 
 - Crypts have three floor plans and one riddle (the braziers). There are no multi-floor dungeons, crypt bosses or
@@ -320,3 +343,6 @@ opens the lore panel. The first reading pays 40 XP and counts toward your storie
   or followed home, and other players see the same people only because they compute the same thing.
 - Story scenes, crypts, wrecks, cairns and settlement growth exist only in revision-6 worlds, so older worlds' ground
   is untouched.
+- Star shards are a trade good only: no recipes use them yet. Bounty beasts are ordinary hardened creatures with no
+  unique attacks or art, and a bounty is told by a toast rather than a notice on a board. The sky effects are drawn in
+  screen space over the world.
