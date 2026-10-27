@@ -274,6 +274,10 @@ export type ShadowCmd =
   | { act: 'rename'; id: string; name: string }
   | { act: 'release'; id: string }
   | { act: 'extend'; id: string }
+  /** lend a hired resident the item in pack slot `slot` */
+  | { act: 'give_gear'; id: string; slot: number }
+  /** take back everything a hired resident carries */
+  | { act: 'take_gear'; id: string }
   /** trade places with a summoned shadow (the farthest one when no id is given) */
   | { act: 'exchange'; id?: string }
   | { act: 'domain' };

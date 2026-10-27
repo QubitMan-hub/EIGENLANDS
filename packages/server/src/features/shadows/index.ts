@@ -20,6 +20,12 @@ import {
   FOX_FINDS,
   FOX_FORAGE_SECS,
   ITEMS,
+  HIRE_GEAR_SLOTS,
+  hireGearMult,
+  hireGearSlot,
+  hireHeld,
+  type HireGear,
+  type Stack,
   addStack,
   biomeAt,
   canAdd,
@@ -71,6 +77,7 @@ import {
   type Stance,
   type StrikeShape,
 } from '@eigenlands/shared';
+import { fitsAll, giveStacks } from '../../systems/helpers';
 import type { Schema } from '@colyseus/schema';
 import {
   createEnemy,
@@ -122,7 +129,25 @@ interface Saved {
   active: string[];
   stance: Stance;
   seq: number;
+  /** a hireling's lent gear on its way back to a full pack (handed over as soon as there is room) */
+  pending?: Stack[];
 }
+
+/** A saved stack, re-validated (one piece, a known item, its forge properties kept). */
+const cleanStack = (v: unknown): Stack | null => {
+  const s = v as Stack | null;
+  return s && typeof s.id === 'string' && ITEMS[s.id] ? { id: s.id, n: 1, ...(s.p ? { p: s.p } : {}) } : null;
+};
+/** A hireling's saved kit: each piece must fit the slot it is in. */
+const cleanGear = (raw: unknown): HireGear | undefined => {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const out: HireGear = {};
+  for (const slot of HIRE_GEAR_SLOTS) {
+    const s = cleanStack((raw as Record<string, unknown>)[slot]);
+    if (s && hireGearSlot(s) === slot) out[slot] = s;
+  }
+  return Object.keys(out).length ? out : undefined;
+};
 interface Live {
   p: ServerPlayer;
   data: Saved;
@@ -144,6 +169,8 @@ export const clean = (raw: unknown): Saved => {
   const out: Saved = { roster: [], active: [], stance: 'assist', seq: 0 };
   const r = raw as Partial<Saved> | null;
   if (!r || typeof r !== 'object') return out;
+  const pending = (Array.isArray(r.pending) ? r.pending.slice(0, 40) : []).map(cleanStack).filter((s) => !!s);
+  if (pending.length) out.pending = pending;
   for (const x of Array.isArray(r.roster) ? r.roster.slice(0, ROSTER_MAX) : []) {
     const k = Number((x as ShadowRec)?.kind);
     const bonded = x?.bonded === true && !!companionBond(k);
@@ -159,7 +186,12 @@ export const clean = (raw: unknown): Saved => {
       out.roster.some((r) => r.id === x.id || (bonded && r.bonded && r.kind === k))
     )
       continue;
-    if (k === 21 && (!Number.isFinite(x.contractUntil) || x.contractUntil! <= Date.now())) continue;
+    if (k === 21 && (!Number.isFinite(x.contractUntil) || x.contractUntil! <= Date.now())) {
+      // a lease that ran out while you were away: whatever you lent comes home
+      const back = Object.values(cleanGear(x.gear) ?? {});
+      if (back.length) out.pending = [...(out.pending ?? []), ...back];
+      continue;
+    }
     const npc = k === 21 && typeof x.npc === 'string' && NPC_BY_ID[x.npc] ? x.npc : undefined;
     out.roster.push({
       ...(bonded ? { bonded: true as const } : {}),
@@ -169,6 +201,7 @@ export const clean = (raw: unknown): Saved => {
       ...(npc ? { npc } : {}),
       ...(k === 21 && Number.isFinite(x.paid) ? { paid: Math.max(0, Math.min(5000, Math.floor(x.paid!))) } : {}),
       ...(k === 21 && Number.isFinite(x.term) ? { term: Math.max(1, Math.min(RECRUIT_MAX_MS, x.term!)) } : {}),
+      ...(npc && cleanGear(x.gear) ? { gear: cleanGear(x.gear) } : {}),
       id: x.id,
       kind: k,
       name: String(x.name ?? '').slice(0, 20) || (bonded ? companionBond(k)!.name : newShadow(x.id, k, 1).name),
@@ -225,6 +258,7 @@ export class ShadowModule implements Module {
     };
     this.live.set(p.id, L);
     for (const id of L.data.active.slice(0, shadowSlots(p.level))) this.summon(L, id, true);
+    if (L.data.pending?.length) this.deliver(L);
     this.sendRoster(L);
   }
 
@@ -458,6 +492,57 @@ export class ShadowModule implements Module {
     return `${rec.name} stays on another hour (${fee} coins).`;
   }
 
+  /** Lend a hired resident the piece in pack slot `slot`; what they carried in that slot comes back to you. */
+  private giveGear(L: Live, id: string, slot: number): string {
+    const p = L.p,
+      rec = L.data.roster.find((r) => r.id === id);
+    if (!rec?.npc || !rec.contractUntil || rec.contractUntil <= Date.now())
+      return 'Only a hired resident can be given gear.';
+    if (slot < 0 || slot >= p.data.inv.length) return 'Nothing there.';
+    const s = p.data.inv[slot];
+    const where = hireGearSlot(s);
+    if (!s || !where) return 'They can carry a weapon and wear armour: nothing else.';
+    const piece: Stack = { id: s.id, n: 1, ...(s.p ? { p: s.p } : {}) };
+    s.n -= 1;
+    if (s.n <= 0) p.data.inv[slot] = null;
+    const old = rec.gear?.[where];
+    rec.gear = { ...(rec.gear ?? {}), [where]: piece };
+    if (old) giveStacks(p, [old], false) || (L.data.pending = [...(L.data.pending ?? []), old]);
+    p.dirty('inv');
+    this.regear(L, rec);
+    return `${rec.name} takes the ${ITEMS[piece.id]!.name.toLowerCase()}${old ? ` and hands back the ${ITEMS[old.id]!.name.toLowerCase()}` : ''}.`;
+  }
+
+  /** Everything a hireling carries comes back to the employer (into a full pack as soon as there is room). */
+  private returnGear(L: Live, rec: ShadowRec): void {
+    const back = Object.values(rec.gear ?? {});
+    delete rec.gear;
+    L.dirty = true;
+    if (!back.length) return;
+    L.data.pending = [...(L.data.pending ?? []), ...back];
+    this.deliver(L);
+    this.regear(L, rec);
+  }
+  /** hand over gear waiting for room in the pack */
+  private deliver(L: Live): void {
+    const left: Stack[] = [];
+    for (const s of L.data.pending ?? []) if (!giveStacks(L.p, [s])) left.push(s);
+    if (left.length !== (L.data.pending ?? []).length) L.dirty = true;
+    if (left.length) L.data.pending = left;
+    else delete L.data.pending;
+  }
+  /** a hireling's stats and look after a change of kit */
+  private regear(L: Live, rec: ShadowRec): void {
+    const u = L.units.get(rec.id);
+    if (u) {
+      this.applyStats(u.en, rec, u.en.hp / u.en.maxHp);
+      u.st.held = rec.gear ? hireHeld(rec.gear) : '';
+      u.st.maxHp = u.en.maxHp;
+    }
+    L.dirty = true;
+    this.sendRoster(L);
+  }
+
   private command(p: ServerPlayer, m: ShadowCmd): void {
     const L = this.live.get(p.id);
     if (!L || p.deadT > 0) return;
@@ -504,6 +589,20 @@ export class ShadowModule implements Module {
       case 'extend':
         if (typeof m.id === 'string') p.toast(this.extend(L, m.id), 'info');
         break;
+      case 'give_gear':
+        if (typeof m.id === 'string' && Number.isInteger(m.slot)) p.toast(this.giveGear(L, m.id, m.slot), 'info');
+        break;
+      case 'take_gear': {
+        const rec = L.data.roster.find((r) => r.id === m.id);
+        if (rec?.npc && rec.gear) {
+          if (!fitsAll(p.data.inv, Object.values(rec.gear))) p.toast('Make room in your pack first.', 'bad');
+          else {
+            this.returnGear(L, rec);
+            p.toast(`${rec.name} hands your gear back.`, 'info');
+          }
+        }
+        break;
+      }
       case 'exchange':
         this.exchange(L, typeof m.id === 'string' ? m.id : undefined);
         break;
@@ -524,6 +623,7 @@ export class ShadowModule implements Module {
             }
             p.toast(`${rec.name} returns to their post${back ? ` and hands back ${back} coins` : ''}.`, 'info');
           }
+          this.returnGear(L, rec);
           this.dismiss(L, m.id);
           L.data.roster.splice(i, 1);
           L.dirty = true;
@@ -779,6 +879,7 @@ export class ShadowModule implements Module {
     st.name = rec.name;
     st.kind = rec.kind;
     st.bonded = !!rec.bonded;
+    st.held = rec.gear ? hireHeld(rec.gear) : '';
     const u: Unit = { rec, en, st, downUntil: 0, chargeHits: new Set(), supportT: 12 };
     this.sync(u);
     L.units.set(id, u);
@@ -806,6 +907,13 @@ export class ShadowModule implements Module {
     en.speedMult = s.speed;
     en.night = false;
     en.windMult = 0.9;
+    // a hired resident fights with what you lent them
+    if (rec.gear) {
+      const g = hireGearMult(rec.gear);
+      en.dmgMult *= g.dmg;
+      en.maxHp = Math.round(s.hp * g.hp);
+      en.hp = Math.max(1, Math.round(en.maxHp * keepHpRatio));
+    }
   }
 
   private gainXp(L: Live, u: Unit, xp: number): void {
@@ -832,8 +940,10 @@ export class ShadowModule implements Module {
     const tick = this.room.state.tick;
     for (const L of this.live.values()) {
       const p = L.p;
+      if (L.data.pending?.length && tick % 40 === 0) this.deliver(L);
       for (const rec of [...L.data.roster])
         if (rec.contractUntil && rec.contractUntil <= Date.now()) {
+          this.returnGear(L, rec);
           this.dismiss(L, rec.id);
           L.data.roster = L.data.roster.filter((r) => r.id !== rec.id);
           L.dirty = true;

@@ -62,4 +62,6 @@ export class ShadowState extends Schema {
   @type('float32') ty = 0;
   /** Append fields to preserve existing wire field indices. */
   @type('boolean') bonded = false;
+  /** a hired resident's held weapon family ('' = their own sword) */
+  @type('string') held = '';
 }

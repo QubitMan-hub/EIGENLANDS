@@ -5,6 +5,8 @@ import {
   COMPANION_BONDS,
   companionBond,
   ITEMS,
+  hireGearSlot,
+  hireGearStats,
   ENEMY_BY_KIND,
   EXTRACT_RANGE,
   DOMAIN_LEVEL,
@@ -605,6 +607,7 @@ export class ShadowClient implements ClientModule {
               text: `${TRAIT_INFO[rec.trait].name}: ${TRAIT_INFO[rec.trait].text}`,
             })
           : null,
+        rec.npc ? this.kit(rec) : null,
         xp,
       ),
       h(
@@ -632,6 +635,14 @@ export class ShadowClient implements ClientModule {
               disabled: R.active.length >= R.slots,
               on: { click: () => this.send({ act: 'summon', id: rec.id }) },
             }),
+        rec.npc ? this.lend(rec) : null,
+        rec.npc && rec.gear
+          ? h('button', {
+              text: 'Take gear back',
+              data: { shControl: `ungear-${rec.id}` },
+              on: { click: () => this.send({ act: 'take_gear', id: rec.id }) },
+            })
+          : null,
         rec.npc
           ? h('button', {
               text: `Extend 1 h · ${recruitFee(NPC_BY_ID[rec.npc]?.role, this.d.level())}`,
@@ -654,6 +665,45 @@ export class ShadowClient implements ClientModule {
           },
         }),
       ),
+    );
+  }
+
+  /** what a hired resident carries, and what it adds */
+  private kit(rec: ShadowRec): HTMLElement {
+    const pieces = Object.values(rec.gear ?? {}).map((s) => ITEMS[s.id]?.name ?? s.id);
+    const st = hireGearStats(rec.gear);
+    const adds = [
+      st.atk ? `+${st.atk} attack` : '',
+      st.hp ? `+${st.hp} health` : '',
+      st.def ? `-${Math.round(st.def * 100)}% damage` : '',
+    ]
+      .filter(Boolean)
+      .join(', ');
+    return h('div', {
+      class: 'sh-trait',
+      text: pieces.length
+        ? `Kit you lent: ${pieces.join(', ')}${adds ? ` (${adds})` : ''}. It comes back when the contract ends.`
+        : 'Fights with their own sword and clothes. Lend them a weapon or armour from your pack.',
+    });
+  }
+  /** lend a hired resident something from the pack */
+  private lend(rec: ShadowRec): HTMLElement | null {
+    const fit = this.d.profile.inv.map((s, i) => ({ s, i })).filter(({ s }) => hireGearSlot(s));
+    if (!fit.length) return null;
+    return h(
+      'select',
+      {
+        title: 'Lend a weapon or a piece of armour from your pack',
+        data: { shControl: `gear-${rec.id}` },
+        on: {
+          change: (e) => {
+            const v = Number((e.target as HTMLSelectElement).value);
+            if (v >= 0) this.send({ act: 'give_gear', id: rec.id, slot: v });
+          },
+        },
+      },
+      h('option', { value: '-1', text: 'Lend gear…' }),
+      ...fit.map(({ s, i }) => h('option', { value: String(i), text: ITEMS[s!.id]?.name ?? s!.id })),
     );
   }
 }

@@ -2,7 +2,7 @@ import { LIVESTOCK_AX, LIVESTOCK_AY, LIVESTOCK_H, LIVESTOCK_W, saddledTexture } 
 import { minecartSprite } from '../art/mining';
 import { FLY_Z, MOUNT_FRAMES, SADDLE_Z, mountDir, mountSprite } from '../art/mounts';
 import { Rectangle, Texture } from 'pixi.js';
-import type { HeldWeapons } from '../art/weapons';
+import { isHeldId, type HeldWeapons } from '../art/weapons';
 import { type Critters, type CritterId } from '../art/critters';
 import { Sprite, type Container, type Graphics } from 'pixi.js';
 import { SHIP_AX, SHIP_AY, headingOf, type Ships } from '../art/ships';
@@ -830,7 +830,8 @@ export class CombatView {
           v.held.anchor.set(0.5, 0.75);
           v.root.addChild(v.held);
         }
-        v.held.texture = this.d.heldWeapons().texture('sword', dir, Math.max(0, pose));
+        const lent = (s as { held?: string } | undefined)?.held;
+        v.held.texture = this.d.heldWeapons().texture(isHeldId(lent) ? lent : 'sword', dir, Math.max(0, pose));
         v.held.visible = st !== 6;
         v.held.y = 0;
         v.root.setChildIndex(v.held, dir === 1 || dir >= 6 ? 1 : v.root.children.length - 1);

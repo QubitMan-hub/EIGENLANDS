@@ -1,4 +1,6 @@
-import { ENEMY_BY_KIND, ENEMY_KEY_BY_KIND, type EnemyDef } from './combat';
+import { ENEMY_BY_KIND, ENEMY_KEY_BY_KIND, meleeFamily, type EnemyDef } from './combat';
+import { equipmentStats } from './gear-state';
+import { ITEMS, type Stack } from './items';
 import { BESTIARY_KEYS, CREATURE_BLUEPRINTS } from './bestiary';
 
 /**
@@ -97,7 +99,51 @@ export interface ShadowRec {
   bonded?: true;
   /** a guardian's shadow: its signature trait (see TRAIT_INFO) */
   trait?: ShadowTrait;
+  /** a hired resident's kit, lent by the employer and handed back when the contract ends */
+  gear?: HireGear;
 }
+
+// ───────────────────────── gear for hirelings ─────────────────────────
+
+/** A hired resident can be lent a weapon and one piece of armour for each body slot. */
+export const HIRE_GEAR_SLOTS = ['weapon', 'head', 'chest', 'legs', 'feet'] as const;
+export type HireGearSlot = (typeof HIRE_GEAR_SLOTS)[number];
+export type HireGear = Partial<Record<HireGearSlot, Stack>>;
+
+/** Which hireling slot an item fits, or null (anything you can wield, and worn armour). */
+export function hireGearSlot(s: Stack | null | undefined): HireGearSlot | null {
+  const d = s && ITEMS[s.id];
+  if (!d) return null;
+  if (d.kind === 'weapon') return 'weapon';
+  const slot = d.kind === 'armor' ? d.armor?.slot : undefined;
+  return slot === 'head' || slot === 'chest' || slot === 'legs' || slot === 'feet' ? slot : null;
+}
+
+/** What a hireling's kit adds: attack, health and the share of damage turned aside (the same sums as your own gear). */
+export function hireGearStats(g: HireGear | undefined): { atk: number; hp: number; def: number } {
+  if (!g) return { atk: 0, hp: 0, def: 0 };
+  const w = g.weapon && ITEMS[g.weapon.id];
+  const s = equipmentStats({
+    ring1: null,
+    ring2: null,
+    outfit: 0,
+    weapon: w?.weapon ? g.weapon! : null,
+    head: g.head ?? null,
+    chest: g.chest ?? null,
+    legs: g.legs ?? null,
+    feet: g.feet ?? null,
+  });
+  // a forged blade carries its edge on the stack (like your own hotbar sword)
+  const blade = g.weapon && !w?.weapon ? 2 + (g.weapon.p?.atk ?? 0) : 0;
+  return { atk: s.atkBonus + blade, hp: s.hpBonus, def: Math.max(0, Math.min(0.6, s.def)) };
+}
+/** Multipliers a hireling's kit applies to its blows and its health (armour counts as extra health to wear down). */
+export function hireGearMult(g: HireGear | undefined): { dmg: number; hp: number } {
+  const s = hireGearStats(g);
+  return { dmg: 1 + s.atk * 0.05, hp: (1 + s.hp / 100) / (1 - s.def) };
+}
+/** The held weapon a hireling is drawn with. */
+export const hireHeld = (g: HireGear | undefined): string => (g?.weapon ? meleeFamily(g.weapon.id) : 'sword');
 
 export interface ShadowRosterMsg {
   roster: ShadowRec[];

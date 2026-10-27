@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  armorId,
+  countItem,
   MSG,
   MSG34,
   COTTAGE_H,
@@ -19,6 +21,7 @@ import {
 } from '@eigenlands/shared';
 import type { App } from '../src/app';
 import { civEntry } from '../src/features/civ/registry';
+import { clean } from '../src/features/shadows';
 import { boot3, clearEnemies, dev, setLevel, sleep, spawn3, tp, until, type P3 } from './p3helpers';
 
 let app: App;
@@ -211,6 +214,56 @@ describe('hiring residents', () => {
     expect(b.room.shadows.hire(b.sp, guard.id)).toMatch(/coins it is/);
     await a.r.leave();
     await b.r.leave();
+  });
+});
+
+describe('hireling gear', () => {
+  it('a hired resident fights harder with a lent blade, wears lent armour, and hands it all back', async () => {
+    const a = await spawn3(app, 'Outfitter');
+    await setLevel(a, 6);
+    const guard = realmNpcs().filter((n) => n.role === 'guard')[1]!;
+    a.sp.data.friends[guard.id] = { pts: 2000 } as never;
+    a.sp.data.coins = 2000;
+    expect(a.room.shadows.hire(a.sp, guard.id)).toMatch(/coins it is/);
+    const L = () => a.room.shadows.stateOf(a.sid)!;
+    await until(() => !!L()?.data.roster.some((r) => r.npc === guard.id), 3000);
+    const rec = L().data.roster.find((r) => r.npc === guard.id)!;
+    const unit = () => L().units.get(rec.id)!;
+    await until(() => !!unit(), 3000);
+    const before = { dmg: unit().en.dmgMult, hp: unit().en.maxHp };
+    const vest = armorId('iron', 'chest');
+    a.sp.data.inv[20] = { id: 'sword', n: 1, p: { atk: 4 } };
+    a.sp.data.inv[21] = { id: vest, n: 1 };
+    a.sp.data.inv[22] = { id: 'wood', n: 5 };
+    // only arms and armour
+    a.r.send(MSG34.SHADOW_CMD, { act: 'give_gear', id: rec.id, slot: 22 });
+    a.r.send(MSG34.SHADOW_CMD, { act: 'give_gear', id: rec.id, slot: 20 });
+    a.r.send(MSG34.SHADOW_CMD, { act: 'give_gear', id: rec.id, slot: 21 });
+    await until(() => !!rec.gear?.weapon && !!rec.gear?.chest, 3000);
+    expect(a.sp.data.inv[22]).toEqual({ id: 'wood', n: 5 });
+    expect(a.sp.data.inv[20]).toBeNull();
+    expect(unit().en.dmgMult).toBeGreaterThan(before.dmg);
+    expect(unit().en.maxHp).toBeGreaterThan(before.hp);
+    expect(unit().st.held).toBe('sword');
+    // taken back on request
+    a.r.send(MSG34.SHADOW_CMD, { act: 'take_gear', id: rec.id });
+    await until(() => !rec.gear, 3000);
+    expect(countItem(a.sp.data.inv, 'sword')).toBeGreaterThanOrEqual(1);
+    expect(countItem(a.sp.data.inv, vest)).toBe(1);
+    expect(unit().en.maxHp).toBe(before.hp);
+    // lent again, then the contract ends: it all comes home
+    const slot = a.sp.data.inv.findIndex((s) => s?.id === vest);
+    a.r.send(MSG34.SHADOW_CMD, { act: 'give_gear', id: rec.id, slot });
+    await until(() => !!rec.gear?.chest, 3000);
+    rec.contractUntil = Date.now() - 1;
+    await until(() => countItem(a.sp.data.inv, vest) === 1, 4000);
+    // a lease that ran out while away hands its kit back on the next login
+    const saved = clean({
+      roster: [{ id: 'x1', kind: 21, npc: guard.id, contractUntil: Date.now() - 5, gear: { chest: { id: vest, n: 1 } } }],
+    });
+    expect(saved.roster.length).toBe(0);
+    expect(saved.pending).toEqual([{ id: vest, n: 1 }]);
+    await a.r.leave();
   });
 });
 
