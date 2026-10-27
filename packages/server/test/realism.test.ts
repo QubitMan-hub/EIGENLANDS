@@ -2,15 +2,22 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   MSG,
   MSG34,
+  COTTAGE_H,
+  COTTAGE_W,
   MSG_TRAVEL,
+  REALM_SITES,
   STABLE_FEE,
   T,
   arrivalOf,
+  civOwner,
+  cottagesEarned,
+  growthPlots,
   realmNpcs,
   recruitFee,
   waystonesNear,
 } from '@eigenlands/shared';
 import type { App } from '../src/app';
+import { civEntry } from '../src/features/civ/registry';
 import { boot3, clearEnemies, dev, setLevel, sleep, spawn3, tp, until, type P3 } from './p3helpers';
 
 let app: App;
@@ -202,5 +209,49 @@ describe('hiring residents', () => {
     expect(b.room.shadows.hire(b.sp, guard.id)).toMatch(/coins it is/);
     await a.r.leave();
     await b.r.leave();
+  });
+});
+
+describe('settlement growth', () => {
+  it('a prosperous kingdom raises real cottages on a settlement’s outskirts, one a day, owned by the crown', async () => {
+    const p = await spawn3(app, 'Surveyor');
+    const room = p.room;
+    await room.civ.ready();
+    const w = civEntry(room.seed).w!;
+    const site = REALM_SITES.find((s) => s.kind === 'village' && room.owns(Math.floor(s.cx), Math.floor(s.cy)))!;
+    expect(site).toBeTruthy();
+    const k = w.kingdoms[site.realm];
+    k.prosperity = 90;
+    const want = cottagesEarned(k, site);
+    expect(want).toBeGreaterThanOrEqual(3);
+    const owner = civOwner(site.realm);
+    const standing = () =>
+      growthPlots(room.seed, site).filter((pl) => room.store.structureAt(pl.x, pl.y)?.owner === owner);
+    const before = standing().length;
+    for (let i = 0; i < want + 2; i++) await room.civ.grow(true);
+    const now = standing();
+    // one per growth step, never more than earned (some seeded plots may be on a slope or a road and are skipped)
+    expect(now.length).toBeGreaterThan(before);
+    expect(now.length).toBeLessThanOrEqual(want);
+    // each cottage is a whole little house: 20 cells with floor and roof, walls round the edge and a door
+    const pl = now[0]!;
+    let walls = 0,
+      doors = 0;
+    for (let dy = 0; dy < COTTAGE_H; dy++)
+      for (let dx = 0; dx < COTTAGE_W; dx++) {
+        const c = room.store.structureAt(pl.x + dx, pl.y + dy)!;
+        expect(c.owner).toBe(owner);
+        expect(c.data.floor && c.data.roof).toBeTruthy();
+        if (c.data.wall) walls++;
+        if (c.data.wall === 'oak_door') doors++;
+      }
+    expect(walls).toBe(14);
+    expect(doors).toBe(1);
+    expect(k.chronicle.some((c) => /new cottage/.test(c.text))).toBe(true);
+    // and growth never pulls anything down when times turn hard
+    k.prosperity = 20;
+    await room.civ.grow(true);
+    expect(standing().length).toBe(now.length);
+    await p.r.leave();
   });
 });

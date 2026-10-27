@@ -1,6 +1,7 @@
 import {
   BUILD_PIECES,
   isDoor,
+  isCivOwner,
   BUILD_WORLD_LIMIT,
   UPPER_OY,
   T,
@@ -310,7 +311,8 @@ export async function openConstruction(room: RoomApi, p: ServerPlayer, x: number
     return true;
   }
   if (isDoor(d.wall)) {
-    if (cell.owner !== p.accountId) {
+    // a kingdom's cottages are lived in: anyone may come and go through their doors
+    if (cell.owner !== p.accountId && !isCivOwner(cell.owner)) {
       p.toast('Only the owner can open or close this door.');
       return true;
     }
