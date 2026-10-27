@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  cottageFamily,
+  cottagerOf,
   armorId,
   countItem,
   MSG,
@@ -22,6 +24,7 @@ import {
 import type { App } from '../src/app';
 import { civEntry } from '../src/features/civ/registry';
 import { clean } from '../src/features/shadows';
+import { cottageDialogue } from '../src/systems/cottages';
 import { boot3, clearEnemies, dev, setLevel, sleep, spawn3, tp, until, type P3 } from './p3helpers';
 
 let app: App;
@@ -309,6 +312,21 @@ describe('settlement growth', () => {
       expect(o?.owner).toBe(owner);
     }
     expect(k.chronicle.some((c) => /new cottage/.test(c.text))).toBe(true);
+    // the family at the door can be talked to, and gives a little of their work once a day
+    const folk = cottagerOf(pl.x, pl.y);
+    await tp(p, folk.x, folk.y + 1);
+    const fam = cottageFamily(pl.x, pl.y, site.realm);
+    const have = countItem(p.sp.data.inv, fam.gift.id);
+    const d = cottageDialogue(room, p.sp, folk.id)!;
+    expect(d.name).toBe(`The ${fam.surname} family`);
+    expect([d.text, ...(d.pages ?? [])].join(' ')).toContain(fam.members[0]);
+    expect(countItem(p.sp.data.inv, fam.gift.id)).toBe(have + fam.gift.n);
+    cottageDialogue(room, p.sp, folk.id);
+    expect(countItem(p.sp.data.inv, fam.gift.id)).toBe(have + fam.gift.n);
+    // only in person, and only at a real cottage
+    expect(cottageDialogue(room, p.sp, 'ct1_1')).toBeNull();
+    await tp(p, folk.x + 30, folk.y);
+    expect(cottageDialogue(room, p.sp, folk.id)).toBeNull();
     // and growth never pulls anything down when times turn hard
     k.prosperity = 20;
     await room.civ.grow(true);

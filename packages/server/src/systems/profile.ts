@@ -294,6 +294,9 @@ export function validProg(raw: unknown): PlayerData['prog'] {
           )
           .slice(-3)
       : [],
+    cottages: ids(r.cottages)
+      .filter((v) => /^ct-?\d+_-?\d+:\d+$/.test(v))
+      .slice(-40),
     mountWorn: mountRecord(r.mountWorn, (v) =>
       typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.min(100, v) : undefined,
     ),

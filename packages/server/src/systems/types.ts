@@ -87,6 +87,8 @@ export interface PlayerData {
     meals?: Array<['produce' | 'protein' | 'hearty', number]>;
     /** how worn out each mount is, 0..100 */
     mountWorn?: Partial<Record<'horse' | 'stag' | 'griffin', number>>;
+    /** cottage families visited: `<cottager id>:<day>` of the last visit (the daily gift) */
+    cottages?: string[];
   };
 }
 

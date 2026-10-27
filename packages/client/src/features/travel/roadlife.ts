@@ -164,6 +164,21 @@ export class RoadLife {
     return this.views.size;
   }
 
+  /** the cottage family nearest (x, y), within `max` tiles: you can walk up and talk to them */
+  cottagerNear(x: number, y: number, max: number): { id: string; x: number; y: number } | null {
+    let best: { id: string; x: number; y: number } | null = null,
+      bd = max;
+    for (const [id, w] of this.wander) {
+      if (!id.startsWith('ct') || !this.views.has(id)) continue;
+      const d = Math.hypot(w.x - x, w.y - y);
+      if (d < bd) {
+        bd = d;
+        best = { id, x: w.x, y: w.y };
+      }
+    }
+    return best;
+  }
+
   private clear(): void {
     for (const v of this.views.values()) {
       v.root.destroy({ children: true });

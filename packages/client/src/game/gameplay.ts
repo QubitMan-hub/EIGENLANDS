@@ -480,7 +480,7 @@ export class Gameplay {
       },
     );
     if (this.wins.name === `dialogue:${m.npcId}`) this.wins.update(`dialogue:${m.npcId}`, el);
-    else this.wins.show(`dialogue:${m.npcId}`, NPC_BY_ID[m.npcId]?.name ?? 'Villager', el);
+    else this.wins.show(`dialogue:${m.npcId}`, NPC_BY_ID[m.npcId]?.name ?? m.name ?? 'Villager', el);
   }
 
   onShopView(v: ShopViewMsg): void {

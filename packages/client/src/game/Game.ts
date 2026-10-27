@@ -78,6 +78,7 @@ import {
   CLIFF,
   LEVEL_PX,
   MAX_LEVEL,
+  cottagerOf,
 } from '@eigenlands/shared';
 import {
   buildActorSheets,
@@ -2104,7 +2105,9 @@ export class Game {
         best = { id: v.id, x: v.lx, y: v.ly };
       }
     }
-    return best;
+    // the families before the crown's new cottages (drawn by the road-life layer)
+    const folk = this.ext?.travel.cottagerNear(x, y, bd);
+    return folk ?? best;
   }
 
   /** Data-URL portrait of an NPC (or `me`) cut from the sprite sheet, for dialogue and journal. */
@@ -2115,7 +2118,10 @@ export class Game {
       const tex =
         npcId === 'me'
           ? this.sheets.person(this.gameplay.profile.equip.outfit, DIR_DOWN, 0)
-          : this.sheets.npc(npcId, DIR_DOWN, 0);
+          : /^ct-?\d+_-?\d+$/.test(npcId)
+            ? // a cottage family: the same look the road-life layer draws them in
+              this.sheets.person(cottagerLook(npcId) % COSMETIC_OUTFITS, DIR_DOWN, 0)
+            : this.sheets.npc(npcId, DIR_DOWN, 0);
       const src = tex.source.resource as CanvasImageSource;
       const c = document.createElement('canvas');
       c.width = tex.frame.width;
@@ -2427,4 +2433,10 @@ export class Game {
     const d = $('debug');
     d.hidden = !d.hidden;
   }
+}
+
+/** the look of the cottage family `ct<x>_<y>` (growth.ts cottagerOf) */
+function cottagerLook(id: string): number {
+  const [x, y] = id.slice(2).split('_').map(Number);
+  return cottagerOf(x!, y!).look;
 }

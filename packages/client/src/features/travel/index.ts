@@ -156,6 +156,10 @@ export class TravelClient implements ClientModule {
   }
 
   /** The caravan in trading reach (the interact key opens its wagon shop). */
+  /** a cottage family close enough to talk to */
+  cottagerNear(x: number, y: number, max: number): { id: string; x: number; y: number } | null {
+    return this.roadLife.cottagerNear(x, y, max);
+  }
   caravanNear(): { id: string; name: string } | null {
     const c = this.caravans.reachable();
     return c ? { id: c.route.id, name: c.route.name } : null;

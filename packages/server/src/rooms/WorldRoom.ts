@@ -1,3 +1,4 @@
+import { cottageDialogue } from '../systems/cottages';
 import { generationMeta, tileAt, isSolid, validAppearance, catalogMobDrops } from '@eigenlands/shared';
 import {
   DIFFICULTY_RULES,
@@ -355,6 +356,11 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     on<ShelterMsg>(MSG.SHELTER, 'openBucket', (p, m) => handleShelter(this, p, m));
     on<TalkMsg>(MSG.TALK, 'socialBucket', (p, m) => {
       if (this.guildTalk?.(p, m?.npcId)) return;
+      if (typeof m?.npcId === 'string' && m.npcId.startsWith('ct')) {
+        const d = cottageDialogue(this, p, m.npcId);
+        if (d) p.client.send(MSG.DIALOGUE, d);
+        return;
+      }
       if (!this.npcNear(p, m?.npcId)) return;
       const d = this.village.talk(p, m.npcId, typeof m.topic === 'string' ? m.topic : undefined);
       if (d) p.client.send(MSG.DIALOGUE, d);

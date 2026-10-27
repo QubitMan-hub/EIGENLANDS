@@ -108,3 +108,16 @@ describe('weapon families', () => {
     expect(meleeHeavy('dagger_steel', 0)).toEqual(meleeHeavy('dagger', 0));
   });
 });
+
+describe('cottage families', () => {
+  it('every family has a name, a trade and a real gift, and says something each day', async () => {
+    const { cottageFamily, cottageTalk, ITEMS } = await import('../src');
+    for (let i = 0; i < 60; i++) {
+      const f = cottageFamily(i * 7, -i * 3, 'aurelion');
+      expect(ITEMS[f.gift.id], f.gift.id).toBeTruthy();
+      const lines = cottageTalk(f, i, { weather: 'clear', prosperity: 50, atWar: i % 2 === 0, first: i % 3 === 0 });
+      expect(lines.length).toBeGreaterThanOrEqual(2);
+      for (const l of lines) expect(l).not.toMatch(/undefined/);
+    }
+  });
+});

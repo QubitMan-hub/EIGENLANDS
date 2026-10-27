@@ -114,3 +114,139 @@ export function cottageCells(realm: RealmId, x: number, y: number): Array<{ x: n
     }
   return cells;
 }
+
+// ───────────────────────── the families in the cottages ─────────────────────────
+
+const SURNAMES = [
+  'Thatcher',
+  'Millward',
+  'Brookes',
+  'Hedgerow',
+  'Ashby',
+  'Fairweather',
+  'Pennyroyal',
+  'Oakes',
+  'Tumbledown',
+  'Hollis',
+  'Underhill',
+  'Wren',
+  'Quill',
+  'Barleycorn',
+  'Cobb',
+  'Larkspur',
+];
+const GIVEN = [
+  'Edda',
+  'Tom',
+  'Mira',
+  'Bram',
+  'Isolde',
+  'Pell',
+  'Wynn',
+  'Hal',
+  'Rosa',
+  'Corin',
+  'Liesl',
+  'Aldo',
+  'Nell',
+  'Fenn',
+  'Ivy',
+  'Jory',
+];
+/** what each household does, and what they press on a visitor once a day */
+const TRADES: Array<{ trade: string; gift: string; n: number; work: string }> = [
+  { trade: 'weavers', gift: 'cloth', n: 2, work: 'The loom has not stopped since we moved in.' },
+  {
+    trade: 'beekeepers',
+    gift: 'honey',
+    n: 1,
+    work: 'The bees found the clover by the road before we had the shutters up.',
+  },
+  { trade: 'carpenters', gift: 'plank', n: 3, work: 'Half the fences round here are ours now.' },
+  { trade: 'cowherds', gift: 'milk', n: 2, work: 'Old Dumpling gives more milk than the three of us can drink.' },
+  { trade: 'bakers', gift: 'country_loaf', n: 1, work: 'We are up before the cock every morning for the ovens.' },
+  { trade: 'shepherds', gift: 'wool', n: 2, work: 'Shearing is next week. You will hear the bleating from the road.' },
+  { trade: 'cheesemakers', gift: 'cheese', n: 1, work: 'The cellar is cool enough for a good hard cheese.' },
+  { trade: 'orchard keepers', gift: 'apple', n: 3, work: 'The saplings are small, but give them three summers.' },
+  { trade: 'hen keepers', gift: 'egg', n: 3, work: 'The hens lay under the bed if you leave the door open.' },
+  { trade: 'charcoal burners', gift: 'charcoal', n: 2, work: 'Forgive the smoke: the kiln is out back.' },
+  { trade: 'smallholders', gift: 'carrot', n: 3, work: 'Carrots, turnips, a row of beans. It feeds us.' },
+  { trade: 'fisherfolk', gift: 'herring', n: 2, work: 'We are out on the water at first light.' },
+];
+
+export interface CottageFamily {
+  /** the cottager's id (cottagerOf) */
+  id: string;
+  surname: string;
+  /** the two grown-ups and a child */
+  members: [string, string, string];
+  trade: string;
+  work: string;
+  gift: { id: string; n: number };
+  realm: RealmId;
+}
+
+/** The cottage plot (top-left) whose family is `id`, if it is one of a settlement's plots. */
+export function cottagePlot(seed: number, id: string): { x: number; y: number; site: RealmSite } | null {
+  const m = /^ct(-?\d+)_(-?\d+)$/.exec(id);
+  if (!m) return null;
+  const x = Number(m[1]),
+    y = Number(m[2]);
+  for (const s of REALM_SITES)
+    if (Math.abs(s.cx - x) < s.w / 2 + 40 && Math.abs(s.cy - y) < s.h / 2 + 40)
+      if (growthPlots(seed, s).some((p) => p.x === x && p.y === y)) return { x, y, site: s };
+  return null;
+}
+
+/** Who lives in the cottage at plot (x, y) of `realm`'s settlement. */
+export function cottageFamily(x: number, y: number, realm: RealmId): CottageFamily {
+  const h = (k: number) => hash2(0x5ea7, x, y, 40 + k);
+  const pick = <T>(a: readonly T[], k: number) => a[Math.floor(h(k) * a.length)]!;
+  const t = pick(TRADES, 0);
+  const a = Math.floor(h(1) * GIVEN.length);
+  return {
+    id: `ct${x}_${y}`,
+    surname: pick(SURNAMES, 2),
+    members: [GIVEN[a]!, GIVEN[(a + 5) % GIVEN.length]!, GIVEN[(a + 11) % GIVEN.length]!],
+    trade: t.trade,
+    work: t.work,
+    gift: { id: t.gift, n: t.n },
+    realm,
+  };
+}
+
+/** What the family has to say today: who they are, their work, the weather, and how the kingdom is faring. */
+export function cottageTalk(
+  f: CottageFamily,
+  day: number,
+  c: { weather: string; prosperity: number; atWar: boolean; first: boolean },
+): string[] {
+  const [a, b, kid] = f.members;
+  const h = (k: number) => hash2(0x5ea8, day, f.id.length + k, Math.floor(hash2(0x11, day, k, 7) * 1e4));
+  const lines: string[] = [];
+  lines.push(
+    c.first
+      ? `"Oh! A visitor. I'm ${a} ${f.surname}, and this is ${b}. We're ${f.trade}. The crown raised this house for us when the town grew."`
+      : `"Back again! ${b}, put the kettle on."`,
+  );
+  const topics = [
+    f.work,
+    c.weather === 'rain' || c.weather === 'storm'
+      ? 'Listen to that rain on the roof. A good roof is worth more than gold, my mother used to say.'
+      : c.weather === 'snow'
+        ? `${kid} wants to build a snow-knight by the door. I said only after the woodpile is in.`
+        : `${kid} has been out in the meadow since breakfast. Have you seen a small person covered in burrs?`,
+    c.atWar
+      ? `${b}'s brother marched with the levy. We pray the war ends before the harvest.`
+      : c.prosperity >= 70
+        ? 'Times are good. The market is full and the granary too. That is why there are new houses, they say.'
+        : c.prosperity < 40
+          ? 'Times are lean. We make do, and we are glad of a roof of our own.'
+          : 'Quiet times. We like it that way.',
+    `${kid} says there are lights in the old ruins at night. Children's stories, surely.`,
+  ];
+  const i = Math.floor(h(1) * topics.length);
+  lines.push(`"${topics[i]!.replace(/^"|"$/g, '')}"`);
+  if (h(2) < 0.5) lines.push(`"${topics[(i + 1) % topics.length]!.replace(/^"|"$/g, '')}"`);
+  return lines;
+}
