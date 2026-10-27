@@ -839,6 +839,20 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
           known.add(key);
           changed = true;
         }
+        // Ranch livestock are synchronized NPC actors rather than hostile Enemy instances.
+        for (const n of this.state.npcs.values()) {
+          const key = n.farm === 'phasehart' ? 'deer' : n.farm;
+          if (
+            !key ||
+            !Object.hasOwn(ENEMY_DEFS, key) ||
+            known.has(key) ||
+            Math.hypot(n.x - p.sim.x, n.y - p.sim.y) > 18 ||
+            !lineOfSight(this.store.shotBlockedAt, p.sim.x, p.sim.y, n.x, n.y)
+          )
+            continue;
+          known.add(key);
+          changed = true;
+        }
         if (changed) {
           p.data.prog.bestiary = [...known].slice(0, 256);
           p.dirty('bestiary');
@@ -1566,7 +1580,10 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     }
     wearOnHit(p, () => this.rand());
     // wounds: some creatures leave an injury behind (Adventure and Hardcore only)
-    const hit = injuryOnHit(ENEMY_KEY_BY_KIND[e.def.kind] ?? '');
+    const hit =
+      e.def.trait === 'venom'
+        ? { cond: 'poison' as const, chance: 0.35 }
+        : injuryOnHit(ENEMY_KEY_BY_KIND[e.def.kind] ?? '');
     if (hit && this.rand() < Math.min(0.9, hit.chance * DIFFICULTY_RULES[p.data.needs.mode].injury))
       inflict(this, p, hit.cond);
     const l = Math.hypot(dirX, dirY) || 1;

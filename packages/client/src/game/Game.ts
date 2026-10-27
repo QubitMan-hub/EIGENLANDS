@@ -2071,6 +2071,7 @@ export class Game {
       rtt: this.rtt,
       chunks: this.terrain?.count,
       entities: this.views.size,
+      creatureAtlases: this.foes?.cache(),
       hp: this.self?.hp,
       stamina: this.predictor?.sim.stamina,
       sprinting: this.predictor?.sim.sprint === 1,

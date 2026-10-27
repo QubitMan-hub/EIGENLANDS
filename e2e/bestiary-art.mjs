@@ -3,7 +3,9 @@ import { chromium } from 'playwright-core';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
+import { format } from 'prettier';
 import { BESTIARY_KEYS } from '../packages/shared/src/bestiary.ts';
+import { BOSSES } from '../packages/shared/src/bosses.ts';
 import { ENEMY_DEFS } from '../packages/shared/src/combat.ts';
 const base = process.argv[2] ?? 'http://127.0.0.1:5186/',
   out = process.argv[3] ?? '/tmp/bestiary-art',
@@ -27,12 +29,17 @@ try {
     errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(new URL('labs/uilab.html?panel=none', base).href);
-  const keys = BESTIARY_KEYS.filter((id) => !['cow', 'sheep', 'pig', 'horse'].includes(id));
+  const keys = [
+    ...BESTIARY_KEYS.filter((id) => !['cow', 'sheep', 'pig', 'horse'].includes(id)),
+    ...Object.keys(BOSSES).filter((id) => !BESTIARY_KEYS.includes(id)),
+  ];
+  const bosses = JSON.parse(readFileSync(assets + '/boss-manifest.json', 'utf8'));
+  const authored = new Set(Object.keys(bosses.atlases));
   let manifest = bake
     ? { sourceHash, atlases: {}, portraits: [] }
     : JSON.parse(readFileSync(assets + '/manifest.json', 'utf8'));
   if (bake) {
-    for (const id of keys) {
+    for (const id of keys.filter((id) => !authored.has(id))) {
       for (const night of [false, true]) {
         const baked = await page.evaluate(
           async ({ id, night }) => {
@@ -61,14 +68,29 @@ try {
               w = d.w - trim * 2,
               h = Math.min(d.h, maxY + 3) - top;
             const atlas = document.createElement('canvas');
-            atlas.width = w * cols;
-            atlas.height = h * 4;
+            const packedCols = Math.min(cols, Math.floor(2048 / w)),
+              poseRows = Math.ceil(cols / packedCols);
+            atlas.width = w * packedCols;
+            atlas.height = h * 4 * poseRows;
             const ctx = atlas.getContext('2d');
             ctx.imageSmoothingEnabled = false;
             for (let row = 0; row < 4; row++)
               for (let col = 0; col < cols; col++)
-                ctx.drawImage(raw, col * d.w + trim, row * d.h + top, w, h, col * w, row * h, w, h);
-            return { url: atlas.toDataURL(), meta: { w, h, ay: d.ay - top, frames: d.n, cols, rows: 4 } };
+                ctx.drawImage(
+                  raw,
+                  col * d.w + trim,
+                  row * d.h + top,
+                  w,
+                  h,
+                  (col % packedCols) * w,
+                  (row * poseRows + Math.floor(col / packedCols)) * h,
+                  w,
+                  h,
+                );
+            return {
+              url: atlas.toDataURL(),
+              meta: { w, h, ay: d.ay - top, frames: d.n, cols: packedCols, rows: 4 * poseRows, poseRows },
+            };
           },
           { id, night },
         );
@@ -79,14 +101,14 @@ try {
       console.log('baked', id);
     }
     for (const [id, def] of Object.entries(ENEMY_DEFS)) {
+      if (authored.has(id)) continue;
       const url = await page.evaluate(
         async ({ id, kind }) => {
           const f = await import('/src/art/foes.ts');
           let source;
-          const alias = kind === 10 ? 'slime' : kind === 12 ? 'brute' : id;
-          if (![3, 7, 8, 9, 11, 33].includes(kind) && f.creatureDefinition(alias))
-            source = f.creaturePortraitCanvas(alias);
-          else if ([3, 7, 8, 9, 11, 33].includes(kind)) {
+          const alias = id;
+          if (![3, 7, 8, 9, 33].includes(kind) && f.creatureDefinition(alias)) source = f.creaturePortraitCanvas(alias);
+          else if ([3, 7, 8, 9, 33].includes(kind)) {
             const { Critters } = await import('/src/art/critters.ts');
             const c = (globalThis.__bestiaryCritters ??= await Critters.load());
             const tex =
@@ -151,20 +173,25 @@ try {
         manifest.portraits.push(id);
       }
     }
-    writeFileSync(assets + '/manifest.json', JSON.stringify(manifest, null, 2));
-    writeFileSync('packages/client/src/art/bestiary-manifest.json', JSON.stringify(manifest, null, 2));
+    await page.goto('about:blank'); // Disconnect Vite HMR before replacing an imported manifest.
+    const json = await format(JSON.stringify(manifest), { parser: 'json', printWidth: 120, singleQuote: true });
+    writeFileSync(assets + '/manifest.json', json);
+    writeFileSync('packages/client/src/art/bestiary-manifest.json', json);
+    await page.goto(new URL('labs/uilab.html?panel=none', base).href);
   }
   assert.equal(manifest.sourceHash, sourceHash, 'Sprite source changed: regenerate the committed atlases.');
+  manifest.atlases = { ...manifest.atlases, ...bosses.atlases };
+  manifest.portraits = [...new Set([...manifest.portraits, ...bosses.portraits])];
   const report = await page.evaluate(
     async ({ keys, base, manifest }) => {
       document.body.innerHTML = '';
       document.documentElement.style = 'height:auto;overflow:auto';
       document.body.style =
         'background:#263d36;color:#f0dfbb;display:flex;flex-wrap:wrap;gap:12px;padding:12px;overflow:auto;height:auto';
-      const { LEGENDARY_DEFS } = await import('/src/art/legendary-fauna.ts');
+      const { creatureDefinition } = await import('/src/art/foes.ts');
       const result = [];
       for (const id of keys) {
-        const d = { ...LEGENDARY_DEFS[id], ...manifest.atlases[id] },
+        const d = { ...creatureDefinition(id), ...manifest.atlases[id] },
           fig = document.createElement('figure');
         fig.style = 'margin:0;padding:6px;background:#304b41';
         const label = document.createElement('figcaption');
@@ -175,7 +202,8 @@ try {
           img.src = new URL(`art/bestiary/${id}-${night ? 'night' : 'day'}.png`, base).href;
           await img.decode();
           const cols = Object.values(d.n).reduce((a, b) => a + b, 0);
-          if (img.width !== d.w * cols || img.height !== d.h * 4) throw Error('Bad atlas dimensions ' + id);
+          if (img.width !== d.w * d.cols || img.height !== d.h * d.rows || img.width > 2048)
+            throw Error('Bad atlas dimensions ' + id);
           const source = document.createElement('canvas');
           source.width = img.width;
           source.height = img.height;
@@ -185,7 +213,12 @@ try {
             edge = 0;
           for (let row = 0; row < 4; row++)
             for (let col = 0; col < cols; col++) {
-              const a = c.getImageData(col * d.w, row * d.h, d.w, d.h).data;
+              const a = c.getImageData(
+                (col % d.cols) * d.w,
+                (row * d.poseRows + Math.floor(col / d.cols)) * d.h,
+                d.w,
+                d.h,
+              ).data;
               let n = 0;
               for (let y = 0; y < d.h; y++)
                 for (let x = 0; x < d.w; x++)
@@ -201,7 +234,8 @@ try {
           preview.width = d.w * 4;
           preview.height = d.h;
           const p = preview.getContext('2d');
-          for (let row = 0; row < 4; row++) p.drawImage(img, 0, row * d.h, d.w, d.h, row * d.w, 0, d.w, d.h);
+          for (let row = 0; row < 4; row++)
+            p.drawImage(img, 0, row * d.poseRows * d.h, d.w, d.h, row * d.w, 0, d.w, d.h);
           preview.style = 'image-rendering:pixelated;display:block;max-width:760px';
           fig.append(preview);
           result.push({ id, night, frames: frameCount, clipped: edge });

@@ -442,3 +442,26 @@ html body #boss-bar {
     transform: none;
   }
 }
+
+/* Portrait phones stack the encounter beneath the measured ledger and voice control. */
+@media (max-width: 600px) and (orientation: portrait) {
+  html body #boss-bar {
+    top: calc(var(--ledger-bottom, 120px) + 32px);
+  }
+  #boss-bar .bb-name {
+    font-size: 11px;
+    max-width: 168px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #boss-bar .bb-title {
+    display: none;
+  }
+  #boss-bar .enc-number {
+    font-size: 9px;
+  }
+  #boss-bar .bb-sub {
+    font-size: 10px;
+    line-height: 1.25;
+  }
+}

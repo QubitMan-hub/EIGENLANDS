@@ -1,3 +1,13 @@
+# Latest batch: adventurer paths, living bestiary and authored boss sprites (2026-10-27)
+
+Read [ADVENTURER_PATHS_AND_BESTIARY.md](ADVENTURER_PATHS_AND_BESTIARY.md), [BOSS_ART.md](BOSS_ART.md), [GUILD_HALLS.md](GUILD_HALLS.md), [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), the [master plan](EIGENLANDS_MASTER_PLAN.md) and [remaining work](REMAINING_WORK.md).
+
+Six families/thirty specializations, ecology, mythical bonds, visible-sighting records and five ancient encounters are implemented. The user's subsequent art critique superseded the rounded procedural ancient designs: **all fourteen bosses now use original authored sprite sheets**, not the rejected geometry prototype. Source art stays under `art-source/bosses`; normalized day/night atlases, portraits and manifests ship under `client/public/art/bestiary`. Keep the normalization/atlas checks when changing any sheet; never reintroduce ordinary-monster aliases or elastic boss squash. Detailed scope and test commands are in the linked documents. Local integration and final-head CI are recorded with the batch PR.
+
+Main's living-world, festivals, stories, travel and fox changes were integrated from `16873cf`. Continue integrating incoming main changes. Work remains inline without subagents. Render deployment remains the user's work.
+
+---
+
 # Active continuation: regional guild halls, then classes and bestiary (2026-10-27)
 
 Read [GUILD_HALLS.md](GUILD_HALLS.md), the [hall plan](superpowers/plans/2026-10-26-guild-halls.md), [HOMESTEADS_AND_GUILD.md](HOMESTEADS_AND_GUILD.md), [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) and the [master plan](EIGENLANDS_MASTER_PLAN.md). Current work follows merged PR #43. Regional guild designation/furnishing, projected identity, expedition tracking and a discovered-hall atlas directory are implemented with focused art/gameplay proof. Rest persistence was genuinely broken and fixed at the buff allowlist. Full integration checks remain pending.

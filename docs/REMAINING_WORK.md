@@ -2,6 +2,12 @@
 
 This is the practical remaining-work index. The full original requirements and detailed checklist remain in [master request](design/master-request.md) and [master plan](EIGENLANDS_MASTER_PLAN.md). Completed implementation and verification history: [continuation notes](CONTINUE_HERE.md).
 
+## Adventurer paths, bestiary and boss sprites
+
+Implemented: six class families and thirty specializations, unique dual-form techniques and enforced passives, earned-resource ultimates, bounded temporary allies, party synergies, habitat-gated creatures, ecological behaviors, mythical bonds, sighting persistence and five phased ancient encounters. All fourteen bosses now have dedicated original day/night isometric sprite sheets, matching portraits, fixed anchors and real animation poses. See [mechanics and validation](ADVENTURER_PATHS_AND_BESTIARY.md) and [art sources, loader and reproduction](BOSS_ART.md).
+
+Remaining game-wide work: extended group balance sessions, physical-device GPU/thermal measurements and larger cross-network multiplayer stress. New class-exclusive armor sets/player body rigs are not part of the six-family specialization implementation; paths use real existing equipment and held animations.
+
 ## Ground texture repair
 
 Implemented: removal of filled noise-contour blobs from caves/paths and related terrain, bounded angular pixel clusters, narrow material/habitat edge blending, world-anchored detail in both quality modes, and indoor cloud-shadow exclusion. The real-shader comparison measures large color regions before/after and camera anchoring. See [root cause and proof](UNDERCROFT.md#ground-texture-repair). Physical phone GPU/thermal profiling remains separate.

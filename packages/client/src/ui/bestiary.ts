@@ -146,7 +146,7 @@ export function buildBestiary(profile: Profile, state: BestiaryPageState): HTMLE
       if (bond)
         notes.append(
           h('p', {
-            text: `Living bond · offer ${bond.count} ${ITEMS[bond.food]?.name ?? bond.food} to healthy, unprovoked wildlife. ${bond.detail}${bond.level ? ` Requires level ${bond.level}` : ''}${bond.boss ? ` and victory over ${bond.boss.replace(/_/g, ' ')}` : ''}.`,
+            text: `Living bond · offer ${bond.count} ${ITEMS[bond.food]?.name ?? bond.food} to healthy, unprovoked wildlife. ${bond.trait}: ${bond.detail}${bond.level ? ` Requires level ${bond.level}` : ''}${bond.boss ? ` and victory over ${bond.boss.replace(/_/g, ' ')}` : ''}.`,
           }),
         );
       const boss = BOSS_BY_KIND[d.kind];

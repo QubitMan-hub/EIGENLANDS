@@ -219,4 +219,4 @@ opens the lore panel. The first reading pays 40 XP and counts toward your storie
 - NPC relationships are fixed by the roster. They do not change over time or react to the player.
 - Settlement dressing is decoration only. It does not change buildings, layouts or collision.
 - Story scenes and crypts exist only in revision-6 worlds, so older worlds' ground is untouched.
-- The fox has no portrait art in the companion window yet: its crest is shown empty.
+- The subsequent bestiary batch adds a matching fox portrait alongside the new mythical bonds; see ADVENTURER_PATHS_AND_BESTIARY.md.

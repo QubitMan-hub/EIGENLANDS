@@ -1,5 +1,5 @@
 import { beforeAll, afterAll, expect, it } from 'vitest';
-import { T } from '@eigenlands/shared';
+import { T, NpcState } from '@eigenlands/shared';
 import { boot3, spawn3, tp, sleep, until } from './p3helpers';
 import type { App } from '../src/app';
 let app: App;
@@ -25,6 +25,14 @@ it('records actual visible sightings, preserves fog and reloads only valid speci
   expect((p.sp.data.prog as any).bestiary ?? []).not.toContain('goblin');
   p.room.store.setTile(206, 204, T.GRASS);
   await until(() => ((p.sp.data.prog as any).bestiary ?? []).includes('goblin'), 3500);
+  const cow = new NpcState();
+  cow.id = 'ranch-test-cow';
+  cow.name = 'Cow';
+  cow.farm = 'cow';
+  cow.x = 205.5;
+  cow.y = 204.5;
+  p.room.state.npcs.set(cow.id, cow);
+  await until(() => (p.sp.data.prog.bestiary ?? []).includes('cow'), 3500);
   const creds = { token: p.token, accountId: p.accountId };
   await p.r.leave();
   await sleep(250);

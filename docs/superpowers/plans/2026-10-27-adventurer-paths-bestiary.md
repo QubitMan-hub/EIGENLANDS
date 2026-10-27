@@ -14,12 +14,14 @@ Audit existing passive fauna, livestock, armies, mythical kingdom beasts, ocean/
 
 ## Steps and evidence
 
-- [ ] Shared class/path/ability definitions and authorization: RED/GREEN tests for all thirty paths, unique dual forms, old index preservation, path/level/second-family gates and real referenced gear/summons.
-- [ ] Server combat/progression: implement the actual effects, bounded summons, earned resource, passives and ultimate; tests exercise all families plus each effect type, party/non-party/range/death checks, cleanup and reconnects. No resource farming from idle self-heals or invulnerable targets.
-- [ ] Class UI/animations: group families and paths with guidance, concise weaknesses and unlocks; preserve compact Circuit layout, original quantum classes and real held weapons. Browser-test choosing, attuning, casting and save/reload on desktop/mobile.
-- [ ] Audit/expand bestiary and habitats, original art, territorial AI/taming and phased ancient fights with actionable telegraphs and rewards; test spawn/behavior/persistence/loot and inspect every new atlas.
+- [x] Shared class/path/ability definitions and authorization: RED/GREEN tests for all thirty paths, unique dual forms, old index preservation, path/level/second-family gates and real referenced gear/summons.
+- [x] Server combat/progression: implement the actual effects, bounded summons, earned resource, passives and ultimate; tests exercise all families plus each effect type, party/non-party/range/death checks, cleanup and reconnects. No resource farming from idle self-heals or invulnerable targets.
+- [x] Class UI/animations: group families and paths with guidance, concise weaknesses and unlocks; preserve compact Circuit layout, original quantum classes and real held weapons. Browser-test choosing, attuning, casting and save/reload on desktop/mobile.
+- [x] Audit/expand bestiary and habitats, original art, territorial AI/taming and phased ancient fights with actionable telegraphs and rewards; test spawn/behavior/persistence/loot and inspect every new atlas.
 - [ ] Full tests/types/lint/format/both builds, gameplay/art/contrast/performance smoke, documentation and master-plan mapping of shipped evidence versus any genuine remaining scope. Integrate incoming main, require both final-head CI runs green and merge the tested tree.
 
 ## Progress
 
 The preceding regional hall work is committed as `b1d7a26`; see GUILD_HALLS.md. Focused shared/client/server and real gameplay/art proof passed, plus types/lint/format. A full shared run caught lost dining tables; two separated briefing groups restore the original guarantee and targeted hall/phase2 tests pass. Full final gates remain required after the new requested scope.
+
+The user subsequently rejected the rounded procedural boss art. It was replaced by fourteen authored four-facing pixel-art sheets, with normalized palette/anchors, day/night atlases, matching portraits, a 2048px texture budget and live AI/desktop/mobile proof. See BOSS_ART.md. The rejected geometry prototype was removed. Main living-world commits through 16873cf are integrated. Full local suites, both builds, final-head CI and the final merge remain the closing gate; the PR records their results.
