@@ -24,6 +24,8 @@ import {
   isCaveY,
   isDiveY,
   isCryptY,
+  otherworldOf,
+  OTHERWORLDS,
   CRYPT_OY,
   isUpperY,
   DIVE_OY,
@@ -1232,13 +1234,17 @@ export class Game {
     const wall = this.clock.serverNow(now);
     const diving = isDiveY(this.predictor.sim.y),
       upper = isUpperY(this.predictor.sim.y);
-    const underground = isCaveY(this.predictor.sim.y) || diving || upper || isCryptY(this.predictor.sim.y);
-    const weather = underground
-      ? 'clear'
-      : biomeWeather(
-          weatherForDay(this.seed, dayNumber(wall)),
-          biomeAt(this.seed, Math.floor(this.predictor.sim.x), Math.floor(this.predictor.sim.y)),
-        );
+    const realm = otherworldOf(this.predictor.sim.y);
+    const underground =
+      isCaveY(this.predictor.sim.y) || diving || upper || isCryptY(this.predictor.sim.y) || realm === 'umbra';
+    // the sky realms keep their own fair weather
+    const weather =
+      underground || realm
+        ? 'clear'
+        : biomeWeather(
+            weatherForDay(this.seed, dayNumber(wall)),
+            biomeAt(this.seed, Math.floor(this.predictor.sim.x), Math.floor(this.predictor.sim.y)),
+          );
     this.wind.update(this.seed, wall / 1000, now / 1000, weather);
     this.setSeason(this.seasonOverride ?? (SEASONS.indexOf(season(wall)) as SeasonIdx));
 
@@ -2235,15 +2241,18 @@ export class Game {
       );
     }
     const me = this.predictor.sim;
-    const surfaceY = isCryptY(me.y)
-      ? me.y - CRYPT_OY
-      : isDiveY(me.y)
-        ? me.y - DIVE_OY
-        : isUpperY(me.y)
-          ? me.y - UPPER_OY
-          : isCaveY(me.y)
-            ? me.y - CAVE_OY
-            : me.y;
+    const realmHere = otherworldOf(me.y);
+    const surfaceY = realmHere
+      ? me.y - OTHERWORLDS[realmHere].oy
+      : isCryptY(me.y)
+        ? me.y - CRYPT_OY
+        : isDiveY(me.y)
+          ? me.y - DIVE_OY
+          : isUpperY(me.y)
+            ? me.y - UPPER_OY
+            : isCaveY(me.y)
+              ? me.y - CAVE_OY
+              : me.y;
     const town = [
       ...townsFor(this.seed),
       ...frontierTownsNear(this.seed, me.x - 160, surfaceY - 160, me.x + 160, surfaceY + 160),
@@ -2253,15 +2262,17 @@ export class Game {
     const tdx = town.cx - me.x,
       tdy = town.cy - surfaceY,
       td = Math.hypot(tdx, tdy);
-    const place = isCryptY(me.y)
-      ? 'Crypt · '
-      : isDiveY(me.y)
-        ? 'Submerged sanctuary · '
-        : isUpperY(me.y)
-          ? 'Upper floor · '
-          : isCaveY(me.y)
-            ? `${CAVE_BIOME_NAMES[caveRegionAt(this.seed, me.x, me.y).biome]} · `
-            : '';
+    const place = realmHere
+      ? `${OTHERWORLDS[realmHere].name.replace(/^the /, 'The ')} · `
+      : isCryptY(me.y)
+        ? 'Crypt · '
+        : isDiveY(me.y)
+          ? 'Submerged sanctuary · '
+          : isUpperY(me.y)
+            ? 'Upper floor · '
+            : isCaveY(me.y)
+              ? `${CAVE_BIOME_NAMES[caveRegionAt(this.seed, me.x, me.y).biome]} · `
+              : '';
     const arrow = (dx: number, dy: number) =>
       ['→', '↘', '↓', '↙', '←', '↖', '↑', '↗'][
         Math.round(((Math.atan2(isoY(dx, dy), isoX(dx, dy)) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8

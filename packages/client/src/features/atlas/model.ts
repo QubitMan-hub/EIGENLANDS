@@ -7,22 +7,36 @@ import {
   isCaveY,
   isDiveY,
   isCryptY,
+  otherworldOf,
+  OTHERWORLDS,
   CRYPT_OY,
   isUpperY,
   type ChunkStore,
 } from '@eigenlands/shared';
 export const planeOf = (y: number): string =>
-  isCryptY(y)
-    ? 'Crypts'
-    : isDiveY(y)
-      ? 'Submerged sanctuaries'
-      : isUpperY(y)
-        ? 'Upper rooms'
-        : isCaveY(y)
-          ? 'Undercroft'
-          : 'Overworld';
+  otherworldOf(y)
+    ? OTHERWORLDS[otherworldOf(y)!].name.replace(/^the /, 'The ')
+    : isCryptY(y)
+      ? 'Crypts'
+      : isDiveY(y)
+        ? 'Submerged sanctuaries'
+        : isUpperY(y)
+          ? 'Upper rooms'
+          : isCaveY(y)
+            ? 'Undercroft'
+            : 'Overworld';
 export const chartY = (y: number): number =>
-  isCryptY(y) ? y - CRYPT_OY : isDiveY(y) ? y - DIVE_OY : isUpperY(y) ? y - UPPER_OY : isCaveY(y) ? y - CAVE_OY : y;
+  otherworldOf(y)
+    ? y - OTHERWORLDS[otherworldOf(y)!].oy
+    : isCryptY(y)
+      ? y - CRYPT_OY
+      : isDiveY(y)
+        ? y - DIVE_OY
+        : isUpperY(y)
+          ? y - UPPER_OY
+          : isCaveY(y)
+            ? y - CAVE_OY
+            : y;
 export interface ChartChunk {
   cx: number;
   cy: number;

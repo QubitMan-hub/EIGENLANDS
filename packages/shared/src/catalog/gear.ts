@@ -168,6 +168,9 @@ const REALM_OF: Record<string, string> = {
   tidesilver: 'thalassara',
   hellsteel: 'nethrakar',
   moonsilver: 'sylvaris',
+  aetherium: 'aerin',
+  umbrite: 'hollowfolk',
+  chronium: 'archivists',
 };
 for (const f of FAMILIES) {
   for (const t of WEAPON_TIERS) {

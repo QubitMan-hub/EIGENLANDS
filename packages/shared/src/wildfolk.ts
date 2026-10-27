@@ -16,6 +16,7 @@ import { isCaveY } from './caves';
 import { isUpperY } from './floors';
 import { isDiveY } from './sanctuaries';
 import { isCryptY } from './cryptplane';
+import { isOtherworldY } from './otherworlds';
 
 export type WildKind =
   | 'woodcutter'
@@ -63,7 +64,15 @@ export function wildFolkOfCell(seed: number, gx: number, gy: number): WildFolk |
     for (let k = 0; k < 6 && !out; k++) {
       const x = gx * CELL + 4 + Math.floor(hash2(seed, gx * 31 + k, gy, 9302) * (CELL - 8));
       const y = gy * CELL + 4 + Math.floor(hash2(seed, gx, gy * 31 + k, 9303) * (CELL - 8));
-      if (Math.hypot(x, y) < HOME_VALE * 0.6 || isCaveY(y) || isUpperY(y) || isDiveY(y) || isCryptY(y)) continue;
+      if (
+        Math.hypot(x, y) < HOME_VALE * 0.6 ||
+        isCaveY(y) ||
+        isUpperY(y) ||
+        isDiveY(y) ||
+        isCryptY(y) ||
+        isOtherworldY(y)
+      )
+        continue;
       const t = tileAt(seed, x, y, gen);
       if (isSolid(t) || wet(t) || townAt(seed, x, y) || sanctuaryAt(seed, x, y)) continue;
       // a bank within reach makes a fisher of whoever stands here

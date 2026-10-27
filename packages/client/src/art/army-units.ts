@@ -225,6 +225,60 @@ const LOOKS: Look[][] = [
       cape: A.c0,
     },
   ],
+  // ───── the realms' hostile peoples (realmfolk.ts): order matches RACE_FOES (gale, gloam, sundered)
+  // Gale Reavers: sky pirates in storm-blue and brass, feathered hoods, cutlasses and hand-cannons
+  [
+    { cloth: A.w2, cloth2: A.e6, metal: A.steel, trim: A.e7, skin: A.e4, weapon: 'sword', helm: 'hood', cape: A.w3 },
+    { cloth: A.w1, cloth2: A.e5, metal: A.slate, trim: A.e7, skin: A.e5, weapon: 'gun', helm: 'kasa' },
+    { cloth: A.w2, cloth2: A.e6, metal: A.steel, trim: A.e7, skin: A.e4, weapon: 'sword', helm: 'hood' },
+    {
+      cloth: A.w1,
+      cloth2: A.c4,
+      metal: A.mist,
+      trim: A.e7,
+      skin: A.e4,
+      weapon: 'greatsword',
+      helm: 'plume',
+      cape: A.w3,
+      banner: true,
+      scale: 1.2,
+    },
+  ],
+  // Gloamkin: hooded cultists of the Maw in black and violet, pale-skinned, carrying clubs and staves
+  [
+    { cloth: A.q1, cloth2: A.night, metal: A.slate, trim: A.q6, skin: A.fog, weapon: 'club', helm: 'hood' },
+    { cloth: A.night, cloth2: A.q2, metal: A.slate, trim: A.q6, skin: A.fog, weapon: 'staff', helm: 'hood' },
+    { cloth: A.q1, cloth2: A.night, metal: A.slate, trim: A.q6, skin: A.fog, weapon: 'club', helm: 'hood' },
+    {
+      cloth: A.night,
+      cloth2: A.q3,
+      metal: A.q2,
+      trim: A.q6,
+      skin: A.mist,
+      weapon: 'staff',
+      helm: 'crown',
+      cape: A.q2,
+      scale: 1.25,
+    },
+  ],
+  // the Sundered: time-torn raiders in tarnished brass, horned and kabuto helms, greatswords and staves
+  [
+    { cloth: A.e2, cloth2: A.e6, metal: A.e5, trim: A.q5, skin: A.mist, weapon: 'greatsword', helm: 'kabuto' },
+    { cloth: A.e1, cloth2: A.q3, metal: A.e4, trim: A.q5, skin: A.mist, weapon: 'staff', helm: 'hood' },
+    { cloth: A.e2, cloth2: A.e6, metal: A.e5, trim: A.q5, skin: A.mist, weapon: 'greatsword', helm: 'kabuto' },
+    {
+      cloth: A.e1,
+      cloth2: A.e7,
+      metal: A.e6,
+      trim: A.q5,
+      skin: A.pale,
+      weapon: 'greatsword',
+      helm: 'horned',
+      cape: A.q3,
+      banner: true,
+      scale: 1.3,
+    },
+  ],
 ];
 const CLS: ArmyClass[] = ['infantry', 'ranged', 'cavalry', 'elite'];
 

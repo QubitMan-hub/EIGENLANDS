@@ -16,6 +16,7 @@ import './drinks';
 import './home';
 import './homesteads';
 import './legendary';
+import './realm-items';
 import type { Source } from './types';
 
 export { OUT };

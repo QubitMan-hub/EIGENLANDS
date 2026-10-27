@@ -104,3 +104,5 @@ export * from './wildfolk';
 export * from './crypts';
 export * from './growth';
 export * from './wonders';
+export * from './otherworlds';
+export * from './realmfolk';

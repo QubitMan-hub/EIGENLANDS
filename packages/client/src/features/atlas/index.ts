@@ -1,5 +1,6 @@
 import './atlas.css';
 import {
+  OTHERWORLDS,
   caravanAt,
   caravanRoutes,
   ENEMY_BY_KIND,
@@ -452,12 +453,27 @@ export class AtlasClient implements ClientModule {
       nav = h('div', { class: 'atlas-nav' });
     const layer = h('select');
     layer.setAttribute('aria-label', 'Map layer');
-    for (const name of ['Overworld', 'Undercroft', 'Upper rooms', 'Submerged sanctuaries'])
+    for (const name of [
+      'Overworld',
+      'Undercroft',
+      'Upper rooms',
+      'Submerged sanctuaries',
+      'Crypts',
+      'Aetheria',
+      'The Umbral Abyss',
+      'Chronoria',
+    ])
       layer.append(h('option', { value: name, text: name }));
     layer.value = this.plane;
     layer.onchange = () => {
       this.plane = layer.value;
-      this.centre = this.centres.get(this.plane) ?? { x: 0, y: 0, name: '' };
+      // a layer you have not visited opens on its arrival point
+      const origin: Record<string, number> = {
+        Aetheria: OTHERWORLDS.aetheria.oy,
+        'The Umbral Abyss': OTHERWORLDS.umbra.oy,
+        Chronoria: OTHERWORLDS.chronoria.oy,
+      };
+      this.centre = this.centres.get(this.plane) ?? { x: 0, y: origin[this.plane] ?? 0, name: '' };
     };
     const act = (text: string, fn: () => void) => h('button', { type: 'button', text, on: { click: fn } });
     tools.append(

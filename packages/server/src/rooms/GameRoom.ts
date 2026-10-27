@@ -5,6 +5,8 @@ import { CaveModule } from '../features/caves';
 import { matchMaker, type Client } from 'colyseus';
 import type { Schema } from '@colyseus/schema';
 import {
+  REALMFOLK,
+  realmfolkSpots,
   CLASS_INDEX,
   MSG,
   MSG34,
@@ -54,6 +56,7 @@ import { CivModule } from '../features/civ';
 import { FestivalModule } from '../features/festivals';
 import { CryptModule } from '../features/crypts';
 import { WondersModule } from '../features/wonders';
+import { OtherworldModule } from '../features/otherworlds';
 import { SocialModule } from '../features/social';
 import type { BucketName, Carry, JoinOpts, Module, Registrar } from '../features/types';
 import type { VillageHost, VillageSystem } from '../systems/types';
@@ -104,6 +107,7 @@ export class GameRoom extends WorldRoom {
   festivals!: FestivalModule;
   crypts!: CryptModule;
   wonders!: WondersModule;
+  otherworlds!: OtherworldModule;
   shardMod!: ShardModule;
   private modules: Module[] = [];
   private buckets = new Map<string, Map<BucketName, TokenBucket>>();
@@ -158,6 +162,7 @@ export class GameRoom extends WorldRoom {
     this.festivals = new FestivalModule(this);
     this.crypts = new CryptModule(this);
     this.wonders = new WondersModule(this);
+    this.otherworlds = new OtherworldModule(this);
     this.modules = [
       this.shardMod,
       this.journeys,
@@ -176,6 +181,7 @@ export class GameRoom extends WorldRoom {
       this.festivals,
       this.crypts,
       this.wonders,
+      this.otherworlds,
       this.army,
       this.voice,
     ];
@@ -310,6 +316,14 @@ export class GameRoom extends WorldRoom {
         const site = REALM_SITE_BY_ID[n.site!];
         if (site && (this.unsharded || shardAt(site.cx, site.cy) === this.shard)) ids.push(n.id);
       }
+    // the realm peoples belong to the shard their settlement stands in (revision 6)
+    if (this.store.generation >= 6) {
+      const spots = realmfolkSpots(this.seed);
+      for (const n of REALMFOLK) {
+        const s = spots[n.home];
+        if (s && (this.unsharded || shardAt(s.x, s.y) === this.shard)) ids.push(n.id);
+      }
+    }
     if (!ids.length) return nullVillage();
     const prefix = this.unsharded || shardAt(t.cx, t.cy) === this.shard ? '' : `${this.shard}:`;
     return createVillage(
@@ -458,6 +472,10 @@ export class GameRoom extends WorldRoom {
   summonBoss(p: ServerPlayer, itemId: string, x: number, y: number): boolean {
     return this.bosses?.summon(p, itemId, x, y) ?? false;
   }
+  otherworldInteract(p: ServerPlayer, o: WorldObj): Promise<boolean> {
+    return this.otherworlds.interact(p, o);
+  }
+
   openStar(p: ServerPlayer, o: WorldObj): void {
     this.wonders.openStar(p, o);
   }

@@ -1,3 +1,24 @@
+# Current continuation: the three realms and their peoples (2026-10-27)
+
+Read [REALMS.md](REALMS.md).
+
+- **Realms:** `shared/src/otherworlds.ts` (planes at y -300000/-400000/-500000, room-graph layouts, puzzles); server
+  `features/otherworlds` (portals, updrafts and chimes, dials and gate, rewind rifts, darkness, roaming, guardians);
+  client `art/realms.ts`, `gl/terrain.frag.ts` (`cloudSea`, `fractureVoid`), `art/foes.ts` `otherworldBeast`.
+- **Peoples:** `shared/src/realmfolk.ts` (races, `STANDING`, `realmfolkSpots`, `REALMFOLK`); standing in `p.data.rep`
+  via server `systems/reputation.ts` `gainStanding`; stock gating in `systems/village`; looks in client
+  `art/actors.ts` and `art/army-units.ts` (rows 6–8). Realm enemy kinds start at `REALM_KIND_BASE` (after the living
+  bestiary's kinds, 74 + `BESTIARY_KEYS.length`); Aetheria's boss is `eyrie_phoenix`, distinct from the bestiary's
+  `phoenix`.
+- **Items:** `catalog/realm-items.ts`, realm metals aetherium/umbrite/chronium (`metals.ts`, `weapons-data.ts`,
+  `armor.ts`), accessories in `gear-items.ts`; recipes gated by `learn: realm:<people>`.
+- **Validation:** shared `otherworlds.test.ts`, server `realms.test.ts`, `realmfolk.test.ts`, browser `e2e/realms.mjs`,
+  `e2e/realmfolk.mjs`.
+
+---
+
+---
+
 # NPC appearance preference (2026-10-27)
 
 The user prefers the previous NPC designs. Residents now use the restored original 24×32 painter, with the newer eight-direction action/conversation animation rig retained. Player 32×48 art stays unchanged. Preserve this split; do not apply the player redesign to NPCs again.

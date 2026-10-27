@@ -1,7 +1,7 @@
 import { Rectangle, Texture } from 'pixi.js';
-import { DELVER_MERCHANTS, NPCS as VILLAGE_NPCS, realmNpcs } from '@eigenlands/shared';
+import { DELVER_MERCHANTS, NPCS as VILLAGE_NPCS, REALMFOLK, realmNpcs } from '@eigenlands/shared';
 
-const NPCS = [...VILLAGE_NPCS, ...DELVER_MERCHANTS, ...realmNpcs()];
+const NPCS = [...VILLAGE_NPCS, ...DELVER_MERCHANTS, ...realmNpcs(), ...REALMFOLK];
 import { actionPose } from './person-actions';
 import { paintPerson } from './person-model';
 import { paintNpc } from './npc-model';
@@ -546,6 +546,141 @@ export const NPC_LOOKS: Record<string, Outfit> = {
     eyes: C.w5,
   },
 };
+
+// ── the peoples of the three realms (shared/realmfolk.ts): each its own colouring, cut and bearing
+const AERIN_SKIN = rmp([C.w4, C.w5, C.w6, C.w7, C.white]);
+const AERIN_HAIR = rmp([C.mist, C.fog, C.pale, C.white, C.white]);
+const HOLLOW_SKIN = rmp([C.slate, C.steel, C.q3, C.q4, C.mist]);
+const HOLLOW_HAIR = rmp([C.ink, C.night, C.slate, C.steel, C.q3]);
+const ARCHIVE_SKIN = rmp([C.e2, C.e3, C.e4, C.e5, C.e6]);
+Object.assign(NPC_LOOKS, {
+  // the Aerin: pale sky-blue skin, white hair, gold eyes, light robes and circlets
+  aerin_lysa: {
+    shirt: rmp([C.w4, C.w5, C.w6, C.w7, C.white]),
+    pants: rmp([C.fog, C.pale, C.white, C.white]),
+    hair: AERIN_HAIR,
+    skin: AERIN_SKIN,
+    boots: BOOTS,
+    hairStyle: 'long',
+    eyes: C.e7,
+    dress: 'robe',
+    trim: C.e7,
+    hat: rmp([C.e5, C.e6, C.e7, C.white]),
+    hatStyle: 'circlet',
+    glow: C.w7,
+  },
+  aerin_corvane: {
+    shirt: rmp([C.w2, C.w3, C.w4, C.w5, C.w6]),
+    pants: rmp([C.slate, C.steel, C.mist, C.fog]),
+    hair: AERIN_HAIR,
+    skin: AERIN_SKIN,
+    boots: BOOTS,
+    hairStyle: 'swept',
+    eyes: C.e7,
+    dress: 'plated',
+    plate: rmp([C.mist, C.fog, C.pale, C.white, C.white]),
+    trim: C.e6,
+    cape: rmp([C.w3, C.w4, C.w5, C.w6]),
+  },
+  aerin_elder: {
+    shirt: rmp([C.fog, C.pale, C.white, C.white, C.white]),
+    pants: rmp([C.fog, C.pale, C.white, C.white]),
+    hair: AERIN_HAIR,
+    skin: AERIN_SKIN,
+    boots: BOOTS,
+    hairStyle: 'long',
+    beard: AERIN_HAIR,
+    eyes: C.e7,
+    dress: 'mantle',
+    trim: C.e7,
+    mantle: rmp([C.e5, C.e6, C.e7, C.white]),
+    glow: C.e7,
+  },
+  // the Hollowfolk: grey-violet skin, black hair, eyes that glow, hooded coats against the dark
+  hollow_mirren: {
+    shirt: rmp([C.q1, C.q2, C.q3, C.q4, C.q5]),
+    pants: rmp([C.ink, C.night, C.slate, C.steel]),
+    hair: HOLLOW_HAIR,
+    skin: HOLLOW_SKIN,
+    boots: BOOTS,
+    hairStyle: 'braids',
+    eyes: C.q6,
+    dress: 'coat',
+    trim: C.e6,
+    apron: rmp([C.e1, C.e2, C.e3, C.e4]),
+    glow: C.q6,
+  },
+  hollow_brannoc: {
+    shirt: rmp([C.night, C.slate, C.q2, C.q3, C.q4]),
+    pants: rmp([C.ink, C.night, C.slate, C.steel]),
+    hair: HOLLOW_HAIR,
+    skin: HOLLOW_SKIN,
+    boots: BOOTS,
+    hairStyle: 'short',
+    beard: HOLLOW_HAIR,
+    eyes: C.q6,
+    dress: 'plated',
+    plate: rmp([C.ink, C.night, C.slate, C.q3, C.q4]),
+    trim: C.q6,
+    cape: rmp([C.q0, C.q1, C.q2, C.q3]),
+  },
+  hollow_elder: {
+    shirt: rmp([C.q0, C.q1, C.q2, C.q3, C.q4]),
+    pants: rmp([C.ink, C.night, C.slate, C.steel]),
+    hair: rmp([C.steel, C.mist, C.fog, C.pale, C.white]),
+    skin: HOLLOW_SKIN,
+    boots: BOOTS,
+    hairStyle: 'bun',
+    eyes: C.e7,
+    dress: 'robe',
+    trim: C.e7,
+    hat: rmp([C.q0, C.q1, C.q2, C.q3]),
+    hatStyle: 'hood',
+    glow: C.e7,
+  },
+  // the Archivists: bronze skin, shaven or topknotted, spectacles, robes with brass trim
+  archive_quill: {
+    shirt: rmp([C.e1, C.e2, C.e3, C.e4, C.e5]),
+    pants: rmp([C.e0, C.e1, C.e2, C.e3]),
+    hair: rmp([C.ink, C.e0, C.e1, C.e2, C.e3]),
+    skin: ARCHIVE_SKIN,
+    boots: BOOTS,
+    hairStyle: 'topknot',
+    glasses: true,
+    eyes: C.q5,
+    dress: 'robe',
+    trim: C.e7,
+    scarf: rmp([C.q2, C.q3, C.q4, C.q5]),
+  },
+  archive_halden: {
+    shirt: rmp([C.e3, C.e4, C.e5, C.e6, C.e7]),
+    pants: rmp([C.e0, C.e1, C.e2, C.e3]),
+    hair: rmp([C.ink, C.e0, C.e1, C.e2, C.e3]),
+    skin: ARCHIVE_SKIN,
+    boots: BOOTS,
+    hairStyle: 'bald',
+    eyes: C.q5,
+    dress: 'plated',
+    plate: rmp([C.e3, C.e4, C.e5, C.e6, C.e7]),
+    trim: C.q5,
+    cape: rmp([C.q1, C.q2, C.q3, C.q4]),
+  },
+  archive_prime: {
+    shirt: rmp([C.mist, C.fog, C.pale, C.white, C.white]),
+    pants: rmp([C.e1, C.e2, C.e3, C.e4]),
+    hair: rmp([C.mist, C.fog, C.pale, C.white, C.white]),
+    skin: ARCHIVE_SKIN,
+    boots: BOOTS,
+    hairStyle: 'bald',
+    beard: rmp([C.mist, C.fog, C.pale, C.white]),
+    glasses: true,
+    eyes: C.q6,
+    dress: 'mantle',
+    mantle: rmp([C.e5, C.e6, C.e7, C.white]),
+    trim: C.q5,
+    glow: C.q6,
+  },
+} satisfies Record<string, Outfit>);
 
 // ───────────────────────── people ─────────────────────────
 interface View {

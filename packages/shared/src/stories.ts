@@ -22,6 +22,7 @@ import { isCaveY } from './caves';
 import { isUpperY } from './floors';
 import { isDiveY } from './sanctuaries';
 import { isCryptY } from './cryptplane';
+import { isOtherworldY } from './otherworlds';
 
 export type StoryKind = 'camp' | 'grave' | 'cart' | 'stone' | 'shrine' | 'wreck' | 'cairn';
 export interface StorySite {
@@ -83,7 +84,15 @@ export function storyOfCell(seed: number, gx: number, gy: number): StorySite | n
     for (let k = 0; k < 10 && !out; k++) {
       const x = gx * CELL + 10 + Math.floor(hash2(seed, gx * 17 + k, gy, 1302) * (CELL - 20));
       const y = gy * CELL + 10 + Math.floor(hash2(seed, gx, gy * 17 + k, 1303) * (CELL - 20));
-      if (Math.hypot(x, y) < HOME_VALE + 10 || isCaveY(y) || isUpperY(y) || isDiveY(y) || isCryptY(y)) continue;
+      if (
+        Math.hypot(x, y) < HOME_VALE + 10 ||
+        isCaveY(y) ||
+        isUpperY(y) ||
+        isDiveY(y) ||
+        isCryptY(y) ||
+        isOtherworldY(y)
+      )
+        continue;
       if (sanctuaryAt(seed, x, y)) continue;
       if (REALM_SITES.some((s) => Math.abs(x - s.cx) < s.w / 2 + 12 && Math.abs(y - s.cy) < s.h / 2 + 12)) continue;
       if (!open(seed, x, y)) continue;
@@ -104,7 +113,7 @@ export function storyOfCell(seed: number, gx: number, gy: number): StorySite | n
 const SHORE_CELL = 88,
   SUMMIT_CELL = 96;
 const wild = (seed: number, x: number, y: number) =>
-  !(Math.hypot(x, y) < HOME_VALE + 10 || isCaveY(y) || isUpperY(y) || isDiveY(y) || isCryptY(y)) &&
+  !(Math.hypot(x, y) < HOME_VALE + 10 || isCaveY(y) || isUpperY(y) || isDiveY(y) || isCryptY(y) || isOtherworldY(y)) &&
   !sanctuaryAt(seed, x, y) &&
   !REALM_SITES.some((s) => Math.abs(x - s.cx) < s.w / 2 + 12 && Math.abs(y - s.cy) < s.h / 2 + 12);
 const landTile = (seed: number, x: number, y: number) => {

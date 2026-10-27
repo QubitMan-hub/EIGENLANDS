@@ -1489,11 +1489,17 @@ export function recipeKnown(rec: Recipe, who: CraftProfile): boolean {
     return discLevel(who.disc[rec.disc]) >= rec.lvl && repTier(who.rep[rec.learn.slice(6)] ?? 0) >= 1;
   return false;
 }
+/** the realm peoples' names (realmfolk.ts), kept here to avoid an import cycle */
+const PEOPLE_NAMES: Record<string, string> = {
+  aerin: 'the Aerin',
+  hollowfolk: 'the Hollowfolk',
+  archivists: 'the Archivists',
+};
 /** Why a known recipe cannot be made yet, or null. */
 export function recipeBlock(rec: Recipe, who: CraftProfile): string | null {
   const lv = discLevel(who.disc[rec.disc]);
   if (lv < rec.lvl) return `Needs ${rec.disc} level ${rec.lvl}`;
   if (rec.realm && rec.realm !== 'any' && repTier(who.rep[rec.realm] ?? 0) < 1)
-    return `Needs standing with ${rec.realm}`;
+    return `Needs standing with ${PEOPLE_NAMES[rec.realm] ?? rec.realm}`;
   return null;
 }

@@ -6,6 +6,9 @@ Breath of the Wild's towers, where reaching one is a reward in itself.
 
 ## What players get
 
+- **Realm portals.** In worlds of generation 6 or later, three portals near Hadamere lead to Aetheria (level 6),
+  the Umbral Abyss (level 10) and Chronoria (level 14). Each realm has a return portal at its arrival point. See
+  [REALMS.md](REALMS.md).
 - **Waystones.** Every surface settlement has one in a clear yard near its square. One more stands in each wild
   192×192-tile region, preferring a spot beside a road. Walking within 3.5 tiles attunes a stone. No button press is
   needed.

@@ -31,6 +31,10 @@ import {
   ROYAL_CELEBRATIONS,
   type FestHost,
   realmRankName,
+  RACE_IDS,
+  RACES,
+  OTHERWORLDS,
+  raceRank,
   relationsOf,
   repTier,
   SKILL_NAMES,
@@ -670,6 +674,44 @@ function kingdomsPage(profile: Profile, seed: number): HTMLElement {
         ...relationsOf(id).map((r) =>
           h('div', { class: 'small dim', text: `${STANCE_LABEL[r.stance]} with ${KINGDOMS[r.other].name}: ${r.note}` }),
         ),
+      ),
+    );
+  }
+  // the peoples of the three realms beyond the portals
+  root.append(
+    h('b', { text: 'Peoples of the realms' }),
+    h('div', {
+      class: 'small dim',
+      text: 'Bring down their enemies, turn in the tokens those enemies carry and defeat the realm’s guardian to raise your standing. Standing teaches a people’s recipes (their metal, plate, weapons, remedies and gear) and opens their better wares.',
+    }),
+  );
+  for (const id of RACE_IDS) {
+    const race = RACES[id];
+    const rep = (profile.rep as Record<string, number | undefined>)[id] ?? 0;
+    const tier = repTier(rep);
+    const next = tier >= 4 ? null : REP_TIERS[(Math.max(0, tier) + 1) as 1 | 2 | 3 | 4];
+    const prev = tier <= 0 ? 0 : REP_TIERS[tier as 1 | 2 | 3 | 4];
+    const pct = next ? Math.max(0, Math.min(100, ((rep - prev) / (next - prev)) * 100)) : 100;
+    const realm = OTHERWORLDS[race.realm];
+    root.append(
+      h(
+        'details',
+        { class: 'kingdom' },
+        h(
+          'summary',
+          {},
+          h('b', { text: `${race.name.replace(/^the /, 'The ')} · ${realm.name.replace(/^the /, 'The ')}` }),
+          h('span', { class: 'small dim', text: `  ${raceRank(id, rep)} (${rep})` }),
+        ),
+        h('div', { class: 'bar xp' }, h('i', { style: `width:${pct}%` })),
+        h('div', {
+          class: 'small',
+          text: `At war with ${race.foeName}. They welcome every ${ITEMS[race.token]?.name ?? race.token} you bring back.`,
+        }),
+        h('div', {
+          class: 'small dim',
+          text: `The portal to ${realm.name} opens at level ${realm.level}. Next rank: ${next ? `${next} standing` : 'none: you are their champion'}.`,
+        }),
       ),
     );
   }

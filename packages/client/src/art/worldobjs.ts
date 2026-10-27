@@ -1,5 +1,6 @@
 import { TRAVEL_PROPS } from './waystones';
 import { STORY_ART } from './stories';
+import { REALM_ART } from './realms';
 import { orchardCanvas } from './orchards';
 import { railSprite, minecartSprite } from './mining';
 import { caveArchitecture } from './caves';
@@ -764,7 +765,9 @@ export function worldObjDef(o: WorldObj, facing: Facing = 'sw', seatTurn?: numbe
           : `${o.kind}:${o.sub}`;
   let d = objCache.get(key);
   if (!d) {
-    if (STORY_ART[o.sub]) d = still(STORY_ART[o.sub]!(facing));
+    const ra = REALM_ART[o.sub];
+    if (ra) d = { frames: frames(ra.n, (f) => ra.draw(facing, f)), fps: ra.fps };
+    else if (STORY_ART[o.sub]) d = still(STORY_ART[o.sub]!(facing));
     else if (ruinBiome) d = ruinDef(o.sub, ruinBiome);
     else if (
       [

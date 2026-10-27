@@ -14,6 +14,7 @@ import {
   isCaveY,
   isDiveY,
   isCryptY,
+  isOtherworldY,
   isUpperY,
   caveBiomeAt,
   caveRegionAt,
@@ -103,7 +104,7 @@ export class BossModule implements Module {
     if (def.id === 'bellkeeper' && isCaveY(y) && this.room.store.generation >= 4)
       def = BOSSES[ARENA_BOSS[caveBiomeAt(this.room.seed, x, y)]];
     if (def.id === 'veyr') {
-      if (isCaveY(y) || isDiveY(y) || isUpperY(y) || isCryptY(y)) {
+      if (isCaveY(y) || isDiveY(y) || isUpperY(y) || isCryptY(y) || isOtherworldY(y)) {
         p.toast('The Storm Beacon needs open sky.', 'bad');
         return false;
       }

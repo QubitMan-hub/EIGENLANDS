@@ -127,6 +127,7 @@ import {
   arrivalOf,
   waystoneById,
   isCryptY,
+  isOtherworldY,
   sanctuaryAt,
   CANNON,
   ITEMS,
@@ -1743,7 +1744,15 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     let total = [...this.enemies.values()].filter((e) => !e.def.passive && !e.def.neutral).length;
     for (const id of this.encounterAt.keys()) if (!this.players.has(id)) this.encounterAt.delete(id);
     for (const p of this.players.values()) {
-      if (p.deadT > 0 || isUpperY(p.sim.y) || isDiveY(p.sim.y) || isCryptY(p.sim.y) || total >= MAX_ENEMIES) continue;
+      if (
+        p.deadT > 0 ||
+        isUpperY(p.sim.y) ||
+        isDiveY(p.sim.y) ||
+        isCryptY(p.sim.y) ||
+        isOtherworldY(p.sim.y) ||
+        total >= MAX_ENEMIES
+      )
+        continue;
       if (sanctuaryAt(this.seed, p.sim.x, p.sim.y)) {
         this.encounterAt.set(p.id, now + 12000);
         continue;
@@ -1846,7 +1855,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     if (total >= MAX_FAUNA) return;
     for (const p of this.players.values()) {
       if (total >= MAX_FAUNA) break;
-      if (p.deadT > 0 || isUpperY(p.sim.y) || isDiveY(p.sim.y) || isCryptY(p.sim.y)) continue;
+      if (p.deadT > 0 || isUpperY(p.sim.y) || isDiveY(p.sim.y) || isCryptY(p.sim.y) || isOtherworldY(p.sim.y)) continue;
       let near = 0;
       for (const e of this.enemies.values())
         if ((e.def.passive || e.def.neutral) && Math.hypot(e.x - p.sim.x, e.y - p.sim.y) < 40) near++;

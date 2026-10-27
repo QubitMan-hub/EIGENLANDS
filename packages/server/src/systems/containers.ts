@@ -2,6 +2,7 @@ import { ENEMY_DEFS, ENEMY_KEY_BY_KIND, WAY_SUBS } from '@eigenlands/shared';
 import { guildPanel } from './guild';
 import {
   isCryptY,
+  realmPropKind,
   RESTED_SECS,
   RESTED_XP_MULT,
   readHerd,
@@ -226,6 +227,7 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
     p.toast('Minecart: push along the rails to roll, against them to reverse; the buffers stop you. Use steps off.');
     return;
   }
+  if (o.static && realmPropKind(o.sub) && (await room.otherworldInteract?.(p, o))) return;
   if (o.sub === 'fallen_star') {
     room.openStar?.(p, o);
     return;

@@ -45,6 +45,8 @@ export interface RoomApi {
   vaultGuard?(p: ServerPlayer, o: import('@eigenlands/shared').WorldObj): boolean;
   /** break a ruin crypt's seal (features/crypts) */
   cryptInteract?(p: ServerPlayer, o: import('@eigenlands/shared').WorldObj): Promise<void> | void;
+  /** the realm portals and their mechanics (features/otherworlds); true when handled */
+  otherworldInteract?(p: ServerPlayer, o: import('@eigenlands/shared').WorldObj): Promise<boolean>;
   /** break open a fallen star (features/wonders) */
   openStar?(p: ServerPlayer, o: import('@eigenlands/shared').WorldObj): void;
   grantXp?(p: ServerPlayer, xp: number): void;

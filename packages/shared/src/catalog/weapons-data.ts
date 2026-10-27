@@ -28,6 +28,10 @@ export const WEAPON_TIERS: Tier[] = [
   { metal: 'mithril', name: 'Mithril', level: 19, atk: 8, extra: { haste: 2 }, colors: [C.w4, C.white] },
   { metal: 'adamant', name: 'Adamant', level: 25, atk: 12, extra: { def: 0.02 }, colors: [C.g2, C.g5] },
   { metal: 'voidsteel', name: 'Voidsteel', level: 32, atk: 17, extra: { luck: 2 }, colors: [C.q2, C.q6] },
+  // the realms' metals: sidegrades to the kingdom metals of their level, each with its own character
+  { metal: 'aetherium', name: 'Aetherium', level: 11, atk: 5, extra: { haste: 1 }, colors: [C.pale, C.e7] },
+  { metal: 'umbrite', name: 'Umbrite', level: 15, atk: 6, extra: { hp: 8, def: 0.01 }, colors: [C.slate, C.q5] },
+  { metal: 'chronium', name: 'Chronium', level: 18, atk: 8, extra: { haste: 1.5, luck: 1 }, colors: [C.e7, C.white] },
 ];
 
 interface FamilyForm {
