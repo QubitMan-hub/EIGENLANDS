@@ -17,6 +17,12 @@ Read [REALMS.md](REALMS.md).
 
 ---
 
+---
+
+# NPC appearance preference (2026-10-27)
+
+The user prefers the previous NPC designs. Residents now use the restored original 24×32 painter, with the newer eight-direction action/conversation animation rig retained. Player 32×48 art stays unchanged. Preserve this split; do not apply the player redesign to NPCs again.
+
 # Latest continuation: gameplay QA and native character replacement (2026-10-27)
 
 Farming repetition/zero-damage spell exploits and enemy cover/navigation fixes are pushed to main. See [QA findings](qa/2026-10-27-findings.md). The person painter is replaced with native 32×48 original art, eight facings and saved-appearance compatibility; eighteen supplemental action families have eight poses, including station work, hurt, dodge and death. [Character coverage and remaining limits](CHARACTER_ACTIONS.md) supersedes the older foundation-only status below. Preserve current art, keep integrating main, work without subagents and ship confirmed fixes after focused checks; the user does not want a large CI/testing wait between batches. Render remains the user's work.

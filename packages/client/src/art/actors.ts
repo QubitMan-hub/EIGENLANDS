@@ -4,6 +4,7 @@ import { DELVER_MERCHANTS, NPCS as VILLAGE_NPCS, REALMFOLK, realmNpcs } from '@e
 const NPCS = [...VILLAGE_NPCS, ...DELVER_MERCHANTS, ...realmNpcs(), ...REALMFOLK];
 import { actionPose } from './person-actions';
 import { paintPerson } from './person-model';
+import { paintNpc } from './npc-model';
 import { appearanceOf, outfitFromAppearance } from './appearance';
 import {
   blob,
@@ -22,7 +23,7 @@ import {
 } from './shade';
 
 /**
- * Characters, enemies and fauna. People are native 32×48 frames in 8 iso directions with an idle pair (breathing) and an
+ * Characters, enemies and fauna. Players are native 32×48 frames; residents retain original 24×32 frames in 8 iso directions with an idle pair (breathing) and an
  * 8-frame walk, four strike/recovery poses and eight run poses. Every direction is drawn (never mirrored) so the key light always comes from the top-left.
  */
 export const DIR_DOWN = 0,
@@ -37,6 +38,8 @@ export const DIR_DOWN_LEFT = 4,
 export const WALK_FRAMES = 9;
 export const PERSON_W = 32;
 export const PERSON_H = 48;
+export const NPC_W = 24,
+  NPC_H = 32;
 export const ATTACK_FRAME = 10,
   ATTACK_FRAMES = 4;
 export const RUN_FRAME = 14,
@@ -916,7 +919,7 @@ export interface Sheets {
   styled(look: number, app: number, dir: number, frame: number): Texture;
   /** true when `styled(look, app, ...)` is already built (building one costs a frame or two, so callers can budget it) */
   styledReady(look: number, app: number): boolean;
-  /** unique sprite per village NPC; same layout as `person` */
+  /** Original 24×32 resident art, eight facings, shared animation frame IDs. */
   npc(npcId: string, dir: number, frame: number): Texture;
   /** passive fauna: 4 frames, always drawn facing right (flip the sprite to face left) */
   rabbit(frame: number, dir: number): Texture;
@@ -932,15 +935,18 @@ function polished(buf: PixBuf): void {
   polish(buf.ctx, buf.width, buf.height, { rim: true });
 }
 
-function personSheet(looks: Outfit[], seedBase: number, cols = COLS): HTMLCanvasElement {
-  const { canvas, ctx } = makeCanvas(PERSON_W * cols, looks.length * 8 * PERSON_H);
+function personSheet(looks: Outfit[], seedBase: number, cols = COLS, npc = false): HTMLCanvasElement {
+  const w = npc ? NPC_W : PERSON_W,
+    h = npc ? NPC_H : PERSON_H;
+  const painter = npc ? paintNpc : drawPerson;
+  const { canvas, ctx } = makeCanvas(w * cols, looks.length * 8 * h);
   looks.forEach((o, i) => {
     for (let d = 0; d < 8; d++)
       for (let f = 0; f < cols; f++) {
-        const buf = new PixBuf(PERSON_W, PERSON_H);
-        undithered(() => drawPerson(buf.ctx, d, f, o, seedBase + i * 37 + d * 13));
+        const buf = new PixBuf(w, h);
+        undithered(() => painter(buf.ctx, d, f, o, seedBase + i * 37 + d * 13));
         polished(buf);
-        buf.blit(ctx, f * PERSON_W, (i * 8 + d) * PERSON_H);
+        buf.blit(ctx, f * w, (i * 8 + d) * h);
       }
   });
   return canvas;
@@ -1034,7 +1040,7 @@ export function buildActorSheets(): Sheets {
               }
             : OUTFITS[i % COSMETIC_OUTFITS]!);
       npcLooks.set(id, look);
-      tex = Texture.from(personSheet([look], 700 + i * 37, WALK_FRAMES + 1));
+      tex = Texture.from(personSheet([look], 700 + i * 37, WALK_FRAMES + 1, true));
       tex.source.scaleMode = 'nearest';
       npcBases.set(id, tex);
     }
@@ -1130,10 +1136,10 @@ export function buildActorSheets(): Sheets {
   const col = (f: number, k: number, max = COLS - 1) => (f === -1 ? 0 : f <= 0 ? idleCol(k) : Math.min(max, f));
   const dd = (d: number) => ((d % 8) + 8) % 8;
   const actionTextures = new Map<string, Texture>();
-  const actionTexture = (key: string, outfit: Outfit, d: number, f: number) => {
+  const actionTexture = (key: string, outfit: Outfit, d: number, f: number, npc = false) => {
     let t = actionTextures.get(key);
     if (!t) {
-      t = Texture.from(renderPersonCanvas(outfit, dd(d), f));
+      t = Texture.from(npc ? renderNpcCanvas(outfit, dd(d), f) : renderPersonCanvas(outfit, dd(d), f));
       t.source.scaleMode = 'nearest';
       if (actionTextures.size >= 512) {
         const [oldKey, old] = actionTextures.entries().next().value!;
@@ -1176,11 +1182,11 @@ export function buildActorSheets(): Sheets {
     npc: (id, d, f) => {
       if (actionPose(d, f)) {
         npcBaseFor(id);
-        return actionTexture(`n:${id}:${d}:${f}`, npcLooks.get(id)!, d, f);
+        return actionTexture(`n:${id}:${d}:${f}`, npcLooks.get(id)!, d, f, true);
       }
       const i = Math.max(0, npcIds.indexOf(id));
       const c = col(f, i * 5 + d, WALK_FRAMES - 1);
-      return sub(npcBaseFor(id), `n${i}.${dd(d)}.${c}`, c * PERSON_W, dd(d) * PERSON_H, PERSON_W, PERSON_H);
+      return sub(npcBaseFor(id), `n${i}.${dd(d)}.${c}`, c * NPC_W, dd(d) * NPC_H, NPC_W, NPC_H);
     },
     rabbit: (f) => sub(cBase, `r${f % 4}`, (f % 4) * 20, Y.rabbit, 20, 18),
     deer: (f) => sub(cBase, `d${f % 4}`, (f % 4) * 34, Y.deer, 34, 34),
@@ -1197,6 +1203,16 @@ export function renderPersonCanvas(o: Outfit, dir: number, frame: number): HTMLC
   const { canvas, ctx } = makeCanvas(PERSON_W, PERSON_H);
   const buf = new PixBuf(PERSON_W, PERSON_H);
   undithered(() => drawPerson(buf.ctx, dir, frame, o, 1 + dir * 13));
+  polished(buf);
+  buf.blit(ctx, 0, 0);
+  return canvas;
+}
+
+/** Original resident proportions and outfit drawing with the current directional action clips. */
+export function renderNpcCanvas(o: Outfit, dir: number, frame: number): HTMLCanvasElement {
+  const { canvas, ctx } = makeCanvas(NPC_W, NPC_H);
+  const buf = new PixBuf(NPC_W, NPC_H);
+  undithered(() => paintNpc(buf.ctx, dir, frame, o, 1 + dir * 13));
   polished(buf);
   buf.blit(ctx, 0, 0);
   return canvas;
