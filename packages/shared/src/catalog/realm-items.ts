@@ -233,7 +233,7 @@ item('rewind_elixir', 'Rewind Elixir', 'potion', {
   b: C.q5,
   d: 'Undo the last few wounds. Every ailment you had a minute ago is gone, and most of the damage too.',
   heal: 120,
-  cure: ['bleed', 'poison', 'burn', 'frostbite', 'fracture', 'curse'],
+  cure: ['bleed', 'poison', 'burn', 'frostbite', 'fracture', 'curse', 'fever', 'gut_rot', 'ague', 'grave_rot'],
 });
 rec(
   'alchemy',

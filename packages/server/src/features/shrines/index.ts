@@ -82,10 +82,17 @@ export class ShrineModule implements Module {
 
   private touchAltar(p: ServerPlayer, sh: Shrine): void {
     // any shrine hears a prayer to lift a curse
-    if (p.data.buffs.curse) {
+    if (p.data.buffs.curse || p.data.buffs.grave_rot) {
+      const rot = !p.data.buffs.curse;
       delete p.data.buffs.curse;
+      delete p.data.buffs.grave_rot;
       p.dirty('buffs');
-      p.toast('You kneel and pray. The curse lifts from you like a shadow at dawn.', 'good');
+      p.toast(
+        rot
+          ? 'You kneel and pray. The grave rot leaves your wounds.'
+          : 'You kneel and pray. The curse lifts from you like a shadow at dawn.',
+        'good',
+      );
       return;
     }
     if (p.data.prog.shrines.includes(sh.id)) {

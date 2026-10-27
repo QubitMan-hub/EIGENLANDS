@@ -20,6 +20,9 @@ import {
   type Stack,
   type UseMsg,
   type WorldObj,
+  DIFFICULTY_RULES,
+  GUT_ROT_CHANCE,
+  perishable,
 } from '@eigenlands/shared';
 import { useConstruction } from './construction';
 import { tuning } from '../rooms/runtime';
@@ -109,9 +112,10 @@ export async function handleUse(room: RoomApi, p: ServerPlayer, msg: UseMsg): Pr
     p.data.inv[msg.slot] = { id: 'waterskin_empty', n: 1 };
     p.dirty('needs', 'inv');
     room.fx({ kind: 'water', x: p.sim.x, y: p.sim.y });
-    // unboiled water: a fair chance of a sick stomach for those who live by the survival rules
+    // unboiled water: a fair chance of gut rot for those who live by the survival rules
     const mode = p.data.needs.mode;
-    if (mode !== 'cozy' && room.rand() < (mode === 'hardcore' ? 0.5 : 0.3)) inflict(room, p, 'poison');
+    if (mode !== 'cozy' && room.rand() < GUT_ROT_CHANCE.murky * DIFFICULTY_RULES[mode].injury)
+      inflict(room, p, 'gut_rot');
     return;
   }
 
@@ -364,6 +368,13 @@ function eat(room: RoomApi, p: ServerPlayer, slot: number): void {
     p.data.buffs[def.buff.kind] = { until: room.wclock.now() + def.buff.secs * 1000, power: def.buff.power };
     p.dirty('buffs');
   }
+  // raw meat and fish can turn the stomach
+  if (
+    perishable(stack.id, def.kind) &&
+    p.data.needs.mode !== 'cozy' &&
+    room.rand() < GUT_ROT_CHANCE.raw * DIFFICULTY_RULES[p.data.needs.mode].injury
+  )
+    inflict(room, p, 'gut_rot');
   // a balanced diet: produce, protein and something hearty within half an hour leaves you nourished
   const group = foodGroup(stack.id, def.kind);
   if (group) {

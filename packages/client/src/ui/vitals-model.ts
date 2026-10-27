@@ -177,6 +177,30 @@ export const STATUS_DEFS: Record<string, StatusDef> = {
     icon: 'st_heat',
     desc: (p) => `You slept in your own bed: +${Math.round((p - 1) * 100)}% experience for a while.`,
   },
+  fever: {
+    label: 'Chill fever',
+    tone: 'debuff',
+    icon: 'st_chill',
+    desc: () => 'Losing health slowly, and catching: keep apart. Willow-bark tea breaks it, or wait it out.',
+  },
+  gut_rot: {
+    label: 'Gut rot',
+    tone: 'debuff',
+    icon: 'st_poison',
+    desc: () => 'Losing health, hungry and thirsty faster. A charcoal draught settles it. Boil water, cook meat.',
+  },
+  ague: {
+    label: 'Marsh ague',
+    tone: 'debuff',
+    icon: 'st_poison',
+    desc: () => 'Losing health and your blows are weaker. An ague tonic drives it out.',
+  },
+  grave_rot: {
+    label: 'Grave rot',
+    tone: 'debuff',
+    icon: 'st_curse',
+    desc: () => 'Losing health and wounds will not close. Holy water or a prayer at a shrine cures it.',
+  },
   curse: {
     label: 'Cursed',
     tone: 'debuff',

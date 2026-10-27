@@ -8,6 +8,7 @@ import {
   injuryOnHit,
   graveInjuryOnHit,
   CURSE_ATTACK_MULT,
+  AGUE_ATTACK_MULT,
 } from '@eigenlands/shared';
 import { Client, Room, ServerError } from 'colyseus';
 import { StateView } from '@colyseus/schema';
@@ -938,7 +939,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
         }
       if (changed) p.dirty('buffs');
       const regen = p.data.buffs.regen;
-      if (regen && p.deadT <= 0 && p.hp < p.maxHp && !this.cursed(p)) {
+      if (regen && p.deadT <= 0 && p.hp < p.maxHp && !this.cursed(p) && !this.rotting(p)) {
         p.regenT += 1;
         if (p.regenT >= 5) {
           p.regenT = 0;
@@ -1128,7 +1129,16 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   private outgoing(p: ServerPlayer, base: number): number {
     const might = p.data.buffs.might;
     const dmg = attackDamage(base, p.stats.atkBonus, might && might.until > this.wclock.now() ? might.power : 0);
-    return this.cursed(p) ? Math.max(1, Math.round(dmg * CURSE_ATTACK_MULT)) : dmg;
+    const ague = p.data.buffs.ague;
+    const sick = !!ague && ague.until > this.wclock.now() ? AGUE_ATTACK_MULT : 1;
+    return this.cursed(p)
+      ? Math.max(1, Math.round(dmg * CURSE_ATTACK_MULT * sick))
+      : Math.max(1, Math.round(dmg * sick));
+  }
+  /** grave rot: like a curse, wounds will not close by themselves */
+  private rotting(p: ServerPlayer): boolean {
+    const c = p.data.buffs.grave_rot;
+    return !!c && c.until > this.wclock.now();
   }
   private cursed(p: ServerPlayer): boolean {
     const c = p.data.buffs.curse;

@@ -323,7 +323,18 @@ function baseShopFor(p: ResidentPlan, def: KingdomDef): NpcDef['shop'] | undefin
         buyBonus: 1.1,
         buys: ['forage', 'potion'],
         stock: mk(
-          ['healing_potion', 'bandage', 'antidote', 'burn_salve', 'warming_tonic', 'cooling_tonic', 'regen_potion'],
+          [
+            'healing_potion',
+            'bandage',
+            'antidote',
+            'burn_salve',
+            'warming_tonic',
+            'cooling_tonic',
+            'regen_potion',
+            'willow_tea',
+            'charcoal_draught',
+            'ague_tonic',
+          ],
           1.3,
         ),
       };

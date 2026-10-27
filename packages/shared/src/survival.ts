@@ -82,7 +82,18 @@ export function thermalState(temp: number): ThermalState {
   return 'ok';
 }
 
-export const CONDITIONS = ['bleed', 'poison', 'burn', 'frostbite', 'fracture', 'curse'] as const;
+export const CONDITIONS = [
+  'bleed',
+  'poison',
+  'burn',
+  'frostbite',
+  'fracture',
+  'curse',
+  'fever',
+  'gut_rot',
+  'ague',
+  'grave_rot',
+] as const;
 export type Condition = (typeof CONDITIONS)[number];
 
 /** Each injury: seconds of duration, health lost per tick and the seconds between ticks. */
@@ -97,7 +108,57 @@ export const CONDITION_RULES: Record<
   // these two do not bleed you: a fracture stops you running and dodging, a curse saps your blows and your healing
   fracture: { secs: 240, every: 0, dmg: 0, label: 'Fractured', cure: 'a splint, or time' },
   curse: { secs: 300, every: 0, dmg: 0, label: 'Cursed', cure: 'holy water, or pray at a shrine altar' },
+  // diseases: slow, long and caught rather than struck (see DISEASES below)
+  fever: { secs: 480, every: 8, dmg: 1, label: 'Chill Fever', cure: 'willow-bark tea, or time' },
+  gut_rot: { secs: 300, every: 10, dmg: 1, label: 'Gut Rot', cure: 'a charcoal draught' },
+  ague: { secs: 600, every: 12, dmg: 1, label: 'Marsh Ague', cure: 'an ague tonic' },
+  grave_rot: { secs: 420, every: 8, dmg: 1, label: 'Grave Rot', cure: 'holy water, or pray at a shrine altar' },
 };
+
+/**
+ * Diseases (Adventure and Hardcore only, like every condition). Each is caught rather than struck:
+ * - Chill Fever: being cold or freezing out in rain or snow, away from a fire. It is catching: a feverish traveller
+ *   can pass it to anyone standing close.
+ * - Gut Rot: unboiled water, raw meat or fish, spoiled food. Hunger and thirst run faster while it lasts.
+ * - Marsh Ague: the swamp at night, out of doors, and the bites of its mites and lurkers. Blows land weaker.
+ * - Grave Rot: wounds from the restless dead and the spirits of the dark places. Wounds will not close by themselves.
+ */
+export const DISEASES = ['fever', 'gut_rot', 'ague', 'grave_rot'] as const satisfies readonly Condition[];
+export type Disease = (typeof DISEASES)[number];
+export const isDisease = (c: string): c is Disease => (DISEASES as readonly string[]).includes(c);
+/** seconds between rolls for catching a disease from the surroundings, and the chance per roll (before difficulty) */
+export const CATCH_EVERY = 30;
+export const FEVER_CATCH = 0.08;
+export const AGUE_CATCH = 0.06;
+/** chance per roll (every CATCH_EVERY seconds) that a feverish traveller passes it to someone within CONTAGION_RANGE */
+export const CONTAGION_CHANCE = 0.12;
+export const CONTAGION_RANGE = 2.5;
+/** chance that a drink of unboiled water, raw meat or fish, or spoiled food brings on gut rot */
+export const GUT_ROT_CHANCE = { murky: 0.3, raw: 0.2, spoiled: 0.6 } as const;
+/** extra hunger and thirst per second with gut rot */
+export const GUT_ROT_DRAIN = { food: 0.04, water: 0.06 } as const;
+/** blows dealt with the marsh ague */
+export const AGUE_ATTACK_MULT = 0.85;
+
+/** Does this place, at this hour, breed a disease? (pure: the server rolls the dice) */
+export function diseaseRisk(c: {
+  thermal: ThermalState;
+  weather: string;
+  nearFire: boolean;
+  indoors: boolean;
+  biome: string;
+  hour: number;
+}): Disease | null {
+  if (
+    !c.indoors &&
+    !c.nearFire &&
+    (c.thermal === 'cold' || c.thermal === 'freezing') &&
+    (c.weather === 'rain' || c.weather === 'snow' || c.weather === 'storm')
+  )
+    return 'fever';
+  if (!c.indoors && c.biome === 'swamp' && (c.hour >= 20 || c.hour < 5)) return 'ague';
+  return null;
+}
 /** blows dealt while cursed */
 export const CURSE_ATTACK_MULT = 0.8;
 
@@ -155,6 +216,16 @@ export function graveInjuryOnHit(kind: string): { cond: Condition; chance: numbe
     paradox_echo: 0.12,
     sundered_seer: 0.18,
   };
+  // the restless dead leave grave rot; the swamp's biters, the ague
+  const rot: Record<string, number> = {
+    frost_wraith: 0.12,
+    shade_stalker: 0.15,
+    gloam_zealot: 0.12,
+    sundered_blade: 0.15,
+  };
+  const marsh: Record<string, number> = { mite: 0.08, pool_lurker: 0.1, reed_stalker: 0.1, spore_sage: 0.06 };
+  if (rot[kind]) return { cond: 'grave_rot', chance: rot[kind] };
+  if (marsh[kind]) return { cond: 'ague', chance: marsh[kind] };
   if (crush[kind]) return { cond: 'fracture', chance: crush[kind] };
   if (hex[kind]) return { cond: 'curse', chance: hex[kind] };
   return null;

@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { ambientWarmth, injuryOnHit, stepBodyTemp, thermalState, validTravelNeeds, type ThermoCtx } from '../src';
+import {
+  CONDITIONS,
+  DISEASES,
+  ITEMS,
+  ambientWarmth,
+  diseaseRisk,
+  graveInjuryOnHit,
+  injuryOnHit,
+  stepBodyTemp,
+  thermalState,
+  validTravelNeeds,
+  type ThermoCtx,
+} from '../src';
 
 const base: ThermoCtx = {
   biome: 'meadow',
@@ -70,5 +82,26 @@ describe('injuries and needs', () => {
     expect(validTravelNeeds({ mode: 'hardcore', temp: 500 })).toMatchObject({ mode: 'hardcore', temp: 100 });
     expect(validTravelNeeds({ mode: 'bogus', temp: NaN })).toMatchObject({ mode: 'cozy', temp: 0 });
     expect(validTravelNeeds({ mode: 'adventure' }).temp).toBe(0);
+  });
+});
+
+describe('diseases', () => {
+  it('the cold and wet breed fever; the night swamp breeds ague; shelter and fire keep both off', () => {
+    const base = { thermal: 'cold' as const, weather: 'rain', nearFire: false, indoors: false, biome: 'meadow', hour: 12 };
+    expect(diseaseRisk(base)).toBe('fever');
+    expect(diseaseRisk({ ...base, nearFire: true })).toBeNull();
+    expect(diseaseRisk({ ...base, weather: 'clear' })).toBeNull();
+    const swamp = { ...base, thermal: 'ok' as const, biome: 'swamp', hour: 23 };
+    expect(diseaseRisk(swamp)).toBe('ague');
+    expect(diseaseRisk({ ...swamp, hour: 13 })).toBeNull();
+    expect(diseaseRisk({ ...swamp, indoors: true })).toBeNull();
+  });
+  it('the restless dead leave grave rot; swamp biters the ague; every disease has a remedy item', () => {
+    expect(graveInjuryOnHit('shade_stalker')?.cond).toBe('grave_rot');
+    expect(graveInjuryOnHit('reed_stalker')?.cond).toBe('ague');
+    for (const d of DISEASES) {
+      expect(CONDITIONS).toContain(d);
+      expect(Object.values(ITEMS).some((i) => i.cure?.includes(d))).toBe(true);
+    }
   });
 });

@@ -133,6 +133,10 @@ export type BuffKind =
   | 'frostbite'
   | 'fracture'
   | 'curse'
+  | 'fever'
+  | 'gut_rot'
+  | 'ague'
+  | 'grave_rot'
   | 'rested'
   | 'warmth'
   | 'coolness'
@@ -154,6 +158,10 @@ export const BUFF_KIND_LIST: readonly BuffKind[] = [
   'frostbite',
   'fracture',
   'curse',
+  'fever',
+  'gut_rot',
+  'ague',
+  'grave_rot',
   'rested',
   'warmth',
   'coolness',
@@ -183,7 +191,9 @@ export interface ItemDef {
   nourishment?: number;
   buff?: { kind: BuffKind; secs: number; power: number };
   /** medicine: injuries this item cures */
-  cure?: Array<'bleed' | 'poison' | 'burn' | 'frostbite' | 'fracture' | 'curse'>;
+  cure?: Array<
+    'bleed' | 'poison' | 'burn' | 'frostbite' | 'fracture' | 'curse' | 'fever' | 'gut_rot' | 'ague' | 'grave_rot'
+  >;
   /** placeable: world object subtype created */
   place?: {
     kind: 'station' | 'sprinkler' | 'shelter' | 'chest' | 'furniture' | 'sign' | 'fence' | 'structure';
@@ -605,12 +615,53 @@ def('burn_salve', 'Burn Salve', 'potion', 70, 'bottle', C.w3, C.e6, 'Soothes bur
   cure: ['burn', 'frostbite'],
 });
 def('star_shard', 'Star Shard', 'material', 140, 'gem', C.w6, C.q6, 'A splinter of a fallen star, still faintly warm.');
+// what the star shards make (recipes.ts): a ward that shimmers, and a cake that keeps on mending
+def(
+  'starlight_draught',
+  'Starlight Draught',
+  'potion',
+  320,
+  'bottle',
+  C.w6,
+  C.q7,
+  'Heals 40 and wards you in starlight.',
+  {
+    heal: 40,
+    buff: { kind: 'ward', secs: 300, power: 0.3 },
+  },
+);
+def(
+  'stardust_cake',
+  'Stardust Cake',
+  'food',
+  260,
+  'pie',
+  C.e7,
+  C.q6,
+  'Sweet, and it glitters. Heals over a long while.',
+  {
+    heal: 50,
+    buff: { kind: 'regen', secs: 180, power: 2.5 },
+  },
+);
 def('splint', 'Splint', 'potion', 40, 'bottle', C.e3, C.pale, 'Sets a broken bone so you can run again.', {
   heal: 6,
   cure: ['fracture'],
 });
-def('holy_water', 'Holy Water', 'potion', 80, 'bottle', C.w5, C.q4, 'Blessed water that lifts a curse.', {
-  cure: ['curse'],
+def('holy_water', 'Holy Water', 'potion', 80, 'bottle', C.w5, C.q4, 'Blessed water that lifts a curse and grave rot.', {
+  cure: ['curse', 'grave_rot'],
+});
+// remedies for the diseases (survival.ts)
+def('willow_tea', 'Willow-Bark Tea', 'potion', 45, 'bottle', C.e4, C.g6, 'Breaks a chill fever.', {
+  heal: 8,
+  cure: ['fever'],
+});
+def('charcoal_draught', 'Charcoal Draught', 'potion', 50, 'bottle', C.night, C.steel, 'Settles gut rot.', {
+  cure: ['gut_rot'],
+});
+def('ague_tonic', 'Ague Tonic', 'potion', 70, 'bottle', C.g3, C.w6, 'Drives out the marsh ague.', {
+  heal: 10,
+  cure: ['ague'],
 });
 def('warming_tonic', 'Warming Tonic', 'potion', 90, 'bottle', C.r4, C.e7, 'Resist the cold for a long while.', {
   buff: { kind: 'warmth', secs: 420, power: 0.7 },

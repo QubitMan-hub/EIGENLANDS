@@ -61,3 +61,45 @@ it('Cozy never suffers injuries', async () => {
   expect(p.sp.data.buffs.burn).toBeUndefined();
   await p.r.leave();
 });
+
+it('diseases: gut rot drains supplies, the fever passes to a neighbour, and each remedy cures its own', async () => {
+  const a = await spawn3(app, 'Feverish');
+  const b = await spawn3(app, 'Neighbour');
+  const room = a.room;
+  clearEnemies(room);
+  for (const q of [a, b]) {
+    q.sp.data.needs.mode = 'hardcore';
+    q.sp.data.needs.food = 80;
+    q.sp.data.needs.water = 80;
+  }
+  await tp(a, 60.5, 60.5);
+  await tp(b, 61.5, 60.5);
+  // gut rot: hunger and thirst run faster than without it
+  const before = { ...a.sp.data.needs };
+  tickTravelNeeds(room, b.sp);
+  const plain = 80 - b.sp.data.needs.water;
+  expect(inflict(room, a.sp, 'gut_rot')).toBe(true);
+  tickTravelNeeds(room, a.sp);
+  expect(before.water - a.sp.data.needs.water).toBeGreaterThan(plain);
+  // the fever is catching: with time standing close, the neighbour comes down with it
+  inflict(room, a.sp, 'fever');
+  const rand = room.rand;
+  room.rand = () => 0;
+  for (let i = 0; i < 31; i++) tickTravelNeeds(room, a.sp);
+  room.rand = rand;
+  expect(b.sp.data.buffs.fever).toBeTruthy();
+  // remedies
+  for (const [id, cond] of [
+    ['willow_tea', 'fever'],
+    ['charcoal_draught', 'gut_rot'],
+  ] as const) {
+    await dev(a, { cmd: 'give', id, n: 1 });
+    await until(() => countItem(a.sp.data.inv, id) === 1);
+    a.sp.toolReadyAt = 0;
+    const slot = a.sp.data.inv.findIndex((s) => s?.id === id);
+    a.r.send('use', { slot, tx: Math.floor(a.sp.sim.x), ty: Math.floor(a.sp.sim.y) });
+    await until(() => !a.sp.data.buffs[cond], 3000);
+  }
+  await a.r.leave();
+  await b.r.leave();
+});

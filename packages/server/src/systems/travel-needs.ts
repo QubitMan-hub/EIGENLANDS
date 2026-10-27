@@ -17,6 +17,13 @@ import {
   perishable,
   rotEvery,
   type Condition,
+  CATCH_EVERY,
+  CONTAGION_CHANCE,
+  CONTAGION_RANGE,
+  FEVER_CATCH,
+  AGUE_CATCH,
+  GUT_ROT_DRAIN,
+  diseaseRisk,
 } from '@eigenlands/shared';
 import { giveStacks } from './helpers';
 import type { ServerPlayer } from '../rooms/player';
@@ -174,6 +181,35 @@ export function tickTravelNeeds(room: RoomApi, p: ServerPlayer): void {
         p.condT[cond] = 0;
         if (p.hp > 1) p.hp = Math.max(1, p.hp - Math.max(1, Math.round(rule.dmg * b.power)));
       }
+    }
+  }
+  // diseases: caught from the cold and wet, the night swamp, and from each other
+  if (!paused && rules.injury > 0) {
+    if (p.data.buffs.gut_rot && p.data.buffs.gut_rot.until > now) {
+      next.food = Math.max(0, next.food - GUT_ROT_DRAIN.food);
+      next.water = Math.max(0, next.water - GUT_ROT_DRAIN.water);
+    }
+    if ((p.condT.catch = (p.condT.catch ?? 0) + 1) >= CATCH_EVERY) {
+      p.condT.catch = 0;
+      const risk = diseaseRisk({
+        thermal: state,
+        weather: room.wclock.weather(),
+        nearFire: nearFire(room, x, y),
+        indoors: !!buildingAt(room.seed, Math.floor(x), Math.floor(y)) || isUpperY(y) || nearTent(room, x, y),
+        biome: isCaveY(y) ? 'cave' : biomeAt(room.seed, x, y),
+        hour: room.wclock.hour(),
+      });
+      const chance = risk === 'fever' ? FEVER_CATCH : risk === 'ague' ? AGUE_CATCH : 0;
+      if (risk && !p.data.buffs[risk] && room.rand() < chance * rules.injury) inflict(room, p, risk);
+      // a feverish traveller coughs on whoever stands close
+      const fever = p.data.buffs.fever;
+      if (fever && fever.until > now)
+        for (const q of room.players.values()) {
+          if (q === p || q.deadT > 0 || q.data.buffs.fever || q.data.needs.mode === 'cozy') continue;
+          if (Math.hypot(q.sim.x - x, q.sim.y - y) > CONTAGION_RANGE) continue;
+          if (room.rand() < CONTAGION_CHANCE * DIFFICULTY_RULES[q.data.needs.mode].injury && inflict(room, q, 'fever'))
+            q.toast(`You caught ${p.name}'s fever.`, 'bad');
+        }
     }
   }
   // raw fish and meat carried in the pack spoil (chests keep them; cold slows it)

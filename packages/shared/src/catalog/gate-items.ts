@@ -73,7 +73,7 @@ item('radiant_elixir', 'Radiant Elixir', 'potion', {
   b: C.white,
   d: 'Liquid light. Every wound, every ailment, gone, and the next while goes your way.',
   heal: 320,
-  cure: ['bleed', 'poison', 'burn', 'frostbite', 'fracture', 'curse'],
+  cure: ['bleed', 'poison', 'burn', 'frostbite', 'fracture', 'curse', 'fever', 'gut_rot', 'ague', 'grave_rot'],
   buff: { kind: 'fortune', secs: 600, power: 2 },
 });
 rec(

@@ -741,6 +741,42 @@ r(
   'Two straight sticks and a strip of cloth.',
 );
 r(
+  'willow_tea',
+  'alchemy',
+  [
+    ['wood', 1],
+    ['healing_herb', 1],
+  ],
+  ['willow_tea', 2],
+  4,
+  'start',
+  'Bark stripped from a branch and steeped with a herb: it breaks a fever.',
+);
+r(
+  'charcoal_draught',
+  'alchemy',
+  [
+    ['coal', 1],
+    ['healing_herb', 1],
+  ],
+  ['charcoal_draught', 2],
+  5,
+  'start',
+  'Coal ground to dust in herb water: it settles gut rot.',
+);
+r(
+  'ague_tonic',
+  'alchemy',
+  [
+    ['healing_herb', 2],
+    ['sunpetal', 1],
+  ],
+  ['ague_tonic', 1],
+  7,
+  'start',
+  'Two herbs and a bright flower against the marsh ague.',
+);
+r(
   'holy_water',
   'alchemy',
   [
@@ -1409,6 +1445,46 @@ r(
   'discover',
   'Bind a Storm Heart in gold.',
   { stat: 'atk', val: 7 },
+);
+
+// Star shards from the fallen stars of starfall nights (features/wonders)
+r(
+  'starstone_from_shards',
+  'enchanting',
+  [
+    ['star_shard', 5],
+    ['qubit_crystal', 2],
+  ],
+  ['starstone', 1],
+  60,
+  'level',
+  'Five star shards fused with crystal: a whole fallen star again.',
+);
+R[R.length - 1]!.lvl = 6;
+r(
+  'starlight_draught',
+  'alchemy',
+  [
+    ['star_shard', 1],
+    ['healing_potion', 1],
+  ],
+  ['starlight_draught', 1],
+  24,
+  'discover',
+  'A star shard dissolved in a healing potion.',
+);
+r(
+  'stardust_cake',
+  'oven',
+  [
+    ['star_shard', 1],
+    ['flour', 2],
+    ['sugar', 1],
+  ],
+  ['stardust_cake', 2],
+  20,
+  'discover',
+  'Flour, sugar and a star shard ground fine.',
 );
 
 // Catalog recipes (the data-driven content waves) join the hand-written ones above.
