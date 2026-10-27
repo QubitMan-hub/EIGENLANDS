@@ -1,0 +1,88 @@
+{
+  "confirmedEvents": [
+    {
+      "kind": "mine",
+      "sourceWidth": 24,
+      "bodyY": 1,
+      "rootX": -64,
+      "rootY": 40,
+      "held": true,
+      "heldWidth": 56
+    },
+    {
+      "kind": "chop",
+      "sourceWidth": 24,
+      "bodyY": 1,
+      "rootX": -64,
+      "rootY": 40,
+      "held": true,
+      "heldWidth": 56
+    },
+    {
+      "kind": "till",
+      "sourceWidth": 24,
+      "bodyY": 1,
+      "rootX": -64,
+      "rootY": 40,
+      "held": true,
+      "heldWidth": 56
+    },
+    {
+      "kind": "water",
+      "sourceWidth": 24,
+      "bodyY": 1,
+      "rootX": -64,
+      "rootY": 40,
+      "held": true,
+      "heldWidth": 56
+    },
+    {
+      "kind": "cast",
+      "sourceWidth": 24,
+      "bodyY": 1,
+      "rootX": -64,
+      "rootY": 40,
+      "held": true,
+      "heldWidth": 56
+    },
+    {
+      "kind": "plant",
+      "sourceWidth": 24,
+      "bodyY": 1,
+      "rootX": -64,
+      "rootY": 40,
+      "held": false,
+      "heldWidth": 1680
+    },
+    {
+      "kind": "harvest",
+      "sourceWidth": 24,
+      "bodyY": 1,
+      "rootX": -64,
+      "rootY": 40,
+      "held": false,
+      "heldWidth": 1680
+    },
+    {
+      "kind": "craft",
+      "sourceWidth": 24,
+      "bodyY": 1,
+      "rootX": -64,
+      "rootY": 40,
+      "held": false,
+      "heldWidth": 1680
+    },
+    {
+      "kind": "place",
+      "sourceWidth": 24,
+      "bodyY": 1,
+      "rootX": -64,
+      "rootY": 40,
+      "held": false,
+      "heldWidth": 1680
+    }
+  ],
+  "persistentFishing": true,
+  "extraction": true,
+  "errors": []
+}

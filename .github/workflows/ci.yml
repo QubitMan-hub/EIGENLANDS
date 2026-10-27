@@ -124,6 +124,7 @@ jobs:
       - name: Verify authored boss art and creature atlas contracts
         run: |
           export CHROME="$(node --input-type=module -e "import {chromium} from 'playwright-core'; process.stdout.write(chromium.executablePath())")"
+          node e2e/person-actions.mjs http://127.0.0.1:5174/ /tmp/adventurer-bestiary/people
           node e2e/boss-sheets-art.mjs http://127.0.0.1:5174/ /tmp/adventurer-bestiary/art
           node --import tsx e2e/bestiary-art.mjs http://127.0.0.1:5174/ /tmp/adventurer-bestiary/bestiary
       - run: npm run build:pages
@@ -134,6 +135,7 @@ jobs:
         run: |
           export CHROME="$(node --input-type=module -e "import {chromium} from 'playwright-core'; process.stdout.write(chromium.executablePath())")"
           node --import tsx e2e/adventurer-bestiary.mjs http://127.0.0.1:5240/ /tmp/adventurer-bestiary/gameplay
+          node e2e/person-actions-gameplay.mjs http://127.0.0.1:5240/ /tmp/adventurer-bestiary/actions
           node --import tsx e2e/boss-gameplay.mjs http://127.0.0.1:5240/ /tmp/adventurer-bestiary/bosses
       - uses: actions/upload-artifact@v4
         if: always()

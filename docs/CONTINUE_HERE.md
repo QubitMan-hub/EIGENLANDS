@@ -1,3 +1,9 @@
+# Latest continuation: directional character actions (2026-10-27)
+
+Read [CHARACTER_ACTIONS.md](CHARACTER_ACTIONS.md) for the implemented animation rig, art changes, proof commands and explicit remaining work. Current main through `c4ad6e2` is integrated. Eleven appended directional action families preserve legacy combat/walk/run indices and appearance saves; full higher-resolution authored player/NPC replacement and every bespoke interaction remain open. Keep the existing boss art and the no-subagent workflow.
+
+---
+
 # Latest batch: adventurer paths, living bestiary and authored boss sprites (2026-10-27)
 
 Read [ADVENTURER_PATHS_AND_BESTIARY.md](ADVENTURER_PATHS_AND_BESTIARY.md), [BOSS_ART.md](BOSS_ART.md), [GUILD_HALLS.md](GUILD_HALLS.md), [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), the [master plan](EIGENLANDS_MASTER_PLAN.md) and [remaining work](REMAINING_WORK.md).

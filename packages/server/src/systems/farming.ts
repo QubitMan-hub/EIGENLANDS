@@ -234,7 +234,7 @@ export function plantSeed(room: RoomApi, p: ServerPlayer, slot: number, tx: numb
     data: data as unknown as Record<string, unknown>,
   });
   addSkillXp(p, 'farming', 2);
-  room.fx({ kind: 'plant', x: tx + 0.5, y: ty + 0.5 });
+  room.fx({ kind: 'plant', x: tx + 0.5, y: ty + 0.5, id: p.id });
   questEvent(p, { type: 'plant', target: crop, n: 1 });
   recordDeed(p, 'plant', cropName(crop), day);
 }
@@ -337,7 +337,7 @@ export function harvestCrop(room: RoomApi, p: ServerPlayer, o: WorldObj): void {
     room.objects.update(o);
   } else room.objects.remove(o.x, o.y);
   addSkillXp(p, 'farming', CROPS[crop]!.xp);
-  room.fx({ kind: 'harvest', x: o.x + 0.5, y: o.y + 0.5 });
+  room.fx({ kind: 'harvest', x: o.x + 0.5, y: o.y + 0.5, id: p.id });
   if (d.alt) p.toast(`The superposition collapses into ${cropName(crop)}!`, 'good');
   questEvent(p, { type: 'harvest', target: crop, n: 1 });
   recordDeed(p, 'harvest', cropName(crop).toLowerCase(), room.wclock.day());

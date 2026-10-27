@@ -14,7 +14,8 @@
         "failed": 0,
         "pixels": 1996800
       },
-      "states": [2, 4, 1]
+      "states": [2, 4, 0, 1],
+      "attackDrawn": true
     },
     {
       "id": "world_serpent",
@@ -25,12 +26,13 @@
       "shadowAnchor": 0.9423076923076923,
       "shadowAt": [0, 0],
       "atlas": {
-        "loaded": 3,
+        "loaded": 2,
         "pending": 0,
         "failed": 0,
-        "pixels": 4182480
+        "pixels": 3860480
       },
-      "states": [2, 4, 1]
+      "states": [2, 4, 0, 1],
+      "attackDrawn": true
     },
     {
       "id": "sealed_entity",
@@ -41,12 +43,13 @@
       "shadowAnchor": 0.9423076923076923,
       "shadowAt": [0, 0],
       "atlas": {
-        "loaded": 4,
-        "pending": 0,
+        "loaded": 3,
+        "pending": 1,
         "failed": 0,
-        "pixels": 5913040
+        "pixels": 5591040
       },
-      "states": [2, 4, 0, 1]
+      "states": [2, 4, 0, 1],
+      "attackDrawn": true
     },
     {
       "id": "forgotten_titan",
@@ -57,12 +60,13 @@
       "shadowAnchor": 0.9423076923076923,
       "shadowAt": [0, 0],
       "atlas": {
-        "loaded": 5,
+        "loaded": 6,
         "pending": 0,
         "failed": 0,
-        "pixels": 7643600
+        "pixels": 7970200
       },
-      "states": [1]
+      "states": [1],
+      "attackDrawn": false
     },
     {
       "id": "realm_guardian",
@@ -73,12 +77,13 @@
       "shadowAnchor": 0.9423076923076923,
       "shadowAt": [0, 0],
       "atlas": {
-        "loaded": 6,
+        "loaded": 7,
         "pending": 0,
         "failed": 0,
-        "pixels": 9640400
+        "pixels": 9967000
       },
-      "states": [1, 2]
+      "states": [1, 2],
+      "attackDrawn": false
     },
     {
       "id": "slime_king",
@@ -89,12 +94,13 @@
       "shadowAnchor": 0.9166666666666666,
       "shadowAt": [0, 0],
       "atlas": {
-        "loaded": 7,
+        "loaded": 8,
         "pending": 0,
         "failed": 0,
-        "pixels": 10562000
+        "pixels": 10888600
       },
-      "states": [1, 2, 3]
+      "states": [1, 2, 3],
+      "attackDrawn": true
     },
     {
       "id": "warden",
@@ -105,12 +111,13 @@
       "shadowAnchor": 0.925,
       "shadowAt": [0, 0],
       "atlas": {
-        "loaded": 8,
+        "loaded": 9,
         "pending": 0,
         "failed": 0,
-        "pixels": 11790800
+        "pixels": 12117400
       },
-      "states": [2, 3, 4, 0]
+      "states": [2, 3, 4],
+      "attackDrawn": true
     },
     {
       "id": "colossus",
@@ -121,12 +128,13 @@
       "shadowAnchor": 0.9318181818181818,
       "shadowAt": [0, 0],
       "atlas": {
-        "loaded": 8,
+        "loaded": 9,
         "pending": 0,
         "failed": 0,
-        "pixels": 11033040
+        "pixels": 11359640
       },
-      "states": [2, 3, 4]
+      "states": [2, 3, 4],
+      "attackDrawn": true
     },
     {
       "id": "bellkeeper",
@@ -142,7 +150,8 @@
         "failed": 0,
         "pixels": 10791320
       },
-      "states": [1, 2, 3, 4]
+      "states": [1, 2, 3, 4, 0],
+      "attackDrawn": true
     },
     {
       "id": "geode_tyrant",
@@ -158,7 +167,8 @@
         "failed": 0,
         "pixels": 12020120
       },
-      "states": [1, 2, 3, 4]
+      "states": [1, 2, 3, 4],
+      "attackDrawn": true
     },
     {
       "id": "cinder_wyrm",
@@ -174,7 +184,8 @@
         "failed": 0,
         "pixels": 11641240
       },
-      "states": [1, 2, 3, 4, 0]
+      "states": [1, 2, 3, 4],
+      "attackDrawn": true
     },
     {
       "id": "rime_sovereign",
@@ -190,7 +201,8 @@
         "failed": 0,
         "pixels": 11206040
       },
-      "states": [1, 2, 3, 4]
+      "states": [1, 2, 3, 4],
+      "attackDrawn": true
     },
     {
       "id": "tide_leviathan",
@@ -206,7 +218,8 @@
         "failed": 0,
         "pixels": 10673560
       },
-      "states": [1, 2, 3, 4]
+      "states": [1, 2, 3, 4],
+      "attackDrawn": true
     },
     {
       "id": "veyr",
@@ -222,21 +235,22 @@
         "failed": 0,
         "pixels": 12086680
       },
-      "states": [1, 2]
+      "states": [1, 2],
+      "attackDrawn": false
     }
   ],
   "errors": [],
   "assets": [
     "http://127.0.0.1:5244/art/bestiary/primordial_dragon-day.png",
-    "http://127.0.0.1:5244/art/bestiary/woodland_spirit-day.png",
     "http://127.0.0.1:5244/art/bestiary/world_serpent-day.png",
     "http://127.0.0.1:5244/art/bestiary/sealed_entity-day.png",
+    "http://127.0.0.1:5244/art/bestiary/woodland_spirit-day.png",
+    "http://127.0.0.1:5244/art/bestiary/unicorn-day.png",
     "http://127.0.0.1:5244/art/bestiary/forgotten_titan-day.png",
     "http://127.0.0.1:5244/art/bestiary/realm_guardian-day.png",
     "http://127.0.0.1:5244/art/bestiary/slime_king-day.png",
     "http://127.0.0.1:5244/art/bestiary/warden-day.png",
     "http://127.0.0.1:5244/art/bestiary/colossus-day.png",
-    "http://127.0.0.1:5244/art/bestiary/unicorn-day.png",
     "http://127.0.0.1:5244/art/bestiary/bellkeeper-day.png",
     "http://127.0.0.1:5244/art/bestiary/geode_tyrant-day.png",
     "http://127.0.0.1:5244/art/bestiary/cinder_wyrm-day.png",
