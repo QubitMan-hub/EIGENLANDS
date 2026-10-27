@@ -15,6 +15,7 @@ import {
   packAppearance,
   randomAppearance,
   townsNear,
+  findPath,
   type ChunkStore,
   type RealmId,
   type RealmSite,
@@ -28,6 +29,9 @@ import { ATTACK_FRAME, COSMETIC_OUTFITS, WALK_FRAMES, dirOf } from '../art/actor
 import type { FoeSheets } from '../art/foes';
 import { D4_SE, dir4 } from '../art/sprite';
 import type { Sfx } from '../audio';
+import type { HeldId, HeldWeapons } from '../art/weapons';
+import { planScenes, type Scene } from './scenes';
+import { SceneLife, sceneLook, type SceneActor } from './scene-life';
 import { depth, isoX, isoY, screenDir } from './iso';
 import type { Fx } from './fx';
 
@@ -53,6 +57,8 @@ export interface LifeDeps {
   toScreen: (x: number, y: number) => { x: number; y: number };
   /** hostile creatures currently on screen, in tile coordinates */
   hostiles: () => Array<{ x: number; y: number }>;
+  /** held tool art (axes, watering cans) for people at work in the everyday scenes */
+  held?: () => HeldWeapons;
 }
 export interface LifeFrame {
   now: number;
@@ -78,9 +84,10 @@ type Role =
   | 'royal'
   | 'beast'
   | 'chicken'
-  | 'roofbird';
+  | 'roofbird'
+  | 'scene';
 
-interface Actor {
+interface Actor extends SceneActor {
   role: Role;
   root: Container;
   body: Sprite;
@@ -112,6 +119,8 @@ interface Actor {
   slot2?: number;
   /** packed appearance (shared/appearance.ts): every villager is a distinct person */
   app: number;
+  /** a scene actor's own scale (children are smaller) */
+  small?: boolean;
 }
 
 const FARM_COW = 74,
@@ -179,7 +188,37 @@ export class WorldLife {
   /** where customers stand to browse: in front of each stall */
   private fronts: Array<{ x: number; y: number }> = [];
 
-  constructor(private d: LifeDeps) {}
+  private scenes: SceneLife;
+  /** the everyday scenes planned for the settlement being animated (tests, screenshots) */
+  private plan: Scene[] = [];
+
+  constructor(private d: LifeDeps) {
+    this.scenes = new SceneLife({
+      tex: (a, dir, frame) => this.tex(a as Actor, dir, frame),
+      moveTo: (a, dt, speed) => this.moveTo(a as Actor, dt, speed),
+      say: (a, text, now) => this.say(a as Actor, text, now),
+      walkFrame: (a, speed) => this.walkFrame(a as Actor, speed),
+      burst: (x, y, c, n) => this.d.fx().burst(x, y, c, n),
+      ring: (x, y, c, r, life) => this.d.fx().ring(x, y, c, r, life),
+      sound: (s, x, y) => this.d.sound(s, x, y),
+      held: () => this.d.held?.() ?? null,
+      art: () => this.d.art(),
+      all: () => this.cast.filter((a) => a.role === 'scene'),
+      findPath: (sx, sy, tx, ty) => findPath(sx, sy, tx, ty, this.d.store().solidAt, 900),
+    });
+  }
+
+  /** the everyday scenes of the current settlement, by kind (tests, screenshots) */
+  sceneKinds(): Record<string, number> {
+    const o: Record<string, number> = {};
+    for (const s of this.plan) o[s.kind] = (o[s.kind] ?? 0) + 1;
+    return o;
+  }
+  /** where the first scene of a kind happens (tests, screenshots) */
+  sceneAt(kind: string): { x: number; y: number } | null {
+    const s = this.plan.find((p) => p.kind === kind);
+    return s ? { x: s.x, y: s.y } : null;
+  }
 
   count(): number {
     return this.cast.length;
@@ -268,6 +307,7 @@ export class WorldLife {
     this.sparks = [];
     this.fishing = null;
     this.fronts = [];
+    this.plan = [];
     this.town = town;
     this.site = town ? siteOf(town) : null;
     this.realm = this.site?.realm ?? null;
@@ -342,6 +382,8 @@ export class WorldLife {
 
     // a fisherman wherever a bank touches the settlement
     this.findFishing(t, look(n));
+    // the ordinary business of the street: water, washing, firewood, gossip, children, pets
+    this.populateScenes(t, big);
 
     // stall-keepers behind every market stall, calling their wares
     for (const [k, sp] of Object.entries(t.spots)) {
@@ -422,6 +464,85 @@ export class WorldLife {
         a.slot = i;
         a.st = 'idle';
         a.t = rnd(0, 3);
+      }
+    }
+  }
+
+  // ───────────────────────── everyday scenes ─────────────────────────
+
+  private populateScenes(t: Town, big: number): void {
+    const store = this.d.store();
+    this.plan = planScenes(t, this.d.seed(), {
+      free: (x, y) => !store.solidAt(x, y) && store.getTile(x, y) !== T.WATER,
+      size: big,
+    });
+    for (const sc of this.plan) {
+      const people = (n: number, part0: number, small = false) => {
+        for (let i = 0; i < n; i++) {
+          const x = sc.kind === 'chat' && i === 1 ? sc.x2 : sc.x + (small ? (i - 1) * 1.2 : 0),
+            y = sc.kind === 'chat' && i === 1 ? sc.y2 : sc.y + (small ? (i % 2) * 0.8 : 0);
+          const a = this.person('scene', sceneLook(sc, i, COSMETIC_OUTFITS), x, y, {
+            hours: [0, 24],
+            home: { x: sc.x, y: sc.y, r: 5 },
+          });
+          a.sc = sc;
+          a.part = part0 + i;
+          a.small = small;
+          if (small) a.body.scale.set(0.72);
+          a.carry = new Graphics();
+          a.root.addChild(a.carry);
+          const tool: HeldId | null = sc.kind === 'woodchop' ? 'axe' : sc.kind === 'garden' ? 'can' : null;
+          if (tool && this.d.held) {
+            const h = new Sprite();
+            h.anchor.set(0.5, 0.75);
+            (h as unknown as { id: HeldId }).id = tool;
+            a.heldSprite = h;
+            a.root.addChild(h);
+          }
+        }
+      };
+      const animal = (kind: 'cat' | 'dog' | 'pigeon' | 'prop', x: number, y: number) => {
+        const a = this.mk('scene', x, y, { x: sc.x, y: sc.y, r: 5 }, [0, 24]);
+        a.sc = sc;
+        a.animal = kind;
+        a.umbrella = false;
+        a.body.anchor.set(0.5, 0.92);
+        const art = this.d.art();
+        if (kind === 'prop') {
+          a.body.visible = false;
+          a.carry = new Graphics();
+          a.root.addChild(a.carry);
+        } else if (art) a.body.texture = (kind === 'cat' ? art.cat : kind === 'dog' ? art.dog : art.pigeon)[0]!;
+        return a;
+      };
+      switch (sc.kind) {
+        case 'chat':
+          people(2, 0);
+          break;
+        case 'kids':
+          people(3, 2, true);
+          break;
+        case 'bench':
+          people(hash2(sc.seed, 1, 1, 1) < 0.5 ? 2 : 1, 0);
+          for (let i = 0; i < 3; i++) animal('pigeon', sc.x - 0.6 + i * 0.7, sc.y + 1.5 + (i % 2) * 0.5);
+          break;
+        case 'cat':
+        case 'dog':
+          animal(sc.kind, sc.x, sc.y);
+          break;
+        case 'laundry':
+          animal('prop', sc.x, sc.y);
+          people(1, 0);
+          break;
+        case 'dressing':
+          animal('prop', sc.x, sc.y);
+          break;
+        case 'woodchop':
+          animal('prop', sc.x, sc.y);
+          people(1, 0);
+          break;
+        default:
+          people(1, 0);
       }
     }
   }
@@ -777,7 +898,8 @@ export class WorldLife {
     }
 
     // frightened villagers run from monsters
-    const person = a.body.anchor.y > 0.9 && a.role !== 'beast' && a.role !== 'chicken' && a.role !== 'roofbird';
+    const person =
+      a.body.anchor.y > 0.9 && !a.animal && a.role !== 'beast' && a.role !== 'chicken' && a.role !== 'roofbird';
     if (person && a.role !== 'royal' && a.role !== 'knight') {
       let nd = 99,
         nh: { x: number; y: number } | null = null;
@@ -839,6 +961,10 @@ export class WorldLife {
         break;
       case 'roofbird':
         this.roofStep(a, f, pd);
+        break;
+      case 'scene':
+        if (a.st === 'flee' && !a.animal) this.flee(a, f);
+        else if (!this.scenes.step(a, f)) a.root.visible = false;
         break;
     }
     // umbrellas in the rain
@@ -1374,11 +1500,15 @@ export class WorldLife {
     const r =
       a.role === 'beast' || a.role === 'knight' || a.model >= 0
         ? 9
-        : a.role === 'chicken'
+        : a.role === 'chicken' || a.animal === 'cat' || a.animal === 'dog'
           ? 3.5
-          : a.role === 'roofbird'
+          : a.animal === 'prop' || a.animal === 'pigeon'
             ? 0
-            : 5;
+            : a.small
+              ? 3.6
+              : a.role === 'roofbird'
+                ? 0
+                : 5;
     a.shadow.clear();
     if (r > 0)
       a.shadow.ellipse(0, 0, r * (1 - Math.min(0.5, a.z * 0.02)), r * 0.5).fill({ color: 0x2a1060, alpha: 0.26 });

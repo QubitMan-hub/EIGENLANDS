@@ -249,6 +249,31 @@ opens the lore panel. The first reading pays 40 XP and counts toward your storie
   48–70 tiles from the town, it waits, hardened and a level above you. Everyone within 25 tiles when it falls is paid
   the bounty (120–220 coins), gains experience and, in a kingdom, standing. Each bounty is brought down once a day.
 
+## Everyday scenes
+
+Kingdom and frontier towns now have ordinary daily life, planned from each town's layout and the seed. Every player
+sees the same washerwoman at the same line.
+
+- **At the well:** someone winds up a bucket, carries it home to a nearby door and comes back for more (6:00–19:30).
+- **Washing day:** a washer scrubs at the basket and pegs sheets, shirts and trousers along a line that stirs in the
+  wind. When it rains or snows the washing is taken in and the line stands empty.
+- **Firewood:** a woodcutter with an axe splits logs on a block (chips fly, the axe thuds) and stacks them on the pile.
+- **The doorstep:** brooms sweep the step in the morning, window boxes are watered with a can before 10:30, and every
+  door is dressed with flower pots, a barrel and crate, flour sacks and an apple basket, stacked firewood, crates or a
+  potted shrub and a leaning broom.
+- **Neighbours:** two people chat at a door and take turns telling and reacting ("My youngest has the sniffles
+  again." "Poor thing. Honey and lemon.").
+- **The square:** children play tag (whoever is "it" chases the nearest friend) until they are called in for supper.
+  A busker plays the lute, with notes in the air and now and then a coin. A porter hauls flour sacks from the cart to
+  the shop and walks back for the next.
+- **The bench:** one or two elders sit and toss crumbs to the pigeons, which flutter off if you walk through.
+- **Pets:** cats sit on doorsteps, doze in the midday sun and bolt from strangers. Dogs trot about the yard, sit by the
+  door and chase any cat they see.
+- **Dusk:** the lamplighter walks the round of the street lamps with a long pole, lighting each in turn.
+- **Weather:** rain sends the washing, children, bench-sitters, busker and gardeners indoors, while the well, the
+  porter and neighbourly chat carry on under umbrellas. Storms empty the streets except for the cats and the
+  lamplighter.
+
 ## Efficient simulation
 
 - **Kingdom state:** one small JSON blob per world (`civ:<seed>`). The server steps it once per world day and catches
@@ -278,6 +303,8 @@ opens the lore panel. The first reading pays 40 XP and counts toward your storie
 | Story and crypt art                                             | `packages/client/src/art/stories.ts`                     |
 | Fox companion (Keen nose)                                       | `shared/src/companions.ts`, `server/features/shadows`    |
 | Journal: kingdoms, news, intrigue, festivals and tournaments    | `packages/client/src/ui/journal.ts`                      |
+| Everyday scenes: planning (pure, tested)                        | `packages/client/src/game/scenes.ts`                     |
+| Everyday scenes: people, props and behaviour                    | `client/src/game/scene-life.ts`, `game/life.ts`          |
 
 ## Validation
 
@@ -325,6 +352,13 @@ opens the lore panel. The first reading pays 40 XP and counts toward your storie
   server with a fallen star beside the traveller and shooting stars in flight; aurora and the rainbow drawn with forced
   sky inputs; no page errors.
 
+- **Everyday scenes:** client `scenes.test.ts`: every lived-in kingdom town gets scenes on open ground out of doors,
+  never two on one tile and the same for every player. Between them the towns cover the well, gossip, children,
+  sweeping, porters, cats, dogs, washing, firewood and the lamplighter. A capital is busier than a village, and hours
+  and weather make sense (no washing in the rain, lamps at dusk). Browser proof `e2e/everyday-scenes.mjs` (solo dev
+  build, 2026-10-27): close crops of each scene in Harrowgate; the dusk lamplighter was checked separately at 18:10.
+  No page errors.
+
 ## Limits and what is not built
 
 - Crypts have three floor plans and one riddle (the braziers). There are no multi-floor dungeons, crypt bosses or
@@ -344,6 +378,11 @@ opens the lore panel. The first reading pays 40 XP and counts toward your storie
 - Story scenes, crypts, wrecks, cairns and settlement growth exist only in revision-6 worlds, so older worlds' ground
   is untouched.
 - The subsequent bestiary batch adds seven wildlife bonds and matching original portraits; see ADVENTURER_PATHS_AND_BESTIARY.md.
+- Everyday scenes, like the street crowds, are drawn on each client and do not collide: you can walk through a
+  doorstep crate or a washing line. They exist only in the kingdom and frontier towns animated by `life.ts`
+  (Hadamere keeps its own ambient villagers). The people are anonymous and cannot be talked to. Scene props are
+  simple drawn shapes, not authored sprites. Until a villager's own appearance sheet has been built (one per frame),
+  they stay hidden rather than appear in a stock outfit.
 - Star shards are a trade good only: no recipes use them yet. Bounty beasts are ordinary hardened creatures with no
   unique attacks or art, and a bounty is told by a toast rather than a notice on a board. The sky effects are drawn in
   screen space over the world.

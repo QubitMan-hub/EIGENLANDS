@@ -1,3 +1,14 @@
+# Current continuation: everyday scenes in the towns (2026-10-27)
+
+Kingdom and frontier towns gain ordinary daily life: drawing water, washing lines, firewood, sweeping, watering
+window boxes, neighbours gossiping, children at tag, elders feeding pigeons, porters, a busker, cats and dogs, and the
+dusk lamplighter. Every door is dressed with pots, barrels, sacks, crates or firewood. The scenes follow the hours and
+the weather. Planning is in `client/src/game/scenes.ts` (pure, `scenes.test.ts`) and animation in `scene-life.ts`
+inside `life.ts`. Browser proof: `e2e/everyday-scenes.mjs`. See
+[LIVING_WORLD.md](LIVING_WORLD.md#everyday-scenes) for details and limits. The §19 statuses are in the master plan.
+
+---
+
 # Current continuation: realm generation, shadow powers and dungeon gates (2026-10-27)
 
 - **Realm generation:** `otherworlds.ts` `realmGraph` (holes, spanning tree plus loops, forced rooms), `ROOM_THEMES`

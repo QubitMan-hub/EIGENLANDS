@@ -707,7 +707,7 @@ Circuit workshop continuation: five guided patterns reuse actual tokens/edit con
 - [~] IN PROGRESS — Villagers reacting to dangerous creatures. Townsfolk within 7 tiles of a hostile creature flee and cry out, then settle; knights and royals stand. A client-only visual layer (`packages/client/src/game/life.ts`), built for the settlement you stand in; browser tour `e2e/life-tour.mjs`, not run in CI and no unit test yet; named residents' server schedules do not react.
 - [x] IMPLEMENTED & TESTED — Natural weather responses. Residents' schedules and street crowds shelter from rain (with umbrellas), wild folk go home in storms, cottage families stay in when it rains; puddles in rain, footprints in snow, sand and mud, rain and thunder in the soundscape.
 - [x] IMPLEMENTED & TESTED — Small discoverable stories and secrets. Seed-written story scenes, shipwrecks, summit cairns and crypts.
-- [ ] NOT STARTED — These details should make simply walking around the world enjoyable.
+- [~] IN PROGRESS — These details should make simply walking around the world enjoyable. Everyday scenes (2026-10-27): the well, washing lines, firewood, sweeping, window boxes, gossiping neighbours, children at tag, elders and pigeons, porters, a busker, cats and dogs, the dusk lamplighter and dressed doorsteps, following hours and weather (`client/src/game/scenes.ts`, `scenes.test.ts`, LIVING_WORLD.md). Client-side and non-colliding.
 
 ## 20. TECHNICAL QUALITY & PERFORMANCE
 

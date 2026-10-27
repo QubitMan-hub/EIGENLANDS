@@ -457,6 +457,7 @@ export class Game {
       toScreen: (x, y) => ({ x: this.world.x + isoX(x, y) * this.scale, y: this.world.y + isoY(x, y) * this.scale }),
       hostiles: () =>
         [...this.views.values()].filter((v) => v.type === 'enemy' && v.root.visible).map((v) => ({ x: v.lx, y: v.ly })),
+      held: () => this.heldWeapons,
     });
     this.combat = new CombatView(
       {
