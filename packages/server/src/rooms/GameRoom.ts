@@ -453,8 +453,8 @@ export class GameRoom extends WorldRoom {
   summonBoss(p: ServerPlayer, itemId: string, x: number, y: number): boolean {
     return this.bosses?.summon(p, itemId, x, y) ?? false;
   }
-  cryptInteract(p: ServerPlayer, o: WorldObj): void {
-    this.crypts?.open(p, o);
+  async cryptInteract(p: ServerPlayer, o: WorldObj): Promise<void> {
+    await this.crypts?.interact(p, o);
   }
   vaultGuard(p: ServerPlayer, o: WorldObj): boolean {
     return this.caves?.guard(p, o) ?? false;

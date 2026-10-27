@@ -296,8 +296,8 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
     await climb(room, p, o);
     return;
   }
-  if (o.static && o.sub === 'ruin_crypt') {
-    room.cryptInteract?.(p, o);
+  if (o.static && (o.sub === 'ruin_crypt' || o.sub === 'crypt_exit' || o.sub === 'crypt_reliquary')) {
+    await room.cryptInteract?.(p, o);
     return;
   }
   if (o.static && STORY_READABLE.has(o.sub)) {

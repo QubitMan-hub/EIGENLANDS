@@ -1,9 +1,27 @@
 /**
- * Ruin crypts (master plan §16 "dungeons and ruins"; placement in shared/src/stories.ts). Breaking a crypt's seal
- * wakes three waves of wardens round its door; a traveller who outlasts them opens the reliquary, once. Walking away,
- * dying or taking too long lets the wardens sink back into the earth, and the seal can be tried again.
+ * Ruin crypts (master plan §16 "dungeons and ruins"; layout in shared/src/crypts.ts). The sealed door under a ruin
+ * leads down to a real interior: an entrance with stairs back up, a passage, the wardens' hall and the reliquary
+ * chamber. The first time a traveller steps into the hall the wardens rise there in three waves; everyone in the
+ * crypt fights them together. Clearing the hall unseals the reliquary for each traveller who was there, once each.
+ * Leaving the crypt, falling or taking too long lets the wardens sink back, and the hall can be tried again.
  */
-import { ruinLoot, storyText, type Biome, type EnemyKindName, type Stack, type WorldObj } from '@eigenlands/shared';
+import {
+  CHUNK_SIZE,
+  cryptAt,
+  cryptArrival,
+  cryptOf,
+  cryptSurface,
+  cryptWardenSpots,
+  inCryptHall,
+  isCryptY,
+  ruinLoot,
+  ruinOfCell,
+  storyText,
+  type CryptSite,
+  type EnemyKindName,
+  type Stack,
+  type WorldObj,
+} from '@eigenlands/shared';
 import type { Enemy } from '../../game/enemies';
 import type { GameRoom } from '../../rooms/GameRoom';
 import type { ServerPlayer } from '../../rooms/player';
@@ -16,22 +34,22 @@ const WAVES: ReadonlyArray<readonly EnemyKindName[]> = [
   ['vault_guardian', 'wisp', 'wisp'],
   ['vault_guardian', 'vault_guardian', 'brute'],
 ];
-/** a trial is lost if the challenger strays this far from the door, or after this long */
-const LEASH = 22;
 const TRIAL_SECS = 300;
 const RARE = ['heart_crystal', 'shrine_shard', 'qubit_tea', 'outfit_gold'];
 
 interface Trial {
-  pid: string;
-  ruin: string;
-  biome: Biome;
-  x: number;
-  y: number;
+  crypt: CryptSite;
   wave: number;
   enemies: Set<string>;
   next: number;
   until: number;
+  /** everyone who has fought in the hall this time */
+  party: Set<string>;
 }
+
+const chunkOf = (v: number) => Math.floor(v / CHUNK_SIZE);
+const clearedKey = (ruin: string) => `cryptclear:${ruin}`;
+const lootedKey = (ruin: string) => `crypt:${ruin}`;
 
 export class CryptModule implements Module {
   private t = 0;
@@ -41,127 +59,150 @@ export class CryptModule implements Module {
 
   install(_reg: Registrar): void {}
 
-  private key(ruin: string): string {
-    return `crypt:${ruin}`;
+  private cryptOfObj(o: WorldObj): CryptSite | null {
+    const id = (o.data as { ruin?: unknown } | undefined)?.ruin;
+    const m = typeof id === 'string' ? /^ru(-?\d+)_(-?\d+)$/.exec(id) : null;
+    const r = m ? ruinOfCell(this.room.seed, Number(m[1]), Number(m[2])) : null;
+    return r ? cryptOf(this.room.seed, r) : null;
   }
 
-  /** Break the seal: the challenger stands at the door. */
-  open(p: ServerPlayer, o: WorldObj): boolean {
-    const d = (o.data ?? {}) as { ruin?: string; biome?: string };
-    if (typeof d.ruin !== 'string') return false;
-    if (p.data.prog.ruins.includes(this.key(d.ruin))) {
-      p.toast('The reliquary stands open and empty. The wardens sleep.', 'info');
-      return false;
-    }
-    if (this.trials.has(d.ruin)) {
-      p.toast('The wardens are already awake!', 'bad');
-      return false;
-    }
-    if (p.level < CRYPT_LEVEL) {
-      p.toast(`The seal will not yield to you. Return at level ${CRYPT_LEVEL}.`, 'bad');
-      return false;
-    }
-    const biome = (d.biome ?? 'meadow') as Biome;
-    const txt = storyText(this.room.seed, d.ruin, 'crypt', biome, o.x, o.y);
-    this.trials.set(d.ruin, {
-      pid: p.id,
-      ruin: d.ruin,
-      biome,
-      x: o.x + 0.5,
-      y: o.y + 0.5,
-      wave: 0,
-      enemies: new Set(),
-      next: this.t + 1.5,
-      until: this.t + TRIAL_SECS,
-    });
-    p.toast(`${txt.plaque}. The seal cracks and the wardens rise!`, 'bad');
-    return true;
+  private async move(p: ServerPlayer, to: { x: number; y: number }): Promise<void> {
+    await this.room.ensureChunk(chunkOf(to.x), chunkOf(to.y));
+    p.sim.x = to.x;
+    p.sim.y = to.y;
+    p.sim.dashT = 0;
+    p.sim.mount = 0;
+    p.queue.length = 0;
+    this.room.fx({ kind: 'craft', x: to.x, y: to.y });
   }
 
-  /** the trial a player is in, for tests */
-  trialOf(p: { id: string }): { ruin: string; wave: number; enemies: string[] } | null {
-    for (const tr of this.trials.values())
-      if (tr.pid === p.id) return { ruin: tr.ruin, wave: tr.wave, enemies: [...tr.enemies] };
-    return null;
-  }
-
-  private spawnWave(tr: Trial, p: ServerPlayer): void {
-    const kinds = WAVES[tr.wave]!;
-    kinds.forEach((kind, i) => {
-      for (let k = 0; k < 10; k++) {
-        const a = ((i + k * 0.37) / kinds.length) * Math.PI * 2;
-        const r = 4 + (k % 3);
-        const ex = Math.floor(tr.x + Math.cos(a) * r),
-          ey = Math.floor(tr.y + Math.sin(a) * r);
-        if (this.room.store.solidAt(ex, ey) || !this.room.owns(ex, ey)) continue;
-        const e = this.room.spawnEnemy(kind, ex + 0.5, ey + 0.5, false, { level: Math.max(3, p.level) });
-        tr.enemies.add(e.id);
-        break;
+  async interact(p: ServerPlayer, o: WorldObj): Promise<void> {
+    const c = this.cryptOfObj(o);
+    if (!c || p.deadT > 0) return;
+    const prog = p.data.prog.ruins;
+    if (o.sub === 'ruin_crypt') {
+      if (p.level < CRYPT_LEVEL) {
+        p.toast(`The seal will not yield to you. Return at level ${CRYPT_LEVEL}.`, 'bad');
+        return;
       }
-    });
-    p.toast(`Wave ${tr.wave + 1} of ${WAVES.length}: the wardens come!`, 'bad');
+      const txt = storyText(this.room.seed, c.ruin.id, 'crypt', c.ruin.biome, c.door.x, c.door.y);
+      await this.move(p, cryptArrival(c));
+      p.toast(
+        prog.includes(lootedKey(c.ruin.id))
+          ? 'You go down into the crypt. The wardens sleep; the reliquary stands empty.'
+          : `${txt.plaque}. You go down the steps into the dark.`,
+        'info',
+      );
+    } else if (o.sub === 'crypt_exit') {
+      await this.move(p, cryptSurface(c));
+      p.toast('You climb back up into the ruin.', 'info');
+    } else if (o.sub === 'crypt_reliquary') this.openReliquary(p, c, o);
   }
 
-  private end(tr: Trial, p: ServerPlayer | undefined, won: boolean, why = ''): void {
-    this.trials.delete(tr.ruin);
-    for (const id of tr.enemies) {
-      this.room.enemies.delete(id);
-      this.room.state.enemies.delete(id);
+  private openReliquary(p: ServerPlayer, c: CryptSite, o: WorldObj): void {
+    const prog = p.data.prog.ruins;
+    if (prog.includes(lootedKey(c.ruin.id))) {
+      p.toast('The reliquary stands open and empty.', 'info');
+      return;
     }
-    if (!p) return;
-    if (!won) {
-      p.toast(why || 'The wardens sink back into the earth. The seal closes.', 'bad');
+    if (!prog.includes(clearedKey(c.ruin.id))) {
+      p.toast('The reliquary is sealed while its wardens still stand.', 'bad');
       return;
     }
     const rand = this.room.rand;
     const loot: Stack[] = [
-      ...ruinLoot(this.room.seed, tr.ruin, tr.biome, rand),
-      ...ruinLoot(this.room.seed, tr.ruin, tr.biome, rand),
+      ...ruinLoot(this.room.seed, c.ruin.id, c.ruin.biome, rand),
+      ...ruinLoot(this.room.seed, c.ruin.id, c.ruin.biome, rand),
     ];
     if (rand() < 0.35) loot.push({ id: RARE[Math.floor(rand() * RARE.length)]!, n: 1 });
     if (!giveStacks(p, loot)) {
-      p.toast('The reliquary is open, but your pack is too full. Make room and touch the door again.', 'bad');
+      p.toast('Your pack is too full to carry the reliquary’s treasure. Make room and come back.', 'bad');
       return;
     }
     const coins = 60 + p.level * 10;
     p.data.coins += coins;
-    p.data.prog.ruins.push(this.key(tr.ruin));
+    prog.push(lootedKey(c.ruin.id));
     p.dirty('inv', 'coins');
     this.room.grantXp(p, 120 + p.level * 15);
-    this.room.fx({ kind: 'chest', x: tr.x, y: tr.y });
-    p.toast(`The last warden falls. The reliquary opens! (+${coins} coins)`, 'good');
+    this.room.fx({ kind: 'chest', x: o.x + 0.5, y: o.y + 0.5 });
+    p.toast(`The reliquary opens! (+${coins} coins)`, 'good');
+  }
+
+  /** the trial in a crypt, for tests */
+  trialOf(ruin: string): { wave: number; enemies: string[]; party: string[] } | null {
+    const tr = this.trials.get(ruin);
+    return tr ? { wave: tr.wave, enemies: [...tr.enemies], party: [...tr.party] } : null;
+  }
+
+  private spawnWave(tr: Trial, level: number): void {
+    const spots = cryptWardenSpots(tr.crypt);
+    WAVES[tr.wave]!.forEach((kind, i) => {
+      const s = spots[(i + tr.wave) % spots.length]!;
+      const e = this.room.spawnEnemy(kind, s.x, s.y, false, { level: Math.max(3, level) });
+      tr.enemies.add(e.id);
+    });
+    for (const pid of tr.party)
+      this.room.players.get(pid)?.toast(`Wave ${tr.wave + 1} of ${WAVES.length}: the wardens rise!`, 'bad');
+  }
+
+  private end(tr: Trial, won: boolean): void {
+    this.trials.delete(tr.crypt.ruin.id);
+    for (const id of tr.enemies) {
+      this.room.enemies.delete(id);
+      this.room.state.enemies.delete(id);
+    }
+    for (const pid of tr.party) {
+      const p = this.room.players.get(pid);
+      if (!p) continue;
+      if (won) {
+        if (!p.data.prog.ruins.includes(clearedKey(tr.crypt.ruin.id)))
+          p.data.prog.ruins.push(clearedKey(tr.crypt.ruin.id));
+        p.dirty('stats');
+        p.toast('The last warden falls. At the far end of the crypt, the reliquary’s seal breaks.', 'good');
+      } else if (isCryptY(p.sim.y)) p.toast('The wardens sink back into the stone. The hall falls silent.', 'bad');
+    }
   }
 
   tick(_now: number, dt: number): void {
     this.t += dt;
+    // who is in which crypt
+    const inside = new Map<string, ServerPlayer[]>();
+    for (const p of this.room.players.values()) {
+      if (p.deadT > 0 || !isCryptY(p.sim.y)) continue;
+      const c = cryptAt(this.room.seed, Math.floor(p.sim.x), Math.floor(p.sim.y));
+      if (!c) continue;
+      const list = inside.get(c.ruin.id) ?? [];
+      list.push(p);
+      inside.set(c.ruin.id, list);
+      // stepping into the hall wakes the wardens for anyone who has not yet cleared it
+      if (
+        inCryptHall(c, p.sim.x, p.sim.y) &&
+        !this.trials.has(c.ruin.id) &&
+        !p.data.prog.ruins.includes(clearedKey(c.ruin.id))
+      ) {
+        this.trials.set(c.ruin.id, {
+          crypt: c,
+          wave: 0,
+          enemies: new Set(),
+          next: this.t + 1.2,
+          until: this.t + TRIAL_SECS,
+          party: new Set([p.id]),
+        });
+        p.toast('Dust falls from the ceiling. Something stirs in the hall…', 'bad');
+      }
+    }
     for (const tr of [...this.trials.values()]) {
-      const p = this.room.players.get(tr.pid);
-      if (!p) {
-        this.end(tr, undefined, false);
+      const here = inside.get(tr.crypt.ruin.id) ?? [];
+      for (const p of here) if (inCryptHall(tr.crypt, p.sim.x, p.sim.y)) tr.party.add(p.id);
+      if (!here.length || this.t > tr.until) {
+        this.end(tr, false);
         continue;
       }
-      if (p.deadT > 0) {
-        this.end(tr, p, false, 'You fall before the crypt. The wardens sink back into the earth.');
-        continue;
-      }
-      if (Math.hypot(p.sim.x - tr.x, p.sim.y - tr.y) > LEASH) {
-        this.end(tr, p, false, 'You fled the crypt. The wardens sink back into the earth.');
-        continue;
-      }
-      if (this.t > tr.until) {
-        this.end(tr, p, false);
-        continue;
-      }
-      // wardens that left the world another way no longer count
       for (const id of tr.enemies) if (!this.room.enemies.has(id)) tr.enemies.delete(id);
       if (tr.enemies.size || this.t < tr.next) continue;
-      if (tr.wave >= WAVES.length) this.end(tr, p, true);
+      if (tr.wave >= WAVES.length) this.end(tr, true);
       else {
-        this.spawnWave(tr, p);
-        if (!tr.enemies.size) {
-          this.end(tr, p, false, 'Rubble chokes the crypt: no warden can rise here.');
-          continue;
-        }
+        this.spawnWave(tr, Math.max(...here.map((p) => p.level)));
         tr.wave++;
         tr.next = this.t + 2;
       }
@@ -170,9 +211,5 @@ export class CryptModule implements Module {
 
   killed(e: Enemy): void {
     for (const tr of this.trials.values()) tr.enemies.delete(e.id);
-  }
-
-  leave(p: ServerPlayer): void {
-    for (const tr of [...this.trials.values()]) if (tr.pid === p.id) this.end(tr, undefined, false);
   }
 }

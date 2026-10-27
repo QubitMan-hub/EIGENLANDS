@@ -7,6 +7,7 @@ import { REALM_SITE_BY_ID, nearestRealm, type RealmSite } from './realms';
 import { isCaveY } from './caves';
 import { isUpperY } from './floors';
 import { isDiveY } from './sanctuaries';
+import { isCryptY } from './cryptplane';
 import { shrinesNear } from './shrines';
 import { ruinOfCell } from './ruins';
 import { activeGeneration } from './generation-registry';
@@ -67,7 +68,7 @@ const NET_NAMES: Record<string, string> = {
 export const netName = (net: string): string => NET_NAMES[net] ?? net;
 export const wayNet = (x: number, y: number): string =>
   isCaveY(y) && !isDiveY(y) ? 'undercroft' : (nearestRealm(x, y)?.id ?? 'home');
-const surfaceY = (y: number): boolean => !isCaveY(y) && !isUpperY(y) && !isDiveY(y);
+const surfaceY = (y: number): boolean => !isCaveY(y) && !isUpperY(y) && !isDiveY(y) && !isCryptY(y);
 /** The Undercroft's settlements keep a network of their own (no wild stones underground). */
 const undercroftY = (y: number): boolean => isCaveY(y) && !isDiveY(y) && !isUpperY(y);
 

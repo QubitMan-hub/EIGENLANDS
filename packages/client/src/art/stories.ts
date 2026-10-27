@@ -216,7 +216,89 @@ function crypt(face: Facing): ObjSprite {
   );
 }
 
+const GILT: Ramp = [C.e0, C.e2, C.e4, C.c3, C.c4, C.e7];
+const BONE: Ramp = [C.mist, C.fog, C.pale, C.white];
+
+/** steps rising to a square of daylight under a stone lintel */
+function cryptExit(face: Facing): ObjSprite {
+  return iso(
+    48,
+    64,
+    face,
+    (p) => {
+      for (let k = 0; k < 5; k++) p.box(3, 10 - k * 2, k * 3, 10, 2, 3, { ramp: STONEM });
+      for (const a of [1, 13]) p.box(a, 0, 0, 2, 12, 18, { ramp: STONEM });
+      p.box(1, 0, 18, 14, 3, 3, {
+        ramp: STONEM,
+        front: (s, t) => (t > 0.3 && t < 0.7 && Math.round(s * 12) % 3 === 0 ? RUNE : null),
+      });
+      p.box(3, 0, 15, 10, 0.6, 3, { ramp: [C.e5, C.e6, C.e7, C.white, C.white] }); // the light from above
+    },
+    { margin: 8 },
+  );
+}
+
+/** a gilded reliquary on a stepped dais, runes glowing along its lid */
+function reliquary(face: Facing): ObjSprite {
+  return iso(
+    44,
+    48,
+    face,
+    (p) => {
+      p.box(1, 1, 0, 14, 14, 2, { ramp: STONEM });
+      p.box(3, 3, 2, 10, 10, 2, { ramp: STONEM });
+      p.box(4, 5, 4, 8, 6, 6, {
+        ramp: GILT,
+        front: (s, t) => (Math.abs(t - 0.5) < 0.1 && s > 0.15 && s < 0.85 ? RUNE : null),
+      });
+      p.box(3.6, 4.6, 10, 8.8, 6.8, 1.6, { ramp: GILT });
+      p.box(7, 7, 11.6, 2, 2, 1.6, { ramp: [C.q3, C.q5, C.q6, C.q7] }); // a gem on the lid
+    },
+    { margin: 8 },
+  );
+}
+
+/** a stone coffin with a carved effigy on its lid */
+function sarcophagus(face: Facing): ObjSprite {
+  return iso(
+    44,
+    40,
+    face,
+    (p) => {
+      p.box(2, 4, 0, 13, 7, 5, {
+        ramp: STONEM,
+        front: (s, t) => (t > 0.4 && t < 0.6 && Math.round(s * 13) % 4 === 0 ? C.night : null),
+      });
+      p.box(1.5, 3.5, 5, 14, 8, 1.4, { ramp: STONEM });
+      p.box(4, 5.5, 6.4, 9, 4, 1.6, { ramp: [C.slate, C.steel, C.mist, C.fog] }); // the effigy
+      p.box(12, 6.5, 8, 2, 2, 1.2, { ramp: [C.slate, C.steel, C.mist, C.fog] });
+    },
+    { margin: 8 },
+  );
+}
+
+function bones(face: Facing): ObjSprite {
+  return iso(
+    32,
+    20,
+    face,
+    (p) => {
+      p.box(3, 5, 0, 7, 1, 0.8, { ramp: BONE });
+      p.box(6, 2, 0, 1, 8, 0.8, { ramp: BONE });
+      p.box(10, 7, 0, 3, 3, 2.4, {
+        ramp: BONE,
+        front: (s, t) => (t > 0.3 && t < 0.6 && Math.abs(s - 0.5) > 0.15 && Math.abs(s - 0.5) < 0.35 ? C.ink : null),
+      });
+    },
+    { margin: 4 },
+  );
+}
+
 export const STORY_ART: Record<string, (face: Facing) => ObjSprite> = {
+  crypt_exit: cryptExit,
+  crypt_reliquary: reliquary,
+  crypt_sarcophagus: sarcophagus,
+  crypt_bones: bones,
   story_firepit: firepit,
   story_bedroll: bedroll,
   story_journal: journal,

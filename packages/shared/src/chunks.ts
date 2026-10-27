@@ -13,6 +13,7 @@ import { objSolid, propFootprint, type WorldObj } from './objects';
 import { townsFor } from './town';
 import { ruinObjectsIn } from './ruins';
 import { storyObjectsIn } from './stories';
+import { cryptObjectsIn, isCryptY } from './crypts';
 import { waystoneObjectsIn } from './travel';
 import { caveObjectsIn, isCaveY } from './caves';
 import { shrineObjectsIn } from './shrines';
@@ -192,16 +193,20 @@ export class ChunkStore {
     ];
     const wild = isCaveY(cy * CHUNK_SIZE)
       ? [...caveObjectsIn(this.seed, cx, cy, this.generation), ...shrineObjectsIn(this.seed, cx, cy)]
-      : isDiveY(cy * CHUNK_SIZE)
-        ? sanctuaryObjectsIn(this.seed, cx, cy)
-        : [
-            ...sanctuaryObjectsIn(this.seed, cx, cy),
-            ...oceanObjectsIn(this.seed, cx, cy),
-            ...shrineObjectsIn(this.seed, cx, cy),
-            ...ruinObjectsIn(this.seed, cx, cy),
-            ...storyObjectsIn(this.seed, cx, cy, this.generation),
-            ...caveObjectsIn(this.seed, cx, cy, this.generation),
-          ];
+      : isCryptY(cy * CHUNK_SIZE)
+        ? this.generation >= 6
+          ? cryptObjectsIn(this.seed, cx, cy)
+          : []
+        : isDiveY(cy * CHUNK_SIZE)
+          ? sanctuaryObjectsIn(this.seed, cx, cy)
+          : [
+              ...sanctuaryObjectsIn(this.seed, cx, cy),
+              ...oceanObjectsIn(this.seed, cx, cy),
+              ...shrineObjectsIn(this.seed, cx, cy),
+              ...ruinObjectsIn(this.seed, cx, cy),
+              ...storyObjectsIn(this.seed, cx, cy, this.generation),
+              ...caveObjectsIn(this.seed, cx, cy, this.generation),
+            ];
     const placed = (this.generation >= 3 ? wild.filter((o) => this.seaSiteStillAtSea(o)) : wild).filter(
       (o) => this.generation < 6 || !frontierTownAt(this.seed, o.x, o.y, this.generation),
     );

@@ -11,6 +11,7 @@ import {
   moveBody,
   isCaveY,
   isDiveY,
+  isCryptY,
   isUpperY,
   type WorldObj,
 } from '@eigenlands/shared';
@@ -75,7 +76,15 @@ export class Ranch implements Module {
       p.toast('Mount trained. Ready to saddle up.', 'good');
       void handleOpen(this.room, p, { tx: o.x, ty: o.y });
     } else if (m.action === 'ride') {
-      if (!a.trained || p.sim.boat || p.sim.cart || isCaveY(p.sim.y) || isDiveY(p.sim.y) || isUpperY(p.sim.y)) {
+      if (
+        !a.trained ||
+        p.sim.boat ||
+        p.sim.cart ||
+        isCaveY(p.sim.y) ||
+        isDiveY(p.sim.y) ||
+        isUpperY(p.sim.y) ||
+        isCryptY(p.sim.y)
+      ) {
         p.toast('Ride a trained mount on the surface, away from boats and carts.');
         return;
       }
@@ -122,6 +131,7 @@ export class Ranch implements Module {
         p.sim.cart ||
         isCaveY(p.sim.y) ||
         isDiveY(p.sim.y) ||
+        isCryptY(p.sim.y) ||
         isUpperY(p.sim.y) ||
         !!buildingAt(this.room.seed, Math.floor(p.sim.x), Math.floor(p.sim.y)) ||
         this.room.store.structureAt(Math.floor(p.sim.x), Math.floor(p.sim.y))?.data?.roof

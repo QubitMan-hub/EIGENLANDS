@@ -1,6 +1,8 @@
 import { portElevation, portChannel } from './settlements';
 import { isUpperY } from './floors';
 import { sanctuaryTileAt } from './sanctuaries';
+import { cryptTileAt } from './crypts';
+import { isCryptY } from './cryptplane';
 import { spacedTree } from './distribution';
 import { CHUNK_SIZE } from './constants';
 import { hash2 } from './rng';
@@ -247,6 +249,8 @@ function surfaceTileAt(seed: number, x: number, y: number, legacy: boolean, gene
   const gen = legacy ? 1 : generation;
   const sanctuary = sanctuaryTileAt(seed, x, y);
   if (sanctuary !== null) return sanctuary;
+  // crypt interiors exist only in worlds that have crypts (revision 6)
+  if (isCryptY(y)) return gen >= 6 ? (cryptTileAt(seed, x, y) ?? T.CAVE_WALL) : T.CAVE_WALL;
   if (isCaveY(y))
     return (
       townTileAt(seed, x, y, gen) ?? (!legacy && gen >= 4 ? caveTileAt2(seed, x, y) : caveTileAt(seed, x, y, legacy))
@@ -477,6 +481,18 @@ function realmAwareLevels(seed: number, cx: number, cy: number, generation: Worl
 
 /** Elevation level of every tile of a chunk (all zero before revision 3). */
 const generatedLevels = new Map<string, Uint8Array>();
+/** Crypt rooms are hewn down into the rock: every wall stands a full cliff above the floors. */
+function cryptLevels(seed: number, cx: number, cy: number, generation: WorldGeneration): Uint8Array {
+  const out = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
+  if (generation < 6) return out.fill(3);
+  for (let j = 0; j < CHUNK_SIZE; j++)
+    for (let i = 0; i < CHUNK_SIZE; i++) {
+      const t = cryptTileAt(seed, cx * CHUNK_SIZE + i, cy * CHUNK_SIZE + j);
+      out[j * CHUNK_SIZE + i] = t === T.CAVE_WALL ? 3 : 0;
+    }
+  return out;
+}
+
 export function generateLevels(
   seed: number,
   cx: number,
@@ -485,6 +501,7 @@ export function generateLevels(
 ): Uint8Array {
   if (generation < 3) return new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
   if (generation >= 4 && isCaveY(cy * CHUNK_SIZE)) return caveLevels(seed, cx, cy);
+  if (isCryptY(cy * CHUNK_SIZE)) return cryptLevels(seed, cx, cy, generation);
   if (generation >= 5) return realmAwareLevels(seed, cx, cy, generation);
   const key = `${generation}:${seed}:${cx},${cy}`,
     cached = generatedLevels.get(key);

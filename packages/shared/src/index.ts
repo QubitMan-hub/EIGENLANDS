@@ -95,3 +95,4 @@ export * from './npc-ties';
 export * from './stories';
 export * from './wayfarers';
 export * from './wildfolk';
+export * from './crypts';
