@@ -11,6 +11,8 @@ import {
   neighboursText,
   tieGossipOn,
   marriesOn,
+  RECRUIT_ROLES,
+  recruitFee,
   royalCelebration,
   tieNewsOn,
   localPriceFactor,
@@ -121,6 +123,7 @@ export class Village implements VillageSystem {
 
   /** the schedule block for now; on a kingdom's festival day its folk gather in the plaza from noon until night */
   private blockAt(def: NpcDef, hour: number, weather: ReturnType<VillageHost['clock']['weather']>): ScheduleBlock {
+    if (this.host.away?.(def.id)) return { h0: 0, h1: 24, spot: def.home, doing: 'away on a hired contract' };
     const block = scheduleAt(def, hour, weather);
     if (def.realm && hour >= 12 && hour < 22 && def.role !== 'guard' && def.role !== 'archer' && def.role !== 'ruler') {
       const day = this.host.clock.day();
@@ -403,6 +406,12 @@ export class Village implements VillageSystem {
     }));
     if (def.settlement && def.shop && this.host.hire)
       ch.push({ id: 'hire', text: 'Guild escort · 250 coins / 30 min · companion slot', kind: 'ask' });
+    else if (def.realm && RECRUIT_ROLES.has(def.role ?? '') && this.host.hire)
+      ch.push({
+        id: 'hire',
+        text: `Hire me · from ${recruitFee(def.role, 5)} coins / hour · companion slot`,
+        kind: 'ask',
+      });
     ch.push({ id: 'ask', text: 'Ask about…', kind: 'ask' });
     return ch;
   }

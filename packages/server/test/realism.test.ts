@@ -1,5 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { MSG, MSG_TRAVEL, STABLE_FEE, T, arrivalOf, waystonesNear } from '@eigenlands/shared';
+import {
+  MSG,
+  MSG34,
+  MSG_TRAVEL,
+  STABLE_FEE,
+  T,
+  arrivalOf,
+  realmNpcs,
+  recruitFee,
+  waystonesNear,
+} from '@eigenlands/shared';
 import type { App } from '../src/app';
 import { boot3, clearEnemies, dev, setLevel, sleep, spawn3, tp, until, type P3 } from './p3helpers';
 
@@ -161,5 +171,36 @@ describe('water and mounts', () => {
     await until(() => p.toasts.some((t) => /balanced diet/.test(t.text)), 3000);
     expect(p.sp.data.buffs.regen?.until ?? 0).toBeGreaterThan(p.room.wclock.now() + 500_000);
     await p.r.leave();
+  });
+});
+
+describe('hiring residents', () => {
+  it('a guard who is a friend signs on for an hour, with one employer at a time and a refund for ending early', async () => {
+    const a = await spawn3(app, 'Captain');
+    const b = await spawn3(app, 'Rival');
+    await setLevel(a, 6);
+    await setLevel(b, 6);
+    const guard = realmNpcs().find((n) => n.role === 'guard')!;
+    // strangers are turned away
+    expect(a.room.shadows.hire(a.sp, guard.id)).toMatch(/Get to know me/);
+    a.sp.data.friends[guard.id] = { pts: 2000 } as never;
+    b.sp.data.friends[guard.id] = { pts: 2000 } as never;
+    a.sp.data.coins = b.sp.data.coins = 2000;
+    const fee = recruitFee(guard.role, a.sp.level);
+    expect(a.room.shadows.hire(a.sp, guard.id)).toMatch(/coins it is/);
+    expect(a.sp.data.coins).toBe(2000 - fee);
+    await until(() => !!a.room.shadows.stateOf(a.sid)?.data.roster.some((r) => r.npc === guard.id), 3000);
+    expect(a.room.shadows.employerOf(guard.id)).toBe(a.sp);
+    // nobody else can hire them meanwhile
+    expect(b.room.shadows.hire(b.sp, guard.id)).toMatch(/sworn to Captain/);
+    // ending at once refunds half of the unused hour
+    const rec = a.room.shadows.stateOf(a.sid)!.data.roster.find((r) => r.npc === guard.id)!;
+    a.r.send(MSG34.SHADOW_CMD, { act: 'release', id: rec.id });
+    await until(() => !a.room.shadows.employerOf(guard.id), 3000);
+    expect(a.sp.data.coins).toBeGreaterThanOrEqual(2000 - fee + Math.floor(fee * 0.49));
+    // and now they are free for someone else
+    expect(b.room.shadows.hire(b.sp, guard.id)).toMatch(/coins it is/);
+    await a.r.leave();
+    await b.r.leave();
   });
 });

@@ -484,7 +484,7 @@ export class ShadowClient implements ClientModule {
           h('span', {
             class: 'sh-rank',
             text: rec.contractUntil
-              ? `Guild contract · ${Math.max(0, Math.ceil((rec.contractUntil - Date.now()) / 60000))} min`
+              ? `${rec.npc ? 'Hired' : 'Guild contract'} · ${Math.max(0, Math.ceil((rec.contractUntil - Date.now()) / 60000))} min left`
               : `${SHADOW_RANKS[rank]} · Lv ${rec.level}`,
           }),
         ),
@@ -514,11 +514,14 @@ export class ShadowClient implements ClientModule {
             }),
         h('button', {
           class: 'danger',
-          text: 'Release',
+          text: rec.npc ? 'End contract' : 'Release',
           data: { shControl: `release-${rec.id}` },
           on: {
             click: () => {
-              if (window.confirm(`Release ${rec.name} forever?`)) this.send({ act: 'release', id: rec.id });
+              const ask = rec.npc
+                ? `End ${rec.name}'s contract now? Half of the unused time is refunded.`
+                : `Release ${rec.name} forever?`;
+              if (window.confirm(ask)) this.send({ act: 'release', id: rec.id });
             },
           },
         }),

@@ -315,6 +315,7 @@ export class GameRoom extends WorldRoom {
           const p = this.players.get(player.id);
           return p ? this.shadows.hire(p, id) : 'The guild is unavailable.';
         },
+        away: (id) => !!this.shadows?.employerOf(id),
         loadBlob: (key) => host.loadBlob(prefix + key),
         saveBlob: (key, value) => host.saveBlob(prefix + key, value),
       },

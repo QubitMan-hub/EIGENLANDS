@@ -9,6 +9,11 @@ import {
   PLAYER_SPEED,
   BOND_RANGE,
   companionBond,
+  RECRUIT_HEARTS,
+  RECRUIT_ROLES,
+  RECRUIT_TERM_MS,
+  hearts,
+  recruitFee,
   FOX_FINDS,
   FOX_FORAGE_SECS,
   ITEMS,
@@ -126,9 +131,15 @@ const clean = (raw: unknown): Saved => {
     )
       continue;
     if (k === 21 && (!Number.isFinite(x.contractUntil) || x.contractUntil! <= Date.now())) continue;
+    const npc = k === 21 && typeof x.npc === 'string' && NPC_BY_ID[x.npc] ? x.npc : undefined;
     out.roster.push({
       ...(bonded ? { bonded: true as const } : {}),
-      ...(k === 21 ? { contractUntil: Math.min(x.contractUntil!, Date.now() + 30 * 60_000) } : {}),
+      ...(k === 21
+        ? { contractUntil: Math.min(x.contractUntil!, Date.now() + (npc ? RECRUIT_TERM_MS : 30 * 60_000)) }
+        : {}),
+      ...(npc ? { npc } : {}),
+      ...(k === 21 && Number.isFinite(x.paid) ? { paid: Math.max(0, Math.min(5000, Math.floor(x.paid!))) } : {}),
+      ...(k === 21 && Number.isFinite(x.term) ? { term: Math.max(1, Math.min(RECRUIT_TERM_MS, x.term!)) } : {}),
       id: x.id,
       kind: k,
       name: String(x.name ?? '').slice(0, 20) || (bonded ? companionBond(k)!.name : newShadow(x.id, k, 1).name),
@@ -312,6 +323,7 @@ export class ShadowModule implements Module {
     const L = this.live.get(p.id),
       npc = NPC_BY_ID[npcId],
       friend = p.data.friends[npcId];
+    if (L && npc?.realm && RECRUIT_ROLES.has(npc.role ?? '')) return this.recruit(L, npcId);
     if (!L || !npc?.settlement || !npc.shop) return 'The harbour guild is unavailable here.';
     if (p.deadT > 0 || p.sim.boat) return 'Arrange an escort while safely ashore.';
     if (p.level < 5) return 'The guild requires an adventurer of level 5.';
@@ -338,6 +350,47 @@ export class ShadowModule implements Module {
     this.summon(L, rec.id, false);
     this.sendRoster(L);
     return 'Your guild escort is ready: thirty minutes of service for 250 coins. Use Companions & Echoes to set a stance or dismiss them. The contract clock continues while you are away.';
+  }
+
+  /** Who holds a resident's contract right now (one employer at a time, across everyone in the room). */
+  employerOf(npcId: string): ServerPlayer | null {
+    for (const L of this.live.values())
+      if (L.data.roster.some((r) => r.npc === npcId && (r.contractUntil ?? 0) > Date.now())) return L.p;
+    return null;
+  }
+
+  /** A kingdom guard, soldier, archer or commander signs on with a friend for an hour. */
+  private recruit(L: Live, npcId: string): string {
+    const p = L.p,
+      npc = NPC_BY_ID[npcId]!,
+      friend = p.data.friends[npcId];
+    if (p.deadT > 0 || p.sim.boat) return 'Let us talk terms on dry land.';
+    if (p.level < 5) return 'Come back when you have some road behind you (level 5).';
+    if (!friend || hearts(friend.pts) < RECRUIT_HEARTS)
+      return `I don't hire on with strangers. Get to know me first (${RECRUIT_HEARTS} hearts).`;
+    const boss = this.employerOf(npcId);
+    if (boss) return boss === p ? 'I am already in your service.' : `I am already sworn to ${boss.name} for now.`;
+    if (L.data.roster.length >= ROSTER_MAX || L.units.size >= shadowSlots(p.level))
+      return 'You have no room for another companion: dismiss one first.';
+    const fee = recruitFee(npc.role, p.level);
+    if (p.data.coins < fee) return `An hour of my sword is ${fee} coins.`;
+    const rec = newShadow(
+      `r${p.id.slice(0, 4)}${Date.now().toString(36)}${++L.data.seq}`,
+      21,
+      Math.min(12, Math.max(2, p.level - 1)),
+    );
+    rec.name = npc.name.slice(0, 20);
+    rec.npc = npcId;
+    rec.contractUntil = Date.now() + RECRUIT_TERM_MS;
+    rec.paid = fee;
+    rec.term = RECRUIT_TERM_MS;
+    p.data.coins -= fee;
+    p.dirty('coins');
+    L.data.roster.push(rec);
+    L.dirty = true;
+    this.summon(L, rec.id, false);
+    this.sendRoster(L);
+    return `${fee} coins it is. I'll guard your back for the hour; release me early and I'll return half of what's left.`;
   }
 
   private command(p: ServerPlayer, m: ShadowCmd): void {
@@ -386,6 +439,17 @@ export class ShadowModule implements Module {
       case 'release': {
         const i = L.data.roster.findIndex((r) => r.id === m.id);
         if (i >= 0) {
+          const rec = L.data.roster[i]!;
+          // ending a resident's lease early: half of the unused time is refunded
+          if (rec.npc && rec.paid && rec.term && rec.contractUntil) {
+            const left = Math.max(0, rec.contractUntil - Date.now()) / rec.term;
+            const back = Math.floor(rec.paid * left * 0.5);
+            if (back > 0) {
+              p.data.coins += back;
+              p.dirty('coins');
+            }
+            p.toast(`${rec.name} returns to their post${back ? ` and hands back ${back} coins` : ''}.`, 'info');
+          }
           this.dismiss(L, m.id);
           L.data.roster.splice(i, 1);
           L.dirty = true;
@@ -553,7 +617,11 @@ export class ShadowModule implements Module {
           this.dismiss(L, rec.id);
           L.data.roster = L.data.roster.filter((r) => r.id !== rec.id);
           L.dirty = true;
-          p.toast('Your guild escort’s contract has ended.');
+          p.toast(
+            rec.npc
+              ? `${rec.name}'s hour is up: they head back to their post.`
+              : 'Your guild escort’s contract has ended.',
+          );
           this.sendRoster(L);
         }
       if (L.channel) {

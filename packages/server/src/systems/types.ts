@@ -128,6 +128,8 @@ export interface WorldClock {
 
 export interface VillageHost {
   hire?: (player: PlayerRef, npcId: string) => string;
+  /** a resident out on a hired contract (they keep to their home until it ends) */
+  away?: (npcId: string) => boolean;
   seed: number;
   store: ChunkStore;
   state: WorldState;
