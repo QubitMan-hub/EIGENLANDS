@@ -11,12 +11,17 @@ import {
   MSG,
   MSG_TRAVEL,
   RECALL_AT,
+  GRIFFIN_AT,
+  isCaveY,
+  isFlying,
+  sanctuaryAt,
   ITEMS,
   MOUNT_DEFAULT_NAME,
   MOUNT_FED_MS,
   MOUNT_FEED,
   mountCode,
   mountKindOf,
+  mountFed,
   validMountName,
   type MountKind,
   type StableEntry,
@@ -127,6 +132,11 @@ export class TravelModule implements Module {
       rewards.push(`+${coins} coins`);
     }
     if (n === 1 && !p.data.prog.home) p.data.prog.home = s.id;
+    if (n >= GRIFFIN_AT && !p.data.recipes.has('griffin_whistle')) {
+      p.data.recipes.add('griffin_whistle');
+      p.dirty('recipes');
+      rewards.push('learned the Griffin Whistle (three Gilded Griffin plumes)');
+    }
     if (n >= RECALL_AT && !p.data.recipes.has('recall_shard')) {
       p.data.recipes.add('recall_shard');
       p.dirty('recipes');
@@ -204,6 +214,7 @@ export class TravelModule implements Module {
     const out: MountKind[] = [];
     if (p.data.inv.some((st) => st?.id === 'horse_whistle')) out.push('horse');
     if ((p.data.prog.mounts ?? []).includes('stag')) out.push('stag');
+    if (p.data.inv.some((st) => st?.id === 'griffin_whistle')) out.push('griffin');
     return out;
   }
   private nameOf(p: ServerPlayer, kind: MountKind): string {
@@ -273,7 +284,7 @@ export class TravelModule implements Module {
     }
     if (m.rename || m.feed) {
       const kind = m.rename?.kind ?? m.feed;
-      if (kind !== 'horse' && kind !== 'stag') return;
+      if (kind !== 'horse' && kind !== 'stag' && kind !== 'griffin') return;
       if (!this.owned(p).includes(kind)) {
         p.toast('You do not own that mount.', 'bad');
         return;
@@ -394,6 +405,16 @@ export class TravelModule implements Module {
   /** Use of a mount item: call the horse (or the Stag) and climb on, or step down. */
   toggleMount(p: ServerPlayer, kind: string): void {
     if (p.sim.mount) {
+      if (isFlying(p.sim.mount)) {
+        // a griffin can only set you down on open, walkable ground
+        const lx = Math.floor(p.sim.x),
+          ly = Math.floor(p.sim.y);
+        const lt = this.room.store.getTile(lx, ly);
+        if (this.room.store.solidAt(lx, ly) || lt === T.WATER || lt === T.DEEP_WATER || lt === T.LAVA) {
+          p.toast('There is nowhere to land here: find open ground.', 'bad');
+          return;
+        }
+      }
       p.sim.mount = 0;
       this.room.fx({ kind: 'dust', x: p.sim.x, y: p.sim.y });
       return;
@@ -414,7 +435,17 @@ export class TravelModule implements Module {
       p.toast('The bell is silent: the Stag answers only one who has attuned twelve waystones.', 'bad');
       return;
     }
-    const mk: MountKind = kind === 'stag' ? 'stag' : 'horse';
+    if (kind === 'griffin') {
+      if (isCaveY(p.sim.y)) {
+        p.toast('The griffin will not fly beneath the earth.', 'bad');
+        return;
+      }
+      if (sanctuaryAt(this.room.seed, p.sim.x, p.sim.y)) {
+        p.toast('The town wards unsettle your griffin: take off outside the settlement.', 'bad');
+        return;
+      }
+    }
+    const mk: MountKind = kind === 'stag' ? 'stag' : kind === 'griffin' ? 'griffin' : 'horse';
     p.sim.mount = mountCode(mk, this.fedUntil(p, mk) > this.room.wclock.now());
     p.toast(`You call ${this.nameOf(p, mk)} and swing into the saddle.`, 'info');
     p.sim.sprint = 0;
@@ -429,9 +460,9 @@ export class TravelModule implements Module {
     const wnow = this.room.wclock.now();
     for (const p of this.room.players.values()) {
       const mk = mountKindOf(p.sim.mount);
-      if (mk && p.sim.mount > 2 && this.fedUntil(p, mk) <= wnow) p.sim.mount = mountCode(mk, false);
+      if (mk && mountFed(p.sim.mount) && this.fedUntil(p, mk) <= wnow) p.sim.mount = mountCode(mk, false);
       const last = this.hp.get(p.id);
-      if (p.sim.mount && last !== undefined && p.hp < last) {
+      if (p.sim.mount && !isFlying(p.sim.mount) && last !== undefined && p.hp < last) {
         p.sim.mount = 0;
         p.toast('You are thrown from the saddle!', 'bad');
       }

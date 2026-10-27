@@ -2,6 +2,7 @@ import { beforeAll, afterAll, expect, it } from 'vitest';
 import {
   MSG,
   MSG34,
+  GLIMMERHART_MOUNT,
   guildBoard,
   townFor,
   rotatingGuildContracts,
@@ -201,9 +202,9 @@ it('trains only happy adult owned mounts, syncs quiet animals, dismounts on dama
   expect(n.farm).toBe('horse');
   expect(Math.hypot(n.x - 222, n.y - 222)).toBeLessThan(5);
   p.r.send('ranch', { tx: 222, ty: 222, id: 1, action: 'ride' });
-  await until(() => p.sp.sim.mount === 5);
+  await until(() => p.sp.sim.mount === GLIMMERHART_MOUNT);
   await sleep(1200); // Includes travel care ticks: this must remain a Glimmerhart.
-  expect(p.sp.sim.mount).toBe(5);
+  expect(p.sp.sim.mount).toBe(GLIMMERHART_MOUNT);
   p.room.ranch.incomingDamage(p.sp, 1);
   expect(p.sp.sim.mount).toBe(0);
   await p.r.leave();
@@ -324,7 +325,7 @@ it('casts real Circuit abilities and ultimates on foot even when a travel or ran
   p.r.send(MSG34.CHOOSE, { what: 'class', cls: 'superposer' });
   await until(() => p.prog.cls === 'superposer');
   st(p).res = 100;
-  p.sp.sim.mount = 5;
+  p.sp.sim.mount = GLIMMERHART_MOUNT;
   p.r.send(MSG34.ULT, { aimX: 1, aimY: 0 });
   await until(() => p.casts.some((c) => c.ult && c.ok));
   expect(p.sp.sim.mount).toBe(0);

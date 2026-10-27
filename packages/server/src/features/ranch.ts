@@ -1,6 +1,8 @@
 import { handleOpen } from '../systems/containers';
 import {
   NpcState,
+  GLIMMERHART_MOUNT,
+  isFlying,
   buildingAt,
   LIVESTOCK,
   FARM_ANIMALS,
@@ -33,7 +35,9 @@ export class Ranch implements Module {
   private act(p: ServerPlayer, m: any) {
     if (!m || p.deadT > 0) return;
     if (m.action === 'dismount') {
-      this.dismount(p);
+      // a griffin only sets you down where there is ground to land on (travel's landing rule)
+      if (isFlying(p.sim.mount)) this.room.travel?.toggleMount(p, 'griffin');
+      else this.dismount(p);
       return;
     }
     if (!Number.isInteger(m.tx) || !Number.isInteger(m.ty)) return;
@@ -84,7 +88,7 @@ export class Ranch implements Module {
         return;
       }
       this.riders.set(p.id, { x: o.x, y: o.y, animal: a.id, species: a.species });
-      p.sim.mount = a.species === 'horse' ? 1 : 5;
+      p.sim.mount = a.species === 'horse' ? 1 : GLIMMERHART_MOUNT;
       p.sim.dashT = 0;
       p.toast('Mounted. Space, an attack, a skill or dodge dismounts.', 'good');
     }
@@ -97,7 +101,8 @@ export class Ranch implements Module {
     this.dismount(p);
   }
   incomingDamage(p: ServerPlayer, dmg: number) {
-    this.dismount(p);
+    // a rider who is struck is thrown, except from a griffin's back high above
+    if (!isFlying(p.sim.mount)) this.dismount(p);
     return dmg;
   }
   tick(_now: number, dt: number) {

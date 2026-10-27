@@ -1,4 +1,5 @@
 import { buildBestiary, type BestiaryPageState } from './bestiary';
+import { chooseIntrigue, civState, festJoin } from '../game/civ-store';
 import {
   ITEMS,
   MAX_HEARTS,
@@ -12,10 +13,22 @@ import {
   DAY_MS,
   KINGDOMS,
   REALM_IDS,
+  REALM_SITES,
+  DECREES,
+  PROJECTS,
+  civSiteName,
+  type RealmId,
   REP_TIERS,
   type KingdomStance,
   diplomacyAt,
   nextFestival,
+  nextFestivalOf,
+  nextTourney,
+  festivalToday,
+  tourneyOn,
+  dayNumber,
+  CHAMPION_TITLE,
+  type FestHost,
   realmRankName,
   relationsOf,
   repTier,
@@ -465,9 +478,142 @@ const STANCE_LABEL: Record<KingdomStance, string> = {
   hostile: 'Hostile',
 };
 
+/** The living state of a kingdom (§16): its fortunes, the decree, the works under way, wars and court intrigue. */
+function realmState(id: RealmId): HTMLElement | null {
+  const k = civState()?.kingdoms[id];
+  if (!k) return null;
+  const meter = (label: string, v: number) =>
+    h(
+      'div',
+      { class: 'civ-meter' },
+      h('span', { text: label }),
+      h('i', {}, h('b', { style: `width:${Math.round(v)}%` })),
+      h('span', { class: 'small', text: `${Math.round(v)}` }),
+    );
+  const box = h(
+    'div',
+    { class: 'civ-state' },
+    meter('Prosperity', k.prosperity),
+    meter('Might', k.might),
+    meter('Stability', k.stability),
+    h('div', {
+      class: 'small',
+      text: `Treasury ${k.treasury.toLocaleString()} crowns · Decree: ${DECREES[k.decree.id].name}. ${DECREES[k.decree.id].text}`,
+    }),
+  );
+  if (k.project) {
+    const site = REALM_SITES.find((s) => s.id === k.project!.site);
+    box.append(
+      h('div', {
+        class: 'small',
+        text: `Building: a ${PROJECTS[k.project.kind].name.toLowerCase()} at ${site ? civSiteName(site) : '?'} (${Math.round(k.project.progress * 100)}%). ${PROJECTS[k.project.kind].desc}`,
+      }),
+    );
+  }
+  if (k.built.length)
+    box.append(
+      h('div', {
+        class: 'small dim',
+        text: `Works completed: ${k.built
+          .slice(-5)
+          .map((b) => PROJECTS[b.kind].name.toLowerCase())
+          .join(', ')}`,
+      }),
+    );
+  for (const w of k.wars)
+    box.append(h('div', { class: 'small bad', text: `At war with ${KINGDOMS[w.with].name} since day ${w.since}.` }));
+  if (k.intrigue) {
+    const i = k.intrigue;
+    box.append(
+      h(
+        'div',
+        { class: 'civ-intrigue' },
+        h('b', { text: `Court intrigue: ${i.title}` }),
+        h('div', { class: 'small', text: i.text }),
+        h(
+          'div',
+          { class: 'civ-choices' },
+          ...i.choices.map((c) =>
+            h('button', { text: c.label, title: c.outcome, on: { click: () => chooseIntrigue(id, c.id) } }),
+          ),
+        ),
+        h('div', {
+          class: 'small dim',
+          text: `Decided by the first traveller who acts, in ${KINGDOMS[id].name} itself; left alone it festers after day ${i.expires}.`,
+        }),
+      ),
+    );
+  }
+  if (k.chronicle.length)
+    box.append(
+      h(
+        'div',
+        { class: 'small dim' },
+        ...k.chronicle.slice(0, 4).map((c) => h('div', { text: `Day ${c.day}: ${c.text}` })),
+      ),
+    );
+  return box;
+}
+
+/** Festivals and tournaments: what is on today, with the actions to join in, and what comes next. */
+function pageantry(day: number): HTMLElement {
+  const box = h('div', { class: 'civ-news' }, h('b', { text: 'Festivals & tournaments' }));
+  const hosts: FestHost[] = ['home', ...REALM_IDS];
+  const where = (host: FestHost) => (host === 'home' ? 'Hadamere and the home towns' : KINGDOMS[host].name);
+  for (const host of hosts) {
+    const f = festivalToday(host, day);
+    if (!f) continue;
+    box.append(
+      h(
+        'div',
+        { class: 'civ-intrigue' },
+        h('b', { text: `Today: the ${f.name} in ${where(host)}` }),
+        h('div', {
+          class: 'small',
+          text: `${f.desc} Bring ${ITEMS[f.feast]?.name ?? 'a dish'} to the feast (any cooked food is welcome).`,
+        }),
+        h(
+          'div',
+          { class: 'civ-choices' },
+          h('button', { text: 'Share a dish', on: { click: () => festJoin(host, 'feast') } }),
+        ),
+      ),
+    );
+  }
+  for (const r of REALM_IDS) {
+    if (!tourneyOn(r, day)) continue;
+    box.append(
+      h(
+        'div',
+        { class: 'civ-intrigue' },
+        h('b', { text: `Today: a royal tournament in ${KINGDOMS[r].capital}` }),
+        h('div', {
+          class: 'small',
+          text: `Noon to six in the ${r === 'aurelion' ? 'lists by the moat' : 'palace square'}: three bouts against ${KINGDOMS[r].name}'s soldiers for the purse and the title ${CHAMPION_TITLE[r]}.`,
+        }),
+        h(
+          'div',
+          { class: 'civ-choices' },
+          h('button', { text: 'Enter the lists', on: { click: () => festJoin(r, 'tourney') } }),
+        ),
+      ),
+    );
+  }
+  const home = nextFestivalOf('home', day);
+  if (home.in > 0)
+    box.append(
+      h('div', {
+        class: 'small dim',
+        text: `Next at home: ${home.festival.name} in ${home.in} day${home.in === 1 ? '' : 's'}.`,
+      }),
+    );
+  if (box.children.length === 1) box.append(h('div', { class: 'small dim', text: 'Nothing today.' }));
+  return box;
+}
+
 /** The six great kingdoms: lore, your standing, relations and the next festival. */
 function kingdomsPage(profile: Profile, seed: number): HTMLElement {
-  const day = Math.floor(Date.now() / DAY_MS);
+  const day = dayNumber(Date.now());
   const root = h('div', { class: 'kingdoms' });
   root.append(
     h('div', {
@@ -500,13 +646,31 @@ function kingdomsPage(profile: Profile, seed: number): HTMLElement {
         h('div', { class: 'small dim', text: `Trade: ${k.economy.trade}` }),
         h('div', {
           class: 'small',
-          text: `Next festival: ${nf.festival.name}${nf.in === 0 ? ' (today!)' : ` in ${nf.in} day${nf.in === 1 ? '' : 's'}`}`,
+          text: `Next festival: ${nf.festival.name}${nf.in === 0 ? ' (today!)' : ` in ${nf.in} day${nf.in === 1 ? '' : 's'}`}. Next tournament in ${k.capital}: ${nextTourney(id, day) === 0 ? 'today' : `in ${nextTourney(id, day)} days`}.`,
         }),
+        realmState(id),
         ...relationsOf(id).map((r) =>
           h('div', { class: 'small dim', text: `${STANCE_LABEL[r.stance]} with ${KINGDOMS[r.other].name}: ${r.note}` }),
         ),
       ),
     );
+  }
+  root.insertBefore(pageantry(day), root.children[1] ?? null);
+  const civ = civState();
+  if (civ) {
+    const news = REALM_IDS.flatMap((r) => civ.kingdoms[r].chronicle.map((c) => ({ ...c, r })))
+      .sort((a, b) => b.day - a.day)
+      .slice(0, 8);
+    if (news.length)
+      root.insertBefore(
+        h(
+          'div',
+          { class: 'civ-news' },
+          h('b', { text: 'News from the kingdoms' }),
+          ...news.map((n) => h('div', { class: 'small', text: `Day ${n.day} · ${n.text}` })),
+        ),
+        root.children[1] ?? null,
+      );
   }
   const rumors = diplomacyAt(seed, day).filter((d) => d.event);
   if (rumors.length)

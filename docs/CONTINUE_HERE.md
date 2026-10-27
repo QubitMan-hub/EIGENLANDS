@@ -4,6 +4,24 @@ Read [GUILD_HALLS.md](GUILD_HALLS.md), the [hall plan](superpowers/plans/2026-10
 
 The user expanded the task to complete master-plan §§12–13: thirty named class paths across six families, meaningful progression/skills/passives/equipment and cooperative mechanics; audit/expand the bestiary, habitats, taming and phased bosses. Preserve Superposer/Entangler, authored art, controls and saves; no placeholder completion claims. Continue inline without subagents, integrate incoming main, and require tested final-head CI before merging. Render remains the user's work.
 
+# Current continuation: living world, economy and civilizations (2026-10-26)
+
+Read [LIVING_WORLD.md](LIVING_WORLD.md) (§16) and [TRAVEL.md](TRAVEL.md).
+
+- **Kingdoms:** they develop daily, building works, issuing decrees, going to war and making peace. Court intrigues
+  wait for a player's choice. All of it shows in the Journal.
+- **Festivals and tournaments:** Hadamere's four seasonal festivals and the kingdom feasts; three-bout royal
+  tournaments with champion titles.
+- **Trade:** local settlement economies with daily shortages; the Wandering Peddler; caravan escort jobs.
+- **Mounts and companions:** the flying Griffin mount; Emberbrush the fox, the fourth wildlife bond.
+- **Settlements and NPCs:** settlements dress for their kingdom's state, and residents gossip about their neighbours.
+- **The wild:** seed-written story scenes, and crypt trials under ruins (revision-6 worlds).
+- **Fix:** server-side festival and diplomacy days now follow the world calendar the client uses.
+- **Validation:** shared, client and server tests, plus the `e2e/living-world.mjs` browser proof.
+
+Next: the follow-ups listed under "Limits and what is not built" in LIVING_WORLD.md, and
+[REMAINING_WORK.md](REMAINING_WORK.md).
+
 ---
 
 # Current continuation: cozy settlements and integrated travel/guilds (2026-10-26)

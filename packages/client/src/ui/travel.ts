@@ -3,12 +3,14 @@ import {
   netName,
   WAYFARER_STEP,
   WAYFARER_MAX,
+  type MountKind,
   type TravelDest,
   type TravelPanel,
   type WayKind,
 } from '@eigenlands/shared';
 import { h } from './dom';
 
+const MOUNT_LABEL: Record<MountKind, string> = { horse: 'Riding horse', stag: 'Moonlit Stag', griffin: 'Griffin' };
 const GLYPH: Record<WayKind, string> = { waystone: '◆', gate: '⛩', harbor: '⚓' };
 const KIND: Record<WayKind, string> = { waystone: 'Waystone', gate: 'Realm Gate', harbor: 'Ferry' };
 
@@ -53,8 +55,8 @@ function ensureStyles(): void {
 export interface TravelActions {
   go(to: string): void;
   bind(): void;
-  rename?(kind: 'horse' | 'stag', name: string): void;
-  feed?(kind: 'horse' | 'stag'): void;
+  rename?(kind: MountKind, name: string): void;
+  feed?(kind: MountKind): void;
 }
 
 export function buildTravel(t: TravelPanel, act: TravelActions): HTMLElement {
@@ -127,19 +129,19 @@ function stable(t: TravelPanel, act: TravelActions): HTMLElement {
   const box = h('div', { class: 'travel-net travel-stable' }, h('h3', { text: 'Hitching post' }));
   for (const m of t.stable ?? []) {
     const input = h('input', { type: 'text', value: m.name, maxLength: 18 }) as HTMLInputElement;
-    input.setAttribute('aria-label', `Name of your ${m.kind === 'stag' ? 'Moonlit Stag' : 'horse'}`);
+    input.setAttribute('aria-label', `Name of your ${MOUNT_LABEL[m.kind].toLowerCase()}`);
     const mins = Math.ceil(m.fedMs / 60000);
     box.append(
       h(
         'div',
         { class: 'travel-row stable-row' },
-        h('span', { class: 'g', text: m.kind === 'stag' ? '✧' : '♞' }),
+        h('span', { class: 'g', text: m.kind === 'stag' ? '✧' : m.kind === 'griffin' ? '🜁' : '♞' }),
         h(
           'div',
           { class: 'nm' },
           input,
           h('small', {
-            text: `${m.kind === 'stag' ? 'Moonlit Stag' : 'Riding horse'} · ${mins > 0 ? `well fed for ${mins} min (10% swifter)` : 'hungry for hay, carrots, apples or oats'}`,
+            text: `${MOUNT_LABEL[m.kind]} · ${mins > 0 ? `well fed for ${mins} min (10% swifter)` : 'hungry for hay, carrots, apples or oats'}`,
           }),
         ),
         h('button', { text: 'Rename', on: { click: () => act.rename?.(m.kind, input.value) } }),

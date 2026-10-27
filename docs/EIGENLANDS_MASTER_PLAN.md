@@ -601,7 +601,7 @@ See [TRAVEL.md](TRAVEL.md) for rules, files, validation and limits.
 - [x] DONE — Magical teleporters: Recall Shard (learned at 3 attuned stones) returns you to a bound home from anywhere.
 - [x] DONE — Kingdom waypoint networks: travel between any attuned stones of one kingdom network, with fares and Wayfarer discounts.
 - [x] DONE — Realm portals: a Realm Gate in each capital and Hadamere links the networks.
-- [~] IN PROGRESS — Horses and fantasy mounts: Riding Horse and Moonlit Stag with shared-sim riding, naming and feeding at every hitching post; flying mounts are not built.
+- [~] IN PROGRESS — Horses and fantasy mounts: Riding Horse, Moonlit Stag and the flying Griffin (flight over water, cliffs and trees, blocked by walls and wards, with a landing rule), with shared-sim riding, naming and feeding at every hitching post. Mount stabling is not built.
 - [x] DONE — Sailing and ocean travel: Sloop Charter sailing plus ferry crossings between every kingdom's harbours, shown as a voyage on a sea chart.
 - [x] DONE — Roads, bridges, ports, and caravan routes: faster kept roads, railed bridges and royal-road decks over water, ferry posts with voyages, and 24 road caravans that trade and can be ambushed. See [TRAVEL.md](TRAVEL.md).
 - [~] IN PROGRESS — Meaningful exploration rewards and secrets: wild stones pay XP and coins, Wayfarer ranks cut fares, the Recall recipe and the Stag are exploration rewards; more secrets remain.
@@ -626,19 +626,19 @@ Circuit workshop continuation: five guided patterns reuse actual tokens/edit con
 
 ## 16. LIVING WORLD, ECONOMY & CIVILIZATIONS
 
-- [ ] NOT STARTED — Introduce:
-- [ ] NOT STARTED — Autonomous kingdom development.
-- [ ] NOT STARTED — Dynamic wars and invasions.
-- [ ] NOT STARTED — Seasonal festivals and celebrations.
-- [ ] NOT STARTED — Traveling merchants and trade routes.
-- [ ] NOT STARTED — Local economic systems.
-- [ ] NOT STARTED — NPC professions, routines, and relationships.
-- [ ] NOT STARTED — Dynamic settlements.
-- [ ] NOT STARTED — Dungeons and ruins.
-- [ ] IN PROGRESS — Companions and mounts: three forage-tamed wildlife bonds are implemented and verified; mounts and further companion families remain open.
-- [ ] NOT STARTED — Environmental storytelling.
-- [ ] NOT STARTED — Royal events, tournaments, and political intrigue.
-- [ ] NOT STARTED — Use efficient simulation models so the world feels alive without overwhelming the browser.
+- [x] IMPLEMENTED & TESTED — Introduce:
+- [x] IMPLEMENTED & TESTED — Autonomous kingdom development. Daily treasury, prosperity, might and stability; public works built over days; weekly decrees; player deeds feed a daily ledger. See docs/LIVING_WORLD.md.
+- [x] IMPLEMENTED & TESTED — Dynamic wars and invasions. Tension from diplomacy and lost raids leads to declared wars, war raids on the defender's settlements, and peace once a side tires.
+- [x] IMPLEMENTED & TESTED — Seasonal festivals and celebrations. Kingdom festivals plus four home-continent festivals; sharing a dish at the feast once per festival.
+- [x] IMPLEMENTED & TESTED — Traveling merchants and trade routes. 24 road caravans with trade, ambushes and escort jobs; the Wandering Peddler of the home continent.
+- [x] IMPLEMENTED & TESTED — Local economic systems. Per-settlement goods made and wanted, plus a daily shortage, applied to kingdom shop prices.
+- [~] IN PROGRESS — NPC professions, routines, and relationships. Professions and schedules existed; mutual NPC ties and gossip about neighbours, news and shortages are added. Ties are fixed by the roster and do not evolve.
+- [~] IN PROGRESS — Dynamic settlements. Scaffolds, monuments, pennants and war smoke follow the kingdom state. They are decoration only; layouts and buildings do not change.
+- [~] IN PROGRESS — Dungeons and ruins. Ruins with caches existed; crypt trials (three warden waves and a reliquary) are added under a third of the ruins in revision-6 worlds. There are no separate dungeon interiors.
+- [~] IN PROGRESS — Companions and mounts: four wildlife bonds (the fox, Emberbrush, added); horse, stag and flying griffin mounts with naming and feeding. No mount stabling and no fox portrait art.
+- [x] IMPLEMENTED & TESTED — Environmental storytelling. Generated story scenes (camp, grave, cart, standing stone, shrine) with readable, seed-written text in revision-6 worlds.
+- [~] IN PROGRESS — Royal events, tournaments, and political intrigue. Court intrigue with player choices and three-bout royal tournaments with champion titles are done. Royal events beyond processions, decrees and feasts are not built.
+- [x] IMPLEMENTED & TESTED — Use efficient simulation models so the world feels alive without overwhelming the browser. One daily server step and pure seed/day functions; the client only builds settlement dressing near the player and on state change.
 
 ## 17. WORLD CONSEQUENCES — EVERY ACTION MATTERS
 

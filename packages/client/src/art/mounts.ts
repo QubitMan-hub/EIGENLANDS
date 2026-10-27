@@ -9,12 +9,14 @@ import { Texture } from 'pixi.js';
 import { Iso, type BoxMat, mat } from './isokit';
 import { C, makeCanvas, outline, put } from './shade';
 
-export type MountKind = 'horse' | 'stag';
+export type MountKind = 'horse' | 'stag' | 'griffin';
 /** heading index: 0 SE (+u), 1 SW (+v), 2 NW (-u), 3 NE (-v) */
 export type MountDir = 0 | 1 | 2 | 3;
 export const MOUNT_FRAMES = 5;
 /** how high the rider's hips sit above the ground, in art pixels */
 export const SADDLE_Z = 14;
+/** how high a griffin carries its rider above its shadow, in art pixels */
+export const FLY_Z = 18;
 
 const W = 72,
   H = 64,
@@ -44,6 +46,13 @@ const LOOKS: Record<MountKind, Look> = {
     hoof: [C.ink, C.night, C.q2, C.q3],
     saddle: [C.night, C.q1, C.q2, C.q3, C.q4],
     cloth: [C.q2, C.q3, C.q4, C.q5, C.q6],
+  },
+  griffin: {
+    coat: [C.e1, C.e2, C.e3, C.e4, C.e5, C.e6],
+    dark: [C.mist, C.fog, C.pale, C.white],
+    hoof: [C.e3, C.e4, C.e5, C.e6],
+    saddle: [C.e0, C.c0, C.c1, C.c2, C.c3],
+    cloth: [C.b0, C.b0, C.b1, C.w6, C.pale],
   },
 };
 
@@ -109,6 +118,15 @@ function mountCanvas(kind: MountKind, dir: MountDir, frame: number): HTMLCanvasE
     });
   };
 
+  if (kind === 'griffin') {
+    drawGriffin(L, frame, box, ell);
+    parts.sort((p, q) => p.depth - q.depth);
+    for (const p of parts) p.draw();
+    const [eu, ev] = uv(17.6, 9);
+    put(ctx, Math.floor(OX + eu - ev), Math.floor(OY + (eu + ev) / 2 - 19.4), C.ink);
+    outline(ctx, W, H, C.night);
+    return canvas;
+  }
   const gallop = frame > 0;
   const k = (frame - 1) / 4; // 0..0.75 through the stride
   const bob = gallop ? [0, 1, 0, -0.5][frame - 1]! : 0;
@@ -176,6 +194,63 @@ function mountCanvas(kind: MountKind, dir: MountDir, frame: number): HTMLCanvasE
   put(ctx, Math.floor(OX + eu - ev), Math.floor(OY + (eu + ev) / 2 - (z + 10.2 + lift)), C.ink);
   outline(ctx, W, H, C.night);
   return canvas;
+}
+
+type BoxFn = (a0: number, b0: number, z0: number, da: number, db: number, dz: number, m: BoxMat) => void;
+type EllFn = (a: number, b: number, z: number, ra: number, rb: number, rz: number, ramp: number[]) => void;
+
+/**
+ * The griffin, always on the wing: a lion's tawny hindquarters with a tufted tail, an eagle's white breast, head and
+ * gold beak, talons and hind paws tucked under, and two broad wings whose feathers fan up and down over four frames
+ * (frame 0 glides with them level).
+ */
+function drawGriffin(L: Look, frame: number, box: BoxFn, ell: EllFn): void {
+  const bob = [0, 0.6, 1, 0.4, -0.3][frame] ?? 0;
+  const z = 11.5 + bob;
+  const coat = mat(L.coat),
+    talon = mat(L.hoof),
+    plume = L.dark;
+  // tucked legs: hind paws back, talons forward
+  for (const b of [6.6, 8.6]) {
+    box(1.6, b, z - 4.2, 2.6, 1, 2.4, coat);
+    box(12.6, b, z - 4.4, 1.2, 1, 3, talon);
+  }
+  // lion tail with a dark tuft
+  ell(1, 8, z + 0.2, 1, 0.8, 0.9, L.coat);
+  ell(-0.6, 8, z - 1.2, 0.9, 0.7, 1, L.coat);
+  ell(-1.8, 8, z - 2.6, 1, 0.9, 1, [C.e0, C.e1, C.e2]);
+  // body: tawny rear, feathered white breast
+  ell(3.6, 8, z + 0.3, 3, 2.6, 2.8, L.coat);
+  ell(8, 8, z + 0.6, 5.4, 2.6, 2.8, L.coat);
+  ell(12.6, 8, z + 1.4, 3, 2.7, 3.2, plume);
+  // saddle cloth and saddle
+  box(5.8, 5.2, z + 2.5, 5.2, 5.6, 1.1, mat(L.cloth));
+  box(6.4, 5.8, z + 3.6, 4, 4.4, 0.9, mat(L.saddle));
+  // neck, eagle head, ear tufts and hooked gold beak
+  ell(14.8, 8, z + 4.6, 2.1, 1.9, 2.8, plume);
+  ell(17, 8, z + 7.4, 2.6, 2, 2.2, plume);
+  ell(19.6, 8, z + 6.8, 1.6, 1, 1.1, [C.c2, C.c3, C.c4, C.e7]);
+  box(20.4, 7.6, z + 5.4, 0.8, 0.8, 1.2, mat([C.c1, C.c2, C.c3]));
+  for (const b of [6.8, 8.7]) box(15.9, b, z + 9.2, 0.7, 0.6, 2.2, mat([C.e1, C.e2, C.e3, C.e4]));
+  // wings: five feather slabs from the shoulder out, each a little shorter, raised by the flap angle
+  const angle = [0, -0.35, 0.45, 0.95, 0.4][frame] ?? 0;
+  // brown coverts near the body, banded flight feathers further out, pale tips at the ends
+  const inner = [C.e0, C.e1, C.e2, C.e3, C.e4],
+    flight = [C.e1, C.e2, C.e3, C.e4, C.e5],
+    tips = [C.e3, C.e5, C.fog, C.pale, C.white];
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < 5; i++) {
+      const out = 2.4 + i * 1.9 * Math.cos(angle),
+        up = i * 1.9 * Math.sin(angle);
+      const chord = 6.6 - i * 0.8;
+      const b0 = side > 0 ? 8 + out : 8 - out - 1.9;
+      const ramp = i < 2 ? inner : i < 4 ? flight : tips;
+      box(6.4 + i * 0.6, b0, z + 3.2 + up, chord, 1.9, 0.8, {
+        ...mat(ramp),
+        top: (s2: number) => (s2 < 0.18 ? ramp[ramp.length - 1]! : ((s2 * 5) | 0) % 2 ? ramp[2]! : ramp[3]!),
+      });
+    }
+  }
 }
 
 const cache = new Map<string, { tex: Texture; ax: number; ay: number }>();

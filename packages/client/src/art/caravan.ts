@@ -9,7 +9,8 @@ import { WOODM, DARKWOOD, type Detail, type Facing } from './isokit';
 import { iso } from './props';
 import type { ObjSprite } from './objects';
 
-const CANVAS: Record<RealmId, { cloth: Ramp; band: number }> = {
+const CANVAS: Record<RealmId | 'home', { cloth: Ramp; band: number }> = {
+  home: { cloth: [C.q1, C.q2, C.q3, C.e5, C.e6, C.e7], band: C.e6 },
   aurelion: { cloth: [C.e3, C.e4, C.e5, C.e6, C.e7, C.white], band: C.r3 },
   sylvaris: { cloth: [C.g2, C.g3, C.g4, C.g5, C.g6, C.pale], band: C.e5 },
   khardum: { cloth: [C.slate, C.steel, C.mist, C.fog, C.pale, C.white], band: C.r2 },
@@ -32,7 +33,7 @@ const wheel =
     return Math.abs(Math.sin(a * 3)) < 0.28 ? C.e2 : -1;
   };
 
-function wagon(face: Facing, f: number, realm: RealmId, rev: boolean): ObjSprite {
+function wagon(face: Facing, f: number, realm: RealmId | 'home', rev: boolean): ObjSprite {
   const look = CANVAS[realm];
   return iso(
     84,
@@ -87,7 +88,7 @@ function wagon(face: Facing, f: number, realm: RealmId, rev: boolean): ObjSprite
 
 const cache = new Map<string, ObjSprite>();
 /** `face` 'sw' rolls along x, 'se' along y; `rev` toward -x/-y; frame 0..1 turns the wheels. */
-export function wagonSprite(realm: RealmId, face: Facing, frame: number, rev = false): ObjSprite {
+export function wagonSprite(realm: RealmId | 'home', face: Facing, frame: number, rev = false): ObjSprite {
   const key = `${realm}:${face}:${frame & 1}:${rev ? 1 : 0}`;
   let s = cache.get(key);
   if (!s) {

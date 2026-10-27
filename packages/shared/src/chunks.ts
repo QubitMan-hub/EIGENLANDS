@@ -12,9 +12,11 @@ import type { SolidQuery } from './sim';
 import { objSolid, propFootprint, type WorldObj } from './objects';
 import { townsFor } from './town';
 import { ruinObjectsIn } from './ruins';
+import { storyObjectsIn } from './stories';
 import { waystoneObjectsIn } from './travel';
 import { caveObjectsIn, isCaveY } from './caves';
 import { shrineObjectsIn } from './shrines';
+import { sanctuaryAt } from './sanctuary';
 
 export type ChunkDiff = Map<number, number>;
 
@@ -197,6 +199,7 @@ export class ChunkStore {
             ...oceanObjectsIn(this.seed, cx, cy),
             ...shrineObjectsIn(this.seed, cx, cy),
             ...ruinObjectsIn(this.seed, cx, cy),
+            ...storyObjectsIn(this.seed, cx, cy, this.generation),
             ...caveObjectsIn(this.seed, cx, cy, this.generation),
           ];
     const placed = (this.generation >= 3 ? wild.filter((o) => this.seaSiteStillAtSea(o)) : wild).filter(
@@ -251,6 +254,22 @@ export class ChunkStore {
     const t = this.getTile(x, y);
     return (t !== T.WATER && t !== T.DEEP_WATER) || this.objSolidAt(x, y);
   };
+  /** A griffin's collision: it soars over terrain, but not over walls or doors, nor into a settlement's ward. */
+  private flySolidAt(x: number, y: number): boolean {
+    const t = this.getTile(x, y);
+    if (t === T.WALL || t === T.FACE || t === T.DOOR || t === T.UPPER_VOID || t === T.CAVE_WALL) return true;
+    const k = `${x},${y}`;
+    if (this.structures.has(k)) return true;
+    // wards are coarse and static: remember each tile's answer
+    let w = this.wardCache.get(k);
+    if (w === undefined) {
+      if (this.wardCache.size > 20000) this.wardCache.clear();
+      w = !!sanctuaryAt(this.seed, x + 0.5, y + 0.5);
+      this.wardCache.set(k, w);
+    }
+    return w;
+  }
+  private wardCache = new Map<string, boolean>();
   /** a solid object, or the footprint of a large one, covers (x, y) */
   objSolidAt(x: number, y: number): boolean {
     const k = `${x},${y}`;
@@ -262,6 +281,7 @@ export class ChunkStore {
       sea: (x: number, y: number): boolean => this.seaSolidAt(x, y),
       level: (x: number, y: number): number => this.levelAt(x, y),
       road: (x: number, y: number): boolean => this.getTile(x, y) === T.PATH,
+      fly: (x: number, y: number): boolean => this.flySolidAt(x, y),
       mine: (x: number, y: number) =>
         this.generation >= 4 ? mineLineAt(this.seed, x, y) : mineLoopAt(this.seed, x, y),
     },

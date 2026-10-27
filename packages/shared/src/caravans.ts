@@ -1,7 +1,14 @@
 import { hash2 } from './rng';
+import { DAY_MS } from './constants';
+import { dayNumber, gameHour } from './time';
+import { townsFor, type Town } from './town';
+import { isCaveY } from './caves';
+import { isUpperY } from './floors';
+import { activeGeneration } from './generation-registry';
+import { waystonesNear } from './travel';
 import { ITEMS } from './items';
 import { KINGDOMS } from './kingdoms';
-import { REALM_GEO, REALM_IDS, REALM_SITES, roadCentre, type RealmId, type RealmSite } from './realms';
+import { REALM_GEO, REALM_IDS, REALM_SITES, nearestRealm, roadCentre, type RealmId, type RealmSite } from './realms';
 
 /**
  * Caravans (master plan §14): one wagon train per kingdom road, shuttling from the capital out through the ring's
@@ -28,6 +35,8 @@ export interface CaravanRoute {
   len: number;
   period: number;
   offset: number;
+  /** the home continent's Wandering Peddler: parks in a different town each day instead of rolling a road */
+  peddler?: boolean;
 }
 export interface CaravanPos {
   route: CaravanRoute;
@@ -41,6 +50,8 @@ export interface CaravanPos {
   at: RealmSite | null;
   /** winding through a settlement's own streets between its gates: not drawn, not trading */
   hidden: boolean;
+  /** the peddler: the town it is visiting today */
+  town?: string;
 }
 
 export const CARAVAN_SPEED = 1.4; // tiles per second
@@ -105,11 +116,63 @@ function buildRoutes(seed: number): CaravanRoute[] {
   }
   return out;
 }
+/** The Wandering Peddler of the home continent (realm is only its wagon's placeholder; it belongs to no kingdom). */
+const PEDDLER: CaravanRoute = {
+  id: 'peddler',
+  realm: 'aurelion',
+  ring: 'n',
+  name: 'Wandering Peddler',
+  master: 'Pell the Wanderer',
+  axis: 'ns',
+  sign: 1,
+  stops: [],
+  len: 0,
+  period: DAY_MS / 1000,
+  offset: 0,
+  peddler: true,
+};
+/** The peddler's hours in each town it visits. */
+export const PEDDLER_HOURS: [number, number] = [8, 18];
+
+/** The towns of the home continent, in the order the peddler visits them (Hadamere first). */
+export function homeTowns(seed: number): Town[] {
+  return townsFor(seed, activeGeneration(seed)).filter(
+    (t) => !t.abandoned && !t.site && !isCaveY(t.cy) && !isUpperY(t.cy) && !nearestRealm(t.cx, t.cy),
+  );
+}
+
+/** Where the peddler's wagon stands today: beside the town's waystone during market hours, otherwise on the road. */
+const peddlerCache = new Map<string, { t: Town | undefined; x: number; y: number }>();
+function peddlerAt(seed: number, nowMs: number): CaravanPos {
+  const day = dayNumber(nowMs);
+  const hour = gameHour(nowMs);
+  const key = `${seed}:${day}`;
+  let spot = peddlerCache.get(key);
+  if (!spot) {
+    const towns = homeTowns(seed);
+    const t = towns[((day % towns.length) + towns.length) % towns.length];
+    const stone = t
+      ? waystonesNear(seed, t.cx, t.cy, 70).find((s) => !s.wild && s.net === 'home' && s.name.startsWith(t.name))
+      : null;
+    spot = {
+      t,
+      x: stone ? stone.x + 3.5 : (t?.cx ?? 0) + 0.5,
+      y: stone ? stone.y + 1.5 : (t?.cy ?? 0) + 0.5,
+    };
+    if (peddlerCache.size > 16) peddlerCache.clear();
+    peddlerCache.set(key, spot);
+  }
+  const { t, x, y } = spot;
+  const open = hour >= PEDDLER_HOURS[0] && hour < PEDDLER_HOURS[1];
+  return { route: PEDDLER, x, y, fx: 0, fy: 1, moving: false, at: null, hidden: !open || !t, town: t?.name };
+}
+
 const routeCache = new Map<number, CaravanRoute[]>();
 export function caravanRoutes(seed: number): CaravanRoute[] {
   let r = routeCache.get(seed);
   if (!r) {
     r = buildRoutes(seed);
+    r.push(PEDDLER);
     if (routeCache.size > 8) routeCache.clear();
     routeCache.set(seed, r);
   }
@@ -132,6 +195,7 @@ function along(seed: number, r: CaravanRoute, d: number): { x: number; y: number
 
 /** Where the caravan of `r` is at world time `nowMs` (server clock). */
 export function caravanAt(seed: number, r: CaravanRoute, nowMs: number): CaravanPos {
+  if (r.peddler) return peddlerAt(seed, nowMs);
   let t = (((nowMs / 1000 + r.offset) % r.period) + r.period) % r.period;
   // the outward leg then the return leg; each leg rests at every stop (the capital first, the far end last)
   const legs: Array<{ from: number; to: number }> = [];
@@ -176,8 +240,15 @@ export function caravansNear(seed: number, x: number, y: number, rad: number, no
   const out: CaravanPos[] = [];
   for (const r of caravanRoutes(seed)) {
     const g = REALM_GEO[r.realm];
-    // cheap reject: the whole route lies within its road's corridor
-    if (r.axis === 'ns' ? Math.abs(x - g.cx) > rad + 12 : Math.abs(y - g.cy) > rad + 12) continue;
+    // cheap reject: the whole route lies within its road's corridor (the peddler keeps to the home continent)
+    if (
+      r.peddler
+        ? Math.hypot(x, y) > 900
+        : r.axis === 'ns'
+          ? Math.abs(x - g.cx) > rad + 12
+          : Math.abs(y - g.cy) > rad + 12
+    )
+      continue;
     const p = caravanAt(seed, r, nowMs);
     if (!p.hidden && Math.hypot(p.x - x, p.y - y) <= rad) out.push(p);
   }
@@ -190,7 +261,18 @@ export function caravansNear(seed: number, x: number, y: number, rad: number, no
  */
 const POOL_KINDS = new Set(['food', 'material', 'potion', 'resource', 'seed', 'forage']);
 let pool: string[] | null = null;
+let rare: string[] | null = null;
 export function caravanStock(seed: number, r: CaravanRoute, day: number): Array<{ item: string; markup: number }> {
+  if (r.peddler) {
+    // curiosities from far away: dearer, rarer and different every day
+    rare ??= Object.values(ITEMS)
+      .filter((d) => POOL_KINDS.has(d.kind) && d.value > 60 && d.value <= 900 && !d.special)
+      .map((d) => d.id)
+      .sort();
+    const got = new Set<string>();
+    for (let i = 0; got.size < 8 && i < 50; i++) got.add(rare[Math.floor(hash2(seed, i, day, 8807) * rare.length)]!);
+    return [...[...got].map((item) => ({ item, markup: 1.3 })), { item: 'recall_shard', markup: 1.25 }];
+  }
   pool ??= Object.values(ITEMS)
     .filter((d) => POOL_KINDS.has(d.kind) && d.value >= 8 && d.value <= 420 && !d.special)
     .map((d) => d.id)
@@ -207,3 +289,41 @@ export function caravanStock(seed: number, r: CaravanRoute, day: number): Array<
 }
 /** A caravan buys anything ordinary at 60% of its value (town shops pay about half). */
 export const CARAVAN_BUY = 0.6;
+
+/**
+ * Where the caravan will rest next (not counting the stop it is resting at now) and when it gets there. Escort jobs
+ * ride with it to this stop.
+ */
+export function caravanNextStop(
+  seed: number,
+  r: CaravanRoute,
+  nowMs: number,
+): { site: RealmSite; atMs: number; distance: number } | null {
+  if (r.peddler) return null;
+  const here = caravanAt(seed, r, nowMs);
+  const from = here.at?.id ?? null;
+  let travelled = 0,
+    last = here;
+  for (let t = 1000; t < r.period * 1000; t += 1000) {
+    const p = caravanAt(seed, r, nowMs + t);
+    travelled += Math.hypot(p.x - last.x, p.y - last.y);
+    last = p;
+    if (!p.moving && p.at && p.at.id !== from) return { site: p.at, atMs: nowMs + t, distance: travelled };
+  }
+  return null;
+}
+/** Escort pay: by road distance and the escort's level. */
+export const escortPay = (distance: number, level: number): number => Math.round(30 + distance * 0.45 + level * 6);
+
+/** A kingdom settlement's proper name (capital, town, village, or seaward farm/outpost of its ring). */
+export function siteName(site: RealmSite): string {
+  if (site.name) return site.name;
+  const k = KINGDOMS[site.realm];
+  if (site.kind === 'capital' || site.ring === 'c') return k.capital;
+  const ring = site.ring as Ring;
+  return site.kind === 'town'
+    ? k.names.towns[ring]
+    : site.kind === 'village'
+      ? k.names.villages[ring]
+      : k.names.seaward[ring];
+}

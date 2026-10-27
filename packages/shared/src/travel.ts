@@ -11,6 +11,7 @@ import { shrinesNear } from './shrines';
 import { ruinOfCell } from './ruins';
 import { activeGeneration } from './generation-registry';
 import { propFootprint, type WorldObj } from './objects';
+import type { MountKind } from './mounts';
 import type { WorldGeneration } from './world-version';
 
 /**
@@ -50,6 +51,8 @@ export const WAYFARER_MAX = 4;
 /** Attuned stones needed for the Recall Shard recipe and the Moonlit Stag. */
 export const RECALL_AT = 3;
 export const STAG_AT = 12;
+/** Attuned stones (Wayfarer rank 3) that teach the Griffin Whistle. */
+export const GRIFFIN_AT = 15;
 
 const NET_NAMES: Record<string, string> = {
   home: 'Hadamere & the Wilds',
@@ -371,15 +374,10 @@ export type TravelEvent =
   | { kind: 'cancel'; why: string }
   | { kind: 'arrive'; name: string; x: number; y: number };
 
-/** Mount codes in PlayerSim.mount: which animal, and whether it is well fed. */
-export type MountKind = 'horse' | 'stag';
-export const mountKindOf = (code: number): MountKind | null =>
-  code === 1 || code === 3 ? 'horse' : code === 2 || code === 4 ? 'stag' : null;
-export const mountCode = (kind: MountKind, fed: boolean): number => (kind === 'stag' ? 2 : 1) + (fed ? 2 : 0);
 /** What a mount will eat, and for how long a good feed lasts. */
 export const MOUNT_FEED = ['hay', 'carrot', 'apple', 'oats'] as const;
 export const MOUNT_FED_MS = 15 * 60 * 1000;
-export const MOUNT_DEFAULT_NAME: Record<MountKind, string> = { horse: 'Bramble', stag: 'Moonlight' };
+export const MOUNT_DEFAULT_NAME: Record<MountKind, string> = { horse: 'Bramble', stag: 'Moonlight', griffin: 'Aurum' };
 /** A mount's name: letters, spaces, apostrophes and hyphens, at most 18 characters. */
 export function validMountName(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;

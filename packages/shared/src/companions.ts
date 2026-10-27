@@ -66,6 +66,27 @@ export const COMPANION_BONDS: readonly CompanionBond[] = [
     trait: 'Crownfire',
     detail: 'Hits suppress enemy regrowth for 8 seconds.',
   },
+  {
+    kind: 15,
+    name: 'Emberbrush',
+    food: 'egg',
+    count: 2,
+    trait: 'Keen nose',
+    detail: 'Digs up a forage find every 2 minutes while it follows you ashore, out of combat. It does not fight.',
+  },
 ];
+
+/** what a Keen-nosed fox turns up, by the land it is digging in */
+export const FOX_FINDS: Record<string, string> = {
+  meadow: 'wild_leek',
+  forest: 'hazelnut',
+  autumn: 'blackberry',
+  taiga: 'snow_yam',
+  swamp: 'mushroom',
+  desert: 'sunpetal',
+  enchanted: 'healing_herb',
+  corrupted: 'mushroom',
+};
+export const FOX_FORAGE_SECS = 120;
 export const companionBond = (kind: number) => COMPANION_BONDS.find((b) => b.kind === kind);
 export const BOND_RANGE = 4;

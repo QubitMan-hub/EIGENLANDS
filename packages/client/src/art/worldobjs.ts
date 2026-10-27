@@ -1,4 +1,5 @@
 import { TRAVEL_PROPS } from './waystones';
+import { STORY_ART } from './stories';
 import { orchardCanvas } from './orchards';
 import { railSprite, minecartSprite } from './mining';
 import { caveArchitecture } from './caves';
@@ -763,7 +764,8 @@ export function worldObjDef(o: WorldObj, facing: Facing = 'sw', seatTurn?: numbe
           : `${o.kind}:${o.sub}`;
   let d = objCache.get(key);
   if (!d) {
-    if (ruinBiome) d = ruinDef(o.sub, ruinBiome);
+    if (STORY_ART[o.sub]) d = still(STORY_ART[o.sub]!(facing));
+    else if (ruinBiome) d = ruinDef(o.sub, ruinBiome);
     else if (
       [
         'cave_mouth',

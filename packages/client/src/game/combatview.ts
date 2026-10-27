@@ -1,6 +1,6 @@
 import { livestockTexture } from '../art/livestock';
 import { minecartSprite } from '../art/mining';
-import { MOUNT_FRAMES, SADDLE_Z, mountDir, mountSprite } from '../art/mounts';
+import { FLY_Z, MOUNT_FRAMES, SADDLE_Z, mountDir, mountSprite } from '../art/mounts';
 import { Rectangle, Texture } from 'pixi.js';
 import type { HeldWeapons } from '../art/weapons';
 import { type Critters, type CritterId } from '../art/critters';
@@ -8,6 +8,8 @@ import { Sprite, type Container, type Graphics } from 'pixi.js';
 import { SHIP_AX, SHIP_AY, headingOf, type Ships } from '../art/ships';
 import {
   HUE_PALETTE,
+  mountKindOf,
+  GLIMMERHART_MOUNT,
   armyOfKind,
   ATK,
   BRUTE_SLAM_RADIUS,
@@ -683,6 +685,7 @@ export class CombatView {
     if (!kind) {
       if (v.mountSprite?.visible) {
         v.mountSprite.visible = false;
+        v.mountSprite.y = 0;
         v.sprite.y = 0;
         v.fl.y = 0;
       }
@@ -692,22 +695,35 @@ export class CombatView {
       v.mountSprite = new Sprite();
       v.root.addChildAt(v.mountSprite, 0);
     }
-    const frame = moving ? 1 + (Math.floor(travel / 0.32) % (MOUNT_FRAMES - 1)) : 0;
+    const mk = kind === GLIMMERHART_MOUNT ? null : (mountKindOf(kind) ?? 'horse');
+    const flying = mk === 'griffin';
+    // a griffin's wings never stop: it beats them in flight and hovers when you stand still
+    const now = performance.now() / 1000;
+    const frame = flying
+      ? 1 + (Math.floor(now * (moving && !reduced ? 7 : 4)) % (MOUNT_FRAMES - 1))
+      : moving
+        ? 1 + (Math.floor(travel / 0.32) % (MOUNT_FRAMES - 1))
+        : 0;
+    // horses (whistle or ranch) and the ranch Glimmerhart use the authored livestock art; the Stag and griffin their own
     const texture =
-      kind === 2 || kind === 4
+      mk === 'stag' || mk === 'griffin'
         ? null
         : livestockTexture(
-            kind === 5 ? 'phasehart' : 'horse',
+            mk === null ? 'phasehart' : 'horse',
             moving && !reduced ? 2 + (Math.floor(travel / 0.22) % 2) : 0,
             Math.abs(fx) >= Math.abs(fy) ? (fx < 0 ? 2 : 0) : fy < 0 ? 3 : 1,
           );
-    const art = texture ? { tex: texture, ax: 24, ay: 49 } : mountSprite('stag', mountDir(fx, fy), reduced ? 0 : frame);
+    const art = texture
+      ? { tex: texture, ax: 24, ay: 49 }
+      : mountSprite(mk ?? 'stag', mountDir(fx, fy), reduced && !flying ? 0 : frame);
     v.mountSprite.texture = art.tex;
     v.mountSprite.anchor.set(art.ax / art.tex.width, art.ay / art.tex.height);
     v.mountSprite.visible = true;
     v.sprite.texture = riderCrop(v.sprite.texture);
-    const bob = moving && !reduced ? [0, 1, 0, 0][frame - 1]! : 0;
-    v.sprite.y = -SADDLE_Z - bob;
+    const lift = flying ? FLY_Z + (reduced ? 0 : Math.round(Math.sin(now * 2.4) * 1.5)) : 0;
+    v.mountSprite.y = -lift;
+    const bob = !flying && moving && !reduced ? [0, 1, 0, 0][frame - 1]! : 0;
+    v.sprite.y = -SADDLE_Z - bob - lift;
     v.fl.y = v.sprite.y;
   }
 

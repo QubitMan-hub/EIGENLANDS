@@ -66,6 +66,21 @@ Breath of the Wild's towers, where reaching one is a reward in itself.
   - Feed them hay, carrots, apples or oats. Using feed while riding works too.
   - A well-fed mount is 10% swifter for 15 minutes.
 - **Keyboard and gamepad.** Opening a waystone focuses its first available journey.
+- **Griffin (flying mount).**
+  - **Getting one:** attuning 15 stones teaches the Griffin Whistle recipe at a jeweler: 3 griffin plumes, 2 gold
+    ingots and 6 hide.
+  - **Riding:** a griffin flies at 1.95× walking speed over water, cliffs, trees and fences. Walls, doors, buildings
+    and settlement wards still stop it.
+  - **Restrictions:** it cannot take off underground or inside a ward, and it lands only on open, dry ground. A flying
+    rider is not thrown when hurt and cannot fight from the air.
+- **Caravan escort jobs.**
+  - **Signing on:** a caravan's shop window offers the ride to its next stop for a fixed fare (30 + 0.45 per tile of
+    road + 6 per level).
+  - **Riding along:** stay within 16 tiles. You get a warning at 15 s away; after 30 s away the job is lost.
+  - **Ambush:** wolves may fall on the wagon on the way (at most one forced ambush per job).
+  - **Pay:** the fare, XP and standing with the kingdom on arrival.
+- **The Wandering Peddler.** Pell the Wanderer visits a different town of the home continent each day, beside its
+  waystone from 08:00 to 18:00, with rare goods. See [LIVING_WORLD.md](LIVING_WORLD.md).
 
 ## Implementation
 
@@ -120,12 +135,9 @@ when they walk across a border.
 
 ## Not built yet
 
-- **Flying mounts:** flight would need a new collision rule (over walls, water and wards) and a landing rule, so it
-  is a deliberate design decision rather than more of the same.
 - **Mount stabling:** mounts are not boarded at a stable or needed between uses. The hitching post covers naming and
   feeding.
-- **Caravan escort quests:** taking a job to ride with a caravan to its far end. Ambush defence and trade exist.
 - **Gamepad hardware review:** focus order in the travel window works with the keyboard but has not been checked on a
   physical gamepad.
 
-Ranch integration preserves the original authored horse/Glimmerhart art and the seated rider. Codes 1/2 are travel horse/Stag, 3/4 their fed forms, and 5 is an individually trained Glimmerhart at 1.45×. Space dismounts every mode; spell and dodge paths dismount before acting. Ranch authority validates only its own riders, while travel care/expiry handles only codes 1–4. The separate earned Moonlit Stag keeps its own model.
+Ranch integration preserves the original authored horse/Glimmerhart art and the seated rider. Codes 1/2/3 are the travel horse, Stag and griffin, 4/5/6 their fed forms, and 7 is an individually trained Glimmerhart at 1.45×. Space dismounts every mode; spell and dodge paths dismount before acting. Ranch authority validates only its own riders, while travel care/expiry handles only codes 1–6. The separate earned Moonlit Stag keeps its own model.

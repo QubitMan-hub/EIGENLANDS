@@ -192,7 +192,7 @@ export interface ItemDef {
   /** consumed on use for a special effect: a Heart Crystal (+10 max health) or a boss summon */
   special?: 'heart' | 'summon' | 'ship' | 'recall' | 'mount';
   /** special 'mount': which mount it calls */
-  mount?: 'horse' | 'stag';
+  mount?: 'horse' | 'stag' | 'griffin';
   tags?: string[];
   /** catalog fields: rarity 0..5, material tier, UI category, the kingdom it belongs to */
   rarity?: Rarity;
@@ -942,6 +942,17 @@ def(
   C.w7,
   'A silver bell from the waystones. The Moonlit Stag, swifter than any horse, comes when it rings. A reward for twelve attuned stones.',
   { special: 'mount', mount: 'stag', stack: 1 },
+);
+def(
+  'griffin_whistle',
+  'Griffin Whistle',
+  'misc',
+  1600,
+  'tooth',
+  C.e6,
+  C.w6,
+  'A carved plume-whistle and a light saddle. Your griffin flies over forest, water and cliff alike, but will not soar over walls or into a town: land outside and walk in. No fighting from the air.',
+  { special: 'mount', mount: 'griffin', stack: 1 },
 );
 def('doubloon', 'Doubloon', 'misc', 55, 'gem', C.e6, C.e4, "A pirate's gold coin. Merchants pay well for them.");
 def(

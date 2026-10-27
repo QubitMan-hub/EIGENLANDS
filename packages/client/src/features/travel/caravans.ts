@@ -110,7 +110,7 @@ export class CaravanViews {
     const alongX = c.fx !== 0,
       rev = (alongX ? c.fx : c.fy) < 0;
     const wheel = c.moving ? Math.floor(v.travel / 0.45) & 1 : 0;
-    const w = wagonSprite(c.route.realm, alongX ? 'sw' : 'se', wheel, rev);
+    const w = wagonSprite(c.route.peddler ? 'home' : c.route.realm, alongX ? 'sw' : 'se', wheel, rev);
     v.wagon.texture = w.tex;
     v.wagon.anchor.set(w.ax / w.tex.width, w.ay / w.tex.height);
     // the horse walks ahead in the shafts; the nearer of horse and wagon draws on top

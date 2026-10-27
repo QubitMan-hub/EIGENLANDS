@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ChunkStore,
+  GLIMMERHART_MOUNT,
   REALM_IDS,
   arrivalOf,
   canTravel,
@@ -93,7 +94,7 @@ describe('riding and roads', () => {
     const walk = run(0, open).x,
       horse = run(1, open).x,
       stag = run(2, open).x,
-      hart = run(5, open).x;
+      hart = run(GLIMMERHART_MOUNT, open).x;
     expect(hart / walk).toBeCloseTo(1.45);
     expect(horse).toBeGreaterThan(hart);
     expect(horse).toBeGreaterThan(walk * 1.5);
@@ -119,7 +120,7 @@ describe('riding and roads', () => {
 describe('road caravans', () => {
   it('one per kingdom road, resting outside each settlement and rolling along the road between', async () => {
     const { caravanRoutes, caravanAt, caravanStock, tileAt, T, ITEMS } = await import('../src/index');
-    const routes = caravanRoutes(SEED);
+    const routes = caravanRoutes(SEED).filter((r) => !r.peddler);
     expect(routes.length).toBe(24);
     let samples = 0,
       onRoad = 0;
@@ -141,6 +142,28 @@ describe('road caravans', () => {
       expect(caravanStock(SEED, r, 13)).not.toEqual(stock); // wares rotate daily
     }
     expect(onRoad / samples).toBeGreaterThan(0.85);
+  });
+
+  it('the wandering peddler visits a different home town each day, keeping market hours', async () => {
+    const { caravanById, caravanAt, caravanStock, caravansNear, WORLD_EPOCH_MS, DAY_MS, ITEMS } =
+      await import('../src/index');
+    const r = caravanById(SEED, 'peddler')!;
+    expect(r.peddler).toBe(true);
+    const noon = (d: number) => WORLD_EPOCH_MS + d * DAY_MS + DAY_MS / 4; // the game day starts at 06:00
+    const towns = new Set<string>();
+    for (let d = 0; d < 6; d++) {
+      const p = caravanAt(SEED, r, noon(d));
+      expect(p.hidden).toBe(false);
+      expect(p.town).toBeTruthy();
+      towns.add(p.town!);
+      expect(caravansNear(SEED, p.x, p.y, 8, noon(d)).some((c) => c.route.id === 'peddler')).toBe(true);
+      // closed in the small hours
+      expect(caravanAt(SEED, r, WORLD_EPOCH_MS + d * DAY_MS + DAY_MS * 0.9).hidden).toBe(true);
+    }
+    expect(towns.size).toBeGreaterThanOrEqual(4);
+    const stock = caravanStock(SEED, r, 3);
+    expect(stock.some((s) => s.item === 'recall_shard')).toBe(true);
+    for (const s of stock) expect(ITEMS[s.item], s.item).toBeTruthy();
   });
 });
 
@@ -174,15 +197,40 @@ describe('bridges, the Undercroft network and mount care', () => {
   it('mount codes carry the animal and a good feed; fed mounts are swifter', async () => {
     const { mountCode, mountKindOf, validMountName, MOUNT_SPEED_MULT } = await import('../src/index');
     expect(mountKindOf(0)).toBeNull();
-    expect(mountKindOf(5)).toBeNull(); // Individual Glimmerhart care belongs to the ranch.
+    expect([1, 2, 3, 4, 5, 6].map(mountKindOf)).toEqual(['horse', 'stag', 'griffin', 'horse', 'stag', 'griffin']);
+    expect(mountCode('stag', true)).toBe(5);
+    expect(mountCode('griffin', false)).toBe(3);
+    expect(mountKindOf(7)).toBeNull(); // a ranch Glimmerhart's care belongs to the ranch
     expect(mountKindOf(99)).toBeNull();
-    expect([1, 2, 3, 4].map(mountKindOf)).toEqual(['horse', 'stag', 'horse', 'stag']);
-    expect(mountCode('stag', true)).toBe(4);
     expect(MOUNT_SPEED_MULT[mountCode('horse', true)]!).toBeGreaterThan(
       MOUNT_SPEED_MULT[mountCode('horse', false)]! * 1.09,
     );
     expect(validMountName('  Old   Bess ')).toBe('Old Bess');
     expect(validMountName('<script>')).toBeNull();
     expect(validMountName('x'.repeat(19))).toBeNull();
+  });
+});
+
+describe('the griffin', () => {
+  it('flies over ground a walker cannot cross, but not through walls or wards; no fighting from the air', () => {
+    // a band of "trees" (solid to walkers) at x 3..5, open to the griffin; a "wall" at x 9 solid to both
+    const land = Object.assign((x: number) => (x >= 3 && x <= 5) || x === 9, {
+      fly: (x: number) => x === 9,
+    });
+    const run = (mount: number) => {
+      const p = { ...newPlayerSim(0.5, 0.5), mount };
+      for (let i = 0; i < 60; i++) stepPlayer(p, sanitizeCmd({ seq: 1, dx: 1 }), land);
+      return p;
+    };
+    expect(run(0).x).toBeLessThan(3); // the walker stops at the trees
+    expect(run(1).x).toBeLessThan(3); // so does a horse
+    const g = run(3);
+    expect(g.x).toBeGreaterThan(5); // the griffin crosses them
+    expect(g.x).toBeLessThan(9); // but not the wall
+    const p = { ...newPlayerSim(0.5, 0.5), mount: 3 };
+    const ev = stepPlayer(p, sanitizeCmd({ seq: 1, attack: true, dash: true }), land);
+    expect(ev.attacked).toBe(false);
+    expect(ev.dashed).toBe(false);
+    expect(p.mount).toBe(3); // still in the saddle
   });
 });

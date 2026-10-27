@@ -27,6 +27,7 @@ import {
   SWING_MOVE_MULT,
   TICK_DT,
 } from './constants';
+import { isFlying } from './mounts';
 import { mineStep, type MineTrack } from './mines';
 import { meleeFamily, meleeTap, meleeHeavy, type MeleeFamily } from './combat';
 
@@ -82,7 +83,10 @@ export interface PlayerSim {
   staminaT: number;
   /** 1 while sprinting */
   sprint: number;
-  /** 0 on foot; 1 riding a horse, 2 the Moonlit Stag, 5 a trained Glimmerhart (MOUNT_SPEED_MULT). Attacking or skills step you down first. */
+  /**
+   * 0 on foot; otherwise a mount code (mounts.ts): horse, Moonlit Stag or griffin, fed or not, or a trained ranch
+   * Glimmerhart. Attacking, skills or dodging step a rider down first; a griffin rider cannot fight from the air.
+   */
   mount: number;
 }
 
@@ -131,6 +135,8 @@ export type SolidQuery = ((tx: number, ty: number) => boolean) & {
   level?: (tx: number, ty: number) => number;
   /** a kept road or path tile: walking and riding on it is a little faster */
   road?: (tx: number, ty: number) => boolean;
+  /** collision for a flying mount: walls, doors and settlement wards only */
+  fly?: (tx: number, ty: number) => boolean;
 };
 
 /** Switching families cannot carry a finisher/charge across weapons or erase recovery. */
@@ -295,9 +301,13 @@ export function chargeLevel(charge: number): number {
  * - phase slip (set by the server on a perfect dodge): the next attack is a critical counter.
  */
 export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepEvents {
-  if (p.mount && (cmd.attack || cmd.skill || cmd.dash || cmd.hold)) p.mount = 0;
   const sailing = p.boat > 0 && !!land.sea;
-  const solid: SolidQuery = sailing ? land.sea! : land;
+  const flying = !sailing && isFlying(p.mount) && !!land.fly;
+  // nobody fights or dashes from a griffin's back: those inputs simply do nothing in the air;
+  // on the ground, attacking, casting or dodging steps a rider down first
+  if (flying) cmd = { ...cmd, attack: false, hold: false, skill: false, dash: false };
+  else if (p.mount && (cmd.attack || cmd.skill || cmd.dash || cmd.hold)) p.mount = 0;
+  const solid: SolidQuery = sailing ? land.sea! : flying ? land.fly! : land;
   const ev: StepEvents = {
     dashed: false,
     attacked: false,
@@ -455,7 +465,7 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepE
   } else {
     // committed swing slows you; so does holding a charge
     const k = p.atkCd > 0.15 ? SWING_MOVE_MULT : p.charge > 0 ? CHARGE_MOVE_MULT : 1;
-    const onRoad = !sailing && !!land.road?.(Math.floor(p.x), Math.floor(p.y));
+    const onRoad = !sailing && !flying && !!land.road?.(Math.floor(p.x), Math.floor(p.y));
     const sp = sailing
       ? PLAYER_SPEED * BOAT_SPEED_MULT
       : PLAYER_SPEED * (MOUNT_SPEED_MULT[p.mount] ?? 1) * (onRoad ? (riding ? ROAD_MULT_MOUNTED : ROAD_MULT) : 1);

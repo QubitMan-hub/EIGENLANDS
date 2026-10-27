@@ -8,6 +8,8 @@ export function buildLore(m: PanelMsg, portrait: (npcId: string) => string): HTM
   ensureP2Styles();
   const lore = m.lore!;
   const root = h('div', { class: 'lore' });
+  // ruins and story scenes in the wild share this panel; only the statue speaks of QubitMan's legend
+  const wild = !!m.sub && (m.sub.startsWith('ruin_') || m.sub.startsWith('story_'));
   let page = -1; // -1 = the plaque
   const body = h('div');
   const render = () => {
@@ -20,10 +22,12 @@ export function buildLore(m: PanelMsg, portrait: (npcId: string) => string): HTM
           h('div', { class: 'hail', text: lore.plaque }),
           h('div', { class: 'ep', text: lore.epitaph }),
         ),
-        h('div', {
-          class: 'small dim',
-          text: 'A bronze figure in a long coat holds up a lantern. Up close, the bronze seems to shimmer between two colours. Below the plaque, a longer inscription tells his legend.',
-        }),
+        wild
+          ? ''
+          : h('div', {
+              class: 'small dim',
+              text: 'A bronze figure in a long coat holds up a lantern. Up close, the bronze seems to shimmer between two colours. Below the plaque, a longer inscription tells his legend.',
+            }),
       );
     } else body.append(h('div', { class: 'lore-page', text: lore.pages[page]! }));
     const nav = h(
@@ -41,12 +45,17 @@ export function buildLore(m: PanelMsg, portrait: (npcId: string) => string): HTM
       }),
       h('span', {
         class: 'small dim',
-        text: page < 0 ? 'The plaque' : `The Legend of QubitMan · ${page + 1}/${lore.pages.length}`,
+        text:
+          page < 0
+            ? wild
+              ? lore.title
+              : 'The plaque'
+            : `${wild ? lore.title : 'The Legend of QubitMan'} · ${page + 1}/${lore.pages.length}`,
       }),
       page < lore.pages.length - 1
         ? h('button', {
             class: 'primary',
-            text: page < 0 ? 'Read the legend ▸' : 'Next ▸',
+            text: page < 0 ? (wild ? 'Read on ▸' : 'Read the legend ▸') : 'Next ▸',
             on: {
               click: () => {
                 page++;
@@ -56,7 +65,7 @@ export function buildLore(m: PanelMsg, portrait: (npcId: string) => string): HTM
           })
         : h('button', {
             class: 'primary',
-            text: 'ALL HAIL QUBITMAN',
+            text: wild ? 'From the start' : 'ALL HAIL QUBITMAN',
             on: {
               click: () => {
                 page = -1;

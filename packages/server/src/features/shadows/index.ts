@@ -10,6 +10,12 @@ import {
   BOND_RANGE,
   bestiaryKind,
   companionBond,
+  FOX_FINDS,
+  FOX_FORAGE_SECS,
+  ITEMS,
+  addStack,
+  biomeAt,
+  canAdd,
   ENEMY_DEFS,
   ENEMY_BY_KIND,
   NPC_BY_ID,
@@ -81,6 +87,8 @@ interface Unit {
   downUntil: number;
   chargeHits: Set<string>;
   supportT: number;
+  /** a Keen-nosed fox's seconds until its next find */
+  forageT?: number;
   route?: Array<[number, number]>;
   routeAt?: number;
 }
@@ -627,6 +635,20 @@ export class ShadowModule implements Module {
     }
   }
 
+  /** Keen nose: a bonded fox near its quiet owner, ashore, turns up something from the land every couple of minutes */
+  private foxForage(u: Unit, p: ServerPlayer, dOwner: number, hostile: Enemy[], dt: number): void {
+    if (dOwner > 6 || p.sim.boat || hostile.some((h) => Math.hypot(h.x - p.sim.x, h.y - p.sim.y) < 12)) return;
+    u.forageT = (u.forageT ?? FOX_FORAGE_SECS) - dt;
+    if (u.forageT > 0) return;
+    u.forageT = FOX_FORAGE_SECS;
+    const id = FOX_FINDS[biomeAt(this.room.seed, u.en.x, u.en.y)] ?? 'hazelnut';
+    const stack = { id, n: 1 };
+    if (!canAdd(p.data.inv, stack)) return;
+    addStack(p.data.inv, stack);
+    p.dirty('inv');
+    p.toast(`${u.rec.name || 'Your fox'} digs up a ${ITEMS[id]?.name ?? id}!`, 'item', stack);
+  }
+
   private hostiles(): Enemy[] {
     const out: Enemy[] = [];
     for (const e of this.room.enemies.values())
@@ -679,6 +701,7 @@ export class ShadowModule implements Module {
       ? hostile.find((h) => h.id === L.focus && Math.hypot(h.x - p.sim.x, h.y - p.sim.y) <= LEASH)
       : undefined;
     const targets: Target[] = [];
+    if (u.rec.bonded && u.rec.kind === 15) this.foxForage(u, p, dOwner, hostile, dt);
     if (u.rec.bonded && (u.rec.kind === 3 || u.rec.kind === bestiaryKind('unicorn'))) {
       // A haven is earned through quiet rest, never while a hostile is nearby or while catching up offline.
       if (dOwner <= 6 && !hostile.some((h) => Math.hypot(h.x - p.sim.x, h.y - p.sim.y) < 12)) {
@@ -703,6 +726,8 @@ export class ShadowModule implements Module {
           }
         }
       } else u.supportT = 12;
+    } else if (u.rec.bonded && u.rec.kind === 15) {
+      // a fox never fights: it keeps close and noses about
     } else if (focus) targets.push({ id: focus.id, x: focus.x, y: focus.y, alive: true });
     else
       for (const h of hostile) {

@@ -50,6 +50,9 @@ import { VoiceModule } from '../features/voice';
 import { ShrineModule } from '../features/shrines';
 import { TravelModule } from '../features/travel';
 import { CaravanModule } from '../features/caravans';
+import { CivModule } from '../features/civ';
+import { FestivalModule } from '../features/festivals';
+import { CryptModule } from '../features/crypts';
 import { SocialModule } from '../features/social';
 import type { BucketName, Carry, JoinOpts, Module, Registrar } from '../features/types';
 import type { VillageHost, VillageSystem } from '../systems/types';
@@ -96,6 +99,9 @@ export class GameRoom extends WorldRoom {
   shrines!: ShrineModule;
   travel!: TravelModule;
   caravans!: CaravanModule;
+  civ!: CivModule;
+  festivals!: FestivalModule;
+  crypts!: CryptModule;
   shardMod!: ShardModule;
   private modules: Module[] = [];
   private buckets = new Map<string, Map<BucketName, TokenBucket>>();
@@ -146,6 +152,9 @@ export class GameRoom extends WorldRoom {
     this.caves = new CaveModule(this);
     this.travel = new TravelModule(this);
     this.caravans = new CaravanModule(this);
+    this.civ = new CivModule(this);
+    this.festivals = new FestivalModule(this);
+    this.crypts = new CryptModule(this);
     this.modules = [
       this.shardMod,
       this.journeys,
@@ -160,6 +169,9 @@ export class GameRoom extends WorldRoom {
       this.sailing,
       this.travel,
       this.caravans,
+      this.civ,
+      this.festivals,
+      this.crypts,
       this.army,
       this.voice,
     ];
@@ -441,6 +453,9 @@ export class GameRoom extends WorldRoom {
   summonBoss(p: ServerPlayer, itemId: string, x: number, y: number): boolean {
     return this.bosses?.summon(p, itemId, x, y) ?? false;
   }
+  cryptInteract(p: ServerPlayer, o: WorldObj): void {
+    this.crypts?.open(p, o);
+  }
   vaultGuard(p: ServerPlayer, o: WorldObj): boolean {
     return this.caves?.guard(p, o) ?? false;
   }
@@ -476,7 +491,7 @@ export class GameRoom extends WorldRoom {
   }
 
   protected hookWarZone(x: number, y: number): boolean {
-    return this.army?.warZone(x, y) ?? false;
+    return (this.army?.warZone(x, y) ?? false) || (this.festivals?.warZone(x, y) ?? false);
   }
   protected hookFire(e: Enemy, dx: number, dy: number): void {
     this.army?.shot(e, dx, dy);

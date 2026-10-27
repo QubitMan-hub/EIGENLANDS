@@ -150,3 +150,20 @@ describe('gifts', () => {
 });
 
 void mulberry32;
+
+describe('neighbours', () => {
+  it('residents name their neighbours, with each tie seen from both sides', async () => {
+    const { village, p } = await setup();
+    nextTo(p, village, 'orla');
+    const m = village.talk(p, 'orla', 'ask:folk')!;
+    expect(m.text).toMatch(/•/);
+    expect(m.choices?.some((c) => c.id === 'ask:about')).toBe(true);
+    const { tiesOf } = await import('@eigenlands/shared');
+    for (const t of tiesOf('orla')) {
+      const back = tiesOf(t.other).find((u) => u.other === 'orla');
+      expect(back, t.other).toBeTruthy();
+      if (t.kind === 'mentor') expect(back!.kind).toBe('apprentice');
+      else if (t.kind !== 'apprentice') expect(back!.kind).toBe(t.kind);
+    }
+  });
+});

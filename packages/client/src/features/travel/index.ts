@@ -2,6 +2,11 @@ import { Graphics } from 'pixi.js';
 import {
   ATTUNE_REACH,
   MSG_TRAVEL,
+  MSG_CIV,
+  MSG_FEST,
+  TOURNEY_BOUTS,
+  type TourneyState,
+  type CivSummary,
   waystonesNear,
   type TravelEvent,
   type WayKind,
@@ -11,7 +16,9 @@ import { isoX, isoY } from '../../game/iso';
 import { keyLabel } from '../../input/keymap';
 import { h } from '../../ui/dom';
 import type { ClientModule, P34Deps } from '../types';
+import { setCivSender, setCivState } from '../../game/civ-store';
 import { CaravanViews } from './caravans';
+import { SettlementViews } from './settlements';
 import { BridgeViews } from './bridges';
 import { VoyageCard } from '../../ui/voyage';
 
@@ -44,12 +51,21 @@ export class TravelClient implements ClientModule {
   onChange: (list: AttunedStone[]) => void = () => {};
   readonly caravans: CaravanViews;
   readonly bridges: BridgeViews;
+  readonly settlements: SettlementViews;
   private voyage: VoyageCard;
 
   constructor(private d: P34Deps) {
     this.gfx.zIndex = 9e8;
     this.d.fxLayer().addChild(this.gfx);
     this.caravans = new CaravanViews(d);
+    this.settlements = new SettlementViews(d);
+    setCivSender((type, msg) => {
+      try {
+        this.d.net().send(type, msg);
+      } catch {
+        /* offline */
+      }
+    });
     this.bridges = new BridgeViews(d);
     this.voyage = new VoyageCard(() => this.d.settings().reducedMotion);
     this.fill = h('i');
@@ -78,7 +94,20 @@ export class TravelClient implements ClientModule {
   }
 
   handlers(): Record<string, (m: any) => void> {
-    return { [MSG_TRAVEL.EV]: (m: TravelEvent) => this.on(m) };
+    return {
+      [MSG_TRAVEL.EV]: (m: TravelEvent) => this.on(m),
+      // the living kingdoms' state rides along with the travel module (it is shown in the Journal and the world)
+      [MSG_CIV.STATE]: (m: CivSummary) => setCivState(m),
+      [MSG_FEST.TOURNEY]: (m: TourneyState) => this.bout(m),
+    };
+  }
+
+  /** the herald's calls during a tournament bout */
+  private bout(m: TourneyState): void {
+    if (m.status !== 'fighting' || m.left <= 0) return;
+    const foe = ['a foot soldier', 'a rider', 'the champion'][m.bout] ?? 'a challenger';
+    this.d.toasts.add(`Bout ${m.bout + 1} of ${TOURNEY_BOUTS.length}: ${foe} enters the lists! (${m.left}s)`, 'info');
+    this.d.sfx('bell');
   }
 
   private on(m: TravelEvent): void {
@@ -145,6 +174,7 @@ export class TravelClient implements ClientModule {
   frame(now: number, dt = 16): void {
     this.caravans.frame(dt);
     this.bridges.frame(now);
+    this.settlements.frame(now, dt);
     const me = this.d.me();
     const g = this.gfx;
     g.clear();

@@ -1221,6 +1221,19 @@ r(
   'discover',
   'Chip a waystone splinter around a crystal heart. Learned by attuning three waystones.',
 );
+r(
+  'griffin_whistle',
+  'jeweler',
+  [
+    ['griffin_plume', 3],
+    ['gold_ingot', 2],
+    ['hide', 6],
+  ],
+  ['griffin_whistle', 1],
+  40,
+  'discover',
+  'Three plumes from a Gilded Griffin, a gold-bound whistle and a light saddle. Learned at Wayfarer rank 3.',
+);
 r('heart_crystal', 'hand', [['shrine_shard', 4]], ['heart_crystal', 1], 20, 'start', 'Four solved shrines, fused.');
 r(
   'slime_crown',

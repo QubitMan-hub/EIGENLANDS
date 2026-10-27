@@ -6,8 +6,9 @@ it('defines distinct, playable bonds using existing forage and creature stats', 
     [7, 'hazelnut', 3],
     [9, 'mushroom', 2],
     [3, 'blackberry', 3],
+    [15, 'egg', 2],
   ]);
-  expect(new Set(COMPANION_BONDS.map((b) => b.trait)).size).toBe(3);
+  expect(new Set(COMPANION_BONDS.map((b) => b.trait)).size).toBe(4);
   for (const b of COMPANION_BONDS) {
     expect(companionBond(b.kind)).toBe(b);
     expect(shadowStats(b.kind, 1).hp).toBeGreaterThan(0);
