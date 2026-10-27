@@ -5,6 +5,8 @@ import { CaveModule } from '../features/caves';
 import { matchMaker, type Client } from 'colyseus';
 import type { Schema } from '@colyseus/schema';
 import {
+  REALMFOLK,
+  realmfolkSpots,
   CLASS_INDEX,
   MSG,
   MSG34,
@@ -314,6 +316,14 @@ export class GameRoom extends WorldRoom {
         const site = REALM_SITE_BY_ID[n.site!];
         if (site && (this.unsharded || shardAt(site.cx, site.cy) === this.shard)) ids.push(n.id);
       }
+    // the realm peoples belong to the shard their settlement stands in (revision 6)
+    if (this.store.generation >= 6) {
+      const spots = realmfolkSpots(this.seed);
+      for (const n of REALMFOLK) {
+        const s = spots[n.home];
+        if (s && (this.unsharded || shardAt(s.x, s.y) === this.shard)) ids.push(n.id);
+      }
+    }
     if (!ids.length) return nullVillage();
     const prefix = this.unsharded || shardAt(t.cx, t.cy) === this.shard ? '' : `${this.shard}:`;
     return createVillage(

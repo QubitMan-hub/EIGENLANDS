@@ -71,6 +71,15 @@ export type CritterKind =
   | 'gear_hound'
   | 'paradox_echo'
   | 'the_unwound'
+  | 'gale_reaver'
+  | 'gale_gunner'
+  | 'gale_captain'
+  | 'gloam_zealot'
+  | 'gloam_hexer'
+  | 'gloam_hierophant'
+  | 'sundered_blade'
+  | 'sundered_seer'
+  | 'sundered_warlord'
   | 'tide_leviathan'
   | 'griffin'
   | 'spirit_stag'
@@ -1869,6 +1878,15 @@ const DEFS: Record<CritterKind, Def> = {
   gear_hound: otherworldBeast(6),
   paradox_echo: otherworldBeast(7),
   the_unwound: otherworldBeast(8),
+  gale_reaver: armyUnitDef(6, 'infantry'),
+  gale_gunner: armyUnitDef(6, 'ranged'),
+  gale_captain: armyUnitDef(6, 'elite'),
+  gloam_zealot: armyUnitDef(7, 'infantry'),
+  gloam_hexer: armyUnitDef(7, 'ranged'),
+  gloam_hierophant: armyUnitDef(7, 'elite'),
+  sundered_blade: armyUnitDef(8, 'infantry'),
+  sundered_seer: armyUnitDef(8, 'ranged'),
+  sundered_warlord: armyUnitDef(8, 'elite'),
   cow: farmAnimal(0),
   sheep: farmAnimal(1),
   pig: farmAnimal(2),
@@ -2023,6 +2041,15 @@ export function buildFoeSheets(): FoeSheets {
         'gear_hound',
         'paradox_echo',
         'the_unwound',
+        'gale_reaver',
+        'gale_gunner',
+        'gale_captain',
+        'gloam_zealot',
+        'gloam_hexer',
+        'gloam_hierophant',
+        'sundered_blade',
+        'sundered_seer',
+        'sundered_warlord',
       ] as const
     )[k - 80];
     if (other) return other;

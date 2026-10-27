@@ -1,3 +1,21 @@
+# Current continuation: the three realms and their peoples (2026-10-27)
+
+Read [REALMS.md](REALMS.md).
+
+- **Realms:** `shared/src/otherworlds.ts` (planes at y -300000/-400000/-500000, room-graph layouts, puzzles); server
+  `features/otherworlds` (portals, updrafts and chimes, dials and gate, rewind rifts, darkness, roaming, guardians);
+  client `art/realms.ts`, `gl/terrain.frag.ts` (`cloudSea`, `fractureVoid`), `art/foes.ts` `otherworldBeast`.
+- **Peoples:** `shared/src/realmfolk.ts` (races, `STANDING`, `realmfolkSpots`, `REALMFOLK`); standing in `p.data.rep`
+  via server `systems/reputation.ts` `gainStanding`; stock gating in `systems/village`; looks in client
+  `art/actors.ts` and `art/army-units.ts` (rows 6–8). Enemy kinds 80–97 sit at their own index in `ENEMY_BY_KIND`
+  (74–77 are livestock on the wire).
+- **Items:** `catalog/realm-items.ts`, realm metals aetherium/umbrite/chronium (`metals.ts`, `weapons-data.ts`,
+  `armor.ts`), accessories in `gear-items.ts`; recipes gated by `learn: realm:<people>`.
+- **Validation:** shared `otherworlds.test.ts`, server `realms.test.ts`, `realmfolk.test.ts`, browser `e2e/realms.mjs`,
+  `e2e/realmfolk.mjs`.
+
+---
+
 # Current continuation: wonders and hunts (2026-10-27)
 
 - **Fix:** crypt rock rendered as a field of zigzag triangles because the terrain shader did not treat the crypt plane

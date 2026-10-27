@@ -1,4 +1,5 @@
 import {
+  otherworldOf,
   MOUNT_FEED,
   caveBiomeAt,
   dropAllowed,
@@ -279,7 +280,7 @@ function hitNode(room: RoomApi, p: ServerPlayer, tool: Stack, tx: number, ty: nu
   if (st.hp > 0) return;
 
   const drops: Stack[] = [];
-  const realm = isCaveY(ty) ? null : (inRealmLand(room.seed, tx, ty) ?? null),
+  const realm = otherworldOf(ty) ?? (isCaveY(ty) ? null : (inRealmLand(room.seed, tx, ty) ?? null)),
     cave = isCaveY(ty) ? caveBiomeAt(room.seed, tx, ty, room.store.generation) : null;
   for (const d of node.drops) {
     if (d.minTier && tier < d.minTier) continue;

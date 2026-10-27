@@ -211,12 +211,15 @@ export function otherworldTileAt(seed: number, x: number, y: number): number | n
     if (!room) return road ? T.PATH : T.UPPER_VOID;
     if (edge < 1.4) return T.SAND; // the crumbling rim
     if (home || arena || clear) return h < 0.06 ? T.FLOWERS : h < 0.1 ? T.GRASS_TALL : T.GRASS;
+    // aetherium shows as pale outcrops in the meadow rings
+    if (h > 0.985) return T.ORE_SILVER;
+    if (h > 0.975) return T.ROCK;
     return h < 0.025 ? T.TREE : h < 0.045 ? T.SHIMMER : h < 0.13 ? T.FLOWERS : h < 0.24 ? T.GRASS_TALL : T.GRASS;
   }
   if (w === 'umbra') {
     if (!room && !road) {
       // crystal seams catch the eye in the rock along the passages
-      return h < 0.03 ? T.CAVE_CRYSTAL : T.CAVE_WALL;
+      return h < 0.03 ? T.CAVE_CRYSTAL : h < 0.055 ? T.CAVE_SILVER : T.CAVE_WALL;
     }
     if (room && room.gx === HOLLOW_CELL[0] && room.gy === HOLLOW_CELL[1]) return T.VAULT_FLOOR;
     if (!room || home || arena) return T.CAVE_FLOOR;
@@ -241,7 +244,7 @@ export function otherworldTileAt(seed: number, x: number, y: number): number | n
   if (Math.hypot(x, ly) > OTHERWORLDS[w].cell * (OTHERWORLDS[w].span + 0.6)) return T.UPPER_VOID;
   const crack = Math.abs(vnoise(seed, x / 13, ly / 13, 7320) - 0.5);
   if (crack < 0.04) return T.UPPER_VOID;
-  return h < 0.02 ? T.SHIMMER : h < 0.03 ? T.ROCK : h < 0.2 ? T.GRASS_TALL : T.GRASS;
+  return h < 0.02 ? T.SHIMMER : h < 0.03 ? T.ROCK : h > 0.988 ? T.ORE_GOLD : h < 0.2 ? T.GRASS_TALL : T.GRASS;
 }
 
 /** Heights: Aetheria's islands stand two levels above the cloud, Chronoria's plateau one above its fractures. */

@@ -1069,7 +1069,7 @@ R(
   [
     ['umbral_spore', 6],
     ['abyss_heart', 1],
-    ['glass_pane', 1],
+    ['aetherium_plate', 1],
   ],
   12,
   'engineering',
@@ -1089,9 +1089,195 @@ R(
   [
     ['chrono_sand', 6],
     ['unwound_gear', 1],
+    ['umbrite_rod', 1],
   ],
   14,
   'enchanting',
   'Set the gear in a cage of moving sand.',
+);
+// ── realm accessories: each realm's people teach them, from that realm's metal, beasts and its champions' trophies
+gear('storm_buckler', 'Storm Buckler', 'shield', 'shield', 11, { def: 0.06, haste: 1 }, 220, {
+  g: 'buckler',
+  a: C.pale,
+  b: C.w5,
+  d: 'An Aerin skyguard’s buckler, edged with storm feathers. It turns blows like wind turns a leaf.',
+  v: 420,
+  rarity: 2,
+});
+R(
+  'storm_buckler',
+  'forge',
+  [
+    ['aetherium_plate', 2],
+    ['storm_feather', 3],
+  ],
+  11,
+  'smithing',
+  'Aetherium rim, feathered edge.',
+  { tool: 'tongs', learn: 'realm:aerin', realm: 'aerin' },
+);
+gear('aerin_circlet', 'Aerin Circlet', 'accessory', 'neck', 12, { luck: 1.5, haste: 1, cool: 1 }, 200, {
+  g: 'amulet',
+  a: C.e7,
+  b: C.w6,
+  d: 'A band of aetherium set with sky amber, worn by the Aerin who ride the high winds.',
+  v: 460,
+  rarity: 2,
+});
+R(
+  'aerin_circlet',
+  'jeweler',
+  [
+    ['aetherium_rod', 1],
+    ['sky_amber', 2],
+    ['sentinel_gilding', 1],
+  ],
+  12,
+  'enchanting',
+  'Bend the rod; seat the amber.',
+  { learn: 'realm:aerin', realm: 'aerin' },
+);
+gear('windcaller_mantle', 'Windcaller Mantle', 'accessory', 'back', 13, { haste: 2, phase: 0.04, luck: 1 }, 240, {
+  g: 'cloak',
+  a: C.w4,
+  b: C.white,
+  d: 'Sewn from cloud-silk around a reaver captain’s compass: the wind finds you before you find it.',
+  v: 700,
+  rarity: 3,
+});
+R(
+  'windcaller_mantle',
+  'loom',
+  [
+    ['cloud_silk', 4],
+    ['captains_compass', 1],
+  ],
+  13,
+  'tailoring',
+  'Stitch the compass into the collar.',
+  { learn: 'realm:aerin', realm: 'aerin' },
+);
+gear('hollow_cloak', 'Hollow Cloak', 'accessory', 'back', 14, { warm: 3, def: 0.04, hp: 10 }, 260, {
+  g: 'cloak',
+  a: C.night,
+  b: C.q4,
+  d: 'A Hollowfolk cloak of shade pelt. Warm in the deep cold, and the dark does not see you so easily.',
+  v: 600,
+  rarity: 2,
+});
+R(
+  'hollow_cloak',
+  'tannery',
+  [
+    ['shade_pelt', 4],
+    ['umbrite_rod', 1],
+  ],
+  14,
+  'leatherworking',
+  'Cure the pelt; clasp it with umbrite.',
+  { tool: 'needle_kit', learn: 'realm:hollowfolk', realm: 'hollowfolk' },
+);
+gear('serpentscale_buckler', 'Serpentscale Buckler', 'shield', 'shield', 15, { def: 0.08, hp: 8 }, 280, {
+  g: 'shield',
+  a: C.fog,
+  b: C.q4,
+  d: 'Abyssal scales laid over umbrite. Cold to hold, colder to strike.',
+  v: 640,
+  rarity: 2,
+});
+R(
+  'serpentscale_buckler',
+  'tannery',
+  [
+    ['serpent_scale', 4],
+    ['umbrite_plate', 1],
+  ],
+  15,
+  'leatherworking',
+  'Overlap the scales like the serpent wore them.',
+  { tool: 'needle_kit', learn: 'realm:hollowfolk', realm: 'hollowfolk' },
+);
+gear('gloamward_charm', 'Gloamward Charm', 'accessory', 'charm', 15, { def: 0.05, hp: 12, warm: 1 }, 260, {
+  g: 'charm',
+  a: C.q2,
+  b: C.q6,
+  d: 'A void pearl set in the Hierophant’s broken mask. Curses and blows alike find less of you.',
+  v: 760,
+  rarity: 3,
+});
+R(
+  'gloamward_charm',
+  'jeweler',
+  [
+    ['void_pearl', 2],
+    ['hierophant_mask', 1],
+    ['gloam_sigil', 3],
+  ],
+  15,
+  'enchanting',
+  'Break the mask; keep the part that was looking.',
+  { learn: 'realm:hollowfolk', realm: 'hollowfolk' },
+);
+gear('archivist_lenses', 'Archivist’s Lenses', 'accessory', 'neck', 17, { craft: 12, luck: 2 }, 220, {
+  g: 'amulet',
+  a: C.e7,
+  b: C.mist,
+  d: 'Temporal crystal ground into lenses: you see how a thing was made, and how it might be made with less.',
+  v: 720,
+  rarity: 3,
+});
+R(
+  'archivist_lenses',
+  'jeweler',
+  [
+    ['temporal_crystal', 2],
+    ['chronium_rod', 1],
+  ],
+  17,
+  'enchanting',
+  'Grind the crystal against its own grain.',
+  { learn: 'realm:archivists', realm: 'archivists' },
+);
+gear('clockwork_belt', 'Clockwork Belt', 'accessory', 'belt', 17, { stamina: 20, haste: 1 }, 260, {
+  g: 'belt',
+  a: C.e5,
+  b: C.steel,
+  d: 'Gear-hound springs wound into a belt: every step stores a little for the next sprint.',
+  v: 680,
+  rarity: 2,
+});
+R(
+  'clockwork_belt',
+  'engineering',
+  [
+    ['clockwork_spring', 4],
+    ['chronium_rod', 1],
+  ],
+  17,
+  'engineering',
+  'Wind the springs against each other.',
+  { learn: 'realm:archivists', realm: 'archivists' },
+);
+gear('paradox_aegis', 'Paradox Aegis', 'shield', 'shield', 18, { def: 0.07, phase: 0.08, hp: 10 }, 320, {
+  g: 'shield',
+  a: C.e7,
+  b: C.q5,
+  d: 'A chronium shield set with the Warlord’s sigil. Half the blows meant for you strike it a moment too late.',
+  v: 900,
+  rarity: 3,
+});
+R(
+  'paradox_aegis',
+  'forge',
+  [
+    ['chronium_plate', 2],
+    ['echo_shard', 3],
+    ['warlord_sigil', 1],
+    ['sundered_seal', 3],
+  ],
+  18,
+  'smithing',
+  'Forge it twice; keep the second.',
+  { tool: 'tongs', learn: 'realm:archivists', realm: 'archivists' },
 );
 void GEARS;

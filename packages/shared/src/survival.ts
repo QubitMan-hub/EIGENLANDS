@@ -139,8 +139,22 @@ export function graveInjuryOnHit(kind: string): { cond: Condition; chance: numbe
     colossus: 0.2,
     geode_tyrant: 0.2,
     slime_king: 0.12,
+    gale_captain: 0.12,
+    sundered_warlord: 0.18,
+    umbral_maw: 0.15,
+    the_unwound: 0.15,
   };
-  const hex: Record<string, number> = { wisp: 0.08, vault_guardian: 0.2, veyr: 0.25, warden: 0.25, hellhound: 0.15 };
+  const hex: Record<string, number> = {
+    wisp: 0.08,
+    vault_guardian: 0.2,
+    veyr: 0.25,
+    warden: 0.25,
+    hellhound: 0.15,
+    gloam_hexer: 0.25,
+    gloam_hierophant: 0.35,
+    paradox_echo: 0.12,
+    sundered_seer: 0.18,
+  };
   if (crush[kind]) return { cond: 'fracture', chance: crush[kind] };
   if (hex[kind]) return { cond: 'curse', chance: hex[kind] };
   return null;

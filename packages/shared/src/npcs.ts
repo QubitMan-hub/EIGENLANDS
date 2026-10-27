@@ -1,4 +1,5 @@
 import { CAVE_RESIDENTS, CAVE_TOWNS } from './undercroft';
+import { REALMFOLK } from './realmfolk';
 import { PORT_RESIDENTS, PORTS } from './settlements';
 import type { Weather } from './weather';
 import { ITEMS, type ItemKind } from './items';
@@ -15,6 +16,8 @@ export interface ShopStock {
   item: string;
   markup: number;
   seasons?: number[];
+  /** standing needed with the seller's people before they will sell it (realm residents) */
+  standing?: number;
 }
 export interface NpcDef {
   id: string;
@@ -29,6 +32,8 @@ export interface NpcDef {
   loves: string[];
   likes: string[];
   hates: string[];
+  /** the people of a realm resident (realmfolk.ts) */
+  race?: string;
   /** world revision 5: the kingdom, role and settlement plot of a kingdom resident */
   realm?: string;
   role?: string;
@@ -971,6 +976,7 @@ export const DELVER_MERCHANTS: NpcDef[] = (
 });
 for (const m of DELVER_MERCHANTS) NPC_BY_ID[m.id] = m;
 for (const m of realmNpcs()) NPC_BY_ID[m.id] = m;
+for (const m of REALMFOLK) NPC_BY_ID[m.id] = m;
 
 // ── friendship
 export const POINTS_PER_HEART = 40;

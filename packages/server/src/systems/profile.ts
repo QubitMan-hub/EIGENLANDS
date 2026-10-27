@@ -1,3 +1,4 @@
+import { RACE_IDS } from '@eigenlands/shared';
 import { guildContract, validGuildJourney, contractKind } from '@eigenlands/shared';
 import {
   REALM_IDS,
@@ -176,7 +177,7 @@ export function loadPlayerData(raw: unknown, season: number, nowMs: number): Pla
   }
   const rep: PlayerData['rep'] = {};
   if (r.rep && typeof r.rep === 'object')
-    for (const id of REALM_IDS) {
+    for (const id of [...REALM_IDS, ...RACE_IDS]) {
       const v = (r.rep as Record<string, unknown>)[id];
       if (typeof v === 'number' && Number.isFinite(v) && v !== 0)
         rep[id] = Math.max(REP_MIN, Math.min(REP_MAX, Math.round(v)));

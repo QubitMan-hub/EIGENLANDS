@@ -1,5 +1,5 @@
 import { civOf, recordCiv } from '../../features/civ/registry';
-import { gainRep } from '../reputation';
+import { gainRep, gainStanding } from '../reputation';
 import {
   DAY_MS,
   GIFT_EXTRA,
@@ -16,6 +16,12 @@ import {
   royalCelebration,
   tieNewsOn,
   tieSpill,
+  REALMFOLK,
+  RACES,
+  STANDING,
+  isRace,
+  realmfolkSpots,
+  type ShopStock,
   NPC_BY_ID,
   standingLine,
   localPriceFactor,
@@ -119,8 +125,16 @@ export class Village implements VillageSystem {
     // revision 4 adds the travelling merchants and the delver camps they trade from
     const modern = host.store.generation >= 4;
     if (modern) Object.assign(this.spots, delverSpots(host.seed));
+    // revision 6: the peoples of the three realms
+    if (gen >= 6) Object.assign(this.spots, realmfolkSpots(host.seed));
     const all =
-      gen >= 5 ? [...NPCS, ...DELVER_MERCHANTS, ...realmNpcs()] : modern ? [...NPCS, ...DELVER_MERCHANTS] : NPCS;
+      gen >= 6
+        ? [...NPCS, ...DELVER_MERCHANTS, ...realmNpcs(), ...REALMFOLK]
+        : gen >= 5
+          ? [...NPCS, ...DELVER_MERCHANTS, ...realmNpcs()]
+          : modern
+            ? [...NPCS, ...DELVER_MERCHANTS]
+            : NPCS;
     this.defs = opts.npcIds ? all.filter((n) => opts.npcIds!.includes(n.id)) : all;
   }
 
@@ -802,6 +816,13 @@ export class Village implements VillageSystem {
     );
   }
 
+  /** a realm resident only sells their better wares to those who stand well with their people */
+  private standingOk(p: PlayerRef, def: NpcDef, s: ShopStock): boolean {
+    return (
+      !s.standing || !def.race || ((p.data.rep as Record<string, number | undefined>)[def.race] ?? 0) >= s.standing
+    );
+  }
+
   private view(p: PlayerRef, def: NpcDef): ShopViewMsg {
     const season = this.host.clock.season();
     const shop = def.shop;
@@ -819,6 +840,7 @@ export class Village implements VillageSystem {
       note: local?.note,
       stock: (shop?.stock ?? [])
         .filter((s) => !s.seasons || s.seasons.includes(season))
+        .filter((s) => this.standingOk(p, def, s))
         .map((s) => ({
           item: s.item,
           price: Math.max(1, Math.round(buyPrice(s.item, s.markup) * this.realmFactor(p, def, s.item))),
@@ -858,7 +880,9 @@ export class Village implements VillageSystem {
     if (!Number.isInteger(n) || n < 1 || n > 99) return this.view(p, def);
     if (msg.action === 'buy') {
       const season = this.host.clock.season();
-      const entry = def.shop.stock.find((s) => s.item === msg.item && (!s.seasons || s.seasons.includes(season)));
+      const entry = def.shop.stock.find(
+        (s) => s.item === msg.item && (!s.seasons || s.seasons.includes(season)) && this.standingOk(p, def, s),
+      );
       if (!entry) {
         p.toast('Not for sale right now.', 'bad');
         return this.view(p, def);
@@ -903,6 +927,8 @@ export class Village implements VillageSystem {
       this.marketDirty = true;
       p.dirty('inv', 'coins');
       p.toast(`Sold ${n} ${ITEMS[id]!.name} for ${total}.`, 'good');
+      // a realm people welcomes their enemies' tokens: standing as well as coin
+      if (def.race && isRace(def.race) && RACES[def.race].token === id) gainStanding(p, def.race, STANDING.token * n);
       if (def.realm) gainRep(p, def.realm as RealmId, Math.max(1, Math.floor(total / 40)), true);
       if (def.realm) recordCiv(this.host.seed, def.realm as RealmId, 'trade', total);
       if (p.data.quests) {

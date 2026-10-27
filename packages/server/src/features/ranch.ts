@@ -84,7 +84,8 @@ export class Ranch implements Module {
         isCaveY(p.sim.y) ||
         isDiveY(p.sim.y) ||
         isUpperY(p.sim.y) ||
-        isCryptY(p.sim.y) || isOtherworldY(p.sim.y)
+        isCryptY(p.sim.y) ||
+        isOtherworldY(p.sim.y)
       ) {
         p.toast('Ride a trained mount on the surface, away from boats and carts.');
         return;
@@ -132,7 +133,8 @@ export class Ranch implements Module {
         p.sim.cart ||
         isCaveY(p.sim.y) ||
         isDiveY(p.sim.y) ||
-        isCryptY(p.sim.y) || isOtherworldY(p.sim.y) ||
+        isCryptY(p.sim.y) ||
+        isOtherworldY(p.sim.y) ||
         isUpperY(p.sim.y) ||
         !!buildingAt(this.room.seed, Math.floor(p.sim.x), Math.floor(p.sim.y)) ||
         this.room.store.structureAt(Math.floor(p.sim.x), Math.floor(p.sim.y))?.data?.roof

@@ -14,6 +14,11 @@
  */
 import {
   CHUNK_SIZE,
+  ENEMY_KEY_BY_KIND,
+  RACES,
+  RACE_OF_REALM,
+  STANDING,
+  raceAgainst,
   DIAL_WORDS,
   MSG,
   OTHERWORLDS,
@@ -41,6 +46,7 @@ import type { Enemy } from '../../game/enemies';
 import type { GameRoom } from '../../rooms/GameRoom';
 import type { ServerPlayer } from '../../rooms/player';
 import { giveStacks } from '../../systems/helpers';
+import { gainStanding } from '../../systems/reputation';
 import type { Module, Registrar } from '../types';
 
 const ROAM_MAX = 5;
@@ -330,10 +336,27 @@ export class OtherworldModule implements Module {
     return n;
   }
 
+  /** the realm's beasts and the hostile people's war-bands share the land; their champion now and then */
   private roam(p: ServerPlayer, w: OtherworldId): void {
     if (this.nearCount(p, 30) >= ROAM_MAX) return;
-    const kinds = OTHERWORLD_CREATURES[w].roam;
-    this.spawnNear(p, w, kinds[Math.floor(this.room.rand() * kinds.length)]!, 13, 22);
+    const race = RACES[RACE_OF_REALM[w]];
+    const roll = this.room.rand();
+    if (roll < 0.45) {
+      const kinds = OTHERWORLD_CREATURES[w].roam;
+      this.spawnNear(p, w, kinds[Math.floor(this.room.rand() * kinds.length)]!, 13, 22);
+      return;
+    }
+    const champion = race.foes[2]!;
+    const championNear = [...this.room.enemies.values()].some(
+      (e) => ENEMY_KEY_BY_KIND[e.def.kind] === champion && Math.hypot(e.x - p.sim.x, e.y - p.sim.y) < 40,
+    );
+    if (roll > 0.94 && !championNear) {
+      this.spawnNear(p, w, champion, 14, 20);
+      return;
+    }
+    // a war-band: a fighter with a ranged companion
+    const a = this.spawnNear(p, w, race.foes[0]!, 13, 20);
+    if (a && this.room.rand() < 0.7) this.spawnNear(p, w, race.foes[1]!, 13, 20);
   }
 
   /** a creature on open ground 13–22 tiles away (never in the arrival room or the Hollow) */
@@ -372,7 +395,8 @@ export class OtherworldModule implements Module {
         q.toast(`${OTHERWORLD_CREATURES[w].bossName} rises!`, 'bad');
   }
 
-  killed(e: Enemy): void {
+  killed(e: Enemy, killer?: ServerPlayer): void {
+    this.standingFor(e, killer);
     for (const w of OTHERWORLD_IDS) {
       const b = this.boss.get(w);
       if (!b || b.id !== e.id) continue;
@@ -391,6 +415,26 @@ export class OtherworldModule implements Module {
         } else p.toast(`${OTHERWORLD_CREATURES[w].bossName} falls once more.`, 'good');
       }
     }
+  }
+
+  /** bringing down a realm people's enemies, or the realm's beasts and guardian, raises your standing with them */
+  private standingFor(e: Enemy, killer?: ServerPlayer): void {
+    const w = otherworldOf(e.y);
+    if (!w || !killer) return;
+    const key = ENEMY_KEY_BY_KIND[e.def.kind] ?? '';
+    const foeOf = raceAgainst(key);
+    const race = foeOf ?? RACE_OF_REALM[w];
+    const amount = foeOf
+      ? key === RACES[foeOf].foes[2]
+        ? STANDING.champion
+        : STANDING.foe
+      : e.def.boss
+        ? STANDING.guardian
+        : STANDING.beast;
+    // everyone who fought nearby shares it
+    for (const p of this.room.players.values())
+      if (p === killer || (p.deadT <= 0 && Math.hypot(p.sim.x - e.x, p.sim.y - e.y) < 20))
+        gainStanding(p, race, amount);
   }
 
   /** for tests */

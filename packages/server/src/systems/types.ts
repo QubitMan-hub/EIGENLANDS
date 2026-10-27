@@ -47,7 +47,7 @@ export interface PlayerData {
   equip: EquipState;
   friends: Record<string, FriendRec>;
   /** standing with each kingdom (world revision 5) */
-  rep: Partial<Record<import('@eigenlands/shared').RealmId, number>>;
+  rep: Partial<Record<import('@eigenlands/shared').RealmId | import('@eigenlands/shared').RaceId, number>>;
   buffs: Record<string, Buff>;
   /** quest log (story quests + request-board jobs) */
   quests: QuestLog;

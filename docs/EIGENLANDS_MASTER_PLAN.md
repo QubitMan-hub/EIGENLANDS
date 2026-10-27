@@ -381,7 +381,7 @@ Slice delivered 2026-10-25: legacy navy/rounded styles in `style.css` (toasts, c
 - [x] IMPLEMENTED & TESTED — Zoom and pan.
 - [x] IMPLEMENTED & TESTED — Exploration fog.
 - [ ] NOT STARTED — Six kingdoms and their territories.
-- [ ] NOT STARTED — Three realm-specific maps.
+- [x] IMPLEMENTED & TESTED — Three realm-specific maps. (The atlas charts each realm as its own layer; see [REALMS.md](REALMS.md).)
 - [~] IN PROGRESS — Capital cities, villages, ports, roads, and landmarks.
 - [~] IN PROGRESS — Dungeons, guild halls, teleporters, and discovered locations.
 - [~] IN PROGRESS — Discovered quest destinations, current villagers/known homes and hand-in markers implemented and locally tested. Objectives without fixed positions retain Journal guidance.
@@ -451,16 +451,16 @@ Slice delivered 2026-10-25: legacy navy/rounded styles in `style.css` (toasts, c
 
 ## Aetheria — Celestial Expanse
 
-- [ ] NOT STARTED — Floating islands, cloud oceans, celestial castles, phoenixes, sky dragons, divine guardians, aerial exploration, magical flight, and gravity-related puzzles.
+- [~] IN PROGRESS — Floating islands, cloud oceans, celestial castles, phoenixes, sky dragons, divine guardians, aerial exploration, magical flight, and gravity-related puzzles. (Built: floating isles over a cloud sea, sky-temples, the Phoenix, gilded sentinels, zephyr rays, updrafts and the wind-chime gate, the Aerin and the Gale Reavers. Not built: sky dragons, magical flight.)
 
 ## Umbral Abyss
 
-- [ ] NOT STARTED — Dark underground civilizations, glowing fungi, ancient ruins, shadow beasts, abyssal serpents, corrupted creatures, darkness mechanics, and dangerous survival environments.
+- [x] IMPLEMENTED & TESTED — Dark underground civilizations, glowing fungi, ancient ruins, shadow beasts, abyssal serpents, corrupted creatures, darkness mechanics, and dangerous survival environments. (The Hollowfolk and the Gloamkin, the Umbral Maw, darkness damage; [REALMS.md](REALMS.md).)
 
 ## Chronoria — Fractured Realm
 
-- [ ] NOT STARTED — Reality fractures, temporal ruins, unusual creatures, quantum-inspired puzzles, alternate states, time-related challenges, and ancient secrets connected to the game's quantum identity.
-- [ ] NOT STARTED — Every realm must have distinctive pixel art, creatures, mechanics, resources, worldbuilding, progression, and powerful bosses.
+- [x] IMPLEMENTED & TESTED — Reality fractures, temporal ruins, unusual creatures, quantum-inspired puzzles, alternate states, time-related challenges, and ancient secrets connected to the game's quantum identity. (Void fractures, rewind rifts, the chrono-dial gate, gear hounds, paradox echoes, the Unwound, the Archivists and the Sundered.)
+- [~] IN PROGRESS — Every realm must have distinctive pixel art, creatures, mechanics, resources, worldbuilding, progression, and powerful bosses. (Each has its own art, creatures, peoples, resources, metal tier, standing and a guardian boss. Bosses are single-phase; realm quests are not built.)
 
 ## 8. RLCraft-INSPIRED SURVIVAL
 
@@ -737,7 +737,7 @@ Circuit workshop continuation: five guided patterns reuse actual tokens/edit con
 - [ ] NOT STARTED — 7. **Combat and creatures:** Classes, abilities, monsters, bosses, and ecosystem systems.
 - [ ] NOT STARTED — 8. **Kingdoms:** Six civilizations and the systems governing them.
 - [ ] NOT STARTED — 9. **Guilds and consequences:** Quest boards, ranks, reputation, dynamic events, and meaningful choices.
-- [ ] NOT STARTED — 10. **Realms:** Aetheria, Umbral Abyss, and Chronoria.
+- [~] IN PROGRESS — 10. **Realms:** Aetheria, Umbral Abyss, and Chronoria. Playable with peoples, gear tiers and bosses; see [REALMS.md](REALMS.md#limits).
 - [ ] NOT STARTED — 11. **Multiplayer expansion:** Complete browser-based private co-op, accounting for networking requirements from the beginning.
 - [ ] NOT STARTED — 12. **Final polish:** Art, animation, UI consistency, balance, performance, testing, and documentation.
 - [ ] NOT STARTED — Use **fully playable vertical slices** to establish quality before scaling features across the entire world.

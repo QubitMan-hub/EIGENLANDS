@@ -119,11 +119,12 @@ describe('town bounties', () => {
     const b = bountyOf(p.room.seed, town, day)!;
     await tp(p, town.cx + 0.5, town.cy + 0.5);
     expect(townAt(p.room.seed, Math.floor(p.sp.sim.x), Math.floor(p.sp.sim.y))?.name).toBe(town.name);
-    await until(() => p.toasts.some((t) => t.text.includes(`Bounty posted in ${town.name}`)), 5000);
+    // generous: the unsharded test room is still loading every kingdom's residents in its first seconds
+    await until(() => p.toasts.some((t) => t.text.includes(`Bounty posted in ${town.name}`)), 15000);
     expect(p.toasts.find((t) => t.text.includes('Bounty posted'))!.text).toContain(b.name);
     // out to where it was seen
     await tp(p, b.x + 0.5, b.y + 6.5);
-    await until(() => p.room.wonders.bountyState(b.id) === 'out', 8000);
+    await until(() => p.room.wonders.bountyState(b.id) === 'out', 20000);
     const coins = p.sp.data.coins;
     p.sp.hp = p.sp.maxHp;
     for (let i = 0; i < 20 && p.room.wonders.bountyState(b.id) !== 'slain'; i++) {

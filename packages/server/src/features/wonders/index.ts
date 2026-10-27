@@ -41,7 +41,7 @@ const FALL_CHANCE = 0.05;
 const BOUNTY_SPAWN_RANGE = 60;
 const BOUNTY_PAY_RANGE = 25;
 
-const outdoors = (y: number) => !isCaveY(y) && !isUpperY(y) && !isDiveY(y) && !isCryptY(y) || isOtherworldY(y);
+const outdoors = (y: number) => !isCaveY(y) && !isUpperY(y) && !isDiveY(y) && !isCryptY(y) && !isOtherworldY(y);
 
 export class WondersModule implements Module {
   private t = 0;

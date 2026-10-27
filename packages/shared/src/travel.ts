@@ -69,7 +69,8 @@ const NET_NAMES: Record<string, string> = {
 export const netName = (net: string): string => NET_NAMES[net] ?? net;
 export const wayNet = (x: number, y: number): string =>
   isCaveY(y) && !isDiveY(y) ? 'undercroft' : (nearestRealm(x, y)?.id ?? 'home');
-const surfaceY = (y: number): boolean => !isCaveY(y) && !isUpperY(y) && !isDiveY(y) && !isCryptY(y) || isOtherworldY(y);
+const surfaceY = (y: number): boolean =>
+  (!isCaveY(y) && !isUpperY(y) && !isDiveY(y) && !isCryptY(y)) || isOtherworldY(y);
 /** The Undercroft's settlements keep a network of their own (no wild stones underground). */
 const undercroftY = (y: number): boolean => isCaveY(y) && !isDiveY(y) && !isUpperY(y);
 
