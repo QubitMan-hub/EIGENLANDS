@@ -1,3 +1,22 @@
+# Current continuation: deeper world, second pass (2026-10-27)
+
+Builds on the section below. New this pass (see [LIVING_WORLD.md](LIVING_WORLD.md) and [TRAVEL.md](TRAVEL.md)):
+
+- **Survival:** fractures and curses (`shared/src/survival.ts` `graveInjuryOnHit`, `CURSE_ATTACK_MULT`; server
+  `WorldRoom` drops dash/sprint and weakens `outgoing`, client `Game.fixedStep` drops the same inputs), splint and
+  holy water, armour warmth by material (`equipment.ts` `armorClimate`, added in `gear-state.ts`), the Travel Tent
+  (`catalog/legendary.ts`, rest in `systems/containers.ts`, `prog.camp`, respawn in `WorldRoom.respawn`, shelter in
+  `travel-needs.ts`), food spoilage (`perishable`, `rotEvery`, `ServerPlayer.rotT`).
+- **Crypts:** three plans (`CRYPT_PLANS`, `cryptPlan`) and the braziers' riddle (`cryptOrder`, `brazierName`,
+  `cryptPlaqueText`; server `features/crypts` `lightBrazier`, prog key `cryptcache:<ruin>`).
+- **People:** word travels (`npc-ties.ts` `tieSpill`, `standingLine`; village `spill`), contract extension
+  (`shadows.ts` `RECRUIT_MAX_MS`; server `extend`), furnished crown cottages and their families (`growth.ts`
+  `cottageFurniture`, `plotsNear`, `cottagerOf`, drawn by `roadlife.ts`), wild folk home in storms.
+- **Validation:** shared `deeper-world.test.ts`, server `deeper.test.ts` and `village.ties.test.ts`, browser
+  `e2e/deeper-world.mjs`. Full results are in the commit and the final report of this pass.
+
+---
+
 # Current continuation: a livelier, more realistic world (2026-10-27)
 
 Read [LIVING_WORLD.md](LIVING_WORLD.md) and [TRAVEL.md](TRAVEL.md) for the player-facing detail and limits.
