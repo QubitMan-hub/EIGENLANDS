@@ -14,6 +14,7 @@ import { townsFor } from './town';
 import { ruinObjectsIn } from './ruins';
 import { storyObjectsIn } from './stories';
 import { cryptObjectsIn, isCryptY } from './crypts';
+import { isOtherworldY, otherworldObjectsIn, realmPortalsIn } from './otherworlds';
 import { waystoneObjectsIn } from './travel';
 import { caveObjectsIn, isCaveY } from './caves';
 import { shrineObjectsIn } from './shrines';
@@ -197,6 +198,10 @@ export class ChunkStore {
         ? this.generation >= 6
           ? cryptObjectsIn(this.seed, cx, cy)
           : []
+        : isOtherworldY(cy * CHUNK_SIZE)
+          ? this.generation >= 6
+            ? otherworldObjectsIn(this.seed, cx, cy)
+            : []
         : isDiveY(cy * CHUNK_SIZE)
           ? sanctuaryObjectsIn(this.seed, cx, cy)
           : [
@@ -205,6 +210,9 @@ export class ChunkStore {
               ...shrineObjectsIn(this.seed, cx, cy),
               ...ruinObjectsIn(this.seed, cx, cy),
               ...storyObjectsIn(this.seed, cx, cy, this.generation),
+              ...(this.generation >= 6
+                ? realmPortalsIn(`${this.seed}:${this.generation}`, (x, y) => tileAt(this.seed, x, y, this.generation), cx, cy)
+                : []),
               ...caveObjectsIn(this.seed, cx, cy, this.generation),
             ];
     const placed = (this.generation >= 3 ? wild.filter((o) => this.seaSiteStillAtSea(o)) : wild).filter(

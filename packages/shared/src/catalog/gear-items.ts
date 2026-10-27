@@ -987,4 +987,105 @@ rec(
   ['whetstone', 2],
   { lvl: 2, disc: 'masonry', xp: 4, hint: 'Grind flint on granite.', tool: 'chisel' },
 );
+// ── the three realms (otherworlds.ts): each realm's gear is woven from what grows there and what its guardian guards
+item('cloud_silk', 'Cloud-Silk', 'reagent', {
+  v: 60,
+  g: 'spool',
+  a: C.white,
+  b: C.w5,
+  d: 'Threads spun from Aetherian cloud. Weighs nothing; holds anything.',
+});
+item('umbral_spore', 'Umbral Spore', 'reagent', {
+  v: 70,
+  g: 'dust',
+  a: C.q4,
+  b: C.w6,
+  d: 'Spores that glow in the dark of the Abyss and hold it back a little.',
+});
+item('chrono_sand', 'Chrono-Sand', 'reagent', {
+  v: 80,
+  g: 'dust',
+  a: C.e6,
+  b: C.mist,
+  d: 'Sand from Chronoria that falls upward when nobody is watching.',
+});
+item('phoenix_plume', 'Phoenix Plume', 'reagent', {
+  v: 600,
+  g: 'wing',
+  a: C.r5,
+  b: C.e7,
+  d: 'A feather of the Phoenix of the Eyrie, still burning without heat.',
+});
+item('abyss_heart', 'Heart of the Maw', 'monster', {
+  v: 650,
+  g: 'heart',
+  a: C.q3,
+  b: C.w6,
+  d: 'It never stops beating, and gives off a light the dark cannot touch.',
+});
+item('unwound_gear', 'Unwound Gear', 'reagent', {
+  v: 700,
+  g: 'cog',
+  a: C.e6,
+  b: C.white,
+  d: 'A cog from the Unwound. It turns both ways at once.',
+});
+gear('aether_wings', 'Aether Wings', 'accessory', 'back', 10, { haste: 2, phase: 0.05, cool: 1 }, 260, {
+  g: 'wing',
+  a: C.white,
+  b: C.r5,
+  d: 'Cloud-silk wings with a phoenix plume at the heart: you move as if the wind were behind you.',
+  v: 900,
+  rarity: 3,
+});
+R(
+  'aether_wings',
+  'loom',
+  [
+    ['cloud_silk', 6],
+    ['phoenix_plume', 1],
+  ],
+  10,
+  'tailoring',
+  'Weave cloud-silk around a living plume.',
+);
+gear('umbral_lantern', 'Umbral Lantern', 'light', 'light', 12, { light: 9 }, 400, {
+  g: 'lantern',
+  a: C.q4,
+  b: C.w6,
+  d: 'Lit by the Heart of the Maw. Its light is wide, and the dark of the Abyss will not touch whoever carries it.',
+  v: 950,
+  rarity: 3,
+});
+R(
+  'umbral_lantern',
+  'engineering',
+  [
+    ['umbral_spore', 6],
+    ['abyss_heart', 1],
+    ['glass_pane', 1],
+  ],
+  12,
+  'engineering',
+  'Cage the Heart in glass and spore.',
+);
+gear('chrono_charm', 'Chrono Charm', 'accessory', 'charm', 14, { haste: 2.5, luck: 3, stamina: 15 }, 300, {
+  g: 'charm',
+  a: C.e6,
+  b: C.mist,
+  d: 'An Unwound gear set in sand that falls upward: every moment lasts a little longer for you.',
+  v: 1000,
+  rarity: 3,
+});
+R(
+  'chrono_charm',
+  'jeweler',
+  [
+    ['chrono_sand', 6],
+    ['unwound_gear', 1],
+  ],
+  14,
+  'enchanting',
+  'Set the gear in a cage of moving sand.',
+);
 void GEARS;

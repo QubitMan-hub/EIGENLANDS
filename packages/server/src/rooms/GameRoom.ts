@@ -54,6 +54,7 @@ import { CivModule } from '../features/civ';
 import { FestivalModule } from '../features/festivals';
 import { CryptModule } from '../features/crypts';
 import { WondersModule } from '../features/wonders';
+import { OtherworldModule } from '../features/otherworlds';
 import { SocialModule } from '../features/social';
 import type { BucketName, Carry, JoinOpts, Module, Registrar } from '../features/types';
 import type { VillageHost, VillageSystem } from '../systems/types';
@@ -104,6 +105,7 @@ export class GameRoom extends WorldRoom {
   festivals!: FestivalModule;
   crypts!: CryptModule;
   wonders!: WondersModule;
+  otherworlds!: OtherworldModule;
   shardMod!: ShardModule;
   private modules: Module[] = [];
   private buckets = new Map<string, Map<BucketName, TokenBucket>>();
@@ -158,6 +160,7 @@ export class GameRoom extends WorldRoom {
     this.festivals = new FestivalModule(this);
     this.crypts = new CryptModule(this);
     this.wonders = new WondersModule(this);
+    this.otherworlds = new OtherworldModule(this);
     this.modules = [
       this.shardMod,
       this.journeys,
@@ -176,6 +179,7 @@ export class GameRoom extends WorldRoom {
       this.festivals,
       this.crypts,
       this.wonders,
+      this.otherworlds,
       this.army,
       this.voice,
     ];
@@ -458,6 +462,10 @@ export class GameRoom extends WorldRoom {
   summonBoss(p: ServerPlayer, itemId: string, x: number, y: number): boolean {
     return this.bosses?.summon(p, itemId, x, y) ?? false;
   }
+  otherworldInteract(p: ServerPlayer, o: WorldObj): Promise<boolean> {
+    return this.otherworlds.interact(p, o);
+  }
+
   openStar(p: ServerPlayer, o: WorldObj): void {
     this.wonders.openStar(p, o);
   }

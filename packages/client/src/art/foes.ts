@@ -62,6 +62,15 @@ export type CritterKind =
   | 'geode_tyrant'
   | 'cinder_wyrm'
   | 'rime_sovereign'
+  | 'zephyr_ray'
+  | 'gilded_sentinel'
+  | 'phoenix'
+  | 'shade_stalker'
+  | 'abyss_serpent'
+  | 'umbral_maw'
+  | 'gear_hound'
+  | 'paradox_echo'
+  | 'the_unwound'
   | 'tide_leviathan'
   | 'griffin'
   | 'spirit_stag'
@@ -1522,6 +1531,309 @@ function farmAnimal(form: number): Def {
   };
 }
 
+/**
+ * The three realms' creatures (shared/otherworlds.ts): Aetheria's zephyr ray, gilded sentinel and Phoenix; the Abyss's
+ * shade stalker, abyssal serpent and Umbral Maw; Chronoria's gear hound, paradox echo and the Unwound.
+ */
+function otherworldBeast(form: number): Def {
+  const boss = form % 3 === 2;
+  const U = boss ? 2.6 : 1.45;
+  return {
+    w: boss ? 176 : 100,
+    h: boss ? 176 : 96,
+    ay: boss ? 158 : 84,
+    shadow: boss ? [26, 11] : [11, 5],
+    n: { idle: 4, move: 6, windup: 4, attack: 3, hurt: 2, death: 5 },
+    draw(s, a, k, t) {
+      const moving = a === 'move',
+        wind = a === 'windup',
+        dead = a === 'death',
+        bite = a === 'attack';
+      const sw = Math.sin(t * TAU),
+        sw2 = Math.sin(t * TAU * 2);
+      const R = (c: number, n = 4, hue = 9) => M(ramp(c, n, 2, { hue }));
+      const glow = (c: number, n = 3) => M(ramp(c, n, 2), { glow: true });
+      const shiny = (c: number, n = 4) => M(ramp(c, n, 2), { shiny: true });
+      const sink = dead ? t * 7 : 0;
+      const lift = wind ? 1.2 : 0;
+      s.push([U, 0, 0, 0, U, 0, 0, 0, U], [0, 0, 0], [bite ? (1 - t) * 3 : 0, 0, -sink]);
+      const legs = (xf: number, xb: number, zt: number, rt: number, rb: number, m: Mat, sp: number) => {
+        for (const side of [-1, 1])
+          for (const [x, ph] of [
+            [xf, 0],
+            [xb, 0.5],
+          ] as const) {
+            const q = (ph + (side > 0 ? 0.5 : 0)) * TAU;
+            const st = moving ? Math.sin(t * TAU + q) * 2.4 : 0;
+            const up = moving ? Math.max(0, Math.cos(t * TAU + q)) * 1.1 : 0;
+            s.cap([x, side * sp, zt], [x + st, side * (sp + 0.4), 0.8 + up], rt, rb, m);
+          }
+      };
+      if (form === 0) {
+        // ───────── zephyr ray: a manta of the cloud sea, wingtips rippling, a whip tail of static
+        const back = R(ART_RGB.w3, 4),
+          belly = R(ART_RGB.pale, 3, 6),
+          spot = glow(ART_RGB.w6, 2),
+          tail = R(ART_RGB.w2, 3);
+        const z = 9 + sw * 1.2 + lift;
+        const flap = (moving ? 2.6 : 1.4) * sw2;
+        s.ell([0, 0, z], [5, 3.2, 1.3], back);
+        s.ell([0.4, 0, z - 0.6], [4.4, 2.8, 0.8], belly);
+        for (const side of [-1, 1]) {
+          s.ell([-0.6, side * 5.2, z + flap * 0.4], [3.4, 3.2, 0.6], back);
+          s.ell([-1.6, side * 8.6, z + flap], [2.2, 2.2, 0.45], back);
+          s.cap([4.2, side * 1.4, z], [6.2, side * 1.8, z - 0.6], 0.6, 0.3, belly); // cephalic fins
+          for (let i = 0; i < 3; i++)
+            s.sph([-0.8 - i * 1.2, side * (3 + i * 2), z + 0.9 + flap * (0.2 + i * 0.25)], 0.45, spot);
+        }
+        s.sph([4.6, 1.2, z + 0.7], 0.45, glow(ART_RGB.e7, 2));
+        s.sph([4.6, -1.2, z + 0.7], 0.45, glow(ART_RGB.e7, 2));
+        let p0: [number, number, number] = [-4.6, 0, z];
+        for (let i = 1; i <= 5; i++) {
+          const q: [number, number, number] = [-4.6 - i * 2, Math.sin(t * TAU + i) * 1.2, z - i * 0.4];
+          s.cap(p0, q, 0.5 - i * 0.07, 0.4 - i * 0.07, i === 5 ? spot : tail);
+          p0 = q;
+        }
+      } else if (form === 1) {
+        // ───────── gilded sentinel: a hovering guardian of gold plate, a halo, hands that float free
+        const gold = shiny(ART_RGB.c4, 4),
+          plate = R(ART_RGB.e5, 4),
+          cloth = R(ART_RGB.pale, 3, 6),
+          halo = glow(ART_RGB.e7, 3),
+          eye = glow(ART_RGB.w6, 2);
+        const z = 6 + sw * 0.8 + lift;
+        s.ell([0, 0, z - 2], [2.2, 2.2, 3.4], cloth); // robe below
+        s.ell([0, 0, z + 2.6], [2.6, 3.2, 3], gold); // breastplate
+        s.ell([0, 0, z + 5.4], [1.4, 3.8, 0.9], plate); // pauldrons
+        s.ell([0.2, 0, z + 7.6], [1.8, 1.6, 2], gold); // helm
+        s.ell([1.6, 0, z + 7.6], [0.4, 1.2, 0.3], eye); // visor slit
+        for (let i = 0; i < 12; i++) {
+          const ang = (i / 12) * TAU + t * TAU * 0.3;
+          s.sph([-1.2, Math.cos(ang) * 3, z + 8.4 + Math.sin(ang) * 3], 0.35, halo);
+        }
+        const reach = bite ? 4 : wind ? 1 : 2;
+        for (const side of [-1, 1]) {
+          s.sph([reach, side * 4.6, z + 3 + (wind ? 2 : 0) + sw * side * 0.5], 1.2, gold);
+          s.sph([reach + 0.8, side * 4.6, z + 3 + (wind ? 2 : 0)], 0.5, eye);
+        }
+      } else if (form === 2) {
+        // ───────── the Phoenix: a great bird of flame, wings of fire, a crest and a train of burning plumes
+        const body = R(ART_RGB.r4, 4),
+          breast = R(ART_RGB.e6, 4),
+          fire = glow(ART_RGB.r5, 4),
+          flame = glow(ART_RGB.e7, 3),
+          gold = shiny(ART_RGB.c4, 3);
+        const z = 9 + sw * 0.8 + lift;
+        s.ell([0, 0, z], [5.2, 2.8, 3.2], body);
+        s.ell([2.6, 0, z + 1], [3, 2.4, 3], breast);
+        s.cap([3.2, 0, z + 2.4], [4.6, 0, z + 6.6 + lift], 1.7, 1.2, body);
+        s.ell([5.2, 0, z + 7.6 + lift], [2.2, 1.7, 1.8], body);
+        s.cap([6.8, 0, z + 7.6 + lift], [8.8, 0, z + 6.6 + lift - (bite ? 1.2 : 0)], 0.8, 0.2, gold);
+        for (let i = 0; i < 5; i++)
+          s.cap(
+            [4.6, 0, z + 9 + lift],
+            [2.6 - i * 0.8, (i - 2) * 0.6, z + 12.6 + lift - Math.abs(i - 2) * 0.8],
+            0.4,
+            0.1,
+            flame,
+          );
+        for (const side of [-1, 1]) {
+          s.sph([6.2, side * 1.3, z + 8.2 + lift], 0.5, glow(ART_RGB.white, 2));
+          const flap = dead ? -4 : wind ? 7 : moving ? 3 + sw * 5 : 2 + sw * 2;
+          const sh: [number, number, number] = [1.4, side * 2.4, z + 2.4];
+          const el: [number, number, number] = [-1, side * 7.4, z + 6 + flap * 0.6];
+          const wr: [number, number, number] = [-2.6, side * 12.4, z + 9 + flap];
+          s.cap(sh, el, 1.5, 1.1, body);
+          s.cap(el, wr, 1.1, 0.7, fire);
+          for (let i = 0; i < 7; i++) {
+            const f = i / 6;
+            s.cap(
+              i < 3 ? wr : el,
+              [-7 - f * 5, side * (20 - f * 6), z + 9 + flap - f * 7],
+              1.3 - f * 0.3,
+              0.3,
+              i % 2 ? fire : flame,
+            );
+          }
+          s.cap([0, side * 1.2, z - 2.2], [1.4, side * 1.4, 0.6], 0.6, 0.3, gold); // talons
+        }
+        // the burning train
+        for (let i = 0; i < 5; i++)
+          s.cap(
+            [-4.4, (i - 2) * 0.6, z],
+            [-13 - (i % 2) * 2, (i - 2) * 2.2, z - 2 + Math.sin(t * TAU + i) * 1.5],
+            0.7,
+            0.2,
+            i % 2 ? fire : flame,
+          );
+        for (let i = 0; i < 8; i++) {
+          const ph = (t + i / 8) % 1;
+          s.sph([-6 + i * 1.6, Math.sin(ph * TAU + i) * 5, z - 4 + ph * 20], 0.3 + (i % 3) * 0.15, flame);
+        }
+      } else if (form === 3) {
+        // ───────── shade stalker: a lean panther of living shadow; violet eyes and a trailing smoke
+        const fur = R(ART_RGB.night, 3, 8),
+          dark = R(ART_RGB.ink, 2, 8),
+          eye = glow(ART_RGB.q6, 2),
+          smoke = glow(ART_RGB.q2, 2);
+        const z = 5 + (moving ? 0.5 * Math.abs(sw) : 0) + (wind ? -1 : 0);
+        s.ell([0, 0, z], [5.4, 2, 2.2], fur);
+        s.ell([-3.2, 0, z + 0.2], [2.6, 2.2, 2.4], dark);
+        s.cap([3.6, 0, z + 0.6], [5.6, 0, z + 2.2 + lift], 1.4, 1.1, fur);
+        s.ell([6.6, 0, z + 2.6 + lift], [2, 1.5, 1.3], fur);
+        s.cap([7.6, 0, z + 2.2 + lift], [9, 0, z + 1.6 + lift - (bite ? 0.8 : 0)], 0.8, 0.5, dark);
+        for (const side of [-1, 1]) {
+          s.sph([7.4, side * 0.9, z + 3.2 + lift], 0.42, eye);
+          s.cap([6.2, side * 0.9, z + 3.6 + lift], [5.8, side * 1.3, z + 5 + lift], 0.4, 0.1, fur); // ears
+        }
+        s.cap([-5.2, 0, z + 0.6], [-9, 0, z + 2.4 + sw], 0.6, 0.3, fur);
+        legs(3, -3.4, z - 1, 0.8, 0.45, fur, 1.4);
+        for (let i = 0; i < 6; i++) {
+          const ph = (t + i / 6) % 1;
+          s.sph([-4 - ph * 6, Math.sin(i * 2.1) * 1.6, z + 1 + ph * 4], 0.6 - ph * 0.4, smoke);
+        }
+      } else if (form === 4) {
+        // ───────── abyssal serpent: a long pale body coiling up from the dark, fins and glowing spots
+        const skin = R(ART_RGB.fog, 4, 6),
+          under = R(ART_RGB.pale, 3, 6),
+          fin = R(ART_RGB.q3, 3),
+          spot = glow(ART_RGB.w6, 2);
+        const n = 9;
+        for (let i = 0; i < n; i++) {
+          const f = i / (n - 1);
+          const x = 3 - f * 12,
+            y = Math.sin(t * TAU + f * 5) * (2 + f * 1.5),
+            z = 1.5 + (1 - f) * (6 + lift * 2) * (1 - f) + 0.6;
+          s.sph([x, y, z], 1.7 - f * 0.9, i % 2 ? skin : under);
+          if (i % 2 === 0) s.sph([x, y, z + 1.2 - f * 0.6], 0.32, spot);
+        }
+        const hz = 8.4 + lift * 2;
+        s.ell([4.4, 0, hz], [2.2, 1.5, 1.3], skin);
+        s.cap([5.6, 0, hz - 0.4], [7.2, 0, hz - 0.8 - (bite ? 0.8 : 0)], 0.8, 0.4, under);
+        for (const side of [-1, 1]) {
+          s.sph([5.4, side * 0.9, hz + 0.6], 0.38, glow(ART_RGB.q6, 2));
+          s.cap([3.4, side * 1.2, hz + 0.4], [1.6, side * 3, hz + 1.6 + sw2 * 0.4], 0.5, 0.1, fin);
+        }
+      } else if (form === 5) {
+        // ───────── the Umbral Maw: a hill of dark flesh that is mostly mouth; eyes everywhere, feelers reaching
+        const flesh = R(ART_RGB.q1, 4, 8),
+          gum = R(ART_RGB.r2, 3),
+          tooth = R(ART_RGB.pale, 2, 6),
+          eye = glow(ART_RGB.q6, 2),
+          maw = M(ramp(ART_RGB.ink, 2, 1));
+        const breathe = 1 + sw * 0.04;
+        const open = bite ? 1 : wind ? 0.8 : 0.35 + sw * 0.1;
+        s.ell([0, 0, 6], [7 * breathe, 6.4 * breathe, 6], flesh);
+        s.ell([4.6, 0, 6.4], [2.6, 4.6, 3 * open + 0.6], maw); // the mouth
+        s.ell([4.4, 0, 6.4 + 3 * open], [2.8, 4.8, 0.9], gum);
+        s.ell([4.4, 0, 6.4 - 3 * open], [2.8, 4.8, 0.9], gum);
+        for (let i = 0; i < 7; i++) {
+          const y = -3.6 + i * 1.2;
+          s.cap([5, y, 6.4 + 3 * open], [5.6, y, 6.4 + 3 * open - 1.6], 0.35, 0.08, tooth);
+          s.cap([5, y, 6.4 - 3 * open], [5.6, y, 6.4 - 3 * open + 1.6], 0.35, 0.08, tooth);
+        }
+        for (let i = 0; i < 9; i++) {
+          const a = (i / 9) * TAU;
+          s.sph([Math.cos(a) * 3 - 1, Math.sin(a) * 5.4, 9 + Math.sin(a * 2) * 2.2], 0.6 + (i % 3) * 0.2, eye);
+        }
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * TAU + 0.3;
+          const reach = wind ? 1.4 : 1;
+          s.cap(
+            [Math.cos(a) * 5, Math.sin(a) * 5, 3],
+            [Math.cos(a) * 11 * reach, Math.sin(a) * 11 * reach, 1 + Math.sin(t * TAU + i) * 2],
+            0.9,
+            0.2,
+            flesh,
+          );
+        }
+      } else if (form === 6) {
+        // ───────── gear hound: a clockwork hound of brass and steel, a turning gear in its flank
+        const brass = shiny(ART_RGB.c3, 4),
+          steel = shiny(ART_RGB.steel, 3),
+          dark = R(ART_RGB.slate, 3, 8),
+          eye = glow(ART_RGB.e7, 2);
+        const z = 5 + (moving ? 0.6 * Math.abs(sw) : 0);
+        s.ell([0, 0, z], [5, 2.2, 2.2], brass);
+        s.ell([2.6, 0, z + 0.6], [2.2, 2.4, 2.4], steel);
+        s.cap([3.6, 0, z + 1], [5.2, 0, z + 2.8 + lift], 1.1, 0.9, dark);
+        s.ell([6.4, 0, z + 3 + lift], [2, 1.3, 1.3], brass);
+        s.cap([7.6, 0, z + 2.6 + lift], [9, 0, z + 2.2 + lift - (bite ? 1 : 0)], 0.7, 0.45, steel);
+        for (const side of [-1, 1]) {
+          s.sph([7.2, side * 0.9, z + 3.6 + lift], 0.42, eye);
+          // the flank gear: a ring of teeth turning
+          for (let i = 0; i < 8; i++) {
+            const a = (i / 8) * TAU + t * TAU * (moving ? 1 : 0.25);
+            s.sph([-0.8 + Math.cos(a) * 1.5, side * 2.3, z + 0.4 + Math.sin(a) * 1.5], 0.35, steel);
+          }
+          s.sph([-0.8, side * 2.3, z + 0.4], 0.6, brass);
+        }
+        s.cap([-4.6, 0, z + 0.8], [-7.4, 0, z + 2.4], 0.4, 0.2, steel); // a key for a tail
+        s.ell([-7.8, 0, z + 2.6], [0.4, 1, 0.8], brass);
+        legs(3, -3, z - 1, 0.6, 0.4, steel, 1.6);
+      } else if (form === 7) {
+        // ───────── paradox echo: a knight out of another moment, drawn twice and not quite in step
+        const armor = M(ramp(ART_RGB.slate, 4, 2), { shiny: true }),
+          ghostA = glow(ART_RGB.q5, 2),
+          ghostB = glow(ART_RGB.w5, 2),
+          blade = glow(ART_RGB.mist, 2);
+        const z = 2 + sw * 0.3;
+        const knight = (dx: number, dy: number, m: Mat, hilt: Mat) => {
+          s.ell([dx, dy, z + 5], [1.8, 2.2, 2.6], m);
+          s.ell([dx, dy, z + 8.2], [1.3, 1.3, 1.4], m);
+          s.ell([dx + 1, dy, z + 8.2], [0.3, 0.9, 0.2], ghostA);
+          for (const side of [-1, 1])
+            s.cap([dx, dy + side * 1, z + 3], [dx + (moving ? sw * side : 0), dy + side * 1.1, 0.6], 0.7, 0.5, m);
+          const sw0 = bite ? -1 : wind ? 1 : 0;
+          s.cap([dx + 1, dy + 2.4, z + 5], [dx + 5 + sw0 * 2, dy + 2.4, z + 9 + sw0 * 3], 0.35, 0.15, hilt);
+        };
+        knight(0, 0, armor, blade);
+        const ph = (Math.floor(t * 4) % 2) * 2 - 1;
+        knight(-0.8 + ph * 0.4, 0.8, ghostB, ghostA);
+      } else {
+        // ───────── the Unwound: a titan of brass with a broken clock for a heart and gears for shoulders
+        const brass = shiny(ART_RGB.c3, 4),
+          bronze = R(ART_RGB.e3, 4),
+          face = R(ART_RGB.pale, 3, 6),
+          hand = R(ART_RGB.ink, 2),
+          glowE = glow(ART_RGB.w6, 2),
+          crack = glow(ART_RGB.q6, 2);
+        const z = 6 + sw * 0.4;
+        s.ell([0, 0, z + 2], [3.4, 4.4, 4.4], bronze);
+        // the clock face on its chest, hands spinning backwards
+        s.ell([2.8, 0, z + 3], [0.6, 3, 3], face);
+        for (let i = 0; i < 12; i++) {
+          const a = (i / 12) * TAU;
+          s.sph([3.3, Math.cos(a) * 2.4, z + 3 + Math.sin(a) * 2.4], 0.22, hand);
+        }
+        const ha = -t * TAU,
+          ma = -t * TAU * 3;
+        s.cap([3.4, 0, z + 3], [3.4, Math.cos(ha) * 1.4, z + 3 + Math.sin(ha) * 1.4], 0.25, 0.15, hand);
+        s.cap([3.4, 0, z + 3], [3.4, Math.cos(ma) * 2.2, z + 3 + Math.sin(ma) * 2.2], 0.18, 0.1, hand);
+        s.cap([3.5, -1.6, z + 5], [3.5, 0.6, z + 1.2], 0.12, 0.12, crack); // the fracture across it
+        s.ell([0, 0, z + 7.6], [2.2, 2.2, 2], brass);
+        s.ell([1.8, 0, z + 7.8], [0.4, 1.4, 0.4], glowE);
+        for (const side of [-1, 1]) {
+          for (let i = 0; i < 10; i++) {
+            const a = (i / 10) * TAU + t * TAU * 0.5 * side;
+            s.sph([0, side * (5 + Math.cos(a) * 1.8), z + 6 + Math.sin(a) * 1.8], 0.45, brass);
+          }
+          s.sph([0, side * 5, z + 6], 1, bronze);
+          const reach = bite ? 4 : wind ? -1 : 1;
+          s.cap([0, side * 5.4, z + 5], [reach + 2, side * 6.4, z + 1 + (wind ? 4 : 0)], 1.2, 0.9, bronze);
+          s.sph([reach + 2.6, side * 6.4, z + 0.6 + (wind ? 4 : 0)], 1.4, brass);
+          s.cap([0, side * 1.8, z - 1.6], [moving ? sw * side * 2 : 0, side * 2.2, 0.8], 1.4, 1.1, bronze);
+        }
+        for (let i = 0; i < 6; i++) {
+          const ph = (t + i / 6) % 1;
+          s.sph([-2 + Math.sin(i) * 4, Math.cos(i * 2) * 5, 1 + ph * 18], 0.3, i % 2 ? glowE : crack); // sand rising
+        }
+      }
+      s.pop();
+    },
+  };
+}
+
 const DEFS: Record<CritterKind, Def> = {
   echo_bat: caveFauna(0),
   spore_sage: caveFauna(1),
@@ -1548,6 +1860,15 @@ const DEFS: Record<CritterKind, Def> = {
   raiju: realmBeast(3),
   reef_naga: realmBeast(4),
   hellhound: realmBeast(5),
+  zephyr_ray: otherworldBeast(0),
+  gilded_sentinel: otherworldBeast(1),
+  phoenix: otherworldBeast(2),
+  shade_stalker: otherworldBeast(3),
+  abyss_serpent: otherworldBeast(4),
+  umbral_maw: otherworldBeast(5),
+  gear_hound: otherworldBeast(6),
+  paradox_echo: otherworldBeast(7),
+  the_unwound: otherworldBeast(8),
   cow: farmAnimal(0),
   sheep: farmAnimal(1),
   pig: farmAnimal(2),
@@ -1691,6 +2012,20 @@ export function buildFoeSheets(): FoeSheets {
     if (farm) return farm;
     const army = armyOfKind(k);
     if (army) return armyKey(army.realm, army.cls);
+    const other = (
+      [
+        'zephyr_ray',
+        'gilded_sentinel',
+        'phoenix',
+        'shade_stalker',
+        'abyss_serpent',
+        'umbral_maw',
+        'gear_hound',
+        'paradox_echo',
+        'the_unwound',
+      ] as const
+    )[k - 80];
+    if (other) return other;
     const realm = (['griffin', 'spirit_stag', 'iron_golem', 'raiju', 'reef_naga', 'hellhound'] as const)[k - 44];
     if (realm) return realm;
     const cave = caveNames[k - 24] ?? newCave[k - 34];
