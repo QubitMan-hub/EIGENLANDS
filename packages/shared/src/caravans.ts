@@ -182,8 +182,8 @@ export function caravanById(seed: number, id: string): CaravanRoute | null {
   return caravanRoutes(seed).find((r) => r.id === id) ?? null;
 }
 
-/** World point at distance d along the route's road. */
-function along(seed: number, r: CaravanRoute, d: number): { x: number; y: number } {
+/** World point at distance `d` from the capital along the road of `r` (also used by the wayfarers). */
+export function along(seed: number, r: CaravanRoute, d: number): { x: number; y: number } {
   const g = REALM_GEO[r.realm];
   if (r.axis === 'ns') {
     const y = g.cy + r.sign * d;

@@ -469,6 +469,7 @@ export class Game {
       settings: this.settings,
       store: () => this.store,
       sheets: () => this.sheets,
+      foes: () => this.foes,
       entityLayer: () => this.entityLayer,
       fxLayer: () => this.fxLayer,
       labelLayer: () => this.labelLayer,
