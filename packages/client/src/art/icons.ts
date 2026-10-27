@@ -1257,6 +1257,27 @@ const G: Record<Glyph, Draw> = {
     }
     put(c, 7, 9, b, 2, 1);
   },
+  longbow: (c, a, b) => {
+    // a tall self bow: the stave curves from tip to tip, a taut string and a nocked arrow
+    const stave: Array<[number, number]> = [
+      [4, 1],
+      [6, 3],
+      [7, 5],
+      [8, 8],
+      [7, 11],
+      [6, 13],
+      [4, 15],
+    ];
+    for (let i = 0; i < stave.length - 1; i++) line(c, ...stave[i]!, ...stave[i + 1]!, i === 3 ? C.e2 : C.e3);
+    put(c, 7, 7, a, 2, 2); // the leather grip
+    line(c, 4, 1, 4, 15, C.fog);
+    line(c, 4, 8, 14, 8, C.e2);
+    put(c, 14, 8, C.pale);
+    put(c, 13, 7, C.pale);
+    put(c, 13, 9, C.pale);
+    put(c, 4, 7, b);
+    put(c, 4, 9, b);
+  },
   greatsword: (c, a, b) => {
     line(c, 2, 14, 5, 11, C.e2);
     line(c, 3, 10, 7, 13, b);

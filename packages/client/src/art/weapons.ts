@@ -176,6 +176,25 @@ export class HeldWeapons {
               const a = pt(10, -1),
                 q = pt(10, 4);
               line(b.ctx, ...a, ...q, C.steel);
+            } else if (fam === 'longbow') {
+              // a tall stave held upright across the aim: the limbs bend back toward the archer, the string is
+              // taut between the tips, and while shooting an arrow lies nocked along the aim
+              poly(b.ctx, [pt(-0.6, -1.4), pt(0.8, -1.4), pt(0.8, 1.4), pt(-0.6, 1.4)], C.e1);
+              for (const side of [-1, 1]) {
+                const mid = pt(-0.5, side * 5),
+                  tip = pt(-3, side * 10);
+                line(b.ctx, ...pt(0, side * 1.4), ...mid, side < 0 ? C.e4 : C.e3);
+                line(b.ctx, ...mid, ...tip, side < 0 ? C.e3 : C.e2);
+              }
+              const t0 = pt(-3, -10),
+                t1 = pt(-3, 10);
+              line(b.ctx, ...t0, ...t1, C.fog);
+              if (n >= SHOT_FRAME && n < CAST_FRAME) {
+                const nock = pt(-3, 0),
+                  head = pt(9, 0);
+                line(b.ctx, ...nock, ...head, C.e2);
+                put(b.ctx, Math.round(head[0]), Math.round(head[1]), C.pale);
+              }
             } else if (bow) {
               poly(b.ctx, [pt(-3, -1), pt(6, -1), pt(7, 1), pt(-3, 1)], C.e2);
               stroke(-3, 6, C.e4, -0.7);

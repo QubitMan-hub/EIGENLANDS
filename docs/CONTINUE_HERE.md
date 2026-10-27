@@ -1,3 +1,15 @@
+# Current continuation: longbows, star crafting and notice boards (2026-10-27)
+
+- **Longbow:** a new weapon family (`shared/src/equipment.ts`, held art in `client/src/art/weapons.ts`, icon). It
+  draws slower than the crossbow, reaches furthest, and its arrows pierce one foe; the charged Long Shot pierces three.
+  It comes in every crossbow metal and the smith sells it.
+- **Star shards** make star glass, starsteel, the Starlit Lantern, the Wishing Star Charm and the levelled legendary
+  longbow Starfall (`shared/src/catalog/starfall.ts`).
+- **Notice boards** stand on every kingdom and frontier town square: today's wanted poster, the nearest caravan,
+  festivals and tomorrow's weather (`client/src/game/noticeboard.ts`).
+- Tests: shared `lively.test.ts`; client `noticeboard.test.ts`, `scenes.test.ts`. Browser proof:
+  `e2e/notice-board.mjs`.
+
 # Current continuation: orderly, isometric, livelier towns (2026-10-27)
 
 Everything the street-life layer adds to a town is now an isometric sprite. That covers the umbrellas, fishing rods,

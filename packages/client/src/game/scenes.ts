@@ -27,7 +27,9 @@ export type SceneKind =
   // the night watch walks the lamps with a lantern; a stable hand grooms a horse at the inn; hens fed at a farm
   | 'watchman'
   | 'stablehand'
-  | 'hens';
+  | 'hens'
+  // the town's notice board on the square (read it by standing at it)
+  | 'board';
 
 export interface Scene {
   kind: SceneKind;
@@ -67,12 +69,13 @@ export const SCENE_HOURS: Record<SceneKind, [number, number]> = {
   watchman: [20, 29.5],
   stablehand: [7.5, 18.5],
   hens: [6.5, 9.5],
+  board: [0, 24],
 };
 
 /** Weather a scene does not happen in: nobody hangs washing in the rain, children go in, buskers pack up. */
 export function sceneSheltered(kind: SceneKind, weather: string): boolean {
   const wet = weather === 'rain' || weather === 'storm';
-  if (kind === 'dressing') return false;
+  if (kind === 'dressing' || kind === 'board') return false;
   if (weather === 'storm') return kind !== 'cat' && kind !== 'lamplighter' && kind !== 'watchman';
   if (wet) return kind === 'laundry' || kind === 'kids' || kind === 'bench' || kind === 'busker' || kind === 'garden';
   if (weather === 'snow') return kind === 'laundry' || kind === 'garden';
@@ -258,6 +261,13 @@ export function planScenes(t: Town, seed: number, o: PlanOpts): Scene[] {
       const p = near(d.x + (kind === 'cat' ? 1 : 0), d.y, 1);
       if (p) add(kind, p, null, 8);
     }
+  }
+
+  // the notice board stands at the edge of the square, facing the street
+  {
+    const pz = Object.entries(t.spots).find(([k]) => k.endsWith('.plaza'))?.[1] ?? { x: t.cx, y: t.cy };
+    const p = near(pz.x + 3, pz.y - 2, 3);
+    if (p) add('board', p, null, 17);
   }
 
   // the square: children at play, a busker, a porter's round between the market and a shop

@@ -792,3 +792,62 @@ button.primary {
   color: var(--parch-hi);
   border-color: var(--ca, var(--brass));
 }
+
+/* the town notice board: a sheet of parchment pinned up while you stand at the board */
+.notice-card {
+  position: fixed;
+  left: calc(16px * var(--ui-scale));
+  top: calc(150px * var(--ui-scale));
+  z-index: 30;
+  width: min(calc(300px * var(--ui-scale)), calc(100vw - 32px));
+  max-height: calc(100vh - 260px * var(--ui-scale));
+  overflow: auto;
+  padding: calc(12px * var(--ui-scale)) calc(14px * var(--ui-scale));
+  background:
+    radial-gradient(ellipse at 30% 0%, var(--parch-hi), transparent 70%),
+    linear-gradient(180deg, var(--parch), var(--parch-lo));
+  color: var(--ink-dark);
+  box-shadow:
+    0 0 0 2px var(--walnut),
+    inset 0 0 0 1px var(--brass-lo),
+    0 5px 0 0 #0a0705cc;
+  pointer-events: none;
+}
+.notice-card[hidden] {
+  display: none;
+}
+.notice-card h2 {
+  margin: 0 0 calc(8px * var(--ui-scale));
+  font: 400 calc(15px * var(--ui-scale)) / 1.2 var(--pix);
+  color: var(--ink-dark);
+  border-bottom: 1px solid var(--brass-lo);
+  padding-bottom: calc(6px * var(--ui-scale));
+}
+.notice-card article {
+  margin: 0 0 calc(8px * var(--ui-scale));
+}
+.notice-card h3 {
+  margin: 0;
+  font: 400 calc(13px * var(--ui-scale)) / 1.25 var(--pix);
+  color: var(--ink-soft);
+}
+.notice-card p {
+  margin: calc(2px * var(--ui-scale)) 0 0;
+  font: calc(14px * var(--ui-scale)) / 1.35 var(--prose);
+}
+/* the wanted poster: ruled in ember, with the beast's name in ink */
+.notice-card article.wanted {
+  padding: calc(6px * var(--ui-scale)) calc(8px * var(--ui-scale));
+  border: 1px solid var(--ember);
+  background: #ecdfb880;
+}
+.notice-card article.wanted h3 {
+  /* a deeper ember than the border so the heading keeps AA contrast on parchment */
+  color: #8a2c1a;
+}
+@media (max-width: 640px) {
+  .notice-card {
+    top: auto;
+    bottom: calc(110px * var(--ui-scale));
+  }
+}

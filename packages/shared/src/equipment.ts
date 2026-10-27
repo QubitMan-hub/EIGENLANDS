@@ -188,6 +188,7 @@ export type BaseWeaponId =
   | 'dagger'
   | 'greatsword'
   | 'crossbow'
+  | 'longbow'
   | 'ember_staff'
   | 'rime_staff'
   | 'verdant_staff'
@@ -338,6 +339,21 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     bonus: {},
     blurb: 'Long reach, fast bolts. Hold to charge a volley.',
     quantum: 'The volley fires along three possible paths at once; all three are real.',
+  },
+  longbow: {
+    id: 'longbow',
+    name: 'Longbow',
+    // shoots like the crossbow (same class), but draws slower and reaches further: one arrow at a time that passes
+    // through the first foe, and a charged long shot instead of a volley
+    cls: 'crossbow',
+    hue: -1,
+    level: 8,
+    cd: 0.7,
+    basic: { name: 'Arrow', hue: -1, kind: 'bolt', dmg: 19, range: 15, speed: 24, pierce: 1 },
+    charged: { name: 'Long Shot', hue: -1, kind: 'bolt', dmg: 46, range: 20, speed: 32, pierce: 3 },
+    bonus: {},
+    blurb: 'The furthest reach of any weapon: arrows that pass through a foe. Hold to draw a long shot.',
+    quantum: 'A fully drawn shot is a measurement made at range: it collapses through everything in its line.',
   },
   ember_staff: {
     id: 'ember_staff',

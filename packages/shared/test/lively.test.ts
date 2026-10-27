@@ -119,4 +119,39 @@ describe('weapon families', () => {
     }
     expect(meleeHeavy('dagger_steel', 0)).toEqual(meleeHeavy('dagger', 0));
   });
+
+  it('the longbow out-reaches the crossbow with arrows that pierce, at a slower draw', async () => {
+    const { WEAPONS, ITEMS, RECIPES, isRangedWeapon } = await import('../src/index');
+    const bow = WEAPONS.longbow!,
+      xbow = WEAPONS.crossbow!;
+    expect(isRangedWeapon(bow)).toBe(true);
+    expect(bow.basic!.range!).toBeGreaterThan(xbow.basic!.range!);
+    expect(bow.charged!.range!).toBeGreaterThan(xbow.charged!.range!);
+    expect(bow.basic!.pierce).toBeGreaterThan(0);
+    expect(bow.cd).toBeGreaterThan(xbow.cd);
+    // one heavy long shot, not a volley
+    expect(bow.charged!.count ?? 1).toBe(1);
+    expect(bow.charged!.dmg).toBeGreaterThan(xbow.charged!.dmg);
+    for (const id of ['longbow', 'longbow_steel', 'longbow_mithril']) {
+      expect(WEAPONS[id], id).toBeTruthy();
+      expect(ITEMS[id]?.kind).toBe('weapon');
+      expect(ITEMS[id]?.icon.g).toBe('longbow');
+      expect(
+        RECIPES.some((r) => r.out.id === id),
+        id,
+      ).toBe(true);
+    }
+  });
+
+  it('fallen stars are worth breaking open: star shards make glass, starsteel and star gear', async () => {
+    const { RECIPES, ITEMS, WEAPONS } = await import('../src/index');
+    const uses = RECIPES.filter((r) => r.inputs.some((i) => i.id === 'star_shard')).map((r) => r.out.id);
+    for (const id of ['star_glass', 'starsteel_ingot', 'star_charm']) expect(uses, id).toContain(id);
+    // the lantern outshines an oil lamp, and Starfall is a longbow anyone can learn by levelling
+    expect(ITEMS.star_lantern!.gear!.bonus.light!).toBeGreaterThan(ITEMS.oil_lantern!.gear!.bonus.light!);
+    expect(WEAPONS.starfall_bow!.fam).toBe('longbow');
+    const bow = RECIPES.find((r) => r.out.id === 'starfall_bow')!;
+    expect(bow.learn).toBe('level');
+    expect(bow.inputs.map((i) => i.id)).toContain('starsteel_ingot');
+  });
 });

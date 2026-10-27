@@ -216,6 +216,7 @@ export const NPCS: NpcDef[] = [
         { item: 'battle_axe', markup: 1.3 },
         { item: 'warhammer', markup: 1.3 },
         { item: 'dagger', markup: 1.3 },
+        { item: 'longbow', markup: 1.3 },
         { item: 'greatsword', markup: 1.3 },
         { item: 'coal', markup: 1.1 },
         { item: 'copper_ingot', markup: 1.1 },

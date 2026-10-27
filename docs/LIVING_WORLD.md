@@ -291,6 +291,17 @@ sees the same washerwoman at the same line.
   porter and neighbourly chat carry on under umbrellas. Storms empty the streets except for the cats and the
   lamplighter.
 
+### Notice boards and star crafting (2026-10-27)
+
+- **Notice boards:** every kingdom and frontier town square has a standing notice board. Stand at it to read the
+  day's **wanted** poster (the beast, where it was last seen, the reward), where the nearest caravan is, the next
+  festival (or today's), and tomorrow's weather. It is built from the same shared functions as the bounty, caravans,
+  festivals and weather themselves (`client/src/game/noticeboard.ts`, `noticeboard.test.ts`).
+- **Star shards** are now a crafting material (`shared/src/catalog/starfall.ts`):
+  - star glass at the stonecutter, and starsteel ingots at the furnace;
+  - the **Starlit Lantern** (light 9, brighter than any oil lamp) and the **Wishing Star Charm** (luck);
+  - **Starfall**, a legendary longbow learned by levelling rather than from a scroll.
+
 ## Efficient simulation
 
 - **Kingdom state:** one small JSON blob per world (`civ:<seed>`). The server steps it once per world day and catches
@@ -408,6 +419,6 @@ sees the same washerwoman at the same line.
   umbrella, fishing rod, bucket and sack. Only the fishing line is a drawn string, and festival pennants hang in the
   vertical plane of their string. Until a villager's own appearance sheet has been built (one per frame),
   they stay hidden rather than appear in a stock outfit.
-- Star shards are a trade good only: no recipes use them yet. Bounty beasts are ordinary hardened creatures with no
-  unique attacks or art, and a bounty is told by a toast rather than a notice on a board. The sky effects are drawn in
+- Bounty beasts are ordinary hardened creatures with no unique attacks or art. The town notice board is read by
+  standing at it (a client card); it shows the same bounty the server posts but is not itself a server object. The sky effects are drawn in
   screen space over the world.

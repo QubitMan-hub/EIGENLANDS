@@ -751,6 +751,7 @@ export class SceneLife {
         put(PROPS.woodpile!('sw').frames[0]!, 1.2, -0.9);
         put(choppingBlockSprite('sw'), 0.4, 0);
       } else if (sc.kind === 'laundry') put(PROPS.laundry!('sw').frames[0]!);
+      else if (sc.kind === 'board') put(PROPS.guild_noticeboard!('sw').frames[0]!);
     }
     if (sc.kind === 'laundry') {
       // the washing is in (the line taken down) when nobody would hang it out; otherwise it stirs in the wind

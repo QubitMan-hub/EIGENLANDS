@@ -1188,6 +1188,19 @@ r(
   'Planks, an iron stirrup and plenty of string.',
 );
 r(
+  'longbow',
+  'carpenter',
+  [
+    ['plank', 4],
+    ['fiber', 6],
+    ['hide', 1],
+  ],
+  ['longbow', 1],
+  12,
+  'start',
+  'A tall stave of seasoned wood, a waxed string and a leather grip. Level 8 to wield.',
+);
+r(
   'ember_staff',
   'carpenter',
   [

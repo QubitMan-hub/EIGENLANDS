@@ -97,6 +97,7 @@ export type Glyph =
   | 'warhammer'
   | 'dagger'
   | 'greatsword'
+  | 'longbow'
   | 'helm'
   | 'cuirass'
   | 'greaves'
@@ -1044,6 +1045,7 @@ const WEAPON_COLORS: Record<string, [number, number]> = {
   warhammer: [C.steel, C.e3],
   dagger: [C.steel, C.r2],
   greatsword: [C.steel, C.e5],
+  longbow: [C.e3, C.e6],
   crossbow: [C.e4, C.steel],
   ember_staff: [C.r4, C.e6],
   rime_staff: [C.w4, C.pale],
@@ -1073,9 +1075,11 @@ for (const w of Object.values(WEAPONS)) {
               ? 'dagger'
               : fam === 'greatsword'
                 ? 'greatsword'
-                : w.cls === 'crossbow'
-                  ? 'crossbow'
-                  : 'staff',
+                : fam === 'longbow'
+                  ? 'longbow'
+                  : w.cls === 'crossbow'
+                    ? 'crossbow'
+                    : 'staff',
     a,
     b,
     `${w.blurb} ${w.quantum} Level ${w.level}.`,

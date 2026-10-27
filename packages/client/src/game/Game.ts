@@ -1376,6 +1376,7 @@ export class Game {
       weather,
       reduced,
       underground,
+      server: this.clock.serverNow(now),
     });
     this.listen(now, dt, me, hour, weather, underground);
     this.updateTarget34(renderT, me);

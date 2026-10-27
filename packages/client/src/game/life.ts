@@ -35,6 +35,7 @@ import { SceneLife, sceneLook, type SceneActor } from './scene-life';
 import { rodSprite, umbrellaSprite } from '../art/scene-props';
 import { livestockTexture } from '../art/livestock';
 import { setExtraLights } from './worldobjviews';
+import { NoticeCard, boardNotices } from './noticeboard';
 import { depth, isoX, isoY, screenDir } from './iso';
 import type { Fx } from './fx';
 
@@ -72,6 +73,8 @@ export interface LifeFrame {
   weather: Weather;
   reduced: boolean;
   underground: boolean;
+  /** world (server) clock, for the notice board's caravans */
+  server?: number;
 }
 
 type Role =
@@ -192,6 +195,7 @@ export class WorldLife {
   private fronts: Array<{ x: number; y: number }> = [];
 
   private scenes: SceneLife;
+  private card = new NoticeCard();
   /** the everyday scenes planned for the settlement being animated (tests, screenshots) */
   private plan: Scene[] = [];
 
@@ -291,6 +295,23 @@ export class WorldLife {
     this.sky(f);
     this.bubblesFrame(f);
     this.bellCheck(f);
+    this.boardFrame(f);
+  }
+
+  /** standing at the town's notice board shows what is pinned to it */
+  private boardFrame(f: LifeFrame): void {
+    const t = this.town,
+      b = this.plan.find((s) => s.kind === 'board');
+    if (!t || !b || Math.hypot(f.me.x - b.x, f.me.y - b.y) > 2.4) {
+      this.card.hide();
+      return;
+    }
+    const host = homeTowns.has(t) ? 'home' : (this.realm ?? 'home');
+    this.card.show(t.name, boardNotices(this.d.seed(), t, host, f.day, f.server ?? Date.now()));
+  }
+  /** where this settlement's notice board stands (tests, screenshots) */
+  boardAt(): { x: number; y: number } | null {
+    return this.sceneAt('board');
   }
 
   private townNear(x: number, y: number): Town | null {
@@ -317,6 +338,7 @@ export class WorldLife {
     this.fishing = null;
     this.fronts = [];
     this.plan = [];
+    this.card.hide();
     this.town = town;
     this.site = town ? siteOf(town) : null;
     this.realm = this.site?.realm ?? null;
@@ -550,6 +572,7 @@ export class WorldLife {
           people(1, 0);
           break;
         case 'dressing':
+        case 'board':
           animal('prop', sc.x, sc.y);
           break;
         case 'stablehand':
