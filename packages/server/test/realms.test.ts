@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   MSG,
   OTHERWORLDS,
+  TILE_DEFS,
   chronoCode,
   chronoGate,
   isSolid,
@@ -101,11 +102,22 @@ describe('the three realms', () => {
     // find a dark spot in a tunnel: open floor with no light near
     const oy = OTHERWORLDS.umbra.oy;
     let dark: { x: number; y: number } | null = null;
-    for (let x = 14; x < 40 && !dark; x++) {
-      const y = oy;
-      if (isSolid(p.room.store.getTile(x, y))) continue;
-      await tp(p, x + 0.5, y + 0.5);
-      if (!mod.lit(p.sp)) dark = { x, y };
+    // candidates: open tiles near home with no glowing tile close by (the layout differs from seed to seed)
+    const glow = (x: number, y: number) => (TILE_DEFS[p.room.store.getTile(x, y)]?.light ?? 0) > 0;
+    const candidates: Array<{ x: number; y: number }> = [];
+    for (let y = oy - 60; y <= oy + 60; y += 3)
+      for (let x = -60; x <= 60; x += 3) {
+        if (isSolid(p.room.store.getTile(x, y))) continue;
+        let lit = false;
+        for (let dy = -5; dy <= 5 && !lit; dy++) for (let dx = -5; dx <= 5 && !lit; dx++) lit = glow(x + dx, y + dy);
+        if (!lit) candidates.push({ x, y });
+      }
+    for (const c of candidates.slice(0, 30)) {
+      await tp(p, c.x + 0.5, c.y + 0.5);
+      if (!mod.lit(p.sp)) {
+        dark = c;
+        break;
+      }
     }
     expect(dark).toBeTruthy();
     clearEnemies(p.room);

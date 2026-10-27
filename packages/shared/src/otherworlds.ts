@@ -115,32 +115,159 @@ export const ARENA_CELL: Record<OtherworldId, [number, number]> = {
   chronoria: [3, -2],
 };
 
-/** Room (island, chamber or plaza) of grid cell (gx, gy), or null outside the realm. */
+// ───────────────────────── the realm graph ─────────────────────────
+
+/**
+ * Which cells of a realm's grid hold a room, and which neighbouring rooms are joined. Each seed leaves some cells
+ * empty, joins the rest with a random spanning tree (so everything is reachable) and adds a few extra links for
+ * loops. The rooms that matter (home, the boss's room and the way up to it, the chime isles, the lore rooms, the
+ * peoples' homes) are always present and always connected.
+ */
+interface RealmGraph {
+  /** 1 where a cell holds a room */
+  present: Uint8Array;
+  /** link to the east / south neighbour: 0 none, 1 road (bridge, tunnel, street), 2 updraft */
+  east: Uint8Array;
+  south: Uint8Array;
+}
+const GRID = 32;
+const gi = (gx: number, gy: number): number => (gy + GRID / 2) * GRID + (gx + GRID / 2);
+const GRAPHS = new Map<string, RealmGraph>();
+const DROP: Record<OtherworldId, number> = { aetheria: 0.24, umbra: 0.16, chronoria: 0.14 };
+const LOOPS: Record<OtherworldId, number> = { aetheria: 0.22, umbra: 0.3, chronoria: 1 };
+
+function realmGraph(seed: number, w: OtherworldId): RealmGraph {
+  const key = `${seed}:${w}`;
+  const hit = GRAPHS.get(key);
+  if (hit) return hit;
+  const span = OTHERWORLDS[w].span,
+    s = SALT[w];
+  const [ax, ay] = ARENA_CELL[w];
+  const sealed = w !== 'umbra'; // the eyrie and the Unwound's court have no road in
+  const inside = (gx: number, gy: number) => Math.abs(gx) <= span && Math.abs(gy) <= span;
+  const forced: Array<[number, number]> = [
+    [0, 0],
+    [ax, ay],
+    [ax - 1, ay],
+    [-1, 2],
+    [2, 1],
+    HOLLOW_CELL,
+    ...(w === 'aetheria' ? chimeCells(seed) : []),
+  ];
+  const present = new Uint8Array(GRID * GRID);
+  for (let gy = -span; gy <= span; gy++)
+    for (let gx = -span; gx <= span; gx++) if (hash2(seed, gx, gy, s + 70) >= DROP[w]) present[gi(gx, gy)] = 1;
+  for (const [fx, fy] of forced) present[gi(fx, fy)] = 1;
+  const walkable = (gx: number, gy: number) =>
+    inside(gx, gy) && present[gi(gx, gy)] === 1 && !(sealed && gx === ax && gy === ay);
+  const reached = (): Uint8Array => {
+    const seen = new Uint8Array(GRID * GRID);
+    const q: Array<[number, number]> = [[0, 0]];
+    seen[gi(0, 0)] = 1;
+    while (q.length) {
+      const [x, y] = q.pop()!;
+      for (const [dx, dy] of NEIGHBOURS4) {
+        const nx = x + dx,
+          ny = y + dy;
+        if (walkable(nx, ny) && !seen[gi(nx, ny)]) {
+          seen[gi(nx, ny)] = 1;
+          q.push([nx, ny]);
+        }
+      }
+    }
+    return seen;
+  };
+  // a forced room cut off by the empty cells gets a corridor of rooms back toward home
+  let seen = reached();
+  for (const [fx, fy] of forced) {
+    if (sealed && fx === ax && fy === ay) continue;
+    let x = fx,
+      y = fy;
+    while (!seen[gi(x, y)]) {
+      present[gi(x, y)] = 1;
+      const tx = x + Math.sign(-x),
+        ty = y + Math.sign(-y);
+      if (x !== 0 && !(sealed && tx === ax && y === ay)) x = tx;
+      else if (y !== 0) y = ty;
+      else break;
+      if (seen[gi(x, y)]) break;
+    }
+    present[gi(x, y)] = 1;
+    seen = reached();
+  }
+  // rooms nobody can reach are not there at all
+  for (let gy = -span; gy <= span; gy++)
+    for (let gx = -span; gx <= span; gx++) if (!seen[gi(gx, gy)] && !(gx === ax && gy === ay)) present[gi(gx, gy)] = 0;
+  // a random spanning tree (Kruskal over hashed weights), then extra links for loops
+  const parent = new Int32Array(GRID * GRID).map((_, i) => i);
+  const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i]!)));
+  const edges: Array<{ a: [number, number]; b: [number, number]; wt: number }> = [];
+  for (let gy = -span; gy <= span; gy++)
+    for (let gx = -span; gx <= span; gx++)
+      for (const [dx, dy] of NEIGHBOURS) {
+        const bx = gx + dx,
+          by = gy + dy;
+        if (!walkable(gx, gy) || !walkable(bx, by)) continue;
+        edges.push({ a: [gx, gy], b: [bx, by], wt: hash2(seed, gx * 2 + dx, gy * 2 + dy, s + 71) });
+      }
+  edges.sort((p, q) => p.wt - q.wt);
+  const east = new Uint8Array(GRID * GRID),
+    south = new Uint8Array(GRID * GRID);
+  const link = (a: [number, number], b: [number, number], kind: number) => {
+    if (b[0] > a[0]) east[gi(a[0], a[1])] = kind;
+    else south[gi(a[0], a[1])] = kind;
+  };
+  // Aetheria: some links are sky-roads, the rest updrafts
+  const kind = (e: { a: [number, number] }) =>
+    w === 'aetheria' && hash2(seed, e.a[0], e.a[1], s + 72 + Math.round(e.a[0] * 7)) >= 0.5 ? 2 : 1;
+  for (const e of edges) {
+    const ra = find(gi(...e.a)),
+      rb = find(gi(...e.b));
+    if (ra !== rb) {
+      parent[ra] = rb;
+      link(e.a, e.b, kind(e));
+    } else if (hash2(seed, e.a[0] + e.b[0] * 3, e.a[1] + e.b[1] * 5, s + 73) < LOOPS[w]) link(e.a, e.b, kind(e));
+  }
+  // the Phoenix's eyrie: a single updraft from its western neighbour
+  if (w === 'aetheria') east[gi(ax - 1, ay)] = 2;
+  const g = { present, east, south };
+  GRAPHS.set(key, g);
+  return g;
+}
+const NEIGHBOURS4: Array<[number, number]> = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+];
+
+/** the link between two neighbouring cells: 0 none, 1 road, 2 updraft */
+function linkBetween(seed: number, w: OtherworldId, a: [number, number], b: [number, number]): number {
+  const [p, q] = a[0] + a[1] <= b[0] + b[1] ? [a, b] : [b, a];
+  if (Math.abs(p[0]) > GRID / 2 - 1 || Math.abs(p[1]) > GRID / 2 - 1) return 0;
+  const g = realmGraph(seed, w);
+  return q[0] > p[0] ? g.east[gi(p[0], p[1])]! : g.south[gi(p[0], p[1])]!;
+}
+
+/** Room (island, chamber or plaza) of grid cell (gx, gy), or null where the realm has none. */
 export function roomOf(seed: number, w: OtherworldId, gx: number, gy: number): Room | null {
   const def = OTHERWORLDS[w];
   if (Math.abs(gx) > def.span || Math.abs(gy) > def.span) return null;
+  if (!realmGraph(seed, w).present[gi(gx, gy)]) return null;
   const s = SALT[w];
   const home = gx === 0 && gy === 0;
   const arena = gx === ARENA_CELL[w][0] && gy === ARENA_CELL[w][1];
-  const j = def.cell * 0.18;
+  const j = def.cell * 0.26;
   const x = home ? 0 : Math.round(gx * def.cell + (hash2(seed, gx, gy, s + 1) - 0.5) * 2 * j);
   const y = home ? 0 : Math.round(gy * def.cell + (hash2(seed, gx, gy, s + 2) - 0.5) * 2 * j);
-  const base = w === 'aetheria' ? 9 : w === 'umbra' ? 8 : 6;
-  const r = home ? 13 : arena ? 15 : base + Math.floor(hash2(seed, gx, gy, s + 3) * 7);
+  const base = w === 'aetheria' ? 8 : w === 'umbra' ? 7 : 6;
+  const r = home ? 13 : arena ? 15 : base + Math.floor(hash2(seed, gx, gy, s + 3) * 9);
   return { gx, gy, x, y, r };
 }
 
-/** Is the edge between two neighbouring cells a road (bridge, tunnel, street)? Every cell pair is joined somehow. */
+/** Is there a road (bridge, tunnel, street) between two neighbouring cells? */
 export function roadBetween(seed: number, w: OtherworldId, a: [number, number], b: [number, number]): boolean {
-  const [ax, ay] = a,
-    [bx, by] = b;
-  const arena = ARENA_CELL[w];
-  const touchesArena = (ax === arena[0] && ay === arena[1]) || (bx === arena[0] && by === arena[1]);
-  if (touchesArena) return w === 'umbra'; // the Phoenix's eyrie and the Unwound's court are sealed off
-  if (w === 'umbra') return ay === by || ax === 0 || hash2(seed, Math.min(ax, bx), Math.min(ay, by), 7210) < 0.45;
-  if (w === 'chronoria') return true;
-  // Aetheria: half the gaps are bridged; the rest are crossed by updraft
-  return hash2(seed, ax + bx * 31, ay + by * 17, 7110) < 0.5;
+  return linkBetween(seed, w, a, b) === 1;
 }
 
 /** realm-local coordinates of a world tile on plane `w` */
@@ -194,6 +321,40 @@ function placeAt(
   return { room: edge > 0 ? best : null, edge, road };
 }
 
+// ───────────────────────── room themes ─────────────────────────
+
+/**
+ * Each ordinary room (not the home, the boss's room or the Hollow) is seeded with a theme of its realm, so no two
+ * islands, chambers or ruins read alike. Themes only change ground and scatter: solid features stay sparse and away
+ * from the room's heart, its rim and its roads, so every room stays crossable.
+ */
+export const ROOM_THEMES = {
+  aetheria: ['meadow', 'grove', 'crystal', 'ruin', 'lake'],
+  umbra: ['fungal', 'crystal', 'ember', 'flooded', 'boulders'],
+  chronoria: ['overgrown', 'clockyard', 'stilled', 'dunes'],
+} as const satisfies Record<OtherworldId, readonly string[]>;
+export type RoomTheme = (typeof ROOM_THEMES)[OtherworldId][number];
+
+export function roomTheme(seed: number, w: OtherworldId, r: Room): RoomTheme | null {
+  if ((r.gx === 0 && r.gy === 0) || (r.gx === ARENA_CELL[w][0] && r.gy === ARENA_CELL[w][1])) return null;
+  if (w === 'umbra' && r.gx === HOLLOW_CELL[0] && r.gy === HOLLOW_CELL[1]) return null;
+  const list = ROOM_THEMES[w];
+  return list[Math.floor(hash2(seed, r.gx, r.gy, SALT[w] + 50) * list.length)]!;
+}
+
+/** distance to the nearest of a room's two pools (lake, flooded, ember), or Infinity when it has none */
+function poolDist(seed: number, w: OtherworldId, r: Room, x: number, y: number): { d: number; rad: number } {
+  if (r.r < 12) return { d: Infinity, rad: 0 };
+  const rad = Math.min(2.6, 1.4 + (r.r - 12) * 0.3);
+  let d = Infinity;
+  for (let k = 0; k < 2; k++) {
+    const a = hash2(seed, r.gx, r.gy, SALT[w] + 60 + k) * Math.PI * 2;
+    const m = r.r * 0.55;
+    d = Math.min(d, Math.hypot(x - (r.x + Math.cos(a) * m), y - (r.y + Math.sin(a) * m)));
+  }
+  return { d, rad };
+}
+
 // ───────────────────────── tiles ─────────────────────────
 
 /** Tiles of a realm plane (null off the realm planes). */
@@ -210,10 +371,30 @@ export function otherworldTileAt(seed: number, x: number, y: number): number | n
   if (w === 'aetheria') {
     if (!room) return road ? T.PATH : T.UPPER_VOID;
     if (edge < 1.4) return T.SAND; // the crumbling rim
-    if (home || arena || clear) return h < 0.06 ? T.FLOWERS : h < 0.1 ? T.GRASS_TALL : T.GRASS;
+    const theme = roomTheme(seed, w, room);
+    if (home || arena || !theme || nearUpdraft(seed, room, x, ly))
+      return h < 0.06 ? T.FLOWERS : h < 0.1 ? T.GRASS_TALL : T.GRASS;
+    if (theme === 'lake' && !clear) {
+      const p = poolDist(seed, w, room, x, ly);
+      if (p.d < p.rad) return T.WATER;
+      if (p.d < p.rad + 1.2) return T.SAND;
+    }
+    if (clear) {
+      if (theme === 'ruin') return vnoise(seed, x / 2.5, ly / 2.5, 7150) > 0.55 ? T.VAULT_FLOOR : T.GRASS;
+      if (theme === 'crystal') return h < 0.07 ? T.SHIMMER : T.GRASS;
+      if (theme === 'grove') return h < 0.1 ? T.FLOWERS : h < 0.3 ? T.GRASS_TALL : T.GRASS;
+      return h < 0.06 ? T.FLOWERS : h < 0.1 ? T.GRASS_TALL : T.GRASS;
+    }
     // aetherium shows as pale outcrops in the meadow rings
     if (h > 0.985) return T.ORE_SILVER;
     if (h > 0.975) return T.ROCK;
+    if (theme === 'grove')
+      return h < 0.1 ? T.TREE : h < 0.13 ? T.SHIMMER : h < 0.25 ? T.FLOWERS : h < 0.5 ? T.GRASS_TALL : T.GRASS;
+    if (theme === 'crystal') return h < 0.035 ? T.CRYSTAL : h < 0.16 ? T.SHIMMER : h < 0.22 ? T.GRASS_TALL : T.GRASS;
+    if (theme === 'ruin') {
+      if (h < 0.035) return T.ROCK; // fallen columns
+      return vnoise(seed, x / 2.5, ly / 2.5, 7150) > 0.5 ? T.VAULT_FLOOR : h < 0.12 ? T.GRASS_TALL : T.GRASS;
+    }
     return h < 0.025 ? T.TREE : h < 0.045 ? T.SHIMMER : h < 0.13 ? T.FLOWERS : h < 0.24 ? T.GRASS_TALL : T.GRASS;
   }
   if (w === 'umbra') {
@@ -223,6 +404,26 @@ export function otherworldTileAt(seed: number, x: number, y: number): number | n
     }
     if (room && room.gx === HOLLOW_CELL[0] && room.gy === HOLLOW_CELL[1]) return T.VAULT_FLOOR;
     if (!room || home || arena) return T.CAVE_FLOOR;
+    const theme = roomTheme(seed, w, room);
+    if (!clear && (theme === 'flooded' || theme === 'ember')) {
+      // pools: black water, or a lava seep that lights the chamber (and burns whoever wades in)
+      const p = poolDist(seed, w, room, x, ly);
+      if (p.d < p.rad) return theme === 'ember' ? T.LAVA : T.WATER;
+      if (p.d < p.rad + 1.5) return theme === 'ember' ? T.SCORIA : h < 0.3 ? T.GLOWCAP : T.CAVE_FLOOR;
+    }
+    if (theme === 'ember') return h < 0.25 ? T.SCORIA : clear ? T.CAVE_FLOOR : h > 0.96 ? T.STALAGMITE : T.CAVE_FLOOR;
+    if (theme === 'crystal') {
+      if (clear) return h < 0.03 ? T.SHIMMER : T.CAVE_FLOOR;
+      return h < 0.03 ? T.CRYSTAL : h < 0.06 ? T.SHIMMER : h < 0.075 ? T.STALAGMITE : T.CAVE_FLOOR;
+    }
+    if (theme === 'boulders') {
+      if (clear) return h < 0.02 ? T.GLOWCAP : T.CAVE_FLOOR;
+      return h < 0.07 ? T.CAVE_BOULDER : h < 0.09 ? T.GLOWCAP : T.CAVE_FLOOR;
+    }
+    if (theme === 'fungal') {
+      if (clear) return h < 0.08 ? T.GLOWCAP : T.CAVE_FLOOR;
+      return h < 0.14 ? T.GLOWCAP : h < 0.16 ? T.STALAGMITE : T.CAVE_FLOOR;
+    }
     if (clear) return h < 0.04 ? T.GLOWCAP : T.CAVE_FLOOR;
     return h < 0.05 ? T.GLOWCAP : h < 0.065 ? T.STALAGMITE : T.CAVE_FLOOR;
   }
@@ -232,8 +433,24 @@ export function otherworldTileAt(seed: number, x: number, y: number): number | n
     // a paved court at the heart of each ruin; outside it the slabs give way to grass and rubble
     const r = Math.hypot(x - room.x, ly - room.y);
     if (home ? r < 7 : r < 5) return T.VAULT_FLOOR;
-    if (!clear && h < 0.02) return T.CRYSTAL;
+    const theme = roomTheme(seed, w, room);
     const slab = vnoise(seed, x / 3, ly / 3, 7340);
+    if (theme === 'clockyard') {
+      if (!clear && h < 0.012) return T.ORE_GOLD; // the old works' gold, half-buried
+      if (!clear && h < 0.035) return T.ROCK; // fallen gearwork
+      return slab > 0.38 ? T.VAULT_FLOOR : h < 0.1 ? T.GRASS_TALL : T.GRASS;
+    }
+    if (theme === 'stilled') {
+      // a grove caught in a single moment: trees and blooms that never move
+      if (!clear && h < 0.07) return T.TREE;
+      return h < 0.14 ? T.SHIMMER : slab > 0.7 ? T.VAULT_FLOOR : h < 0.3 ? T.GRASS_TALL : T.GRASS;
+    }
+    if (theme === 'dunes') {
+      // the sand of spent hours piles up against the ruin
+      if (!clear && h < 0.02) return T.ROCK;
+      return vnoise(seed, x / 6, ly / 6, 7350) > 0.4 ? T.SAND : slab > 0.6 ? T.VAULT_FLOOR : T.GRASS;
+    }
+    if (!clear && h < 0.02) return T.CRYSTAL;
     return slab > 0.55 ? T.VAULT_FLOOR : h < 0.04 ? T.SHIMMER : h < 0.15 ? T.GRASS_TALL : T.GRASS;
   }
   if (road) return T.PATH;
@@ -242,6 +459,11 @@ export function otherworldTileAt(seed: number, x: number, y: number): number | n
   const da = Math.hypot(x - a.x, ly - a.y);
   if (da < a.r + 5) return T.UPPER_VOID;
   if (Math.hypot(x, ly) > OTHERWORLDS[w].cell * (OTHERWORLDS[w].span + 0.6)) return T.UPPER_VOID;
+  // the archive court before the gate, and the road to it from the ruin next door: no fracture ever cuts them off
+  const g = gateLocal(seed);
+  if (Math.hypot(x - g.x + 2, ly - g.y) < 8) return h < 0.05 ? T.SHIMMER : T.VAULT_FLOOR;
+  const wn = roomOf(seed, w, ARENA_CELL[w][0] - 1, ARENA_CELL[w][1])!;
+  if (segDist(x, ly, wn.x, wn.y, g.x - 2, g.y) < 1.6) return T.PATH;
   const crack = Math.abs(vnoise(seed, x / 13, ly / 13, 7320) - 0.5);
   if (crack < 0.04) return T.UPPER_VOID;
   return h < 0.02 ? T.SHIMMER : h < 0.03 ? T.ROCK : h > 0.988 ? T.ORE_GOLD : h < 0.2 ? T.GRASS_TALL : T.GRASS;
@@ -309,10 +531,8 @@ export function updraftsOf(seed: number): Updraft[] {
       for (const [dx, dy] of NEIGHBOURS) {
         const a = roomOf(seed, w, gx, gy),
           b = roomOf(seed, w, gx + dx, gy + dy);
-        if (!a || !b || roadBetween(seed, w, [gx, gy], [gx + dx, gy + dy])) continue;
+        if (!a || !b || linkBetween(seed, w, [gx, gy], [gx + dx, gy + dy]) !== 2) continue;
         const intoArena = (b.gx === arena[0] && b.gy === arena[1]) || (a.gx === arena[0] && a.gy === arena[1]);
-        // the eyrie has a single way up, from its western neighbour
-        if (intoArena && !(a.gx === arena[0] - 1 && a.gy === arena[1] && b.gx === arena[0])) continue;
         const pa = at(a, b),
           pb = at(b, a);
         // you land a step inward from the updraft on the far side
@@ -328,6 +548,29 @@ export function updraftsOf(seed: number): Updraft[] {
 }
 const UPDRAFTS = new Map<number, Updraft[]>();
 
+/** Where updrafts stand and set you down, by island: the ground there is always open. */
+const UPDRAFT_SPOTS = new Map<number, Map<number, Array<[number, number]>>>();
+function nearUpdraft(seed: number, room: Room, x: number, ly: number): boolean {
+  let spots = UPDRAFT_SPOTS.get(seed);
+  if (!spots) {
+    spots = new Map();
+    const oy = OTHERWORLDS.aetheria.oy;
+    const put = (px: number, py: number) => {
+      const p = placeAt(seed, 'aetheria', px, py - oy).room;
+      if (!p) return;
+      const k = gi(p.gx, p.gy);
+      (spots!.get(k) ?? spots!.set(k, []).get(k)!).push([px, py - oy]);
+    };
+    for (const u of updraftsOf(seed)) {
+      put(u.x, u.y);
+      put(u.to.x, u.to.y);
+    }
+    UPDRAFT_SPOTS.set(seed, spots);
+  }
+  for (const [px, py] of spots.get(gi(room.gx, room.gy)) ?? []) if (Math.hypot(x - px, ly - py) < 2.5) return true;
+  return false;
+}
+
 /** the three wind-chime islands of Aetheria (cells), seeded but never the home or the eyrie */
 export function chimeCells(seed: number): Array<[number, number]> {
   const out: Array<[number, number]> = [];
@@ -342,6 +585,12 @@ export function chimeCells(seed: number): Array<[number, number]> {
   const start = Math.floor(hash2(seed, 3, 7, 7130) * candidates.length);
   for (let i = 0; i < 3; i++) out.push(candidates[(start + i * 2) % candidates.length]!);
   return out;
+}
+
+/** the chrono gate in Chronoria-local tiles */
+function gateLocal(seed: number): { x: number; y: number } {
+  const a = roomOf(seed, 'chronoria', ARENA_CELL.chronoria[0], ARENA_CELL.chronoria[1])!;
+  return { x: a.x - a.r - 8, y: a.y };
 }
 
 /** Chronoria's chrono gate (beside the fracture around the court) and its three dials (world tiles). */

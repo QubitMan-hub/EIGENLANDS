@@ -14,6 +14,31 @@ before it lets you through. A return portal stands at every arrival point.
 Realm resources are gathered only in their own realm: sky bloom, umbral caps and time sand (each with a 5-minute
 per-player regrowth), aetherium, umbrite and chronium ore, sky amber, void pearls and temporal crystals.
 
+## How a realm is generated
+
+Each realm is a grid of rooms (13 × 13 cells), generated from the seed (`realmGraph` in `otherworlds.ts`):
+
+- **Holes.** Some cells are left empty: about 24% in Aetheria, 16% in the Abyss and 14% in Chronoria. Any room that
+  can no longer be reached from home is removed as well.
+- **Required rooms.** Some rooms are always present and always connected: home, the boss's room and the way up to it,
+  the chime isles, the lore rooms and the peoples' homes. If one is cut off, a corridor of rooms is added back toward
+  home.
+- **Links.** A random spanning tree joins every room, and a few extra links make loops. In Aetheria a link is either
+  a sky-road or an updraft. In the Abyss it is a tunnel. In Chronoria it is a street across the plateau.
+- **Themes.** Every ordinary room has a seeded theme of its realm:
+  - Aetheria: meadow, grove, crystal, ruin or lake.
+  - the Abyss: fungal, crystal, ember (lava seeps that light the chamber), flooded or boulders.
+  - Chronoria: overgrown, clockyard, stilled or dunes.
+- **Open ground where it matters.** A room's heart, its rim, its updraft spots and the road to the chrono gate stay
+  clear. Solid scatter is sparse, so a room can always be crossed.
+
+**Checks.** The shared test walks three seeds: every room must be reachable, every theme must appear, and the gate
+and dials must never be cut off. A 10-seed sweep found no stranded room or object. The parts that can't be reached
+are the sealed eyrie and small crack-ringed pockets of the Chronoria plateau that hold nothing.
+
+**Fixed while building this.** In some seeds a void crack cut Chronoria's gate court off, and an updraft could set
+you down on a tree.
+
 ## Peoples
 
 Each realm has a neutral people who live there and trade, and a hostile people at war with them
@@ -102,6 +127,8 @@ Remedies and meals:
   multi-phase scripts or custom health bars beyond the shared boss bar.
 - **No flight.** Aetheria uses updrafts instead of magical flight. It has no sky dragons, and gravity puzzles are
   limited to the updraft and chime gate.
+- **Layouts changed.** Realm layouts changed on 2026-10-27. A world created before then gets the new layout, and
+  anything built inside a realm before that date may now stand somewhere else.
 - **Realms only in new worlds.** Older worlds (generation 5 and below) have no realms.
 - **No Pinterest references.** Pinterest was not reachable from this environment. Mood references were taken from
   descriptions of public pixel-art pieces (floating islands with waterfalls, glowing mushroom caves, a shattered

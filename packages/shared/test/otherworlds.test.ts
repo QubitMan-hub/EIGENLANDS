@@ -14,6 +14,8 @@ import {
   otherworldOf,
   realmPortals,
   roomOf,
+  roomTheme,
+  ROOM_THEMES,
   setActiveGeneration,
   tileAt,
   updraftsOf,
@@ -25,10 +27,11 @@ setActiveGeneration(SEED, 6);
 const tile = (x: number, y: number) => tileAt(SEED, x, y, 6);
 
 /** flood fill over walkable tiles from (x, y), optionally riding updrafts, within the realm's bounds */
-function reach(w: OtherworldId, x0: number, y0: number, eyrie = false): Set<string> {
+function reach(w: OtherworldId, x0: number, y0: number, eyrie = false, seed = SEED): Set<string> {
   const def = OTHERWORLDS[w];
   const lim = def.cell * (def.span + 1);
-  const ups = w === 'aetheria' ? updraftsOf(SEED).filter((u) => eyrie || !u.eyrie) : [];
+  const tile = (x: number, y: number) => tileAt(seed, x, y, 6);
+  const ups = w === 'aetheria' ? updraftsOf(seed).filter((u) => eyrie || !u.eyrie) : [];
   const upAt = new Map(ups.map((u) => [`${u.x},${u.y}`, u]));
   const seen = new Set<string>([`${x0},${y0}`]);
   const q: Array<[number, number]> = [[x0, y0]];
@@ -81,7 +84,8 @@ describe('the three realms', () => {
     for (let gy = -def.span; gy <= def.span; gy++)
       for (let gx = -def.span; gx <= def.span; gx++) {
         if (gx === ARENA_CELL.aetheria[0] && gy === ARENA_CELL.aetheria[1]) continue;
-        const r = roomOf(SEED, 'aetheria', gx, gy)!;
+        const r = roomOf(SEED, 'aetheria', gx, gy);
+        if (!r) continue;
         expect(without.has(`${r.x},${r.y + def.oy}`)).toBe(true);
       }
     const withEyrie = reach('aetheria', Math.floor(a.x), Math.floor(a.y), true);
@@ -98,7 +102,8 @@ describe('the three realms', () => {
     const def = OTHERWORLDS.umbra;
     for (let gy = -def.span; gy <= def.span; gy++)
       for (let gx = -def.span; gx <= def.span; gx++) {
-        const r = roomOf(SEED, 'umbra', gx, gy)!;
+        const r = roomOf(SEED, 'umbra', gx, gy);
+        if (!r) continue;
         expect(seen.has(`${r.x},${r.y + def.oy}`)).toBe(true);
       }
   });
@@ -119,6 +124,45 @@ describe('the three realms', () => {
     const arena = otherworldArena(SEED, 'chronoria');
     expect(seen.has(`${arena.x},${arena.y}`)).toBe(false);
     expect(isSolid(tile(arena.x, arena.y + arena.r - 4))).toBe(false); // where the gate sets you down
+  });
+
+  it('every seed: a different layout with holes and loops, every room reachable, the chrono gate never cut off', () => {
+    for (const seed of [7, 42, 1337]) {
+      const counts: Record<string, number> = {};
+      for (const w of OTHERWORLD_IDS) {
+        const def = OTHERWORLDS[w];
+        const a = otherworldArrival(w);
+        const seen = reach(w, Math.floor(a.x), Math.floor(a.y), false, seed);
+        let rooms = 0;
+        const themes = new Set<string>();
+        for (let gy = -def.span; gy <= def.span; gy++)
+          for (let gx = -def.span; gx <= def.span; gx++) {
+            const r = roomOf(seed, w, gx, gy);
+            if (!r || (gx === ARENA_CELL[w][0] && gy === ARENA_CELL[w][1])) continue;
+            rooms++;
+            const t = roomTheme(seed, w, r);
+            if (t) themes.add(t);
+            expect(seen.has(`${r.x},${r.y + def.oy}`), `${seed} ${w} room ${gx},${gy}`).toBe(true);
+          }
+        counts[w] = rooms;
+        // some cells are empty, and every theme of the realm turns up somewhere
+        expect(rooms).toBeLessThan((def.span * 2 + 1) ** 2 - 1);
+        expect(themes.size).toBe(ROOM_THEMES[w].length);
+        if (w === 'chronoria') {
+          const g = chronoGate(seed);
+          const near = (p: { x: number; y: number }) =>
+            [
+              [1, 0],
+              [-1, 0],
+              [0, 1],
+              [0, -1],
+            ].some(([dx, dy]) => seen.has(`${p.x + dx!},${p.y + dy!}`));
+          expect(near(g.gate), `${seed} gate`).toBe(true);
+          for (const d of g.dials) expect(near(d), `${seed} dial`).toBe(true);
+        }
+      }
+      expect(counts.aetheria).toBeGreaterThan(80);
+    }
   });
 
   it('props stand on open ground, and each realm has its portal home, lore and gathering', () => {
