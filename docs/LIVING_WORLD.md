@@ -166,9 +166,20 @@ The kingdom state shows on the ground, in each settlement's open squares and law
 
 ### Life on the roads and in the wilds
 
-- **Wayfarers:** seven travellers per kingdom road at a time: pilgrims, couriers, patrols, shepherds with their flock,
-  carters with a handcart, minstrels, hunters and families. They keep to the right-hand verge, step aside in towns
-  and mostly go home at night; couriers and patrols ride on after dark with lanterns. They greet you as you pass.
+- **Wayfarers:** thirteen travellers per kingdom road at a time. Every road always has:
+  - a patrol and a mounted courier;
+  - a **marching column** of the realm's own soldiers: a mounted officer, the standard-bearer with the realm's
+    banner, two ranks of infantry two abreast and archers at the rear, all keeping step ("Left! Left! Left, right,
+    left!");
+  - three **knights** riding together;
+  - **market folk** pushing a barrow of produce, with a child alongside;
+  - a carter.
+
+  The rest are drawn from pilgrims, shepherds with their flock, minstrels, hunters, families, **drovers with cattle**,
+  **goatherds**, **swineherds**, **monks** walking in file in one habit, and a **noble** on horseback with two guards
+  on foot. They keep to the right-hand verge, step aside in towns and mostly go home at night; couriers and patrols
+  ride on after dark with lanterns. They greet you as you pass.
+
 - **Wild folk:** woodcutters, foragers, herbalists, hunters, fishers, prospectors and the odd hermit work out in the
   wilds by day, in nearly four of every ten 40×40-tile cells, wandering round their spot and talking to passers-by.
   A storm sends everyone but the hermit home.
@@ -255,12 +266,12 @@ Kingdom and frontier towns now have ordinary daily life, planned from each town'
 sees the same washerwoman at the same line.
 
 - **At the well:** someone winds up a bucket, carries it home to a nearby door and comes back for more (6:00–19:30).
-- **Washing day:** a washer scrubs at the basket and pegs sheets, shirts and trousers along a line that stirs in the
-  wind. When it rains or snows the washing is taken in and the line stands empty.
+- **Washing day:** a washer scrubs at the basket and pegs the washing along the line, which stirs in the wind. When
+  it rains or snows the washing is taken in and the line comes down.
 - **Firewood:** a woodcutter with an axe splits logs on a block (chips fly, the axe thuds) and stacks them on the pile.
-- **The doorstep:** brooms sweep the step in the morning, window boxes are watered with a can before 10:30, and every
-  door is dressed with flower pots, a barrel and crate, flour sacks and an apple basket, stacked firewood, crates or a
-  potted shrub and a leaning broom.
+- **The doorstep:** brooms sweep the step in the morning, window boxes are watered with a can before 10:30, and most
+  doors have something standing beside them: a planter, a barrel, a basket, a woodpile, a crate, a potted plant or a
+  hay bale.
 - **Neighbours:** two people chat at a door and take turns telling and reacting ("My youngest has the sniffles
   again." "Poor thing. Honey and lemon.").
 - **The square:** children play tag (whoever is "it" chases the nearest friend) until they are called in for supper.
@@ -358,6 +369,11 @@ sees the same washerwoman at the same line.
   and weather make sense (no washing in the rain, lamps at dusk). Browser proof `e2e/everyday-scenes.mjs` (solo dev
   build, 2026-10-27): close crops of each scene in Harrowgate; the dusk lamplighter was checked separately at 18:10.
   No page errors.
+- **Road traffic:** shared `lively.test.ts` checks that every road has a marching column of at least eight, knights
+  and market folk, that drovers, goatherds, swineherds, monks and nobles all appear across the kingdoms, and that
+  knights ride faster than a column, which outpaces a swineherd. Browser proof `e2e/road-traffic.mjs` (solo dev build,
+  2026-10-27): a column with its officer, standard and archers, knights, a drover's cattle, a noble and guards,
+  market folk, goats and pigs; no page errors.
 
 ## Limits and what is not built
 
@@ -380,8 +396,10 @@ sees the same washerwoman at the same line.
 - The subsequent bestiary batch adds seven wildlife bonds and matching original portraits; see ADVENTURER_PATHS_AND_BESTIARY.md.
 - Everyday scenes, like the street crowds, are drawn on each client and do not collide: you can walk through a
   doorstep crate or a washing line. They exist only in the kingdom and frontier towns animated by `life.ts`
-  (Hadamere keeps its own ambient villagers). The people are anonymous and cannot be talked to. Scene props are
-  simple drawn shapes, not authored sprites. Until a villager's own appearance sheet has been built (one per frame),
+  (Hadamere keeps its own ambient villagers). The people are anonymous and cannot be talked to. Scene props are the
+  towns' own isometric prop sprites, plus a chopping block, bucket, sack and realm standard built with the same
+  isokit (`client/src/art/scene-props.ts`). Brooms, the lamplighter's pole and the busker's lute are still thin drawn
+  lines held in the hand. Until a villager's own appearance sheet has been built (one per frame),
   they stay hidden rather than appear in a stock outfit.
 - Star shards are a trade good only: no recipes use them yet. Bounty beasts are ordinary hardened creatures with no
   unique attacks or art, and a bounty is told by a toast rather than a notice on a board. The sky effects are drawn in

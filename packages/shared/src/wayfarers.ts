@@ -10,7 +10,29 @@ import { along, caravanRoutes, type CaravanRoute } from './caravans';
 import { hash2 } from './rng';
 import { gameHour } from './time';
 
-export type WayfarerKind = 'pilgrim' | 'courier' | 'patrol' | 'shepherd' | 'carter' | 'minstrel' | 'hunter' | 'family';
+export type WayfarerKind =
+  | 'pilgrim'
+  | 'courier'
+  | 'patrol'
+  | 'shepherd'
+  | 'carter'
+  | 'minstrel'
+  | 'hunter'
+  | 'family'
+  // a company of the realm's soldiers marching in step behind a mounted officer and the standard
+  | 'column'
+  // three knights riding together
+  | 'knights'
+  // a drover with cattle, a goatherd, a swineherd taking pigs to market
+  | 'drover'
+  | 'goatherd'
+  | 'swineherd'
+  // brothers of a road shrine walking in file
+  | 'monks'
+  // villagers pushing a barrow of produce to the market
+  | 'market'
+  // a noble on horseback with two guards on foot
+  | 'noble';
 export interface Wayfarer {
   id: string;
   route: CaravanRoute;
@@ -43,6 +65,14 @@ const KIND_SPEED: Record<WayfarerKind, number> = {
   minstrel: 1,
   hunter: 1.15,
   family: 0.85,
+  column: 1.0,
+  knights: 1.9,
+  drover: 0.6,
+  goatherd: 0.65,
+  swineherd: 0.5,
+  monks: 0.7,
+  market: 0.85,
+  noble: 1.5,
 };
 const PARTY: Record<WayfarerKind, number> = {
   pilgrim: 1,
@@ -53,12 +83,38 @@ const PARTY: Record<WayfarerKind, number> = {
   minstrel: 1,
   hunter: 2,
   family: 3,
+  column: 10,
+  knights: 3,
+  drover: 4,
+  goatherd: 5,
+  swineherd: 3,
+  monks: 3,
+  market: 2,
+  noble: 3,
 };
 /** who travels after dark (the rest stop at an inn) */
 export const NIGHT_RIDERS = new Set<WayfarerKind>(['courier', 'patrol']);
-const KINDS: WayfarerKind[] = ['pilgrim', 'courier', 'patrol', 'shepherd', 'carter', 'minstrel', 'hunter', 'family'];
+const KINDS: WayfarerKind[] = [
+  'pilgrim',
+  'courier',
+  'patrol',
+  'shepherd',
+  'carter',
+  'minstrel',
+  'hunter',
+  'family',
+  'drover',
+  'goatherd',
+  'swineherd',
+  'monks',
+  'market',
+  'noble',
+  'knights',
+];
+/** who every road always has, in order: the rest are drawn from everyone */
+const FIXED: WayfarerKind[] = ['patrol', 'courier', 'column', 'knights', 'market', 'carter'];
 /** travellers per kingdom road */
-export const WAYFARERS_PER_ROAD = 7;
+export const WAYFARERS_PER_ROAD = 13;
 
 const cache = new Map<number, Wayfarer[]>();
 export function wayfarers(seed: number): Wayfarer[] {
@@ -69,8 +125,9 @@ export function wayfarers(seed: number): Wayfarer[] {
     if (r.peddler) continue;
     for (let i = 0; i < WAYFARERS_PER_ROAD; i++) {
       const h = (k: number) => hash2(seed, r.len * 7 + i, r.stops.length + r.id.length * 13, 9100 + k);
-      // every road has a patrol and a courier; the rest are drawn from everyone
-      const kind = i === 0 ? 'patrol' : i === 1 ? 'courier' : KINDS[Math.floor(h(1) * KINDS.length)]!;
+      // every road has a patrol, a courier, a marching column, knights, market folk and a carter; the rest are drawn
+      // from everyone
+      const kind = FIXED[i] ?? KINDS[Math.floor(h(1) * KINDS.length)]!;
       const speed = KIND_SPEED[kind] * (0.9 + h(2) * 0.2);
       out.push({
         id: `${r.id}:${i}`,
@@ -144,4 +201,12 @@ export const WAYFARER_BARKS: Record<WayfarerKind, string[]> = {
   minstrel: ['♪ Oh the road goes ever on… ♪', '♪ A copper for a song? ♪', '♪ Fa la, the sun is high ♪'],
   hunter: ['Tracks went that way.', 'Quiet now, there are deer about.', 'A fine day for the hunt.'],
   family: ['Are we there yet?', 'Off to see Grandmother!', 'Say hello to the traveller, dear.'],
+  column: ['Left! Left! Left, right, left!', 'Company, keep in step!', 'Clear the road for the march!', 'Eyes front!'],
+  knights: ['Good day, traveller.', 'For the crown!', 'Ride on, brothers.'],
+  drover: ['Hup! Hup! Move along there!', 'Cattle fair at the capital.', 'Mind the horns, friend.'],
+  goatherd: ['Get down from there, you!', 'Goats eat anything. Watch your pack.'],
+  swineherd: ['Sooey! This way, my beauties!', 'Fat pigs fetch good silver.'],
+  monks: ['Peace be with you.', 'We walk to the shrine at the pass.', 'Blessings on your road.'],
+  market: ['Turnips for the market!', 'Fresh eggs, if you want some.', 'Market day, market day!'],
+  noble: ['Stand aside for the Lady.', 'Keep your distance, commoner.', 'A fine day for a ride.'],
 };

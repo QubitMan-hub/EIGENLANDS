@@ -1,5 +1,6 @@
 import { Container, Rectangle, Sprite, Text, Texture } from 'pixi.js';
 import {
+  KINGDOMS,
   WAYFARER_BARKS,
   WILD_BARKS,
   armyKind,
@@ -19,6 +20,7 @@ import {
 import { ATTACK_FRAME, COSMETIC_OUTFITS, WALK_FRAMES, dirOf } from '../../art/actors';
 import { livestockTexture } from '../../art/livestock';
 import { handcartSprite, lanternGlow, stoolSprite } from '../../art/roadlife';
+import { standardSprite } from '../../art/scene-props';
 import { dir4 } from '../../art/sprite';
 import { depth, isoX, isoY, screenDir } from '../../game/iso';
 import type { P34Deps } from '../types';
@@ -32,7 +34,24 @@ const BARK_EVERY = 30;
 interface Member {
   sp: Sprite;
   /** sheep, cart and lantern ride along with their person */
-  kind: 'person' | 'soldier' | 'horse' | 'rider' | 'sheep' | 'cart' | 'glow' | 'prop';
+  kind:
+    | 'person'
+    | 'soldier'
+    | 'archer'
+    | 'cavalry'
+    | 'officer'
+    | 'standard'
+    | 'horse'
+    | 'rider'
+    | 'sheep'
+    | 'cow'
+    | 'goat'
+    | 'pig'
+    | 'cart'
+    | 'glow'
+    | 'prop';
+  /** a fixed look (monks share a habit, a noble dresses finely) */
+  look?: number;
   ox: number;
   oy: number;
 }
@@ -183,11 +202,11 @@ export class RoadLife {
     this.views.set(id, v);
     return v;
   }
-  private add(v: View, kind: Member['kind'], ox = 0, oy = 0): Sprite {
+  private add(v: View, kind: Member['kind'], ox = 0, oy = 0, look?: number): Sprite {
     const sp = new Sprite();
     sp.anchor.set(0.5, 1);
     v.root.addChild(sp);
-    v.members.push({ sp, kind, ox, oy });
+    v.members.push({ sp, kind, ox, oy, look });
     return sp;
   }
 
@@ -217,6 +236,46 @@ export class RoadLife {
       case 'hunter':
         this.add(v, 'person');
         this.add(v, 'person', -1, 0.5);
+        break;
+      case 'column': {
+        // a mounted officer, the standard-bearer, then the company two abreast, archers at the rear
+        this.add(v, 'officer', 1.6, 0);
+        this.add(v, 'soldier', 0, -0.45);
+        this.add(v, 'standard', 0, -0.45);
+        this.add(v, 'soldier', 0, 0.45);
+        for (let rank = 1; rank <= 3; rank++)
+          for (const side of [-0.45, 0.45]) this.add(v, rank === 3 ? 'archer' : 'soldier', -rank * 1.15, side);
+        this.add(v, 'glow');
+        break;
+      }
+      case 'knights':
+        for (let i = 0; i < 3; i++) this.add(v, 'cavalry', -i * 2, i % 2 ? 0.35 : -0.35);
+        break;
+      case 'drover':
+      case 'goatherd':
+      case 'swineherd': {
+        const beast = w.kind === 'drover' ? 'cow' : w.kind === 'goatherd' ? 'goat' : 'pig';
+        // the herd goes ahead, the herder walks behind with a stick
+        this.add(v, 'person', -1.4, 0);
+        for (let i = 0; i < w.party; i++)
+          this.add(v, beast, (i % 2) * 1.1 + Math.floor(i / 2) * 1.3, ((i % 3) - 1) * 0.55);
+        break;
+      }
+      case 'monks': {
+        const habit = Math.floor(hash2(w.look, 9, 9, 9) * COSMETIC_OUTFITS);
+        for (let i = 0; i < 3; i++) this.add(v, 'person', -i * 1.05, 0, habit);
+        break;
+      }
+      case 'market':
+        this.add(v, 'person');
+        this.add(v, 'cart', 1.3, 0);
+        this.add(v, 'person', -0.6, 0.6).scale.set(0.72);
+        break;
+      case 'noble':
+        this.add(v, 'horse');
+        this.add(v, 'rider');
+        this.add(v, 'soldier', -1.6, -0.45);
+        this.add(v, 'soldier', -1.6, 0.45);
         break;
       case 'family':
         this.add(v, 'person');
@@ -248,7 +307,7 @@ export class RoadLife {
       const s = screenDir(ax, ay);
       m.sp.position.set(s.x, s.y);
       m.sp.zIndex = s.y;
-      const look = (p.w.look + i * 7) % COSMETIC_OUTFITS;
+      const look = m.look ?? (p.w.look + i * 7) % COSMETIC_OUTFITS;
       switch (m.kind) {
         case 'person':
           m.sp.texture = sheets.person(look, dir, step(i, 0.17));
@@ -256,6 +315,8 @@ export class RoadLife {
         case 'soldier': {
           const foes = this.d.foes?.();
           const model = armyKind(p.w.route.realm, 'infantry');
+          // a marching column keeps step; a patrol's three walk at their own pace
+          const inStep = p.w.kind === 'column';
           if (foes) {
             m.sp.anchor.set(0.5, foes.anchor(model));
             const n = foes.frames(model, 'move');
@@ -264,11 +325,53 @@ export class RoadLife {
               false,
               dir4(sd.x, sd.y),
               'move',
-              reduced ? 0 : Math.floor(v.travel / 0.2 + i) % n,
+              reduced ? 0 : Math.floor(v.travel / 0.2 + (inStep ? 0 : i)) % n,
             );
           } else m.sp.texture = sheets.person(look, dir, step(i, 0.17));
           break;
         }
+        case 'archer':
+        case 'cavalry':
+        case 'officer': {
+          const foes = this.d.foes?.();
+          const cls = m.kind === 'archer' ? 'ranged' : m.kind === 'officer' ? 'elite' : 'cavalry';
+          const model = armyKind(p.w.route.realm, cls === 'elite' ? 'cavalry' : cls);
+          if (foes) {
+            m.sp.anchor.set(0.5, foes.anchor(model));
+            const n = foes.frames(model, 'move');
+            // a company marches in step: every soldier on the same foot
+            m.sp.texture = foes.frame(
+              model,
+              false,
+              dir4(sd.x, sd.y),
+              'move',
+              reduced ? 0 : Math.floor(v.travel / 0.2) % n,
+            );
+          } else m.sp.texture = sheets.person(look, dir, step(0, 0.17));
+          break;
+        }
+        case 'standard': {
+          const k = KINGDOMS[p.w.route.realm].banner;
+          const st = standardSprite(k.field, k.charge, p.fx !== 0 ? 'sw' : 'se', reduced ? 0 : Math.floor(now / 400));
+          m.sp.texture = st.tex;
+          m.sp.anchor.set(st.ax / st.tex.width, st.ay / st.tex.height);
+          // carried at the bearer's shoulder, a little to the side
+          m.sp.x += 5;
+          m.sp.y -= 14;
+          m.sp.zIndex += 1;
+          break;
+        }
+        case 'cow':
+        case 'goat':
+        case 'pig':
+          m.sp.anchor.set(0.5, 49 / 56);
+          m.sp.texture = livestockTexture(
+            m.kind,
+            reduced ? 0 : 2 + (Math.floor((v.travel + i * 0.4) / 0.28) % 2),
+            facing4(p.fx, p.fy),
+          );
+          m.sp.scale.set(m.kind === 'cow' ? 0.9 : 0.8);
+          break;
         case 'horse':
           m.sp.anchor.set(0.5, 49 / 52);
           m.sp.anchor.set(0.5, 49 / 56); // livestock canvases are 48×56, standing at (24, 49)

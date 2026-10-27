@@ -25,7 +25,19 @@ describe('road traffic', () => {
       const on = all.filter((w) => w.route.id === r);
       expect(on.some((w) => w.kind === 'patrol')).toBe(true);
       expect(on.some((w) => w.kind === 'courier')).toBe(true);
+      // soldiers march every road, knights ride it, and villagers take produce to market
+      expect(on.some((w) => w.kind === 'column' && w.party >= 8)).toBe(true);
+      expect(on.some((w) => w.kind === 'knights')).toBe(true);
+      expect(on.some((w) => w.kind === 'market')).toBe(true);
     }
+    // the open road is busy: drovers, herds, monks and nobles turn up across the kingdoms
+    const kinds = new Set(all.map((w) => w.kind));
+    for (const k of ['drover', 'goatherd', 'swineherd', 'monks', 'noble', 'shepherd', 'pilgrim'])
+      expect(kinds.has(k as never), k).toBe(true);
+    // a marching column keeps a soldier's pace, knights ride faster, herds dawdle
+    const pace = (k: string) => all.find((w) => w.kind === k)!.speed;
+    expect(pace('knights')).toBeGreaterThan(pace('column'));
+    expect(pace('column')).toBeGreaterThan(pace('swineherd'));
     const noon = WORLD_EPOCH_MS + DAY_MS / 4;
     let seen = 0,
       walkable = 0;

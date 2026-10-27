@@ -39,7 +39,7 @@ export interface Scene {
   seed: number;
   /** a lamplighter's round */
   route?: Array<[number, number]>;
-  /** doorstep dressing: which set of things stands by the door (pots, barrels, sacks, firewood...) */
+  /** doorstep dressing: which town prop stands by the door (planter, barrel, basket, woodpile, crate, plant, hay) */
   set?: number;
 }
 
@@ -61,7 +61,7 @@ export const SCENE_HOURS: Record<SceneKind, [number, number]> = {
   dressing: [0, 24],
 };
 /** how many doorstep sets scene-life.ts can draw */
-export const DRESSING_SETS = 6;
+export const DRESSING_SETS = 7;
 
 /** Weather a scene does not happen in: nobody hangs washing in the rain, children go in, buskers pack up. */
 export function sceneSheltered(kind: SceneKind, weather: string): boolean {
@@ -165,7 +165,7 @@ export function planScenes(t: Town, seed: number, o: PlanOpts): Scene[] {
   // existing washing lines and woodpiles get their people
   for (const l of objs('laundry')) {
     const p = near(l.x, l.y + 1, 2);
-    if (p) add('laundry', p, [p[0] + 3, p[1]], 2);
+    if (p) add('laundry', p, [p[0] + 1, p[1]], 2);
   }
   for (const w of objs('woodpile')) {
     const p = near(w.x + 1, w.y + 1, 2);
@@ -190,7 +190,7 @@ export function planScenes(t: Town, seed: number, o: PlanOpts): Scene[] {
       const side = hs(d.x, d.y, 6) < 0.5 ? -1 : 1;
       const p = near(d.x + side * 3, d.y + 1, 2);
       if (!p) continue;
-      add(kind, p, kind === 'laundry' ? [p[0] + 3 * side, p[1]] : null, 6);
+      add(kind, p, kind === 'laundry' ? [p[0] + side, p[1]] : null, 6);
       continue;
     }
     if (kind === 'chat') {
@@ -215,9 +215,9 @@ export function planScenes(t: Town, seed: number, o: PlanOpts): Scene[] {
       out.push({
         kind: 'dressing',
         x: x + 0.5,
-        y: y + 0.15,
+        y: y + 0.5,
         x2: x + 0.5,
-        y2: y + 0.15,
+        y2: y + 0.5,
         hours: SCENE_HOURS.dressing,
         seed: Math.floor(hs(x, y, 22) * 2 ** 30),
         set: Math.floor(hs(x, y, 23) * DRESSING_SETS),

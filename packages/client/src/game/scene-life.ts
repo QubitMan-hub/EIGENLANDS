@@ -4,6 +4,12 @@ import { dirOf } from '../art/actors';
 import { actionFrame, type PersonAction } from '../art/person-actions';
 import type { HeldId, HeldWeapons } from '../art/weapons';
 import { SCENE_TALK, sceneSheltered, type Scene } from './scenes';
+import { PROPS } from '../art/props';
+import { bucketSprite, choppingBlockSprite, sackSprite } from '../art/scene-props';
+import type { ObjSprite } from '../art/objects';
+
+/** what may stand by a door, from the town prop library (scenes.ts picks one per spot) */
+const DRESSING = ['planter', 'barrel', 'basket', 'woodpile', 'crate', 'plant', 'hay'];
 import { screenDir } from './iso';
 
 /**
@@ -43,6 +49,8 @@ export interface SceneActor {
   /** a walk around buildings: tile waypoints toward `goal` */
   path?: Array<[number, number]>;
   goal?: string;
+  /** isometric prop sprites (scene props; a carried bucket or sack) */
+  sprites?: Sprite[];
   face: number;
 }
 
@@ -217,24 +225,30 @@ export class SceneLife {
     const m = a.body.scale.y;
     const Y = (y: number) => y * m,
       X = (x: number) => x * m;
-    if (what === 'bucket')
-      g.poly([X(6), Y(-20), X(13), Y(-20), X(12), Y(-12), X(7), Y(-12)])
-        .fill(0x6b4a2a)
-        .rect(X(6), Y(-20), X(7), 1.5)
-        .fill(0x9aa4a8)
-        .rect(X(7), Y(-19), X(5), 1)
-        .fill(0x4a8ac2)
-        .moveTo(X(6), Y(-20))
-        .quadraticCurveTo(X(9.5), Y(-26), X(13), Y(-20))
-        .stroke({ color: 0x46565b, width: 1 });
-    else if (what === 'sack')
-      g.ellipse(X(-3), Y(-38), X(9), Y(5.5))
-        .fill(0xcbb48a)
-        .ellipse(X(-4), Y(-40), X(6), Y(3))
-        .fill(0xe1d0a6)
-        .rect(X(-12), Y(-39), 3, 4)
-        .fill(0x8a6a40);
-    else if (what === 'broom') {
+    // a bucket at the hand or a sack on the shoulder: isometric sprites riding along with the body
+    const carried = (o: ObjSprite | null, x: number, y: number) => {
+      let sp = a.sprites?.[0];
+      if (!o) {
+        if (sp) sp.visible = false;
+        return;
+      }
+      if (!sp) {
+        sp = new Sprite();
+        a.root.addChild(sp);
+        a.sprites = [sp];
+      }
+      sp.texture = o.tex;
+      sp.anchor.set(o.ax / o.tex.width, o.ay / o.tex.height);
+      sp.position.set(X(x), Y(y));
+      sp.visible = true;
+    };
+    carried(
+      what === 'bucket' ? bucketSprite() : what === 'sack' ? sackSprite() : null,
+      what === 'sack' ? -4 : 9,
+      what === 'sack' ? -32 : -10,
+    );
+    if (what === 'bucket' || what === 'sack') return;
+    if (what === 'broom') {
       const sw = Math.sin(k) * 5;
       g.moveTo(X(4), Y(-24))
         .lineTo(X(8) + sw, 0)
@@ -631,209 +645,35 @@ export class SceneLife {
 
   // ───────────── props ─────────────
 
-  /** what stands by a door: six everyday sets, each with a little seeded variety */
-  private dressing(g: Graphics, set: number, seed: number): void {
-    const flowers = [0xd06a5a, 0xf0c040, 0xc8a0d8, 0xf1efdb, 0xe88aa8][seed % 5]!;
-    switch (set) {
-      case 0: // a pair of flower pots
-        pot(g, -5, 0, flowers);
-        pot(g, 5, 3, [0xd06a5a, 0xf0c040, 0xc8a0d8][(seed >> 3) % 3]!);
-        break;
-      case 1: // a barrel and a crate
-        barrel(g, -4, 0);
-        box(g, 7, 4, 12, 9, 0xcba67c, 0x89604b, 0xaf855e);
-        break;
-      case 2: // sacks of flour and a basket of apples
-        sack(g, -4, 1);
-        sack(g, 2, 3, 0xbba67c);
-        g.ellipse(9, 2, 5, 2.5).fill(0x9a7444).rect(4, -2, 10, 4).fill(0xaf855e);
-        for (let i = 0; i < 5; i++) g.circle(5.5 + i * 1.8, -2.5 - (i % 2), 1.6).fill(i % 3 ? 0xc23b3b : 0x97ae70);
-        break;
-      case 3: // firewood stacked against the wall
-        for (let r = 0; r < 3; r++)
-          for (let c = 0; c < 4 - (r >> 1); c++) {
-            const x = -8 + c * 4.5 + r * 1.5,
-              y = -2 - r * 4;
-            g.circle(x, y, 2.4).fill(0x89604b).circle(x, y, 1.6).fill(0xcba67c).circle(x, y, 0.6).fill(0xaf855e);
-          }
-        break;
-      case 4: // a stack of crates
-        box(g, -2, 2, 13, 9, 0xcba67c, 0x89604b, 0xaf855e);
-        box(g, -2, -7, 11, 8, 0xe1c49b, 0xaf855e, 0xcba67c);
-        box(g, 9, 5, 9, 6, 0xcba67c, 0x89604b, 0xaf855e);
-        break;
-      default: // a potted shrub and a broom leaning by the door
-        g.poly([-7, -7, 1, -7, 0, 0, -6, 0]).fill(0x6b7c7c);
-        g.circle(-3, -12, 5).fill(0x305343).circle(-5, -14, 3).fill(0x45694c).circle(-1, -15, 3).fill(0x5b8056);
-        g.moveTo(6, -24).lineTo(9, -2).stroke({ color: 0x8a6034, width: 1.4 });
-        g.poly([6, -3, 13, -3, 11, 2, 7, 2]).fill(0xc8a14a);
-    }
-  }
-
   /** washing lines with cloth stirring in the wind, a chopping block and log pile, the bench under the elders */
   private prop(a: SceneActor, f: SceneFrame): void {
-    const sc = a.sc!,
-      g = a.carry!;
-    // doorstep things and the chopping block never move: draw them once
-    const still = sc.kind === 'dressing' || sc.kind === 'woodchop';
-    if (still && a.beat === 1) return;
-    a.beat = 1;
-    g.clear();
+    const sc = a.sc!;
+    if (!a.sprites) {
+      // built once from the isometric prop library: the same art the towns' own barrels and washing lines use
+      a.sprites = [];
+      const put = (o: ObjSprite, dx = 0, dy = 0) => {
+        const sp = new Sprite(o.tex);
+        sp.anchor.set(o.ax / o.tex.width, o.ay / o.tex.height);
+        sp.position.set(ix(dx, dy), iy(dx, dy));
+        a.root.addChild(sp);
+        a.sprites!.push(sp);
+        return sp;
+      };
+      if (sc.kind === 'dressing') put(PROPS[DRESSING[(sc.set ?? 0) % DRESSING.length]!]!('sw').frames[0]!);
+      else if (sc.kind === 'woodchop') {
+        put(PROPS.woodpile!('sw').frames[0]!, 1.2, -0.9);
+        put(choppingBlockSprite('sw'), 0.4, 0);
+      } else if (sc.kind === 'laundry') put(PROPS.laundry!('sw').frames[0]!);
+    }
     if (sc.kind === 'laundry') {
-      const dx = sc.x2 - sc.x,
-        dy = sc.y2 - sc.y;
-      const p0 = { x: 0, y: 0 },
-        p1 = { x: ix(dx, dy), y: iy(dx, dy) };
-      const H = 36;
-      for (const p of [p0, p1])
-        g.rect(p.x - 1.5, p.y - H, 3, H)
-          .fill(0x62433f)
-          .rect(p.x - 1.5, p.y - H, 1, H)
-          .fill(0x89604b);
-      const sag = (k: number) => Math.sin(k * Math.PI) * 5;
-      g.moveTo(p0.x, p0.y - H + 2);
-      for (let i = 1; i <= 8; i++) {
-        const k = i / 8;
-        g.lineTo(p0.x + (p1.x - p0.x) * k, p0.y + (p1.y - p0.y) * k - H + 2 + sag(k));
-      }
-      g.stroke({ color: 0xd8d0bc, width: 1 });
-      // a wicker basket by the first post
-      const bx = ix(-0.5, 0.7),
-        by = iy(-0.5, 0.7);
-      g.ellipse(bx, by - 3, 7, 3.5)
-        .fill(0x9a7444)
-        .rect(bx - 7, by - 7, 14, 4)
-        .fill(0xaf855e)
-        .ellipse(bx, by - 7, 7, 3)
-        .fill(0xe8e0d0);
-      // the washing is in when nobody would hang it out
-      if (!sceneOut(sc, f.hour, f.weather)) return;
-      const shown = 3 + ((sc.seed + Math.floor(f.now / 9000)) % 3);
-      const cols = [0xf1efdb, 0x7aa0d0, 0xd06a5a, 0xe1c49b, 0x97ae70, 0xc8a0d8];
-      for (let i = 0; i < shown; i++) {
-        const k = (i + 0.6) / (shown + 0.2);
-        const x = p0.x + (p1.x - p0.x) * k,
-          y = p0.y + (p1.y - p0.y) * k - H + 2 + sag(k);
-        const sway = f.reduced ? 0 : Math.sin(f.now / 450 + i * 1.3 + sc.seed) * 2;
-        const col = cols[(sc.seed + i * 5) % cols.length]!;
-        const shade = 0x000000;
-        const shape = (sc.seed + i) % 3;
-        if (shape === 0) {
-          // a sheet
-          g.poly([x - 6, y, x + 6, y, x + 6 + sway, y + 15, x - 6 + sway, y + 14]).fill(col);
-          g.poly([x + 2, y, x + 6, y, x + 6 + sway, y + 15, x + 2 + sway, y + 14.5]).fill({
-            color: shade,
-            alpha: 0.12,
-          });
-        } else if (shape === 1) {
-          // a shirt with its sleeves
-          g.poly([
-            x - 4,
-            y,
-            x + 4,
-            y,
-            x + 7,
-            y + 4,
-            x + 4,
-            y + 5,
-            x + 4 + sway,
-            y + 11,
-            x - 4 + sway,
-            y + 11,
-            x - 4,
-            y + 5,
-            x - 7,
-            y + 4,
-          ]).fill(col);
-        } else {
-          // trousers
-          g.poly([
-            x - 4,
-            y,
-            x + 4,
-            y,
-            x + 4 + sway,
-            y + 12,
-            x + 1 + sway,
-            y + 12,
-            x + sway * 0.5,
-            y + 5,
-            x - 1 + sway,
-            y + 12,
-            x - 4 + sway,
-            y + 12,
-          ]).fill(col);
-        }
-        g.rect(x - 3, y - 1, 1, 2)
-          .fill(0x8a6034)
-          .rect(x + 2, y - 1, 1, 2)
-          .fill(0x8a6034);
-      }
-      return;
-    }
-    if (sc.kind === 'dressing') {
-      this.dressing(g, sc.set ?? 0, sc.seed);
-      return;
-    }
-    if (sc.kind === 'woodchop') {
-      // chopping block with a log on it, and the split stack behind
-      g.ellipse(ix(0.5, 0), iy(0.5, 0), 5, 2.5).fill(0x62433f);
-      g.rect(ix(0.5, 0) - 5, iy(0.5, 0) - 5, 10, 5).fill(0x89604b);
-      g.ellipse(ix(0.5, 0), iy(0.5, 0) - 5, 5, 2.5).fill(0xcba67c);
-      const sx = ix(1.6, -0.6),
-        sy = iy(1.6, -0.6);
-      for (let r = 0; r < 3; r++)
-        for (let c = 0; c < 4 - r; c++)
-          g.circle(sx - 6 + c * 4 + r * 2, sy - 2 - r * 3.5, 2).fill(r % 2 ? 0xaf855e : 0xcba67c);
-      return;
+      // the washing is in (the line taken down) when nobody would hang it out; otherwise it stirs in the wind
+      const out = sceneOut(sc, f.hour, f.weather);
+      const def = PROPS.laundry!('sw');
+      const sp = a.sprites[0]!;
+      sp.visible = out;
+      if (out) sp.texture = def.frames[f.reduced ? 0 : Math.floor((f.now / 1000) * def.fps) % def.frames.length]!.tex;
     }
   }
-}
-
-/** a small isometric box (crate, barrel body) with lit top and two shaded faces, feet at (x, y) */
-function box(g: Graphics, x: number, y: number, w: number, h: number, top: number, left: number, right: number): void {
-  const hw = w / 2,
-    hh = w / 4;
-  g.poly([x - hw, y - hh - h, x, y - h, x, y, x - hw, y - hh]).fill(left);
-  g.poly([x, y - h, x + hw, y - hh - h, x + hw, y - hh, x, y]).fill(right);
-  g.poly([x - hw, y - hh - h, x, y - 2 * hh - h, x + hw, y - hh - h, x, y - h]).fill(top);
-}
-function pot(g: Graphics, x: number, y: number, flower: number): void {
-  g.poly([x - 4, y - 7, x + 4, y - 7, x + 3, y, x - 3, y]).fill(0xaf5a3a);
-  g.rect(x - 4.5, y - 8, 9, 2).fill(0xc8704a);
-  g.circle(x - 2, y - 11, 3)
-    .fill(0x45694c)
-    .circle(x + 2, y - 12, 3)
-    .fill(0x5b8056)
-    .circle(x, y - 14, 3)
-    .fill(0x45694c);
-  for (const [fx, fy] of [
-    [-2, -13],
-    [2, -14],
-    [0, -16],
-    [3, -11],
-  ])
-    g.circle(x + fx!, y + fy!, 1.3).fill(flower);
-}
-function barrel(g: Graphics, x: number, y: number): void {
-  g.ellipse(x, y - 1, 6, 3).fill(0x62433f);
-  g.rect(x - 6, y - 14, 12, 13).fill(0x89604b);
-  g.rect(x - 6, y - 14, 4, 13).fill(0xaf855e);
-  g.rect(x - 6, y - 11, 12, 1.5)
-    .fill(0x46565b)
-    .rect(x - 6, y - 5, 12, 1.5)
-    .fill(0x46565b);
-  g.ellipse(x, y - 14, 6, 3)
-    .fill(0xcba67c)
-    .ellipse(x, y - 14, 4, 2)
-    .fill(0xaf855e);
-}
-function sack(g: Graphics, x: number, y: number, c = 0xcbb48a): void {
-  g.ellipse(x, y - 5, 5, 6)
-    .fill(c)
-    .ellipse(x - 1.5, y - 7, 2.5, 3)
-    .fill(0xe1d0a6);
-  g.rect(x - 1.5, y - 12, 3, 2).fill(0x8a6a40);
 }
 
 /** a stable look index for a scene's n-th person */

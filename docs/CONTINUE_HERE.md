@@ -1,4 +1,13 @@
-# Current continuation: everyday scenes in the towns (2026-10-27)
+# Current continuation: busier roads and isometric scene props (2026-10-27)
+
+Kingdom roads now carry thirteen travellers each. Every road has a marching column of the realm's soldiers (a mounted
+officer, the realm standard, infantry two abreast and archers, in step), three knights, market folk and a carter.
+Drovers with cattle, goatherds, swineherds, monks and a noble with guards also turn up (`shared/src/wayfarers.ts`,
+`client/src/features/travel/roadlife.ts`). Town scene props now use the isometric prop library plus new isokit
+sprites in `client/src/art/scene-props.ts`; the flat drawn barrels, pots, logs and sacks are gone. Proofs:
+`e2e/road-traffic.mjs` and `e2e/everyday-scenes.mjs`.
+
+# Everyday scenes in the towns (2026-10-27)
 
 Kingdom and frontier towns gain ordinary daily life: drawing water, washing lines, firewood, sweeping, watering
 window boxes, neighbours gossiping, children at tag, elders feeding pigeons, porters, a busker, cats and dogs, and the
