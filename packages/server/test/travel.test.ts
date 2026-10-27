@@ -2,6 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   MSG,
   MSG_TRAVEL,
+  RECALL_CHANNEL,
+  VOYAGE_CHANNEL,
   T,
   arrivalOf,
   mountCode,
@@ -112,7 +114,13 @@ describe('waystones', () => {
     await until(() => p.sp.data.inv.some((s) => s?.id === 'recall_shard'), 2000);
     const slot = p.sp.data.inv.findIndex((s) => s?.id === 'recall_shard');
     p.r.send(MSG.USE, { slot, tx: 0, ty: 0 });
-    await until(() => evs.some((e) => e.kind === 'arrive'), 8000);
+    await until(() => evs.some((e) => e.kind === 'channel'), 3000);
+    const channel = evs.find((e) => e.kind === 'channel') as Extract<TravelEvent, { kind: 'channel' }>;
+    expect(channel.seconds).toBe(RECALL_CHANNEL);
+    expect(evs.some((e) => e.kind === 'arrive')).toBe(false);
+    // Advance the real travel simulation clock; slow CI ticks must not be confused with wall time.
+    p.room.travel.tick(p.room.wclock.now(), RECALL_CHANNEL + 0.05);
+    await until(() => evs.some((e) => e.kind === 'arrive'), 3000);
     const a = arrivalOf(gate);
     expect(Math.hypot(p.sp.sim.x - a.x, p.sp.sim.y - a.y)).toBeLessThan(0.2);
     expect(p.sp.data.inv.some((s) => s?.id === 'recall_shard')).toBe(false);
@@ -172,7 +180,10 @@ describe('ferries and the hitching post', () => {
     await until(() => evs.some((e) => e.kind === 'channel'), 3000);
     const ch = evs.find((e) => e.kind === 'channel') as Extract<TravelEvent, { kind: 'channel' }>;
     expect(ch.voyage?.to.name).toBe(b!.name);
-    await until(() => evs.some((e) => e.kind === 'arrive'), 8000);
+    expect(ch.seconds).toBe(VOYAGE_CHANNEL);
+    expect(evs.some((e) => e.kind === 'arrive')).toBe(false);
+    p.room.travel.tick(p.room.wclock.now(), VOYAGE_CHANNEL + 0.05);
+    await until(() => evs.some((e) => e.kind === 'arrive'), 3000);
     const dest = arrivalOf(b!);
     expect(Math.hypot(p.sp.sim.x - dest.x, p.sp.sim.y - dest.y)).toBeLessThan(0.2);
     await p.r.leave();
