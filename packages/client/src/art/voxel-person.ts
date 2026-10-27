@@ -292,6 +292,11 @@ export function headingOf(dir: number): number {
 
 const AX = 16,
   AY = 45;
+/**
+ * Everyone is drawn at this scale: about 30 px tall, a little under a storey (buildings.ts WALL_H 44), so people,
+ * doors and houses keep believable sizes.
+ */
+export const PERSON_SCALE = 0.8;
 
 /** a screen point (cell pixels) to the model-space point in the view plane through `through`, `toward` nearer */
 function unproject(sx: number, sy: number, through: V3, heading: number, toward: number): V3 {
@@ -327,7 +332,8 @@ interface Pose {
   sitting: boolean;
 }
 
-function posed(dir: number, frame: number, o: Outfit, grip: { x: number; y: number }, heading: number): Pose {
+function posed(dir: number, frame: number, o: Outfit, grip: { x: number; y: number }, heading: number, k = 1): Pose {
+  const cell = (x: number, y: number): [number, number] => [AX + (x - AX) / k, AY + (y - AY) / k];
   const work = actionPose(dir, frame);
   const running = frame >= 14 && frame <= 21,
     walking = frame >= 1 && frame <= 8;
@@ -363,7 +369,7 @@ function posed(dir: number, frame: number, o: Outfit, grip: { x: number; y: numb
   let handL: V3 = [-stride * 4 + 0.6, SHOULDER[1] + 1, sL[2] - 9.6];
   if (running) handL = [-stride * 5 + 1.6, SHOULDER[1] + 0.6, sL[2] - 6.4];
   if (work && work.action !== 'swim')
-    handL = unproject(work.supportX * 1.25 + 0.375, work.supportY * 1.5, sL, heading, 1.4);
+    handL = unproject(...cell(work.supportX * 1.25 + 0.375, work.supportY * 1.5), sL, heading, 1.4);
   else if (frame >= 22 && frame < 30)
     handL = unproject(grip.x + FACING[dir]![0] * 3, grip.y + FACING[dir]![1] * 3, sL, heading, 1.4);
   if (swimming) handL = [Math.cos(phase) * 4, SHOULDER[1] + 1.4, sL[2] - 3 + Math.sin(phase) * 2];
@@ -410,7 +416,10 @@ export function paintVoxelPerson(
 ): void {
   const rig = rigOf(o);
   const heading = headingOf(dir);
-  const p = posed(dir, frame, o, grip, heading);
+  const k = PERSON_SCALE * (1 - (o.shorten ?? 0) / 14);
+  // the grip is in cell pixels at drawing scale: express it at model scale so the hand still lands on it
+  const g = { x: AX + (grip.x - AX) / k, y: AY + (grip.y - AY) / k, angle: grip.angle };
+  const p = posed(dir, frame, o, g, heading, k);
   const placed: Placed[] = [];
   const hip = p.hip;
   placed.push({ part: rig.pelvis, R: p.pelvisR, T: hip });
@@ -444,7 +453,6 @@ export function paintVoxelPerson(
     const elbow = ik(sh, hand, UPPER, FORE, [-0.6, 0.5 * s, -0.2]);
     limb(s > 0 ? rig.upperL : rig.upperR, s > 0 ? rig.foreL : rig.foreR, sh, elbow, hand, placed);
   }
-  const k = 1 - (o.shorten ?? 0) / 14;
   drawFigure(ctx, w, h, placed, heading, AX, AY, k, p.global, p.globalT);
 }
 
