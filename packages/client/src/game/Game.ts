@@ -1,4 +1,4 @@
-import { actionFrame, type PersonAction } from '../art/person-actions';
+import { actionPose, actionFrame, type PersonAction } from '../art/person-actions';
 import { FLY_Z, SADDLE_Z } from '../art/mounts';
 import { livestockTexture } from '../art/livestock';
 import { isLivestock } from '@eigenlands/shared';
@@ -85,6 +85,8 @@ import {
   RUN_FRAME,
   RUN_FRAMES,
   personGrip,
+  PERSON_W,
+  PERSON_H,
   DIR_DOWN,
   DIR_LEFT,
   type Sheets,
@@ -182,6 +184,9 @@ interface Snap extends Pose {
 }
 
 interface ActorView {
+  deathAt?: number;
+  dashAt?: number;
+  hurtAt?: number;
   id: string;
   type: 'player' | 'enemy' | 'proj' | 'npc' | 'shadow';
   npcId?: string;
@@ -888,7 +893,15 @@ export class Game {
       f.kind === 'plant' || f.kind === 'harvest'
         ? 'gather'
         : f.kind === 'craft'
-          ? 'craft'
+          ? f.station === 'forge' || f.station === 'furnace'
+            ? 'forge'
+            : f.station === 'cooking_pot'
+              ? 'cook'
+              : f.station === 'alchemy'
+                ? 'alchemy'
+                : f.station === 'carpenter'
+                  ? 'saw'
+                  : 'craft'
           : f.kind === 'place'
             ? 'dig'
             : undefined;
@@ -1811,6 +1824,16 @@ export class Game {
             actionTarget = confirmed;
           }
         }
+        if (deadP) frame = actionFrame('death', Math.min(1, (now - (v.deathAt ??= now)) / 650), reduced);
+        else {
+          v.deathAt = undefined;
+          if (dash) frame = actionFrame('dodge', (now - (v.dashAt ??= now)) / 180, reduced);
+          else v.dashAt = undefined;
+          if (v.flash > 0.9) v.hurtAt ??= now;
+          if (!dash && !walking && combatStrike < 0 && v.hurtAt && now - v.hurtAt < 220)
+            frame = actionFrame('hit', (now - v.hurtAt) / 220, reduced);
+          if (v.hurtAt && now - v.hurtAt >= 220) v.hurtAt = undefined;
+        }
         const look = s?.look ?? (isMe ? this.gameplay.profile.equip.outfit : v.outfit);
         const sd =
           actionTarget && Math.hypot(actionTarget.x - x, actionTarget.y - y) > 0.05
@@ -1822,8 +1845,8 @@ export class Game {
         v.sprite.texture = s?.app
           ? this.sheets.styled(lookIx, s.app, dirOf(sd.x, sd.y), frame)
           : this.sheets.person(lookIx, dirOf(sd.x, sd.y), frame);
-        v.sprite.alpha = deadP ? 0.35 : dash ? 0.6 : 1;
-        v.sprite.rotation = deadP ? Math.PI / 2 : 0;
+        v.sprite.alpha = deadP ? 0.65 : dash ? 0.6 : 1;
+        v.sprite.rotation = 0;
         v.sprite.scale.set(1);
         v.sprite.y = 1;
         const boat = isMe ? this.predictor.sim.boat > 0 : ((s?.flags ?? 0) & 128) !== 0;
@@ -1836,7 +1859,27 @@ export class Game {
             ease = t * t * (3 - 2 * t);
           v.sprite.y = Math.round(transport.fromY + (v.sprite.y - transport.fromY) * ease);
         }
-        if (heldItem && !unarmedWork && !(frame >= 50 && frame < 62) && frame < 66 && !boat && !cart && !deadP) {
+        if (
+          heldItem &&
+          !unarmedWork &&
+          ![
+            'gather',
+            'craft',
+            'forge',
+            'cook',
+            'alchemy',
+            'saw',
+            'channel',
+            'swim',
+            'talk',
+            'hit',
+            'dodge',
+            'death',
+          ].includes(actionPose(0, frame)?.action ?? '') &&
+          !boat &&
+          !cart &&
+          !deadP
+        ) {
           if (!v.held) {
             v.held = new Sprite();
             v.held.anchor.set(0.5, 0.75);
@@ -1845,10 +1888,10 @@ export class Game {
           }
           const direction = dirOf(sd.x, sd.y);
           // Stable idle uses the body's resolved breath column, so the hand never drifts off the grip.
-          const pose = frame >= 30 ? frame : v.sprite.texture.frame.x / 24;
+          const pose = frame >= 30 ? frame : v.sprite.texture.frame.x / PERSON_W;
           v.held.texture = this.heldWeapons.texture(heldItem, direction, pose);
           v.held.visible = true;
-          v.held.y = riding ? v.sprite.y + 9 : v.sprite.y;
+          v.held.y = riding ? v.sprite.y + 14 : v.sprite.y;
           v.held.alpha = v.sprite.alpha;
           v.root.setChildIndex(v.held, direction === 1 || direction >= 6 ? 1 : v.root.children.length - 1);
         } else if (v.held) v.held.visible = false;
@@ -1868,7 +1911,7 @@ export class Game {
         if (v.label) {
           if (s?.name && v.label.text !== s.name) v.label.text = s.name;
           // riders' names float above the saddle, and a griffin's rider higher still
-          const above = 30 + (riding ? SADDLE_Z + (isFlying(riding) ? FLY_Z : 0) : 0);
+          const above = PERSON_H + (riding ? SADDLE_Z + (isFlying(riding) ? FLY_Z : 0) : 0);
           v.label.x = Math.round(this.world.x + v.root.x * this.scale);
           v.label.y = Math.round(this.world.y + (v.root.y - above) * this.scale);
         }
@@ -1908,7 +1951,7 @@ export class Game {
           const near = Math.hypot(x - me.x, y - me.y) < 4;
           v.label.visible = !hidden && near;
           v.label.x = Math.round(this.world.x + v.root.x * this.scale);
-          v.label.y = Math.round(this.world.y + (v.root.y - 30) * this.scale);
+          v.label.y = Math.round(this.world.y + (v.root.y - PERSON_H) * this.scale);
         }
       } else if (v.type === 'enemy' || v.type === 'shadow') {
         this.combat.drawEnemy(v, s, x, y, fx, now, dtMs / 1000, walking);
@@ -1949,8 +1992,8 @@ export class Game {
           dirOf(sd.x, sd.y),
           actionFrame('fish', f.bite ? 0.5 : 0.85, this.settings().reducedMotion),
         );
-        const tipX = isoX(p.x, p.y) + grip.x - 12 + Math.cos(grip.angle) * 13;
-        const tipY = isoY(p.x, p.y) + grip.y - 31 + Math.sin(grip.angle) * 13;
+        const tipX = isoX(p.x, p.y) + grip.x - PERSON_W / 2 + Math.cos(grip.angle) * 13;
+        const tipY = isoY(p.x, p.y) + grip.y - PERSON_H + 1 + Math.sin(grip.angle) * 13;
         this.bobber
           .moveTo(tipX, tipY)
           .lineTo(bx, by - 2)

@@ -1,6 +1,6 @@
 import { Rectangle, Texture } from 'pixi.js';
 import { HUE_PALETTE, WEAPONS, isWeaponId, type WeaponId, type ToolSpec } from '@eigenlands/shared';
-import { ATTACK_FRAME, RUN_FRAME, SHOT_FRAME, CAST_FRAME, personGrip } from './actors';
+import { ATTACK_FRAME, RUN_FRAME, SHOT_FRAME, CAST_FRAME, personGrip, PERSON_W, PERSON_H } from './actors';
 import { actionPose } from './person-actions';
 import { C, line, makeCanvas, outline, poly, put, undithered } from './shade';
 
@@ -29,8 +29,8 @@ export class HeldWeapons {
           const n = extra ? f : column;
           const b = makeCanvas(56, 64),
             g = personGrip(d, n),
-            x = g.x + 16,
-            y = g.y + 16;
+            x = g.x + 28 - PERSON_W / 2,
+            y = g.y + 48 - PERSON_H;
           const w = isWeaponId(id) ? WEAPONS[id] : null,
             fam: string = w?.fam ?? id,
             [metal, shine] = w?.tint ?? [C.steel, C.pale],
@@ -55,7 +55,7 @@ export class HeldWeapons {
               : thrust || aimedTool
                 ? personGrip(d, SHOT_FRAME).angle
                 : resting
-                  ? personGrip(d, 0).x < 12.5
+                  ? personGrip(d, 0).x < PERSON_W / 2
                     ? -2.05
                     : -1.1
                   : bow && n < 22

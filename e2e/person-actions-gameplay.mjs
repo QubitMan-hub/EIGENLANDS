@@ -27,9 +27,10 @@ try {
     g.app.ticker.add(
       () => {
         const a = g.views.get(g.myId);
-        if (a?.sprite.texture.source.width === 24)
+        if (a?.sprite.texture.source.width === 32)
           window.__actionCapture = {
             sourceWidth: a.sprite.texture.source.width,
+            action: g.workActions.get(a)?.action,
             bodyY: a.sprite.y,
             rootX: a.root.x,
             rootY: a.root.y,
@@ -52,6 +53,10 @@ try {
     ['plant', null],
     ['harvest', null],
     ['craft', null],
+    ['forge', null],
+    ['cook', null],
+    ['alchemy', null],
+    ['saw', null],
     ['place', null],
   ]) {
     await page.evaluate(
@@ -61,7 +66,15 @@ try {
         window.__actionCapture = null;
         if (kind === 'plant') g.app.ticker.stop();
         const room = window.__eigenSolo.raw().find((r) => r.players.size);
-        room.fx({ kind, weapon: weapon ?? undefined, id: g.myId, x: p.x + 0.8, y: p.y + 0.5 });
+        const station = { forge: 'forge', cook: 'cooking_pot', alchemy: 'alchemy', saw: 'carpenter' }[kind];
+        room.fx({
+          kind: station ? 'craft' : kind,
+          station,
+          weapon: weapon ?? undefined,
+          id: g.myId,
+          x: p.x + 0.8,
+          y: p.y + 0.5,
+        });
       },
       { kind, weapon },
     );
@@ -99,7 +112,8 @@ try {
       throw error;
     }
     const pose = await page.evaluate(() => window.__actionCapture);
-    assert.equal(pose.sourceWidth, 24, `${kind} uses supplemental directional art`);
+    assert.equal(pose.sourceWidth, 32, `${kind} uses supplemental directional art`);
+    if (['forge', 'cook', 'alchemy', 'saw'].includes(kind)) assert.equal(pose.action, kind);
     if (weapon) {
       assert.equal(pose.held, true);
       assert.equal(pose.heldWidth, 56);
@@ -120,7 +134,7 @@ try {
       const g = window.__eigen.game;
       return g.views.get(g.myId).sprite.texture.source.width;
     }),
-    24,
+    32,
   );
   await page.screenshot({ path: `${out}/fishing.png` });
   await page.evaluate(() => {
@@ -134,7 +148,7 @@ try {
       const g = window.__eigen.game;
       return g.views.get(g.myId).sprite.texture.source.width;
     }),
-    24,
+    32,
   );
   await page.screenshot({ path: `${out}/extraction.png` });
   await page.setViewportSize({ width: 390, height: 844 });

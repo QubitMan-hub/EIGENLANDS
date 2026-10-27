@@ -1,38 +1,31 @@
 # Character art and action poses
 
-This continues the character overhaul requested on 27 October. It is a working animation foundation and a targeted art pass, **not a claim that every sprite and every action has received a complete high-resolution authored rebuild**.
+## Current implementation — 27 October 2026
 
-## Integrated
+The legacy 24×32 person painter has been replaced by the original native **32×48** model in `client/src/art/person-model.ts`. It draws all thirteen outfit presets, saved appearance combinations and resident outfits through one model in eight directions. This is new pixel geometry, not an enlarged copy of the old frames. Faces have brows, eyes, cheek/jaw planes and necks; clothing has tailored silhouettes, collars, closures, belts and pouches; armor, aprons, mantles, hair and hats retain their appearance identities. The existing 48-color palette, hard alpha and upper-left lighting remain the standard.
 
-- Original player and resident painter: structured collars, garment seams/buttons, belt pouches, quieter hair clusters, directional fringe and skin-based cheek tones. Appearance IDs, outfits, eight facings, lighting and feet remain compatible. World ground shadows replace baked character shadows, avoiding shadows that rise with a saddle or bent pose.
-- Eleven appended four-key families in eight directions: mining, chopping, digging, watering, fishing, gathering/planting, crafting, extraction/channeling, seated transport, underwater strokes and conversation. This adds 352 directional body frames without replacing the existing combat, walk, run or customization indices.
-- Shared near-hand/support-hand rig binds body and equipment together. Work timing has a longer anticipation, short contact and settling recovery. Confirmed short gestures start on their first presented frame, so a slow renderer cannot expire them before displaying them. Planting, harvest and construction confirmations now identify the acting player, including for observers. Crafting uses its existing authoritative actor ID.
-- Tool selection and confirmed resource events choose the actual working implement. Unarmed work hides unrelated equipped weapons. Walking, death, dodge and combat take priority over stationary gestures. Fishing stays posed while a cast is active; the world line starts at the rendered rod tip. Extraction uses the confirmed channel lifetime. NPC dialogue triggers a brief facing gesture in both participants.
-- Cart/mount riders get a seated pose and a short eased mount/dismount height transition. Underwater players stroke/kick outside buildings; indoor residents keep standing. Reduced motion uses a held contact pose and skips height easing.
-- Supplemental body frames are generated only when requested and cached with a 512-texture bound, avoiding a multiplied all-NPC startup atlas. Supplemental held-item strips remain 56×512; existing held strips and frame indices remain compatible.
-- Ranged bosses now display authored strike/recovery art when their AI fires directly from windup into recovery. Multi-projectile attacks do not reset the same strike on every orb.
+People use a bottom-center frame anchor (16,48), with normal boot contact near y46. The shared hand solver positions the body, held tools and fishing-line origin. Title previews, labels, labs and rider cropping use the new dimensions. Base outfit atlases are lazy and separate (960×384), avoiding a larger all-outfit texture and its startup bake. Supplemental frames remain lazy with the existing bounded cache. Held strips remain 56×512 for supplemental poses.
 
-## Verification
+## Animation coverage
 
-`npm test`, `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run build:pages`.
+Eighteen families have eight timed poses in eight directions: mining, chopping, digging, watering, fishing, gathering/planting, crafting, extraction/channeling, seated transport, swimming, conversation, hurt, dodge, death, forging, cooking, alchemy and carpentry. This is **1,152 directional supplemental frames per appearance**. Additional keys interpolate joint positions between deliberately different contact poses; they are not 1,152 separately hand-painted illustrations. Legacy frame ordering and saved identities remain compatible.
 
-Browser commands, with a source Vite server on 5174 and built solo preview on 5244:
+- Walking/running use jointed legs, opposing arms, lifted recovery feet and restrained fabric follow-through. Existing four-key slash, shot and cast timelines use the new body painter and shared hand contacts.
+- Work uses anticipation, a short contact and longer settling recovery. Mining/chopping select the confirmed implement. Persistent fishing and extraction retain their pose beyond a short FX event. Unarmed work hides unrelated weapons.
+- Confirmed crafting events carry the station to observers. Forge/furnace work uses a hammer, cooking a stirring implement, alchemy a vial, and carpentry a saw. These follow the hand; existing recipe authority and costs are unchanged.
+- Hurt poses respond to actual damage feedback, dodge crouches follow the dash lifetime, and death collapses through body poses instead of rotating an upright sprite. Reduced motion holds a stable pose.
+- Cart/mount seating and eased height transitions remain integrated; cropped rider equipment uses the matching hip offset. NPC conversations use the same directional model.
+
+## Focused verification
 
 ```
-node e2e/person-actions.mjs http://127.0.0.1:5174/ /tmp/person-actions
-node e2e/person-actions-gameplay.mjs http://127.0.0.1:5244/ /tmp/person-actions-gameplay
-node --import tsx e2e/boss-gameplay.mjs http://127.0.0.1:5244/ /tmp/boss-gameplay
-node e2e/stormbound.mjs http://127.0.0.1:5244/ /tmp/stormbound touch
+npm exec -w @eigenlands/client -- vitest run test/person-actions.test.ts test/equipment-pose.test.ts
+node e2e/person-actions.mjs http://127.0.0.1:5174/ test-results/cohesion/art
+node e2e/person-actions-gameplay.mjs http://127.0.0.1:5244/ test-results/cohesion/gameplay
 ```
 
-The art check covers 352 directional poses, alpha, open-edge clipping, frame reuse and held-sheet bounds. Production action checks deliberately pause rendering through a planting confirmation to verify the first-frame clock, replay confirmed room FX through the real client renderer and separately exercise persistent fishing and extraction state; these are presentation tests, not a replacement for the server's inventory, farming or combat authority tests. Boss checks exercise actual synchronized enemy AI. Mobile screenshots use browser emulation, not physical-phone profiling.
+The art check covers 1,152 supplemental frames and 3,120 base frames across thirteen outfits. It inspects every supplemental direction/key for hard alpha, open-edge clipping, cache reuse and held texture bounds. It caught an overreaching saw at the frame edge; the contact and implement length were corrected. A diagonal combat/support-hand overreach was also corrected in the shared grip solver. Browser checks use the actual production renderer, authoritative FX delivery, persistent fishing/extraction and desktop/mobile screenshots. Short gestures are also checked after pausing rendering through their arrival. See the [QA ledger](qa/2026-10-27-findings.md) for gameplay defects, fixes and evidence.
 
-## Still required for the full requested overhaul
+## Remaining limits
 
-- Fully authored higher-resolution player/NPC sheets matching the reference quality across every appearance and action; current figures remain the original 24×32 modular art, polished rather than entirely replaced.
-- More than four authored key poses per work action; continuous contact solving against variable-height benches/resources, per-item hand grips, foot planting and terrain-aware limb placement.
-- Unique station-specific crafting sequences, complete NPC work/sleep/social schedules with matching body art, distinct interactions for every prop and settlement occupation.
-- Full mount-specific climbing/landing sequences, aquatic body rotation and buoyancy, all eight-direction equipment occlusion refinements, shadow-extraction hand-to-residue effects and network-visible persistent casting state.
-- Physical-device animation/performance profiling and multiplayer visual review with multiple simultaneous workers/riders.
-
-Keep these open in the master/remaining-work index. Do not label the user's entire character-and-every-action request complete based on this batch.
+This does not claim a full campaign balance certification or a bespoke physical animation for every item/prop combination. Variable-height station/resource contact IK, complete occupation/sleep sequences, mount-specific climbing/landing, richer charge/combo-specific combat keys and aquatic body rotation remain open. Physical-device profiling and larger cross-network multiplayer visual sessions remain necessary. Browser mobile screenshots are emulation, not phone performance measurements.
