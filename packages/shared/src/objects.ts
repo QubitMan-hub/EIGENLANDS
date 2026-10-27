@@ -66,6 +66,18 @@ const FOOTPRINTS: Record<string, Array<[number, number]>> = {
     [-1, 0],
     [1, 0],
   ],
+  // farmyard buildings stand on two tiles each way
+  barn: [
+    [1, 0],
+    [0, 1],
+    [1, 1],
+  ],
+  farm_barn: SQUARE(1),
+  stable: [
+    [1, 0],
+    [0, 1],
+    [1, 1],
+  ],
   carousel: SQUARE(1),
   circus_tent: SQUARE(1),
   statue: SQUARE(2),

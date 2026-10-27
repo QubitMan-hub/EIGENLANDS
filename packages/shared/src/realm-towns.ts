@@ -1200,18 +1200,43 @@ export function buildRealmTown(site: RealmSite, seed: number, generation = 5): T
       }
       for (let x = cx - 1; x <= cx + 1; x++) put(x, fy, T.PATH);
       obj(fx0 + 3, fy + 2, 'deco', 'scarecrow');
-      obj(fx1 - 3, fy + 1, 'deco', 'hay');
+      // a farmyard at the field's far end: the red barn, the stable and the coop, on trodden grass
+      if (generation >= 6 && fh >= 8 && fx1 - fx0 >= 20) {
+        for (let y = fy + 1; y <= fy + 7; y++)
+          for (let x = fx1 - 7; x < fx1; x++) if (free(x, y) && x !== split) set(x, y, T.GRASS);
+        obj(fx1 - 4, fy + 3, 'deco', 'farm_barn');
+        obj(fx1 - 4, fy + 6, 'deco', 'stable');
+        obj(fx1 - 7, fy + 2, 'deco', 'coop');
+        obj(fx1 - 7, fy + 6, 'deco', 'pumpkins');
+        obj(fx1 - 1, fy + 5, 'deco', 'trough');
+      } else obj(fx1 - 3, fy + 1, 'deco', 'hay');
+      if (generation >= 6 && site.kind === 'village') obj(cx + 2, fy - 1, 'deco', 'pumpkins');
       if (chance(0.6)) obj(fx0 + rnd(6, 14), fy + fh - 1, 'deco', 'beehive');
       spot(`${site.id}.field`, cx + 2, fy + 2);
     }
   }
+
+  // ───── cosy touches beside the doors (revision 6+): tables outside the inn, flower beds and pumpkins by homes
+  if (generation >= 6)
+    for (const b of t.buildings) {
+      const inn = b.kind === 'inn';
+      for (const sx of [b.x - 1, b.x + b.w])
+        if (oAt(sx, b.doorY) === FREE && get(sx, b.doorY) === T.GRASS && chance(inn ? 0.9 : 0.3))
+          obj(sx, b.doorY, 'deco', inn ? 'tavern_table' : chance(0.6) ? 'flower_bed' : 'pumpkins');
+    }
 
   // ───── street furniture and trim
   const lampEvery = rnd(9, 13);
   for (let x = x0 + keepOut; x <= x1 - keepOut; x += lampEvery) {
     if (Math.abs(x - cx) < 3 || oAt(x, cy + 2) !== ROAD) continue;
     obj(x, cy + 2, 'deco', 'street_lamp');
-    if (chance(0.4)) obj(x + 3, cy - 2, 'deco', pickOf(['bench', 'barrel', 'planter']));
+    if (chance(0.4))
+      obj(
+        x + 3,
+        cy - 2,
+        'deco',
+        pickOf(generation >= 6 ? ['bench', 'barrel', 'planter', 'flower_bed'] : ['bench', 'barrel', 'planter']),
+      );
   }
   for (let y = y0 + keepOut; y <= y1 - keepOut; y += lampEvery + 2)
     if (Math.abs(y - cy) > 3 && oAt(cx + 2, y) === ROAD) obj(cx + 2, y, 'deco', 'street_lamp');

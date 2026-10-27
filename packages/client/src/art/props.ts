@@ -1736,32 +1736,271 @@ function coop(face: Facing): ObjSprite {
   });
 }
 
-function barn(face: Facing): ObjSprite {
-  return iso(56, 74, face, (p, ctx) => {
-    const RED: Ramp = [C.r0, C.r1, C.r2, C.r3, C.r4, C.r5];
-    const boards: Detail = (s, t, c) => (Math.round(s * 30) % 3 === 0 ? c(-1) : null);
-    p.box(-6, -4, 0, 28, 24, 20, {
-      ramp: RED,
-      end: boards,
-      front: (s, t, c, x, y, l) => {
-        const px = s * 28,
-          pz = t * 20;
-        if (px > 8 && px < 20 && pz < 14) {
-          // big double door with white X bracing
-          if (px < 8.8 || px > 19.2 || pz > 13.2 || Math.abs(px - 14) < 0.5) return C.pale;
-          const lx = (px - 8.8) / 5.2,
-            rx = (px - 14.5) / 4.7,
-            lz = pz / 13.2;
-          if (px < 14 && (Math.abs(lx - lz) < 0.09 || Math.abs(lx - (1 - lz)) < 0.09)) return C.fog;
-          if (px > 14 && (Math.abs(rx - lz) < 0.09 || Math.abs(rx - (1 - lz)) < 0.09)) return C.fog;
-          return c(-1);
-        }
-        if (Math.abs(pz - 17) < 2 && Math.abs(px - 14) < 2.5)
-          return Math.abs(pz - 17) > 1.4 || Math.abs(px - 14) > 2 ? C.pale : C.ink; // hayloft window
-        return boards(s, t, c, x, y, l);
-      },
-    });
-    gable(p, ctx, -6, -4, 28, 24, 20, 13, [C.night, C.slate, C.steel, C.mist, C.fog, C.pale], RED, 2);
+/** A gambrel (barn) roof: a steep lower pitch and a shallow upper one, with the gable end filled with boards. */
+function gambrel(
+  p: Prop,
+  ctx: Ctx,
+  a0: number,
+  b0: number,
+  da: number,
+  db: number,
+  z0: number,
+  rise: number,
+  roof: Ramp,
+  end: (x: number, y: number, lit: boolean) => number,
+  oh = 1.5,
+): void {
+  const I = p.iso;
+  const pt = (a: number, b: number, z: number): [number, number] => {
+    const [u, v] = p.uv(a, b);
+    return [I.X(u, v), I.Y(u, v, z)];
+  };
+  const lit = p.facing === 'se';
+  const knee = 0.16,
+    kneeZ = rise * 0.62;
+  // the gable end: a five-sided board wall under both pitches
+  poly(
+    ctx,
+    [
+      pt(a0 + da, b0, z0),
+      pt(a0 + da, b0 + db * knee, z0 + kneeZ),
+      pt(a0 + da, b0 + db / 2, z0 + rise),
+      pt(a0 + da, b0 + db * (1 - knee), z0 + kneeZ),
+      pt(a0 + da, b0 + db, z0),
+    ],
+    (x, y) => end(x, y, lit),
+  );
+  const n = roof.length - 1;
+  const shingles = (lower: boolean) => (s: number, t: number) => {
+    const course = Math.round(t * (lower ? 7 : 5)) % 2 === 0;
+    const joint = Math.round(s * 40 + (Math.round(t * (lower ? 7 : 5)) % 2) * 0.5) % 4 === 0;
+    if (lower && t > 0.9) return C.pale; // white eave trim
+    if (!lower && t < 0.08) return roof[n]!; // ridge cap
+    return course || joint ? roof[Math.max(0, n - 3)]! : roof[lit ? n - (lower ? 2 : 1) : n - (lower ? 3 : 2)]!;
+  };
+  // the upper, shallow pitch from the ridge to the knee
+  const [rx, ry] = pt(a0 - oh, b0 + db / 2, z0 + rise),
+    [r2x, r2y] = pt(a0 + da + oh, b0 + db / 2, z0 + rise),
+    [kx, ky] = pt(a0 - oh, b0 + db * (1 - knee), z0 + kneeZ);
+  I.para(rx, ry, r2x - rx, r2y - ry, kx - rx, ky - ry, shingles(false));
+  // the lower, steep pitch from the knee out over the eave
+  const [ex, ey] = pt(a0 - oh, b0 + db + oh, z0 - 2);
+  I.para(kx, ky, r2x - rx, r2y - ry, ex - kx, ey - ky, shingles(true));
+}
+
+/** a big red barn: board walls with white trim, a white X-braced door, a gambrel roof, a hayloft and a cupola */
+function barn(face: Facing, k = 1): ObjSprite {
+  // k scales the whole barn about the middle of its tile (the farmyard barns in towns are larger than a player's)
+  const A = (a: number) => 8 + (a - 8) * k,
+    Z = (z: number) => z * k,
+    L = (n: number) => n * k;
+  return iso(
+    Math.round(64 * k),
+    Math.round(100 * k),
+    face,
+    (p, ctx) => {
+      const RED: Ramp = [C.e1, C.c0, C.c1, C.c1, C.c2, C.r3];
+      const SHINGLE: Ramp = [C.night, C.slate, C.steel, C.mist, C.fog];
+      const boards = (s: number, len: number, c: (k: number) => number): number | null => {
+        if (s < 0.025 || s > 0.975) return C.pale; // white corner boards
+        return Math.round(s * len) % 3 === 0 ? c(-1) : null;
+      };
+      const window = (px: number, pz: number, cx: number, cz: number): number | null => {
+        const dx = Math.abs(px - cx),
+          dz = Math.abs(pz - cz);
+        if (dx > 2.2 || dz > 2.2) return null;
+        if (dx > 1.6 || dz > 1.6 || dx < 0.25 || dz < 0.25) return C.pale;
+        return pz > cz ? C.w4 : C.w2;
+      };
+      p.box(A(-6), A(-4), 0, L(28), L(24), Z(16), {
+        ramp: RED,
+        end: (s, t, c) => {
+          const w = window(s * 24, t * 16, 12, 9);
+          if (w !== null) return w;
+          if (t > 0.94) return C.pale;
+          return boards(s, 24, c);
+        },
+        front: (s, t, c) => {
+          const px = s * 28,
+            pz = t * 16;
+          if (px > 8.5 && px < 19.5 && pz < 12.5) {
+            // the big double door with white X bracing
+            if (px < 9.3 || px > 18.7 || pz > 11.8 || Math.abs(px - 14) < 0.5) return C.pale;
+            const lx = (px - 9.3) / 4.7,
+              rx = (px - 14.5) / 4.2,
+              lz = pz / 11.8;
+            if (px < 14 && (Math.abs(lx - lz) < 0.1 || Math.abs(lx - (1 - lz)) < 0.1)) return C.pale;
+            if (px > 14 && (Math.abs(rx - lz) < 0.1 || Math.abs(rx - (1 - lz)) < 0.1)) return C.pale;
+            return c(-1);
+          }
+          const w = window(px, pz, 4, 9) ?? window(px, pz, 24, 9);
+          if (w !== null) return w;
+          if (t > 0.94) return C.pale;
+          return boards(s, 28, c);
+        },
+      });
+      // the gable end: boards, white trim, a hayloft door with hay spilling out
+      const I = p.iso;
+      const endAt = (b: number, z: number): [number, number] => {
+        const [u, v] = p.uv(A(22), A(b));
+        return [I.X(u, v), I.Y(u, v, Z(z))];
+      };
+      const [lx0, ly0] = endAt(7, 26),
+        [lx1, ly1] = endAt(13, 18);
+      gambrel(
+        p,
+        ctx,
+        A(-6),
+        A(-4),
+        L(28),
+        L(24),
+        Z(16),
+        Z(16),
+        SHINGLE,
+        (x, y, lit) => {
+          // hayloft door: a white-framed opening, dark inside, hay at its sill
+          if (x > Math.min(lx0, lx1) && x < Math.max(lx0, lx1) && y > ly0 - 1 && y < ly1 + 2) {
+            const edge = x < Math.min(lx0, lx1) + 1 || x > Math.max(lx0, lx1) - 1 || y < ly0;
+            if (edge) return C.pale;
+            return y > ly1 - 1 ? (Math.round(x) % 2 ? C.e6 : C.e5) : C.e0;
+          }
+          return Math.round(x) % 3 === 0 ? (lit ? C.c0 : C.e1) : lit ? C.c1 : C.c0;
+        },
+        1.5 * k,
+      );
+      // white trim along the gable's roofline
+      const kz = 16 + 16 * 0.62;
+      for (const [b1, z1, b2, z2] of [
+        [-4.6, 15.5, -4 + 24 * 0.16, kz],
+        [-4 + 24 * 0.16, kz, 8, 32.4],
+        [8, 32.4, 20 - 24 * 0.16, kz],
+        [20 - 24 * 0.16, kz, 20.6, 15.5],
+      ] as const)
+        p.line(A(22.3), A(b1), Z(z1), A(22.3), A(b2), Z(z2), C.pale);
+      // hay poking out of the loft
+      p.dot(A(22.4), A(9), Z(19), C.e6, Math.round(2 * k), 1);
+      p.dot(A(22.4), A(12), Z(19.5), C.e5, Math.round(k), 1);
+      // the cupola on the ridge, with its little roof and a weathervane
+      p.box(A(6), A(6), Z(32), L(4), L(4), Z(4), {
+        ramp: [C.mist, C.fog, C.pale, C.white],
+        front: (s, t) => (Math.round(s * 6) % 2 === 0 && t > 0.2 && t < 0.85 ? C.slate : null),
+        end: (s, t) => (Math.round(s * 6) % 2 === 0 && t > 0.2 && t < 0.85 ? C.slate : null),
+      });
+      p.box(A(5.5), A(5.5), Z(36), L(5), L(5), Z(1.4), { ramp: SHINGLE });
+      p.line(8, 8, Z(37.4), 8, 8, Z(42), C.night);
+      p.line(A(6.5), 8, Z(41), A(9.5), 8, Z(41), C.night);
+      p.dot(A(9.6), 8, Z(41.6), C.night);
+    },
+    { margin: Math.round(24 * k) },
+  );
+}
+
+/** a horse stable: two stalls under a shingled roof, half-doors, a hay rack, and a horse looking out over one door */
+function stable(face: Facing): ObjSprite {
+  return iso(
+    64,
+    80,
+    face,
+    (p, ctx) => {
+      const BOARD: Ramp = [C.e0, C.e1, C.e2, C.e3, C.e4, C.e5];
+      const BAY = [C.e1, C.r0, C.r1, C.r2, C.r3] as Ramp;
+      p.box(-6, -2, 0, 28, 18, 15, {
+        ramp: BOARD,
+        end: (s, t, c) => (Math.round(s * 18) % 3 === 0 ? c(-1) : t > 0.92 ? c(1) : null),
+        front: (s, t, c) => {
+          const px = s * 28,
+            pz = t * 15;
+          // two stall openings, dark inside, each with a half-door below
+          for (const x0 of [3, 15]) {
+            if (px > x0 && px < x0 + 10) {
+              if (pz < 6.5)
+                return px < x0 + 0.6 || px > x0 + 9.4 || pz > 5.9
+                  ? C.e6
+                  : Math.abs(px - x0 - 5 - (pz - 3.2) * 1.4) < 0.6 || Math.abs(px - x0 - 5 + (pz - 3.2) * 1.4) < 0.6
+                    ? C.e6
+                    : Math.round(px) % 2
+                      ? C.e4
+                      : C.e5;
+              if (pz < 12.5) return C.e0;
+            }
+          }
+          if (Math.abs(px - 14) < 1 || px < 1 || px > 27) return C.e1; // posts
+          return Math.round(s * 28) % 3 === 0 ? c(-1) : null;
+        },
+      });
+      gable(p, ctx, -6, -2, 28, 18, 15, 9, [C.night, C.r0, C.r1, C.r2, C.r3, C.r4], BOARD, 2);
+      // the horse: a bay head and neck over the left half-door, a white blaze
+      p.box(5.5, 15, 6, 4, 3, 6.5, { ramp: BAY });
+      p.box(5.8, 17.5, 8.5, 3.4, 4, 3.4, { ramp: BAY });
+      p.box(6, 15.4, 12.5, 3, 1.4, 1.2, { ramp: [C.e0, C.e1, C.e2] }); // mane
+      p.dot(7.4, 21.3, 9.5, C.pale, 1, 3);
+      p.dot(6, 18, 12.2, C.e1, 1, 2);
+      p.dot(8.8, 18, 12.2, C.e1, 1, 2);
+      // a hay rack and a bucket by the door
+      p.box(24, 16.5, 0, 3, 3, 3, { ramp: [C.e2, C.e3, C.e4, C.e5, C.e6] });
+      p.box(23.5, 8, 6, 2, 6, 3, { ramp: [C.e4, C.e5, C.e6, C.e7] });
+    },
+    { margin: 20 },
+  );
+}
+
+/** a tavern table outside the inn: a round top on one leg, two stools, mugs of ale and a candle */
+function tavernTable(face: Facing): ObjSprite {
+  return iso(40, 40, face, (p) => {
+    p.box(6.5, 6.5, 0, 3, 3, 7, { ramp: DARKWOOD });
+    p.box(3, 3, 7, 10, 10, 1.4, { ramp: LIGHTWOOD });
+    for (const [a, b] of [
+      [0, 6],
+      [13, 7],
+    ] as const) {
+      p.box(a + 0.8, b + 0.8, 0, 1.2, 1.2, 4.5, { ramp: DARKWOOD });
+      p.box(a, b, 4.5, 3, 3, 1, { ramp: LIGHTWOOD });
+    }
+    // two mugs with foam, a candle in a dish
+    for (const [a, b] of [
+      [5, 6],
+      [9, 9],
+    ] as const) {
+      p.box(a, b, 8.4, 1.6, 1.6, 2.2, { ramp: [C.e1, C.e2, C.e3, C.e4] });
+      p.dot(a + 0.6, b + 0.6, 10.8, C.white, 1, 1);
+    }
+    p.box(8, 5, 8.4, 1.2, 1.2, 1.6, { ramp: [C.e6, C.e7, C.white] });
+    p.dot(8.5, 5.5, 10.6, C.c4, 1, 1);
+  });
+}
+
+/** a raised flower bed edged in stone: tulips, daisies and lavender in rows */
+function flowerBed(face: Facing): ObjSprite {
+  return iso(40, 30, face, (p) => {
+    p.box(1, 3, 0, 14, 10, 2.2, { ramp: STONEM, top: () => C.e1 });
+    const blooms = [C.c2, C.c4, C.q4, C.white, C.q6, C.c3];
+    for (let a = 0; a < 6; a++)
+      for (let b = 0; b < 4; b++) {
+        const ax = 2.3 + a * 2.2,
+          bx = 4.2 + b * 2.3;
+        p.dot(ax, bx, 2.6, C.g3, 1, 2);
+        p.dot(ax, bx, 4.2, blooms[(a * 3 + b * 5) % blooms.length]!, 1, 1);
+      }
+  });
+}
+
+/** pumpkins piled by a door or a field gate */
+function pumpkins(face: Facing): ObjSprite {
+  return iso(34, 28, face, (p) => {
+    const PUMPKIN: Ramp = [C.r1, C.r2, C.c3, C.r4, C.r5];
+    for (const [a, b, z, r] of [
+      [3, 5, 0, 5],
+      [9, 4, 0, 4],
+      [6, 9, 0, 4.5],
+      [6, 6, 3.6, 3.6],
+    ] as const) {
+      p.box(a, b, z, r, r, r * 0.7, {
+        ramp: PUMPKIN,
+        front: (s, _t, c) => (Math.round(s * 4) % 2 === 0 ? c(-1) : null),
+        end: (s, _t, c) => (Math.round(s * 4) % 2 === 0 ? c(-1) : null),
+      });
+      p.dot(a + r / 2, b + r / 2, z + r * 0.7, C.g2, 1, 2);
+    }
   });
 }
 
@@ -2000,6 +2239,11 @@ export const PROPS: Record<string, Mk> = {
   shrine_pillar: one(shrinePillar),
   coop: one(coop),
   barn: one(barn),
+  farm_barn: one((f) => barn(f, 1.6)),
+  stable: one(stable),
+  tavern_table: one(tavernTable),
+  flower_bed: one(flowerBed, { sway: 0.01 }),
+  pumpkins: one(pumpkins),
   banner: anim(2, 2, banner),
   laundry: anim(2, 1.5, laundry),
   plaque: one(plaque),

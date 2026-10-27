@@ -341,16 +341,16 @@ function dress(
   const yards: Record<string, readonly string[]> = {
     smithy: ['woodpile', 'barrel', 'crate'],
     store: ['cart', 'crate', 'barrel'],
-    inn: ['barrel', 'bench', 'planter'],
-    farmhouse: ['hay', 'trough', 'cart'],
+    inn: ['tavern_table', 'barrel', 'tavern_table'],
+    farmhouse: ['hay', 'pumpkins', 'coop'],
     herbalist: ['planter', 'beehive', 'hedge'],
     tailor: ['laundry', 'planter', 'crate'],
     carpenter: ['woodpile', 'cart', 'crate'],
     bakery: ['woodpile', 'barrel', 'cart'],
-    hall: ['bench', 'planter', 'hedge'],
+    hall: ['bench', 'flower_bed', 'hedge'],
     library: ['bench', 'planter', 'hedge'],
   };
-  const domestic = ['laundry', 'planter', 'woodpile', 'hedge'];
+  const domestic = ['laundry', 'flower_bed', 'woodpile', 'hedge', 'planter'];
 
   for (const b of t.buildings) {
     put(b.doorX + 2, b.doorY + 1, 'deco', 'mailbox');
