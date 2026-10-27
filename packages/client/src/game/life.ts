@@ -5,6 +5,8 @@ import {
   armyKind,
   festivalOn,
   festivalToday,
+  weddingsOn,
+  royalCelebration,
   isCaveY,
   nearestRealm,
   townFor,
@@ -20,6 +22,7 @@ import {
   type Weather,
 } from '@eigenlands/shared';
 import type { AmbientArt } from '../art/ambient';
+import { civState } from './civ-store';
 import type { Sheets } from '../art/actors';
 import { ATTACK_FRAME, COSMETIC_OUTFITS, WALK_FRAMES, dirOf } from '../art/actors';
 import type { FoeSheets } from '../art/foes';
@@ -222,7 +225,11 @@ export class WorldLife {
     if (!this.town || !this.site || !this.realm) return;
     const h = f.hour;
     const wet = f.weather === 'rain' || f.weather === 'storm' || f.weather === 'snow';
-    this.festival = homeTowns.has(this.town) ? !!festivalToday('home', f.day) : !!festivalOn(this.realm, f.day);
+    // festivals, and a resident's wedding day, fill the square with revellers under bunting
+    this.festival =
+      (homeTowns.has(this.town) ? !!festivalToday('home', f.day) : !!festivalOn(this.realm, f.day)) ||
+      weddingsOn(this.site.id, f.day).length > 0 ||
+      (!homeTowns.has(this.town) && !!royalCelebration(civState()?.kingdoms[this.realm], f.day));
     this.director(f);
     const hostiles = this.d.hostiles();
     for (const a of this.cast) this.step(a, f, h, wet, hostiles);

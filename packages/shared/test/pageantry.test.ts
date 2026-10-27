@@ -58,3 +58,31 @@ describe('neighbours', () => {
     expect(line).toMatch(/about now/);
   });
 });
+
+describe('evolving ties', () => {
+  it('stories unfold over the seasons, both sides always agree, and fresh news is told', async () => {
+    const { tiesOn, tieNewsOn, NPC_BY_ID } = await import('../src/index');
+    const ids = Object.keys(NPC_BY_ID);
+    let changed = 0,
+      weddings = 0,
+      news = 0;
+    for (const id of ids.slice(0, 200)) {
+      const early = tiesOn(id, 0);
+      const late = tiesOn(id, 200);
+      for (const t of late) {
+        const back = tiesOn(t.other, 200).find((u) => u.other === id)!;
+        expect(back, `${id}<->${t.other}`).toBeTruthy();
+        if (t.kind !== 'mentor' && t.kind !== 'apprentice') expect(back.kind).toBe(t.kind);
+        expect(back.since).toBe(t.since);
+        if (t.kind === 'spouse') weddings++;
+      }
+      if (late.some((t, i) => t.kind !== early[i]!.kind)) changed++;
+      for (let d = 0; d < 120; d++) if (tieNewsOn(id, d)) news++;
+    }
+    expect(changed).toBeGreaterThan(20);
+    expect(weddings).toBeGreaterThan(2);
+    expect(news).toBeGreaterThan(20);
+    // on day 0 the ties are as they began
+    for (const id of ids.slice(0, 50)) for (const t of tiesOn(id, 0)) expect(t.since).toBe(0);
+  });
+});

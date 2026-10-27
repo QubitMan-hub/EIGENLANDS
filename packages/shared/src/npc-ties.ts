@@ -7,7 +7,18 @@
 import { NPC_BY_ID, scheduleAt, type NpcDef } from './npcs';
 import type { Weather } from './weather';
 
-export type TieKind = 'friend' | 'rival' | 'sweetheart' | 'kin' | 'mentor' | 'apprentice';
+export type TieKind =
+  | 'friend'
+  | 'rival'
+  | 'sweetheart'
+  | 'kin'
+  | 'mentor'
+  | 'apprentice'
+  // what ties grow into over the seasons (tiesOn)
+  | 'betrothed'
+  | 'spouse'
+  | 'former'
+  | 'reconciled';
 export interface Tie {
   kind: TieKind;
   other: string;
@@ -100,6 +111,106 @@ export function tiesOf(npcId: string): Tie[] {
   return out;
 }
 
+/** days between the turns of a relationship's story */
+export const TIE_ARC_DAYS = 18;
+/** how each kind of tie can grow, one stage per TIE_ARC_DAYS (the last stage holds) */
+const ARCS: Partial<Record<TieKind, TieKind[][]>> = {
+  friend: [['friend'], ['friend', 'sweetheart', 'betrothed', 'spouse']],
+  sweetheart: [
+    ['sweetheart', 'betrothed', 'spouse'],
+    ['sweetheart', 'sweetheart', 'former'],
+  ],
+  rival: [['rival'], ['rival', 'rival', 'reconciled', 'friend']],
+  mentor: [['mentor', 'mentor', 'friend']],
+  apprentice: [['apprentice', 'apprentice', 'friend']],
+};
+
+export interface TieNow extends Tie {
+  /** the world day this stage began (0 = always so) */
+  since: number;
+}
+
+/**
+ * A resident's ties as they stand on world day `day`. Each pair's story is fixed by the pair itself (so both sides
+ * always agree): some friends fall in love, sweethearts wed or part, rivals make their peace, pupils become peers.
+ */
+export function tiesOn(npcId: string, day: number): TieNow[] {
+  return tiesOf(npcId).map((t) => {
+    const [x, y] = npcId < t.other ? [npcId, t.other] : [t.other, npcId];
+    const h = strHash(`${x}|${y}|arc`);
+    // a mentor/apprentice pair shares one story told from either side
+    const base: TieKind = t.kind === 'apprentice' ? 'mentor' : t.kind;
+    const arcs = ARCS[base];
+    if (!arcs) return { ...t, since: 0 };
+    const arc = arcs[h % arcs.length]!;
+    // the story's first turn comes on day `start`, and each later one TIE_ARC_DAYS after that
+    const start = 6 + (h % 40);
+    const stage = day < start ? 0 : Math.min(arc.length - 1, 1 + Math.floor((day - start) / TIE_ARC_DAYS));
+    let kind = arc[stage]!;
+    if (t.kind === 'apprentice' && kind === 'mentor') kind = 'apprentice';
+    // the tie has been this way since the first stage of the run of equal kinds it is in
+    let first = stage;
+    while (first > 0 && arc[first - 1] === arc[stage]) first--;
+    const since = first === 0 ? 0 : start + (first - 1) * TIE_ARC_DAYS;
+    return { kind, other: t.other, since };
+  });
+}
+
+/** Fresh news a resident is bursting to share about one of their own ties (within three days of it). */
+export function tieNewsOn(npcId: string, day: number): string | null {
+  for (const t of tiesOn(npcId, day)) {
+    if (!t.since || day - t.since > 3) continue;
+    const o = NPC_BY_ID[t.other];
+    if (!o) continue;
+    const n = first(o);
+    switch (t.kind) {
+      case 'sweetheart':
+        return `Can I tell you a secret? ${n} and I... we've started walking out together.`;
+      case 'betrothed':
+        return `${n} asked me to marry! We're to be wed before the season turns.`;
+      case 'spouse':
+        return `${n} and I were married ${day - t.since === 0 ? 'today' : `${day - t.since} day${day - t.since === 1 ? '' : 's'} ago`}. I still can't believe it.`;
+      case 'former':
+        return `${n} and I... it's over between us. Please don't ask.`;
+      case 'reconciled':
+        return `${n} and I finally talked it all out. Years of quarrelling, gone.`;
+      case 'friend':
+        return `Who'd have thought ${n} and I would end up friends? Funny old world.`;
+      default:
+        break;
+    }
+  }
+  return null;
+}
+
+/** Village gossip: fresh news about two other residents (a neighbour of the speaker and one of their ties). */
+export function tieGossipOn(npcId: string, day: number): string | null {
+  for (const n of tiesOf(npcId)) {
+    for (const t of tiesOn(n.other, day)) {
+      if (t.other === npcId || !t.since || day - t.since > 5) continue;
+      const a = NPC_BY_ID[n.other],
+        b = NPC_BY_ID[t.other];
+      if (!a || !b) continue;
+      const pair = `${first(a)} and ${first(b)}`;
+      switch (t.kind) {
+        case 'betrothed':
+          return `Did you hear? ${pair} are to be wed!`;
+        case 'spouse':
+          return `${pair} were married. Lovely ceremony, everyone cried.`;
+        case 'sweetheart':
+          return `Between you and me, ${pair} have been seen walking out together.`;
+        case 'former':
+          return `Poor ${first(a)}. ${pair} have parted ways.`;
+        case 'reconciled':
+          return `${pair} have made up at last, after all these years!`;
+        default:
+          break;
+      }
+    }
+  }
+  return null;
+}
+
 const first = (d: NpcDef) => d.name.split(' ')[0]!;
 const TIE_TEXT: Record<TieKind, (o: NpcDef) => string> = {
   friend: (o) => `${first(o)} and I go back years; there's no better friend in this place.`,
@@ -108,11 +219,16 @@ const TIE_TEXT: Record<TieKind, (o: NpcDef) => string> = {
   kin: (o) => `${first(o)} is family. Cousins, if you want the long version.`,
   mentor: (o) => `I've been teaching ${first(o)} the trade. Coming along nicely.`,
   apprentice: (o) => `${first(o)} taught me everything I know about the work.`,
+  betrothed: (o) => `${first(o)} and I are to be married! You'll come to the wedding, won't you?`,
+  spouse: (o) =>
+    `My ${o.role === 'farmer' || o.role === 'hand' ? 'better half' : 'spouse'}, ${first(o)}. Best thing that ever happened to me.`,
+  former: (o) => `${first(o)} and I were close once. Not any more.`,
+  reconciled: (o) => `${first(o)} and I used to fight like cats. We're mending it now.`,
 };
 
 /** One line about a neighbour: who they are to this resident, what they do and where they are just now. */
-export function neighbourLine(npcId: string, hour: number, weather: Weather, pick: number): string | null {
-  const ties = tiesOf(npcId);
+export function neighbourLine(npcId: string, hour: number, weather: Weather, pick: number, day = 0): string | null {
+  const ties = tiesOn(npcId, day);
   if (!ties.length) return null;
   const t = ties[Math.floor(pick * ties.length) % ties.length]!;
   const o = NPC_BY_ID[t.other];
@@ -122,8 +238,8 @@ export function neighbourLine(npcId: string, hour: number, weather: Weather, pic
 }
 
 /** The full list, for "Who are your neighbours?". */
-export function neighboursText(npcId: string): string {
-  const ties = tiesOf(npcId);
+export function neighboursText(npcId: string, day = 0): string {
+  const ties = tiesOn(npcId, day);
   if (!ties.length) return "I keep to myself, mostly. It's a quiet life.";
   return ties
     .map((t) => {
@@ -133,3 +249,27 @@ export function neighboursText(npcId: string): string {
     .filter(Boolean)
     .join('\n');
 }
+
+const weddingCache = new Map<string, Array<[string, string]>>();
+/** Couples marrying in a settlement on world day `day` (they and their neighbours celebrate in the square). */
+export function weddingsOn(place: string, day: number): Array<[string, string]> {
+  const key = `${place}:${day}`;
+  let out = weddingCache.get(key);
+  if (out) return out;
+  out = [];
+  const seen = new Set<string>();
+  for (const d of Object.values(NPC_BY_ID)) {
+    if (placeOf(d) !== place) continue;
+    for (const t of tiesOn(d.id, day))
+      if (t.kind === 'spouse' && t.since === day && !seen.has(t.other)) {
+        seen.add(d.id);
+        out.push([d.id, t.other]);
+      }
+  }
+  if (weddingCache.size > 64) weddingCache.clear();
+  weddingCache.set(key, out);
+  return out;
+}
+/** Is this resident getting married today? */
+export const marriesOn = (npcId: string, day: number): boolean =>
+  tiesOn(npcId, day).some((t) => t.kind === 'spouse' && t.since === day);

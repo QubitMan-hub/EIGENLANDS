@@ -299,6 +299,20 @@ export class ShadowClient implements ClientModule {
     const p = companionPortrait(kind),
       crest = h('div', { class: 'sh-crest' });
     if (p) crest.append(h('img', { src: p.url, alt: '', style: `width:${p.width}px;height:${p.height}px` }));
+    else {
+      // no painted portrait (the fox and other later bonds): crop the creature's own idle frame from its sheet
+      const tex = this.d.foes?.().frame(kind, false, 0, 'idle', 0);
+      const src = tex?.source.resource as CanvasImageSource | undefined;
+      if (tex && src) {
+        const f = tex.frame;
+        const c = document.createElement('canvas');
+        c.width = f.width;
+        c.height = f.height;
+        c.style.cssText = `width:${f.width}px;height:${f.height}px;image-rendering:pixelated`;
+        c.getContext('2d')?.drawImage(src, f.x, f.y, f.width, f.height, 0, 0, f.width, f.height);
+        crest.append(c);
+      }
+    }
     return crest;
   }
   private wildlifeSection(): HTMLElement {

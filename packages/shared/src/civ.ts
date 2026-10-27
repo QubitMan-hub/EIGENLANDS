@@ -43,7 +43,39 @@ export interface KingdomCiv {
   decree: { id: DecreeId; since: number };
   intrigue: Intrigue | null;
   chronicle: Array<{ day: number; text: string }>;
+  /** the current royal event, if any (births, coronations, jubilees, weddings, hunts, plague, harvests) */
+  royal?: RoyalEvent | null;
+  /** the reigning monarch when the crown has passed on (otherwise the kingdom's founding ruler reigns) */
+  monarch?: string;
 }
+export type RoyalKind = 'birth' | 'coronation' | 'jubilee' | 'royal_wedding' | 'hunt' | 'plague' | 'bounty';
+export interface RoyalEvent {
+  kind: RoyalKind;
+  day: number;
+  /** the last day it lasts */
+  until: number;
+  title: string;
+}
+/** royal events the whole realm turns out to celebrate (crowds, bunting, fireworks, steadier hearts) */
+export const ROYAL_CELEBRATIONS = new Set<RoyalKind>(['birth', 'coronation', 'jubilee', 'royal_wedding']);
+/** Is a royal celebration under way in this kingdom on `day`? */
+export const royalCelebration = (k: KingdomCiv | undefined, day: number): RoyalEvent | null =>
+  k?.royal && ROYAL_CELEBRATIONS.has(k.royal.kind) && day >= k.royal.day && day <= k.royal.until ? k.royal : null;
+/** Is the realm suffering under a plague, or enjoying a bumper harvest? */
+const royalNow = (k: KingdomCiv, kind: RoyalKind) => k.royal?.kind === kind;
+const HEIRS = [
+  'Aldwin',
+  'Seraphine',
+  'Corvin',
+  'Ilsabet',
+  'Tamsin',
+  'Oswyn',
+  'Mireille',
+  'Leofric',
+  'Ysolde',
+  'Caspian',
+];
+const rulerOf = (r: RealmId, k: KingdomCiv) => k.monarch ?? KINGDOMS[r].ruler.name;
 export interface CivWorld {
   /** the last world day stepped */
   day: number;
@@ -312,6 +344,52 @@ export function resolveIntrigue(
   return e;
 }
 
+/** The crown's own story: births, successions, jubilees, royal hunts, plague and bumper harvests. */
+function royalDay(seed: number, r: RealmId, k: KingdomCiv, day: number): void {
+  if (k.royal && day > k.royal.until) {
+    if (k.royal.kind === 'plague') note(k, day, `The sickness in ${KINGDOMS[r].name} has passed.`);
+    k.royal = null;
+  }
+  if (k.royal) return;
+  const roll = hashU(seed, ri(r), day, 40);
+  const name = KINGDOMS[r].name;
+  const set = (kind: RoyalKind, days: number, title: string, text: string) => {
+    k.royal = { kind, day, until: day + days - 1, title };
+    note(k, day, text);
+  };
+  // a crown that has lost its people's trust passes to an heir
+  if (k.stability < 22 && roll < 0.3) {
+    const heir = HEIRS[Math.floor(hashU(seed, ri(r), day, 41) * HEIRS.length)]!;
+    const old = rulerOf(r, k);
+    k.monarch = `${heir} ${KINGDOMS[r].ruler.name.split(' ').slice(-1)[0]}`;
+    k.stability = Math.max(k.stability, 50);
+    k.decree = { id: 'amnesty', since: day };
+    set(
+      'coronation',
+      2,
+      `The coronation of ${k.monarch}`,
+      `${old} gives up the crown. ${k.monarch} is crowned ruler of ${name}!`,
+    );
+  } else if ((day + ri(r) * 5) % 28 === 0 && k.prosperity > 68)
+    set(
+      'jubilee',
+      1,
+      `${rulerOf(r, k)}'s jubilee`,
+      `${name} celebrates ${rulerOf(r, k)}'s jubilee: free ale in every square!`,
+    );
+  else if (k.stability > 50 && roll < 0.012)
+    set('birth', 2, 'A royal birth', `An heir is born to the house of ${rulerOf(r, k)}! Bells ring across ${name}.`);
+  else if (k.prosperity < 40 && roll > 0.993) {
+    set('plague', 6, 'A sickness spreads', `A sickness spreads through ${name}. Healers are run off their feet.`);
+    k.stability = clamp(k.stability - 6, 0, 100);
+  } else if (Math.floor(day / 7) % 4 === 2 && built(k, 'granary') && roll > 0.96)
+    set('bounty', 4, 'A bumper harvest', `A bumper harvest in ${name}: the granaries overflow and bread is cheap.`);
+  else if (k.might > 60 && roll > 0.975 && roll <= 0.993) {
+    k.might = Math.min(100, k.might + 2);
+    set('hunt', 1, 'A royal hunt', `${rulerOf(r, k)} rides out on a great royal hunt with the knights of ${name}.`);
+  }
+}
+
 function stepDay(seed: number, w: CivWorld, day: number): void {
   const dip = diplomacyAt(seed, day);
   for (const r of REALM_IDS) {
@@ -338,7 +416,17 @@ function stepDay(seed: number, w: CivWorld, day: number): void {
       5,
       95,
     );
-    k.prosperity = Math.round(clamp(k.prosperity + (pTarget - k.prosperity) * 0.15, 0, 100) * 10) / 10;
+    k.prosperity =
+      Math.round(
+        clamp(
+          k.prosperity +
+            (pTarget - k.prosperity) * 0.15 -
+            (royalNow(k, 'plague') ? 1.5 : 0) +
+            (royalNow(k, 'bounty') ? 0.8 : 0),
+          0,
+          100,
+        ) * 10,
+      ) / 10;
     // might: recruit while the treasury allows, bleed in wars and lost raids
     const cap = 60 + built(k, 'walls') * 10 + (k.decree.id === 'levy' ? 10 : 0);
     if (k.treasury > 280 && k.might < cap) {
@@ -355,6 +443,8 @@ function stepDay(seed: number, w: CivWorld, day: number): void {
     const sTarget = clamp(
       58 +
         (festival ? 14 : 0) +
+        (royalCelebration(k, day) ? 10 : 0) -
+        (royalNow(k, 'plague') ? 12 : 0) +
         built(k, 'temple') * 5 +
         built(k, 'granary') * 3 +
         L.questsDone * 2 +
@@ -412,9 +502,10 @@ function stepDay(seed: number, w: CivWorld, day: number): void {
               : 'free_market';
       if (id !== k.decree.id) {
         k.decree = { id, since: day };
-        note(k, day, `${KINGDOMS[r].ruler.name} decrees: ${DECREES[id].name}. ${DECREES[id].text}`);
+        note(k, day, `${rulerOf(r, k)} decrees: ${DECREES[id].name}. ${DECREES[id].text}`);
       }
     }
+    royalDay(seed, r, k, day);
     // court intrigue brews in restless times
     if (k.intrigue && day > k.intrigue.expires) {
       k.stability = clamp(k.stability - 8, 0, 100);
@@ -436,7 +527,13 @@ function stepDay(seed: number, w: CivWorld, day: number): void {
     if (d.event === 'border_skirmish') t += 4;
     else if (d.event === 'embargo') t += 2;
     else if (d.event === 'trade_pact' || d.event === 'royal_wedding') t -= 3;
-    else if (d.event === 'ceasefire') t -= 5;
+    if (d.event === 'royal_wedding' && !a.royal && !b.royal) {
+      const title = `A royal wedding joins the houses of ${KINGDOMS[d.a].name} and ${KINGDOMS[d.b].name}`;
+      a.royal = { kind: 'royal_wedding', day, until: day + 2, title };
+      b.royal = { kind: 'royal_wedding', day, until: day + 2, title };
+      note(a, day, `${title}! Three days of feasting begin.`);
+      note(b, day, `${title}! Three days of feasting begin.`);
+    } else if (d.event === 'ceasefire') t -= 5;
     t += (w.ledger[d.a].raidsLost + w.ledger[d.b].raidsLost) * 1.5;
     t = clamp(t, 0, 100);
     a.tension[d.b] = b.tension[d.a] = Math.round(t * 10) / 10;
@@ -504,6 +601,8 @@ export function civPriceFactor(k: KingdomCiv | undefined, food = false): number 
   f *= 1 + (50 - k.prosperity) / 400; // prosperous realms are a little cheaper
   if (k.wars.length) f *= food ? 1.12 : 1.06;
   if (food) f *= 1 - Math.min(2, built(k, 'granary')) * 0.05;
+  if (royalNow(k, 'plague')) f *= food ? 1.15 : 1.08;
+  if (royalNow(k, 'bounty') && food) f *= 0.85;
   return Math.round(f * 1000) / 1000;
 }
 
@@ -523,5 +622,15 @@ export function validCiv(seed: number, raw: unknown, day: number): CivWorld {
   const w = raw as CivWorld | null;
   if (!w || typeof w !== 'object' || typeof w.day !== 'number' || !w.kingdoms || !w.ledger) return initCiv(seed, day);
   for (const r of REALM_IDS) if (!w.kingdoms[r] || !w.ledger[r]) return initCiv(seed, day);
+  for (const r of REALM_IDS) {
+    const k = w.kingdoms[r];
+    const e = k.royal;
+    if (
+      e &&
+      (typeof e !== 'object' || typeof e.day !== 'number' || typeof e.until !== 'number' || typeof e.title !== 'string')
+    )
+      k.royal = null;
+    if (k.monarch !== undefined && (typeof k.monarch !== 'string' || k.monarch.length > 60)) delete k.monarch;
+  }
   return w;
 }
