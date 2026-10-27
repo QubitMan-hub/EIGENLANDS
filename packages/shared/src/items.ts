@@ -130,6 +130,8 @@ export type BuffKind =
   | 'poison'
   | 'burn'
   | 'frostbite'
+  | 'fracture'
+  | 'curse'
   | 'warmth'
   | 'coolness'
   | 'vigor'
@@ -148,6 +150,8 @@ export const BUFF_KIND_LIST: readonly BuffKind[] = [
   'poison',
   'burn',
   'frostbite',
+  'fracture',
+  'curse',
   'warmth',
   'coolness',
   'vigor',
@@ -176,7 +180,7 @@ export interface ItemDef {
   nourishment?: number;
   buff?: { kind: BuffKind; secs: number; power: number };
   /** medicine: injuries this item cures */
-  cure?: Array<'bleed' | 'poison' | 'burn' | 'frostbite'>;
+  cure?: Array<'bleed' | 'poison' | 'burn' | 'frostbite' | 'fracture' | 'curse'>;
   /** placeable: world object subtype created */
   place?: {
     kind: 'station' | 'sprinkler' | 'shelter' | 'chest' | 'furniture' | 'sign' | 'fence' | 'structure';
@@ -586,6 +590,13 @@ def('bandage', 'Bandage', 'potion', 25, 'bottle', C.pale, C.e6, 'Stops bleeding.
 def('antidote', 'Antidote', 'potion', 60, 'bottle', C.g4, C.g7, 'Clears poison.', { cure: ['poison'] });
 def('burn_salve', 'Burn Salve', 'potion', 70, 'bottle', C.w3, C.e6, 'Soothes burns and frostbite.', {
   cure: ['burn', 'frostbite'],
+});
+def('splint', 'Splint', 'potion', 40, 'bottle', C.e3, C.pale, 'Sets a broken bone so you can run again.', {
+  heal: 6,
+  cure: ['fracture'],
+});
+def('holy_water', 'Holy Water', 'potion', 80, 'bottle', C.w5, C.q4, 'Blessed water that lifts a curse.', {
+  cure: ['curse'],
 });
 def('warming_tonic', 'Warming Tonic', 'potion', 90, 'bottle', C.r4, C.e7, 'Resist the cold for a long while.', {
   buff: { kind: 'warmth', secs: 420, power: 0.7 },

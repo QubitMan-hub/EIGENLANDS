@@ -1590,6 +1590,11 @@ export class Game {
       this.mining.cancel();
     const mining = this.mining.step(now, this.predictor.sim.x, this.predictor.sim.y);
     if (mining) Object.assign(r, mining);
+    // a broken bone: no running or dodging (the server drops the same inputs)
+    if (this.gameplay.profile.buffs.fracture) {
+      r.sprint = false;
+      r.dash = false;
+    }
     const viewTick = Math.max(
       0,
       Math.floor(this.clock.tickAt(this.clock.serverNow(now) - this.clock.interpDelay - this.combat.warp)),

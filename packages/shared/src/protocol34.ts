@@ -272,7 +272,8 @@ export type ShadowCmd =
   | { act: 'stance'; stance: Stance }
   | { act: 'focus'; target: string | null }
   | { act: 'rename'; id: string; name: string }
-  | { act: 'release'; id: string };
+  | { act: 'release'; id: string }
+  | { act: 'extend'; id: string };
 
 /** Seafaring notices to the sailor (the ship itself is PlayerSim.boat). */
 export type SeaEvent = { kind: 'board' } | { kind: 'land' };

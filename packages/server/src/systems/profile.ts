@@ -249,6 +249,17 @@ function mountRecord<T>(
   return out;
 }
 
+const validCamp = (v: unknown): { x: number; y: number } | null => {
+  const c = v as { x?: unknown; y?: unknown } | null;
+  return c &&
+    Number.isInteger(c.x) &&
+    Number.isInteger(c.y) &&
+    Math.abs(c.x as number) < 1e6 &&
+    Math.abs(c.y as number) < 1e6
+    ? { x: c.x as number, y: c.y as number }
+    : null;
+};
+
 export function validProg(raw: unknown): PlayerData['prog'] {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const ids = (v: unknown): string[] =>
@@ -263,6 +274,7 @@ export function validProg(raw: unknown): PlayerData['prog'] {
     ruins: ids(r.ruins),
     ways: ids(r.ways),
     home: typeof r.home === 'string' && r.home.length <= 40 ? r.home : null,
+    camp: validCamp(r.camp),
     mounts: ids(r.mounts).filter((m) => m === 'horse' || m === 'stag'),
     caravans: ids(r.caravans),
     fest: ids(r.fest).slice(-40),

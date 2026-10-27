@@ -13,6 +13,7 @@ import {
   civOwner,
   civSiteName,
   cottageCells,
+  cottageFurniture,
   cottagesEarned,
   growthPlots,
   townsNear,
@@ -98,13 +99,23 @@ export class CivModule implements Module {
       const owner = civOwner(site.realm);
       const plots = growthPlots(this.room.seed, site);
       let have = 0;
-      for (const pl of plots) if (this.room.store.structureAt(pl.x, pl.y)?.owner === owner) have++;
+      for (const pl of plots)
+        if (this.room.store.structureAt(pl.x, pl.y)?.owner === owner) {
+          have++;
+          // a cottage raised before furnishing came in gets its furniture now
+          for (const f of cottageFurniture(pl.x, pl.y))
+            if (!this.room.store.objectAt(f.x, f.y))
+              this.room.objects.put({ x: f.x, y: f.y, kind: 'furniture', sub: f.sub, owner, data: {} });
+        }
       if (have >= want) continue;
       for (const pl of plots) {
         if (this.room.store.structureAt(pl.x, pl.y)) continue;
         if (!(await this.plotClear(pl.x, pl.y))) continue;
         for (const c of cottageCells(site.realm, pl.x, pl.y))
           this.room.objects.put({ x: c.x, y: c.y, kind: 'structure', sub: 'cell', owner, data: c.data });
+        // furnished, and a family moves in
+        for (const f of cottageFurniture(pl.x, pl.y))
+          this.room.objects.put({ x: f.x, y: f.y, kind: 'furniture', sub: f.sub, owner, data: {} });
         raised++;
         const k = w.kingdoms[site.realm];
         k.chronicle.unshift({ day: w.day, text: `A new cottage goes up on the edge of ${civSiteName(site)}.` });

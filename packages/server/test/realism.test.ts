@@ -10,6 +10,7 @@ import {
   T,
   arrivalOf,
   civOwner,
+  cottageFurniture,
   cottagesEarned,
   growthPlots,
   realmNpcs,
@@ -247,6 +248,12 @@ describe('settlement growth', () => {
       }
     expect(walls).toBe(14);
     expect(doors).toBe(1);
+    // furnished inside, owned by the crown too
+    for (const f of cottageFurniture(pl.x, pl.y)) {
+      const o = room.store.objectAt(f.x, f.y);
+      expect(o?.sub).toBe(f.sub);
+      expect(o?.owner).toBe(owner);
+    }
     expect(k.chronicle.some((c) => /new cottage/.test(c.text))).toBe(true);
     // and growth never pulls anything down when times turn hard
     k.prosperity = 20;

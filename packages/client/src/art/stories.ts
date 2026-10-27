@@ -357,7 +357,28 @@ function cairn(face: Facing): ObjSprite {
   );
 }
 
+/** a carved stone tablet on a plinth: the crypt's riddle of the four dead */
+function plaque(face: Facing): ObjSprite {
+  return iso(
+    32,
+    40,
+    face,
+    (p) => {
+      p.box(4, 6, 0, 8, 4, 2, { ramp: STONEM });
+      p.box(5, 7, 2, 6, 2, 11, {
+        ramp: STONEM,
+        // four rows of carved names
+        front: (s, t) =>
+          s > 0.15 && s < 0.85 && [0.25, 0.42, 0.59, 0.76].some((r) => Math.abs(t - r) < 0.04) ? C.ink : null,
+      });
+      p.box(4.6, 6.6, 13, 6.8, 2.8, 1, { ramp: STONEM });
+    },
+    { margin: 6 },
+  );
+}
+
 export const STORY_ART: Record<string, (face: Facing) => ObjSprite> = {
+  crypt_plaque: plaque,
   story_wreck: wreck,
   story_cairn: cairn,
   lost_satchel: satchel,

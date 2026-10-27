@@ -51,6 +51,14 @@ function nearFire(room: RoomApi, x: number, y: number): boolean {
     }
   return false;
 }
+/** beside a pitched tent: out of the wind and the weather */
+function nearTent(room: RoomApi, x: number, y: number): boolean {
+  const tx = Math.floor(x),
+    ty = Math.floor(y);
+  for (let dy = -1; dy <= 1; dy++)
+    for (let dx = -1; dx <= 1; dx++) if (room.store.objectAt(tx + dx, ty + dy)?.sub === 'camp_tent') return true;
+  return false;
+}
 function nearTile(room: RoomApi, x: number, y: number, tiles: number[]): boolean {
   const tx = Math.floor(x),
     ty = Math.floor(y);
@@ -98,7 +106,7 @@ export function tickTravelNeeds(room: RoomApi, p: ServerPlayer): void {
       hour: room.wclock.hour(),
       weather: room.wclock.weather(),
       season: room.wclock.season(),
-      indoors: !!buildingAt(room.seed, Math.floor(x), Math.floor(y)) || isUpperY(y),
+      indoors: !!buildingAt(room.seed, Math.floor(x), Math.floor(y)) || isUpperY(y) || nearTent(room, x, y),
       fire: nearFire(room, x, y),
       coldResist: Math.min(0.92, buff('warmth') + p.stats.warm * 0.06),
       heatResist: Math.min(0.92, buff('coolness') + p.stats.cool * 0.06),
@@ -152,6 +160,7 @@ export function tickTravelNeeds(room: RoomApi, p: ServerPlayer): void {
         p.condT[cond] = 0;
         continue;
       }
+      if (!rule.dmg) continue;
       p.condT[cond] = (p.condT[cond] ?? 0) + 1;
       if (p.condT[cond]! >= rule.every) {
         p.condT[cond] = 0;

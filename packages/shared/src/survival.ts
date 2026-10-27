@@ -82,7 +82,7 @@ export function thermalState(temp: number): ThermalState {
   return 'ok';
 }
 
-export const CONDITIONS = ['bleed', 'poison', 'burn', 'frostbite'] as const;
+export const CONDITIONS = ['bleed', 'poison', 'burn', 'frostbite', 'fracture', 'curse'] as const;
 export type Condition = (typeof CONDITIONS)[number];
 
 /** Each injury: seconds of duration, health lost per tick and the seconds between ticks. */
@@ -94,7 +94,12 @@ export const CONDITION_RULES: Record<
   poison: { secs: 60, every: 3, dmg: 1, label: 'Poisoned', cure: 'antidote' },
   burn: { secs: 15, every: 2, dmg: 1, label: 'Burning', cure: 'burn salve, or step into water' },
   frostbite: { secs: 90, every: 4, dmg: 1, label: 'Frostbitten', cure: 'burn salve, or warm up by a fire' },
+  // these two do not bleed you: a fracture stops you running and dodging, a curse saps your blows and your healing
+  fracture: { secs: 240, every: 0, dmg: 0, label: 'Fractured', cure: 'a splint, or time' },
+  curse: { secs: 300, every: 0, dmg: 0, label: 'Cursed', cure: 'holy water, or pray at a shrine altar' },
 };
+/** blows dealt while cursed */
+export const CURSE_ATTACK_MULT = 0.8;
 
 /** Difficulty scales how often injuries land and how hard they bite. Cozy never applies them. */
 export const DIFFICULTY_RULES: Record<Difficulty, { drain: number; injury: number; bite: number; thermal: boolean }> = {
@@ -121,6 +126,23 @@ export function injuryOnHit(kind: string): { cond: Condition; chance: number } |
   if (burn.has(kind)) return { cond: 'burn', chance: 0.4 };
   if (frost.has(kind)) return { cond: 'frostbite', chance: 0.35 };
   if (bleed.has(kind)) return { cond: 'bleed', chance: 0.2 };
+  return null;
+}
+
+/** A second, rarer wound some creatures can leave on top of the first: crushing blows break bones, spirits curse. */
+export function graveInjuryOnHit(kind: string): { cond: Condition; chance: number } | null {
+  const crush: Record<string, number> = {
+    brute: 0.1,
+    blind_ram: 0.1,
+    geode_golem: 0.15,
+    iron_golem: 0.15,
+    colossus: 0.2,
+    geode_tyrant: 0.2,
+    slime_king: 0.12,
+  };
+  const hex: Record<string, number> = { wisp: 0.08, vault_guardian: 0.2, veyr: 0.25, warden: 0.25, hellhound: 0.15 };
+  if (crush[kind]) return { cond: 'fracture', chance: crush[kind] };
+  if (hex[kind]) return { cond: 'curse', chance: hex[kind] };
   return null;
 }
 

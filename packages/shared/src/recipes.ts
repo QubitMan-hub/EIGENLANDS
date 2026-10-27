@@ -726,6 +726,30 @@ r(
   'Clean cloth and a herb poultice.',
 );
 r(
+  'splint',
+  'alchemy',
+  [
+    ['wood', 2],
+    ['cloth', 1],
+  ],
+  ['splint', 1],
+  4,
+  'start',
+  'Two straight sticks and a strip of cloth.',
+);
+r(
+  'holy_water',
+  'alchemy',
+  [
+    ['healing_herb', 1],
+    ['silver_ore', 1],
+  ],
+  ['holy_water', 1],
+  8,
+  'start',
+  'Herb steeped over silver, which no curse abides.',
+);
+r(
   'antidote',
   'alchemy',
   [

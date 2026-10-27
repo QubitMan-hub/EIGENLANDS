@@ -6,6 +6,8 @@ import {
   caveRegionAt,
   highGroundRange,
   injuryOnHit,
+  graveInjuryOnHit,
+  CURSE_ATTACK_MULT,
 } from '@eigenlands/shared';
 import { Client, Room, ServerError } from 'colyseus';
 import { StateView } from '@colyseus/schema';
@@ -890,7 +892,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
         }
       if (changed) p.dirty('buffs');
       const regen = p.data.buffs.regen;
-      if (regen && p.deadT <= 0 && p.hp < p.maxHp) {
+      if (regen && p.deadT <= 0 && p.hp < p.maxHp && !this.cursed(p)) {
         p.regenT += 1;
         if (p.regenT >= 5) {
           p.regenT = 0;
@@ -922,6 +924,11 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       const weapon = this.weaponOf(p);
       p.sim.ranged = isRangedWeapon(weapon);
       setMeleeWeapon(p.sim, weapon?.id);
+      // a broken bone: no running and no dodging (the client drops the same inputs, so prediction agrees)
+      if (p.data.buffs.fracture) {
+        cmd.sprint = false;
+        cmd.dash = false;
+      }
       const ev = stepPlayer(p.sim, cmd, solid);
       if (cmd.dx || cmd.dy || ev.attacked || ev.skill || ev.dashed) p.travelExerted = true;
       if (ev.dashed) {
@@ -1074,7 +1081,12 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   /** weapon/ring attack bonus and the Might buff */
   private outgoing(p: ServerPlayer, base: number): number {
     const might = p.data.buffs.might;
-    return attackDamage(base, p.stats.atkBonus, might && might.until > this.wclock.now() ? might.power : 0);
+    const dmg = attackDamage(base, p.stats.atkBonus, might && might.until > this.wclock.now() ? might.power : 0);
+    return this.cursed(p) ? Math.max(1, Math.round(dmg * CURSE_ATTACK_MULT)) : dmg;
+  }
+  private cursed(p: ServerPlayer): boolean {
+    const c = p.data.buffs.curse;
+    return !!c && c.until > this.wclock.now();
   }
 
   private addProjectile(
@@ -1481,6 +1493,9 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     const hit = injuryOnHit(ENEMY_KEY_BY_KIND[e.def.kind] ?? '');
     if (hit && this.rand() < Math.min(0.9, hit.chance * DIFFICULTY_RULES[p.data.needs.mode].injury))
       inflict(this, p, hit.cond);
+    const grave = graveInjuryOnHit(ENEMY_KEY_BY_KIND[e.def.kind] ?? '');
+    if (grave && this.rand() < Math.min(0.6, grave.chance * DIFFICULTY_RULES[p.data.needs.mode].injury))
+      inflict(this, p, grave.cond);
     const l = Math.hypot(dirX, dirY) || 1;
     const shove = weight >= 2 ? 0.6 : 0.3;
     moveBody(p.sim, (dirX / l) * shove, (dirY / l) * shove, PLAYER_RADIUS, this.store.solidAt); // server authoritative; the client reconciles
@@ -1554,7 +1569,15 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   private respawn(p: ServerPlayer): void {
     // back at your bound home stone, or the spawn shrine if you have none
     const home = p.data.prog.home ? waystoneById(this.seed, p.data.prog.home) : null;
-    const at = home ? arrivalOf(home) : SPAWN;
+    let at = home ? arrivalOf(home) : SPAWN;
+    // a pitched tent you rested in beats the stone, while it still stands (and is yours)
+    const camp = p.data.prog.camp;
+    if (camp) {
+      const t = this.store.objectAt(camp.x, camp.y);
+      const loaded = this.store.has(Math.floor(camp.x / CHUNK_SIZE), Math.floor(camp.y / CHUNK_SIZE));
+      if (t?.sub === 'camp_tent' && t.owner === p.accountId) at = { x: camp.x + 0.5, y: camp.y + 1.5 };
+      else if (loaded) p.data.prog.camp = null;
+    }
     p.sim = newPlayerSim(at.x, at.y);
     p.hp = p.maxHp;
     p.invuln = 2;

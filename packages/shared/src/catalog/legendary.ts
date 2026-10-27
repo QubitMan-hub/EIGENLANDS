@@ -33,6 +33,27 @@ rec(
   { lvl: 1, disc: 'woodworking', xp: 4, hint: 'Stack kindling in a ring of stones.' },
 );
 
+item('travel_tent', 'Travel Tent', 'explore', {
+  v: 60,
+  g: 'tent',
+  a: C.e4,
+  b: C.e6,
+  d: 'Canvas, poles and pegs. Pitch it in the wild: shelter from wind and weather, a bedroll to rest on, and a camp to wake at if you fall.',
+  kind: 'placeable',
+  place: { kind: 'furniture', sub: 'camp_tent' },
+  stack: 3,
+});
+rec(
+  'hand',
+  [
+    ['hide', 3],
+    ['wood', 4],
+    ['fiber', 6],
+  ],
+  ['travel_tent', 1],
+  { lvl: 2, disc: 'woodworking', xp: 6, hint: 'Stretch hides over a ridge pole and peg them down.' },
+);
+
 interface GearRow {
   id: string;
   name: string;
