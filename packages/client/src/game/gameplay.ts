@@ -407,7 +407,15 @@ export class Gameplay {
         turnin: (id) => net.send(MSG.QUEST, { npcId: 'board', quest: id, action: 'turnin' }),
       });
       if (this.wins.name === 'board') this.wins.update('board', el);
-      else this.wins.show('board', 'Hadamere Request Board', el, { wide: true });
+      else
+        this.wins.show(
+          'board',
+          m.sub === 'bounty_board'
+            ? `${m.board.town ?? 'Town'} Notice Board`
+            : `${m.board.town ?? 'Hadamere'} Request Board`,
+          el,
+          { wide: true },
+        );
     } else if (m.kind === 'settlement' && m.settlement) {
       const body = buildSettlement(m, (action, extra = {}) =>
         net.send('settlement', { tx: m.tx, ty: m.ty, action, ...extra }),

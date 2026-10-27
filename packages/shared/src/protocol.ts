@@ -481,7 +481,14 @@ export interface PanelMsg {
     }>;
   };
   /** the daily request board */
-  board?: { day: number; requests: BoardRequest[] };
+  board?: {
+    day: number;
+    requests: BoardRequest[];
+    /** today's bounty posted in this town, if any */
+    bounty?: import('./wonders').BountyView;
+    /** the town the board stands in (its title) */
+    town?: string;
+  };
 }
 export interface BoardRequest {
   id: string;

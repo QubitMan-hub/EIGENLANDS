@@ -106,6 +106,35 @@ export function buildBoard(
   ensureP2Styles();
   const b = m.board!;
   const root = h('div', { class: 'board' });
+  const notices = m.sub === 'bounty_board';
+  if (b.bounty) {
+    const w = b.bounty;
+    const state =
+      w.state === 'slain'
+        ? 'Brought down today. Paid.'
+        : w.state === 'out'
+          ? 'Someone has found it: it is out there now.'
+          : 'Not yet found.';
+    root.append(
+      h(
+        'div',
+        { class: `req wanted ${w.state}` },
+        h(
+          'div',
+          {},
+          h('b', { text: `WANTED: ${w.name}` }),
+          h('div', {
+            class: 'small',
+            text: `A ${w.kind}, last seen to the ${w.dir} of ${w.town}. It ${w.fights}.`,
+          }),
+          h('div', { class: 'small', text: state }),
+          h('div', { class: 'rw', text: `Reward: ${w.reward} coins to everyone near when it falls` }),
+        ),
+      ),
+    );
+  } else if (notices)
+    root.append(h('div', { class: 'small dim', text: 'No bounty is posted today. Come back tomorrow.' }));
+  if (notices) return root;
   root.append(
     h('div', {
       class: 'small dim',

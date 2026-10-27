@@ -483,6 +483,12 @@ export class GameRoom extends WorldRoom {
   openStar(p: ServerPlayer, o: WorldObj): void {
     this.wonders.openStar(p, o);
   }
+  readBountyBoard(p: ServerPlayer, o: WorldObj): void {
+    this.wonders.readBoard(p, o);
+  }
+  bountyAt(x: number, y: number) {
+    return this.wonders.bountyAt(x, y);
+  }
 
   async cryptInteract(p: ServerPlayer, o: WorldObj): Promise<void> {
     await this.crypts?.interact(p, o);

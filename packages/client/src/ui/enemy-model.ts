@@ -45,10 +45,15 @@ export const ELITE_INFO: Record<number, { label: string; icon: string; desc: str
   },
   [ELITE.SWIFT]: { label: 'Swift', icon: 'bolt', desc: 'Moves 35% faster and winds up 15% sooner.' },
   [ELITE.VOLATILE]: { label: 'Volatile', icon: 'st_heat', desc: 'Detonates shortly after it dies. Step back.' },
+  [ELITE.BOUNTY]: {
+    label: 'Bounty',
+    icon: 'st_might',
+    desc: 'A named beast with a price on its head. Larger, and it fights in its own way: read the notice board.',
+  },
 };
 
 export function eliteMods(elite: number): number[] {
-  return [ELITE.HARDENED, ELITE.SWIFT, ELITE.VOLATILE].filter((bit) => (elite & bit) !== 0);
+  return [ELITE.HARDENED, ELITE.SWIFT, ELITE.VOLATILE, ELITE.BOUNTY].filter((bit) => (elite & bit) !== 0);
 }
 
 const FACTION_CHIP: Record<Faction, Omit<EnemyChip, 'id'>> = {

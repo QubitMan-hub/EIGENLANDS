@@ -5,6 +5,8 @@
  * client and the tests agree without storing anything.
  */
 import { hash2 } from './rng';
+import type { CreatureTrait } from './bestiary';
+import type { EnemyAi } from './combat';
 import type { Town } from './town';
 import { weatherForDay } from './weather';
 
@@ -72,6 +74,78 @@ export interface Bounty {
   dir: string;
   reward: number;
 }
+
+/**
+ * How each kind of bounty beast fights: not an ordinary hardened creature but one with its own way of killing.
+ * The server swaps the beast's behaviour for this; the client draws it larger, in its own colouring.
+ */
+export const BOUNTY_STYLE: Record<
+  BountyKind,
+  { ai: EnemyAi; trait?: CreatureTrait; aoe: number; damage: number; fights: string; tint: number }
+> = {
+  // leaps at the throat, and howls its pack in when it is hurt
+  wolf: {
+    ai: 'leap',
+    aoe: 1.35,
+    damage: 1.2,
+    fights: 'leaps for the throat and howls for its pack when wounded',
+    tint: 0x9aa6b8,
+  },
+  // slams the ground with its tusks and charges
+  boar: { ai: 'brute', aoe: 1.5, damage: 1.25, fights: 'gores the ground around it and charges', tint: 0xc88a74 },
+  // a slab of moss and stone that closes its own wounds unless hit again and again
+  brute: {
+    ai: 'brute',
+    trait: 'regrow',
+    aoe: 1.6,
+    damage: 1.2,
+    fights: 'slams hard, and its wounds close unless you keep at it',
+    tint: 0x9cb88c,
+  },
+  // waits low and springs, then is gone and somewhere else
+  badger: {
+    ai: 'ambusher',
+    trait: 'blink',
+    aoe: 1.3,
+    damage: 1.3,
+    fights: 'springs from hiding, and vanishes when it is hurt',
+    tint: 0x7a7088,
+  },
+  // keeps its distance and looses volleys of thorns, and grows back
+  thornling: {
+    ai: 'harrier',
+    trait: 'regrow',
+    aoe: 1.2,
+    damage: 1.15,
+    fights: 'looses thorns from a distance and grows back',
+    tint: 0xb4d06a,
+  },
+};
+/** a bounty beast is drawn this much larger than its kind */
+export const BOUNTY_SCALE = 1.45;
+/** hurt below this share of its health, a wolf bounty howls in its pack (two wolves), once */
+export const BOUNTY_PACK_AT = 0.5;
+
+/** What a notice board says about a bounty. */
+export interface BountyView {
+  name: string;
+  kind: BountyKind;
+  town: string;
+  dir: string;
+  reward: number;
+  fights: string;
+  /** posted: not yet met; out: it is abroad (someone has found it); slain: brought down today */
+  state: 'posted' | 'out' | 'slain';
+}
+export const bountyView = (b: Bounty, state: BountyView['state']): BountyView => ({
+  name: b.name,
+  kind: b.kind,
+  town: b.town,
+  dir: b.dir,
+  reward: b.reward,
+  fights: BOUNTY_STYLE[b.kind].fights,
+  state,
+});
 
 /** Today's bounty posted in `town`, if any (most towns post one on most days). */
 export function bountyOf(seed: number, town: Town, day: number): Bounty | null {

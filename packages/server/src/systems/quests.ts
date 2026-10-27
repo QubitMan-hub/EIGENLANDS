@@ -204,7 +204,13 @@ export function boardPos(seed = SEED): { x: number; y: number } | null {
   return b ? { x: b.x, y: b.y } : null;
 }
 
-export function boardPanel(p: PlayerRef, today: number, seed = SEED, at = boardPos(seed)): PanelMsg {
+export function boardPanel(
+  p: PlayerRef,
+  today: number,
+  seed = SEED,
+  at = boardPos(seed),
+  bounty?: import('@eigenlands/shared').BountyView,
+): PanelMsg {
   syncDeliveries(p.data.quests, (x) => countItem(p.data.inv, x), seed);
   const reqs: BoardRequest[] = [];
   const view = (d: QuestDef): BoardRequest => {
@@ -240,7 +246,7 @@ export function boardPanel(p: PlayerRef, today: number, seed = SEED, at = boardP
     ty: at?.y ?? 0,
     sub: 'board',
     sign: notice,
-    board: { day: today, requests: reqs },
+    board: { day: today, requests: reqs, ...(bounty ? { bounty } : {}), town: town.name },
   };
 }
 
@@ -268,7 +274,7 @@ export function handleQuestMsg(room: RoomApi, p: ServerPlayer, m: QuestMsg): voi
     const r =
       m.action === 'accept' ? acceptQuest(p, m.quest, today, room.seed) : turnInQuest(p, m.quest, room.seed, today);
     if (!r.ok) p.toast(r.text, 'bad');
-    p.client.send(MSG.PANEL, boardPanel(p, today, room.seed, b));
+    p.client.send(MSG.PANEL, boardPanel(p, today, room.seed, b, room.bountyAt?.(b.x, b.y)));
     return;
   }
   const n = room.village.npc(m.npcId);

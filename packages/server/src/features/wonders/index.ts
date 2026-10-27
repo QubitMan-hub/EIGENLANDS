@@ -4,12 +4,20 @@
  * Starfall: on a starfall night one star comes down near each traveller out in the open, a little way off, with a
  * flash and a word of where it fell. It lies glowing until mid-morning; anyone may break it open for star shards.
  *
- * Bounties: each town posts a beast to hunt today. Walk into the town and you hear of it; go out toward where it was
- * seen and it is there, hardened and a level above you. Everyone near when it falls is paid, once per bounty.
+ * Bounties: each town posts a beast to hunt today, on its request board or on a notice board by the well. Walk into
+ * the town and you hear of it; go out toward where it was seen and it is there: hardened, a level above you, larger,
+ * and fighting in its own way (BOUNTY_STYLE). Everyone near when it falls is paid, once per bounty.
  */
 import {
+  BOUNTY_PACK_AT,
+  BOUNTY_STYLE,
   CHUNK_SIZE,
   ELITE,
+  MSG,
+  bountyView,
+  type BountyView,
+  type PanelMsg,
+  type Town,
   FALLEN_STAR_SHARDS,
   T,
   bountyOf,
@@ -51,7 +59,9 @@ export class WondersModule implements Module {
   /** stars lying on the ground: key -> night */
   private stars = new Map<string, { x: number; y: number; night: number }>();
   /** bounty id -> the beast's enemy id while it is out */
-  private hunting = new Map<string, { enemy: string; bounty: Bounty; realm?: string }>();
+  private hunting = new Map<string, { enemy: string; bounty: Bounty; realm?: string; howled?: boolean }>();
+  /** towns whose notice board has been checked for this session (name) */
+  private boards = new Set<string>();
   /** bounties already brought down today */
   private slain = new Set<string>();
   /** account -> bounty ids they have heard of */
@@ -157,6 +167,7 @@ export class WondersModule implements Module {
       if (p.deadT > 0 || !outdoors(p.sim.y)) continue;
       // hearing of it: walk into a town that has posted one
       const here = townAt(this.room.seed, Math.floor(p.sim.x), Math.floor(p.sim.y));
+      if (here) this.ensureBoard(here);
       const posted = here && bountyOf(this.room.seed, here, day);
       if (posted && !this.slain.has(posted.id)) {
         const heard = this.heard.get(p.accountId) ?? new Set<string>();
@@ -178,11 +189,37 @@ export class WondersModule implements Module {
         if (!at) continue;
         const e = this.room.spawnEnemy(b.kind, at.x + 0.5, at.y + 0.5, false, {
           level: Math.max(4, p.level + 1),
-          elite: ELITE.HARDENED,
+          elite: ELITE.HARDENED | ELITE.BOUNTY,
         });
+        // not an ordinary beast: its own way of fighting
+        const style = BOUNTY_STYLE[b.kind];
+        e.def = {
+          ...e.def,
+          name: b.name,
+          ai: style.ai,
+          trait: style.trait ?? e.def.trait,
+          aoe: (e.def.aoe ?? 1) * style.aoe,
+          damage: Math.round(e.def.damage * style.damage),
+          radius: e.def.radius * 1.2,
+          strikeRange: Math.max(e.def.strikeRange, style.ai === 'harrier' ? 6 : style.ai === 'brute' ? 6 : 3.2),
+          sight: Math.max(e.def.sight, 9),
+        };
         e.provoked = false;
         this.hunting.set(b.id, { enemy: e.id, bounty: b, realm: t.site?.realm });
       }
+    }
+    // a wounded wolf bounty howls in its pack, once
+    for (const h of this.hunting.values()) {
+      const e = this.room.enemies.get(h.enemy);
+      if (!e || h.howled || h.bounty.kind !== 'wolf' || e.hp > e.maxHp * BOUNTY_PACK_AT) continue;
+      h.howled = true;
+      for (const k of [-1, 1]) {
+        const at = this.open(Math.round(e.x + k * 3), Math.round(e.y + 2));
+        if (at) this.room.spawnEnemy('wolf', at.x + 0.5, at.y + 0.5, false, { level: e.level });
+      }
+      for (const q of this.room.players.values())
+        if (Math.hypot(q.sim.x - e.x, q.sim.y - e.y) < 30)
+          q.toast(`${h.bounty.name} howls, and its pack answers!`, 'bad');
     }
     // a beast that wandered out of the world (despawned unkilled) may be met again
     for (const [id, h] of this.hunting) if (!this.room.enemies.has(h.enemy)) this.hunting.delete(id);
@@ -219,6 +256,61 @@ export class WondersModule implements Module {
         p.toast(`${h.bounty.name} is slain! ${h.bounty.town} pays the bounty: ${h.bounty.reward} coins.`, 'good');
       }
     }
+  }
+
+  // ───────────────────────── notice boards ─────────────────────────
+
+  /** today's bounty in the town standing at (x, y), as a notice board tells it */
+  bountyAt(x: number, y: number): BountyView | undefined {
+    const town = townAt(this.room.seed, Math.floor(x), Math.floor(y));
+    const b = town && bountyOf(this.room.seed, town, this.room.wclock.day());
+    if (!b) return undefined;
+    return bountyView(b, this.slain.has(b.id) ? 'slain' : this.hunting.has(b.id) ? 'out' : 'posted');
+  }
+
+  /** Every town without a request board gets a notice board by its well, once (it persists like any object). */
+  ensureBoard(town: Town): void {
+    if (this.boards.has(town.name) || town.abandoned || town.objects.some((o) => o.sub === 'board')) return;
+    const store = this.room.store;
+    const well = town.objects.find((o) => o.sub === 'well');
+    const cx = well ? well.x : Math.round(town.cx),
+      cy = well ? well.y : Math.round(town.cy);
+    for (let dy = -10; dy <= 10; dy++)
+      for (let dx = -10; dx <= 10; dx++) {
+        const x = cx + dx,
+          y = cy + dy;
+        if (!store.has(Math.floor(x / CHUNK_SIZE), Math.floor(y / CHUNK_SIZE))) return; // not all loaded yet
+        if (store.objectAt(x, y)?.sub === 'bounty_board') {
+          this.boards.add(town.name);
+          return;
+        }
+      }
+    for (let r = 2; r <= 8; r++)
+      for (let dy = -r; dy <= r; dy++)
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+          const x = cx + dx,
+            y = cy + dy;
+          if (!this.room.owns(x, y) || store.solidAt(x, y) || store.objectAt(x, y) || store.structureAt(x, y)) continue;
+          // keep the way around it open: the tile in front (south) must be walkable
+          if (store.solidAt(x, y + 1) || store.objectAt(x, y + 1)) continue;
+          this.room.objects.put({ x, y, kind: 'deco', sub: 'bounty_board', data: { town: town.name } });
+          this.boards.add(town.name);
+          return;
+        }
+  }
+
+  /** Read a notice board: today's bounty, its kind, where it was seen, how it fights, the reward. */
+  readBoard(p: ServerPlayer, o: WorldObj): void {
+    const town = townAt(this.room.seed, o.x, o.y);
+    const msg: PanelMsg = {
+      kind: 'board',
+      tx: o.x,
+      ty: o.y,
+      sub: 'bounty_board',
+      board: { day: this.room.wclock.day(), requests: [], bounty: this.bountyAt(o.x, o.y), town: town?.name },
+    };
+    p.client.send(MSG.PANEL, msg);
   }
 
   /** for tests */

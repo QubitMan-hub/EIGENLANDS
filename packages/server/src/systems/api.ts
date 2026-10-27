@@ -49,5 +49,8 @@ export interface RoomApi {
   otherworldInteract?(p: ServerPlayer, o: import('@eigenlands/shared').WorldObj): Promise<boolean>;
   /** break open a fallen star (features/wonders) */
   openStar?(p: ServerPlayer, o: import('@eigenlands/shared').WorldObj): void;
+  /** a town's notice board and the bounty it posts today (features/wonders) */
+  readBountyBoard?(p: ServerPlayer, o: import('@eigenlands/shared').WorldObj): void;
+  bountyAt?(x: number, y: number): import('@eigenlands/shared').BountyView | undefined;
   grantXp?(p: ServerPlayer, xp: number): void;
 }

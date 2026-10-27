@@ -232,6 +232,10 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
     room.openStar?.(p, o);
     return;
   }
+  if (o.sub === 'bounty_board') {
+    room.readBountyBoard?.(p, o);
+    return;
+  }
   if (['bed', 'double_bed', 'canopy_bed', 'hammock', 'camp_tent'].includes(o.sub)) {
     if (o.owner && o.owner !== p.accountId) {
       p.toast('Ask the owner before using their bed.');
@@ -346,7 +350,10 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
     return;
   }
   if (o.static && o.sub === 'board') {
-    p.client.send(MSG.PANEL, boardPanel(p, room.wclock.day(), room.seed, { x: o.x, y: o.y }));
+    p.client.send(
+      MSG.PANEL,
+      boardPanel(p, room.wclock.day(), room.seed, { x: o.x, y: o.y }, room.bountyAt?.(o.x, o.y)),
+    );
     return;
   }
   if (o.kind === 'sign' && ['cave_archive', 'cave_waymark'].includes(o.sub))

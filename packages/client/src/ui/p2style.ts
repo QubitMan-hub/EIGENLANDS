@@ -61,6 +61,9 @@ const CSS = `
 .req b { color: #2a2318; } .req .small { color: #5a4f3c; } .req .rw { color: #8a5a00; font-weight: bold; }
 .req.done { opacity: .55; } .req.expired { opacity: .45; }
 .req button { min-height: 32px; padding: 4px 12px; }
+.req.wanted { grid-template-columns: 1fr; border: 2px solid #a8442e; transform: none; }
+.req.wanted b { color: #8a2a1a; letter-spacing: .04em; }
+.req.wanted.slain { opacity: .7; }
 
 .jq { padding: 8px 0; border-bottom: 1px solid #2c2f4a; display: grid; gap: 3px; }
 .jq b { color: #fcd45a; } .jq.ready b { color: #5af0d0; } .jq .o.done { color: #7bc95a; } .jq .where { color: var(--mute); font-size: .8em; }

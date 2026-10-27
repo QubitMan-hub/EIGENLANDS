@@ -446,7 +446,45 @@ function fallenStar(face: Facing): ObjSprite {
   );
 }
 
+/** a town notice board: two posts under a little shingled roof, notices pinned up and today's WANTED poster */
+function bountyBoard(face: Facing): ObjSprite {
+  return iso(
+    40,
+    56,
+    face,
+    (p) => {
+      p.box(2, 6, 0, 1.4, 1.4, 16, { ramp: DARKWOOD });
+      p.box(13.6, 6, 0, 1.4, 1.4, 16, { ramp: DARKWOOD });
+      p.box(1.5, 6.6, 5, 14, 0.8, 9.5, {
+        ramp: WOODM,
+        front: (s, t) => {
+          // the wanted poster: parchment, a red band, the beast sketched in ink
+          if (s > 0.36 && s < 0.66 && t > 0.14 && t < 0.92) {
+            if (t > 0.76) return C.r4;
+            if (s > 0.43 && s < 0.59 && t > 0.36 && t < 0.62) return (s * 40 + t * 30) % 3 < 1.4 ? C.e1 : C.e2;
+            if (t < 0.24 && s > 0.42 && s < 0.6) return C.e3; // the reward line
+            return C.e6;
+          }
+          // older notices
+          if (s > 0.08 && s < 0.3 && t > 0.3 && t < 0.8) return t > 0.68 ? C.mist : C.pale;
+          if (s > 0.72 && s < 0.92 && t > 0.42 && t < 0.86) return t < 0.5 ? C.fog : C.e7;
+          return null;
+        },
+      });
+      // the roof
+      p.box(0.5, 5.2, 15.5, 16, 3, 1.2, { ramp: [C.r1, C.r2, C.r3, C.r4] });
+      p.box(1, 5.7, 16.7, 15, 2, 0.8, { ramp: [C.r2, C.r3, C.r4, C.r5] });
+      // pins
+      p.dot(8, 7.4, 13.5, C.r6);
+      p.dot(4, 7.4, 12, C.steel);
+      p.dot(13, 7.4, 13, C.steel);
+    },
+    { margin: 6 },
+  );
+}
+
 export const STORY_ART: Record<string, (face: Facing) => ObjSprite> = {
+  bounty_board: bountyBoard,
   fallen_star: fallenStar,
   camp_tent: campTent,
   crypt_plaque: plaque,

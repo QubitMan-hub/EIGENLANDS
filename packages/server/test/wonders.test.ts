@@ -3,6 +3,8 @@ import {
   DAY_MS,
   MSG,
   RESTED_XP_MULT,
+  BOUNTY_STYLE,
+  ELITE,
   bountyOf,
   chunkOf,
   dayNumber,
@@ -129,6 +131,12 @@ describe('town bounties', () => {
     await p.room.ensureChunk(chunkOf(b.x), chunkOf(b.y));
     p.room.wonders.tick(p.room.wclock.now(), 2.1);
     await until(() => p.room.wonders.bountyState(b.id) === 'out', 8000);
+    // it is no ordinary beast: marked, renamed and fighting in its own way
+    const beast = [...p.room.enemies.values()].find((e: any) => e.state.elite & ELITE.BOUNTY)!;
+    expect(beast).toBeTruthy();
+    expect(beast.def.name).toBe(b.name);
+    expect(beast.def.ai).toBe(BOUNTY_STYLE[b.kind].ai);
+    expect(p.room.wonders.bountyAt(town.cx, town.cy)?.state).toBe('out');
     const coins = p.sp.data.coins;
     p.sp.hp = p.sp.maxHp;
     for (let i = 0; i < 20 && p.room.wonders.bountyState(b.id) !== 'slain'; i++) {
@@ -137,6 +145,7 @@ describe('town bounties', () => {
     }
     expect(p.room.wonders.bountyState(b.id)).toBe('slain');
     await until(() => p.sp.data.coins >= coins + b.reward, 3000);
+    expect(p.room.wonders.bountyAt(town.cx, town.cy)?.state).toBe('slain');
     await until(() => p.toasts.some((t) => t.text.includes(`${b.name} is slain`)), 3000);
     expect(p.toasts.some((t) => t.text.includes(`${b.name} is slain`))).toBe(true);
     // it does not rise again today
@@ -145,4 +154,28 @@ describe('town bounties', () => {
     p.room.wclock.setOffset(offset);
     await p.r.leave();
   }, 40_000);
+
+  it('a town without a request board gets a notice board by its well, once', async () => {
+    const p = await spawn3(app, 'Reader');
+    const town = townsNear(p.room.seed, -700, -700, 700, 700).find(
+      (t) => !t.abandoned && !t.objects.some((o) => o.sub === 'board') && p.room.owns(Math.round(t.cx), Math.round(t.cy)),
+    );
+    expect(town).toBeTruthy();
+    if (!town) return;
+    await tp(p, town.cx + 0.5, town.cy + 0.5);
+    for (let dy = -2; dy <= 2; dy++)
+      for (let dx = -2; dx <= 2; dx++) await p.room.ensureChunk(chunkOf(town.cx) + dx, chunkOf(town.cy) + dy);
+    p.room.wonders.ensureBoard(town);
+    const boards = () => {
+      const out: Array<{ x: number; y: number }> = [];
+      for (let y = Math.round(town.cy) - 20; y <= Math.round(town.cy) + 20; y++)
+        for (let x = Math.round(town.cx) - 20; x <= Math.round(town.cx) + 20; x++)
+          if (p.room.store.objectAt(x, y)?.sub === 'bounty_board') out.push({ x, y });
+      return out;
+    };
+    expect(boards().length).toBe(1);
+    p.room.wonders.ensureBoard(town);
+    expect(boards().length).toBe(1);
+    await p.r.leave();
+  });
 });

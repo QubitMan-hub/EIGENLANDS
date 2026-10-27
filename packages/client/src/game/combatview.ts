@@ -23,7 +23,10 @@ import {
   DASH_CHARGES,
   DASH_COOLDOWN,
   ELITE,
+  BOUNTY_SCALE,
+  BOUNTY_STYLE,
   ENEMY_BY_KIND,
+  ENEMY_KEY_BY_KIND,
   BOSS_BY_KIND,
   LEAP_RADIUS,
   PALETTE,
@@ -909,7 +912,8 @@ export class CombatView {
     v.flash *= Math.exp(-dt * 22);
     const reduced = this.d.reduced();
     const tele = st === 2 ? Math.min(1, (s?.tele ?? 0) / 100) : 0;
-    const big = (kind === 5 ? 1.25 : 1) * (s && s.elite & ELITE.HARDENED ? 1.2 : 1);
+    const bounty = !!s && (s.elite & ELITE.BOUNTY) !== 0;
+    const big = bounty ? BOUNTY_SCALE : (kind === 5 ? 1.25 : 1) * (s && s.elite & ELITE.HARDENED ? 1.2 : 1);
     let sx = 1 + 0.28 * v.punch - 0.06 * tele,
       sy = 1 - 0.22 * v.punch + 0.12 * tele;
     if (reduced || authoredBoss) {
@@ -933,7 +937,9 @@ export class CombatView {
         ? 0
         : Math.min(1, Math.max(v.flash * 1.4, reduced ? 0.25 : 0.28 + 0.14 * Math.sin(t * 3 + v.outfit)));
     } else {
-      v.sprite.tint = 0xffffff;
+      // a bounty beast wears its own colouring (BOUNTY_STYLE)
+      const style = bounty ? BOUNTY_STYLE[ENEMY_KEY_BY_KIND[kind] as keyof typeof BOUNTY_STYLE] : undefined;
+      v.sprite.tint = style?.tint ?? 0xffffff;
       v.sprite.alpha = 1;
       v.fl.tint = 0xffffff;
       v.fl.alpha = Math.min(1, v.flash * 1.4);
@@ -961,7 +967,7 @@ export class CombatView {
         authoredBoss ? foes.shadow(kind)[1] : 3 * (big > 1.4 ? big * 0.6 : 1),
       ).fill({ color: 0x2a1060, alpha: 0.28 });
     if (s && s.elite) {
-      const col = s.elite & ELITE.VOLATILE ? 36 : s.elite & ELITE.SWIFT ? 29 : 6;
+      const col = bounty ? 34 : s.elite & ELITE.VOLATILE ? 36 : s.elite & ELITE.SWIFT ? 29 : 6;
       const pulse = 0.5 + 0.3 * Math.sin(t * 6);
       g.ellipse(0, 0, 10 * big, 4.5 * big).stroke({ color: pc(col), width: 1.5, alpha: pulse });
       g.ellipse(0, -9, 9 * big, 9 * big).stroke({ color: pc(col), width: 1, alpha: pulse * 0.4 });
