@@ -163,3 +163,13 @@ it('waters adjacent crops only through connected owned channels and provides bou
   p.room.state.enemies.delete(hostile.id);
   await p.r.leave();
 });
+
+it('retains an unexpired bed-rest cooldown through save loading and discards expired cooldowns', async () => {
+  const { newPlayerData, serializePlayerData, loadPlayerData } = await import('../src/systems/profile');
+  const data = newPlayerData(0),
+    now = Date.now();
+  data.buffs.bed_rest = { until: now + 24 * 60 * 1000, power: 1 };
+  const saved = JSON.parse(JSON.stringify(serializePlayerData(data)));
+  expect(loadPlayerData(saved, 0, now).buffs.bed_rest).toEqual(data.buffs.bed_rest);
+  expect(loadPlayerData(saved, 0, now + 25 * 60 * 1000).buffs.bed_rest).toBeUndefined();
+});

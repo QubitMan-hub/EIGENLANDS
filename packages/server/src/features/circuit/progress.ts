@@ -104,7 +104,7 @@ export function rulesFor(pr: Progress, level: number): BoardRules {
     qubits: qubitsForLevel(level, pr.qubitBonus),
     gates: pr.gates,
     runes: pr.runes,
-    allowed: allowedAbilities(pr.cls, pr.second),
+    allowed: allowedAbilities(pr.cls, pr.second, pr.spec),
   };
 }
 
@@ -113,7 +113,7 @@ export function rulesFor(pr: Progress, level: number): BoardRules {
  * orbs with missing class abilities (in class order).
  */
 export function placeAbilities(pr: Progress, qubits: number): void {
-  const allowed = allowedAbilities(pr.cls, pr.second);
+  const allowed = allowedAbilities(pr.cls, pr.second, pr.spec);
   const seen = new Set<AbilityId>();
   for (let q = 0; q < MAX_QUBITS; q++) {
     const a = pr.board.abilities[q];

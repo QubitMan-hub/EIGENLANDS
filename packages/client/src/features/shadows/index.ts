@@ -239,6 +239,28 @@ export class ShadowClient implements ClientModule {
     return false;
   }
 
+  /** Confirmed channel state drives the local body pose, never a speculative key press. */
+  channelTarget(): { x: number; y: number } | null {
+    const me = this.d.me();
+    if (!this.channel || !me) return null;
+    let target: { x: number; y: number } | null = null,
+      distance = EXTRACT_RANGE;
+    for (const residue of this.residues) {
+      const d = Math.hypot(residue.x - me.x, residue.y - me.y);
+      if (d < distance) {
+        target = residue;
+        distance = d;
+      }
+    }
+    return target;
+  }
+
+  channelProgress(now: number): number | null {
+    return this.channel && now < this.channel.until
+      ? Math.max(0, Math.min(1, (now - this.channel.start) / (this.channel.until - this.channel.start)))
+      : null;
+  }
+
   debug(): Record<string, unknown> {
     return { shadows: this.roster.roster.length, summoned: this.roster.active.length, residues: this.residues.length };
   }
@@ -332,7 +354,7 @@ export class ShadowClient implements ClientModule {
         {},
         ...COMPANION_BONDS.map((b) =>
           h('li', {
-            text: `${b.name} (${ENEMY_BY_KIND[b.kind]?.name}): ${b.count} × ${ITEMS[b.food]?.name}. ${b.trait}: ${b.detail}`,
+            text: `${b.name} (${ENEMY_BY_KIND[b.kind]?.name}): ${b.count} × ${ITEMS[b.food]?.name}. ${b.trait}: ${b.detail}${b.level ? ` Requires level ${b.level}` : ''}${b.boss ? ` and victory over ${b.boss.replace(/_/g, ' ')}` : ''}.`,
           }),
         ),
       ),

@@ -113,3 +113,28 @@ export function partyDestinations(party: PartyStateMsg | null, account: string, 
       point: m.online && !!m.shard && validPoint(m) ? { x: m.x, y: m.y } : undefined,
     }));
 }
+
+/** Only charted boards become destinations, including player and frontier halls. */
+export function guildDestinations(
+  seed: number,
+  boards: readonly (MapPoint & { data?: Record<string, unknown> })[],
+  seen: (x: number, y: number) => boolean,
+): Destination[] {
+  const found = new Map<string, Destination>();
+  const add = (p: MapPoint, name: string) => {
+    if (!validPoint(p) || !seen(p.x, p.y)) return;
+    const id = `guild:${p.x},${p.y}`;
+    found.set(id, {
+      id,
+      title: `${name} · Adventurer Guild`,
+      detail: 'Discovered reception · commissions, registration and expedition planning',
+      point: { x: p.x, y: p.y },
+    });
+  };
+  for (const t of townsFor(seed)) {
+    const p = guildBoard(t);
+    if (p) add(p, t.name);
+  }
+  for (const b of boards) add(b, typeof b.data?.town === 'string' ? b.data.town : 'Chartered hall');
+  return [...found.values()].sort((a, b) => a.title.localeCompare(b.title));
+}

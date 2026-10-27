@@ -1,0 +1,78 @@
+{
+  "models": [
+    {
+      "town": "Goldspire",
+      "night": false,
+      "pixels": 58308,
+      "sign": true
+    },
+    {
+      "town": "Goldspire",
+      "night": true,
+      "pixels": 58308,
+      "sign": true
+    },
+    {
+      "town": "Heartroot",
+      "night": false,
+      "pixels": 51024,
+      "sign": true
+    },
+    {
+      "town": "Heartroot",
+      "night": true,
+      "pixels": 51024,
+      "sign": true
+    },
+    {
+      "town": "Anvilhold",
+      "night": false,
+      "pixels": 57300,
+      "sign": true
+    },
+    {
+      "town": "Anvilhold",
+      "night": true,
+      "pixels": 57300,
+      "sign": true
+    },
+    {
+      "town": "Raikyo",
+      "night": false,
+      "pixels": 62284,
+      "sign": true
+    },
+    {
+      "town": "Raikyo",
+      "night": true,
+      "pixels": 62284,
+      "sign": true
+    },
+    {
+      "town": "Nacrehall",
+      "night": false,
+      "pixels": 57856,
+      "sign": true
+    },
+    {
+      "town": "Nacrehall",
+      "night": true,
+      "pixels": 57856,
+      "sign": true
+    },
+    {
+      "town": "Obsidia",
+      "night": false,
+      "pixels": 64532,
+      "sign": true
+    },
+    {
+      "town": "Obsidia",
+      "night": true,
+      "pixels": 64532,
+      "sign": true
+    }
+  ],
+  "interiors": 6,
+  "errors": []
+}

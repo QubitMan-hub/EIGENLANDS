@@ -1,6 +1,16 @@
+import { BOSS_CREATURE_DEFS, type DesignedBoss } from './boss-creatures';
+import { BOSS_BY_KIND } from '@eigenlands/shared';
+import {
+  bestiaryFrame,
+  bestiaryAnchor,
+  bestiaryFallback,
+  bestiaryAtlasStats,
+  preloadBestiary,
+} from './bestiary-atlases';
+import { LEGENDARY_DEFS, type NewCreatureKey } from './legendary-fauna';
 import { ART_RGB } from './creature-pixels';
 import { armyUnitDef } from './army-units';
-import { ARMY_CLASSES, REALM_IDS, armyKey, armyOfKind, type ArmyKey } from '@eigenlands/shared';
+import { BESTIARY_KEYS, ARMY_CLASSES, REALM_IDS, armyKey, armyOfKind, type ArmyKey } from '@eigenlands/shared';
 import { wildDef } from './fauna';
 import type { Texture } from 'pixi.js';
 import {
@@ -29,6 +39,8 @@ import {
 export type Anim = 'idle' | 'move' | 'windup' | 'attack' | 'hurt' | 'death';
 export const ANIMS: Anim[] = ['idle', 'move', 'windup', 'attack', 'hurt', 'death'];
 export type CritterKind =
+  | DesignedBoss
+  | NewCreatureKey
   | 'slime'
   | 'hopper'
   | 'rabbit'
@@ -1523,6 +1535,7 @@ function farmAnimal(form: number): Def {
 }
 
 const DEFS: Record<CritterKind, Def> = {
+  ...LEGENDARY_DEFS,
   echo_bat: caveFauna(0),
   spore_sage: caveFauna(1),
   prism_beetle: caveFauna(2),
@@ -1531,17 +1544,12 @@ const DEFS: Record<CritterKind, Def> = {
   pool_lurker: caveFauna(5),
   vault_guardian: caveFauna(6),
   spore_matriarch: caveFauna(7),
-  bellkeeper: caveFauna(8),
   amber_gnawer: caveBeast(0),
   lantern_hound: caveBeast(1),
   geode_golem: caveBeast(2),
   cinder_drake: caveBeast(3),
   frost_wraith: caveBeast(4),
   tide_eel: caveBeast(5),
-  geode_tyrant: caveBeast(6),
-  cinder_wyrm: caveBeast(7),
-  rime_sovereign: caveBeast(8),
-  tide_leviathan: caveBeast(9),
   griffin: realmBeast(0),
   spirit_stag: realmBeast(1),
   iron_golem: realmBeast(2),
@@ -1570,6 +1578,7 @@ const DEFS: Record<CritterKind, Def> = {
   wisp: wispDef,
   brute: bruteDef,
   mite: miteDef,
+  ...BOSS_CREATURE_DEFS,
 };
 
 // ───────────────────────── projectiles ─────────────────────────
@@ -1629,6 +1638,8 @@ function bake(kind: CritterKind, night: boolean): Baked {
 
 /** Texture for a creature frame. Looping anims wrap, `death` holds its last frame. */
 export function critter(kind: CritterKind, night: boolean, dir: number, anim: Anim, frame: number): Texture {
+  const ready = bestiaryFrame(kind, night, dir, anim, frame);
+  if (ready) return ready;
   const key = `${kind}${night ? 'n' : 'd'}`;
   let b = baked.get(key);
   if (!b) {
@@ -1637,14 +1648,31 @@ export function critter(kind: CritterKind, night: boolean, dir: number, anim: An
   }
   const n = DEFS[kind].n[anim];
   const f = anim === 'death' ? Math.min(n - 1, Math.max(0, frame)) : ((frame % n) + n) % n;
-  return b.sheet.frame(b.col0[anim] + f, ((dir % 4) + 4) % 4);
+  const def = DEFS[kind];
+  return bestiaryFallback(kind, b.sheet.frame(b.col0[anim] + f, ((dir % 4) + 4) % 4), def.ay ?? def.h - 2);
 }
 export const critterFrames = (kind: CritterKind, anim: Anim): number => DEFS[kind].n[anim];
 export const critterShadow = (kind: CritterKind): [number, number] => DEFS[kind].shadow;
 export const critterSheetCanvas = (kind: CritterKind, night: boolean): HTMLCanvasElement => {
-  critter(kind, night, 0, 'idle', 0);
-  return baked.get(`${kind}${night ? 'n' : 'd'}`)!.sheet.canvas;
+  const key = `${kind}${night ? 'n' : 'd'}`;
+  if (!baked.has(key)) baked.set(key, bake(kind, night));
+  return baked.get(key)!.sheet.canvas;
 };
+
+export function creaturePortraitCanvas(kind: CritterKind): HTMLCanvasElement {
+  const def = DEFS[kind],
+    s = new Scene(def.w, def.h, def.w / 2, def.ay ?? def.h - 2, D4_YAW[0]!);
+  def.draw(s, 'idle', 0, 0, false);
+  const c = document.createElement('canvas');
+  c.width = def.w;
+  c.height = def.h;
+  const ctx = c.getContext('2d')!,
+    pixels = ctx.createImageData(def.w, def.h);
+  new Uint32Array(pixels.data.buffer).set(s.resolve());
+  ctx.putImageData(pixels, 0, 0);
+  return c;
+}
+export const creatureDefinition = (kind: CritterKind): Def => DEFS[kind];
 
 // ───────────────────────── game-facing facade ─────────────────────────
 
@@ -1652,6 +1680,8 @@ export const critterSheetCanvas = (kind: CritterKind, night: boolean): HTMLCanva
 export const KIND_NAMES: CritterKind[] = ['slime', 'hopper', 'rabbit', 'deer', 'wisp', 'brute', 'mite'];
 
 export interface FoeSheets {
+  preload(kinds: number[], night?: boolean): Promise<void>;
+  cache(): ReturnType<typeof bestiaryAtlasStats>;
   anchor(kind: number): number;
   /** any creature frame: kind index (ENEMY_BY_KIND), night variant, D4 facing, animation, frame */
   frame(kind: number, night: boolean, dir: number, anim: Anim, frame: number): Texture;
@@ -1687,6 +1717,10 @@ export function buildFoeSheets(): FoeSheets {
     'tide_leviathan',
   ] as const;
   const name = (k: number): CritterKind => {
+    const boss = BOSS_BY_KIND[k]?.id;
+    if (boss && boss in BOSS_CREATURE_DEFS) return boss as DesignedBoss;
+    const extra = BESTIARY_KEYS[k - 74];
+    if (extra) return extra;
     const farm = (['cow', 'sheep', 'pig', 'horse'] as const)[k - 74];
     if (farm) return farm;
     const army = armyOfKind(k);
@@ -1702,7 +1736,9 @@ export function buildFoeSheets(): FoeSheets {
     );
   };
   return {
-    anchor: (k) => (DEFS[name(k)].ay ?? DEFS[name(k)].h - 2) / DEFS[name(k)].h,
+    preload: (kinds, night = false) => preloadBestiary(kinds.map(name), night),
+    cache: bestiaryAtlasStats,
+    anchor: (k) => bestiaryAnchor(name(k)) ?? (DEFS[name(k)].ay ?? DEFS[name(k)].h - 2) / DEFS[name(k)].h,
     frame: (k, n, d, a, f) => critter(name(k), n, d, a, f),
     frames: (k, a) => critterFrames(name(k), a),
     shadow: (k) => critterShadow(name(k)),

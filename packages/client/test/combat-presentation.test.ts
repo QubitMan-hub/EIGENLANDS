@@ -97,3 +97,70 @@ it('starts the observed shooter pose without consuming ordinary projectile effec
   expect(view.attackFrame(archer, 1130, false)).toBe(2);
   expect(view.attackFrame(archer, 1261, false)).toBe(-1);
 });
+
+it('plays authored boss strike and recovery poses when a caster fires directly into recovery', async () => {
+  const { Sprite, Container, Graphics, Texture } = await import('pixi.js');
+  const { bestiaryKind } = await import('@eigenlands/shared');
+  vi.spyOn(performance, 'now').mockReturnValue(1000);
+  const frame = vi.fn((_kind: number, _night: boolean, _dir: number, _anim: string, _frame: number) => Texture.EMPTY);
+  const actor = {
+    id: 'dragon',
+    type: 'enemy',
+    kind: bestiaryKind('primordial_dragon'),
+    root: new Container(),
+    sprite: new Sprite(Texture.EMPTY),
+    fl: new Sprite(Texture.EMPTY),
+    gfx: new Graphics(),
+    lx: 0,
+    ly: 0,
+    travel: 0,
+    outfit: 0,
+    flash: 0,
+    punch: 0,
+    ghostT: 0,
+  } as CombatActor;
+  const deps = {
+    fx: () => ({ burst: () => {}, shockwave: () => {}, kick: () => {} }),
+    sound: () => {},
+    reduced: () => false,
+    me: () => ({ x: 0, y: 0 }),
+    foes: () => ({
+      frame,
+      frames: (_k: number, a: string) => (a === 'attack' ? 2 : 1),
+      anchor: () => 1,
+      shadow: () => [24, 8],
+    }),
+  } as unknown as CombatDeps;
+  const view = new CombatView(deps, new Graphics());
+  const snap = {
+    hp: 100,
+    maxHp: 100,
+    flags: 0,
+    tele: 0,
+    kind: actor.kind,
+    night: false,
+    st: 4,
+    atk: 0,
+    tx: 0,
+    ty: 0,
+    poise: 100,
+    elite: 0,
+    faceX: 1,
+    faceY: 0,
+  };
+  view.onFx({ kind: 'orb', id: actor.id, x: 0, y: 0 }, () => actor);
+  view.drawEnemy(actor, snap, 0, 0, 1, 1100, 0.016, false);
+  expect(frame.mock.calls.at(-1)?.[3]).toBe('attack');
+  expect(frame.mock.calls.at(-1)?.[4]).toBe(0);
+  view.drawEnemy(actor, snap, 0, 0, 1, 1300, 0.016, false);
+  expect(frame.mock.calls.at(-1)?.[3]).toBe('attack');
+  expect(frame.mock.calls.at(-1)?.[4]).toBe(1);
+  view.drawEnemy(actor, snap, 0, 0, 1, 1500, 0.016, false);
+  expect(frame.mock.calls.at(-1)?.[3]).toBe('idle');
+  view.onFx({ kind: 'blast', id: actor.id, x: 0, y: 0 }, () => actor);
+  expect(view.attackFrame(actor, 1100, false)).toBeGreaterThanOrEqual(0);
+  actor.root.destroy();
+  actor.sprite.destroy();
+  actor.fl.destroy();
+  actor.gfx.destroy();
+});

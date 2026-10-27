@@ -1,3 +1,4 @@
+import { BESTIARY_DEFS, BESTIARY_KEYS, rareSpawnEntries, type BestiaryKey, type CreatureTrait } from './bestiary';
 import type { CaveBiome } from './undercroft';
 import type { Biome } from './worldgen';
 import { WEAPONS } from './equipment';
@@ -328,6 +329,10 @@ export interface DropDef {
 }
 export type EnemyAi = 'melee' | 'leap' | 'caster' | 'brute' | 'swarm' | 'passive' | 'boar' | 'ambusher' | 'harrier';
 export interface EnemyDef {
+  trait?: CreatureTrait;
+  territory?: number;
+  predator?: boolean;
+  mythical?: boolean;
   kind: number;
   /** passive fauna flees instead of fighting */
   passive?: boolean;
@@ -1534,8 +1539,8 @@ const BASE_ENEMY_DEFS: Record<
   },
 };
 import { ARMY_DEFS, type ArmyKey } from './army';
-export const ENEMY_DEFS = { ...BASE_ENEMY_DEFS, ...ARMY_DEFS } as Record<
-  keyof typeof BASE_ENEMY_DEFS | ArmyKey,
+export const ENEMY_DEFS = { ...BASE_ENEMY_DEFS, ...ARMY_DEFS, ...BESTIARY_DEFS } as Record<
+  keyof typeof BASE_ENEMY_DEFS | ArmyKey | BestiaryKey,
   EnemyDef
 >;
 export const ENEMY_BY_KIND: EnemyDef[] = [
@@ -1590,6 +1595,7 @@ export const ENEMY_BY_KIND: EnemyDef[] = [
   ENEMY_DEFS.reef_naga,
   ENEMY_DEFS.hellhound,
   ...Object.values(ARMY_DEFS),
+  ...BESTIARY_KEYS.map((id) => BESTIARY_DEFS[id]),
 ];
 export type EnemyKindName = keyof typeof ENEMY_DEFS;
 /** ENEMY_DEFS key by numeric kind, for rules that are written by species name. */
@@ -1726,15 +1732,18 @@ export function spawnTable(
                     ['hopper', 3],
                     ['wisp', night ? 2 : 0],
                   ];
-  return table
-    .filter(
-      ([kind, w]) =>
-        w > 0 &&
-        (kind !== 'reed_stalker' || level >= 4) &&
-        (kind !== 'cinder_moth' || level >= 5) &&
-        (!['brute', 'wolf', 'thornling', 'glasscrawler'].includes(kind) || level >= (kind === 'brute' ? 4 : 3)),
-    )
-    .map(([kind, w]) => ({ kind, w }));
+  return [
+    ...(modern ? rareSpawnEntries(level, night, biome) : []),
+    ...table
+      .filter(
+        ([kind, w]) =>
+          w > 0 &&
+          (kind !== 'reed_stalker' || level >= 4) &&
+          (kind !== 'cinder_moth' || level >= 5) &&
+          (!['brute', 'wolf', 'thornling', 'glasscrawler'].includes(kind) || level >= (kind === 'brute' ? 4 : 3)),
+      )
+      .map(([kind, w]) => ({ kind, w })),
+  ];
 }
 
 export function pickSpawn(

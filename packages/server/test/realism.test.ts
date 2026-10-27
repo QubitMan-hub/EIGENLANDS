@@ -148,6 +148,7 @@ describe('water and mounts', () => {
     await sleep(1200);
     await tp(p, a.x + 12, a.y + 3);
     await until(() => p.sp.sim.mount === 0, 4000);
+    await until(() => p.toasts.some((t) => /exhausted/.test(t.text)), 3000);
     expect(p.toasts.some((t) => /exhausted/.test(t.text))).toBe(true);
     p.r.send(MSG.USE, { slot: slot(), tx: 0, ty: 0 });
     await until(() => p.toasts.some((t) => /worn out/.test(t.text)), 3000);

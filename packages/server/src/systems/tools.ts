@@ -331,7 +331,7 @@ function gatherForage(room: RoomApi, p: ServerPlayer, tx: number, ty: number): v
   addSkillXp(p, 'foraging', 4);
   room.setTile(tx, ty, T.GRASS);
   room.scheduleRespawn(tx, ty, T.FORAGE, room.wclock.dayStart(room.wclock.day() + 1));
-  room.fx({ kind: 'harvest', x: tx + 0.5, y: ty + 0.5 });
+  room.fx({ kind: 'harvest', x: tx + 0.5, y: ty + 0.5, id: p.id });
 }
 
 /** OPEN on a forage tile reaches here too. */
@@ -417,7 +417,7 @@ function place(room: RoomApi, p: ServerPlayer, slot: number, tx: number, ty: num
   stack.n -= 1;
   if (stack.n <= 0) p.data.inv[slot] = null;
   p.dirty('inv');
-  room.fx({ kind: 'place', x: tx + 0.5, y: ty + 0.5 });
+  room.fx({ kind: 'place', x: tx + 0.5, y: ty + 0.5, id: p.id });
   questEvent(p, { type: 'place', target: def.id, n: 1 });
   syncQuests(p);
 }

@@ -565,14 +565,24 @@ function paint(b: Building, st: Style): Style {
   if (st.timber && h(5) < 0.25) out.timber = [C.ink, C.night, C.slate, C.steel];
   return out;
 }
-const styleFor = (b: Building) =>
-  buildingRealm(b) === 'cave'
-    ? CAVE_STYLE
-    : buildingRealm(b) === 'sea'
-      ? SEA_STYLE
-      : b.style >= 4
-        ? paint(b, realmStyle(b))
-        : paint(b, STYLES[b.style % 4]!);
+const styleFor = (b: Building): Style => {
+  const realm = buildingRealm(b);
+  const st =
+    realm === 'cave'
+      ? CAVE_STYLE
+      : realm === 'sea'
+        ? SEA_STYLE
+        : b.style >= 4
+          ? paint(b, realmStyle(b))
+          : paint(b, STYLES[b.style % 4]!);
+  if (!b.guild || b.kind !== 'hall' || realm !== 'surface') return st;
+  // Civic silhouettes keep the regional language: a timber lodge, grove pavilion,
+  // stone bastion, swept-roof dojo, tide dome and steep obsidian archive.
+  const shapes: RoofShape[] = ['gable', 'hip', 'flat', 'pagoda', 'dome', 'gable'];
+  const region = b.style >= 4 ? Math.floor((b.style - 4) / 5) % shapes.length : 0;
+  return { ...st, shape: shapes[region] };
+};
+
 function realmStyle(b: Building): Style {
   const st = REALM_STYLES[(b.style - 4) % REALM_STYLES.length]!;
   return (b.kind as string) === 'tower' ? { ...st, shape: 'spire' } : st;
@@ -616,6 +626,18 @@ function wallMat(b: Building, st: Style, seed: number, interior: boolean, capC: 
       if (u < 2.5) {
         if (z > 28.5 || z < 22.5 || u > 1.5 || Math.abs(z - 25.5) < 0.5) return C.e2;
         return GLASS + (z > 25 ? 3 : 2);
+      }
+    }
+    // Guild standards lie on the actual wall plane. Their motif is a brass compass,
+    // shared across regional halls while the surrounding architecture stays local.
+    if (b.guild && !interior && face === 'south' && Math.floor(x) === b.doorX - 1 && z >= 10 && z < 38) {
+      const u = (fu - 0.5) * 16,
+        v = z - 25;
+      if (Math.abs(u) <= 5 && !(z < 13 && Math.abs(u) < 13 - z)) {
+        if (z > 35 || Math.abs(u) > 4) return C.e4;
+        if (Math.abs(u) + Math.abs(v) * 0.6 < 4.4 && Math.abs(u) + Math.abs(v) * 0.6 > 2.6) return C.e6;
+        if ((Math.abs(u) < 0.8 && Math.abs(v) < 6) || (Math.abs(v) < 0.8 && Math.abs(u) < 3)) return C.e7;
+        return u < 0 ? C.g1 : C.g2;
       }
     }
     // foundation course
@@ -1390,6 +1412,16 @@ function buildRoof(
 }
 
 const SIGN: Record<string, { text: string; icon: (ctx: Ctx, x: number, y: number) => void; board: Ramp }> = {
+  guild: {
+    text: 'GUILD',
+    board: [C.g0, C.g1, C.g2, C.g3],
+    icon: (c, x, y) => {
+      for (let dy = -4; dy <= 4; dy++)
+        for (let dx = -4; dx <= 4; dx++) if (Math.abs(dx) + Math.abs(dy) === 4) put(c, x + 4 + dx, y + 4 + dy, C.e5);
+      put(c, x + 4, y, C.e7, 1, 9);
+      put(c, x, y + 4, C.e6, 9, 1);
+    },
+  },
   bakery: {
     text: 'BAKER',
     board: [C.e0, C.e1, C.e2, C.e3],
@@ -1692,7 +1724,7 @@ function buildBuildingArtInner(b: Building): BuildingArt {
         if (hit && !(x >= b.x && x <= x1 && y >= b.y && y <= y1)) put(sc.ctx, px, py, C.q0);
       }
   });
-  const sign = signTexture(SIGN[b.id] ? b.id : b.kind);
+  const sign = signTexture(b.guild ? 'guild' : SIGN[b.id] ? b.id : b.kind);
   return {
     walls,
     roof: { tex: tex(rf.canvas), night: rf.night ? tex(rf.night) : null, x: rf.left, y: rf.top },

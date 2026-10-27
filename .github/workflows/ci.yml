@@ -84,6 +84,7 @@ jobs:
           node --import tsx e2e/castle-frontier-art.mjs http://127.0.0.1:5174/ /tmp/creature-art/frontier
           node e2e/homestead-art.mjs http://127.0.0.1:5174/ /tmp/creature-art/homesteads
           node --import tsx e2e/cozy-towns.mjs http://127.0.0.1:5174/ /tmp/creature-art/cozy-towns
+          node --import tsx e2e/guild-halls-art.mjs http://127.0.0.1:5174/ /tmp/creature-art/guild-halls
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -101,6 +102,7 @@ jobs:
           node --import tsx e2e/elevation.mjs http://127.0.0.1:5240/ /tmp/elevation-shots
           node e2e/homestead-gameplay.mjs http://127.0.0.1:5240/ /tmp/homestead-gameplay
           node e2e/living-guilds.mjs http://127.0.0.1:5240/ /tmp/living-guilds-gameplay
+          node e2e/guild-halls.mjs http://127.0.0.1:5240/ /tmp/living-guilds-gameplay/halls
           node e2e/travel.mjs http://127.0.0.1:5240/ /tmp/living-guilds-gameplay/travel
 
       - uses: actions/upload-artifact@v4
@@ -108,3 +110,35 @@ jobs:
         with:
           name: living-guilds-gameplay
           path: /tmp/living-guilds-gameplay/
+  adventurer-bestiary-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npx playwright-core install --with-deps chromium
+      - name: Start the source art lab
+        run: npm run dev -w @eigenlands/client -- --host 127.0.0.1 --port 5174 --strictPort > /tmp/art-lab.log 2>&1 &
+      - name: Verify authored boss art and creature atlas contracts
+        run: |
+          export CHROME="$(node --input-type=module -e "import {chromium} from 'playwright-core'; process.stdout.write(chromium.executablePath())")"
+          node e2e/person-actions.mjs http://127.0.0.1:5174/ /tmp/adventurer-bestiary/people
+          node e2e/boss-sheets-art.mjs http://127.0.0.1:5174/ /tmp/adventurer-bestiary/art
+          node --import tsx e2e/bestiary-art.mjs http://127.0.0.1:5174/ /tmp/adventurer-bestiary/bestiary
+      - run: npm run build:pages
+      - name: Start solo preview
+        working-directory: packages/client
+        run: ../../node_modules/.bin/vite preview --host 127.0.0.1 --port 5240 --strictPort > /tmp/solo-preview.log 2>&1 &
+      - name: Verify classes, bestiary, saved progress and live boss sprites
+        run: |
+          export CHROME="$(node --input-type=module -e "import {chromium} from 'playwright-core'; process.stdout.write(chromium.executablePath())")"
+          node --import tsx e2e/adventurer-bestiary.mjs http://127.0.0.1:5240/ /tmp/adventurer-bestiary/gameplay
+          node e2e/person-actions-gameplay.mjs http://127.0.0.1:5240/ /tmp/adventurer-bestiary/actions
+          node --import tsx e2e/boss-gameplay.mjs http://127.0.0.1:5240/ /tmp/adventurer-bestiary/bosses
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: adventurer-bestiary
+          path: /tmp/adventurer-bestiary/

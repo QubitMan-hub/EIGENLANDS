@@ -160,6 +160,8 @@ export interface WelcomeMsg {
 
 /** Private per-player data. Every field is optional: the server sends only what changed (the first PROFILE is complete). */
 export interface ProfileMsg {
+  /** Server-recorded, line-of-sight creature discoveries. */
+  bestiary?: string[];
   needs?: TravelNeeds;
   inv?: Slot[];
   coins?: number;
@@ -461,6 +463,8 @@ export interface PanelMsg {
   /** a waystone, realm gate or ferry post: where it can take you */
   travel?: import('./travel').TravelPanel;
   guild?: {
+    day?: number;
+    hall?: string;
     rank: import('./guild').GuildRank | null;
     generation?: number;
     name: string;

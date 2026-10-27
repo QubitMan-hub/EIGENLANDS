@@ -1,3 +1,4 @@
+import { ANCIENT_RITES } from './bestiary';
 /**
  * Item catalog and pure inventory operations. Shared by server (authority) and client (UI, tooltips).
  * Unique crafted items (forged weapons, rings, superposed seeds) carry per-stack `p` properties.
@@ -1253,4 +1254,34 @@ def(
 for (const d of catalogItems()) {
   if (I[d.id]) throw new Error(`catalog item ${d.id} duplicates a built-in item`);
   I[d.id] = d;
+}
+
+// Legendary rites share real crafting and inventory rules; no new currency/save system.
+def(
+  'wild_essence',
+  'Wild Essence',
+  'misc',
+  90,
+  'orb',
+  C.g3,
+  C.q6,
+  'Rare creature essence used to prepare ancient rites.',
+  { stack: 99, rarity: 3 },
+);
+for (const [i, r] of ANCIENT_RITES.entries()) {
+  def(
+    r.item,
+    `${r.name.split(',')[0]} Rite`,
+    'misc',
+    800 + i * 200,
+    'orb',
+    C.q2,
+    C.e6,
+    `Calls ${r.name} in ${r.where === 'sea' ? 'deep open water from a boat' : r.where === 'cave' ? 'a surveyed Undercroft arena' : `the ${r.where} wilds`}. Level ${r.level}; bring a party.`,
+    { special: 'summon', stack: 5, rarity: 4 },
+  );
+  def(r.trophy, `${r.name.split(',')[0]} Relic`, 'misc', 1200 + i * 300, 'orb', C.e3, C.e7, r.loot, {
+    stack: 20,
+    rarity: 5,
+  });
 }

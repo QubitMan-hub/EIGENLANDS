@@ -1,3 +1,4 @@
+import { furnishGuildHall } from './guild-halls';
 import type { Town, TownObject, Building } from './town';
 import { T, isSolid } from './tiles';
 import { propFootprint, objSolid } from './objects';
@@ -26,6 +27,7 @@ const key = (x: number, y: number) => `${x},${y}`;
 const contains = (b: Building, x: number, y: number) => x > b.x && y > b.y && x < b.x + b.w - 1 && y < b.y + b.h - 1;
 /** Final, deterministic dressing pass over generated furnishing only. No terrain sampling, player edits or random fill. */
 export function cozyTown(t: Town): Town {
+  furnishGuildHall(t);
   const w = t.x1 - t.x0 + 1,
     tile = (x: number, y: number) => t.tiles.get(x - t.x0 + (y - t.y0) * w) ?? T.GRASS;
   const at = new Map(t.objects.map((o) => [key(o.x, o.y), o])),

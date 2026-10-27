@@ -216,7 +216,7 @@ export async function useConstruction(
     const stack = p.data.inv[msg.slot]!;
     if (--stack.n <= 0) p.data.inv[msg.slot] = null;
     p.dirty('inv');
-    room.fx({ kind: 'place', x: x + 0.5, y: y + 0.5 });
+    room.fx({ kind: 'place', x: x + 0.5, y: y + 0.5, id: p.id });
   } finally {
     pending.delete(p);
   }

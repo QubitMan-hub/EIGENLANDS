@@ -119,7 +119,7 @@ export class MockServer {
           qubits: this.p.qubits,
           gates: this.p.gates,
           runes: this.p.runes,
-          allowed: allowedAbilities(this.p.cls, this.p.second),
+          allowed: allowedAbilities(this.p.cls, this.p.second, this.p.spec),
         });
         if (err) {
           this.c.toast(err);
@@ -292,6 +292,12 @@ export class MockServer {
         }
         break;
       }
+      case 'strike':
+        this.spawn({ kind: SPELL.STRIKE, x: me.x, y: me.y, hue, r: f.radius ?? 2.5, dx, dy }, 400);
+        break;
+      case 'party_heal':
+      case 'party_ward':
+      case 'summon':
       case 'ring':
       case 'pulse_dmg':
       case 'pulse_heal':

@@ -24,6 +24,7 @@ import {
   DASH_COOLDOWN,
   ELITE,
   ENEMY_BY_KIND,
+  BOSS_BY_KIND,
   LEAP_RADIUS,
   PALETTE,
   PLAYER_RADIUS,
@@ -149,6 +150,7 @@ export class CombatView {
   private wasCharging = false;
   /** last D4 facing per drawn creature (hysteresis) */
   private dirs = new WeakMap<CombatActor, number>();
+  private nights = new WeakMap<CombatActor, boolean>();
   private swings = new WeakMap<CombatActor, { at: number; duration: number }>();
   private states = new WeakMap<CombatActor, { st: number; at: number }>();
 
@@ -160,7 +162,12 @@ export class CombatView {
   }
 
   private strike(v: CombatActor | undefined, duration: number): void {
-    if (v) this.swings.set(v, { at: performance.now(), duration });
+    if (!v) return;
+    const now = performance.now(),
+      active = this.swings.get(v);
+    // Multi-orb fans and chained ground impacts share one weighted strike/recovery, not a twitch per projectile.
+    if (BOSS_BY_KIND[v.kind] && active && now < active.at + active.duration) return;
+    this.swings.set(v, { at: now, duration });
   }
   killedBy = '';
 
@@ -353,10 +360,13 @@ export class CombatView {
         this.d.sound('crash', f.x, f.y);
         if (near()) fx.kick(shakeFor(2, false, this.d.reduced()));
         return true;
-      case 'orb':
+      case 'orb': {
+        const actor = f.id ? view(f.id) : undefined;
+        if (actor && BOSS_BY_KIND[actor.kind]) this.strike(actor, 450);
         fx.burst(f.x, f.y, [45, 46, 37], 6);
         this.d.sound('orb', f.x, f.y);
         return true;
+      }
       case 'reflect':
         fx.ring(f.x, f.y, 47, 0.8, 0.25, 2);
         fx.burst(f.x, f.y, [47, 30, 7], 8);
@@ -372,11 +382,14 @@ export class CombatView {
         }
         this.d.sound(f.v === 0 ? 'charge' : 'perfect', f.x, f.y);
         return true;
-      case 'blast':
+      case 'blast': {
+        const actor = f.id ? view(f.id) : undefined;
+        if (actor && BOSS_BY_KIND[actor.kind]) this.strike(actor, 450);
         fx.shockwave(f.x, f.y, f.v ?? 1.8, 36);
         this.d.sound('blast', f.x, f.y);
         if (near(8)) fx.kick(shakeFor(2, false, this.d.reduced()));
         return true;
+      }
       case 'bomb':
         this.bombs.push({ x: f.x, y: f.y, r: f.w ?? 1.7, t0: performance.now(), dur: (f.v ?? 0.9) * 1000 });
         this.d.sound('bomb', f.x, f.y);
@@ -413,10 +426,17 @@ export class CombatView {
         }
         return true;
       case 'die':
-        if (f.v === 33) {
+        if (f.v !== undefined && BOSS_BY_KIND[f.v]) {
           const actor = f.id ? view(f.id) : undefined,
-            dir = actor ? Math.floor(actor.sprite.texture.frame.y / STORM_SIZE) : 0;
-          fx.remains(this.d.critters().stormbound.frame(dir, 'death', 0), f.x, f.y, STORM_FOOT / STORM_SIZE);
+            foes = this.d.foes();
+          const corpse = foes.frame(
+            f.v,
+            actor ? (this.nights.get(actor) ?? false) : false,
+            actor ? (this.dirs.get(actor) ?? 0) : 0,
+            'death',
+            0,
+          );
+          if (corpse !== Texture.EMPTY) fx.remains(corpse, f.x, f.y, foes.anchor(f.v));
         }
         if (f.by !== undefined && f.id === this.d.myId()) this.killedBy = ENEMY_BY_KIND[Number(f.by)]?.name ?? '';
         fx.burst(f.x, f.y, [28, 29, 45, 6], 14);
@@ -743,6 +763,7 @@ export class CombatView {
     const kind = s?.kind ?? v.kind,
       night = !!s?.night || (isShadow && !bonded);
     v.kind = kind;
+    this.nights.set(v, night);
     const st = s?.st ?? 0;
     const t = now / 1000;
     let state = this.states.get(v);
@@ -755,15 +776,16 @@ export class CombatView {
     const def = ENEMY_BY_KIND[kind];
     const fsx = screenDir(fx, s?.faceY ?? 1).x;
     let flip = false;
-    const isCritter = kind === 3 || (kind >= 7 && kind <= 11 && kind !== 10);
+    const authoredBoss = !!BOSS_BY_KIND[kind];
+    const isCritter = kind === 3 || (kind >= 7 && kind <= 9);
     if (!isCritter && v.sprite.anchor.y !== 1) {
       v.sprite.anchor.set(0.5, 1);
       v.fl.anchor.set(0.5, 1);
     }
-    // the drawn creatures (slime, hopper, rabbit, wisp, brute, mite; slime king and colossus reuse their models):
+    // Authored bosses retain their own atlas, proportions and palette; ordinary creatures keep their existing rigs.
     // four iso facings with hysteresis, never mirrored, so the key light stays top-left
-    const model = kind === 10 ? 0 : kind === 12 ? 5 : kind;
-    const drawn = (model <= 6 && model !== 3) || model >= 15;
+    const model = kind;
+    const drawn = authoredBoss || (model <= 6 && model !== 3) || model >= 15;
     const hired = isShadow && kind === 21;
     if (hired) {
       const sd = screenDir(fx, s?.faceY ?? 1),
@@ -788,7 +810,7 @@ export class CombatView {
         v.held.y = 0;
         v.root.setChildIndex(v.held, dir === 1 || dir >= 6 ? 1 : v.root.children.length - 1);
       }
-    } else if (kind === 33) {
+    } else if (kind === 33 && !authoredBoss) {
       const sd = screenDir(fx, s?.faceY ?? 1),
         dir = dir4(sd.x, sd.y, this.dirs.get(v) ?? D4_SE);
       this.dirs.set(v, dir);
@@ -817,23 +839,29 @@ export class CombatView {
       let anim: Anim = 'idle',
         f: number;
       const n = (a: Anim) => foes.frames(model, a);
+      const impact = authoredBoss ? this.attackFrame(v, now, this.d.reduced()) : -1;
       if (st === 5 || v.flash > 0.55) {
         anim = 'hurt';
         f = Math.min(n('hurt') - 1, Math.floor(elapsed * 12));
       } else if (st === 2) {
         anim = 'windup';
         f = Math.min(n('windup') - 1, Math.floor(tele0 * n('windup')));
-      } else if (st === 3) {
+      } else if (st === 3 || impact >= 0) {
         anim = 'attack';
-        f = Math.min(n('attack') - 1, Math.floor(elapsed * 12));
+        f =
+          impact >= 0
+            ? this.d.reduced()
+              ? 0
+              : Math.min(n('attack') - 1, Math.floor((impact * n('attack')) / 4))
+            : Math.min(n('attack') - 1, Math.floor(elapsed * (authoredBoss ? 4.5 : 12)));
       } else if (moved) {
         anim = 'move';
-        const stride = model >= 15 ? 0.18 : MOVE_STRIDE[model];
+        const stride = authoredBoss ? 0.48 : model >= 15 ? 0.18 : MOVE_STRIDE[model];
         f = stride ? Math.floor(v.travel / stride) : Math.floor(t * (model === 6 ? 14 : 8) + v.outfit);
       } else f = Math.floor(t * (model === 6 ? 6 : 5) + v.outfit * 1.7);
       if (this.d.reduced()) f = anim === 'move' || anim === 'idle' ? 0 : Math.min(f, 1);
-      v.sprite.texture = foes.frame(model, night || kind === 12, dir, anim, f);
-      if (model >= 15) {
+      v.sprite.texture = foes.frame(model, night, dir, anim, f);
+      if (authoredBoss || model >= 15) {
         v.sprite.anchor.set(0.5, foes.anchor(model));
         v.fl.anchor.copyFrom(v.sprite.anchor);
       }
@@ -859,17 +887,15 @@ export class CombatView {
     v.flash *= Math.exp(-dt * 22);
     const reduced = this.d.reduced();
     const tele = st === 2 ? Math.min(1, (s?.tele ?? 0) / 100) : 0;
-    const big =
-      (kind === 5 ? 1.25 : kind === 10 ? 3.4 : kind === 11 ? 2.4 : kind === 12 ? 2.4 : 1) *
-      (s && s.elite & ELITE.HARDENED ? 1.2 : 1);
+    const big = (kind === 5 ? 1.25 : 1) * (s && s.elite & ELITE.HARDENED ? 1.2 : 1);
     let sx = 1 + 0.28 * v.punch - 0.06 * tele,
       sy = 1 - 0.22 * v.punch + 0.12 * tele;
-    if (reduced) {
+    if (reduced || authoredBoss) {
       sx = 1;
       sy = 1;
     }
     v.sprite.scale.set(sx * big * (flip ? -1 : 1), sy * big);
-    v.sprite.rotation = st === 5 && !reduced ? Math.sin(t * 22) * 0.12 : 0;
+    v.sprite.rotation = st === 5 && !reduced && !authoredBoss ? Math.sin(t * 22) * 0.12 : 0;
     v.sprite.x = st === 2 && !reduced && tele > 0.6 ? Math.round(Math.sin(t * 60) * tele) : 0; // shiver before the hit
     v.fl.texture = v.sprite.texture;
     v.fl.scale.copyFrom(v.sprite.scale);
@@ -885,7 +911,7 @@ export class CombatView {
         ? 0
         : Math.min(1, Math.max(v.flash * 1.4, reduced ? 0.25 : 0.28 + 0.14 * Math.sin(t * 3 + v.outfit)));
     } else {
-      v.sprite.tint = kind === 10 ? 0xb8ffc8 : kind === 12 ? 0xb8a0ff : kind === 11 ? 0xe0b090 : 0xffffff;
+      v.sprite.tint = 0xffffff;
       v.sprite.alpha = 1;
       v.fl.tint = 0xffffff;
       v.fl.alpha = Math.min(1, v.flash * 1.4);
@@ -905,10 +931,12 @@ export class CombatView {
       g.ellipse(
         0,
         0,
-        7 *
-          (kind === 5 ? 1.5 : kind === 6 ? 0.6 : kind === 7 ? 1.3 : kind === 8 ? 1.1 : kind === 9 ? 0.8 : 1) *
-          (big > 1.4 ? big * 0.75 : 1),
-        3 * (big > 1.4 ? big * 0.6 : 1),
+        authoredBoss
+          ? foes.shadow(kind)[0]
+          : 7 *
+              (kind === 5 ? 1.5 : kind === 6 ? 0.6 : kind === 7 ? 1.3 : kind === 8 ? 1.1 : kind === 9 ? 0.8 : 1) *
+              (big > 1.4 ? big * 0.75 : 1),
+        authoredBoss ? foes.shadow(kind)[1] : 3 * (big > 1.4 ? big * 0.6 : 1),
       ).fill({ color: 0x2a1060, alpha: 0.28 });
     if (s && s.elite) {
       const col = s.elite & ELITE.VOLATILE ? 36 : s.elite & ELITE.SWIFT ? 29 : 6;
