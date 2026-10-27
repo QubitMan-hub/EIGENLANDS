@@ -17,7 +17,14 @@ import {
   type WildFolk,
 } from '@eigenlands/shared';
 import { ATTACK_FRAME, COSMETIC_OUTFITS, WALK_FRAMES, dirOf } from '../../art/actors';
-import { livestockTexture } from '../../art/livestock';
+import {
+  LIVESTOCK_AX,
+  LIVESTOCK_AY,
+  LIVESTOCK_H,
+  LIVESTOCK_W,
+  livestockTexture,
+  saddledTexture,
+} from '../../art/livestock';
 import { handcartSprite, lanternGlow, stoolSprite } from '../../art/roadlife';
 import { dir4 } from '../../art/sprite';
 import { depth, isoX, isoY, screenDir } from '../../game/iso';
@@ -270,22 +277,23 @@ export class RoadLife {
           break;
         }
         case 'horse':
-          m.sp.anchor.set(0.5, 49 / 52);
-          m.sp.anchor.set(0.5, 49 / 56); // livestock canvases are 48×56, standing at (24, 49)
-          m.sp.texture = livestockTexture(
+          m.sp.anchor.set(LIVESTOCK_AX / LIVESTOCK_W, LIVESTOCK_AY / LIVESTOCK_H);
+          m.sp.texture = saddledTexture(
             'horse',
             reduced ? 0 : 2 + (Math.floor(v.travel / 0.3) % 2),
             facing4(p.fx, p.fy),
-          );
+          ).body;
           break;
-        case 'rider':
+        case 'rider': {
+          const seat = saddledTexture('horse', 0, facing4(p.fx, p.fy)).seat;
           m.sp.texture = seated(sheets.person(look, dir, 0));
-          m.sp.y -= 13;
+          m.sp.x += Math.round(seat.x);
+          m.sp.y += Math.round(seat.y);
           m.sp.zIndex += 1;
           break;
+        }
         case 'sheep':
-          m.sp.anchor.set(0.5, 49 / 52);
-          m.sp.anchor.set(0.5, 49 / 56); // livestock canvases are 48×56, standing at (24, 49)
+          m.sp.anchor.set(LIVESTOCK_AX / LIVESTOCK_W, LIVESTOCK_AY / LIVESTOCK_H);
           m.sp.texture = livestockTexture(
             'sheep',
             reduced ? 0 : 2 + (Math.floor((v.travel + i * 0.4) / 0.25) % 2),

@@ -14,3 +14,4 @@ coverage
 
 # Deployment snapshots contain private player data.
 *.dump
+e2e/.scratch/

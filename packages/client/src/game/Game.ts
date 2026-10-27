@@ -1,6 +1,6 @@
 import { actionPose, actionFrame, meleeAction, meleeFrame, type PersonAction } from '../art/person-actions';
 import { FLY_Z, SADDLE_Z } from '../art/mounts';
-import { livestockTexture } from '../art/livestock';
+import { LIVESTOCK_AX, LIVESTOCK_AY, LIVESTOCK_H, LIVESTOCK_W, livestockTexture } from '../art/livestock';
 import { isLivestock } from '@eigenlands/shared';
 import { FrameRateWindow } from './frame-rate';
 import { Soundscape } from './soundscape';
@@ -2000,8 +2000,8 @@ export class Game {
             walking && !reduced ? 2 + (Math.floor(v.travel / 0.22) % 2) : 0,
             Math.abs(fx) >= Math.abs(fy) ? (fx < 0 ? 2 : 0) : fy < 0 ? 3 : 1,
           );
-          v.sprite.anchor.set(24 / 48, 49 / 56);
-          v.sprite.scale.set(s?.young ? 0.62 : 0.9);
+          v.sprite.anchor.set(LIVESTOCK_AX / LIVESTOCK_W, LIVESTOCK_AY / LIVESTOCK_H);
+          v.sprite.scale.set(s?.young ? 0.62 : 1);
         } else
           v.sprite.texture = this.sheets.npc(
             NPC_BY_ID[v.id] ? v.id : ['odo', 'orla', 'juniper', 'tobin', 'fenwick'][Math.abs(s?.look ?? 0) % 5]!,

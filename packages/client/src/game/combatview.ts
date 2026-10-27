@@ -1,4 +1,4 @@
-import { livestockTexture } from '../art/livestock';
+import { LIVESTOCK_AX, LIVESTOCK_AY, LIVESTOCK_H, LIVESTOCK_W, saddledTexture } from '../art/livestock';
 import { minecartSprite } from '../art/mining';
 import { FLY_Z, MOUNT_FRAMES, SADDLE_Z, mountDir, mountSprite } from '../art/mounts';
 import { Rectangle, Texture } from 'pixi.js';
@@ -77,6 +77,8 @@ export interface CombatActor {
   cartSprite?: Sprite;
   /** horse or Stag under a riding player */
   mountSprite?: Sprite;
+  /** the horse's neck and head when they come toward the camera: drawn over the rider */
+  mountFront?: Sprite;
 }
 
 /** Synced fields combat reads from interpolated snapshots. */
@@ -715,7 +717,9 @@ export class CombatView {
       if (v.mountSprite?.visible) {
         v.mountSprite.visible = false;
         v.mountSprite.y = 0;
+        v.sprite.x = 0;
       }
+      if (v.mountFront) v.mountFront.visible = false;
       return;
     }
     if (!v.mountSprite) {
@@ -731,17 +735,17 @@ export class CombatView {
       : moving
         ? 1 + (Math.floor(travel / 0.32) % (MOUNT_FRAMES - 1))
         : 0;
-    // horses (whistle or ranch) and the ranch Glimmerhart use the authored livestock art; the Stag and griffin their own
-    const texture =
+    // horses (whistle or ranch) and the ranch Glimmerhart are the saddled livestock models; the Stag and griffin their own
+    const saddled =
       mk === 'stag' || mk === 'griffin'
         ? null
-        : livestockTexture(
+        : saddledTexture(
             mk === null ? 'phasehart' : 'horse',
             moving && !reduced ? 2 + (Math.floor(travel / 0.22) % 2) : 0,
             Math.abs(fx) >= Math.abs(fy) ? (fx < 0 ? 2 : 0) : fy < 0 ? 3 : 1,
           );
-    const art = texture
-      ? { tex: texture, ax: 24, ay: 49 }
+    const art = saddled
+      ? { tex: saddled.body, ax: LIVESTOCK_AX, ay: LIVESTOCK_AY }
       : mountSprite(mk ?? 'stag', mountDir(fx, fy), reduced && !flying ? 0 : frame);
     v.mountSprite.texture = art.tex;
     v.mountSprite.anchor.set(art.ax / art.tex.width, art.ay / art.tex.height);
@@ -750,8 +754,19 @@ export class CombatView {
     const lift = flying ? FLY_Z + (reduced ? 0 : Math.round(Math.sin(now * 2.4) * 1.5)) : 0;
     v.mountSprite.y = -lift;
     const bob = !flying && moving && !reduced ? [0, 1, 0, 0][frame - 1]! : 0;
-    v.sprite.y = -SADDLE_Z - bob - lift;
+    // a horse rider sits in the saddle itself (which moves with the horse's heading); the Stag and griffin keep theirs
+    v.sprite.x = saddled ? Math.round(saddled.seat.x) : 0;
+    v.sprite.y = (saddled ? Math.round(saddled.seat.y) : -SADDLE_Z) - bob - lift;
     v.fl.y = v.sprite.y;
+    if (saddled?.front) {
+      if (!v.mountFront) v.mountFront = new Sprite();
+      if (v.mountFront.parent !== v.root || v.root.getChildIndex(v.mountFront) < v.root.getChildIndex(v.sprite))
+        v.root.addChildAt(v.mountFront, v.root.getChildIndex(v.sprite) + 1);
+      v.mountFront.texture = saddled.front;
+      v.mountFront.anchor.set(LIVESTOCK_AX / LIVESTOCK_W, LIVESTOCK_AY / LIVESTOCK_H);
+      v.mountFront.y = -lift;
+      v.mountFront.visible = true;
+    } else if (v.mountFront) v.mountFront.visible = false;
   }
 
   /** Enemy sprite, animation, flash, squash/stretch, stagger, elite aura, bars and its telegraph. */

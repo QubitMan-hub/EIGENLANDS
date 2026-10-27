@@ -3,8 +3,7 @@ import { DELVER_MERCHANTS, NPCS as VILLAGE_NPCS, REALMFOLK, realmNpcs } from '@e
 
 const NPCS = [...VILLAGE_NPCS, ...DELVER_MERCHANTS, ...realmNpcs(), ...REALMFOLK];
 import { actionPose } from './person-actions';
-import { paintPerson } from './person-model';
-import { paintNpc } from './npc-model';
+import { paintVoxelPerson } from './voxel-person';
 import { appearanceOf, outfitFromAppearance } from './appearance';
 import {
   blob,
@@ -38,8 +37,9 @@ export const DIR_DOWN_LEFT = 4,
 export const WALK_FRAMES = 9;
 export const PERSON_W = 32;
 export const PERSON_H = 48;
-export const NPC_W = 24,
-  NPC_H = 32;
+/** residents share the players' voxel body and cell (they were 24 × 32 before the voxel rework) */
+export const NPC_W = 32,
+  NPC_H = 48;
 export const ATTACK_FRAME = 10,
   ATTACK_FRAMES = 4;
 export const RUN_FRAME = 14,
@@ -764,7 +764,7 @@ export function personGrip(dir: number, frame: number): { x: number; y: number; 
   return { x: Math.max(6, Math.min(PERSON_W - 6, p.x * 1.25 + 0.375)), y: p.y * 1.5, angle: p.angle };
 }
 function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, _seed: number): void {
-  paintPerson(ctx, dir, frame, o, personGrip(dir, frame));
+  paintVoxelPerson(ctx, dir, frame, o, personGrip(dir, frame));
 }
 
 const FUR: Ramp = [C.e1, C.e2, C.e3, C.e4, C.e5, C.e6];
@@ -938,7 +938,8 @@ function polished(buf: PixBuf): void {
 function personSheet(looks: Outfit[], seedBase: number, cols = COLS, npc = false): HTMLCanvasElement {
   const w = npc ? NPC_W : PERSON_W,
     h = npc ? NPC_H : PERSON_H;
-  const painter = npc ? paintNpc : drawPerson;
+  const painter = drawPerson;
+  void npc;
   const { canvas, ctx } = makeCanvas(w * cols, looks.length * 8 * h);
   looks.forEach((o, i) => {
     for (let d = 0; d < 8; d++)
@@ -1212,7 +1213,7 @@ export function renderPersonCanvas(o: Outfit, dir: number, frame: number): HTMLC
 export function renderNpcCanvas(o: Outfit, dir: number, frame: number): HTMLCanvasElement {
   const { canvas, ctx } = makeCanvas(NPC_W, NPC_H);
   const buf = new PixBuf(NPC_W, NPC_H);
-  undithered(() => paintNpc(buf.ctx, dir, frame, o, 1 + dir * 13));
+  undithered(() => drawPerson(buf.ctx, dir, frame, o, 1 + dir * 13));
   polished(buf);
   buf.blit(ctx, 0, 0);
   return canvas;
