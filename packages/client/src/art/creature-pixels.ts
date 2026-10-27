@@ -23,26 +23,30 @@ export function paletteColor(rgb: number): number {
   return best;
 }
 
-/** Selective inner contour: shaded right/lower edges, no swollen silhouette or filled leg gaps. */
+/**
+ * The shared creature outline: one dark pixel all the way around the silhouette, as on the people (art/body) and the
+ * reference animals — legs, ears and tails stay separated by it. `eligible` limits which body pixels may carry one
+ * (glows and flat overlays do not). Darker ink already on the edge is kept.
+ */
 export function contour(data: Uint8ClampedArray, w: number, h: number, eligible?: (pixel: number) => boolean): void {
   const solid = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && data[(y * w + x) * 4 + 3]! >= 128;
+  const ok = (x: number, y: number) => solid(x, y) && (!eligible || eligible(y * w + x));
+  const ink = ART_RGB.night;
   const marks: number[] = [];
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
-      const i = y * w + x;
-      if (!solid(x, y) || (eligible && !eligible(i))) continue;
-      if ((!solid(x + 1, y) && solid(x - 1, y)) || (!solid(x, y + 1) && solid(x, y - 1))) marks.push(i * 4);
+      if (solid(x, y)) continue;
+      if (ok(x - 1, y) || ok(x + 1, y) || ok(x, y - 1) || ok(x, y + 1)) marks.push((y * w + x) * 4);
     }
+  // a frame's own border has no room outside: the silhouette's last pixel takes the line there
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++)
+      if ((x === 0 || y === 0 || x === w - 1 || y === h - 1) && ok(x, y)) marks.push((y * w + x) * 4);
   for (const i of marks) {
-    // Preserve darker ink details instead of lightening them into an inverted rim.
-    if (
-      2 * data[i]! + 4 * data[i + 1]! + data[i + 2]! <=
-      2 * ((ART_RGB.night >> 16) & 255) + 4 * ((ART_RGB.night >> 8) & 255) + (ART_RGB.night & 255)
-    )
-      continue;
-    data[i] = (ART_RGB.night >> 16) & 255;
-    data[i + 1] = (ART_RGB.night >> 8) & 255;
-    data[i + 2] = ART_RGB.night & 255;
+    data[i] = (ink >> 16) & 255;
+    data[i + 1] = (ink >> 8) & 255;
+    data[i + 2] = ink & 255;
+    data[i + 3] = 255;
   }
 }
 

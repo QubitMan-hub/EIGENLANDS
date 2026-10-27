@@ -5,6 +5,7 @@
 import { C, DEFAULT_APPEARANCE, unpackAppearance, type Appearance } from '@eigenlands/shared';
 import type { Ramp } from './shade';
 import type { DressStyle, HairStyle, Outfit } from './actors';
+import { CUTS } from './body/headwear';
 
 const r = (a: number[]) => a as Ramp;
 
@@ -95,6 +96,8 @@ export function outfitFromAppearance(base: Outfit, a: Appearance, wearOwnDress: 
     longHair: undefined,
     eyes: EYE_COLORS[a.eyes]!,
     trim: TRIM_COLORS[a.trim]!,
+    body: a.body ? 'female' : 'male',
+    cut: a.cut ? CUTS[a.cut - 1] : undefined,
   };
   if (!wearOwnDress) return o;
   const dress = DRESS_STYLES[a.dress];

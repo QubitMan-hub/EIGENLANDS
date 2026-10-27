@@ -13,7 +13,7 @@ import {
   outfitFromAppearance,
 } from '../src/art/appearance';
 
-const base = { skin: 2, hairStyle: 6, hairColor: 5, eyes: 4, dress: 4, dressColor: 7, trim: 2 };
+const base = { skin: 2, hairStyle: 6, hairColor: 5, eyes: 4, dress: 4, dressColor: 7, trim: 2, body: 1, cut: 0 };
 
 describe('appearance art mapping', () => {
   it('has a ramp, style or colour for every shared index', () => {
@@ -31,6 +31,14 @@ describe('appearance art mapping', () => {
     expect(o.mantle).toBe(DRESS_RAMPS[7]);
     expect(o.hairStyle).toBe('spiky');
     expect(o.skin).toBe(SKIN_RAMPS[2]);
+    expect(o.body).toBe('female');
+    expect(o.cut).toBeUndefined();
+  });
+
+  it('wears the chosen haircut of the modular system over the older style', () => {
+    const o = outfitFromAppearance(OUTFITS[0]!, { ...base, body: 0, cut: 10 }, true);
+    expect(o.body).toBe('male');
+    expect(o.cut).toBe('afro');
   });
 
   it('keeps worn outfits and armour but still applies skin, hair and eyes', () => {

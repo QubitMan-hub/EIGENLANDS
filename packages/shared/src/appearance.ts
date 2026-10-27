@@ -12,6 +12,10 @@ export const APPEARANCE_COUNTS = {
   dress: 6,
   dressColor: 12,
   trim: 6,
+  /** base body: 0 the men's, 1 the women's reference body */
+  body: 2,
+  /** haircut (0 = follow `hairStyle`; 1.. = HAIRCUT_NAMES[n - 1]) */
+  cut: 30,
 } as const;
 
 export type AppearanceField = keyof typeof APPEARANCE_COUNTS;
@@ -23,6 +27,8 @@ export interface Appearance {
   dress: number;
   dressColor: number;
   trim: number;
+  body: number;
+  cut: number;
 }
 
 /** Field order and bit widths of the packed value (bit 24 marks "chosen"). */
@@ -36,6 +42,11 @@ const LAYOUT: ReadonlyArray<[AppearanceField, number]> = [
   ['trim', 3],
 ];
 const CHOSEN = 1 << 24;
+/** fields added after the first layout live above the "chosen" bit, so every value stored before decodes unchanged */
+const EXTRA: ReadonlyArray<[AppearanceField, number, number]> = [
+  ['body', 25, 1],
+  ['cut', 26, 5],
+];
 
 export const HAIR_STYLE_NAMES = [
   'Short',
@@ -79,6 +90,39 @@ export const DRESS_COLOR_NAMES = [
   'Leather',
   'Midnight',
 ] as const;
+export const BODY_NAMES = ['Masculine', 'Feminine'] as const;
+/** the haircuts of the modular character system (client art/body/headwear.ts CUTS, same order) */
+export const HAIRCUT_NAMES = [
+  'Short',
+  'Buzz',
+  'Crop',
+  'Side part',
+  'Swept',
+  'Quiff',
+  'Spiky',
+  'Messy',
+  'Curly',
+  'Afro',
+  'Mohawk',
+  'Bob',
+  'Shoulder',
+  'Long',
+  'Long waves',
+  'Ponytail',
+  'High ponytail',
+  'Bun',
+  'Top knot',
+  'Braids',
+  'Back braid',
+  'Twin tails',
+  'Twin buns',
+  'Undercut',
+  'Mullet',
+  'Fringe',
+  'Pixie',
+  'Receding',
+  'Shaved',
+] as const;
 export const TRIM_NAMES = ['Bronze', 'Silver', 'Gold', 'Crimson', 'Teal', 'Bone'] as const;
 
 const clampIndex = (v: unknown, count: number): number =>
@@ -91,6 +135,7 @@ export function packAppearance(a: Appearance): number {
     out |= clampIndex(a[k], APPEARANCE_COUNTS[k]) << shift;
     shift += bits;
   }
+  for (const [k, at] of EXTRA) out |= clampIndex(a[k], APPEARANCE_COUNTS[k]) << at;
   return out >>> 0;
 }
 
@@ -103,6 +148,7 @@ export function unpackAppearance(v: unknown): Appearance | null {
     out[k] = clampIndex((v >>> shift) & ((1 << bits) - 1), APPEARANCE_COUNTS[k]);
     shift += bits;
   }
+  for (const [k, at, bits] of EXTRA) out[k] = clampIndex((v >>> at) & ((1 << bits) - 1), APPEARANCE_COUNTS[k]);
   return out;
 }
 
@@ -122,6 +168,8 @@ export function randomAppearance(rand: () => number): Appearance {
     dress: pick(APPEARANCE_COUNTS.dress),
     dressColor: pick(APPEARANCE_COUNTS.dressColor),
     trim: pick(APPEARANCE_COUNTS.trim),
+    body: pick(APPEARANCE_COUNTS.body),
+    cut: 1 + pick(APPEARANCE_COUNTS.cut - 1),
   };
 }
 
@@ -133,4 +181,6 @@ export const DEFAULT_APPEARANCE: Appearance = {
   dress: 0,
   dressColor: 0,
   trim: 0,
+  body: 0,
+  cut: 0,
 };

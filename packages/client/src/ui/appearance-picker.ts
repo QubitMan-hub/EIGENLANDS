@@ -1,6 +1,8 @@
 /** Character creation / wardrobe: live isometric-pixel preview plus swatches for every appearance choice. */
 import {
   APPEARANCE_COUNTS,
+  BODY_NAMES,
+  HAIRCUT_NAMES,
   DRESS_COLOR_NAMES,
   DRESS_NAMES,
   EYE_NAMES,
@@ -59,8 +61,11 @@ interface Row {
 }
 
 const ROWS: Row[] = [
+  { field: 'body', label: 'Body', names: BODY_NAMES },
   { field: 'skin', label: 'Skin', names: SKIN_NAMES, swatch: (i) => hex(SKIN_RAMPS[i]![2]!) },
-  { field: 'hairStyle', label: 'Hair', names: HAIR_STYLE_NAMES },
+  // 0 keeps the classic style choice; every other entry is a haircut of the modular character system
+  { field: 'cut', label: 'Haircut', names: ['Classic', ...HAIRCUT_NAMES] },
+  { field: 'hairStyle', label: 'Classic hair', names: HAIR_STYLE_NAMES },
   { field: 'hairColor', label: 'Hair colour', names: HAIR_COLOR_NAMES, swatch: (i) => hex(HAIR_RAMPS[i]![3]!) },
   { field: 'eyes', label: 'Eyes', names: EYE_NAMES, swatch: (i) => hex(EYE_COLORS[i]!) },
   { field: 'dress', label: 'Dress', names: DRESS_NAMES },

@@ -7,6 +7,8 @@
 import { C, type Ramp } from './shade';
 import { DARKWOOD, STONEM, WOODM, type Facing } from './isokit';
 import { iso } from './props';
+import { paintStatue } from './body/statues';
+import { DIR_DOWN_LEFT, DIR_DOWN_RIGHT } from './actors';
 import type { ObjSprite } from './objects';
 
 const EARTH: Ramp = [C.e0, C.e1, C.e2, C.e3, C.e4];
@@ -520,24 +522,23 @@ function cryptGate(face: Facing): ObjSprite {
   );
 }
 
-/** a hooded stone figure on a plinth, worn by the ages */
+/** a hooded stone figure on a plinth, worn by the ages: life-size, on the shared body (art/body/statues.ts) */
 function cryptStatue(face: Facing): ObjSprite {
   return iso(
     36,
     64,
     face,
-    (p) => {
+    (p, ctx) => {
       p.box(2, 2, 0, 12, 12, 3, { ramp: STONEM });
-      p.box(4, 4, 3, 8, 8, 12, {
-        ramp: [C.slate, C.steel, C.mist, C.fog, C.pale],
-        front: (s, t) => (Math.abs(s - 0.5) < 0.06 && t < 0.8 ? C.steel : null), // the fold of the robe
+      paintStatue(ctx, 'crypt', face === 'sw' ? DIR_DOWN_LEFT : DIR_DOWN_RIGHT, {
+        w: 36,
+        h: 64,
+        ax: Math.round(p.X(8, 8)),
+        ay: Math.round(p.Y(8, 8, 3)),
+        k: 1,
       });
-      p.box(5, 5, 15, 6, 6, 5, { ramp: [C.slate, C.steel, C.mist, C.fog, C.pale] }); // the hooded head
-      p.box(6, 4.6, 16.5, 4, 0.6, 2, { ramp: [C.ink, C.night, C.slate] }); // the shadow under the hood
-      p.dot(7, 4.4, 17.5, C.q5);
-      p.dot(9, 4.4, 17.5, C.q5);
     },
-    { margin: 8 },
+    { margin: 6 },
   );
 }
 

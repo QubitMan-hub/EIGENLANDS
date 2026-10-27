@@ -3,8 +3,10 @@ import { DELVER_MERCHANTS, NPCS as VILLAGE_NPCS, REALMFOLK, realmNpcs } from '@e
 
 const NPCS = [...VILLAGE_NPCS, ...DELVER_MERCHANTS, ...realmNpcs(), ...REALMFOLK];
 import { actionPose } from './person-actions';
-import { paintPerson } from './person-model';
-import { paintNpc } from './npc-model';
+import { paintPersonFrame, polishPerson, personGripOf } from './body';
+import { bodyFromBio, lookOf } from './body/outfit';
+import type { CutId } from './body/headwear';
+import type { BodyType } from './body/skeleton';
 import { appearanceOf, outfitFromAppearance } from './appearance';
 import {
   blob,
@@ -38,8 +40,12 @@ export const DIR_DOWN_LEFT = 4,
 export const WALK_FRAMES = 9;
 export const PERSON_W = 32;
 export const PERSON_H = 48;
-export const NPC_W = 24,
-  NPC_H = 32;
+/** a name label's height above the sprite's base: just over an adult's head (the 1.78 m man is 29 px from the feet at
+ * cell row 45, see art/body/skeleton.ts) */
+export const PERSON_TOP = 36;
+/** residents share the players' bodies and cell (the modular character system, art/body) */
+export const NPC_W = PERSON_W,
+  NPC_H = PERSON_H;
 export const ATTACK_FRAME = 10,
   ATTACK_FRAMES = 4;
 export const RUN_FRAME = 14,
@@ -96,6 +102,10 @@ export interface Outfit {
   mantle?: Ramp;
   /** diagonal chest sash */
   sash?: Ramp;
+  /** base body (art/body); derived from the hair when absent */
+  body?: BodyType;
+  /** haircut of the modular system; derived from `hairStyle` when absent */
+  cut?: CutId;
 }
 
 const SKIN_LIGHT = [C.e3, C.e4, C.e5, C.e6, C.e7] as Ramp;
@@ -683,88 +693,13 @@ Object.assign(NPC_LOOKS, {
 } satisfies Record<string, Outfit>);
 
 // ───────────────────────── people ─────────────────────────
-interface View {
-  turn: number;
-  s: number;
-} // turn 0 front .. 1 profile .. 2 back; s = +1 facing right, -1 left
-const VIEWS: View[] = [
-  { turn: 0, s: 1 }, // DOWN
-  { turn: 2, s: 1 }, // UP
-  { turn: 1, s: -1 }, // LEFT
-  { turn: 1, s: 1 }, // RIGHT
-  { turn: 0.5, s: -1 }, // DOWN_LEFT
-  { turn: 0.5, s: 1 }, // DOWN_RIGHT
-  { turn: 1.5, s: -1 }, // UP_LEFT
-  { turn: 1.5, s: 1 }, // UP_RIGHT
-];
-
-/** Shared near-hand anchor for the body and held equipment; coordinates in the 24×32 frame. */
-function legacyGrip(dir: number, frame: number): { x: number; y: number; angle: number } {
-  const work = actionPose(dir, frame);
-  if (work) return { x: work.x, y: work.y, angle: work.angle };
-  const { s, turn } = VIEWS[dir]!;
-  const profile = turn === 1,
-    three = turn === 0.5 || turn === 1.5,
-    back = turn > 1.2,
-    front = turn < 0.8;
-  const nearK = (back ? s : -s) > 0 ? 1 : 0;
-  const running = frame >= RUN_FRAME && frame < SHOT_FRAME;
-  const moving = (frame >= 1 && frame <= 8) || running;
-  const action =
-    frame >= CAST_FRAME
-      ? frame - CAST_FRAME
-      : frame >= SHOT_FRAME
-        ? frame - SHOT_FRAME
-        : frame >= ATTACK_FRAME && frame < RUN_FRAME
-          ? frame - ATTACK_FRAME
-          : -1;
-  const reach = action >= 0 ? [0.35, 1, 0.65, 0][action]! : 0;
-  const aim = [
-    [0, 1],
-    [0, -1],
-    [-1, 0],
-    [1, 0],
-    [-0.894, 0.447],
-    [0.894, 0.447],
-    [-0.894, -0.447],
-    [0.894, -0.447],
-  ][dir]!;
-  const sw = moving ? Math.sin(((running ? frame - RUN_FRAME : frame - 1) / 8) * Math.PI * 2) * (running ? 1.3 : 1) : 0;
-  const sk = nearK ? sw : -sw;
-  const top = moving ? (Math.abs(sw) < 0.5 ? -1 : 0) : action >= 0 ? -reach * 0.7 : frame === 9 ? 0.6 : 0;
-  const sy = 14.3 + top;
-  const lean = (profile ? 0.6 : three ? 0.3 : 0) * s * (running ? 2 : moving ? 1 : 0.5) + aim[0]! * reach;
-  const sx = profile ? 12.5 + lean * 0.8 : 12.5 + (nearK ? 1 : -1) * ((three ? 4 : 4.5) - 0.7) + lean;
-  let x = profile
-    ? sx + (sk * 2.8 + Math.max(0, sk) * 0.8) * s
-    : sx + (nearK ? 0.9 : -0.9) + (three ? sk * 1.6 * s : 0);
-  let y = profile
-    ? sy + 7 - Math.abs(sk) * 0.9 - Math.max(0, sk) * 0.6
-    : sy + 7 + (front ? sk : back ? -sk : sk * 0.7) * 1.1;
-  if (action >= 0) {
-    x = sx + aim[0]! * (2 + reach * 5);
-    y = sy + 3 + aim[1]! * reach * 4;
-  }
-  const aimAngle = Math.atan2(aim[1]!, aim[0]!);
-  // Crossbow points along aim; a blade cuts across it, a staff returns upright after release.
-  let angle = action >= 0 ? aimAngle + [-0.8, -0.1, 0.45, -0.7][action]! : -1.1 + sw * 0.15;
-  if (frame >= CAST_FRAME) angle = action === 1 ? aimAngle - 0.35 : -1.35;
-  else if (frame >= SHOT_FRAME) {
-    angle = aimAngle;
-    x -= aim[0]! * (action === 2 ? 1.2 : 0);
-    y -= aim[1]! * (action === 2 ? 1.2 : 0);
-  }
-  return { x, y, angle };
-}
-
-/** Native 32×48 body and equipment share a single contact solver. */
+/** Where the holding hand is and which way a held item points, in the 32×48 cell: from the same skeleton the body is
+ * painted from, so a tool never drifts off the grip. */
 export function personGrip(dir: number, frame: number): { x: number; y: number; angle: number } {
-  const p = legacyGrip(dir, frame);
-  // Reserve room for the support hand and outline when reaching diagonally away from the camera.
-  return { x: Math.max(6, Math.min(PERSON_W - 6, p.x * 1.25 + 0.375)), y: p.y * 1.5, angle: p.angle };
+  return personGripOf(dir, frame);
 }
 function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, _seed: number): void {
-  paintPerson(ctx, dir, frame, o, personGrip(dir, frame));
+  paintPersonFrame(ctx, dir, frame, lookOf(o));
 }
 
 const FUR: Ramp = [C.e1, C.e2, C.e3, C.e4, C.e5, C.e6];
@@ -930,15 +865,14 @@ export interface Sheets {
 }
 
 function polished(buf: PixBuf): void {
-  outline(buf.ctx, buf.width, buf.height, C.night);
   // Ground shadows belong to the world renderer, so they do not rise with a rider or a work pose.
-  polish(buf.ctx, buf.width, buf.height, { rim: true });
+  polishPerson(buf);
 }
 
 function personSheet(looks: Outfit[], seedBase: number, cols = COLS, npc = false): HTMLCanvasElement {
   const w = npc ? NPC_W : PERSON_W,
     h = npc ? NPC_H : PERSON_H;
-  const painter = npc ? paintNpc : drawPerson;
+  const painter = drawPerson;
   const { canvas, ctx } = makeCanvas(w * cols, looks.length * 8 * h);
   looks.forEach((o, i) => {
     for (let d = 0; d < 8; d++)
@@ -1039,8 +973,10 @@ export function buildActorSheets(): Sheets {
                   : {}),
               }
             : OUTFITS[i % COSMETIC_OUTFITS]!);
-      npcLooks.set(id, look);
-      tex = Texture.from(personSheet([look], 700 + i * 37, WALK_FRAMES + 1, true));
+      // the resident's own bio decides the body (its writers' pronouns); everything else is the existing look
+      const worn: Outfit = { ...look, body: look.body ?? bodyFromBio((n as { bio?: string }).bio, id) };
+      npcLooks.set(id, worn);
+      tex = Texture.from(personSheet([worn], 700 + i * 37, WALK_FRAMES + 1, true));
       tex.source.scaleMode = 'nearest';
       npcBases.set(id, tex);
     }
@@ -1208,11 +1144,11 @@ export function renderPersonCanvas(o: Outfit, dir: number, frame: number): HTMLC
   return canvas;
 }
 
-/** Original resident proportions and outfit drawing with the current directional action clips. */
+/** A resident frame: the same bodies and cell as players. */
 export function renderNpcCanvas(o: Outfit, dir: number, frame: number): HTMLCanvasElement {
   const { canvas, ctx } = makeCanvas(NPC_W, NPC_H);
   const buf = new PixBuf(NPC_W, NPC_H);
-  undithered(() => paintNpc(buf.ctx, dir, frame, o, 1 + dir * 13));
+  undithered(() => drawPerson(buf.ctx, dir, frame, o, 1 + dir * 13));
   polished(buf);
   buf.blit(ctx, 0, 0);
   return canvas;

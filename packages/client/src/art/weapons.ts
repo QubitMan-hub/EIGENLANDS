@@ -53,8 +53,9 @@ export class HeldWeapons {
               fam === 'greatsword' ||
               (tool && id !== 'can')) &&
             (n < ATTACK_FRAME || (n >= RUN_FRAME && n < SHOT_FRAME));
+          // a work or combat clip: along the tool the skeleton holds (art/body/poses.ts), same source as the hand
           const angle = work
-            ? work.angle
+            ? g.angle
             : id === 'can' && !aimedTool
               ? 0
               : thrust || aimedTool

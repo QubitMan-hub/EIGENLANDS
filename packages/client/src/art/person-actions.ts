@@ -60,7 +60,9 @@ export function actionFrame(action: PersonAction, progress: number, reduced = fa
   const key = reduced
     ? action === 'death'
       ? 7
-      : 4
+      : action === 'dodge'
+        ? 0
+        : 4
     : t < 0.18
       ? 0
       : t < 0.34

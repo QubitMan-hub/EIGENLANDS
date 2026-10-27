@@ -8,6 +8,8 @@ import { blob, C, put, type Ramp } from './shade';
 import { DARKWOOD, IRONM, STONEM, WOODM, type Facing } from './isokit';
 import { BRASS, BRONZE, FIRE, LEAF, LINEN, PROPS, STRAW, anim, iso as baseIso, one, type Mk } from './props';
 import type { ObjSprite } from './objects';
+import { paintStatue } from './body/statues';
+import { DIR_DOWN_LEFT, DIR_DOWN_RIGHT } from './actors';
 
 const RAMPS: Record<RampKey, Ramp> = {
   oak: [C.e1, C.e2, C.e3, C.e4, C.e5, C.e6],
@@ -474,11 +476,14 @@ const SHAPES: Partial<Record<PropShape, { frames?: number; fps?: number; draw: D
       iso(36, 76, face, (p, ctx) => {
         p.box(3, 3, 0, 10, 10, 4, m(darker(s.trim)));
         p.box(4, 4, 4, 8, 8, 4, m(s.trim));
-        p.cyl(8, 8, 8, 3.8, 14, s.main, s.main);
-        p.box(4, 7, 15, 8, 2, 3, m(s.main));
-        p.cyl(8, 8, 22, 2.2, 4, s.main, s.main);
-        blob(ctx, p.X(8, 8), p.Y(8, 8, 29), 3, 3.2, s.main.slice(1, 5) as number[], { seed: 8, noise: 0.05 });
-        p.dot(8, 6, 29, s.main[1]!, 3, 1);
+        // the figure: the shared body (art/body/statues.ts) at three-quarter life size
+        paintStatue(
+          ctx,
+          'garden',
+          face === 'sw' ? DIR_DOWN_LEFT : DIR_DOWN_RIGHT,
+          { w: 36, h: 76, ax: Math.round(p.X(8, 8)), ay: Math.round(p.Y(8, 8, 8)), k: 0.75 },
+          s.main,
+        );
       }),
   },
   bird_bath: {

@@ -94,7 +94,7 @@ import {
   personGrip,
   PERSON_W,
   PERSON_H,
-  NPC_H,
+  PERSON_TOP,
   DIR_DOWN,
   DIR_LEFT,
   type Sheets,
@@ -219,6 +219,9 @@ interface ActorView {
   punch: number;
   ghostT: number;
 }
+
+/** a dodge roll's on-screen length: the dash itself (shared DASH_TIME, 180 ms) plus the rise back to the feet */
+const DODGE_MS = 300;
 
 export class Game {
   net!: Net;
@@ -1890,8 +1893,11 @@ export class Game {
         if (deadP) frame = actionFrame('death', Math.min(1, (now - (v.deathAt ??= now)) / 650), reduced);
         else {
           v.deathAt = undefined;
-          if (dash) frame = actionFrame('dodge', (now - (v.dashAt ??= now)) / 180, reduced);
-          else v.dashAt = undefined;
+          // the roll: crouch and tumble through the dash (DASH_TIME), then a short rise once it ends
+          if (dash) v.dashAt ??= now;
+          if (v.dashAt !== undefined && now - v.dashAt < DODGE_MS)
+            frame = actionFrame('dodge', (now - v.dashAt) / DODGE_MS, reduced);
+          else if (!dash) v.dashAt = undefined;
           if (v.flash > 0.9) v.hurtAt ??= now;
           if (!dash && !mount && !cart && !charging && !walking && combatStrike < 0 && v.hurtAt && now - v.hurtAt < 220)
             frame = actionFrame('hit', (now - v.hurtAt) / 220, reduced);
@@ -1909,7 +1915,7 @@ export class Game {
           ? this.sheets.styled(lookIx, s.app, dirOf(sd.x, sd.y), frame)
           : this.sheets.person(lookIx, dirOf(sd.x, sd.y), frame);
         v.personFrame = frame >= 30 ? frame : v.sprite.texture.frame.x / PERSON_W;
-        v.sprite.alpha = deadP ? 0.65 : dash ? 0.6 : 1;
+        v.sprite.alpha = deadP ? 0.65 : 1;
         v.sprite.rotation = 0;
         v.sprite.scale.set(1);
         v.sprite.y = 1;
@@ -1974,7 +1980,7 @@ export class Game {
         if (v.label) {
           if (s?.name && v.label.text !== s.name) v.label.text = s.name;
           // riders' names float above the saddle, and a griffin's rider higher still
-          const above = PERSON_H + (riding ? SADDLE_Z + (isFlying(riding) ? FLY_Z : 0) : 0);
+          const above = PERSON_TOP + (riding ? SADDLE_Z + (isFlying(riding) ? FLY_Z : 0) : 0);
           v.label.x = Math.round(this.world.x + v.root.x * this.scale);
           v.label.y = Math.round(this.world.y + (v.root.y - above) * this.scale);
         }
@@ -2014,7 +2020,7 @@ export class Game {
           const near = Math.hypot(x - me.x, y - me.y) < 4;
           v.label.visible = !hidden && near;
           v.label.x = Math.round(this.world.x + v.root.x * this.scale);
-          v.label.y = Math.round(this.world.y + (v.root.y - NPC_H) * this.scale);
+          v.label.y = Math.round(this.world.y + (v.root.y - PERSON_TOP) * this.scale);
         }
       } else if (v.type === 'enemy' || v.type === 'shadow') {
         this.combat.drawEnemy(v, s, x, y, fx, now, dtMs / 1000, walking);
@@ -2220,14 +2226,8 @@ export class Game {
           color: pc(this.interp.sample(view.id, 0)?.pose.kind === 1 ? 45 : 46),
           intensity: 0.9,
         });
-      else if (view.type === 'enemy' && dark > 0.3)
-        out.push({
-          ...p,
-          y: p.y - 6,
-          radius: 1.6,
-          color: pc(this.interp.sample(view.id, 0)?.pose.kind === 1 ? 37 : 45),
-          intensity: 0.5,
-        });
+      // (foes carry no light of their own: a magenta glow under every creature, submerged ones included, read as
+      // stray pink blotches on the water at dusk)
       else if ((view.type === 'player' && view.id !== this.myId) || view.type === 'npc')
         out.push({ ...p, y: p.y - 10, radius: 3, color: pc(22), intensity: dark });
     }

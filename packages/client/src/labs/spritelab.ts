@@ -105,6 +105,8 @@ if (mode === 'creator') {
         dress: r,
         dressColor: (n + r) % APPEARANCE_COUNTS.dressColor,
         trim: (n + 2) % APPEARANCE_COUNTS.trim,
+        body: (r + c) % 2,
+        cut: (n % (APPEARANCE_COUNTS.cut - 1)) + 1,
       });
       place(sheets.styled(0, app, d, f), 16 + c * 22, 36 + r * 36, [6, 2]);
     }
