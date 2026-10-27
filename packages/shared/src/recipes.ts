@@ -146,6 +146,8 @@ r(
   'Fiber and something gooey.',
 );
 
+r('compost_spoiled', 'hand', [['spoiled_food', 2]], ['compost', 1], 1, 'start', 'Rot, turned into something useful.');
+
 // Workbench
 r('plank', 'workbench', [['wood', 2]], ['plank', 1], 1, 'start', 'Wood, sawn.');
 r(

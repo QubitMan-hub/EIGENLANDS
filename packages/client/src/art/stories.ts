@@ -377,7 +377,43 @@ function plaque(face: Facing): ObjSprite {
   );
 }
 
+/** a traveller's A-frame tent: canvas over a ridge pole, the door flap open at one end, pegged guy ropes */
+function campTent(face: Facing): ObjSprite {
+  return iso(
+    40,
+    40,
+    face,
+    (p) => {
+      const canvas: Ramp = [C.e3, C.e4, C.e5, C.e6, C.e7];
+      const flat = (_s: number, _t: number, lvl: (k: number) => number) => lvl(0);
+      const N = 8,
+        H = 1.5;
+      for (let k = 0; k < N; k++) {
+        const w = 16 - k * 2,
+          b0 = (16 - w) / 2;
+        p.box(1, b0, k * H, 14, w, H, {
+          ramp: canvas,
+          top: flat,
+          front: flat,
+          // the gable end: a dark doorway under the open flap
+          end: (s, _t, lvl) => (k < 5 && Math.abs(s - 0.5) < 0.3 * (1 - k / 5) ? C.ink : lvl(-1)),
+        });
+      }
+      p.box(0, 7.5, 0, 1, 1, N * H + 1.5, { ramp: DARKWOOD });
+      p.box(15, 7.5, 0, 1, 1, N * H + 1.5, { ramp: DARKWOOD });
+      p.box(0, 7.5, N * H, 16, 1, 0.8, { ramp: DARKWOOD });
+      // guy ropes to pegs
+      p.line(0.5, 8, N * H + 1, -2, 8, 0, C.e2);
+      p.line(15.5, 8, N * H + 1, 18, 8, 0, C.e2);
+      p.dot(-2, 8, 0, C.e1, 1, 2);
+      p.dot(18, 8, 0, C.e1, 1, 2);
+    },
+    { margin: 8 },
+  );
+}
+
 export const STORY_ART: Record<string, (face: Facing) => ObjSprite> = {
+  camp_tent: campTent,
   crypt_plaque: plaque,
   story_wreck: wreck,
   story_cairn: cairn,

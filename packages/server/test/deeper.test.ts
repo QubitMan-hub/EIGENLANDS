@@ -15,6 +15,7 @@ import {
   type CryptSite,
 } from '@eigenlands/shared';
 import type { App } from '../src/app';
+import { tickTravelNeeds } from '../src/systems/travel-needs';
 import { boot3, clearEnemies, flatten, setLevel, sleep, spawn3, tp, until, type P3 } from './p3helpers';
 
 let app: App;
@@ -207,4 +208,30 @@ describe('the braziers’ riddle', () => {
     expect(await light(order[0]!)).toMatch(/shared what they kept/);
     await p.r.leave();
   }, 60_000);
+});
+
+describe('food storage', () => {
+  it('raw fish and meat spoil in an Adventure pack, but not cooked food, trophies or a Cozy pack', async () => {
+    const p = await spawn3(app, 'Larder');
+    await tp(p, 4.5, 9.5);
+    p.sp.data.needs.mode = 'adventure';
+    p.sp.data.needs.food = p.sp.data.needs.water = 100;
+    p.sp.data.inv.fill(null);
+    p.sp.data.inv[0] = { id: 'trout', n: 3 };
+    p.sp.data.inv[1] = { id: 'raw_meat', n: 1 };
+    p.sp.data.inv[2] = { id: 'fish_fry', n: 2 };
+    p.sp.data.inv[3] = { id: 'koi', n: 1 };
+    p.sp.rotT = 99999;
+    tickTravelNeeds(p.room, p.sp);
+    expect(p.sp.data.inv[0]).toEqual({ id: 'trout', n: 2 });
+    expect(p.sp.data.inv.some((s) => s?.id === 'raw_meat')).toBe(false);
+    expect(p.sp.data.inv[2]).toEqual({ id: 'fish_fry', n: 2 });
+    expect(p.sp.data.inv[3]).toEqual({ id: 'koi', n: 1 });
+    expect(p.sp.data.inv.find((s) => s?.id === 'spoiled_food')?.n).toBe(2);
+    p.sp.data.needs.mode = 'cozy';
+    p.sp.rotT = 99999;
+    tickTravelNeeds(p.room, p.sp);
+    expect(p.sp.data.inv[0]).toEqual({ id: 'trout', n: 2 });
+    await p.r.leave();
+  });
 });

@@ -13,8 +13,12 @@ import {
   stepBodyTemp,
   stepTravelNeeds,
   thermalState,
+  ITEMS,
+  perishable,
+  rotEvery,
   type Condition,
 } from '@eigenlands/shared';
+import { giveStacks } from './helpers';
 import type { ServerPlayer } from '../rooms/player';
 import type { RoomApi } from './api';
 
@@ -50,6 +54,10 @@ function nearFire(room: RoomApi, x: number, y: number): boolean {
       if (o && WARM_OBJECTS.has(o.sub)) return true;
     }
   return false;
+}
+function cold(room: RoomApi, x: number, y: number): boolean {
+  if (isCaveY(y)) return caveBiomeAt(room.seed, x, y) === 'frost';
+  return biomeAt(room.seed, x, y) === 'taiga' || room.wclock.weather() === 'snow';
 }
 /** beside a pitched tent: out of the wind and the weather */
 function nearTent(room: RoomApi, x: number, y: number): boolean {
@@ -166,6 +174,24 @@ export function tickTravelNeeds(room: RoomApi, p: ServerPlayer): void {
         p.condT[cond] = 0;
         if (p.hp > 1) p.hp = Math.max(1, p.hp - Math.max(1, Math.round(rule.dmg * b.power)));
       }
+    }
+  }
+  // raw fish and meat carried in the pack spoil (chests keep them; cold slows it)
+  if (!paused && next.mode !== 'cozy' && ++p.rotT >= rotEvery(cold(room, x, y))) {
+    p.rotT = 0;
+    let rotted = 0;
+    for (let i = 0; i < p.data.inv.length; i++) {
+      const st = p.data.inv[i];
+      const def = st && ITEMS[st.id];
+      if (!st || !def || !perishable(st.id, def.kind)) continue;
+      st.n -= 1;
+      if (st.n <= 0) p.data.inv[i] = null;
+      rotted++;
+    }
+    if (rotted) {
+      giveStacks(p, [{ id: 'spoiled_food', n: rotted }]);
+      p.dirty('inv');
+      p.toast('Some of the raw food in your pack has spoiled. Cook it, or keep it in a chest.', 'info');
     }
   }
   if (!paused && next.mode !== 'cozy' && (next.food === 0 || next.water === 0)) {

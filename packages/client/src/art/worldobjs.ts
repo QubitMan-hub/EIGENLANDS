@@ -781,7 +781,6 @@ export function worldObjDef(o: WorldObj, facing: Facing = 'sw', seatTurn?: numbe
         'sea_arch',
         'campfire',
         'delver_tent',
-        'camp_tent',
         'merchant_cart',
         'cave_lamp',
         'buffer_stop',
@@ -789,7 +788,7 @@ export function worldObjDef(o: WorldObj, facing: Facing = 'sw', seatTurn?: numbe
         'vault_plate',
       ].includes(o.sub)
     )
-      d = caveArchitecture(o.sub === 'camp_tent' ? 'delver_tent' : o.sub);
+      d = caveArchitecture(o.sub);
     else if ((o.kind === 'deco' || o.kind === 'sign' || o.kind === 'furniture') && TOWN_DECO[o.sub])
       d = TOWN_DECO[o.sub]!();
     else if (o.kind === 'station') d = PROPS.crate!(facing);

@@ -189,3 +189,20 @@ export function recordMeal(
   return [...meals.filter(([g, t]) => g !== group && now - t < BALANCED_WINDOW_SECS * 1000), [group, now]];
 }
 export const balanced = (meals: Array<[FoodGroup, number]>): boolean => new Set(meals.map(([g]) => g)).size >= 3;
+
+// ───────────────────────── food storage ─────────────────────────
+
+/** Seconds of Adventure play between rots: each raw fish or meat stack carried in the pack loses one to rot. */
+export const ROT_SECS = 1200;
+/** Trophy catches are kept for show, not eaten: they never rot. */
+const KEEPSAKE = new Set(['koi', 'glowfin', 'prism_nautilus', 'moonray', 'sailfin', 'kelp']);
+const RAW_MEAT = new Set(['raw_meat', 'venison', 'pork', 'rabbit_meat', 'mutton', 'drake_meat', 'eel_meat']);
+/**
+ * Does this item spoil in a traveller's pack? Raw fish and meat do; cooked food, preserves and everything stored in a
+ * chest keep. Cold slows it (see rotEvery).
+ */
+export function perishable(id: string, kind: string): boolean {
+  return (kind === 'fish' && !KEEPSAKE.has(id)) || RAW_MEAT.has(id);
+}
+/** Cold air keeps meat: snow, taiga and frost caves take twice as long to spoil it. */
+export const rotEvery = (cold: boolean): number => (cold ? ROT_SECS * 2 : ROT_SECS);

@@ -583,6 +583,16 @@ def('lantern_potion', 'Night-Sight Potion', 'potion', 100, 'bottle', C.q4, C.q7,
 });
 
 // ── survival medicine and tonics (master plan §8)
+def(
+  'spoiled_food',
+  'Spoiled Food',
+  'resource',
+  0,
+  'meat',
+  C.g2,
+  C.e2,
+  'Rotten. Good for nothing but the compost heap.',
+);
 def('bandage', 'Bandage', 'potion', 25, 'bottle', C.pale, C.e6, 'Stops bleeding. Heals a little.', {
   heal: 10,
   cure: ['bleed'],
