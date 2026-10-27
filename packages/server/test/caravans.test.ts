@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   DAY_MS,
   MSG,
@@ -14,6 +14,7 @@ import type { App } from '../src/app';
 import { boot3, clearEnemies, sleep, spawn3, tp, until } from './p3helpers';
 
 let app: App;
+afterEach(() => vi.restoreAllMocks());
 beforeAll(async () => {
   app = await boot3({ newWorldGeneration: 6 });
 });
@@ -32,6 +33,8 @@ describe('road caravans', () => {
       const c = caravanAt(p.room.seed, route, soon);
       return !c.hidden && !caravanAt(p.room.seed, route, soon + 2000).hidden;
     })!;
+    // Pin the fixture clock: chunk preparation must not move the wagon away during the network round trip.
+    vi.spyOn(p.room.wclock, 'now').mockReturnValue(soon);
     const at = caravanAt(p.room.seed, r, soon);
     await tp(p, at.x + 1, at.y);
     p.r.send(MSG.SHOP, { npcId: `caravan:${r.id}`, action: 'open' });
