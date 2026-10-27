@@ -1735,6 +1735,8 @@ export class Game {
       v.gfx.clear();
 
       if (v.type === 'player') {
+        const boat = isMe ? this.predictor.sim.boat > 0 : ((s?.flags ?? 0) & 128) !== 0;
+
         const mount = isMe ? this.predictor.sim.mount : (s?.mount ?? 0);
         const cart = isMe ? this.predictor.sim.cart > 0 : !!s?.cart;
         const dash = isMe ? this.predictor.sim.dashT > 0 : ((s?.flags ?? 0) & 1) !== 0;
@@ -1797,7 +1799,7 @@ export class Game {
         const meleeFamily = weapon ? (WEAPONS[weapon].fam ?? weapon) : 'sword';
         if (combatStrike >= 0 && family === ATTACK_FRAME)
           frame = meleeFrame(meleeFamily, this.combat.playerAttackProgress(v, now), reduced);
-        const transportKind = cart ? -1 : mount;
+        const transportKind = boat ? -2 : cart ? -1 : mount;
         let transport = this.transportPoses.get(v);
         if (!transport || transport.kind !== transportKind) {
           transport = { kind: transportKind, at: transport ? now : now - 220, fromY: v.sprite.y };
@@ -1871,12 +1873,11 @@ export class Game {
         v.sprite.rotation = 0;
         v.sprite.scale.set(1);
         v.sprite.y = 1;
-        const boat = isMe ? this.predictor.sim.boat > 0 : ((s?.flags ?? 0) & 128) !== 0;
         this.combat.rig(v, boat, fx, fy, now / 1000);
         this.combat.minecart(v, cart, fx, fy);
         const riding = !boat && !cart && !deadP ? (isMe ? this.predictor.sim.mount : (s?.mount ?? 0)) : 0;
         this.combat.mount(v, riding, fx, fy, walking, v.travel, reduced);
-        if (!reduced && transport && now - transport.at < 220) {
+        if (!reduced && !dash && !deadP && transport && now - transport.at < 220) {
           const t = Math.max(0, (now - transport.at) / 220),
             ease = t * t * (3 - 2 * t);
           v.sprite.y = Math.round(transport.fromY + (v.sprite.y - transport.fromY) * ease);
