@@ -308,7 +308,7 @@ export function armyUnitDef(realmIndex: number, cls: ArmyClass): Def {
         leather = R(A.e1, 3),
         dark = R(A.night, 3);
       const glow = (c: number) => M(ramp(c, 3, 2), { glow: true });
-      const U = 1.42 * (L.scale ?? 1);
+      const U = 1.6 * (L.scale ?? 1);
       const fall = dead ? Math.min(1, t * 1.6) : 0;
       s.push(rotY(-fall * 1.45), [0, 0, 2], [0, 0, 0]);
       s.push([U, 0, 0, 0, U, 0, 0, 0, U], [0, 0, 0], [hit ? (1 - t) * 1.6 : 0, 0, dead ? -t * 2 : 0]);
@@ -391,8 +391,7 @@ export function armyUnitDef(realmIndex: number, cls: ArmyClass): Def {
           const lift = moving ? Math.max(0, Math.cos(t * TAU + (side > 0 ? Math.PI : 0))) * 1.2 : 0;
           s.cap([0, side * 1.6, hipZ], [swing, side * 1.9, 3.6 + lift], 1.4, 1.1, cloth);
           s.cap([swing, side * 1.9, 3.6 + lift], [swing * 1.2, side * 2, 0.8 + lift], 1.1, 1, leather);
-          // chunky boots, like the voxel people's
-          s.ell([swing * 1.2 + 0.7, side * 2, 0.9 + lift], [2, 1.45, 1.05], dark);
+          s.ell([swing * 1.2 + 0.7, side * 2, 0.7 + lift], [1.6, 1.1, 0.7], dark);
         }
       }
       const bob = moving && !mounted ? 0.5 * Math.abs(sw) : 0;
@@ -413,20 +412,16 @@ export function armyUnitDef(realmIndex: number, cls: ArmyClass): Def {
       s.ell([0.5, 0, tz + 0.4], [2.3, 2.6, 3.2], cloth2);
       s.ell([0, 0, tz - 3.6], [2.6, 3.2, 0.8], leather);
       s.sph([0.7, 0, tz - 3.6], 0.6, trim);
-      for (const side of [-1, 1]) s.sph([0, side * 3.8, tz + 3.2], 1.8, metal);
+      for (const side of [-1, 1]) s.sph([0, side * 3.5, tz + 3.2], 1.5, metal);
       if (cls === 'elite' || cls === 'infantry') s.ell([1, 0, tz + 1.4], [1.6, 2.2, 2.4], metal);
-      // ───────── head and helm: drawn a third larger about the head, for the game's heroic chibi proportions
+      // ───────── head and helm
       const hz = tz + 6.6;
-      s.push([1.36, 0, 0, 0, 1.36, 0, 0, 0, 1.36], [0.4, 0, hz - 2.2], [0, 0, 0.4]);
       s.cap([0, 0, tz + 3.8], [0, 0, hz - 1.4], 0.9, 0.9, skin);
       s.sph([0.4, 0, hz], 2.5, skin);
-      for (const side of [-1, 1]) {
-        if (!(hurt || dead)) s.sph([2.3, side * 1.1, hz + 0.4], 0.62, M(ramp(A.pale, 2, 1)));
-        s.sph([2.6, side * 1.0, hz + 0.35], 0.4, hurt || dead ? dark : M(ramp(A.night, 2, 1)));
-      }
+      for (const side of [-1, 1])
+        s.sph([2.6, side * 1.1, hz + 0.4], 0.38, hurt || dead ? dark : M(ramp(A.night, 2, 1)));
       if (L.beard) s.ell([2.2, 0, hz - 1.8], [1.6, 2, 2.4], R(L.beard, 3));
       drawHelm(s, L.helm, hz, { metal, trim, cloth, cloth2, dark, glow, skin });
-      s.pop();
       // ───────── weapon arms
       const rest: V3 = [2.4, 4.3, tz - 1.2];
       const power = wind ? 1 : hit ? 2 : 0;
