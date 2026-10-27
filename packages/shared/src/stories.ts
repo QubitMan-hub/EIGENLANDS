@@ -84,7 +84,15 @@ export function storyOfCell(seed: number, gx: number, gy: number): StorySite | n
     for (let k = 0; k < 10 && !out; k++) {
       const x = gx * CELL + 10 + Math.floor(hash2(seed, gx * 17 + k, gy, 1302) * (CELL - 20));
       const y = gy * CELL + 10 + Math.floor(hash2(seed, gx, gy * 17 + k, 1303) * (CELL - 20));
-      if (Math.hypot(x, y) < HOME_VALE + 10 || isCaveY(y) || isUpperY(y) || isDiveY(y) || isCryptY(y) || isOtherworldY(y)) continue;
+      if (
+        Math.hypot(x, y) < HOME_VALE + 10 ||
+        isCaveY(y) ||
+        isUpperY(y) ||
+        isDiveY(y) ||
+        isCryptY(y) ||
+        isOtherworldY(y)
+      )
+        continue;
       if (sanctuaryAt(seed, x, y)) continue;
       if (REALM_SITES.some((s) => Math.abs(x - s.cx) < s.w / 2 + 12 && Math.abs(y - s.cy) < s.h / 2 + 12)) continue;
       if (!open(seed, x, y)) continue;

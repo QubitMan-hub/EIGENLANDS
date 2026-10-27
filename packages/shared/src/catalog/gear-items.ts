@@ -1,4 +1,4 @@
-import { COL as C, item, rec } from './kit';
+import { COL as C, item, rec, src } from './kit';
 import type { GearBonus, GearSlot } from './types';
 import type { Rarity } from '../crafting';
 import type { StationId, Discipline } from '../crafting';
@@ -994,6 +994,7 @@ item('cloud_silk', 'Cloud-Silk', 'reagent', {
   a: C.white,
   b: C.w5,
   d: 'Threads spun from Aetherian cloud. Weighs nothing; holds anything.',
+  src: [src.mob('zephyr_ray', 0.7, 1, 2, { realm: 'aetheria' }), src.mob('gilded_sentinel', 0.4)],
 });
 item('umbral_spore', 'Umbral Spore', 'reagent', {
   v: 70,
@@ -1001,6 +1002,7 @@ item('umbral_spore', 'Umbral Spore', 'reagent', {
   a: C.q4,
   b: C.w6,
   d: 'Spores that glow in the dark of the Abyss and hold it back a little.',
+  src: [src.mob('shade_stalker', 0.7, 1, 2, { realm: 'umbra' }), src.mob('abyss_serpent', 0.8, 1, 3)],
 });
 item('chrono_sand', 'Chrono-Sand', 'reagent', {
   v: 80,
@@ -1008,6 +1010,7 @@ item('chrono_sand', 'Chrono-Sand', 'reagent', {
   a: C.e6,
   b: C.mist,
   d: 'Sand from Chronoria that falls upward when nobody is watching.',
+  src: [src.mob('gear_hound', 0.7, 1, 2, { realm: 'chronoria' }), src.mob('paradox_echo', 0.8, 1, 3)],
 });
 item('phoenix_plume', 'Phoenix Plume', 'reagent', {
   v: 600,
@@ -1015,6 +1018,7 @@ item('phoenix_plume', 'Phoenix Plume', 'reagent', {
   a: C.r5,
   b: C.e7,
   d: 'A feather of the Phoenix of the Eyrie, still burning without heat.',
+  src: [src.boss('phoenix')],
 });
 item('abyss_heart', 'Heart of the Maw', 'monster', {
   v: 650,
@@ -1022,6 +1026,7 @@ item('abyss_heart', 'Heart of the Maw', 'monster', {
   a: C.q3,
   b: C.w6,
   d: 'It never stops beating, and gives off a light the dark cannot touch.',
+  src: [src.boss('umbral_maw')],
 });
 item('unwound_gear', 'Unwound Gear', 'reagent', {
   v: 700,
@@ -1029,6 +1034,7 @@ item('unwound_gear', 'Unwound Gear', 'reagent', {
   a: C.e6,
   b: C.white,
   d: 'A cog from the Unwound. It turns both ways at once.',
+  src: [src.boss('the_unwound')],
 });
 gear('aether_wings', 'Aether Wings', 'accessory', 'back', 10, { haste: 2, phase: 0.05, cool: 1 }, 260, {
   g: 'wing',

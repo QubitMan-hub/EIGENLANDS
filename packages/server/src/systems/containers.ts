@@ -2,6 +2,7 @@ import { ENEMY_DEFS, ENEMY_KEY_BY_KIND, WAY_SUBS } from '@eigenlands/shared';
 import { guildPanel } from './guild';
 import {
   isCryptY,
+  realmPropKind,
   RESTED_SECS,
   RESTED_XP_MULT,
   readHerd,
@@ -139,22 +140,6 @@ function sendPanel(p: ServerPlayer, o: WorldObj): void {
   if (m) p.client.send(MSG.PANEL, m);
 }
 
-/** the realm props handled by features/otherworlds */
-const REALM_SUBS = new Set([
-  'realm_portal',
-  'realm_return',
-  'realm_lore',
-  'realm_altar',
-  'updraft',
-  'wind_chime',
-  'chrono_dial',
-  'chrono_gate',
-  'chrono_rift',
-  'sky_bloom',
-  'umbral_cap',
-  'time_sand',
-]);
-
 export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): Promise<void> {
   if (!msg || !isInt(msg.tx, -1e6, 1e6) || !isInt(msg.ty, -1e6, 1e6) || p.deadT > 0) return;
   if (distToTile(p, msg.tx, msg.ty) > OPEN_REACH) {
@@ -242,7 +227,7 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
     p.toast('Minecart: push along the rails to roll, against them to reverse; the buffers stop you. Use steps off.');
     return;
   }
-  if (o.static && REALM_SUBS.has(o.sub) && (await room.otherworldInteract?.(p, o))) return;
+  if (o.static && realmPropKind(o.sub) && (await room.otherworldInteract?.(p, o))) return;
   if (o.sub === 'fallen_star') {
     room.openStar?.(p, o);
     return;

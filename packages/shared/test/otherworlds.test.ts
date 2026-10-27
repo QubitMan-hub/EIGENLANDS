@@ -129,7 +129,7 @@ describe('the three realms', () => {
       for (let cy = -lim; cy <= lim; cy++)
         for (let cx = -lim; cx <= lim; cx++)
           for (const o of otherworldObjectsIn(SEED, cx, Math.floor(def.oy / CHUNK_SIZE) + cy)) {
-            subs.add(o.sub);
+            subs.add(o.sub.replace(/_(aetheria|umbra|chronoria)$/, ''));
             expect(isSolid(tile(o.x, o.y)), `${w} ${o.sub} at ${o.x},${o.y}`).toBe(false);
           }
       for (const s of ['realm_return', 'realm_lore', 'realm_altar']) expect(subs).toContain(s);

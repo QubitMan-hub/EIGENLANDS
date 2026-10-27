@@ -14,6 +14,7 @@ import {
   hash2,
   isCaveY,
   isCryptY,
+  otherworldOf,
   sampleClimate,
   type ChunkStore,
 } from '@eigenlands/shared';
@@ -171,7 +172,7 @@ export class ObjectViews {
         ? 'qtree'
         : kind0;
     // each biome dresses the shared tile kinds in its own flora (pines and snow, cacti, willows, glowcaps...)
-    const underground = isCaveY(ty) || isCryptY(ty) ? this.art.cave[kind] : undefined;
+    const underground = isCaveY(ty) || isCryptY(ty) || otherworldOf(ty) === 'umbra' ? this.art.cave[kind] : undefined;
     const own = (this.art.biome[biome] as Record<string, ObjSprite[]> | undefined)?.[kind];
     const list =
       underground ??
@@ -292,7 +293,7 @@ export class ObjectViews {
     }
     // a changed fence tile changes how its neighbours connect
     // a mined tile exposes the faces of the cave veins around it
-    if (!noPropagate && (isCaveY(ty) || isCryptY(ty))) {
+    if (!noPropagate && (isCaveY(ty) || isCryptY(ty) || otherworldOf(ty) === 'umbra')) {
       for (const [nx, ny] of [
         [tx, ty - 1],
         [tx - 1, ty],

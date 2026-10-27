@@ -1628,7 +1628,15 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     let total = [...this.enemies.values()].filter((e) => !e.def.passive && !e.def.neutral).length;
     for (const id of this.encounterAt.keys()) if (!this.players.has(id)) this.encounterAt.delete(id);
     for (const p of this.players.values()) {
-      if (p.deadT > 0 || isUpperY(p.sim.y) || isDiveY(p.sim.y) || isCryptY(p.sim.y) || isOtherworldY(p.sim.y) || total >= MAX_ENEMIES) continue;
+      if (
+        p.deadT > 0 ||
+        isUpperY(p.sim.y) ||
+        isDiveY(p.sim.y) ||
+        isCryptY(p.sim.y) ||
+        isOtherworldY(p.sim.y) ||
+        total >= MAX_ENEMIES
+      )
+        continue;
       if (sanctuaryAt(this.seed, p.sim.x, p.sim.y)) {
         this.encounterAt.set(p.id, now + 12000);
         continue;

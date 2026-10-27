@@ -396,7 +396,16 @@ let lastBlock: { key: string; data: Uint8Array } | undefined;
  * one level per tile, so a walker can always reach every plateau. Water, towns and flat landmark grounds stay at 0.
  */
 export function elevationAt(seed: number, x: number, y: number): number {
-  if (isCaveY(y) || isUpperY(y) || isDiveY(y) || isCryptY(y) || isOtherworldY(y) || !Number.isInteger(x) || !Number.isInteger(y)) return 0;
+  if (
+    isCaveY(y) ||
+    isUpperY(y) ||
+    isDiveY(y) ||
+    isCryptY(y) ||
+    isOtherworldY(y) ||
+    !Number.isInteger(x) ||
+    !Number.isInteger(y)
+  )
+    return 0;
   const cx = Math.floor(x / CHUNK_SIZE),
     cy = Math.floor(y / CHUNK_SIZE);
   const key = `${seed}:${cx},${cy}`;

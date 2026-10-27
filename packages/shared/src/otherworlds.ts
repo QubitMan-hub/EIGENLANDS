@@ -225,7 +225,14 @@ export function otherworldTileAt(seed: number, x: number, y: number): number | n
   }
   // Chronoria: ruins on a cracked plateau; the fractures are bottomless
   if (arena) return T.VAULT_FLOOR;
-  if (room) return !clear && !home ? (h < 0.02 ? T.CRYSTAL : T.VAULT_FLOOR) : T.VAULT_FLOOR;
+  if (room) {
+    // a paved court at the heart of each ruin; outside it the slabs give way to grass and rubble
+    const r = Math.hypot(x - room.x, ly - room.y);
+    if (home ? r < 7 : r < 5) return T.VAULT_FLOOR;
+    if (!clear && h < 0.02) return T.CRYSTAL;
+    const slab = vnoise(seed, x / 3, ly / 3, 7340);
+    return slab > 0.55 ? T.VAULT_FLOOR : h < 0.04 ? T.SHIMMER : h < 0.15 ? T.GRASS_TALL : T.GRASS;
+  }
   if (road) return T.PATH;
   // the Unwound's court is ringed by a fracture: only the chrono gate crosses it
   const a = roomOf(seed, w, ARENA_CELL[w][0], ARENA_CELL[w][1])!;
@@ -432,6 +439,26 @@ export const OTHERWORLD_LORE: Record<OtherworldId, Array<{ title: string; pages:
   ],
 };
 
+/** The realm props the server answers when touched (portal, return, lore and altar subs carry the realm's name). */
+export function realmPropKind(sub: string): string | null {
+  const base = sub.replace(/_(aetheria|umbra|chronoria)$/, '');
+  return REALM_PROP_KINDS.has(base) ? base : null;
+}
+const REALM_PROP_KINDS = new Set([
+  'realm_portal',
+  'realm_return',
+  'realm_lore',
+  'realm_altar',
+  'updraft',
+  'wind_chime',
+  'chrono_dial',
+  'chrono_gate',
+  'chrono_rift',
+  'sky_bloom',
+  'umbral_cap',
+  'time_sand',
+]);
+
 /** Static props of chunk (cx, cy) on a realm plane. */
 export function otherworldObjectsIn(seed: number, cx: number, cy: number): WorldObj[] {
   const w = otherworldOf(cy * CHUNK_SIZE);
@@ -445,7 +472,7 @@ export function otherworldObjectsIn(seed: number, cx: number, cy: number): World
       out.push({ x, y, kind: 'deco', sub, static: true, data: { realm: w, ...data } });
   };
   const rp = otherworldReturnPortal(w);
-  add(rp.x, rp.y, 'realm_return');
+  add(rp.x, rp.y, `realm_return_${w}`);
   // rooms overlapping this chunk: their props
   const cell = OTHERWORLDS[w].cell;
   for (let gy = Math.floor((y0 - oy - cell) / cell); gy <= Math.ceil((y0 - oy + CHUNK_SIZE + cell) / cell); gy++)
@@ -456,11 +483,11 @@ export function otherworldObjectsIn(seed: number, cx: number, cy: number): World
         arena = gx === ARENA_CELL[w][0] && gy === ARENA_CELL[w][1];
       const ry = r.y + oy;
       if (arena) {
-        add(r.x, ry - Math.floor(r.r / 2), 'realm_altar', { boss: OTHERWORLD_CREATURES[w].boss });
+        add(r.x, ry - Math.floor(r.r / 2), `realm_altar_${w}`, { boss: OTHERWORLD_CREATURES[w].boss });
         continue;
       }
       if (home) {
-        add(r.x - 4, ry + 3, 'realm_lore', { lore: 0 });
+        add(r.x - 4, ry + 3, `realm_lore_${w}`, { lore: 0 });
         continue;
       }
       const h = hash2(seed, gx, gy, SALT[w] + 40);
@@ -469,7 +496,8 @@ export function otherworldObjectsIn(seed: number, cx: number, cy: number): World
       if (h < 0.8) add(r.x + 2, ry - 2, node);
       if (h < 0.35) add(r.x - 3, ry + 2, node);
       // lore tablets in two rooms each
-      if ((gx === -1 && gy === 2) || (gx === 2 && gy === 1)) add(r.x, ry + 1, 'realm_lore', { lore: gx < 0 ? 1 : 2 });
+      if ((gx === -1 && gy === 2) || (gx === 2 && gy === 1))
+        add(r.x, ry + 1, `realm_lore_${w}`, { lore: gx < 0 ? 1 : 2 });
       // the realm's own scenery
       if (w === 'aetheria' && h > 0.55) add(r.x - 2, ry - 3, 'sky_pillar');
       if (w === 'umbra' && h > 0.5) add(r.x + 3, ry + 3, 'umbral_obelisk');
@@ -494,7 +522,7 @@ export function otherworldObjectsIn(seed: number, cx: number, cy: number): World
     const g = chronoGate(seed);
     add(g.gate.x, g.gate.y, 'chrono_gate');
     g.dials.forEach((d, i) => add(d.x, d.y, 'chrono_dial', { dial: i }));
-    add(g.gate.x - 1, g.gate.y + 5, 'realm_lore', { lore: 0, archive: true });
+    add(g.gate.x - 1, g.gate.y + 5, `realm_lore_${w}`, { lore: 0, archive: true });
   }
   return out;
 }
@@ -544,7 +572,7 @@ export function realmPortalsIn(
   for (const id of OTHERWORLD_IDS) {
     const p = spots[id];
     if (Math.floor(p.x / CHUNK_SIZE) === cx && Math.floor(p.y / CHUNK_SIZE) === cy)
-      out.push({ x: p.x, y: p.y, kind: 'deco', sub: 'realm_portal', static: true, data: { realm: id } });
+      out.push({ x: p.x, y: p.y, kind: 'deco', sub: `realm_portal_${id}`, static: true, data: { realm: id } });
   }
   return out;
 }

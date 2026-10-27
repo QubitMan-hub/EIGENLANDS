@@ -30,6 +30,7 @@ import {
   otherworldArena,
   otherworldArrival,
   otherworldOf,
+  realmPropKind,
   realmPortals,
   tileAt,
   type EnemyKindName,
@@ -98,7 +99,7 @@ export class OtherworldModule implements Module {
     const w = ((o.data as { realm?: string } | undefined)?.realm ?? otherworldOf(o.y)) as OtherworldId | null;
     if (!w || !OTHERWORLDS[w]) return false;
     const def = OTHERWORLDS[w];
-    switch (o.sub) {
+    switch (realmPropKind(o.sub)) {
       case 'realm_portal': {
         if (p.level < def.level) {
           p.toast(`The portal to ${def.name} will not open for you yet. Return at level ${def.level}.`, 'bad');
@@ -160,6 +161,7 @@ export class OtherworldModule implements Module {
         return true;
       default: {
         const node = OTHERWORLD_NODES[o.sub];
+        // (realm_portal etc. are handled above; nodes keep their plain names)
         if (!node) return false;
         this.gather(p, o, node.item, node.verb);
         return true;

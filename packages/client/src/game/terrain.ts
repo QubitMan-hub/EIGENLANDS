@@ -21,6 +21,7 @@ import {
   chunkKey,
   isCaveY,
   isCryptY,
+  otherworldOf,
   sampleClimate,
   LEVEL_PX,
   townFor,
@@ -173,26 +174,31 @@ export class Terrain {
     const out = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE * 4);
     const levels = this.store.get(cx, cy).levels;
     const seed = this.store.seed;
-    // crypt interiors are hewn from the same rock as the Undercroft
-    const cave = isCaveY(cy * CHUNK_SIZE) || isCryptY(cy * CHUNK_SIZE);
+    // crypt interiors and the Umbral Abyss are hewn from the same rock as the Undercroft
+    const realm = otherworldOf(cy * CHUNK_SIZE);
+    const cave = isCaveY(cy * CHUNK_SIZE) || isCryptY(cy * CHUNK_SIZE) || realm === 'umbra';
+    // each realm keeps one palette: Aetheria's spring meadow, the Abyss's violet fungus, Chronoria's strange shimmer
+    const realmBiome = realm === 'aetheria' ? 'meadow' : realm ? 'enchanted' : null;
     for (let y = 0; y < CHUNK_SIZE; y++) {
       for (let x = 0; x < CHUNK_SIZE; x++) {
         const o = (y * CHUNK_SIZE + x) * 4;
         const tx = cx * CHUNK_SIZE + x,
           ty = cy * CHUNK_SIZE + y;
         const tile = this.store.getTile(tx, ty);
-        const biome = cave
-          ? (
-              {
-                limestone: 'desert',
-                glowmoss: 'forest',
-                crystal: 'enchanted',
-                basalt: 'corrupted',
-                frost: 'taiga',
-                drowned: 'swamp',
-              } as const
-            )[caveBiomeAt(seed, tx, ty)]
-          : biomeAt(seed, tx, ty);
+        const biome = realmBiome
+          ? realmBiome
+          : cave
+            ? (
+                {
+                  limestone: 'desert',
+                  glowmoss: 'forest',
+                  crystal: 'enchanted',
+                  basalt: 'corrupted',
+                  frost: 'taiga',
+                  drowned: 'swamp',
+                } as const
+              )[caveBiomeAt(seed, tx, ty)]
+            : biomeAt(seed, tx, ty);
         let ground = TILE_DEFS[tile]?.ground ?? 3;
         if (biome === 'desert' && ground === G.GRASS) ground = G.SAND; // scrub and cacti stand on the dunes
         if (cave && ground === G.GRASS) ground = G.CAVE; // ore, crystals and glowcaps rest on the cave floor

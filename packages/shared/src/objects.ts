@@ -118,6 +118,17 @@ export function objLight(kind: WorldObjKind, sub: string): ObjLight | null {
   if (sub === 'lamp' || sub === 'street_lamp' || sub === 'cave_lamp') return { radius: 5.5, color: C.e6 };
   if (PROP_LIGHT[sub]) return PROP_LIGHT[sub]!;
   if (sub === 'campfire') return { radius: 7, color: C.e6 };
+  if (sub.startsWith('realm_portal_') || sub.startsWith('realm_return_'))
+    return { radius: 5, color: sub.endsWith('umbra') ? C.q5 : sub.endsWith('chronoria') ? C.mist : C.w6 };
+  if (sub === 'updraft') return { radius: 2.5, color: C.w6 };
+  if (sub === 'sky_bloom') return { radius: 2, color: C.white };
+  if (sub === 'umbral_cap') return { radius: 3.5, color: C.q5 };
+  if (sub === 'umbral_obelisk') return { radius: 2, color: C.q4 };
+  if (sub === 'hollow_lamp') return { radius: 6.5, color: C.e6 };
+  if (sub === 'chrono_rift') return { radius: 3, color: C.q6 };
+  if (sub === 'time_sand') return { radius: 2, color: C.e6 };
+  if (sub === 'chrono_gate') return { radius: 3, color: C.q4 };
+  if (sub.startsWith('realm_altar_')) return { radius: 3.5, color: sub.endsWith('umbra') ? C.q5 : C.e6 };
   if (sub === 'fallen_star') return { radius: 7.5, color: C.w6 };
   if (sub === 'merchant_cart') return { radius: 3.5, color: C.e6 };
   if (sub === 'trial_brazier') return { radius: 5, color: C.q5 };
