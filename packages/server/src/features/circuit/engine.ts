@@ -893,7 +893,6 @@ export class AbilityEngine {
         dmg *= 0.6 + this.room.rand();
         break;
     }
-    if (e.def.trait === 'regrow' && o.hue === 0) e.regenBlockT = 8;
     const dealt = Math.max(1, Math.round(dmg));
     const hpBefore = e.hp;
     // who echoes this hit is decided before it lands: a killing blow removes the enemy's threads
@@ -904,7 +903,10 @@ export class AbilityEngine {
     } finally {
       this.inHit--;
     }
-    const real = Math.min(dealt, Math.max(0, hpBefore));
+    // Armour, wards and protected targets can reject or reduce a hit. Riders need actual HP lost.
+    const real = Math.min(hpBefore, Math.max(0, hpBefore - e.hp));
+    if (real <= 0) return 0;
+    if (e.def.trait === 'regrow' && o.hue === 0) e.regenBlockT = 8;
     const dead = !this.room.enemies.has(e.id);
     if (this.hpSeen.has(e.id)) this.hpSeen.set(e.id, e.hp);
     if (!dead) {
