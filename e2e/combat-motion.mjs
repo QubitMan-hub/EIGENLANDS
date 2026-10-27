@@ -79,7 +79,7 @@ try {
   await page.keyboard.press('ShiftLeft');
   await page.waitForFunction(() => {
     const g = window.__eigen.game;
-    return g.views.get(g.myId).sprite.texture.frame.x >= 14 * 32;
+    return g.predictor.sim.dashT > 0 && g.views.get(g.myId).sprite.texture.source.width === 32;
   });
   await page.screenshot({ path: `${out}/run.png` });
   await page.keyboard.up('KeyD');

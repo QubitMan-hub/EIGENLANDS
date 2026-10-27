@@ -1737,7 +1737,7 @@ export class Game {
         const cart = isMe ? this.predictor.sim.cart > 0 : !!s?.cart;
         const dash = isMe ? this.predictor.sim.dashT > 0 : ((s?.flags ?? 0) & 1) !== 0;
         const deadP = isMe ? this.dead : ((s?.flags ?? 0) & 4) !== 0;
-        const combatStrike = !deadP && !dash ? this.combat.attackFrame(v, now, reduced) : -1;
+        const combatStrike = !deadP && !dash ? this.combat.playerAttackFrame(v, now, reduced) : -1;
         const use = this.toolSwings.get(v);
         if (use?.waitForResult) {
           if (this.gameplay.rhythm.open) use.received = now;
@@ -1830,6 +1830,10 @@ export class Game {
             actionTarget = confirmed;
           }
         }
+        const charging = isMe
+          ? this.predictor.sim.hold > 0 && this.predictor.sim.charge > 0
+          : ((s?.flags ?? 0) & 8) !== 0;
+        if (charging && !walking && !deadP && !dash && combatStrike < 0) frame = family;
         if (deadP) frame = actionFrame('death', Math.min(1, (now - (v.deathAt ??= now)) / 650), reduced);
         else {
           v.deathAt = undefined;
