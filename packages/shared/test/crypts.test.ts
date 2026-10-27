@@ -92,3 +92,30 @@ describe('crypt interiors', () => {
     expect(objs.some((o) => o.x === Math.floor(a.x) && o.y === Math.floor(a.y))).toBe(false);
   });
 });
+
+describe('shores and summits', () => {
+  it('wrecks lie on sand by the water, cairns on local tops, and every id resolves back to its site', async () => {
+    const { wreckOfCell, cairnOfCell, storySiteById, storyObjectsIn, elevationAt } = await import('../src/index');
+    const wrecks = [],
+      cairns = [];
+    for (let gy = -15; gy < 15; gy++)
+      for (let gx = -15; gx < 15; gx++) {
+        const w = wreckOfCell(SEED, gx, gy);
+        if (w) wrecks.push(w);
+        const c = cairnOfCell(SEED, gx, gy);
+        if (c) cairns.push(c);
+      }
+    expect(wrecks.length).toBeGreaterThan(10);
+    expect(cairns.length).toBeGreaterThan(0);
+    for (const w of wrecks.slice(0, 20)) {
+      expect(tileAt(SEED, w.x, w.y, 6)).toBe(T.SAND);
+      expect(storySiteById(SEED, w.id)).toEqual(w);
+    }
+    for (const c of cairns) {
+      expect(elevationAt(SEED, c.x, c.y)).toBeGreaterThanOrEqual(2);
+      expect(storySiteById(SEED, c.id)).toEqual(c);
+      const objs = storyObjectsIn(SEED, Math.floor(c.x / 32), Math.floor(c.y / 32), 6);
+      expect(objs.some((o) => o.sub === 'story_cairn' && o.x === c.x && o.y === c.y)).toBe(true);
+    }
+  });
+});

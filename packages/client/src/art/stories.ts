@@ -313,7 +313,53 @@ function satchel(face: Facing): ObjSprite {
   );
 }
 
+/** the ribs of a wrecked ship standing out of the sand */
+function wreck(face: Facing): ObjSprite {
+  return iso(
+    72,
+    64,
+    face,
+    (p) => {
+      // the keel half-buried, ribs curving up from it, a stub of mast
+      p.box(-4, 6, 0, 26, 3, 1.4, { ramp: DARKWOOD });
+      for (let k = 0; k < 5; k++) {
+        const a = -2 + k * 5;
+        const h = 9 - Math.abs(k - 2) * 1.5;
+        for (const side of [-1, 1]) p.box(a, 7 + side * 3.2, 0, 1.2, 1, h, { ramp: [C.e1, C.e2, C.e3, C.e4] });
+      }
+      p.box(4, 3.2, 6, 14, 0.8, 1.2, { ramp: WOODM }); // a surviving strake
+      p.box(9, 7, 0, 1.4, 1.4, 16, { ramp: DARKWOOD });
+      p.box(9.5, 7.4, 14, 5, 0.5, 4, { ramp: [C.e5, C.e6, C.e7, C.white], front: (s) => (s > 0.7 ? -1 : null) }); // a rag of sail
+    },
+    { margin: 8 },
+  );
+}
+
+/** a cairn of piled stones on a summit, with a weathered flag */
+function cairn(face: Facing): ObjSprite {
+  return iso(
+    40,
+    56,
+    face,
+    (p) => {
+      p.box(2, 2, 0, 12, 12, 4, { ramp: STONEM });
+      p.box(3.5, 3.5, 4, 9, 9, 4, { ramp: STONEM });
+      p.box(5, 5, 8, 6, 6, 4, { ramp: STONEM });
+      p.box(6.5, 6.5, 12, 3, 3, 3, { ramp: STONEM });
+      p.box(7.5, 7.5, 15, 0.8, 0.8, 9, { ramp: DARKWOOD });
+      p.box(8.3, 7.6, 20, 5, 0.4, 3, {
+        ramp: [C.r2, C.r3, C.r4, C.r5],
+        front: (s, t) => (s > 0.8 && t < 0.5 ? -1 : null),
+      });
+      p.box(4, 9, 4, 2, 2, 1, { ramp: [C.e3, C.e4, C.e5, C.e6] }); // the tin box
+    },
+    { margin: 8 },
+  );
+}
+
 export const STORY_ART: Record<string, (face: Facing) => ObjSprite> = {
+  story_wreck: wreck,
+  story_cairn: cairn,
   lost_satchel: satchel,
   crypt_exit: cryptExit,
   crypt_reliquary: reliquary,

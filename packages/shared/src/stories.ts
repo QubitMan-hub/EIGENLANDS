@@ -13,6 +13,7 @@ import type { WorldGeneration } from './world-version';
 import type { WorldObj } from './objects';
 import { T, isSolid } from './tiles';
 import { HOME_VALE, biomeAt, tileAt, type Biome } from './worldgen';
+import { elevationAt } from './terrain3';
 import { sanctuaryAt } from './sanctuary';
 import { REALM_IDS, REALM_SITES, nearestRealm } from './realms';
 import { KINGDOMS } from './kingdoms';
@@ -22,7 +23,7 @@ import { isUpperY } from './floors';
 import { isDiveY } from './sanctuaries';
 import { isCryptY } from './cryptplane';
 
-export type StoryKind = 'camp' | 'grave' | 'cart' | 'stone' | 'shrine';
+export type StoryKind = 'camp' | 'grave' | 'cart' | 'stone' | 'shrine' | 'wreck' | 'cairn';
 export interface StorySite {
   id: string;
   x: number;
@@ -37,6 +38,8 @@ export const STORY_READ: Record<StoryKind, string> = {
   cart: 'story_cart',
   stone: 'story_stone',
   shrine: 'story_shrine',
+  wreck: 'story_wreck',
+  cairn: 'story_cairn',
 };
 export const STORY_SUBS = new Set([
   'story_journal',
@@ -47,6 +50,8 @@ export const STORY_SUBS = new Set([
   'story_crate',
   'story_stone',
   'story_shrine',
+  'story_wreck',
+  'story_cairn',
   'ruin_crypt',
 ]);
 /** story props that are read (the rest are scenery) */
@@ -95,6 +100,66 @@ export function storyOfCell(seed: number, gx: number, gy: number): StorySite | n
   return out;
 }
 
+// ── shores and summits: wrecks washed up on the beaches, cairns on the high tops (their own grids and ids)
+const SHORE_CELL = 88,
+  SUMMIT_CELL = 96;
+const wild = (seed: number, x: number, y: number) =>
+  !(Math.hypot(x, y) < HOME_VALE + 10 || isCaveY(y) || isUpperY(y) || isDiveY(y) || isCryptY(y)) &&
+  !sanctuaryAt(seed, x, y) &&
+  !REALM_SITES.some((s) => Math.abs(x - s.cx) < s.w / 2 + 12 && Math.abs(y - s.cy) < s.h / 2 + 12);
+const landTile = (seed: number, x: number, y: number) => {
+  const t = tileAt(seed, x, y, STORY_GENERATION);
+  return !isSolid(t) && t !== T.WATER && t !== T.DEEP_WATER && t !== T.PATH;
+};
+/** A shipwreck on a sandy shore, if this cell's coast has one. */
+export function wreckOfCell(seed: number, gx: number, gy: number): StorySite | null {
+  const key = `w${seed}:${gx},${gy}`;
+  const hit = cache.get(key);
+  if (hit !== undefined) return hit;
+  let out: StorySite | null = null;
+  if (hash2(seed, gx, gy, 1341) < 0.5)
+    for (let k = 0; k < 14 && !out; k++) {
+      const x = gx * SHORE_CELL + 6 + Math.floor(hash2(seed, gx * 19 + k, gy, 1342) * (SHORE_CELL - 12));
+      const y = gy * SHORE_CELL + 6 + Math.floor(hash2(seed, gx, gy * 19 + k, 1343) * (SHORE_CELL - 12));
+      if (tileAt(seed, x, y, STORY_GENERATION) !== T.SAND || !wild(seed, x, y)) continue;
+      let water = false,
+        land = true;
+      for (let j = -3; j <= 3; j++)
+        for (let i = -3; i <= 3; i++) {
+          const t = tileAt(seed, x + i, y + j, STORY_GENERATION);
+          if (t === T.WATER || t === T.DEEP_WATER) water = true;
+        }
+      for (let j = -1; j <= 1; j++) for (let i = -1; i <= 2; i++) if (!landTile(seed, x + i, y + j)) land = false;
+      if (water && land) out = { id: `sw${gx}_${gy}`, x, y, kind: 'wreck', biome: biomeAt(seed, x, y) };
+    }
+  cache.set(key, out);
+  return out;
+}
+/** A cairn on a high top (a local summit at elevation level 2 or more), if this cell's hills have one. */
+export function cairnOfCell(seed: number, gx: number, gy: number): StorySite | null {
+  const key = `c${seed}:${gx},${gy}`;
+  const hit = cache.get(key);
+  if (hit !== undefined) return hit;
+  let out: StorySite | null = null;
+  if (hash2(seed, gx, gy, 1351) < 0.45)
+    for (let k = 0; k < 16 && !out; k++) {
+      const x = gx * SUMMIT_CELL + 8 + Math.floor(hash2(seed, gx * 23 + k, gy, 1352) * (SUMMIT_CELL - 16));
+      const y = gy * SUMMIT_CELL + 8 + Math.floor(hash2(seed, gx, gy * 23 + k, 1353) * (SUMMIT_CELL - 16));
+      const top = elevationAt(seed, x, y);
+      if (!wild(seed, x, y) || top < 2) continue;
+      let ok = true;
+      // the highest ground for a few tiles round
+      for (let j = -4; j <= 4 && ok; j += 2)
+        for (let i = -4; i <= 4 && ok; i += 2) if (elevationAt(seed, x + i, y + j) > top) ok = false;
+      for (let j = -1; j <= 1 && ok; j++)
+        for (let i = -1; i <= 1 && ok; i++)
+          if (!landTile(seed, x + i, y + j) || elevationAt(seed, x + i, y + j) !== elevationAt(seed, x, y)) ok = false;
+      if (ok) out = { id: `sc${gx}_${gy}`, x, y, kind: 'cairn', biome: biomeAt(seed, x, y) };
+    }
+  cache.set(key, out);
+  return out;
+}
+
 export function storyObjects(s: StorySite): WorldObj[] {
   const o = (dx: number, dy: number, sub: string): WorldObj => ({
     x: s.x + dx,
@@ -115,6 +180,10 @@ export function storyObjects(s: StorySite): WorldObj[] {
       return [o(0, 0, 'story_stone')];
     case 'shrine':
       return [o(0, 0, 'story_shrine')];
+    case 'wreck':
+      return [o(0, 0, 'story_wreck'), o(2, 1, 'story_crate')];
+    case 'cairn':
+      return [o(0, 0, 'story_cairn')];
   }
 }
 
@@ -136,6 +205,15 @@ export function storyObjectsIn(seed: number, cx: number, cy: number, generation:
       const s = storyOfCell(seed, gx, gy);
       if (s) for (const o of storyObjects(s)) if (inChunk(o)) out.push(o);
     }
+  for (const [cell, of] of [
+    [SHORE_CELL, wreckOfCell],
+    [SUMMIT_CELL, cairnOfCell],
+  ] as const)
+    for (let gy = Math.floor((y0 - 4) / cell); gy <= Math.floor((y0 + 36) / cell); gy++)
+      for (let gx = Math.floor((x0 - 4) / cell); gx <= Math.floor((x0 + 36) / cell); gx++) {
+        const s = of(seed, gx, gy);
+        if (s) for (const o of storyObjects(s)) if (inChunk(o)) out.push(o);
+      }
   for (let gy = Math.floor((y0 - 8) / 96); gy <= Math.floor((y0 + 40) / 96); gy++)
     for (let gx = Math.floor((x0 - 8) / 96); gx <= Math.floor((x0 + 40) / 96); gx++) {
       const r = ruinOfCell(seed, gx, gy);
@@ -297,6 +375,31 @@ export function storyText(
           `"To whoever keeps leaving the bread: the foxes thank you. So do I." — the shrine-keeper`,
         ],
       };
+    case 'wreck': {
+      const ship = pick(['Gull', 'Merry Wren', 'Saltwhistle', 'Dawn Treader', 'Brave Kestrel', 'Lady Isolde']);
+      return {
+        title: `The wreck of the ${ship}`,
+        plaque: `${ship.toUpperCase()} · OUT OF ${K.capital.toUpperCase()}`,
+        epitaph: 'Ribs of a ship stand out of the sand like a whale’s bones. Gulls nest in what is left of the hold.',
+        pages: [
+          `Captain's log. Fair wind out of ${K.capital}, holds full of ${pick(GOODS)}. ${kin} swears the sky smells of a storm. ${kin} always says that.`,
+          `The storm came after all. We lost the mast at dusk and the rudder before midnight. Breakers ahead. God keep us. — ${who}`,
+          `(On a scrap nailed to the ribs, in another hand:) All hands came ashore alive. We walked to the nearest town. Whoever finds this: the cargo is yours.`,
+        ],
+      };
+    }
+    case 'cairn':
+      return {
+        title: 'A summit cairn',
+        plaque: 'YOU HAVE CLIMBED HIGH',
+        epitaph:
+          'A pile of stones on the very top, each one carried up by somebody. A tin box is wedged in among them.',
+        pages: [
+          `Inside the tin, a climbers' register. The oldest entry: "Year ${year}. ${who} was here first. The view is worth the knees."`,
+          `"${kin}, with the ${K.name} survey: the whole of ${land} laid out below like a map. Added a stone."`,
+          `The last page is blank. You write your name, and add a stone to the cairn before you go down.`,
+        ],
+      };
     case 'crypt':
       return {
         title: 'A sealed crypt',
@@ -308,4 +411,17 @@ export function storyText(
         ],
       };
   }
+}
+
+/** The story site an id names: "st…" scenes, "sw…" wrecks, "sc…" cairns. */
+export function storySiteById(seed: number, id: string): StorySite | null {
+  const m = /^s([twc])(-?\d+)_(-?\d+)$/.exec(id);
+  if (!m) return null;
+  const gx = Number(m[2]),
+    gy = Number(m[3]);
+  return m[1] === 't'
+    ? storyOfCell(seed, gx, gy)
+    : m[1] === 'w'
+      ? wreckOfCell(seed, gx, gy)
+      : cairnOfCell(seed, gx, gy);
 }

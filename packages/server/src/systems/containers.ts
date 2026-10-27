@@ -28,7 +28,7 @@ import {
   STORY_READ,
   STORY_READABLE,
   STORY_XP,
-  storyOfCell,
+  storySiteById,
   storyText,
   type StoryKind,
   RUIN_NAMES,
@@ -562,10 +562,9 @@ function readStory(room: RoomApi, p: ServerPlayer, o: WorldObj): void {
   }
 }
 
-/** a story's site coordinates, from its id ("st<gx>_<gy>") */
+/** a story's site coordinates, from its id */
 function storyAnchor(seed: number, id: string, o: WorldObj): [number, number] {
-  const m = /^st(-?\d+)_(-?\d+)$/.exec(id);
-  const s = m ? storyOfCell(seed, Number(m[1]), Number(m[2])) : null;
+  const s = storySiteById(seed, id);
   return s ? [s.x, s.y] : [o.x, o.y];
 }
 
