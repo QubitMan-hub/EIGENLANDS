@@ -16,6 +16,7 @@
 import { CHUNK_SIZE } from './constants';
 import { hash2 } from './rng';
 import { T } from './tiles';
+import { isGateY } from './gate-plane';
 import type { WorldObj } from './objects';
 
 export type OtherworldId = 'aetheria' | 'umbra' | 'chronoria';
@@ -79,7 +80,8 @@ export function otherworldOf(y: number): OtherworldId | null {
   for (const id of OTHERWORLD_IDS) if (Math.abs(y - OTHERWORLDS[id].oy) < SPAN_Y) return id;
   return null;
 }
-export const isOtherworldY = (y: number): boolean => otherworldOf(y) !== null;
+/** off the surface world entirely: one of the three realms, or the plane the dungeon gates open onto */
+export const isOtherworldY = (y: number): boolean => otherworldOf(y) !== null || isGateY(y);
 
 // ───────────────────────── noise and the room grid ─────────────────────────
 

@@ -232,6 +232,12 @@ export function buildJournal(
           h('p', {
             text: 'Wonders and hunts: on some clear nights the stars fall; one comes down near you out in the open, and you can break it open for star shards before mid-morning. Each town posts a bounty most days: walk into town to hear of the beast and where it was seen, and everyone near when it falls is paid. Watch for aurora over the northern pines and a rainbow the morning after rain.',
           }),
+          h('p', {
+            text: "Dungeon gates: from dawn each day ranked rifts (E nearest the shrine, up to S far out) open in the wilds. Step into one at its level (E 3, D 8, C 13, B 18, A 24, S 30) to enter its dungeon: halls wake as you walk in, side chambers hide a cache, and the gate's master waits in the last hall. Bring it down for coin and mana stones (sell them, or brew Mana Tonics and Elixirs); the pale rift by the entry leads out. A gate still open at dusk breaks, and its monsters spill into the world.",
+          }),
+          h('p', {
+            text: `Monarch's powers: from level 10, Shadow Exchange (G) swaps you with a summoned shadow; from level 15, Monarch's Domain (U) raises a domain where your shadows heal, strike harder and every foe slows. A guardian's shadow rises named, with a trait of its own.`,
+          }),
         ),
       );
     }

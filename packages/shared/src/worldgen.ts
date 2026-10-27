@@ -4,6 +4,7 @@ import { sanctuaryTileAt } from './sanctuaries';
 import { cryptTileAt } from './crypts';
 import { isCryptY } from './cryptplane';
 import { isOtherworldY, otherworldLevels, otherworldTileAt } from './otherworlds';
+import { gateTileAt } from './gates';
 import { spacedTree } from './distribution';
 import { CHUNK_SIZE } from './constants';
 import { hash2 } from './rng';
@@ -251,7 +252,8 @@ function surfaceTileAt(seed: number, x: number, y: number, legacy: boolean, gene
   const sanctuary = sanctuaryTileAt(seed, x, y);
   if (sanctuary !== null) return sanctuary;
   // the three realms (revision 6)
-  if (isOtherworldY(y)) return gen >= 6 ? (otherworldTileAt(seed, x, y) ?? T.UPPER_VOID) : T.UPPER_VOID;
+  if (isOtherworldY(y))
+    return gen >= 6 ? (otherworldTileAt(seed, x, y) ?? gateTileAt(seed, x, y) ?? T.UPPER_VOID) : T.UPPER_VOID;
   // crypt interiors exist only in worlds that have crypts (revision 6)
   if (isCryptY(y)) return gen >= 6 ? (cryptTileAt(seed, x, y) ?? T.CAVE_WALL) : T.CAVE_WALL;
   if (isCaveY(y))

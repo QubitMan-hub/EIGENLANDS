@@ -1,4 +1,4 @@
-import { CAVE_OY, CRYPT_OY, DIVE_OY, LEVEL_PX, OTHERWORLDS, UPPER_OY, PALETTE } from '@eigenlands/shared';
+import { CAVE_OY, CRYPT_OY, DIVE_OY, GATE_OY, LEVEL_PX, OTHERWORLDS, UPPER_OY, PALETTE } from '@eigenlands/shared';
 
 const pal = PALETTE.map((h) => {
   const n = parseInt(h.slice(1), 16);
@@ -618,7 +618,7 @@ void main() {
   int face = 0;      // 0 top, 1 left (+y) side, 2 right (+x) side
   int dPx = 0;
   bool submerged=abs(uWin.y - ${DIVE_OY}.0)<4000.0;
-  bool enclosed = uWin.y > ${CAVE_ROW}.0 || abs(uWin.y - ${UPPER_OY}.0) < 1000.0 || abs(uWin.y - ${DIVE_OY}.0) < 4000.0 || abs(uWin.y - ${CRYPT_OY}.0) < 12000.0 || abs(uWin.y - ${OTHERWORLDS.umbra.oy}.0) < 30000.0;
+  bool enclosed = uWin.y > ${CAVE_ROW}.0 || abs(uWin.y - ${UPPER_OY}.0) < 1000.0 || abs(uWin.y - ${DIVE_OY}.0) < 4000.0 || abs(uWin.y - ${CRYPT_OY}.0) < 12000.0 || abs(uWin.y - ${OTHERWORLDS.umbra.oy}.0) < 30000.0 || abs(uWin.y - ${GATE_OY}.0) < 30000.0;
   bool aether = abs(uWin.y - ${OTHERWORLDS.aetheria.oy}.0) < 30000.0;
   bool chrono = abs(uWin.y - ${OTHERWORLDS.chronoria.oy}.0) < 30000.0;
   float zTop = enclosed ? ${GROUND_Z.caveWall}.0 + uTopZ : uTopZ;

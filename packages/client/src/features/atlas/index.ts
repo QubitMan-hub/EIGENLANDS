@@ -462,6 +462,7 @@ export class AtlasClient implements ClientModule {
       'Aetheria',
       'The Umbral Abyss',
       'Chronoria',
+      'Gate dungeons',
     ])
       layer.append(h('option', { value: name, text: name }));
     layer.value = this.plane;

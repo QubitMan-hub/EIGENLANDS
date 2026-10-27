@@ -25,6 +25,10 @@ import {
   isDiveY,
   isCryptY,
   otherworldOf,
+  isGateY,
+  gateSlotAt,
+  gateLayout,
+  GATE_RANKS,
   OTHERWORLDS,
   CRYPT_OY,
   isUpperY,
@@ -1267,7 +1271,12 @@ export class Game {
       upper = isUpperY(this.predictor.sim.y);
     const realm = otherworldOf(this.predictor.sim.y);
     const underground =
-      isCaveY(this.predictor.sim.y) || diving || upper || isCryptY(this.predictor.sim.y) || realm === 'umbra';
+      isCaveY(this.predictor.sim.y) ||
+      diving ||
+      upper ||
+      isCryptY(this.predictor.sim.y) ||
+      realm === 'umbra' ||
+      isGateY(this.predictor.sim.y);
     // the sky realms keep their own fair weather
     const weather =
       underground || realm
@@ -2326,13 +2335,16 @@ export class Game {
       $('townhint').title =
         `${route.detail}. Tracked quest; manage it in Journal → Quests. Sanctuary wards protect towns from monsters.`;
     } else {
+      const gateSlot = isGateY(me.y) ? gateSlotAt(me.x) : null;
       $('townhint').textContent =
-        place +
-        (ward
-          ? `${ward.name} · Sanctuary`
-          : td > 30
-            ? `${town.name} ${arrow(tdx, tdy)} ${Math.round(td)} tiles`
-            : town.name);
+        gateSlot !== null
+          ? `${GATE_RANKS[gateLayout(this.seed, gateSlot).rank]}-rank gate · find its master`
+          : place +
+            (ward
+              ? `${ward.name} · Sanctuary`
+              : td > 30
+                ? `${town.name} ${arrow(tdx, tdy)} ${Math.round(td)} tiles`
+                : town.name);
       $('townhint').title = ward
         ? 'Sanctuary: monsters cannot harm you here. Combat resumes beyond the settlement wards.'
         : ($('townhint').textContent ?? '');

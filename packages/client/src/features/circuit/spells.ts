@@ -11,6 +11,19 @@ import { Interpolator, type Pose } from '../../net/interp';
 import type { P34Deps } from '../types';
 import { elCol } from './art';
 
+/** gate ranks E, D, C, B, A, S: grey-blue, green, blue, violet, amber, red */
+const GATE_COLORS = [0x9fb8c8, 0x5fd06a, 0x4aa3ff, 0xb06bff, 0xffb347, 0xff4a5a];
+const GATE_LETTERS = ['E', 'D', 'C', 'B', 'A', 'S'];
+/** 3 x 5 pixel letters for the gate ranks */
+const GLYPHS: Record<string, string[]> = {
+  E: ['###', '#..', '##.', '#..', '###'],
+  D: ['##.', '#.#', '#.#', '#.#', '##.'],
+  C: ['.##', '#..', '#..', '#..', '.##'],
+  B: ['##.', '#.#', '##.', '#.#', '##.'],
+  A: ['.#.', '#.#', '###', '#.#', '#.#'],
+  S: ['.##', '#..', '.#.', '..#', '##.'],
+};
+
 export interface SpellLike {
   id: string;
   kind: number;
@@ -81,7 +94,7 @@ export class SpellRenderer {
     const root = new Container();
     const g = new Graphics();
     root.addChild(g);
-    const world = s.kind === SPELL.ECHO || s.kind === SPELL.BOLT;
+    const world = s.kind === SPELL.ECHO || s.kind === SPELL.BOLT || s.kind === SPELL.GATE;
     (world ? this.d.entityLayer() : this.d.fxLayer()).addChild(root);
     const v: View = { id: s.id, kind: s.kind, s, root, g, born: now, dead: 0, trail: [] };
     if (s.kind === SPELL.ECHO) {
@@ -151,6 +164,9 @@ export class SpellRenderer {
           break;
         case SPELL.RESIDUE:
           this.residue(v, x, y, age, reduced);
+          break;
+        case SPELL.GATE:
+          this.gate(v, x, y, age, reduced);
           break;
       }
     }
@@ -385,6 +401,48 @@ export class SpellRenderer {
           alpha: (1 - k) * 0.9 * a,
         });
       }
+  }
+
+  /**
+   * A dungeon gate: a standing oval rift in its rank's colour (E grey-blue through D, C, B, A to S red), swirling,
+   * with its rank lettered beneath. The way out of a dungeon (r = 2) is a smaller, pale rift.
+   */
+  private gate(v: View, x: number, y: number, age: number, reduced: boolean): void {
+    v.root.x = Math.round(isoX(x, y));
+    v.root.y = Math.round(isoY(x, y));
+    v.root.zIndex = depth(x, y);
+    const g = v.g;
+    const exit = v.s.r === 2;
+    const rank = Math.max(0, Math.min(5, v.s.hue));
+    const col = exit ? 0xd8f4ff : GATE_COLORS[rank]!;
+    const w = exit ? 9 : 10 + rank,
+      h = exit ? 15 : 17 + rank * 1.5;
+    const cy = -h - 2;
+    const pulse = reduced ? 1 : 1 + 0.05 * Math.sin(age * 3);
+    g.ellipse(0, 0, w + 4, (w + 4) / 2).fill({ color: 0x0b0c1a, alpha: 0.3 });
+    g.ellipse(0, 0, w + 2, (w + 2) / 2).stroke({ color: col, width: 1, alpha: 0.5 });
+    // outer glow, the rift's dark heart, its rim
+    g.ellipse(0, cy, (w + 4) * pulse, (h + 4) * pulse).fill({ color: col, alpha: 0.16 });
+    g.ellipse(0, cy, w, h).fill({ color: 0x0b0c1a, alpha: 0.9 });
+    g.ellipse(0, cy, w * 0.72, h * 0.8).fill({ color: col, alpha: 0.22 });
+    g.ellipse(0, cy, w, h).stroke({ color: col, width: 2, alpha: 0.95 });
+    // the swirl: motes winding inward
+    const n = reduced ? 6 : 14;
+    for (let i = 0; i < n; i++) {
+      const k = ((reduced ? 0 : age * 0.45) + i / n) % 1,
+        a = i * 2.39996 + (reduced ? 0 : age * 2.2);
+      const rr = 1 - k;
+      g.rect(Math.round(Math.cos(a) * w * 0.9 * rr) - 1, Math.round(cy + Math.sin(a) * h * 0.9 * rr) - 1, 2, 2).fill({
+        color: i % 3 ? col : 0xffffff,
+        alpha: 0.35 + 0.6 * rr,
+      });
+    }
+    if (exit) return;
+    // its rank, in a pixel glyph beneath
+    const glyph = GLYPHS[GATE_LETTERS[rank]!]!;
+    for (let r = 0; r < 5; r++)
+      for (let c = 0; c < 3; c++)
+        if (glyph[r]![c] === '#') g.rect(-3 + c * 2, 4 + r * 2, 2, 2).fill({ color: col, alpha: 0.95 });
   }
 
   private flash(v: View, x: number, y: number, col: number, age: number): void {

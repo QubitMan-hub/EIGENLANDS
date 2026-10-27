@@ -50,8 +50,27 @@ export function verifyTicket(
       for (const [k, v] of Object.entries(p.c.cd)) if (typeof v === 'number' && v > 0 && v < 600_000) out.cd[k] = v;
     }
     if (typeof p.c.res === 'number' && Number.isFinite(p.c.res)) out.res = p.c.res;
+    const gate = cleanGate(p.c.gate);
+    if (gate) out.gate = gate;
     return out;
   } catch {
     return null;
   }
+}
+
+const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+const id = (v: unknown): v is string => typeof v === 'string' && v.length > 0 && v.length <= 40;
+
+/** a dungeon-gate trip carried between shards (features/gates): shapes checked field by field */
+function cleanGate(raw: unknown): Carry['gate'] | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const g = raw as Record<string, unknown>;
+  const out: NonNullable<Carry['gate']> = {};
+  const t = g.trip as Record<string, unknown> | undefined;
+  if (t && id(t.id) && num(t.slot) && num(t.rank) && num(t.x) && num(t.y) && num(t.day))
+    out.trip = { id: t.id, slot: t.slot, rank: t.rank, x: t.x, y: t.y, day: t.day };
+  const b = g.back as Record<string, unknown> | undefined;
+  if (b && num(b.x) && num(b.y)) out.back = { x: b.x, y: b.y };
+  if (id(g.cleared)) out.cleared = g.cleared;
+  return out.trip || out.back || out.cleared ? out : null;
 }

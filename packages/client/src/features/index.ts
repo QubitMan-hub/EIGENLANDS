@@ -6,6 +6,7 @@ import { ShardClient } from './shard';
 import { SocialClient } from './social';
 import { VoiceClient } from './voice';
 import { TravelClient } from './travel';
+import { GatesClient } from './gates';
 import type { ClientModule, P34Deps } from './types';
 
 /** Phase 3/4 client: the Circuit Board, abilities and tutorial; parties, chat and trading; shard handoff and ghosts. */
@@ -18,6 +19,7 @@ export class P34Client {
   readonly voice: VoiceClient;
   readonly atlas: AtlasClient;
   readonly travel: TravelClient;
+  readonly gates: GatesClient;
   private mods: ClientModule[];
 
   constructor(readonly d: P34Deps) {
@@ -29,6 +31,7 @@ export class P34Client {
     this.voice = new VoiceClient(d);
     this.atlas = new AtlasClient(d, () => this.social.partyState);
     this.travel = new TravelClient(d);
+    this.gates = new GatesClient(d);
     this.travel.onChange = (list) => this.atlas.setWaystones(list, this.travel.homeId());
     this.mods = [
       this.shard,
@@ -37,6 +40,7 @@ export class P34Client {
       this.shadows,
       this.adventure,
       this.travel,
+      this.gates,
       this.voice,
       this.atlas,
     ];

@@ -17,6 +17,7 @@ import './home';
 import './homesteads';
 import './legendary';
 import './realm-items';
+import './gate-items';
 import type { Source } from './types';
 
 export { OUT };

@@ -18,6 +18,13 @@ export interface Carry {
   /** ability id -> ms of cooldown left */
   cd?: Record<string, number>;
   res?: number;
+  /** a hunter crossing between the wilds and a gate's dungeon (features/gates) */
+  gate?: {
+    trip?: import('@eigenlands/shared').Gate;
+    back?: { x: number; y: number };
+    /** a gate this hunter just closed, for the room that shows it in the wilds */
+    cleared?: string;
+  };
 }
 
 export type BucketName = 'cast' | 'board' | 'party' | 'chat' | 'voice' | 'trade' | 'emote';

@@ -57,6 +57,7 @@ import { FestivalModule } from '../features/festivals';
 import { CryptModule } from '../features/crypts';
 import { WondersModule } from '../features/wonders';
 import { OtherworldModule } from '../features/otherworlds';
+import { GateModule } from '../features/gates';
 import { SocialModule } from '../features/social';
 import type { BucketName, Carry, JoinOpts, Module, Registrar } from '../features/types';
 import type { VillageHost, VillageSystem } from '../systems/types';
@@ -108,6 +109,7 @@ export class GameRoom extends WorldRoom {
   crypts!: CryptModule;
   wonders!: WondersModule;
   otherworlds!: OtherworldModule;
+  gates!: GateModule;
   shardMod!: ShardModule;
   private modules: Module[] = [];
   private buckets = new Map<string, Map<BucketName, TokenBucket>>();
@@ -163,6 +165,7 @@ export class GameRoom extends WorldRoom {
     this.crypts = new CryptModule(this);
     this.wonders = new WondersModule(this);
     this.otherworlds = new OtherworldModule(this);
+    this.gates = new GateModule(this);
     this.modules = [
       this.shardMod,
       this.journeys,
@@ -182,6 +185,7 @@ export class GameRoom extends WorldRoom {
       this.crypts,
       this.wonders,
       this.otherworlds,
+      this.gates,
       this.army,
       this.voice,
     ];

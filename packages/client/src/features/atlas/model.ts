@@ -8,6 +8,8 @@ import {
   isDiveY,
   isCryptY,
   otherworldOf,
+  isGateY,
+  GATE_OY,
   OTHERWORLDS,
   CRYPT_OY,
   isUpperY,
@@ -24,7 +26,9 @@ export const planeOf = (y: number): string =>
           ? 'Upper rooms'
           : isCaveY(y)
             ? 'Undercroft'
-            : 'Overworld';
+            : isGateY(y)
+              ? 'Gate dungeons'
+              : 'Overworld';
 export const chartY = (y: number): number =>
   otherworldOf(y)
     ? y - OTHERWORLDS[otherworldOf(y)!].oy
@@ -36,7 +40,9 @@ export const chartY = (y: number): number =>
           ? y - UPPER_OY
           : isCaveY(y)
             ? y - CAVE_OY
-            : y;
+            : isGateY(y)
+              ? y - GATE_OY
+              : y;
 export interface ChartChunk {
   cx: number;
   cy: number;

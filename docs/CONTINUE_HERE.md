@@ -1,3 +1,19 @@
+# Current continuation: realm generation, shadow powers and dungeon gates (2026-10-27)
+
+- **Realm generation:** `otherworlds.ts` `realmGraph` (holes, spanning tree plus loops, forced rooms), `ROOM_THEMES`
+  / `roomTheme`, `nearUpdraft`, Chronoria's gate court and road. See [REALMS.md](REALMS.md#how-a-realm-is-generated).
+- **Shadow powers:** `shadows.ts` (exchange, domain, `LEGEND_SHADOWS`, `TRAIT_INFO`, boss shadow scaling), server
+  `features/shadows` (`exchange`, `domain`, `power`, `defy`), client keys G and U. See
+  [design/shadow-army.md](design/shadow-army.md).
+- **Dungeon gates:** `gates.ts` and `gate-plane.ts`, server `features/gates` (handoff via `Carry.gate`, validated in
+  `shard/ticket.ts`), client `features/gates`, `SPELL.GATE` drawn in `features/circuit/spells.ts`, items in
+  `catalog/gate-items.ts`. See [GATES.md](GATES.md).
+- **Validation:** shared `gates.test.ts` and `otherworlds.test.ts`; server `gates.test.ts`,
+  `shadow-powers.test.ts` and `realms.test.ts`; browser `e2e/gates.mjs`, `e2e/shadow-powers.mjs` and
+  `e2e/realm-themes.mjs`.
+
+---
+
 # Current continuation: the three realms and their peoples (2026-10-27)
 
 Read [REALMS.md](REALMS.md).

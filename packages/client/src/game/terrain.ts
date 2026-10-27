@@ -22,6 +22,7 @@ import {
   isCaveY,
   isCryptY,
   otherworldOf,
+  isGateY,
   sampleClimate,
   LEVEL_PX,
   townFor,
@@ -176,7 +177,7 @@ export class Terrain {
     const seed = this.store.seed;
     // crypt interiors and the Umbral Abyss are hewn from the same rock as the Undercroft
     const realm = otherworldOf(cy * CHUNK_SIZE);
-    const cave = isCaveY(cy * CHUNK_SIZE) || isCryptY(cy * CHUNK_SIZE) || realm === 'umbra';
+    const cave = isCaveY(cy * CHUNK_SIZE) || isCryptY(cy * CHUNK_SIZE) || realm === 'umbra' || isGateY(cy * CHUNK_SIZE);
     // each realm keeps one palette: Aetheria's spring meadow, the Abyss's violet fungus, Chronoria's strange shimmer
     const realmBiome = realm === 'aetheria' ? 'meadow' : realm ? 'enchanted' : null;
     for (let y = 0; y < CHUNK_SIZE; y++) {
