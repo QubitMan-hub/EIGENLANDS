@@ -664,13 +664,11 @@ export class CombatView {
     }
   }
 
-  /** Hull, wake and bobbing under a sailing player; restores the walking pose when they step ashore. */
+  /** Active transport owns rider height; inactive visuals only hide themselves. Game resets the ground pose each frame. */
   rig(v: CombatActor, boat: boolean, fx: number, fy: number, t: number): void {
     if (!boat) {
       if (v.ship) {
         v.ship.visible = false;
-        v.sprite.y = 0;
-        v.fl.y = 0;
       }
       return;
     }
@@ -693,8 +691,6 @@ export class CombatView {
     if (!riding) {
       if (v.cartSprite?.visible) {
         v.cartSprite.visible = false;
-        v.sprite.y = 0;
-        v.fl.y = 0;
       }
       return;
     }
@@ -719,8 +715,6 @@ export class CombatView {
       if (v.mountSprite?.visible) {
         v.mountSprite.visible = false;
         v.mountSprite.y = 0;
-        v.sprite.y = 0;
-        v.fl.y = 0;
       }
       return;
     }

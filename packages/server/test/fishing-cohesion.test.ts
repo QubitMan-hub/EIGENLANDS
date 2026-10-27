@@ -15,7 +15,7 @@ function fixture(extra = {}) {
   const room = { players: new Map([['p', p]]) } as unknown as RoomApi;
   return { p, room };
 }
-for (const state of [{ cart: 1 }, { mount: 1 }, { dashT: 0.1 }, { atkCd: 0.2 }])
+for (const state of [{ cart: 1 }, { mount: 1 }, { dashT: 0.1 }, { atkCd: 0.2 }, { hold: 1 }, { charge: 0.5 }])
   it(`ends fishing when another action takes over: ${JSON.stringify(state)}`, () => {
     const { p, room } = fixture(state);
     tickFishing(room, 0);

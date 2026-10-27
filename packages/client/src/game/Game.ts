@@ -1774,11 +1774,21 @@ export class Game {
       v.gfx.clear();
 
       if (v.type === 'player') {
+        const boat = isMe ? this.predictor.sim.boat > 0 : ((s?.flags ?? 0) & 128) !== 0;
+
         const mount = isMe ? this.predictor.sim.mount : (s?.mount ?? 0);
         const cart = isMe ? this.predictor.sim.cart > 0 : !!s?.cart;
         const dash = isMe ? this.predictor.sim.dashT > 0 : ((s?.flags ?? 0) & 1) !== 0;
         const deadP = isMe ? this.dead : ((s?.flags ?? 0) & 4) !== 0;
         const combatStrike = !deadP && !dash ? this.combat.playerAttackFrame(v, now, reduced) : -1;
+        const charging = isMe
+          ? this.predictor.sim.hold > 0 && this.predictor.sim.charge > 0
+          : ((s?.flags ?? 0) & 8) !== 0;
+        // Work confirmations must not resume after a newer combat or transport action.
+        if (combatStrike >= 0 || charging || dash || deadP || mount || cart) {
+          this.toolSwings.delete(v);
+          this.workActions.delete(v);
+        }
         const use = this.toolSwings.get(v);
         if (use?.waitForResult) {
           if (this.gameplay.rhythm.open) use.received = now;
@@ -1803,7 +1813,7 @@ export class Game {
           : s?.weapon;
         const weapon = isWeaponId(weaponId) ? weaponId : null;
         const tool = isMe ? ITEMS[this.gameplay.selected()?.id ?? '']?.tool?.type : s?.held;
-        let heldItem = harvesting ? use!.tool : strike < 0 && isHeldId(tool) ? tool : weapon;
+        let heldItem = harvesting ? use!.tool : strike < 0 && !charging && isHeldId(tool) ? tool : weapon;
         const family = harvesting
           ? use!.tool === 'can' || use!.tool === 'rod'
             ? CAST_FRAME
@@ -1828,7 +1838,7 @@ export class Game {
         const meleeFamily = weapon ? (WEAPONS[weapon].fam ?? weapon) : 'sword';
         if (combatStrike >= 0 && family === ATTACK_FRAME)
           frame = meleeFrame(meleeFamily, this.combat.playerAttackProgress(v, now), reduced);
-        const transportKind = cart ? -1 : mount;
+        const transportKind = boat ? -2 : cart ? -1 : mount;
         let transport = this.transportPoses.get(v);
         if (!transport || transport.kind !== transportKind) {
           transport = { kind: transportKind, at: transport ? now : now - 220, fromY: v.sprite.y };
@@ -1838,11 +1848,11 @@ export class Game {
         // Start confirmed gestures on their first presentation, just like tool swings.
         if (confirmed && confirmed.at === 0) confirmed.at = now;
         const fishing = isMe ? this.gameplay.fishing : null;
-        if (fishing && combatStrike < 0) heldItem = 'rod';
+        if (fishing && !charging && combatStrike < 0) heldItem = 'rod';
         const channel = isMe ? this.ext.shadows.channelProgress(now) : null;
         let unarmedWork = false;
         let actionTarget: { x: number; y: number } | null = null;
-        if (!deadP && !dash && combatStrike < 0) {
+        if (!deadP && !dash && !charging && combatStrike < 0) {
           if (cart || mount) frame = actionFrame('sit', (v.travel % 0.8) / 0.8, reduced);
           else if (harvesting) {
             const action: PersonAction =
@@ -1874,9 +1884,6 @@ export class Game {
             actionTarget = confirmed;
           }
         }
-        const charging = isMe
-          ? this.predictor.sim.hold > 0 && this.predictor.sim.charge > 0
-          : ((s?.flags ?? 0) & 8) !== 0;
         if (charging && !walking && !deadP && !dash && combatStrike < 0)
           frame = family === ATTACK_FRAME ? actionFrame(meleeAction(meleeFamily), 0.34, reduced) : family;
         if (deadP) frame = actionFrame('death', Math.min(1, (now - (v.deathAt ??= now)) / 650), reduced);
@@ -1885,7 +1892,7 @@ export class Game {
           if (dash) frame = actionFrame('dodge', (now - (v.dashAt ??= now)) / 180, reduced);
           else v.dashAt = undefined;
           if (v.flash > 0.9) v.hurtAt ??= now;
-          if (!dash && !walking && combatStrike < 0 && v.hurtAt && now - v.hurtAt < 220)
+          if (!dash && !mount && !cart && !charging && !walking && combatStrike < 0 && v.hurtAt && now - v.hurtAt < 220)
             frame = actionFrame('hit', (now - v.hurtAt) / 220, reduced);
           if (v.hurtAt && now - v.hurtAt >= 220) v.hurtAt = undefined;
         }
@@ -1905,12 +1912,11 @@ export class Game {
         v.sprite.rotation = 0;
         v.sprite.scale.set(1);
         v.sprite.y = 1;
-        const boat = isMe ? this.predictor.sim.boat > 0 : ((s?.flags ?? 0) & 128) !== 0;
         this.combat.rig(v, boat, fx, fy, now / 1000);
         this.combat.minecart(v, cart, fx, fy);
         const riding = !boat && !cart && !deadP ? (isMe ? this.predictor.sim.mount : (s?.mount ?? 0)) : 0;
         this.combat.mount(v, riding, fx, fy, walking, v.travel, reduced);
-        if (!reduced && transport && now - transport.at < 220) {
+        if (!reduced && !dash && !deadP && transport && now - transport.at < 220) {
           const t = Math.max(0, (now - transport.at) / 220),
             ease = t * t * (3 - 2 * t);
           v.sprite.y = Math.round(transport.fromY + (v.sprite.y - transport.fromY) * ease);

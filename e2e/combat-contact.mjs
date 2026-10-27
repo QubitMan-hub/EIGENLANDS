@@ -21,6 +21,10 @@ try {
     const g = window.__eigen.game;
     g.ext.circuit.send('p3_tutorial', { action: 'skip' });
     window.__contact = { events: [], painted: [], charged: false };
+    const actor = g.views.get(g.myId);
+    g.workActions.set(actor, { action: 'craft', at: 0, x: 0, y: 0 });
+    g.toolSwings.set(actor, { tool: 'axe', at: 0, received: performance.now(), x: 0, y: 0 });
+
     const original = g.combat.onLocalStep.bind(g.combat);
     g.combat.onLocalStep = (ev, sim, actor) => {
       original(ev, sim, actor);
@@ -42,6 +46,19 @@ try {
   await page.waitForTimeout(700);
   await page.keyboard.down('KeyJ');
   await page.waitForFunction(() => window.__contact.charged, null, { timeout: 15000 });
+  const handoff = await page.evaluate(() => {
+    const g = window.__eigen.game,
+      v = g.views.get(g.myId);
+    return {
+      equipped: !!g.gameplay.profile.equip.weapon,
+      held: !!v.held?.visible,
+      staleWork: g.workActions.has(v),
+      staleTool: g.toolSwings.has(v),
+    };
+  });
+  assert.equal(handoff.held, handoff.equipped, 'Charging uses equipped combat gear, not the selected gathering tool');
+  assert.equal(handoff.staleWork, false);
+  assert.equal(handoff.staleTool, false);
   await page.screenshot({ path: `${out}/charge.png` });
   await page.keyboard.up('KeyJ');
   await page.waitForFunction(() => window.__contact.events.length >= 2, null, { timeout: 15000 });

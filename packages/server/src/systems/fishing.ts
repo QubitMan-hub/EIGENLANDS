@@ -73,7 +73,15 @@ function endCast(p: ServerPlayer): void {
   p.client.send(MSG.FISH_CAST, { id: c.id, tx: c.tx, ty: c.ty, ended: true });
 }
 function interrupted(p: ServerPlayer): boolean {
-  return p.deadT > 0 || p.sim.cart > 0 || p.sim.mount > 0 || p.sim.dashT > 0 || p.sim.atkCd > 0;
+  return (
+    p.deadT > 0 ||
+    p.sim.cart > 0 ||
+    p.sim.mount > 0 ||
+    p.sim.dashT > 0 ||
+    p.sim.atkCd > 0 ||
+    p.sim.hold > 0 ||
+    p.sim.charge > 0
+  );
 }
 
 /** Per-tick bookkeeping: cancel stale casts, ring the bite, drop expired sessions. */

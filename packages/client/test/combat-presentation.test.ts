@@ -168,3 +168,23 @@ it('plays authored boss strike and recovery poses when a caster fires directly i
   actor.fl.destroy();
   actor.gfx.destroy();
 });
+
+it('hides inactive transport without overwriting the active deck or saddle height', () => {
+  const view = new CombatView({} as CombatDeps, {} as Graphics);
+  const actor = {
+    sprite: { y: -7 },
+    fl: { y: -7 },
+    ship: { visible: true },
+    cartSprite: { visible: true },
+    mountSprite: { visible: true, y: -10 },
+  } as unknown as CombatActor;
+  view.rig(actor, false, 1, 0, 0);
+  view.minecart(actor, false, 1, 0);
+  view.mount(actor, 0, 1, 0, false, 0);
+  expect(actor.sprite.y).toBe(-7);
+  expect(actor.fl.y).toBe(-7);
+  expect(actor.ship!.visible).toBe(false);
+  expect(actor.cartSprite!.visible).toBe(false);
+  expect(actor.mountSprite!.visible).toBe(false);
+  expect(actor.mountSprite!.y).toBe(0);
+});
