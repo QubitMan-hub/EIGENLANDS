@@ -1292,7 +1292,12 @@ function buildRoof(
             // eave darkening: the lowest course reads as an overhang
             if (dpx > span * 16 - 1.5) t -= 0.14;
             // Barge boards follow the actual gable ends in either orientation.
-            const endDistance = Math.min(along - (alongX ? X0 : Y0), (alongX ? X1 : Y1) - along);
+            // (on the cross wing the only gable end is the one out over the street)
+            const endDistance = onWing
+              ? alongX
+                ? Y1 - y
+                : X1 - x
+              : Math.min(along - (alongX ? X0 : Y0), (alongX ? X1 : Y1) - along);
             if (shape === 'gable' && realm === 'surface' && endDistance < 0.12) {
               put(ctx, px, py, endDistance < 0.05 ? st.trim : rampAt(st.wall, 0.65 + lit, px, py));
               break;
