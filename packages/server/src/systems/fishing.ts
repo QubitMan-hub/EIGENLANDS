@@ -65,13 +65,24 @@ export function startCast(room: RoomApi, p: ServerPlayer, tx: number, ty: number
   p.toast('You cast your line…');
 }
 
+/** End the same session on both sides; a stale bite must never recreate a cancelled cast. */
+function endCast(p: ServerPlayer): void {
+  const c = p.cast;
+  if (!c) return;
+  p.cast = null;
+  p.client.send(MSG.FISH_CAST, { id: c.id, tx: c.tx, ty: c.ty, ended: true });
+}
+function interrupted(p: ServerPlayer): boolean {
+  return p.deadT > 0 || p.sim.cart > 0 || p.sim.mount > 0 || p.sim.dashT > 0 || p.sim.atkCd > 0;
+}
+
 /** Per-tick bookkeeping: cancel stale casts, ring the bite, drop expired sessions. */
 export function tickFishing(room: RoomApi, now: number): void {
   for (const p of room.players.values()) {
     const c = p.cast;
     if (c) {
-      if (p.deadT > 0 || distToTile(p, c.tx, c.ty) > MAX_CAST_RANGE) {
-        p.cast = null;
+      if (interrupted(p) || distToTile(p, c.tx, c.ty) > MAX_CAST_RANGE) {
+        endCast(p);
         p.toast('You reel in.');
         continue;
       }
@@ -81,7 +92,7 @@ export function tickFishing(room: RoomApi, now: number): void {
         p.client.send(MSG.FISH_BITE, { id: c.id, windowMs: BITE_WINDOW_MS });
         room.fx({ kind: 'splash', x: c.tx + 0.5, y: c.ty + 0.5 });
       } else if (c.state === 'bite' && now > c.deadline) {
-        p.cast = null;
+        endCast(p);
         p.toast('It got away…', 'bad');
       }
     }
@@ -96,14 +107,18 @@ export function tickFishing(room: RoomApi, now: number): void {
 export function handleHook(room: RoomApi, p: ServerPlayer, msg: FishHookMsg): void {
   const c = p.cast;
   if (!c || !msg || msg.id !== c.id) return;
+  if (interrupted(p) || distToTile(p, c.tx, c.ty) > MAX_CAST_RANGE) {
+    endCast(p);
+    return;
+  }
   const now = Date.now();
   if (c.state === 'wait') {
-    p.cast = null;
+    endCast(p);
     p.toast('Too early! The fish got spooked.', 'bad');
     return;
   }
   if (now > c.deadline) {
-    p.cast = null;
+    endCast(p);
     return;
   }
   p.cast = null;

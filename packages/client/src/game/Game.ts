@@ -1881,7 +1881,7 @@ export class Game {
             'dodge',
             'death',
           ].includes(actionPose(0, frame)?.action ?? '') &&
-          !boat &&
+          (!boat || (fishing && heldItem === 'rod' && combatStrike < 0)) &&
           !cart &&
           !deadP
         ) {
@@ -1990,15 +1990,16 @@ export class Game {
         .fill(pc(f.bite ? 38 : 35))
         .stroke({ color: pc(7), width: 1 });
       this.bobber.ellipse(bx, by + 1, 5, 2.2).stroke({ color: pc(30), width: 1, alpha: 0.7 });
-      if (this.predictor) {
+      const fisher = this.views.get(this.myId);
+      if (this.predictor && fisher?.held?.visible) {
         const p = this.predictor.sim;
         const sd = screenDir(f.tx + 0.5 - p.x, f.ty + 0.5 - p.y);
         const grip = personGrip(
           dirOf(sd.x, sd.y),
           actionFrame('fish', f.bite ? 0.5 : 0.85, this.settings().reducedMotion),
         );
-        const tipX = isoX(p.x, p.y) + grip.x - PERSON_W / 2 + Math.cos(grip.angle) * 13;
-        const tipY = isoY(p.x, p.y) + grip.y - PERSON_H + 1 + Math.sin(grip.angle) * 13;
+        const tipX = fisher.root.x + grip.x - PERSON_W / 2 + Math.cos(grip.angle) * 13;
+        const tipY = fisher.root.y + fisher.held.y + grip.y - PERSON_H + Math.sin(grip.angle) * 13;
         this.bobber
           .moveTo(tipX, tipY)
           .lineTo(bx, by - 2)
