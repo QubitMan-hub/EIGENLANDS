@@ -165,7 +165,7 @@ export interface NetHandlers {
   rhythmStart(m: RhythmStartMsg): void;
   rhythmResult(m: RhythmResultMsg): void;
   fishBite(m: FishBiteMsg): void;
-  fishCast(m: { tx: number; ty: number; id: string }): void;
+  fishCast(m: { tx: number; ty: number; id: string; ended?: boolean }): void;
   dialogue(m: DialogueMsg): void;
   shopView(m: ShopViewMsg): void;
   forgePreview(m: ForgePreviewReply): void;
@@ -228,7 +228,7 @@ export class Net {
     on(MSG.RHYTHM_START, (m: RhythmStartMsg) => this.h.rhythmStart(m));
     on(MSG.RHYTHM_RESULT, (m: RhythmResultMsg) => this.h.rhythmResult(m));
     on(MSG.FISH_BITE, (m: FishBiteMsg) => this.h.fishBite(m));
-    on(MSG.FISH_CAST, (m: { tx: number; ty: number; id: string }) => this.h.fishCast(m));
+    on(MSG.FISH_CAST, (m: { tx: number; ty: number; id: string; ended?: boolean }) => this.h.fishCast(m));
     on(MSG.DIALOGUE, (m: DialogueMsg) => this.h.dialogue(m));
     on(MSG.SHOP_VIEW, (m: ShopViewMsg) => this.h.shopView(m));
     on(MSG.FORGE_PREVIEW_R, (m: ForgePreviewReply) => this.h.forgePreview(m));

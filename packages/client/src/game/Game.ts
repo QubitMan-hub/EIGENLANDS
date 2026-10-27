@@ -1,4 +1,4 @@
-import { actionPose, actionFrame, type PersonAction } from '../art/person-actions';
+import { actionPose, actionFrame, meleeAction, meleeFrame, type PersonAction } from '../art/person-actions';
 import { FLY_Z, SADDLE_Z } from '../art/mounts';
 import { livestockTexture } from '../art/livestock';
 import { isLivestock } from '@eigenlands/shared';
@@ -187,6 +187,7 @@ interface Snap extends Pose {
 }
 
 interface ActorView {
+  personFrame?: number;
   deathAt?: number;
   dashAt?: number;
   hurtAt?: number;
@@ -1785,6 +1786,9 @@ export class Game {
                 : reduced
                   ? -1
                   : 0;
+        const meleeFamily = weapon ? (WEAPONS[weapon].fam ?? weapon) : 'sword';
+        if (combatStrike >= 0 && family === ATTACK_FRAME)
+          frame = meleeFrame(meleeFamily, this.combat.playerAttackProgress(v, now), reduced);
         const transportKind = cart ? -1 : mount;
         let transport = this.transportPoses.get(v);
         if (!transport || transport.kind !== transportKind) {
@@ -1834,7 +1838,8 @@ export class Game {
         const charging = isMe
           ? this.predictor.sim.hold > 0 && this.predictor.sim.charge > 0
           : ((s?.flags ?? 0) & 8) !== 0;
-        if (charging && !walking && !deadP && !dash && combatStrike < 0) frame = family;
+        if (charging && !walking && !deadP && !dash && combatStrike < 0)
+          frame = family === ATTACK_FRAME ? actionFrame(meleeAction(meleeFamily), 0.34, reduced) : family;
         if (deadP) frame = actionFrame('death', Math.min(1, (now - (v.deathAt ??= now)) / 650), reduced);
         else {
           v.deathAt = undefined;
@@ -1856,6 +1861,7 @@ export class Game {
         v.sprite.texture = s?.app
           ? this.sheets.styled(lookIx, s.app, dirOf(sd.x, sd.y), frame)
           : this.sheets.person(lookIx, dirOf(sd.x, sd.y), frame);
+        v.personFrame = frame >= 30 ? frame : v.sprite.texture.frame.x / PERSON_W;
         v.sprite.alpha = deadP ? 0.65 : dash ? 0.6 : 1;
         v.sprite.rotation = 0;
         v.sprite.scale.set(1);
@@ -1887,7 +1893,7 @@ export class Game {
             'dodge',
             'death',
           ].includes(actionPose(0, frame)?.action ?? '') &&
-          !boat &&
+          (!boat || (fishing && heldItem === 'rod' && combatStrike < 0)) &&
           !cart &&
           !deadP
         ) {
@@ -1899,7 +1905,7 @@ export class Game {
           }
           const direction = dirOf(sd.x, sd.y);
           // Stable idle uses the body's resolved breath column, so the hand never drifts off the grip.
-          const pose = frame >= 30 ? frame : v.sprite.texture.frame.x / PERSON_W;
+          const pose = v.personFrame;
           v.held.texture = this.heldWeapons.texture(heldItem, direction, pose);
           v.held.visible = true;
           v.held.y = riding ? v.sprite.y + 14 : v.sprite.y;
@@ -1996,15 +2002,16 @@ export class Game {
         .fill(pc(f.bite ? 38 : 35))
         .stroke({ color: pc(7), width: 1 });
       this.bobber.ellipse(bx, by + 1, 5, 2.2).stroke({ color: pc(30), width: 1, alpha: 0.7 });
-      if (this.predictor) {
+      const fisher = this.views.get(this.myId);
+      if (this.predictor && fisher?.held?.visible) {
         const p = this.predictor.sim;
         const sd = screenDir(f.tx + 0.5 - p.x, f.ty + 0.5 - p.y);
         const grip = personGrip(
           dirOf(sd.x, sd.y),
           actionFrame('fish', f.bite ? 0.5 : 0.85, this.settings().reducedMotion),
         );
-        const tipX = isoX(p.x, p.y) + grip.x - PERSON_W / 2 + Math.cos(grip.angle) * 13;
-        const tipY = isoY(p.x, p.y) + grip.y - PERSON_H + 1 + Math.sin(grip.angle) * 13;
+        const tipX = fisher.root.x + grip.x - PERSON_W / 2 + Math.cos(grip.angle) * 13;
+        const tipY = fisher.root.y + fisher.held.y + grip.y - PERSON_H + Math.sin(grip.angle) * 13;
         this.bobber
           .moveTo(tipX, tipY)
           .lineTo(bx, by - 2)

@@ -36,3 +36,43 @@ it('allocates eight distinct append-only keys for every clip without collisions'
   expect(new Set(keys).size).toBe(keys.length);
   for (const key of keys) expect(actionPose(0, key)).toBeTruthy();
 });
+
+it('uses weapon-specific contact geometry and never adds anticipation after release', async () => {
+  const { meleeAction, meleeFrame } = await import('../src/art/person-actions');
+  expect(meleeAction('spear')).toBe('thrust');
+  expect(meleeAction('warhammer')).toBe('cleave');
+  expect(meleeAction('sword')).toBe('slash');
+  for (const family of ['spear', 'sword', 'greatsword']) {
+    const action = meleeAction(family);
+    expect(meleeFrame(family, 0)).toBe(actionKeys(action)[4]);
+    expect(meleeFrame(family, 1)).toBe(actionKeys(action)[7]);
+    for (let dir = 0; dir < 8; dir++) {
+      const pose = actionPose(dir, meleeFrame(family, 0))!;
+      if (family === 'spear')
+        expect(pose.angle).toBeCloseTo(
+          Math.atan2(
+            [
+              [0, 1],
+              [0, -1],
+              [-1, 0],
+              [1, 0],
+              [-0.894, 0.447],
+              [0.894, 0.447],
+              [-0.894, -0.447],
+              [0.894, -0.447],
+            ][dir]![1]!,
+            [
+              [0, 1],
+              [0, -1],
+              [-1, 0],
+              [1, 0],
+              [-0.894, 0.447],
+              [0.894, 0.447],
+              [-0.894, -0.447],
+              [0.894, -0.447],
+            ][dir]![0]!,
+          ),
+        );
+    }
+  }
+});

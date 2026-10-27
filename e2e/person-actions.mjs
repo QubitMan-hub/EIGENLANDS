@@ -22,7 +22,16 @@ try {
       ]);
     const sheets = buildActorSheets(),
       held = new HeldWeapons();
-    const tool = { mine: 'pickaxe', chop: 'axe', dig: 'hoe', water: 'can', fish: 'rod' };
+    const tool = {
+      mine: 'pickaxe',
+      chop: 'axe',
+      dig: 'hoe',
+      water: 'can',
+      fish: 'rod',
+      slash: 'sword',
+      thrust: 'spear',
+      cleave: 'greatsword',
+    };
     document.body.replaceChildren();
     document.body.style.cssText =
       'margin:16px;background:#283837;color:#f1e4bd;font:14px monospace;overflow:auto;height:auto';
@@ -34,10 +43,10 @@ try {
       title.textContent = action;
       document.body.append(title);
       const canvas = document.createElement('canvas');
-      canvas.width = 8 * 56 * 3;
-      canvas.height = 64 * 3;
-      canvas.style.width = '1344px';
-      canvas.style.height = '192px';
+      canvas.width = 8 * 64 * 3;
+      canvas.height = 80 * 3;
+      canvas.style.width = '1536px';
+      canvas.style.height = '240px';
       const ctx = canvas.getContext('2d');
       ctx.imageSmoothingEnabled = false;
       for (let d = 0; d < 8; d++) {
@@ -64,11 +73,24 @@ try {
         }
         const key = actionKeys(action)[4],
           t = sheets.person(d % OUTFITS.length, d, key);
-        ctx.drawImage(t.source.resource, t.frame.x, t.frame.y, 32, 48, d * 168 + 36, 0, 96, 144);
+        ctx.drawImage(t.source.resource, t.frame.x, t.frame.y, 32, 48, d * 192 + 48, 36, 96, 144);
         if (tool[action]) {
           const w = held.texture(tool[action], d, key),
             f = w.frame;
-          ctx.drawImage(w.source.resource, f.x, f.y, f.width, f.height, d * 168, 0, 168, 192);
+          ctx.drawImage(w.source.resource, f.x, f.y, f.width, f.height, d * 192, 0, 192, 240);
+          if (['slash', 'thrust', 'cleave'].includes(action)) {
+            for (const key of actionKeys(action)) {
+              const t = held.texture(tool[action], d, key),
+                r = t.frame;
+              const px = t.source.resource.getContext('2d').getImageData(r.x, r.y, r.width, r.height).data;
+              let edge = 0;
+              for (let y = 0; y < r.height; y++)
+                for (let x = 0; x < r.width; x++)
+                  if ((x === 0 || x === r.width - 1 || y === 0 || y === r.height - 1) && px[(y * r.width + x) * 4 + 3])
+                    edge++;
+              if (edge) failures.push({ action, d, key, heldEdge: edge });
+            }
+          }
           if (w.source.width > 2048 || w.source.height > 2048) failures.push({ action, textureBudget: false });
         }
       }

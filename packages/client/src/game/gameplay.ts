@@ -96,7 +96,7 @@ export class Gameplay {
   readonly rhythm: RhythmOverlay;
   readonly village: VillageOverlay;
   acts: Acts = freshActs();
-  fishing: { id: string; tx: number; ty: number; bite: boolean; until: number } | null = null;
+  fishing: { id: string; tx: number; ty: number; ended?: boolean; bite: boolean; until: number } | null = null;
   private done = new Set<string>();
   private lastUse = 0;
   private dialogueMsg: DialogueMsg | null = null;
@@ -498,13 +498,20 @@ export class Gameplay {
     if (m.kind === 'fish' && m.ok) this.acts.fished = true;
   }
 
-  onFishCast(m: { id: string; tx: number; ty: number }): void {
+  onFishCast(m: { id: string; tx: number; ty: number; ended?: boolean }): void {
+    if (m.ended) {
+      if (this.fishing?.id === m.id) {
+        this.fishing = null;
+        this.clearBang();
+      }
+      return;
+    }
     this.fishing = { id: m.id, tx: m.tx, ty: m.ty, bite: false, until: performance.now() + 30000 };
     this.d.sfx('splash');
     this.toasts.add(`Line cast… wait for a bite, then press ${binding(this.d.input.keys, 'interact')}!`, 'info');
   }
   onFishBite(m: FishBiteMsg): void {
-    if (!this.fishing || this.fishing.id !== m.id) this.fishing = { id: m.id, tx: 0, ty: 0, bite: true, until: 0 };
+    if (!this.fishing || this.fishing.id !== m.id) return;
     this.fishing.bite = true;
     this.fishing.until = performance.now() + m.windowMs;
     this.d.sfx('bite');

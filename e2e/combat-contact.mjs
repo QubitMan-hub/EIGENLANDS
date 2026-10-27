@@ -31,9 +31,9 @@ try {
         const actor = g.views.get(g.myId);
         if (!actor) return;
         const active = g.combat.playerAttackFrame(actor, performance.now(), false);
-        const frame = actor.sprite.texture.frame.x / 32;
+        const frame = actor.personFrame;
         if (active >= 0) window.__contact.painted.push(frame);
-        if (g.predictor.sim.charge > 0 && active < 0 && frame === 10) window.__contact.charged = true;
+        if (g.predictor.sim.charge > 0 && active < 0 && frame === 176) window.__contact.charged = true;
       },
       undefined,
       -100,
@@ -52,10 +52,10 @@ try {
     'Opening and heavy release immediately show the contact key',
   );
   assert.ok(
-    report.painted.some((f) => f >= 11 && f <= 13),
+    report.painted.some((f) => f >= 178 && f <= 181),
     'Actual gameplay paints the strike and recovery',
   );
-  assert.ok(!report.painted.includes(10), 'Active damage release does not play a late windup');
+  assert.ok(!report.painted.some((f) => f >= 174 && f <= 177), 'Active damage release does not play a late windup');
   assert.deepEqual(errors, []);
   writeFileSync(`${out}/report.json`, JSON.stringify(report, null, 2));
   await page.screenshot({ path: `${out}/recovery.png` });

@@ -18,9 +18,12 @@ export const ACTION_START = {
   cook: 150,
   alchemy: 158,
   saw: 166,
+  slash: 174,
+  thrust: 182,
+  cleave: 190,
 } as const;
 export type PersonAction = keyof typeof ACTION_START;
-export const PERSON_ACTION_END = 174;
+export const PERSON_ACTION_END = 198;
 const ACTIONS = Object.keys(ACTION_START) as PersonAction[];
 /** Preserve legacy four keys; append in-between poses instead of renumbering saved presentation IDs. */
 const KEYS = Object.fromEntries(
@@ -93,6 +96,24 @@ export function actionPose(dir: number, frame: number) {
     crouch = 0,
     angle = aim;
   switch (action) {
+    case 'slash':
+      reach = sample([1, 3, 6, 2]);
+      height = sample([14, 16, 18, 19]);
+      angle = aim + sample([-1.5, -0.8, 0.15, 0.65]);
+      crouch = sample([0, 0, 1, 0]);
+      break;
+    case 'thrust':
+      reach = sample([1, 3, 7, 2]);
+      height = sample([18, 17, 17, 19]);
+      angle = aim;
+      crouch = sample([1, 0, 1, 0]);
+      break;
+    case 'cleave':
+      reach = sample([1, 2, 5, 2]);
+      height = sample([9, 11, 20, 20]);
+      angle = aim + sample([-1.7, -1.2, 0.45, 0.6]);
+      crouch = sample([0, 0, 3, 1]);
+      break;
     case 'hit':
       reach = sample([2, 1, 1, 2]);
       height = 18;
@@ -210,4 +231,16 @@ export function actionPose(dir: number, frame: number) {
     supportX: action === 'swim' ? 25 - x : x - Math.cos(angle) * 3,
     supportY: action === 'swim' ? 36 - y : y - Math.sin(angle) * 3,
   };
+}
+
+/** Weapon identity selects the body's contact geometry as well as the held mesh. */
+export function meleeAction(family: string): 'slash' | 'thrust' | 'cleave' {
+  return family === 'spear'
+    ? 'thrust'
+    : ['warhammer', 'battle_axe', 'greatsword'].includes(family)
+      ? 'cleave'
+      : 'slash';
+}
+export function meleeFrame(family: string, progress: number, reduced = false): number {
+  return actionFrame(meleeAction(family), 0.49 + Math.max(0, Math.min(1, progress)) * 0.51, reduced);
 }
