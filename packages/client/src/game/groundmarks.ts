@@ -120,9 +120,9 @@ export class GroundMarks {
     const seen = new Set<string>();
     for (const w of f.walkers) {
       seen.add(w.id);
-      let s = this.walkers.get(w.id);
+      const s = this.walkers.get(w.id);
       if (!s) {
-        this.walkers.set(w.id, (s = { x: w.x, y: w.y, left: false, acc: 0 }));
+        this.walkers.set(w.id, { x: w.x, y: w.y, left: false, acc: 0 });
         continue;
       }
       const dx = w.x - s.x,
