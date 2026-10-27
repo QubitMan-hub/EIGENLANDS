@@ -5,6 +5,8 @@ import {
   festivalToday,
   nextFestivalOf,
   weatherForDay,
+  BOUNTY_SIGNATURE,
+  type Bounty,
   type FestHost,
   type Town,
   type Weather,
@@ -20,8 +22,9 @@ export interface Notice {
   /** a short heading, written as the town would write it */
   head: string;
   text: string;
-  /** the wanted poster stands out */
+  /** the wanted poster stands out, and can be tracked */
   wanted?: boolean;
+  bounty?: Bounty;
 }
 
 const FORECAST: Record<Weather, string> = {
@@ -40,8 +43,9 @@ export function boardNotices(seed: number, town: Town, host: FestHost, day: numb
     b
       ? {
           head: `Wanted: ${b.name}`,
-          text: `Last seen to the ${b.dir}. ${b.reward} coins to whoever brings it down, shared among all who stand against it.`,
+          text: `Last seen to the ${b.dir}. ${BOUNTY_SIGNATURE[b.kind].lore} ${b.reward} coins to whoever brings it down, shared among all who stand against it.`,
           wanted: true,
+          bounty: b,
         }
       : { head: 'Bounties', text: 'No beast has troubled the town today.' },
   );
@@ -80,7 +84,7 @@ export class NoticeCard {
   private el: HTMLElement | null = null;
   private key = '';
 
-  show(title: string, notices: Notice[]): void {
+  show(title: string, notices: Notice[], onTrack?: (b: Bounty) => void): void {
     if (!this.el) {
       this.el = document.createElement('section');
       this.el.id = 'noticeboard';
@@ -103,6 +107,14 @@ export class NoticeCard {
         const t = document.createElement('p');
         t.textContent = n.text;
         p.append(b, t);
+        if (n.bounty && onTrack) {
+          const bt = document.createElement('button');
+          bt.type = 'button';
+          bt.textContent = 'Track this bounty';
+          const bounty = n.bounty;
+          bt.addEventListener('click', () => onTrack(bounty));
+          p.appendChild(bt);
+        }
         this.el.appendChild(p);
       }
     }

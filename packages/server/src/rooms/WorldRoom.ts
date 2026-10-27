@@ -1556,7 +1556,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   }
 
   /** Apply an enemy hit to a player (ward buff, Phase 3 hook, shove, death). Returns whether damage was dealt. */
-  private hurtPlayer(
+  hurtPlayer(
     p: ServerPlayer,
     raw: number,
     e: Enemy,

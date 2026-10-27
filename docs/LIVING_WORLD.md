@@ -293,6 +293,19 @@ sees the same washerwoman at the same line.
 
 ### Notice boards and star crafting (2026-10-27)
 
+- **Bounty beasts** are marked (`ELITE.BOUNTY`): drawn about half again as large as their kind and tinted in their
+  own colours, with an ember wanted-ring on the ground. Targeting one shows the poster name and its signature move.
+  Each kind has a **signature move** (`BOUNTY_SIGNATURE` in `shared/src/wonders.ts`, run by
+  `server/src/features/wonders`), always warned first by a ring on the ground:
+  - the wolf's **Call of the Pack** brings two wolves when it is wounded;
+  - the boar **Rampages** onto you;
+  - the brute's **Earthshaker** hits everyone around it;
+  - the badger **Burrows** away and comes up behind you a little healed;
+  - the thornling's **Bramble Ring** leaves you bleeding.
+- **Fixed:** a beast's sighting could fall inside a town's ward, which dispersed it the moment it appeared, so it
+  was never met. Sightings now move further out along the same bearing until they are clear of every ward.
+- **Track this bounty:** the wanted poster has a button that points the travel strip and the atlas at where the beast
+  was last seen, until the day ends.
 - **Notice boards:** every kingdom and frontier town square has a standing notice board. Stand at it to read the
   day's **wanted** poster (the beast, where it was last seen, the reward), where the nearest caravan is, the next
   festival (or today's), and tomorrow's weather. It is built from the same shared functions as the bounty, caravans,
@@ -419,6 +432,7 @@ sees the same washerwoman at the same line.
   umbrella, fishing rod, bucket and sack. Only the fishing line is a drawn string, and festival pennants hang in the
   vertical plane of their string. Until a villager's own appearance sheet has been built (one per frame),
   they stay hidden rather than appear in a stock outfit.
-- Bounty beasts are ordinary hardened creatures with no unique attacks or art. The town notice board is read by
-  standing at it (a client card); it shows the same bounty the server posts but is not itself a server object. The sky effects are drawn in
+- The notice board is drawn on each client from the same shared functions the server uses, so every player reads
+  the same board; tracking a poster is kept in your own atlas (browser storage), not on the server.
+- Bounty beasts are their kind's own sprite, enlarged and tinted, not separately painted creatures. The sky effects are drawn in
   screen space over the world.

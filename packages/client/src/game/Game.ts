@@ -37,6 +37,11 @@ import {
   MSG,
   ChunkStore,
   ENEMY_BY_KIND,
+  ENEMY_KEY_BY_KIND,
+  ELITE,
+  BOUNTY_SIGNATURE,
+  bountyNear,
+  type BountyKind,
   INTEREST_RADIUS,
   NPC_BY_ID,
   TILE_DEFS,
@@ -458,6 +463,7 @@ export class Game {
       hostiles: () =>
         [...this.views.values()].filter((v) => v.type === 'enemy' && v.root.visible).map((v) => ({ x: v.lx, y: v.ly })),
       held: () => this.heldWeapons,
+      trackBounty: (b, day) => this.ext.atlas.trackBounty(b, day),
     });
     this.combat = new CombatView(
       {
@@ -1592,7 +1598,7 @@ export class Game {
     const faction = factionOf(def ?? undefined, ally ? 0 : p.elite, ally);
     this.targetFrame.update({
       id: v.id,
-      name: v.type === 'enemy' ? (def?.name ?? 'Creature') : p.name || 'Player',
+      name: v.type === 'enemy' ? this.enemyName(def ?? null, p.elite, smp.x, smp.y) : p.name || 'Player',
       level: v.type === 'enemy' ? null : p.level,
       hp: p.hp,
       maxHp: p.maxHp,
@@ -1605,6 +1611,18 @@ export class Game {
       poiseLabel: poiseLabel(def ?? undefined),
       dist: Math.hypot(smp.x - me.x, smp.y - me.y),
     });
+  }
+
+  /** a creature's name; a town's bounty beast goes by the name on the poster, with its signature move */
+  private enemyName(def: { name: string; kind: number } | null, elite: number, x: number, y: number): string {
+    const base = def?.name ?? 'Creature';
+    if (!def || !(elite & ELITE.BOUNTY)) return base;
+    const kind = ENEMY_KEY_BY_KIND[def.kind] as BountyKind | undefined;
+    const b =
+      kind && kind in BOUNTY_SIGNATURE
+        ? bountyNear(this.store.seed, dayNumber(this.clock.serverNow(performance.now())), kind, x, y)
+        : null;
+    return b ? `${b.name} · ${BOUNTY_SIGNATURE[b.kind].name}` : base;
   }
 
   /** aim line + landing ring while an ability is armed; a soft view cone while the right mouse button looks */

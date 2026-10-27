@@ -16,6 +16,7 @@ import {
   randomAppearance,
   townsNear,
   findPath,
+  type Bounty,
   type ChunkStore,
   type RealmId,
   type RealmSite,
@@ -63,6 +64,8 @@ export interface LifeDeps {
   hostiles: () => Array<{ x: number; y: number }>;
   /** held tool art (axes, watering cans) for people at work in the everyday scenes */
   held?: () => HeldWeapons;
+  /** follow a wanted poster from a notice board (the atlas and travel strip) */
+  trackBounty?: (b: Bounty, day: number) => void;
 }
 export interface LifeFrame {
   now: number;
@@ -307,7 +310,12 @@ export class WorldLife {
       return;
     }
     const host = homeTowns.has(t) ? 'home' : (this.realm ?? 'home');
-    this.card.show(t.name, boardNotices(this.d.seed(), t, host, f.day, f.server ?? Date.now()));
+    const track = this.d.trackBounty;
+    this.card.show(
+      t.name,
+      boardNotices(this.d.seed(), t, host, f.day, f.server ?? Date.now()),
+      track ? (b) => track(b, f.day) : undefined,
+    );
   }
   /** where this settlement's notice board stands (tests, screenshots) */
   boardAt(): { x: number; y: number } | null {

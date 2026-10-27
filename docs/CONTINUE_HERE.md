@@ -1,3 +1,14 @@
+# Current continuation: bounty beasts with signature moves; tracked wanted posters (2026-10-27)
+
+- **Bounty beasts** are now marked (`ELITE.BOUNTY`): larger, tinted, with an ember wanted-ring and their poster
+  name and move in the target frame. Each kind has a telegraphed signature move: Call of the Pack, Rampage,
+  Earthshaker, Burrow or Bramble Ring.
+- **Fixed:** sightings no longer fall inside a ward; before, warded beasts were dispersed on arrival and never met.
+- **Track this bounty** on the notice board points the travel strip and atlas at the sighting.
+- **Star gear** was checked in the browser: the Starlit Lantern gives light 9 and the Wishing Star Charm luck 2.5.
+- Tests: server `wonders.test.ts` (marked beast, warning toast, signature move), shared `wonders.test.ts`
+  (sightings are never warded). Proof: `e2e/notice-board.mjs`.
+
 # Current continuation: longbows, star crafting and notice boards (2026-10-27)
 
 - **Longbow:** a new weapon family (`shared/src/equipment.ts`, held art in `client/src/art/weapons.ts`, icon). It

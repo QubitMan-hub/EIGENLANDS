@@ -9,8 +9,10 @@
  */
 import {
   CHUNK_SIZE,
+  BOUNTY_SIGNATURE,
   ELITE,
   FALLEN_STAR_SHARDS,
+  bountySignatureDamage,
   T,
   bountyOf,
   compassWord,
@@ -32,6 +34,7 @@ import type { GameRoom } from '../../rooms/GameRoom';
 import type { ServerPlayer } from '../../rooms/player';
 import { giveStacks } from '../../systems/helpers';
 import { gainRep } from '../../systems/reputation';
+import { inflict } from '../../systems/travel-needs';
 import type { Module, Registrar } from '../types';
 
 /** ground a star may land on */
@@ -51,7 +54,20 @@ export class WondersModule implements Module {
   /** stars lying on the ground: key -> night */
   private stars = new Map<string, { x: number; y: number; night: number }>();
   /** bounty id -> the beast's enemy id while it is out */
-  private hunting = new Map<string, { enemy: string; bounty: Bounty; realm?: string }>();
+  private hunting = new Map<
+    string,
+    {
+      enemy: string;
+      bounty: Bounty;
+      realm?: string;
+      /** seconds until its signature move may come again */
+      sigCd: number;
+      /** a signature move telegraphed and about to land: where, and how long until it does */
+      pending?: { x: number; y: number; t: number; from?: { x: number; y: number } };
+      /** wolves call the pack at most twice; badgers burrow at most twice */
+      uses: number;
+    }
+  >();
   /** bounties already brought down today */
   private slain = new Set<string>();
   /** account -> bounty ids they have heard of */
@@ -71,6 +87,7 @@ export class WondersModule implements Module {
   }
 
   tick(_now: number, dt: number): void {
+    this.signatures(dt);
     this.t += dt;
     if (this.t < this.next) return;
     this.next = this.t + 2;
@@ -175,19 +192,118 @@ export class WondersModule implements Module {
         if (!b || this.slain.has(b.id) || this.hunting.has(b.id)) continue;
         if (Math.hypot(p.sim.x - b.x, p.sim.y - b.y) > BOUNTY_SPAWN_RANGE) continue;
         const at = this.open(b.x, b.y);
-        if (!at) continue;
+        // a ward would disperse it the moment it appeared (and it would be met again every two seconds)
+        if (!at || sanctuaryAt(this.room.seed, at.x + 0.5, at.y + 0.5)) continue;
         const e = this.room.spawnEnemy(b.kind, at.x + 0.5, at.y + 0.5, false, {
           level: Math.max(4, p.level + 1),
-          elite: ELITE.HARDENED,
+          elite: ELITE.HARDENED | ELITE.BOUNTY,
         });
         e.provoked = false;
-        this.hunting.set(b.id, { enemy: e.id, bounty: b, realm: t.site?.realm });
+        this.hunting.set(b.id, { enemy: e.id, bounty: b, realm: t.site?.realm, sigCd: 4, uses: 0 });
+        for (const q of this.room.players.values())
+          if (Math.hypot(q.sim.x - at.x, q.sim.y - at.y) < 30)
+            q.toast(`${b.name} is near! ${BOUNTY_SIGNATURE[b.kind].lore}`, 'bad');
       }
     }
     // a beast that wandered out of the world (despawned unkilled) may be met again
     for (const [id, h] of this.hunting) if (!this.room.enemies.has(h.enemy)) this.hunting.delete(id);
     // yesterday's bounties are taken down
     for (const id of this.slain) if (!id.endsWith(`:${day}`)) this.slain.delete(id);
+  }
+
+  /**
+   * Each bounty beast's signature move: a warning on the ground first (`bomb` draws the ring and its fuse), then the
+   * move lands. Runs every tick; only the few beasts out on the hunt are looked at.
+   */
+  private signatures(dt: number): void {
+    for (const h of this.hunting.values()) {
+      const e = this.room.enemies.get(h.enemy);
+      if (!e || e.hp <= 0) continue;
+      const sig = BOUNTY_SIGNATURE[h.bounty.kind];
+      const dmg = bountySignatureDamage(h.bounty.kind, e.level);
+      if (h.pending) {
+        h.pending.t -= dt;
+        if (h.pending.t > 0) continue;
+        const at = h.pending;
+        h.pending = undefined;
+        this.land(h.bounty.kind, e, at, sig.radius, dmg);
+        continue;
+      }
+      h.sigCd -= dt;
+      if (h.sigCd > 0) continue;
+      // only in a fight: someone within reach who has drawn its attention
+      let near: ServerPlayer | null = null,
+        nd = 9;
+      for (const p of this.room.players.values()) {
+        if (p.deadT > 0) continue;
+        const d = Math.hypot(p.sim.x - e.x, p.sim.y - e.y);
+        if (d < nd) ((nd = d), (near = p));
+      }
+      if (!near) continue;
+      const frac = e.hp / e.maxHp;
+      const kind = h.bounty.kind;
+      if ((kind === 'wolf' || kind === 'badger') && (frac > 0.75 || h.uses >= 2)) continue;
+      h.sigCd = sig.cd;
+      h.uses++;
+      // where it lands: on the target (rampage, burrow), around the beast (earthshaker, brambles), at its side (howl)
+      const target =
+        kind === 'boar'
+          ? { x: near.sim.x, y: near.sim.y }
+          : kind === 'badger'
+            ? { x: near.sim.x - near.sim.faceX * 1.2, y: near.sim.y - near.sim.faceY * 1.2 }
+            : { x: e.x, y: e.y };
+      h.pending = { ...target, t: sig.warn, from: { x: e.x, y: e.y } };
+      if (sig.radius > 0) this.room.fx({ kind: 'bomb', x: target.x, y: target.y, v: sig.warn, w: sig.radius });
+      else this.room.fx({ kind: 'telegraph', x: e.x, y: e.y, id: e.id, v: sig.warn });
+      for (const p of this.room.players.values())
+        if (Math.hypot(p.sim.x - e.x, p.sim.y - e.y) < 24) p.toast(`${h.bounty.name}: ${sig.name}!`, 'bad');
+    }
+  }
+
+  /** a signature move lands */
+  private land(
+    kind: Bounty['kind'],
+    e: Enemy,
+    at: { x: number; y: number; from?: { x: number; y: number } },
+    radius: number,
+    dmg: number,
+  ): void {
+    if (kind === 'wolf') {
+      // the howl: two of the pack come running from the brush
+      for (let i = 0; i < 2; i++) {
+        const spot = this.open(Math.round(e.x + (i ? 3 : -3)), Math.round(e.y + 2));
+        if (spot) this.room.spawnEnemy('wolf', spot.x + 0.5, spot.y + 0.5, false, { level: Math.max(1, e.level - 2) });
+      }
+      this.room.fx({ kind: 'blast', x: e.x, y: e.y, v: 2 });
+      return;
+    }
+    if (kind === 'boar' || kind === 'badger') {
+      // the charge or the burrow carries the beast to where the warning was
+      const spot = this.open(Math.round(at.x), Math.round(at.y));
+      if (spot) {
+        this.room.fx({ kind: kind === 'boar' ? 'jump' : 'dust', x: e.x, y: e.y, dx: spot.x + 0.5, dy: spot.y + 0.5 });
+        e.x = spot.x + 0.5;
+        e.y = spot.y + 0.5;
+        e.state.x = e.x;
+        e.state.y = e.y;
+      }
+      if (kind === 'badger') {
+        // and it comes up a little healed
+        e.hp = Math.min(e.maxHp, e.hp + e.maxHp * 0.12);
+        e.state.hp = Math.round(e.hp);
+      }
+    }
+    this.room.fx({ kind: 'blast', x: at.x, y: at.y, v: radius });
+    for (const p of this.room.players.values()) {
+      if (p.deadT > 0) continue;
+      const dx = p.sim.x - at.x,
+        dy = p.sim.y - at.y,
+        d = Math.hypot(dx, dy);
+      if (d > radius) continue;
+      const hit = this.room.hurtPlayer(p, dmg, e, kind === 'brute' ? 3 : 1, dx / (d || 1), dy / (d || 1));
+      // brambles leave you bleeding
+      if (hit && kind === 'thornling') inflict(this.room, p, 'bleed');
+    }
   }
 
   /** a walkable tile at or near (x, y) in this room */

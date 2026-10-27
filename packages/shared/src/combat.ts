@@ -2016,8 +2016,9 @@ export const NIGHT_HP_MULT = 1.6;
 export const NIGHT_DMG_MULT = 1.4;
 
 /** Elite modifiers (bit flags, synced as EnemyState.elite). */
-export const ELITE = { HARDENED: 1, SWIFT: 2, VOLATILE: 4 } as const;
-export const ELITE_NAMES: Record<number, string> = { 1: 'Hardened', 2: 'Swift', 4: 'Volatile' };
+/** BOUNTY marks a town's named bounty beast (wonders.ts): larger, marked, with a signature move of its kind. */
+export const ELITE = { HARDENED: 1, SWIFT: 2, VOLATILE: 4, BOUNTY: 8 } as const;
+export const ELITE_NAMES: Record<number, string> = { 1: 'Hardened', 2: 'Swift', 4: 'Volatile', 8: 'Bounty' };
 export const ELITE_HP_MULT = 1.7;
 export const ELITE_XP_MULT = 2.5;
 

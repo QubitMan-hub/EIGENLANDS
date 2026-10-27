@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { bountyOf, compassWord, rainbowAt, realmTowns, starfallOn, weatherForDay, type Town } from '../src/index';
+import {
+  sanctuaryAt,
+  bountyOf,
+  compassWord,
+  rainbowAt,
+  realmTowns,
+  starfallOn,
+  weatherForDay,
+  type Town,
+} from '../src/index';
 
 const SEED = 20260101;
 
@@ -47,7 +56,8 @@ describe('town bounties', () => {
         posted++;
         const r = Math.hypot(b.x - t.cx, b.y - t.cy);
         expect(r).toBeGreaterThan(45);
-        expect(r).toBeLessThan(72);
+        // never inside a ward, where the beast would be dispersed as it appeared
+        expect(sanctuaryAt(SEED, b.x, b.y), `${t.name} day ${d}`).toBeNull();
         expect(b.reward).toBeGreaterThanOrEqual(120);
         expect(b.id).toBe(`bty:${t.name}:${d}`);
       }

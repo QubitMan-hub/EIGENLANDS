@@ -23,6 +23,9 @@ import {
   DASH_CHARGES,
   DASH_COOLDOWN,
   ELITE,
+  ENEMY_KEY_BY_KIND,
+  BOUNTY_LOOK,
+  type BountyKind,
   ENEMY_BY_KIND,
   BOSS_BY_KIND,
   LEAP_RADIUS,
@@ -894,7 +897,10 @@ export class CombatView {
     v.flash *= Math.exp(-dt * 22);
     const reduced = this.d.reduced();
     const tele = st === 2 ? Math.min(1, (s?.tele ?? 0) / 100) : 0;
-    const big = (kind === 5 ? 1.25 : 1) * (s && s.elite & ELITE.HARDENED ? 1.2 : 1);
+    // a town's bounty beast stands out from its kind: much larger and marked in its own colours
+    const bountyKey = s && s.elite & ELITE.BOUNTY ? (ENEMY_KEY_BY_KIND[kind] as BountyKind | undefined) : undefined;
+    const bounty = bountyKey && BOUNTY_LOOK[bountyKey] ? BOUNTY_LOOK[bountyKey] : null;
+    const big = bounty ? bounty.scale : (kind === 5 ? 1.25 : 1) * (s && s.elite & ELITE.HARDENED ? 1.2 : 1);
     let sx = 1 + 0.28 * v.punch - 0.06 * tele,
       sy = 1 - 0.22 * v.punch + 0.12 * tele;
     if (reduced || authoredBoss) {
@@ -918,7 +924,7 @@ export class CombatView {
         ? 0
         : Math.min(1, Math.max(v.flash * 1.4, reduced ? 0.25 : 0.28 + 0.14 * Math.sin(t * 3 + v.outfit)));
     } else {
-      v.sprite.tint = 0xffffff;
+      v.sprite.tint = bounty ? bounty.tint : 0xffffff;
       v.sprite.alpha = 1;
       v.fl.tint = 0xffffff;
       v.fl.alpha = Math.min(1, v.flash * 1.4);
@@ -945,7 +951,12 @@ export class CombatView {
               (big > 1.4 ? big * 0.75 : 1),
         authoredBoss ? foes.shadow(kind)[1] : 3 * (big > 1.4 ? big * 0.6 : 1),
       ).fill({ color: 0x2a1060, alpha: 0.28 });
-    if (s && s.elite) {
+    if (bounty) {
+      // the wanted mark: a double ember ring on the ground and a slow ember glow about it
+      const pulse = reduced ? 0.8 : 0.6 + 0.3 * Math.sin(t * 3);
+      g.ellipse(0, 0, 11 * big, 5 * big).stroke({ color: 0xd8642a, width: 2, alpha: pulse });
+      g.ellipse(0, 0, 13.5 * big, 6.2 * big).stroke({ color: 0xffb060, width: 1, alpha: pulse * 0.6 });
+    } else if (s && s.elite) {
       const col = s.elite & ELITE.VOLATILE ? 36 : s.elite & ELITE.SWIFT ? 29 : 6;
       const pulse = 0.5 + 0.3 * Math.sin(t * 6);
       g.ellipse(0, 0, 10 * big, 4.5 * big).stroke({ color: pc(col), width: 1.5, alpha: pulse });
