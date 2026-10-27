@@ -10,7 +10,7 @@ People use a bottom-center frame anchor (16,48), with normal boot contact near y
 
 Eighteen families have eight timed poses in eight directions: mining, chopping, digging, watering, fishing, gathering/planting, crafting, extraction/channeling, seated transport, swimming, conversation, hurt, dodge, death, forging, cooking, alchemy and carpentry. This is **1,152 directional supplemental frames per appearance**. Additional keys interpolate joint positions between deliberately different contact poses; they are not 1,152 separately hand-painted illustrations. Legacy frame ordering and saved identities remain compatible.
 
-- Walking/running use jointed legs, opposing arms, lifted recovery feet and restrained fabric follow-through. Existing four-key slash, shot and cast timelines use the new body painter and shared hand contacts.
+- Walking/running use jointed legs, opposing arms, lifted recovery feet and restrained fabric follow-through. Existing slash, shot and cast keys use the new body painter and shared hand contacts. Player releases start at contact, followed by follow-through/recovery; actual held charge shows anticipation. Boss timelines remain separate.
 - Work uses anticipation, a short contact and longer settling recovery. Mining/chopping select the confirmed implement. Persistent fishing and extraction retain their pose beyond a short FX event. Unarmed work hides unrelated weapons.
 - Confirmed crafting events carry the station to observers. Forge/furnace work uses a hammer, cooking a stirring implement, alchemy a vial, and carpentry a saw. These follow the hand; existing recipe authority and costs are unchanged.
 - Hurt poses respond to actual damage feedback, dodge crouches follow the dash lifetime, and death collapses through body poses instead of rotating an upright sprite. Reduced motion holds a stable pose.
@@ -22,6 +22,7 @@ Eighteen families have eight timed poses in eight directions: mining, chopping, 
 npm exec -w @eigenlands/client -- vitest run test/person-actions.test.ts test/equipment-pose.test.ts
 node e2e/person-actions.mjs http://127.0.0.1:5174/ test-results/cohesion/art
 node e2e/person-actions-gameplay.mjs http://127.0.0.1:5244/ test-results/cohesion/gameplay
+node e2e/combat-contact.mjs http://127.0.0.1:5244/ test-results/cohesion/contact
 ```
 
 The art check covers 1,152 supplemental frames and 3,120 base frames across thirteen outfits. It inspects every supplemental direction/key for hard alpha, open-edge clipping, cache reuse and held texture bounds. It caught an overreaching saw at the frame edge; the contact and implement length were corrected. A diagonal combat/support-hand overreach was also corrected in the shared grip solver. Browser checks use the actual production renderer, authoritative FX delivery, persistent fishing/extraction and desktop/mobile screenshots. Short gestures are also checked after pausing rendering through their arrival. See the [QA ledger](qa/2026-10-27-findings.md) for gameplay defects, fixes and evidence.

@@ -34,6 +34,10 @@ it('starts strike poses on the predicted input, recovers, and offers a reduced-m
     chargeReady: false,
   };
   view.onLocalStep(ev, newPlayerSim(0, 0), actor);
+  expect(view.playerAttackFrame(actor, 1000, false)).toBe(1); // actual release/contact, not a late windup
+  expect(view.playerAttackFrame(actor, 1060, false)).toBe(2);
+  expect(view.playerAttackFrame(actor, 1180, false)).toBe(3);
+  expect(view.playerAttackFrame(actor, 1221, false)).toBe(-1);
   expect(view.attackFrame(actor, 1000, false)).toBe(0);
   expect(view.attackFrame(actor, 1060, false)).toBe(1);
   expect(view.attackFrame(actor, 1120, false)).toBe(2);
