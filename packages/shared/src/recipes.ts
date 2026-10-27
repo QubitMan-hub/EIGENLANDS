@@ -98,6 +98,15 @@ r(
   'Hide stitched with fiber. Fill at a town well.',
 );
 r(
+  'boil_water',
+  'cooking_pot',
+  [['waterskin_murky', 1]],
+  ['waterskin_full', 1],
+  1,
+  'start',
+  'River water boiled clean over the fire.',
+);
+r(
   'workbench',
   'hand',
   [

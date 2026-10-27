@@ -294,7 +294,27 @@ function bones(face: Facing): ObjSprite {
   );
 }
 
+/** a traveller's pack, dropped where they fell (Hardcore) */
+function satchel(face: Facing): ObjSprite {
+  return iso(
+    32,
+    28,
+    face,
+    (p) => {
+      p.box(3, 4, 0, 9, 7, 5, {
+        ramp: [C.e1, C.e2, C.e3, C.e4, C.e5],
+        front: (_s, t) => (Math.abs(t - 0.5) < 0.1 ? C.e1 : null),
+      });
+      p.box(3.5, 4.5, 5, 8, 6, 1.4, { ramp: [C.e2, C.e3, C.e4, C.e5] });
+      p.box(6.5, 3.6, 2.5, 2, 0.6, 2, { ramp: [C.e4, C.e5, C.e6, C.e7] }); // buckle
+      p.box(11, 5, 0, 3, 2, 0.8, { ramp: [C.r2, C.r3, C.r4] }); // a spilled bedroll strap
+    },
+    { margin: 6 },
+  );
+}
+
 export const STORY_ART: Record<string, (face: Facing) => ObjSprite> = {
+  lost_satchel: satchel,
   crypt_exit: cryptExit,
   crypt_reliquary: reliquary,
   crypt_sarcophagus: sarcophagus,

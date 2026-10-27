@@ -80,6 +80,8 @@ export interface PlayerData {
     /** mount names and well-fed-until times (world clock ms) */
     mountNames?: Partial<Record<'horse' | 'stag' | 'griffin', string>>;
     mountFed?: Partial<Record<'horse' | 'stag' | 'griffin', number>>;
+    /** how worn out each mount is, 0..100 */
+    mountWorn?: Partial<Record<'horse' | 'stag' | 'griffin', number>>;
   };
 }
 

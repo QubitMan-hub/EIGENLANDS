@@ -318,7 +318,7 @@ def(
   'waterskin',
   C.e3,
   C.e5,
-  'Select in the quick-bar, face a town well, then Use to fill with clean water.',
+  'Select in the quick-bar, then Use it facing a town well (clean water) or any river or lake (murky water).',
   { stack: 1, tags: ['supplies'] },
 );
 def(
@@ -330,6 +330,17 @@ def(
   C.e3,
   C.w5,
   'Drink to restore 35 water. Keeps the empty skin; refill it at a reachable town well.',
+  { stack: 1, tags: ['supplies'] },
+);
+def(
+  'waterskin_murky',
+  'Murky Waterskin',
+  'misc',
+  6,
+  'waterskin',
+  C.e3,
+  C.g3,
+  'River water. Drinking it may make you sick (Adventure and Hardcore); boil it in a cooking pot first.',
   { stack: 1, tags: ['supplies'] },
 );
 

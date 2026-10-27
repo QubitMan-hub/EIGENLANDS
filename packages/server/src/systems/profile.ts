@@ -270,6 +270,9 @@ export function validProg(raw: unknown): PlayerData['prog'] {
     lore: ids(r.lore),
     mountNames: mountRecord(r.mountNames, (v) => validMountName(v) ?? undefined),
     mountFed: mountRecord(r.mountFed, (v) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined)),
+    mountWorn: mountRecord(r.mountWorn, (v) =>
+      typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.min(100, v) : undefined,
+    ),
   };
 }
 

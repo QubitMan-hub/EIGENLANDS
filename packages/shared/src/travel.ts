@@ -392,7 +392,16 @@ export interface StableEntry {
   name: string;
   /** milliseconds of a good feed left (0 = hungry) */
   fedMs: number;
+  /** how worn out it is, 0 fresh .. 100 exhausted */
+  fatigue: number;
 }
+/** Mount stamina: riding tires a mount by the tile, rest restores it; a stable at any waystone rests it at once. */
+export const MOUNT_TIRE_PER_TILE: Record<MountKind, number> = { horse: 0.32, stag: 0.26, griffin: 0.4 };
+/** fatigue recovered per second while not being ridden (about forty minutes from exhausted to fresh) */
+export const MOUNT_REST_PER_SEC = 0.04;
+/** a mount refuses the saddle at this fatigue, and sets you down at 100 */
+export const MOUNT_TOO_TIRED = 90;
+export const STABLE_FEE = 8;
 
 export const MSG_TRAVEL = {
   /** client -> server: { to: id } go from the stone you stand at; { bind: true } bind home; { recall: slot } */
@@ -412,4 +421,6 @@ export interface TravelGoMsg {
   /** stable: rename a mount, or feed it from the pack */
   rename?: { kind: MountKind; name: string };
   feed?: MountKind;
+  /** stable a mount here for the fee: it is rested and fed */
+  stable?: MountKind;
 }

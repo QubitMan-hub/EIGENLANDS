@@ -364,8 +364,14 @@ export function handleChest(room: RoomApi, p: ServerPlayer, msg: ChestMsg): void
   s.n -= moved;
   if (s.n <= 0) from[msg.slot] = null;
   o.data = { ...(o.data ?? {}), slots: slots.slice(0, 30) };
-  room.objects.update(o);
   p.dirty('inv');
+  // a recovered satchel, once emptied, is simply gone
+  if (o.sub === 'lost_satchel' && !slots.some(Boolean)) {
+    room.objects.remove(o.x, o.y);
+    p.toast('You have recovered everything from your satchel.', 'good');
+    return;
+  }
+  room.objects.update(o);
   sendPanel(p, o);
 }
 
