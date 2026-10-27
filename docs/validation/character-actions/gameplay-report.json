@@ -7,7 +7,8 @@
       "rootX": -64,
       "rootY": 40,
       "held": true,
-      "heldWidth": 56
+      "heldWidth": 56,
+      "heldY": 1
     },
     {
       "kind": "chop",
@@ -16,7 +17,8 @@
       "rootX": -64,
       "rootY": 40,
       "held": true,
-      "heldWidth": 56
+      "heldWidth": 56,
+      "heldY": 1
     },
     {
       "kind": "till",
@@ -25,7 +27,8 @@
       "rootX": -64,
       "rootY": 40,
       "held": true,
-      "heldWidth": 56
+      "heldWidth": 56,
+      "heldY": 1
     },
     {
       "kind": "water",
@@ -34,7 +37,8 @@
       "rootX": -64,
       "rootY": 40,
       "held": true,
-      "heldWidth": 56
+      "heldWidth": 56,
+      "heldY": 1
     },
     {
       "kind": "cast",
@@ -43,7 +47,8 @@
       "rootX": -64,
       "rootY": 40,
       "held": true,
-      "heldWidth": 56
+      "heldWidth": 56,
+      "heldY": 1
     },
     {
       "kind": "plant",
@@ -52,7 +57,8 @@
       "rootX": -64,
       "rootY": 40,
       "held": false,
-      "heldWidth": 1680
+      "heldWidth": 56,
+      "heldY": 1
     },
     {
       "kind": "harvest",
@@ -61,7 +67,8 @@
       "rootX": -64,
       "rootY": 40,
       "held": false,
-      "heldWidth": 1680
+      "heldWidth": 1680,
+      "heldY": 1
     },
     {
       "kind": "craft",
@@ -70,7 +77,8 @@
       "rootX": -64,
       "rootY": 40,
       "held": false,
-      "heldWidth": 1680
+      "heldWidth": 1680,
+      "heldY": 1
     },
     {
       "kind": "place",
@@ -79,7 +87,8 @@
       "rootX": -64,
       "rootY": 40,
       "held": false,
-      "heldWidth": 1680
+      "heldWidth": 1680,
+      "heldY": 1
     }
   ],
   "persistentFishing": true,

@@ -1827,7 +1827,7 @@ export class Game {
           const pose = frame >= 30 ? frame : v.sprite.texture.frame.x / 24;
           v.held.texture = this.heldWeapons.texture(heldItem, direction, pose);
           v.held.visible = true;
-          v.held.y = riding ? v.sprite.y + 9 : 0;
+          v.held.y = riding ? v.sprite.y + 9 : v.sprite.y;
           v.held.alpha = v.sprite.alpha;
           v.root.setChildIndex(v.held, direction === 1 || direction >= 6 ? 1 : v.root.children.length - 1);
         } else if (v.held) v.held.visible = false;

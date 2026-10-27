@@ -35,6 +35,7 @@ try {
             rootY: a.root.y,
             held: !!a.held?.visible,
             heldWidth: a.held?.texture.source.width,
+            heldY: a.held?.y,
           };
       },
       undefined,
@@ -102,6 +103,7 @@ try {
     if (weapon) {
       assert.equal(pose.held, true);
       assert.equal(pose.heldWidth, 56);
+      assert.equal(pose.heldY, pose.bodyY, 'Grounded equipment shares the body vertical offset');
     } else assert.equal(pose.held, false, `${kind} doesn't carry an unrelated weapon through the hands`);
     report.push({ kind, ...pose });
     await page.waitForTimeout(750);
