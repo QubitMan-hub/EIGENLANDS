@@ -1,6 +1,12 @@
 import { BOSS_CREATURE_DEFS, type DesignedBoss } from './boss-creatures';
 import { BOSS_BY_KIND } from '@eigenlands/shared';
-import { bestiaryFrame, bestiaryAnchor, bestiaryFallback, bestiaryAtlasStats } from './bestiary-atlases';
+import {
+  bestiaryFrame,
+  bestiaryAnchor,
+  bestiaryFallback,
+  bestiaryAtlasStats,
+  preloadBestiary,
+} from './bestiary-atlases';
 import { LEGENDARY_DEFS, type NewCreatureKey } from './legendary-fauna';
 import { ART_RGB } from './creature-pixels';
 import { armyUnitDef } from './army-units';
@@ -1674,6 +1680,7 @@ export const creatureDefinition = (kind: CritterKind): Def => DEFS[kind];
 export const KIND_NAMES: CritterKind[] = ['slime', 'hopper', 'rabbit', 'deer', 'wisp', 'brute', 'mite'];
 
 export interface FoeSheets {
+  preload(kinds: number[], night?: boolean): Promise<void>;
   cache(): ReturnType<typeof bestiaryAtlasStats>;
   anchor(kind: number): number;
   /** any creature frame: kind index (ENEMY_BY_KIND), night variant, D4 facing, animation, frame */
@@ -1729,6 +1736,7 @@ export function buildFoeSheets(): FoeSheets {
     );
   };
   return {
+    preload: (kinds, night = false) => preloadBestiary(kinds.map(name), night),
     cache: bestiaryAtlasStats,
     anchor: (k) => bestiaryAnchor(name(k)) ?? (DEFS[name(k)].ay ?? DEFS[name(k)].h - 2) / DEFS[name(k)].h,
     frame: (k, n, d, a, f) => critter(name(k), n, d, a, f),

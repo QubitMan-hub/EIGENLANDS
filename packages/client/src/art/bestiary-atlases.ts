@@ -68,6 +68,18 @@ function request(id: string, night: boolean, key: string): void {
     .finally(() => pending.delete(key));
   pending.set(key, job);
 }
+/** Authoring tools must await decoding before reading CanvasImageSource or checking pixels. */
+export async function preloadBestiary(ids: string[], night = false): Promise<void> {
+  await Promise.all(
+    ids.map(async (id) => {
+      if (!layouts[id]) return;
+      const key = `${id}:${night ? 1 : 0}`;
+      if (loaded.has(key)) return;
+      request(id, night, key);
+      await pending.get(key);
+    }),
+  );
+}
 /** null delegates old creatures and failed downloads to the original model renderer. */
 export function bestiaryFrame(id: string, night: boolean, dir: number, anim: Anim, frame: number): Texture | null {
   const d = layouts[id];

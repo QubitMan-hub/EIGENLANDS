@@ -48,7 +48,7 @@ describe('waystones', () => {
     expect(p.sp.data.prog.home).toBe(gate.id); // the first stone becomes the Recall home
     const coins0 = p.sp.data.coins;
     await at(p, wild);
-    await until(() => ways(p).includes(wild.id), 3000);
+    await until(() => ways(p).includes(wild.id) && evs.some((e) => e.kind === 'attune' && e.id === wild.id), 3000);
     expect(p.sp.data.coins).toBeGreaterThan(coins0); // wild stones pay
     expect(evs.some((e) => e.kind === 'attune' && e.id === wild.id)).toBe(true);
     // an unattuned destination is refused

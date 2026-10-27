@@ -35,6 +35,19 @@ try {
     const critters = await Critters.load(),
       foes = buildFoeSheets(),
       actors = buildActorSheets();
+    const kinds = [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      ...Array.from({ length: 6 }, (_, i) => i + 15),
+      ...Array.from({ length: 11 }, (_, i) => i + 22),
+    ];
+    await foes.preload(kinds, false);
+    await foes.preload(kinds, true);
     document.body.replaceChildren();
     document.body.style.cssText =
       'margin:20px;background:#1c2630;color:#eee0bb;font:15px monospace;overflow:auto;height:auto';
