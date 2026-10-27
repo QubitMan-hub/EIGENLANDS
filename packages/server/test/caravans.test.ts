@@ -83,7 +83,9 @@ describe('road caravans', () => {
     clearEnemies(p.room);
     const views: ShopViewMsg[] = [];
     p.r.onMessage(MSG.SHOP_VIEW, (m: ShopViewMsg) => views.push(m));
-    const soon = p.room.wclock.now() + 1500;
+    let fixtureNow = p.room.wclock.now() + 1500;
+    const soon = fixtureNow;
+    vi.spyOn(p.room.wclock, 'now').mockImplementation(() => fixtureNow);
     const r = caravanRoutes(p.room.seed).find((route) => !caravanAt(p.room.seed, route, soon).hidden)!;
     let c = caravanAt(p.room.seed, r, soon);
     await tp(p, c.x + 1, c.y);
@@ -95,7 +97,7 @@ describe('road caravans', () => {
     const coins = p.sp.data.coins;
     // ride along: wind the world clock forward and keep beside the wagon (and beat off any wolves)
     for (let i = 0; i < 80 && p.room.caravans.escorting(p.sp); i++) {
-      p.room.wclock.offset += 15000;
+      fixtureNow += 15000;
       c = caravanAt(p.room.seed, r, p.room.wclock.now());
       if (!c.hidden) await tp(p, c.x + 1, c.y);
       p.r.send(MSG.DEV, { cmd: 'kill', d: 30 });
@@ -104,17 +106,22 @@ describe('road caravans', () => {
     expect(p.room.caravans.escorting(p.sp)).toBeNull();
     // the fare is fixed at sign-on (the road left by then); a wolf bounty may come on top
     expect(p.sp.data.coins).toBeGreaterThanOrEqual(coins + Math.floor(pay * 0.8));
+    await until(() => p.toasts.some((t) => /pays you/.test(t.text)), 3000);
     expect(p.toasts.some((t) => /pays you/.test(t.text))).toBe(true);
-    // a second job, abandoned
-    c = caravanAt(p.room.seed, r, p.room.wclock.now() + 1500);
-    if (!c.hidden) {
-      await tp(p, c.x + 1, c.y);
-      p.r.send(MSG.SHOP, { npcId: `caravan:${r.id}`, action: 'job' });
-      await until(() => !!p.room.caravans.escorting(p.sp), 3000);
-      await tp(p, c.x + 200, c.y + 200);
-      (p.room.caravans as unknown as { escorts: Map<string, { away: number }> }).escorts.get(p.sp.id)!.away = 40;
-      await until(() => p.toasts.some((t) => /find another guard/.test(t.text)), 3000);
+    // a second job, abandoned; always exercise the open-road grace rule, never skip it in a town.
+    c = caravanAt(p.room.seed, r, fixtureNow);
+    for (let i = 0; i < 80 && c.hidden; i++) {
+      fixtureNow += 15000;
+      c = caravanAt(p.room.seed, r, fixtureNow);
     }
+    expect(c.hidden).toBe(false);
+    await tp(p, c.x + 1, c.y);
+    p.r.send(MSG.SHOP, { npcId: `caravan:${r.id}`, action: 'job' });
+    await until(() => !!p.room.caravans.escorting(p.sp), 3000);
+    await tp(p, c.x + 200, c.y + 200);
+    // The fixture stays on open road: entering a hidden town would legitimately reset the grace timer.
+    for (let i = 0; i < 40 && p.room.caravans.escorting(p.sp); i++) p.room.caravans.tick(fixtureNow, 1.1);
+    await until(() => p.toasts.some((t) => /find another guard/.test(t.text)), 3000);
     await p.r.leave();
   }, 120_000);
 
