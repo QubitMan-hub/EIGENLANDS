@@ -693,18 +693,18 @@ Circuit workshop continuation: five guided patterns reuse actual tokens/edit con
 ## 19. WORLD IMMERSION & SMALL DETAILS
 
 - [ ] NOT STARTED — Add thoughtful environmental interactions:
-- [ ] NOT STARTED — Blacksmiths working at forges.
-- [ ] NOT STARTED — Farmers tending crops.
-- [ ] NOT STARTED — Tavern customers appearing during evenings.
-- [ ] NOT STARTED — Guards patrolling settlements.
-- [ ] NOT STARTED — Birds landing on rooftops.
-- [ ] NOT STARTED — Lanterns illuminating rainy streets.
-- [ ] NOT STARTED — Animals wandering farms.
+- [~] IN PROGRESS — Blacksmiths working at forges. Smiths hammer at the anvil beside every smithy door by day; client-only visual layer (`packages/client/src/game/life.ts`), built for the settlement you stand in; browser tour `e2e/life-tour.mjs`, not run in CI and no unit test yet.
+- [~] IN PROGRESS — Farmers tending crops. Farmers walk the furrows of town farm plots by day; client-only visual layer (`packages/client/src/game/life.ts`), built for the settlement you stand in; browser tour `e2e/life-tour.mjs`, not run in CI and no unit test yet.
+- [~] IN PROGRESS — Tavern customers appearing during evenings. Patrons gather in front of every inn in the evening; client-only visual layer (`packages/client/src/game/life.ts`), built for the settlement you stand in; browser tour `e2e/life-tour.mjs`, not run in CI and no unit test yet.
+- [x] IMPLEMENTED & TESTED — Guards patrolling settlements. Server garrisons (`packages/server/src/features/armies`) walk wall and street routes in their realm's unit kinds and fight hostiles and raiders (`armies.test.ts`); wayfarer patrols also walk the roads.
+- [~] IN PROGRESS — Birds landing on rooftops. Birds land on and take off from roofs; client-only visual layer (`packages/client/src/game/life.ts`), built for the settlement you stand in; browser tour `e2e/life-tour.mjs`, not run in CI and no unit test yet.
+- [~] IN PROGRESS — Lanterns illuminating rainy streets. Town street lamps are point lights in the lightmap, which draws whenever the sky is dimmed (night, and rain/storm ambient by day); no rain-specific lamp behaviour or test.
+- [~] IN PROGRESS — Animals wandering farms. Cows, sheep, pigs, horses and chickens graze town farm yards; your own homestead animals are real server objects (HOMESTEADS_AND_GUILD.md). The town animals are a client-only visual layer (`packages/client/src/game/life.ts`), built for the settlement you stand in; browser tour `e2e/life-tour.mjs`, not run in CI and no unit test yet.
 - [x] IMPLEMENTED & TESTED — Fishermen working along rivers. Wild folk include fishers who stand on banks by day (shared `lively.test.ts`, browser proof `e2e/lively-world.mjs`).
-- [ ] NOT STARTED — Marketplace crowds during festivals.
+- [~] IN PROGRESS — Marketplace crowds during festivals. Market and festival crowds under bunting, fireworks after dark, thinned by rain; client-only visual layer (`packages/client/src/game/life.ts`), built for the settlement you stand in; browser tour `e2e/life-tour.mjs`, not run in CI and no unit test yet.
 - [x] IMPLEMENTED & TESTED — Traveling adventurers and merchants. Caravans, the Wandering Peddler, and wayfarers on every kingdom road (pilgrims, couriers, patrols, shepherds, carters, minstrels, hunters, families).
-- [ ] NOT STARTED — Town bells and ambient world activity.
-- [ ] NOT STARTED — Villagers reacting to dangerous creatures.
+- [~] IN PROGRESS — Town bells and ambient world activity. The town bell rings at 6, 12, 18 and midnight (scattering roof birds), plus the ambient soundscape (LIVING_WORLD.md); bell is a client-only visual layer (`packages/client/src/game/life.ts`), built for the settlement you stand in; browser tour `e2e/life-tour.mjs`, not run in CI and no unit test yet.
+- [~] IN PROGRESS — Villagers reacting to dangerous creatures. Townsfolk within 7 tiles of a hostile creature flee and cry out, then settle; knights and royals stand. A client-only visual layer (`packages/client/src/game/life.ts`), built for the settlement you stand in; browser tour `e2e/life-tour.mjs`, not run in CI and no unit test yet; named residents' server schedules do not react.
 - [x] IMPLEMENTED & TESTED — Natural weather responses. Residents' schedules and street crowds shelter from rain (with umbrellas), wild folk go home in storms, cottage families stay in when it rains; puddles in rain, footprints in snow, sand and mud, rain and thunder in the soundscape.
 - [x] IMPLEMENTED & TESTED — Small discoverable stories and secrets. Seed-written story scenes, shipwrecks, summit cairns and crypts.
 - [ ] NOT STARTED — These details should make simply walking around the world enjoyable.
