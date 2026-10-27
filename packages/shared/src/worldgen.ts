@@ -482,15 +482,9 @@ function realmAwareLevels(seed: number, cx: number, cy: number, generation: Worl
 /** Elevation level of every tile of a chunk (all zero before revision 3). */
 const generatedLevels = new Map<string, Uint8Array>();
 /** Crypt rooms are hewn down into the rock: every wall stands a full cliff above the floors. */
-function cryptLevels(seed: number, cx: number, cy: number, generation: WorldGeneration): Uint8Array {
-  const out = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
-  if (generation < 6) return out.fill(3);
-  for (let j = 0; j < CHUNK_SIZE; j++)
-    for (let i = 0; i < CHUNK_SIZE; i++) {
-      const t = cryptTileAt(seed, cx * CHUNK_SIZE + i, cy * CHUNK_SIZE + j);
-      out[j * CHUNK_SIZE + i] = t === T.CAVE_WALL ? 3 : 0;
-    }
-  return out;
+/** Crypt interiors are carved at one height, like the Undercroft: the renderer shows their rock as an enclosing roof. */
+function cryptLevels(): Uint8Array {
+  return new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
 }
 
 export function generateLevels(
@@ -501,7 +495,7 @@ export function generateLevels(
 ): Uint8Array {
   if (generation < 3) return new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
   if (generation >= 4 && isCaveY(cy * CHUNK_SIZE)) return caveLevels(seed, cx, cy);
-  if (isCryptY(cy * CHUNK_SIZE)) return cryptLevels(seed, cx, cy, generation);
+  if (isCryptY(cy * CHUNK_SIZE)) return cryptLevels();
   if (generation >= 5) return realmAwareLevels(seed, cx, cy, generation);
   const key = `${generation}:${seed}:${cx},${cy}`,
     cached = generatedLevels.get(key);
