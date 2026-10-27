@@ -6,7 +6,7 @@
 import { Application, Container, Graphics, Sprite, Text, type Texture } from 'pixi.js';
 import { ANIMS, critter, critterFrames, critterShadow, type CritterKind } from '../art/foes';
 import { softShadow } from '../art/sprite';
-import { buildActorSheets, OUTFITS, PERSON_H, PERSON_W, WALK_FRAMES } from '../art/actors';
+import { buildActorSheets, OUTFITS, PERSON_H, NPC_W, NPC_H, PERSON_W, WALK_FRAMES } from '../art/actors';
 import { drawWorldBar } from '../game/worldbar';
 import { NPCS, packAppearance, APPEARANCE_COUNTS } from '@eigenlands/shared';
 
@@ -75,8 +75,8 @@ if (mode === 'people') {
   const sheets = buildActorSheets();
   const npc = q.get('npc');
   const looks = npc ? npc.split(',') : (q.get('look') ?? '0').split(',').map(Number);
-  const fw = PERSON_W,
-    fh = PERSON_H;
+  const fw = npc ? NPC_W : PERSON_W,
+    fh = npc ? NPC_H : PERSON_H;
   looks.forEach((lk, li) => {
     const oy = li * (fh * 8 + 10);
     for (let d = 0; d < 8; d++) {

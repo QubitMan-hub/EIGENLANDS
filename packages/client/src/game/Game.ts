@@ -87,6 +87,7 @@ import {
   personGrip,
   PERSON_W,
   PERSON_H,
+  NPC_H,
   DIR_DOWN,
   DIR_LEFT,
   type Sheets,
@@ -1955,7 +1956,7 @@ export class Game {
           const near = Math.hypot(x - me.x, y - me.y) < 4;
           v.label.visible = !hidden && near;
           v.label.x = Math.round(this.world.x + v.root.x * this.scale);
-          v.label.y = Math.round(this.world.y + (v.root.y - PERSON_H) * this.scale);
+          v.label.y = Math.round(this.world.y + (v.root.y - NPC_H) * this.scale);
         }
       } else if (v.type === 'enemy' || v.type === 'shadow') {
         this.combat.drawEnemy(v, s, x, y, fx, now, dtMs / 1000, walking);

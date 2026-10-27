@@ -37,6 +37,8 @@ import {
   OUTFITS,
   PERSON_W,
   PERSON_H,
+  NPC_W,
+  NPC_H,
   WALK_FRAMES,
   DIR_LEFT,
   DIR_RIGHT,
@@ -208,7 +210,7 @@ if (mode === 'construction') {
     NPCS.filter((n) => n.settlement).forEach((n, i) => {
       const x = 28 + (i % 8) * 56,
         y = 42 + Math.floor(i / 8) * 60;
-      place(sheets.npc(n.id, 0, -1), PERSON_W / 2, PERSON_H, x, y);
+      place(sheets.npc(n.id, 0, -1), NPC_W / 2, NPC_H, x, y);
       label(n.name.split(' ')[0]!, x - 20, y + 3);
       label(n.settlement!, x - 20, y + 14);
     });

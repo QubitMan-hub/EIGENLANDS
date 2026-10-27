@@ -2,9 +2,9 @@
 
 ## Current implementation — 27 October 2026
 
-The legacy 24×32 person painter has been replaced by the original native **32×48** model in `client/src/art/person-model.ts`. It draws all thirteen outfit presets, saved appearance combinations and resident outfits through one model in eight directions. This is new pixel geometry, not an enlarged copy of the old frames. Faces have brows, eyes, cheek/jaw planes and necks; clothing has tailored silhouettes, collars, closures, belts and pouches; armor, aprons, mantles, hair and hats retain their appearance identities. The existing 48-color palette, hard alpha and upper-left lighting remain the standard.
+Player art uses the original native **32×48** model in `client/src/art/person-model.ts`. It draws all thirteen player outfit presets and saved appearance combinations in eight directions. At the user’s request, NPCs retain the previous original **24×32** painter in `npc-model.ts`, including their proportions, faces, clothing, palette and eight facings. Their newer directional animation keys remain integrated. This is new pixel geometry, not an enlarged copy of the old frames. Faces have brows, eyes, cheek/jaw planes and necks; clothing has tailored silhouettes, collars, closures, belts and pouches; armor, aprons, mantles, hair and hats retain their appearance identities. The existing 48-color palette, hard alpha and upper-left lighting remain the standard.
 
-People use a bottom-center frame anchor (16,48), with normal boot contact near y46. The shared hand solver positions the body, held tools and fishing-line origin. Title previews, labels, labs and rider cropping use the new dimensions. Base outfit atlases are lazy and separate (960×384), avoiding a larger all-outfit texture and its startup bake. Supplemental frames remain lazy with the existing bounded cache. Held strips remain 56×512 for supplemental poses.
+Players use a bottom-center frame anchor (16,48), with normal boot contact near y46. The shared hand solver positions the body, held tools and fishing-line origin. Player previews, labels, labs and rider cropping use the player dimensions. NPCs use their original bottom-center (12,32) anchor and corresponding labels/lab sizing. Base outfit atlases are lazy and separate (960×384), avoiding a larger all-outfit texture and its startup bake. Supplemental frames remain lazy with the existing bounded cache. Held strips remain 56×512 for supplemental poses.
 
 ## Animation coverage
 
@@ -30,3 +30,5 @@ The art check covers 1,152 supplemental frames and 3,120 base frames across thir
 ## Remaining limits
 
 This does not claim a full campaign balance certification or a bespoke physical animation for every item/prop combination. Variable-height station/resource contact IK, complete occupation/sleep sequences, mount-specific climbing/landing, richer charge/combo-specific combat keys and aquatic body rotation remain open. Physical-device profiling and larger cross-network multiplayer visual sessions remain necessary. Browser mobile screenshots are emulation, not phone performance measurements.
+
+NPC restoration check: 96 idle/walk frames across six named residents and eight facings match the pre-redesign pixels exactly. Eight-key conversation clips remain distinct, and the player renderer remains 32×48.

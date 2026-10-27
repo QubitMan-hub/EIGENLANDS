@@ -4,7 +4,7 @@ This is the practical remaining-work index. The full original requirements and d
 
 ## Player and NPC overhaul — active
 
-The legacy person painter is replaced with original native 32×48 art across players, residents and saved appearances. Eighteen directional action families now have eight poses, including station work, hurt, dodge and death. Variable-height physical contacts, richer combat/charge keys, occupation schedules and every bespoke prop interaction remain open. See [CHARACTER_ACTIONS.md](CHARACTER_ACTIONS.md) for exact coverage, verification and remaining items.
+Players use original native 32×48 art with saved-appearance support. NPCs retain their preferred original 24×32 designs with the newer directional animations. Eighteen directional action families now have eight poses, including station work, hurt, dodge and death. Variable-height physical contacts, richer combat/charge keys, occupation schedules and every bespoke prop interaction remain open. See [CHARACTER_ACTIONS.md](CHARACTER_ACTIONS.md) for exact coverage, verification and remaining items.
 
 ## Adventurer paths, bestiary and boss sprites
 
