@@ -58,11 +58,21 @@ try {
         const g = window.__eigen.game,
           p = g.predictor.sim;
         window.__actionCapture = null;
+        if (kind === 'plant') g.app.ticker.stop();
         const room = window.__eigenSolo.raw().find((r) => r.players.size);
         room.fx({ kind, weapon: weapon ?? undefined, id: g.myId, x: p.x + 0.8, y: p.y + 0.5 });
       },
       { kind, weapon },
     );
+    if (kind === 'plant') {
+      await page.waitForFunction(() => {
+        const g = window.__eigen.game;
+        return g.workActions.get(g.views.get(g.myId))?.at === 0;
+      });
+      // A paused/slow renderer must still present a short confirmed gesture on its first frame.
+      await page.waitForTimeout(850);
+      await page.evaluate(() => window.__eigen.game.app.ticker.start());
+    }
     try {
       await page.waitForFunction(() => !!window.__actionCapture);
     } catch (error) {

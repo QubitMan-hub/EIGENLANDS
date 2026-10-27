@@ -86,11 +86,17 @@ describe('waystones', () => {
     await until(() => evs.some((e) => e.kind === 'cancel'), 2000);
     await sleep(3000);
     expect(evs.some((e) => e.kind === 'arrive')).toBe(false);
-    // a hostile close by
-    await at(p, gate);
-    const e = p.room.spawnEnemy('slime', gate.x + 3.5, gate.y + 3.5, false);
-    p.r.send(MSG_TRAVEL.GO, { from: gate.id, to: wild.id });
+    // Town wards disperse intruders each tick. Exercise danger at an unwarded wilderness stone,
+    // rather than racing the ward's legitimate removal of a slime inside the city gate.
+    await at(p, wild);
+    const ex = p.sp.sim.x + 1.5,
+      ey = p.sp.sim.y;
+    expect(sanctuaryAt(p.room.seed, ex, ey)).toBeNull();
+    const e = p.room.spawnEnemy('slime', ex, ey, false);
+    e.def = { ...e.def, speed: 0, sight: 0.1 };
+    p.r.send(MSG_TRAVEL.GO, { from: wild.id, to: gate.id });
     await until(() => p.toasts.some((t) => /hunting/.test(t.text)), 2000);
+    expect(p.room.state.enemies.has(e.id)).toBe(true);
     p.room.enemies.delete(e.id);
     p.room.state.enemies.delete(e.id);
     await p.r.leave();

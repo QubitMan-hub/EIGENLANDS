@@ -111,6 +111,8 @@ describe('festivals and tournaments', () => {
     await until(() => !!p.room.festivals.boutOf(p.sp)?.enemy, 8000);
     await tp(p, lists.c.x + 0.5, lists.c.y + 25);
     await until(() => !p.room.festivals.boutOf(p.sp), 3000);
+    // Authority removes the bout before the websocket delivers the forfeit toast.
+    await until(() => p.toasts.some((t) => /forfeit/.test(t.text)), 2000);
     expect(p.toasts.some((t) => /forfeit/.test(t.text))).toBe(true);
     await p.r.leave();
   });

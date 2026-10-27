@@ -793,7 +793,7 @@ export class Game {
         const npc = this.views.get(m.npcId),
           me = this.views.get(this.myId);
         if (npc && me) {
-          const at = performance.now();
+          const at = 0;
           this.workActions.set(npc, { action: 'talk', at, x: me.lx, y: me.ly });
           this.workActions.set(me, { action: 'talk', at, x: npc.lx, y: npc.ly });
         }
@@ -889,8 +889,7 @@ export class Game {
             ? 'dig'
             : undefined;
     const worker = f.id ? this.views.get(f.id) : undefined;
-    if (worker && workAction)
-      this.workActions.set(worker, { action: workAction, at: performance.now(), x: f.x, y: f.y });
+    if (worker && workAction) this.workActions.set(worker, { action: workAction, at: 0, x: f.x, y: f.y });
     if (f.kind === 'chest') {
       this.worldObjs.animateChest(Math.floor(f.x), Math.floor(f.y));
       return;
@@ -1752,6 +1751,8 @@ export class Game {
           this.transportPoses.set(v, transport);
         }
         const confirmed = this.workActions.get(v);
+        // Start confirmed gestures on their first presentation, just like tool swings.
+        if (confirmed && confirmed.at === 0) confirmed.at = now;
         const fishing = isMe ? this.gameplay.fishing : null;
         if (fishing && combatStrike < 0) heldItem = 'rod';
         const channel = isMe ? this.ext.shadows.channelProgress(now) : null;
@@ -1863,6 +1864,7 @@ export class Game {
               ? -1
               : 0;
         const gesture = this.workActions.get(v);
+        if (gesture && gesture.at === 0) gesture.at = now;
         if (!walking && gesture && now - gesture.at < 650)
           frame = actionFrame(gesture.action, (now - gesture.at) / 650, reduced);
         const nd = gesture && now - gesture.at < 650 ? screenDir(gesture.x - x, gesture.y - y) : screenDir(fx, fy);
