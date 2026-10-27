@@ -316,7 +316,7 @@ export class ShadowClient implements ClientModule {
         {},
         ...COMPANION_BONDS.map((b) =>
           h('li', {
-            text: `${b.name} (${ENEMY_BY_KIND[b.kind]?.name}): ${b.count} × ${ITEMS[b.food]?.name}. ${b.trait}: ${b.detail}`,
+            text: `${b.name} (${ENEMY_BY_KIND[b.kind]?.name}): ${b.count} × ${ITEMS[b.food]?.name}. ${b.trait}: ${b.detail}${b.level ? ` Requires level ${b.level}` : ''}${b.boss ? ` and victory over ${b.boss.replace(/_/g, ' ')}` : ''}.`,
           }),
         ),
       ),

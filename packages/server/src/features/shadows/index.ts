@@ -8,6 +8,7 @@ import {
   moveBody,
   PLAYER_SPEED,
   BOND_RANGE,
+  bestiaryKind,
   companionBond,
   ENEMY_DEFS,
   ENEMY_BY_KIND,
@@ -72,6 +73,8 @@ interface Residue {
   st: SpellState;
 }
 interface Unit {
+  /** Class conjurations never join the durable roster. */
+  temporaryUntil?: number;
   rec: ShadowRec;
   en: Enemy;
   st: ShadowState;
@@ -190,7 +193,7 @@ export class ShadowModule implements Module {
   private async persist(L: Live, force: boolean): Promise<void> {
     if (!L.loaded || (!L.dirty && !force)) return;
     L.dirty = false;
-    L.data.active = [...L.units.keys()];
+    L.data.active = [...L.units.values()].filter((u) => u.temporaryUntil === undefined).map((u) => u.rec.id);
     try {
       await runtime34().repo34.saveShadows(L.p.accountId, L.data);
     } catch (e) {
@@ -401,6 +404,12 @@ export class ShadowModule implements Module {
       p.toast(`Wildlife bonds awaken at level ${EXTRACT_LEVEL}.`);
       return;
     }
+    if (p.level < (bond.level ?? EXTRACT_LEVEL) || (bond.boss && !p.data.prog.bosses.includes(bond.boss))) {
+      p.toast(
+        `This bond requires level ${bond.level ?? EXTRACT_LEVEL}${bond.boss ? ` and victory over ${bond.boss.replace(/_/g, ' ')}` : ''}.`,
+      );
+      return;
+    }
     if (p.sim.boat || !this.room.owns(e.x, e.y) || Math.hypot(e.x - p.sim.x, e.y - p.sim.y) > BOND_RANGE) {
       p.toast('Approach the animal on foot, within four tiles.');
       return;
@@ -461,6 +470,53 @@ export class ShadowModule implements Module {
     p.toast(`${bond.name} bonded: ${bond.trait}.`, 'good');
   }
 
+  /** Two bounded, short-lived class companions; ordinary pet AI retains owner-centred targeting. */
+  summonTemporary(p: ServerPlayer, name: EnemyKind, secs: number, power: number): boolean {
+    const L = this.live.get(p.id),
+      def = ENEMY_DEFS[name];
+    if (
+      !L ||
+      !def ||
+      p.deadT > 0 ||
+      p.sim.boat ||
+      L.units.size >= 8 ||
+      [...L.units.values()].filter((u) => u.temporaryUntil !== undefined).length >= 2
+    )
+      return false;
+    if (
+      [...this.live.values()].reduce(
+        (n, l) => n + [...l.units.values()].filter((u) => u.temporaryUntil !== undefined).length,
+        0,
+      ) >= 32
+    )
+      return false;
+    const id = `conjure:${p.id}:${++this.seq}`,
+      rec = newShadow(id, def.kind, Math.min(20, p.level));
+    rec.name = `Conjured ${def.name}`;
+    const en = createEnemy(name, p.sim.x, p.sim.y, false);
+    this.applyStats(en, rec);
+    en.dmgMult *= Math.max(0.4, Math.min(2, power));
+    en.def = { ...en.def, speed: Math.max(3, en.def.speed), sight: LEASH * 2 + 1 };
+    const st = new ShadowState();
+    st.id = `sh_${id}`;
+    st.owner = p.id;
+    st.name = rec.name;
+    st.kind = rec.kind;
+    const u: Unit = {
+      rec,
+      en,
+      st,
+      downUntil: 0,
+      chargeHits: new Set(),
+      supportT: 12,
+      temporaryUntil: this.t + Math.max(1, Math.min(60, secs)),
+    };
+    this.sync(u);
+    L.units.set(id, u);
+    this.room.state.shadows.set(st.id, st);
+    return true;
+  }
+
   private summon(L: Live, id: string, quiet: boolean): void {
     const rec = L.data.roster.find((r) => r.id === id);
     if (!rec || L.units.has(id) || L.units.size >= shadowSlots(L.p.level)) return;
@@ -518,6 +574,7 @@ export class ShadowModule implements Module {
   }
 
   private gainXp(L: Live, u: Unit, xp: number): void {
+    if (u.temporaryUntil !== undefined) return;
     const r = addShadowXp(u.rec, xp, L.p.level);
     L.dirty = true;
     if (r.levels) {
@@ -558,9 +615,13 @@ export class ShadowModule implements Module {
         L.level = p.level;
         this.sendRoster(L);
       }
+      for (const u of [...L.units.values()])
+        if (u.temporaryUntil !== undefined && (u.temporaryUntil <= this.t || p.deadT > 0 || u.downUntil > 0))
+          this.dismiss(L, u.rec.id);
       if (p.deadT > 0) continue;
       // too many for the player's level (they were summoned at a higher level, or the roster changed): send the extras home
-      while (L.units.size > shadowSlots(p.level)) this.dismiss(L, [...L.units.keys()].pop()!);
+      const permanent = [...L.units.values()].filter((u) => u.temporaryUntil === undefined);
+      while (permanent.length > shadowSlots(p.level)) this.dismiss(L, permanent.pop()!.rec.id);
       let i = 0;
       for (const u of L.units.values()) this.stepUnit(L, u, i++, dt, tick);
     }
@@ -618,15 +679,27 @@ export class ShadowModule implements Module {
       ? hostile.find((h) => h.id === L.focus && Math.hypot(h.x - p.sim.x, h.y - p.sim.y) <= LEASH)
       : undefined;
     const targets: Target[] = [];
-    if (u.rec.bonded && u.rec.kind === 3) {
+    if (u.rec.bonded && (u.rec.kind === 3 || u.rec.kind === bestiaryKind('unicorn'))) {
       // A haven is earned through quiet rest, never while a hostile is nearby or while catching up offline.
       if (dOwner <= 6 && !hostile.some((h) => Math.hypot(h.x - p.sim.x, h.y - p.sim.y) < 12)) {
         u.supportT = Math.max(0, u.supportT - dt);
         if (!u.supportT) {
           u.supportT = 12;
-          if (p.hp < p.maxHp) {
-            p.hp = Math.min(p.maxHp, p.hp + 2);
-            this.room.fx({ kind: 'heal', x: p.sim.x, y: p.sim.y, v: 2, id: p.id });
+          const sanctuary = u.rec.kind === bestiaryKind('unicorn');
+          const party = sanctuary ? this.room.social.partyMates(p.accountId) : [];
+          for (const q of this.room.players.values()) {
+            if (
+              q.deadT > 0 ||
+              q.sim.boat ||
+              (q.id !== p.id && !party.includes(q.accountId)) ||
+              Math.hypot(q.sim.x - p.sim.x, q.sim.y - p.sim.y) > 6
+            )
+              continue;
+            const healed = Math.min(q.maxHp - q.hp, sanctuary ? 3 : 2);
+            if (healed > 0) {
+              q.hp += healed;
+              this.room.fx({ kind: 'heal', x: q.sim.x, y: q.sim.y, v: healed, id: q.id });
+            }
           }
         }
       } else u.supportT = 12;
@@ -725,12 +798,14 @@ export class ShadowModule implements Module {
         d = Math.hypot(dx, dy) || 1;
       this.room.hitEnemy(
         e,
-        dmg,
+        dmg * (u.temporaryUntil === undefined ? this.room.circuit.companionPower(owner.id) : 1),
         owner,
         dx / d,
         dy / d,
-        kb + (u.rec.bonded && u.rec.kind === 7 && en.mode === 'charge' ? 2 : 0),
+        kb +
+          (u.rec.bonded && u.rec.kind === 7 && en.mode === 'charge' ? 2 : u.rec.bonded && u.rec.kind === 44 ? 1.5 : 0),
       );
+      if (u.rec.bonded && u.rec.kind === bestiaryKind('dragon')) e.regenBlockT = Math.max(e.regenBlockT ?? 0, 8);
       if (e.hp > 0 && u.rec.bonded && u.rec.kind === 9) e.slowT = Math.max(e.slowT, 2);
       if (e.hp > 0 && e.def.neutral) e.provoked = true;
     };
@@ -808,7 +883,7 @@ export class ShadowModule implements Module {
   private sendRoster(L: Live): void {
     const m: ShadowRosterMsg = {
       roster: L.data.roster,
-      active: [...L.units.keys()],
+      active: [...L.units.values()].filter((u) => u.temporaryUntil === undefined).map((u) => u.rec.id),
       slots: shadowSlots(L.p.level),
       stance: L.data.stance,
       unlock: EXTRACT_LEVEL,

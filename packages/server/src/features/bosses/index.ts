@@ -1,5 +1,14 @@
 import {
+  ancientGround,
+  openAncientArena,
+  closeAncientArena,
+  ancientPhase,
+  ancientSpecial,
+  type AncientRun,
+} from './ancient';
+import {
   ARENA_BOSS,
+  ancientRite,
   BOSSES,
   sanctuaryAt,
   isCaveY,
@@ -28,7 +37,7 @@ import type { GameRoom } from '../../rooms/GameRoom';
 import type { ServerPlayer } from '../../rooms/player';
 import type { Module, Registrar } from '../types';
 
-interface Run {
+interface Run extends AncientRun {
   def: BossDef;
   e: Enemy;
   phase: number;
@@ -41,6 +50,11 @@ interface Run {
 }
 
 const KEY: Record<BossId, EnemyKind> = {
+  primordial_dragon: 'primordial_dragon',
+  world_serpent: 'world_serpent',
+  sealed_entity: 'sealed_entity',
+  forgotten_titan: 'forgotten_titan',
+  realm_guardian: 'realm_guardian',
   slime_king: 'slime_king',
   warden: 'warden',
   colossus: 'colossus',
@@ -52,6 +66,11 @@ const KEY: Record<BossId, EnemyKind> = {
   tide_leviathan: 'tide_leviathan',
 };
 const SPECIAL_EVERY: Record<BossId, number> = {
+  primordial_dragon: 8,
+  world_serpent: 9,
+  sealed_entity: 10,
+  forgotten_titan: 9,
+  realm_guardian: 8,
   slime_king: 9,
   warden: 8,
   colossus: 7,
@@ -78,6 +97,7 @@ export class BossModule implements Module {
   summon(p: ServerPlayer, itemId: string, x: number, y: number): boolean {
     let def = BOSS_BY_ITEM[itemId];
     if (!def) return false;
+    if (!ancientGround(this.room, p, def, x, y)) return false;
     // revision-4 arenas answer the Deep Sigil with the boss of their cave biome
     if (def.id === 'bellkeeper' && isCaveY(y) && this.room.store.generation >= 4)
       def = BOSSES[ARENA_BOSS[caveBiomeAt(this.room.seed, x, y)]];
@@ -127,7 +147,11 @@ export class BossModule implements Module {
       p.toast('The summoning fizzles: too close to home. Go further out.', 'bad');
       return false;
     }
-    if (this.room.store.solidAt(Math.floor(x), Math.floor(y))) {
+    if (
+      (ancientRite(def.id)?.where === 'sea'
+        ? (this.room.store.solidAt.sea ?? this.room.store.solidAt)
+        : this.room.store.solidAt)(Math.floor(x), Math.floor(y))
+    ) {
       p.toast('There is no room to call it here.', 'bad');
       return false;
     }
@@ -142,6 +166,7 @@ export class BossModule implements Module {
       later: [],
       born: this.t,
     });
+    openAncientArena(this.room, this.runs.get(e.id)!);
     this.say(x, y, { kind: 'start', boss: def.id, name: def.name, intro: def.intro });
     this.room.fx({ kind: 'crash', x, y, id: e.id, dx: 0, dy: 1 });
     return true;
@@ -154,11 +179,19 @@ export class BossModule implements Module {
     for (const [id, r] of [...this.runs]) {
       const e = r.e;
       if (!this.room.enemies.has(id) || e.hp <= 0) {
+        closeAncientArena(this.room, r);
+        this.runs.delete(id);
+        continue;
+      }
+      if (r.arena && !this.hasTarget(e) && this.t - r.born > 90) {
+        this.room.enemies.delete(id);
+        this.room.state.enemies.delete(id);
+        closeAncientArena(this.room, r);
         this.runs.delete(id);
         continue;
       }
       // Breaking Veyr's poise interrupts the storm; lingering warning marks expire harmlessly.
-      if (r.def.id === 'veyr' && e.mode === 'stagger') r.later = [];
+      if ((r.def.id === 'veyr' || !!r.arena) && e.mode === 'stagger') r.later = [];
       // run scheduled effects
       for (const l of [...r.later])
         if (l.at <= this.t) {
@@ -177,6 +210,18 @@ export class BossModule implements Module {
     }
   }
 
+  viewEntities(push: (id: string, x: number, y: number, st: import('@colyseus/schema').Schema) => void): void {
+    for (const r of this.runs.values()) if (r.arena) push(r.arena.id, r.arena.x, r.arena.y, r.arena);
+  }
+  outgoingDamage(_p: ServerPlayer, e: Enemy, damage: number): number {
+    const r = this.runs.get(e.id);
+    if (r?.sentries && [...r.sentries].some((id) => this.room.enemies.has(id))) return 0;
+    return damage;
+  }
+  dealtDamage(p: ServerPlayer, e: Enemy, _damage: number): void {
+    this.runs.get(e.id)?.contributors?.add(p.id);
+  }
+
   private hasTarget(e: Enemy): boolean {
     for (const p of this.room.players.values())
       if (p.deadT <= 0 && Math.hypot(p.sim.x - e.x, p.sim.y - e.y) < e.def.sight) return true;
@@ -188,6 +233,11 @@ export class BossModule implements Module {
       id = r.def.id;
     const say = (text: string) => this.say(e.x, e.y, { kind: 'phase', boss: id, phase: r.phase, text });
     this.room.fx({ kind: 'stagger', x: e.x, y: e.y, id: e.id });
+    const message = ancientPhase(this.room, r);
+    if (message) {
+      say(message);
+      return;
+    }
     if (id === 'slime_king') {
       if (r.phase === 1) {
         say('It splits! Slimes spill from its body.');
@@ -286,6 +336,7 @@ export class BossModule implements Module {
       .filter((p) => p.deadT <= 0)
       .sort((a, b) => Math.hypot(a.sim.x - e.x, a.sim.y - e.y) - Math.hypot(b.sim.x - e.x, b.sim.y - e.y))[0];
     if (!target) return;
+    if (ancientSpecial(this.room, r, target, this.t)) return;
     if (id === 'slime_king') {
       // Gel Rain: a ring of slow orbs, then (when enraged) a second one rotated half a step
       const ring = (off: number) => {
@@ -475,8 +526,20 @@ export class BossModule implements Module {
   killed(e: Enemy, killer: ServerPlayer | undefined): void {
     const def = BOSS_BY_KIND[e.def.kind];
     if (!def) return;
+    const run = this.runs.get(e.id);
+    closeAncientArena(this.room, run);
     this.runs.delete(e.id);
     for (const q of this.room.nearby(e.x, e.y, 60)) {
+      if (
+        run?.contributors &&
+        !run.contributors.has(q.id) &&
+        !this.room.social.partyMates(q.accountId).some((a) => {
+          const p = this.room.playerByAccount(a);
+          return !!p && run.contributors!.has(p.id);
+        })
+      )
+        continue;
+      if (run?.contributors && q.deadT > 0) continue;
       const first = !q.data.prog.bosses.includes(def.id);
       if (first) {
         q.data.prog.bosses.push(def.id);

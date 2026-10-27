@@ -1,6 +1,7 @@
 import { guildContract, validGuildJourney, contractKind } from '@eigenlands/shared';
 import {
   REALM_IDS,
+  ENEMY_DEFS,
   validMountName,
   REP_MIN,
   REP_MAX,
@@ -95,7 +96,7 @@ export function newPlayerData(season: number): PlayerData {
     deeds: {},
     events: [],
     appearance: 0,
-    prog: { hearts: 0, bosses: [], shrines: [], ruins: [] },
+    prog: { hearts: 0, bosses: [], shrines: [], ruins: [], bestiary: [] },
   };
 }
 
@@ -256,6 +257,7 @@ export function validProg(raw: unknown): PlayerData['prog'] {
   return {
     hearts:
       typeof r.hearts === 'number' && Number.isFinite(r.hearts) ? Math.max(0, Math.min(40, Math.floor(r.hearts))) : 0,
+    bestiary: ids(r.bestiary).filter((id) => Object.hasOwn(ENEMY_DEFS, id)),
     bosses: ids(r.bosses),
     shrines: ids(r.shrines),
     ruins: ids(r.ruins),
@@ -311,6 +313,7 @@ export function profileMsg(d: PlayerData, stats: DerivedStats, parts: Iterable<D
   const set =
     parts === 'all'
       ? new Set<DirtyPart>([
+          'bestiary',
           'inv',
           'coins',
           'skills',
@@ -326,6 +329,7 @@ export function profileMsg(d: PlayerData, stats: DerivedStats, parts: Iterable<D
         ])
       : new Set(parts);
   const m: ProfileMsg = {};
+  if (set.has('bestiary')) m.bestiary = d.prog.bestiary ?? [];
   if (set.has('needs')) m.needs = d.needs;
   if (set.has('inv')) m.inv = d.inv as Inventory;
   if (set.has('coins')) m.coins = d.coins;

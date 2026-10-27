@@ -1,6 +1,9 @@
 import { GUILD_RANKS, type GuildRank } from '@eigenlands/shared';
 import {
   ABILITIES,
+  ITEMS,
+  ADVENTURER_FAMILIES,
+  isAdventurerFamily,
   CLASSES,
   MULTICLASS_LEVEL,
   PLAYABLE_CLASSES,
@@ -34,6 +37,7 @@ function abilityRows(c: ClassDef): HTMLElement {
   const box = h('div', { class: 'cb-pc-abil' });
   for (const id of c.abilities) {
     const a = ABILITIES[id];
+    if (a.path) continue;
     const forms = h(
       'div',
       { class: 'cb-pc-forms' },
@@ -75,6 +79,11 @@ export function classCard(
     ),
     h('p', { class: 'cb-pc-blurb', text: c.blurb }),
   );
+  if (c.gear)
+    card.append(
+      h('p', { class: 'cb-pc-desc', text: `Equipment · ${c.gear.map((id) => ITEMS[id]?.name ?? id).join(', ')}` }),
+    );
+  if (c.weakness) card.append(h('p', { class: 'cb-pc-desc', text: `Trade-off · ${c.weakness}` }));
   if (!opts.compact) {
     card.append(
       h('div', { class: 'cb-pc-k', text: 'Abilities' }),
@@ -95,6 +104,22 @@ export function classCard(
   }
   if (opts.button) card.append(opts.button);
   return card;
+}
+
+function familyFilter(cards: HTMLElement, chosen?: ClassId): HTMLElement {
+  const select = h('select');
+  select.setAttribute('aria-label', 'Class family');
+  for (const id of ['quantum', ...ADVENTURER_FAMILIES])
+    select.append(
+      h('option', { value: id, text: id === 'quantum' ? 'Quantum traditions' : CLASSES[id as ClassId].name }),
+    );
+  select.value = chosen && isAdventurerFamily(chosen) ? chosen : 'quantum';
+  const update = () => {
+    for (const c of cards.children as HTMLCollectionOf<HTMLElement>) c.hidden = c.dataset.family !== select.value;
+  };
+  select.onchange = update;
+  update();
+  return h('label', { class: 'cb-family-filter' }, h('span', { text: 'Explore a class family' }), select);
 }
 
 export function buildPath(s: PathState, act: PathActions): HTMLElement {
@@ -159,9 +184,11 @@ export function buildPath(s: PathState, act: PathActions): HTMLElement {
             data: { focus: `pc:${id}` },
             on: { click: () => act.pick({ what: 'class', cls: id }) },
           });
-      cards.append(classCard(c, { button: btn, chosen: pend }));
+      const card = classCard(c, { button: btn, chosen: pend });
+      card.dataset.family = isAdventurerFamily(id) ? id : 'quantum';
+      cards.append(card);
     }
-    root.append(cards);
+    root.append(familyFilter(cards, s.pending && 'cls' in s.pending ? s.pending.cls : undefined), cards);
     return root;
   }
 
@@ -216,6 +243,19 @@ export function buildPath(s: PathState, act: PathActions): HTMLElement {
             }),
       );
     }
+    if (sp.gear)
+      card.append(
+        h('p', { class: 'cb-pc-desc', text: `Equipment · ${sp.gear.map((id) => ITEMS[id]?.name ?? id).join(', ')}` }),
+      );
+    if (sp.skill) {
+      const a = ABILITIES[sp.skill];
+      card.append(
+        h('p', {
+          class: 'cb-pc-desc',
+          text: `Unlock · ${a.name}: ${a.forms.map((f) => f.name).join(' ↔ ')}. Slot this technique on an active orb in the Board.`,
+        }),
+      );
+    }
     specs.append(card);
   }
   root.append(specs);
@@ -252,9 +292,11 @@ export function buildPath(s: PathState, act: PathActions): HTMLElement {
             data: { focus: `sc:${id}` },
             on: { click: () => act.pick({ what: 'second', cls: id }) },
           });
-      cards.append(classCard(CLASSES[id], { button: btn, chosen: pend }));
+      const card = classCard(CLASSES[id], { button: btn, chosen: pend });
+      card.dataset.family = isAdventurerFamily(id) ? id : 'quantum';
+      cards.append(card);
     }
-    root.append(cards);
+    root.append(familyFilter(cards, s.pending && 'cls' in s.pending ? s.pending.cls : undefined), cards);
   }
   return root;
 }

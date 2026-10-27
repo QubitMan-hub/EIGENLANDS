@@ -11,6 +11,8 @@ export const SPELL = {
   MIRROR: 6,
   BLINK: 7,
   RESIDUE: 8,
+  STRIKE: 9,
+  ARENA: 10,
 } as const;
 
 /** A visible ability effect: bolts, rings, Echoes, tethers, shields. Interest-managed like other entities. */

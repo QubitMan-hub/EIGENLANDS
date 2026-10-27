@@ -160,6 +160,8 @@ export interface WelcomeMsg {
 
 /** Private per-player data. Every field is optional: the server sends only what changed (the first PROFILE is complete). */
 export interface ProfileMsg {
+  /** Server-recorded, line-of-sight creature discoveries. */
+  bestiary?: string[];
   needs?: TravelNeeds;
   inv?: Slot[];
   coins?: number;

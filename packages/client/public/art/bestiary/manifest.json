@@ -1,0 +1,482 @@
+{
+  "sourceHash": "6d43bc945550e97cf9ec70f28618e14c7f631ad799671c976f8fa82edb81d58e",
+  "atlases": {
+    "songbird": {
+      "w": 40,
+      "h": 50,
+      "ay": 36,
+      "frames": {
+        "idle": 3,
+        "move": 6,
+        "windup": 3,
+        "attack": 4,
+        "hurt": 2,
+        "death": 5
+      },
+      "cols": 23,
+      "rows": 4
+    },
+    "river_fish": {
+      "w": 26,
+      "h": 38,
+      "ay": 24,
+      "frames": {
+        "idle": 3,
+        "move": 6,
+        "windup": 3,
+        "attack": 4,
+        "hurt": 2,
+        "death": 5
+      },
+      "cols": 23,
+      "rows": 4
+    },
+    "woodland_spirit": {
+      "w": 50,
+      "h": 70,
+      "ay": 54,
+      "frames": {
+        "idle": 3,
+        "move": 6,
+        "windup": 3,
+        "attack": 4,
+        "hurt": 2,
+        "death": 5
+      },
+      "cols": 23,
+      "rows": 4
+    },
+    "bandit": {
+      "w": 44,
+      "h": 59,
+      "ay": 46,
+      "frames": {
+        "idle": 3,
+        "move": 6,
+        "windup": 3,
+        "attack": 4,
+        "hurt": 2,
+        "death": 5
+      },
+      "cols": 23,
+      "rows": 4
+    },
+    "raider": {
+      "w": 48,
+      "h": 63,
+      "ay": 50,
+      "frames": {
+        "idle": 3,
+        "move": 6,
+        "windup": 3,
+        "attack": 4,
+        "hurt": 2,
+        "death": 5
+      },
+      "cols": 23,
+      "rows": 4
+    },
+    "goblin": {
+      "w": 42,
+      "h": 55,
+      "ay": 42,
+      "frames": {
+        "idle": 3,
+        "move": 6,
+        "windup": 3,
+        "attack": 4,
+        "hurt": 2,
+        "death": 5
+      },
+      "cols": 23,
+      "rows": 4
+    },
+    "troll": {
+      "w": 34,
+      "h": 74,
+      "ay": 59,
+      "frames": {
+        "idle": 3,
+        "move": 6,
+        "windup": 3,
+        "attack": 4,
+        "hurt": 2,
+        "death": 5
+      },
+      "cols": 23,
+      "rows": 4
+    },
+    "undead": {
+      "w": 44,
+      "h": 59,
+      "ay": 46,
+      "frames": {
+        "idle": 3,
+        "move": 6,
+        "windup": 3,
+        "attack": 4,
+        "hurt": 2,
+        "death": 5
+      },
+      "cols": 23,
+      "rows": 4
+    },
+    "orc": {
+      "w": 44,
+      "h": 64,
+      "ay": 50,
+      "frames": {
+        "idle": 3,
+        "move": 6,
+        "windup": 3,
+        "attack": 4,
+        "hurt": 2,
+        "death": 5
+      },
+      "cols": 23,
+      "rows": 4
+    },
+    "spider": {
+      "w": 36,
+      "h": 42,
+      "ay": 24,
+      "frames": {
+        "idle": 3,
+        "move": 6,
+        "windup": 3,
+        "attack": 4,
+        "hurt": 2,
+        "death": 5
+      },
+      "cols": 23,
+      "rows": 4
+    },
+    "corrupted_beast": {
+      "w": 50,
+      "h": 70,
+      "ay": 54,
+      "frames": {
+        "idle": 3,
+        "move": 6,
+        "windup": 3,
+        "attack": 4,
+        "hurt": 2,
+        "death": 5
+      },
+      "cols": 23,
+      "rows": 4
+    },
+    "rogue_mage": {
+      "w": 30,
+      "h": 67,
+      "ay": 53,
+      "frames": {
+        "idle": 3,
+        "move": 6,
+        "windup": 3,
+        "attack": 4,
+        "hurt": 2,
+        "death": 5
+      },
+      "cols": 23,
+      "rows": 4
+    },
+    "dragon": {
+      "w": 80,
+      "h": 74,
+      "ay": 57,
+      "frames": {
+        "idle": 3,
+        "move": 6,
+        "windup": 3,
+        "attack": 4,
+        "hurt": 2,
+        "death": 5
+      },
+      "cols": 23,
+      "rows": 4
+    },
+    "phoenix": {
+      "w": 54,
+      "h": 53,
+      "ay": 40,
+      "frames": {
+        "idle": 3,
+        "move": 6,
+        "windup": 3,
+        "attack": 4,
+        "hurt": 2,
+        "death": 5
+      },
+      "cols": 23,
+      "rows": 4
+    },
+    "siren": {
+      "w": 46,
+      "h": 69,
+      "ay": 50,
+      "frames": {
+        "idle": 3,
+        "move": 6,
+        "windup": 3,
+        "attack": 4,
+        "hurt": 2,
+        "death": 5
+      },
+      "cols": 23,
+      "rows": 4
+    },
+    "unicorn": {
+      "w": 50,
+      "h": 71,
+      "ay": 55,
+      "frames": {
+        "idle": 3,
+        "move": 6,
+        "windup": 3,
+        "attack": 4,
+        "hurt": 2,
+        "death": 5
+      },
+      "cols": 23,
+      "rows": 4
+    },
+    "hydra": {
+      "w": 62,
+      "h": 75,
+      "ay": 58,
+      "frames": {
+        "idle": 3,
+        "move": 6,
+        "windup": 3,
+        "attack": 4,
+        "hurt": 2,
+        "death": 5
+      },
+      "cols": 23,
+      "rows": 4
+    },
+    "manticore": {
+      "w": 58,
+      "h": 75,
+      "ay": 58,
+      "frames": {
+        "idle": 3,
+        "move": 6,
+        "windup": 3,
+        "attack": 4,
+        "hurt": 2,
+        "death": 5
+      },
+      "cols": 23,
+      "rows": 4
+    },
+    "basilisk": {
+      "w": 50,
+      "h": 52,
+      "ay": 36,
+      "frames": {
+        "idle": 3,
+        "move": 6,
+        "windup": 3,
+        "attack": 4,
+        "hurt": 2,
+        "death": 5
+      },
+      "cols": 23,
+      "rows": 4
+    },
+    "thunderbird": {
+      "w": 54,
+      "h": 53,
+      "ay": 40,
+      "frames": {
+        "idle": 3,
+        "move": 6,
+        "windup": 3,
+        "attack": 4,
+        "hurt": 2,
+        "death": 5
+      },
+      "cols": 23,
+      "rows": 4
+    },
+    "primordial_dragon": {
+      "w": 112,
+      "h": 106,
+      "ay": 87,
+      "frames": {
+        "idle": 3,
+        "move": 6,
+        "windup": 3,
+        "attack": 4,
+        "hurt": 2,
+        "death": 5
+      },
+      "cols": 23,
+      "rows": 4
+    },
+    "world_serpent": {
+      "w": 126,
+      "h": 115,
+      "ay": 90,
+      "frames": {
+        "idle": 3,
+        "move": 6,
+        "windup": 3,
+        "attack": 4,
+        "hurt": 2,
+        "death": 5
+      },
+      "cols": 23,
+      "rows": 4
+    },
+    "sealed_entity": {
+      "w": 70,
+      "h": 115,
+      "ay": 117,
+      "frames": {
+        "idle": 3,
+        "move": 6,
+        "windup": 3,
+        "attack": 4,
+        "hurt": 2,
+        "death": 5
+      },
+      "cols": 23,
+      "rows": 4
+    },
+    "forgotten_titan": {
+      "w": 114,
+      "h": 138,
+      "ay": 120,
+      "frames": {
+        "idle": 3,
+        "move": 6,
+        "windup": 3,
+        "attack": 4,
+        "hurt": 2,
+        "death": 5
+      },
+      "cols": 23,
+      "rows": 4
+    },
+    "realm_guardian": {
+      "w": 74,
+      "h": 139,
+      "ay": 121,
+      "frames": {
+        "idle": 3,
+        "move": 6,
+        "windup": 3,
+        "attack": 4,
+        "hurt": 2,
+        "death": 5
+      },
+      "cols": 23,
+      "rows": 4
+    }
+  },
+  "portraits": [
+    "slime",
+    "hopper",
+    "rabbit",
+    "deer",
+    "wisp",
+    "brute",
+    "mite",
+    "boar",
+    "wolf",
+    "badger",
+    "fox",
+    "otter",
+    "tortoise",
+    "owl",
+    "thornling",
+    "glasscrawler",
+    "reed_stalker",
+    "cinder_moth",
+    "echo_bat",
+    "spore_sage",
+    "prism_beetle",
+    "blind_ram",
+    "rime_skitter",
+    "pool_lurker",
+    "vault_guardian",
+    "spore_matriarch",
+    "veyr",
+    "bellkeeper",
+    "slime_king",
+    "warden",
+    "colossus",
+    "amber_gnawer",
+    "lantern_hound",
+    "geode_golem",
+    "cinder_drake",
+    "frost_wraith",
+    "tide_eel",
+    "geode_tyrant",
+    "cinder_wyrm",
+    "rime_sovereign",
+    "tide_leviathan",
+    "griffin",
+    "spirit_stag",
+    "iron_golem",
+    "raiju",
+    "reef_naga",
+    "hellhound",
+    "aurelion_infantry",
+    "aurelion_ranged",
+    "aurelion_cavalry",
+    "aurelion_elite",
+    "sylvaris_infantry",
+    "sylvaris_ranged",
+    "sylvaris_cavalry",
+    "sylvaris_elite",
+    "khardum_infantry",
+    "khardum_ranged",
+    "khardum_cavalry",
+    "khardum_elite",
+    "raijin_infantry",
+    "raijin_ranged",
+    "raijin_cavalry",
+    "raijin_elite",
+    "thalassara_infantry",
+    "thalassara_ranged",
+    "thalassara_cavalry",
+    "thalassara_elite",
+    "nethrakar_infantry",
+    "nethrakar_ranged",
+    "nethrakar_cavalry",
+    "nethrakar_elite",
+    "cow",
+    "sheep",
+    "pig",
+    "horse",
+    "songbird",
+    "river_fish",
+    "woodland_spirit",
+    "bandit",
+    "raider",
+    "goblin",
+    "troll",
+    "undead",
+    "orc",
+    "spider",
+    "corrupted_beast",
+    "rogue_mage",
+    "dragon",
+    "phoenix",
+    "siren",
+    "unicorn",
+    "hydra",
+    "manticore",
+    "basilisk",
+    "thunderbird",
+    "primordial_dragon",
+    "world_serpent",
+    "sealed_entity",
+    "forgotten_titan",
+    "realm_guardian"
+  ]
+}

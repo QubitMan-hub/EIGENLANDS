@@ -126,6 +126,12 @@ export class SpellRenderer {
         case SPELL.BOLT:
           this.bolt(v, x, y, col, age, reduced);
           break;
+        case SPELL.ARENA:
+          this.arena(v, x, y);
+          break;
+        case SPELL.STRIKE:
+          this.strike(v, x, y, col, age, reduced);
+          break;
         case SPELL.RING:
           this.ring(v, x, y, col, age, reduced);
           break;
@@ -170,6 +176,73 @@ export class SpellRenderer {
     g.circle(0, -8, 6 * pulse).fill({ color: col, alpha: 0.18 });
     g.circle(0, -8, 3.5).fill({ color: col, alpha: 0.85 });
     g.rect(-1, -9, 2, 2).fill(0xffffff);
+  }
+
+  /** Quiet runework is fixed to the encounter's ground, below actors and warnings. */
+  private arena(v: View, x: number, y: number): void {
+    v.root.x = Math.round(isoX(x, y));
+    v.root.y = Math.round(isoY(x, y));
+    v.root.zIndex = depth(x, y) - 10000;
+    const g = v.g,
+      r = v.s.r || 9,
+      pattern = v.s.hue,
+      phase = v.s.dx || 0,
+      color = elCol([0, 5, 6, 1, 3][pattern] ?? 6);
+    const at = (x: number, y: number) => [Math.round(isoX(x, y)), Math.round(isoY(x, y))];
+    const diamond = (x: number, y: number, size: number) => {
+      const pts = [at(x - size, y), at(x, y - size), at(x + size, y), at(x, y + size)].flat();
+      g.poly(pts).stroke({ color, width: 1, alpha: 0.34 });
+    };
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      diamond(Math.cos(a) * r, Math.sin(a) * r, 0.24);
+    }
+    if (pattern === 2) {
+      for (const [dx, dy] of [
+        [-4, -4],
+        [4, -4],
+        [-4, 4],
+        [4, 4],
+      ])
+        diamond(dx!, dy!, 1.1);
+      g.poly([at(-4, -4), at(4, -4), at(4, 4), at(-4, 4)].flat()).stroke({ color, width: 1, alpha: 0.13 });
+    } else if (pattern === 3) {
+      for (const d of [-4, 0, 4])
+        g.moveTo(...(at(-6, d) as [number, number]))
+          .lineTo(...(at(6, d) as [number, number]))
+          .stroke({ color, width: 1, alpha: 0.18 });
+      diamond(0, 0, 2);
+    } else {
+      const n = pattern === 4 ? 6 : pattern === 1 ? 8 : 5;
+      for (let i = 0; i < n; i++) {
+        const a = ((i + (pattern === 4 ? phase * 0.5 : 0)) / n) * Math.PI * 2,
+          dx = Math.cos(a),
+          dy = Math.sin(a);
+        g.moveTo(...(at(dx * 5.5, dy * 5.5) as [number, number]))
+          .lineTo(...(at(dx * 7.5, dy * 7.5) as [number, number]))
+          .stroke({ color, width: 1, alpha: 0.25 });
+        diamond(dx * 6.5, dy * 6.5, pattern === 1 ? 0.55 : 0.75);
+      }
+    }
+  }
+
+  /** A short world-space fan agrees with the server's forward strike cone. */
+  private strike(v: View, x: number, y: number, col: number, age: number, reduced: boolean): void {
+    v.root.x = Math.round(isoX(x, y));
+    v.root.y = Math.round(isoY(x, y)) - 8;
+    v.root.zIndex = depth(x, y) + 1;
+    const r = Math.max(0.5, v.s.r),
+      base = Math.atan2(v.s.dy, v.s.dx),
+      sweep = reduced ? 1 : Math.min(1, age / 0.16);
+    const points: number[] = [0, 0];
+    for (let i = 0; i <= 14; i++) {
+      const a = base - 1.2 + (i / 14) * 2.4 * sweep;
+      points.push(
+        Math.round(isoX(Math.cos(a) * r, Math.sin(a) * r)),
+        Math.round(isoY(Math.cos(a) * r, Math.sin(a) * r)),
+      );
+    }
+    v.g.poly(points).fill({ color: col, alpha: 0.16 }).stroke({ color: col, width: 2, alpha: 0.9 });
   }
 
   private ring(v: View, x: number, y: number, col: number, age: number, reduced: boolean): void {

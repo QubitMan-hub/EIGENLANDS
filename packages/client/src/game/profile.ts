@@ -52,6 +52,7 @@ export class Profile {
   rep: Record<string, number> = {};
   stats: NonNullable<ProfileMsg['stats']> = { hpBonus: 0, atkBonus: 0, luck: 0, haste: 0, def: 0, phase: 0 };
   quests: QuestLog = {};
+  bestiary = new Set<string>();
   /** heart events already seen */
   events: string[] = [];
   loaded = false;
@@ -113,6 +114,10 @@ export class Profile {
     if (m.stats) {
       this.stats = m.stats;
       changed.add('stats');
+    }
+    if (m.bestiary) {
+      this.bestiary = new Set(m.bestiary);
+      changed.add('bestiary');
     }
     if (m.quests) {
       this.quests = m.quests;

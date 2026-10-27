@@ -90,3 +90,7 @@ export * from './caravans';
 export * from './bridges';
 
 export * from './guild-halls';
+
+export * from './adventurer-paths';
+
+export * from './bestiary';

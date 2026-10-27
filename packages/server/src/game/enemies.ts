@@ -35,6 +35,11 @@ import { EnemyState } from '@eigenlands/shared';
 export type EnemyMode = 'idle' | 'wander' | 'chase' | 'windup' | 'leap' | 'recover' | 'stagger' | 'charge';
 
 export interface Enemy {
+  homeX?: number;
+  homeY?: number;
+  regenBlockT?: number;
+  traitT?: number;
+  reborn?: boolean;
   /** Scripted rescue guards cannot be farmed for rewards or ordinary hunt credit. */
   noRewards?: boolean;
   id: string;
@@ -129,6 +134,10 @@ export function createEnemy(kind: EnemyKind, x: number, y: number, night: boolea
     ky: 0,
     hp: maxHp,
     maxHp,
+    homeX: x,
+    homeY: y,
+    regenBlockT: 0,
+    traitT: 0,
     night,
     mode: 'idle',
     t: 1,
@@ -209,6 +218,10 @@ export function stepEnemies(
   hooks: EnemyHooks,
 ): void {
   const all = [...list];
+  const predators = all
+    .filter((e) => e.def.predator && e.hp > 0)
+    .map((e) => ({ id: e.id, x: e.x, y: e.y, alive: true }));
+  const prey = all.filter((e) => e.def.passive && e.hp > 0).map((e) => ({ id: e.id, x: e.x, y: e.y, alive: true }));
   const ctx: AiContext = { allies: all.filter((e) => !e.def.passive), engaged: new Map(), casting: new Map() };
   for (const e of ctx.allies) {
     if (!e.targetId || !committed(e)) continue;
@@ -222,7 +235,11 @@ export function stepEnemies(
       e,
       e.slowT > 0 ? dt * SLIP_SLOW : dt,
       tick,
-      targets,
+      e.def.passive
+        ? [...targets, ...predators]
+        : e.def.predator
+          ? [...targets, ...prey.filter((p) => Math.hypot(p.x - e.x, p.y - e.y) <= 2.5)]
+          : targets,
       e.def.sea ? (solid.sea ?? solid) : solid,
       rand,
       hooks,
@@ -325,6 +342,12 @@ export function stepEnemy(
   hooks: EnemyHooks,
   ctx?: AiContext,
 ): void {
+  e.regenBlockT = Math.max(0, (e.regenBlockT ?? 0) - dt);
+  e.traitT = Math.max(0, (e.traitT ?? 0) - dt);
+  if (e.def.trait === 'regrow' && !e.regenBlockT && e.hp < e.maxHp) {
+    e.hp = Math.min(e.maxHp, e.hp + e.maxHp * 0.02 * dt);
+    e.state.hp = Math.round(e.hp);
+  }
   if (e.def.passive || (e.def.neutral && !e.provoked)) {
     stepPassive(e, dt, tick, targets, solid, rand);
     return;
@@ -339,7 +362,8 @@ export function stepEnemy(
   let target: Target | null = null;
   let best = e.def.sight;
   for (const p of targets) {
-    if (!p.alive) continue;
+    if (!p.alive || (e.def.territory && Math.hypot(p.x - (e.homeX ?? e.x), p.y - (e.homeY ?? e.y)) > e.def.territory))
+      continue;
     const d = Math.hypot(p.x - e.x, p.y - e.y);
     if (d < best) {
       best = d;
@@ -349,11 +373,37 @@ export function stepEnemy(
   const cur = e.targetId ? targets.find((p) => p.id === e.targetId && p.alive) : undefined;
   if (
     cur &&
+    (!e.def.territory || Math.hypot(cur.x - (e.homeX ?? e.x), cur.y - (e.homeY ?? e.y)) <= e.def.territory) &&
     Math.hypot(cur.x - e.x, cur.y - e.y) < e.def.sight * 1.4 &&
     (!target || Math.hypot(cur.x - e.x, cur.y - e.y) < best + 1.5)
   )
     target = cur;
   if (!committed(e)) e.targetId = target?.id ?? null;
+  if (
+    e.def.territory &&
+    !target &&
+    Math.hypot(e.x - (e.homeX ?? e.x), e.y - (e.homeY ?? e.y)) > 2 &&
+    !committed(e) &&
+    e.mode !== 'stagger'
+  ) {
+    const dx = (e.homeX ?? e.x) - e.x,
+      dy = (e.homeY ?? e.y) - e.y,
+      d = Math.hypot(dx, dy) || 1;
+    moveBody(e, (dx / d) * e.def.speed * dt, (dy / d) * e.def.speed * dt, e.def.radius, solid);
+    e.mode = 'wander';
+    e.targetId = null;
+    e.state.faceX = dx / d;
+    e.state.faceY = dy / d;
+    syncState(e, tick);
+    return;
+  }
+  if (target && e.def.trait === 'blink' && e.flinchT > 0 && !e.traitT) {
+    const dx = e.x - target.x,
+      dy = e.y - target.y,
+      d = Math.hypot(dx, dy) || 1;
+    moveBody(e, (dx / d) * 2.6, (dy / d) * 2.6, e.def.radius, solid);
+    e.traitT = 8;
+  }
   const speed = e.def.speed * e.speedMult;
   const ai = e.def.ai ?? 'melee';
 

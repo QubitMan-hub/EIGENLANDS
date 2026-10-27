@@ -59,6 +59,7 @@ export interface PlayerData {
   events: string[];
   /** adventure progress: Heart Crystals used, bosses defeated, shrines solved */
   prog: {
+    bestiary?: string[];
     hearts: number;
     bosses: string[];
     shrines: string[];
@@ -78,6 +79,7 @@ export interface PlayerData {
 }
 
 export type DirtyPart =
+  | 'bestiary'
   | 'inv'
   | 'coins'
   | 'skills'

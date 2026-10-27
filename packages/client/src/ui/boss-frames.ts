@@ -32,6 +32,57 @@ export interface BossTheme {
 const FILLS = (a: number, b: number) => [a, b] as const;
 
 export const BOSS_THEMES: Record<BossId, BossTheme> = {
+  primordial_dragon: {
+    id: 'primordial_dragon',
+    name: 'Azhur, First Flame',
+    title: 'The Crown Before Kingdoms',
+    frame: [C.r1, C.r3, C.e5],
+    panel: C.r0,
+    accent: C.e7,
+    fill: FILLS(C.r4, C.e6),
+    trail: C.e3,
+  },
+  world_serpent: {
+    id: 'world_serpent',
+    name: 'Orrun, the Remembering Tide',
+    title: 'The Ocean That Remembers',
+    frame: [C.w1, C.w3, C.w6],
+    panel: C.w0,
+    accent: C.g7,
+    fill: FILLS(C.w4, C.w6),
+    trail: C.pale,
+  },
+  sealed_entity: {
+    id: 'sealed_entity',
+    name: 'The Unwritten King',
+    title: 'Break the Four Sentries',
+    frame: [C.q1, C.q3, C.q6],
+    panel: C.q0,
+    accent: C.e7,
+    fill: FILLS(C.q4, C.q6),
+    trail: C.e5,
+  },
+  forgotten_titan: {
+    id: 'forgotten_titan',
+    name: 'Morrowforge',
+    title: 'Last of the First',
+    frame: [C.slate, C.steel, C.pale],
+    panel: C.night,
+    accent: C.e6,
+    fill: FILLS(C.steel, C.e5),
+    trail: C.r5,
+  },
+  realm_guardian: {
+    id: 'realm_guardian',
+    name: 'Asterion',
+    title: 'Keeper of Six Gates',
+    frame: [C.g1, C.g4, C.e5],
+    panel: C.g0,
+    accent: C.q7,
+    fill: FILLS(C.g4, C.g6),
+    trail: C.e6,
+  },
+
   slime_king: {
     id: 'slime_king',
     name: 'Gelatinous Sovereign',
@@ -150,6 +201,18 @@ function inside(id: BossId, x: number, y: number): boolean {
   if (x < 0 || y < 0 || x >= W || y >= H) return false;
   const cx = W / 2;
   switch (id) {
+    case 'primordial_dragon':
+      return y >= (x < 18 || x > W - 19 ? Math.abs((x % 12) - 6) : 3) && y < H - 2 && x + y > 5 && W - x + y > 5;
+    case 'world_serpent':
+      return y >= 2 + Math.round((Math.sin(x / 11) + 1) * 2) && y < H - 2 && x + y > 6 && W - x + y > 6;
+    case 'sealed_entity':
+      return y >= 3 && y < H - 3 && !((x < 5 || x > W - 6) && y < 9);
+    case 'forgotten_titan':
+      return x + y > 7 && W - x + y > 7 && x + H - y > 7 && W - x + H - y > 7;
+    case 'realm_guardian':
+      return (
+        y >= (Math.floor(x / 16) % 2 === 0 && x > 30 && x < W - 30 ? 1 : 4) && y < H - 2 && x + y > 5 && W - x + y > 5
+      );
     case 'slime_king': {
       // jelly: rounded shoulders and a dripping lower edge
       const drip = (Math.floor(x / 6) % 3 === 1 ? 4 : Math.floor(x / 6) % 3 === 2 ? 1 : 0) + 3;
@@ -212,6 +275,44 @@ function emblem(ctx: Ctx, t: BossTheme): void {
   // 28×28 plate on the left cap; the origin is the plate's centre, near the ground line of the emblem
   const iso = new Iso(ctx, 18, 33);
   switch (t.id) {
+    case 'primordial_dragon':
+      iso.cyl(0, 0, 0, 6, 9, [C.r2, C.r3, C.r4, C.e5], [C.e6, C.e7]);
+      for (const u of [-5, 5]) iso.box(u, -2, 7, 2, 3, 9, { top: () => C.e7, left: () => C.r5, right: () => C.r2 });
+      iso.dot(2, 2, 5, C.ink, 3, 2);
+      break;
+    case 'world_serpent':
+      for (let i = 0; i < 9; i++) {
+        const a = (i / 9) * Math.PI * 2;
+        iso.cyl(Math.cos(a) * 6, Math.sin(a) * 6, 2, 2, 3 + i / 3, [C.w2, C.w4, C.w6], [C.w7, C.g6]);
+      }
+      iso.dot(0, 0, 9, C.g7, 3, 3);
+      break;
+    case 'sealed_entity':
+      for (const [u, v] of [
+        [-5, -5],
+        [5, -5],
+        [-5, 5],
+        [5, 5],
+      ])
+        iso.box(u!, v!, 0, 3, 3, 10, { top: () => C.e6, left: () => C.q5, right: () => C.q2 });
+      iso.dot(0, 0, 5, C.e7, 5, 7);
+      break;
+    case 'forgotten_titan':
+      iso.box(-5, -5, 0, 10, 10, 4, { top: () => C.steel, left: () => C.slate, right: () => C.night });
+      iso.box(-1, -1, 3, 3, 3, 12, { top: () => C.e7, left: () => C.e4, right: () => C.e2 });
+      iso.box(-6, -3, 13, 12, 6, 4, { top: () => C.pale, left: () => C.steel, right: () => C.slate });
+      break;
+    case 'realm_guardian':
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        iso.box(Math.cos(a) * 6, Math.sin(a) * 6, 0, 2, 2, 10 + (i % 2) * 3, {
+          top: () => C.e7,
+          left: () => C.g5,
+          right: () => C.g2,
+        });
+      }
+      iso.dot(0, 0, 8, C.q7, 4, 6);
+      break;
     case 'slime_king': {
       iso.box(-6, -6, 0, 12, 12, 7, {
         top: (a, b) => (a < 0.2 || b < 0.2 ? C.g7 : C.g6),
