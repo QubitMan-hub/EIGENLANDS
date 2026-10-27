@@ -4,6 +4,11 @@ import { ATTACK_FRAME, RUN_FRAME, SHOT_FRAME, CAST_FRAME, personGrip, PERSON_W, 
 import { actionPose } from './person-actions';
 import { C, line, makeCanvas, outline, poly, put, undithered } from './shade';
 
+export const HELD_W = 64,
+  HELD_H = 80,
+  HELD_AX = 32,
+  HELD_AY = 60;
+
 export type HeldId = WeaponId | ToolSpec['type'];
 export const isHeldId = (id: unknown): id is HeldId =>
   isWeaponId(id) || ['axe', 'pickaxe', 'hoe', 'can', 'rod', 'net'].includes(String(id));
@@ -23,14 +28,14 @@ export class HeldWeapons {
       sheetKey = extra ? `${id}:${f}` : id;
     let sheet = this.sheets.get(sheetKey);
     if (!sheet) {
-      const { canvas, ctx } = makeCanvas(56 * cols, 64 * 8);
+      const { canvas, ctx } = makeCanvas(HELD_W * cols, HELD_H * 8);
       for (let d = 0; d < 8; d++)
         for (let column = 0; column < cols; column++) {
           const n = extra ? f : column;
-          const b = makeCanvas(56, 64),
+          const b = makeCanvas(HELD_W, HELD_H),
             g = personGrip(d, n),
-            x = g.x + 28 - PERSON_W / 2,
-            y = g.y + 48 - PERSON_H;
+            x = g.x + HELD_AX - PERSON_W / 2,
+            y = g.y + HELD_AY - PERSON_H;
           const w = isWeaponId(id) ? WEAPONS[id] : null,
             fam: string = w?.fam ?? id,
             [metal, shine] = w?.tint ?? [C.steel, C.pale],
@@ -213,16 +218,19 @@ export class HeldWeapons {
               put(b.ctx, Math.round(pommel[0]), Math.round(pommel[1]), C.e6);
             }
           });
-          outline(b.ctx, 56, 64, C.night);
+          outline(b.ctx, HELD_W, HELD_H, C.night);
           // Let the body hand cover the handle instead of painting a shaft across its fingers.
           b.ctx.clearRect(Math.round(x) - 1, Math.round(y) - 1, 3, 2);
-          ctx.drawImage(b.canvas, column * 56, d * 64);
+          ctx.drawImage(b.canvas, column * HELD_W, d * HELD_H);
         }
       sheet = Texture.from(canvas);
       sheet.source.scaleMode = 'nearest';
       this.sheets.set(sheetKey, sheet);
     }
-    const t = new Texture({ source: sheet.source, frame: new Rectangle((extra ? 0 : f) * 56, dir * 64, 56, 64) });
+    const t = new Texture({
+      source: sheet.source,
+      frame: new Rectangle((extra ? 0 : f) * HELD_W, dir * HELD_H, HELD_W, HELD_H),
+    });
     this.frames.set(key, t);
     return t;
   }

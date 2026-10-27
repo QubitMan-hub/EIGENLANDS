@@ -50,7 +50,7 @@ import {
 import { itemIconUrl } from '../art/icons';
 import { Ships, HEADINGS, SHIP_AX, SHIP_AY } from '../art/ships';
 import { GALLERY_OBJECTS, worldObjDef } from '../art/worldobjs';
-import { HeldWeapons } from '../art/weapons';
+import { HeldWeapons, HELD_AX, HELD_AY } from '../art/weapons';
 import { buildSceneryArt } from '../art/scenery';
 import { WEAPONS } from '@eigenlands/shared';
 import { PROPS } from '../art/props';
@@ -370,9 +370,9 @@ if (mode === 'construction') {
           const f = num('frame', w.cls === 'crossbow' ? 23 : w.cls === 'staff' ? 27 : 11);
           const x = 140 + d * 40,
             y = 45 + row * 56;
-          if (d === 1 || d >= 6) place(weapons.texture(w.id, d, f), 28, 48, x, y);
+          if (d === 1 || d >= 6) place(weapons.texture(w.id, d, f), HELD_AX, HELD_AY, x, y);
           place(sheets.person(num('outfit', 0), d, f), PERSON_W / 2, PERSON_H, x, y);
-          if (d !== 1 && d < 6) place(weapons.texture(w.id, d, f), 28, 48, x, y);
+          if (d !== 1 && d < 6) place(weapons.texture(w.id, d, f), HELD_AX, HELD_AY, x, y);
         }
       });
   } else if (mode === 'actions') {

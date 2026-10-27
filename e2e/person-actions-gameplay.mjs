@@ -116,7 +116,7 @@ try {
     if (['forge', 'cook', 'alchemy', 'saw'].includes(kind)) assert.equal(pose.action, kind);
     if (weapon) {
       assert.equal(pose.held, true);
-      assert.equal(pose.heldWidth, 56);
+      assert.equal(pose.heldWidth, 64);
       assert.equal(pose.heldY, pose.bodyY, 'Grounded equipment shares the body vertical offset');
     } else assert.equal(pose.held, false, `${kind} doesn't carry an unrelated weapon through the hands`);
     report.push({ kind, ...pose });

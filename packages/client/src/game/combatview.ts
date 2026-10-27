@@ -161,6 +161,11 @@ export class CombatView {
     return reduced ? 2 : Math.min(3, Math.floor((Math.max(0, now - swing.at) / swing.duration) * 4));
   }
 
+  playerAttackProgress(v: CombatActor, now: number): number {
+    const swing = this.swings.get(v);
+    return swing ? Math.max(0, Math.min(1, (now - swing.at) / swing.duration)) : 1;
+  }
+
   /** Player events arrive at release/impact. Windup belongs to the actual held charge, not after damage. */
   playerAttackFrame(v: CombatActor, now: number, reduced: boolean): number {
     const swing = this.swings.get(v);
