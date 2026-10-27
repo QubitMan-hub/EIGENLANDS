@@ -66,5 +66,23 @@ await page
 await page.waitForTimeout(800);
 await page.screenshot({ path: `${out}/journal-festivals.png` });
 console.log('festivals card', await page.getByText('Festivals & tournaments').count());
+// a crypt's interior: the hall and the reliquary chamber, lit by its torches
+const crypt = await page.evaluate(async () => {
+  const sh = await import('/@fs/home/user/EIGENLANDS/packages/shared/src/index.ts');
+  const seed = window.__eigen.game.store.seed;
+  for (let r = 1; r < 12; r++)
+    for (let gy = -r; gy <= r; gy++)
+      for (let gx = -r; gx <= r; gx++) {
+        const ru = sh.ruinOfCell(seed, gx, gy);
+        const c = ru && sh.cryptOf(seed, ru);
+        if (c) return { x: c.x, y: c.y };
+      }
+  return null;
+});
+console.log('crypt', JSON.stringify(crypt));
+await page.keyboard.press('Escape');
+await page.evaluate(([x, y]) => window.__eigen.game.net.dev({ cmd: 'tp', x, y }), [crypt.x + 0.5, crypt.y + 25.5]);
+await page.waitForTimeout(3500);
+await page.screenshot({ path: `${out}/crypt.png` });
 console.log('errors', JSON.stringify(errors.slice(0, 5)));
 await b.close();

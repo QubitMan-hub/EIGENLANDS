@@ -1,5 +1,16 @@
 import { afterAll, beforeAll, expect, it, vi } from 'vitest';
-import { ANCIENT_RITES, BOSSES, MSG, SPELL, T, biomeAt, caveRegionAt, CAVE_OY, bestiaryKind } from '@eigenlands/shared';
+import {
+  ANCIENT_RITES,
+  BOSSES,
+  MSG,
+  SPELL,
+  T,
+  biomeAt,
+  caveRegionAt,
+  CAVE_OY,
+  CRYPT_OY,
+  bestiaryKind,
+} from '@eigenlands/shared';
 import { BossModule } from '../src/features/bosses';
 import { createEnemy } from '../src/game/enemies';
 import type { GameRoom } from '../src/rooms/GameRoom';
@@ -69,6 +80,7 @@ it('gates all five rites by level, environment, broad clearance and duplicate en
       f.p.sim.boat = 'skiff';
     }
     expect(f.bosses.summon(f.p as unknown as ServerPlayer, rite.item, 0, 0)).toBe(false);
+    expect(f.bosses.summon(f.p as unknown as ServerPlayer, rite.item, 700, CRYPT_OY + 600)).toBe(false);
     expect(f.summon()).toBe(true);
     expect(f.summon()).toBe(false);
     expect([...f.room.state.spells.values()].some((s) => s.kind === SPELL.ARENA)).toBe(true);

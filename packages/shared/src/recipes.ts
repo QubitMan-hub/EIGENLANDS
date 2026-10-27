@@ -99,6 +99,15 @@ r(
   'Hide stitched with fiber. Fill at a town well.',
 );
 r(
+  'boil_water',
+  'cooking_pot',
+  [['waterskin_murky', 1]],
+  ['waterskin_full', 1],
+  1,
+  'start',
+  'River water boiled clean over the fire.',
+);
+r(
   'workbench',
   'hand',
   [
@@ -1113,6 +1122,31 @@ r(
   24,
   'start',
   'A tempered iron head on resilient heartwood. Level 10 to wield.',
+);
+r(
+  'dagger',
+  'forge',
+  [
+    ['iron_ingot', 2],
+    ['hide', 2],
+  ],
+  ['dagger', 1],
+  10,
+  'start',
+  'Two short iron blades with wrapped grips. Level 4 to wield.',
+);
+r(
+  'greatsword',
+  'forge',
+  [
+    ['iron_ingot', 8],
+    ['plank', 1],
+    ['hide', 2],
+  ],
+  ['greatsword', 1],
+  26,
+  'start',
+  'A long two-handed blade, folded and tempered. Level 12 to wield.',
 );
 r(
   'crossbow',

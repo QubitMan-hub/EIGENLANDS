@@ -123,3 +123,47 @@ export function injuryOnHit(kind: string): { cond: Condition; chance: number } |
   if (bleed.has(kind)) return { cond: 'bleed', chance: 0.2 };
   return null;
 }
+
+// ───────────────────────── nutrition ─────────────────────────
+
+export type FoodGroup = 'produce' | 'protein' | 'hearty';
+const PROTEIN = new Set([
+  'fish',
+  'fry',
+  'meat',
+  'egg',
+  'milk',
+  'omelet',
+  'crab',
+  'ceviche',
+  'chowder',
+  'eel',
+  'carp',
+  'perch',
+  'trout',
+  'catfish',
+  'pike',
+  'cheese',
+  'knights',
+]);
+const HEARTY = new Set(['bread', 'loaf', 'cake', 'pie', 'noodles', 'stew', 'mochi', 'soup', 'broth', 'tea']);
+/** Which food group a dish or ingredient belongs to (drives the balanced-diet bonus). */
+export function foodGroup(itemId: string, kind: string): FoodGroup | null {
+  if (kind !== 'food' && kind !== 'crop' && kind !== 'forage' && kind !== 'fish') return null;
+  const words = itemId.split('_');
+  if (kind === 'fish' || words.some((w) => PROTEIN.has(w))) return 'protein';
+  if (words.some((w) => HEARTY.has(w))) return 'hearty';
+  return 'produce';
+}
+/** Eat from all three groups within this many seconds to feel nourished. */
+export const BALANCED_WINDOW_SECS = 1800;
+export const NOURISHED_SECS = 600;
+/** The groups eaten recently (world-clock ms), newest last, after eating `group` at `now`. */
+export function recordMeal(
+  meals: Array<[FoodGroup, number]>,
+  group: FoodGroup,
+  now: number,
+): Array<[FoodGroup, number]> {
+  return [...meals.filter(([g, t]) => g !== group && now - t < BALANCED_WINDOW_SECS * 1000), [group, now]];
+}
+export const balanced = (meals: Array<[FoodGroup, number]>): boolean => new Set(meals.map(([g]) => g)).size >= 3;

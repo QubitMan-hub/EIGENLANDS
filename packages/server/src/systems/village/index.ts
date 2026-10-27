@@ -9,6 +9,12 @@ import {
   localEconomy,
   neighbourLine,
   neighboursText,
+  tieGossipOn,
+  marriesOn,
+  RECRUIT_ROLES,
+  recruitFee,
+  royalCelebration,
+  tieNewsOn,
   localPriceFactor,
   DELVER_MERCHANTS,
   type ScheduleBlock,
@@ -117,11 +123,16 @@ export class Village implements VillageSystem {
 
   /** the schedule block for now; on a kingdom's festival day its folk gather in the plaza from noon until night */
   private blockAt(def: NpcDef, hour: number, weather: ReturnType<VillageHost['clock']['weather']>): ScheduleBlock {
+    if (this.host.away?.(def.id)) return { h0: 0, h1: 24, spot: def.home, doing: 'away on a hired contract' };
     const block = scheduleAt(def, hour, weather);
     if (def.realm && hour >= 12 && hour < 22 && def.role !== 'guard' && def.role !== 'archer' && def.role !== 'ruler') {
       const day = this.host.clock.day();
       if (festivalOn(def.realm as RealmId, day))
         return { h0: 12, h1: 22, spot: `${def.id}.plaza`, doing: 'celebrating the festival' };
+      if (marriesOn(def.id, day))
+        return { h0: 12, h1: 22, spot: `${def.id}.plaza`, doing: 'celebrating their wedding' };
+      const royal = royalCelebration(civOf(this.host.seed)?.kingdoms[def.realm as RealmId], day);
+      if (royal) return { h0: 12, h1: 22, spot: `${def.id}.plaza`, doing: `celebrating ${royal.title.toLowerCase()}` };
     }
     return block;
   }
@@ -395,6 +406,12 @@ export class Village implements VillageSystem {
     }));
     if (def.settlement && def.shop && this.host.hire)
       ch.push({ id: 'hire', text: 'Guild escort · 250 coins / 30 min · companion slot', kind: 'ask' });
+    else if (def.realm && RECRUIT_ROLES.has(def.role ?? '') && this.host.hire)
+      ch.push({
+        id: 'hire',
+        text: `Hire me · from ${recruitFee(def.role, 5)} coins / hour · companion slot`,
+        kind: 'ask',
+      });
     ch.push({ id: 'ask', text: 'Ask about…', kind: 'ask' });
     return ch;
   }
@@ -532,7 +549,11 @@ export class Village implements VillageSystem {
   private gossip(def: NpcDef, rand: () => number): string | null {
     const c = this.host.clock;
     const roll = rand();
-    if (roll < 0.5) return neighbourLine(def.id, c.hour(), c.weather(), rand());
+    const day = c.day();
+    // fresh news first: their own, then the village's
+    const mine = tieNewsOn(def.id, day) ?? (roll < 0.35 ? tieGossipOn(def.id, day) : null);
+    if (mine) return mine;
+    if (roll < 0.5) return neighbourLine(def.id, c.hour(), c.weather(), rand(), day);
     const civ = civOf(this.host.seed);
     if (roll < 0.8 && civ) {
       const realm = def.realm as RealmId | undefined;
@@ -573,7 +594,7 @@ export class Village implements VillageSystem {
           : v.noRumor;
       }
     }
-    if (what === 'folk') text = neighboursText(r.def.id);
+    if (what === 'folk') text = neighboursText(r.def.id, this.host.clock.day());
     if (what === 'about' && tierOf(rec.pts) < 2)
       text +=
         tierOf(rec.pts) === 0

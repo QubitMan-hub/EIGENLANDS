@@ -389,6 +389,7 @@ export class Gameplay {
         bind: () => net.send(MSG_TRAVEL.GO, { from: here, bind: true }),
         rename: (kind, name) => net.send(MSG_TRAVEL.GO, { from: here, rename: { kind, name } }),
         feed: (kind) => net.send(MSG_TRAVEL.GO, { from: here, feed: kind }),
+        stable: (kind) => net.send(MSG_TRAVEL.GO, { from: here, stable: kind }),
       });
       if (this.wins.name === 'travel') this.wins.update('travel', body);
       else {

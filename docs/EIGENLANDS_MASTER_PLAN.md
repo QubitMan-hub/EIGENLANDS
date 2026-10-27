@@ -636,12 +636,12 @@ Circuit workshop continuation: five guided patterns reuse actual tokens/edit con
 - [x] IMPLEMENTED & TESTED — Seasonal festivals and celebrations. Kingdom festivals plus four home-continent festivals; sharing a dish at the feast once per festival.
 - [x] IMPLEMENTED & TESTED — Traveling merchants and trade routes. 24 road caravans with trade, ambushes and escort jobs; the Wandering Peddler of the home continent.
 - [x] IMPLEMENTED & TESTED — Local economic systems. Per-settlement goods made and wanted, plus a daily shortage, applied to kingdom shop prices.
-- [~] IN PROGRESS — NPC professions, routines, and relationships. Professions and schedules existed; mutual NPC ties and gossip about neighbours, news and shortages are added. Ties are fixed by the roster and do not evolve.
-- [~] IN PROGRESS — Dynamic settlements. Scaffolds, monuments, pennants and war smoke follow the kingdom state. They are decoration only; layouts and buildings do not change.
-- [~] IN PROGRESS — Dungeons and ruins. Ruins with caches existed; crypt trials (three warden waves and a reliquary) are added under a third of the ruins in revision-6 worlds. There are no separate dungeon interiors.
-- [~] IN PROGRESS — Companions and mounts: seven wildlife bonds (including mythical level/victory gates and Emberbrush the fox); horse, stag and flying griffin mounts with naming and feeding. No mount stabling. Fox and mythical-bond portraits now match the world art.
-- [x] IMPLEMENTED & TESTED — Environmental storytelling. Generated story scenes (camp, grave, cart, standing stone, shrine) with readable, seed-written text in revision-6 worlds.
-- [~] IN PROGRESS — Royal events, tournaments, and political intrigue. Court intrigue with player choices and three-bout royal tournaments with champion titles are done. Royal events beyond processions, decrees and feasts are not built.
+- [x] IMPLEMENTED & TESTED — NPC professions, routines, and relationships. Professions and schedules existed; mutual NPC ties and gossip about neighbours, news and shortages are added. Ties change over seeded arcs (engagements, weddings with a plaza celebration, partings, reconciliations), and friendly guards, soldiers, archers and commanders can be hired for an hour. Ties do not yet react to the player.
+- [~] IN PROGRESS — Dynamic settlements. Scaffolds, monuments, pennants and war smoke follow the kingdom state. Prosperous settlements in revision-6 worlds raise real crown-owned cottages on their outskirts, one a day (server test). Existing layouts never change and the new cottages are unfurnished and unoccupied.
+- [~] IN PROGRESS — Dungeons and ruins. Ruins with caches existed; a third of the ruins in revision-6 worlds hide a crypt with a real interior on its own plane (entrance, wardens' hall with three waves, reliquary chamber). Every crypt shares one five-room plan; multi-floor and puzzle dungeons are not built.
+- [x] IMPLEMENTED & TESTED — Companions and mounts: seven wildlife bonds (including mythical level/victory gates and matching portraits); horse, stag and flying griffin mounts with naming, feeding, fatigue and paid stabling at every hitching post.
+- [x] IMPLEMENTED & TESTED — Environmental storytelling. Generated story scenes (camp, grave, cart, standing stone, shrine, shoreline shipwreck, summit cairn) with readable, seed-written text in revision-6 worlds.
+- [x] IMPLEMENTED & TESTED — Royal events, tournaments, and political intrigue. Court intrigue with player choices, three-bout royal tournaments with champion titles, and royal events (births, coronations with a new named monarch, jubilees, royal weddings, hunts, plague, bountiful harvests) with price, stability and celebration effects.
 - [x] IMPLEMENTED & TESTED — Use efficient simulation models so the world feels alive without overwhelming the browser. One daily server step and pure seed/day functions; the client only builds settlement dressing near the player and on state change.
 
 ## 17. WORLD CONSEQUENCES — EVERY ACTION MATTERS
@@ -700,13 +700,13 @@ Circuit workshop continuation: five guided patterns reuse actual tokens/edit con
 - [ ] NOT STARTED — Birds landing on rooftops.
 - [ ] NOT STARTED — Lanterns illuminating rainy streets.
 - [ ] NOT STARTED — Animals wandering farms.
-- [ ] NOT STARTED — Fishermen working along rivers.
+- [x] IMPLEMENTED & TESTED — Fishermen working along rivers. Wild folk include fishers who stand on banks by day (shared `lively.test.ts`, browser proof `e2e/lively-world.mjs`).
 - [ ] NOT STARTED — Marketplace crowds during festivals.
-- [ ] NOT STARTED — Traveling adventurers and merchants.
+- [x] IMPLEMENTED & TESTED — Traveling adventurers and merchants. Caravans, the Wandering Peddler, and wayfarers on every kingdom road (pilgrims, couriers, patrols, shepherds, carters, minstrels, hunters, families).
 - [ ] NOT STARTED — Town bells and ambient world activity.
 - [ ] NOT STARTED — Villagers reacting to dangerous creatures.
-- [ ] NOT STARTED — Natural weather responses.
-- [ ] NOT STARTED — Small discoverable stories and secrets.
+- [~] IN PROGRESS — Natural weather responses. Puddles in rain, footprints in snow, sand and mud, rain and thunder in the soundscape. Residents do not yet shelter from rain.
+- [x] IMPLEMENTED & TESTED — Small discoverable stories and secrets. Seed-written story scenes, shipwrecks, summit cairns and crypts.
 - [ ] NOT STARTED — These details should make simply walking around the world enjoyable.
 
 ## 20. TECHNICAL QUALITY & PERFORMANCE

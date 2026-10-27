@@ -50,7 +50,7 @@ export function heavyHit(level: number): ComboHit {
   };
 }
 
-export const MELEE_FAMILIES = ['sword', 'spear', 'battle_axe', 'warhammer'] as const;
+export const MELEE_FAMILIES = ['sword', 'spear', 'battle_axe', 'warhammer', 'dagger', 'greatsword'] as const;
 export type MeleeFamily = (typeof MELEE_FAMILIES)[number];
 export const meleeFamily = (id: unknown): MeleeFamily => {
   if (MELEE_FAMILIES.includes(id as MeleeFamily)) return id as MeleeFamily;
@@ -75,6 +75,18 @@ export const MELEE_COMBOS: Record<MeleeFamily, readonly ComboHit[]> = {
     { damage: 12, range: 1.25, arc: cosDeg(45), knockback: 4, poise: 10, weight: 1, lunge: 0.08, recovery: 0.5 },
     { damage: 13, range: 1.25, arc: cosDeg(45), knockback: 4, poise: 10, weight: 1, lunge: 0.08, recovery: 0.5 },
     { damage: 22, range: 1.55, arc: cosDeg(60), knockback: 10, poise: 30, weight: 2, lunge: 0.2, recovery: 0.8 },
+  ],
+  // twin daggers: very quick, very short, weak alone; the third cut lunges in
+  dagger: [
+    { damage: 5, range: 1.15, arc: cosDeg(50), knockback: 1, poise: 2, weight: 0, lunge: 0.15, recovery: 0.18 },
+    { damage: 5, range: 1.15, arc: cosDeg(50), knockback: 1, poise: 2, weight: 0, lunge: 0.15, recovery: 0.18 },
+    { damage: 9, range: 1.3, arc: cosDeg(40), knockback: 2, poise: 6, weight: 0, lunge: 0.45, recovery: 0.3 },
+  ],
+  // a greatsword: long, wide, slow; the finisher is a full overhead sweep
+  greatsword: [
+    { damage: 11, range: 1.9, arc: cosDeg(70), knockback: 5, poise: 9, weight: 1, lunge: 0.15, recovery: 0.52 },
+    { damage: 12, range: 1.9, arc: cosDeg(70), knockback: 5, poise: 9, weight: 1, lunge: 0.15, recovery: 0.52 },
+    { damage: 20, range: 2.2, arc: cosDeg(95), knockback: 9, poise: 22, weight: 2, lunge: 0.35, recovery: 0.75 },
   ],
 };
 export function meleeTap(id: unknown, combo: number): ComboHit {
@@ -115,6 +127,30 @@ export function meleeHeavy(id: unknown, level: number): ComboHit {
         weight: l >= 1 ? 3 : 2,
         lunge: 0.15 + 0.15 * l,
         recovery: 0.85,
+      };
+    case 'dagger':
+      // a darting stab: you cover ground fast and slip past the guard
+      return {
+        damage: Math.round(14 + 10 * l),
+        range: 1.6,
+        arc: cosDeg(35),
+        knockback: 3,
+        poise: Math.round(10 + 8 * l),
+        weight: l >= 1 ? 2 : 1,
+        lunge: 0.6 + 0.35 * l,
+        recovery: 0.35,
+      };
+    case 'greatsword':
+      // a full spinning sweep that clears everything around you
+      return {
+        damage: Math.round(34 + 18 * l),
+        range: 2.4 + 0.3 * l,
+        arc: cosDeg(140),
+        knockback: 12,
+        poise: Math.round(40 + 20 * l),
+        weight: 3,
+        lunge: 0.2,
+        recovery: 0.95,
       };
     default:
       return heavyHit(l);

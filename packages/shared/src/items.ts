@@ -95,6 +95,8 @@ export type Glyph =
   | 'spear'
   | 'battle_axe'
   | 'warhammer'
+  | 'dagger'
+  | 'greatsword'
   | 'helm'
   | 'cuirass'
   | 'greaves'
@@ -319,7 +321,7 @@ def(
   'waterskin',
   C.e3,
   C.e5,
-  'Select in the quick-bar, face a town well, then Use to fill with clean water.',
+  'Select in the quick-bar, then Use it facing a town well (clean water) or any river or lake (murky water).',
   { stack: 1, tags: ['supplies'] },
 );
 def(
@@ -331,6 +333,17 @@ def(
   C.e3,
   C.w5,
   'Drink to restore 35 water. Keeps the empty skin; refill it at a reachable town well.',
+  { stack: 1, tags: ['supplies'] },
+);
+def(
+  'waterskin_murky',
+  'Murky Waterskin',
+  'misc',
+  6,
+  'waterskin',
+  C.e3,
+  C.g3,
+  'River water. Drinking it may make you sick (Adventure and Hardcore); boil it in a cooking pot first.',
   { stack: 1, tags: ['supplies'] },
 );
 
@@ -1005,6 +1018,8 @@ const WEAPON_COLORS: Record<string, [number, number]> = {
   spear: [C.steel, C.e4],
   battle_axe: [C.steel, C.r3],
   warhammer: [C.steel, C.e3],
+  dagger: [C.steel, C.r2],
+  greatsword: [C.steel, C.e5],
   crossbow: [C.e4, C.steel],
   ember_staff: [C.r4, C.e6],
   rime_staff: [C.w4, C.pale],
@@ -1030,9 +1045,13 @@ for (const w of Object.values(WEAPONS)) {
           ? 'battle_axe'
           : fam === 'warhammer'
             ? 'warhammer'
-            : w.cls === 'crossbow'
-              ? 'crossbow'
-              : 'staff',
+            : fam === 'dagger'
+              ? 'dagger'
+              : fam === 'greatsword'
+                ? 'greatsword'
+                : w.cls === 'crossbow'
+                  ? 'crossbow'
+                  : 'staff',
     a,
     b,
     `${w.blurb} ${w.quantum} Level ${w.level}.`,

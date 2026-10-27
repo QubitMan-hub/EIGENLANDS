@@ -315,6 +315,7 @@ export class GameRoom extends WorldRoom {
           const p = this.players.get(player.id);
           return p ? this.shadows.hire(p, id) : 'The guild is unavailable.';
         },
+        away: (id) => !!this.shadows?.employerOf(id),
         loadBlob: (key) => host.loadBlob(prefix + key),
         saveBlob: (key, value) => host.saveBlob(prefix + key, value),
       },
@@ -453,8 +454,8 @@ export class GameRoom extends WorldRoom {
   summonBoss(p: ServerPlayer, itemId: string, x: number, y: number): boolean {
     return this.bosses?.summon(p, itemId, x, y) ?? false;
   }
-  cryptInteract(p: ServerPlayer, o: WorldObj): void {
-    this.crypts?.open(p, o);
+  async cryptInteract(p: ServerPlayer, o: WorldObj): Promise<void> {
+    await this.crypts?.interact(p, o);
   }
   vaultGuard(p: ServerPlayer, o: WorldObj): boolean {
     return this.caves?.guard(p, o) ?? false;

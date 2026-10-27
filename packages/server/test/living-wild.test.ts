@@ -3,6 +3,11 @@ import {
   MSG,
   MSG34,
   STORY_READ,
+  cryptArrival,
+  cryptOf,
+  cryptReliquary,
+  cryptWardenSpots,
+  isCryptY,
   ruinCrypt,
   ruinOfCell,
   storyOfCell,
@@ -70,7 +75,7 @@ describe('the living wild', () => {
     await p.r.leave();
   });
 
-  it('a crypt wakes three waves of wardens; clearing them opens the reliquary once', async () => {
+  it('a crypt leads down to rooms where wardens rise in the hall; clearing them opens the reliquary once', async () => {
     const p = await spawn3(app, 'Delver');
     await setLevel(p, 8);
     let ru: RuinSite | null = null;
@@ -81,30 +86,56 @@ describe('the living wild', () => {
           if (c && ruinCrypt(p.room.seed, c) && p.room.owns(c.x, c.y)) ru = c;
         }
     expect(ru).toBeTruthy();
-    const door = ruinCrypt(p.room.seed, ru!)!;
+    const crypt = cryptOf(p.room.seed, ru!)!;
+    const door = crypt.door;
     await tp(p, door.x + 0.5, door.y + 1.5);
     await until(() => p.room.store.objectAt(door.x, door.y)?.sub === 'ruin_crypt', 4000);
-    clearEnemies(p.room);
+    // down the steps
     p.r.send(MSG.OPEN, { tx: door.x, ty: door.y });
-    await until(() => !!p.room.crypts.trialOf(p.sp), 3000);
+    const arrive = cryptArrival(crypt);
+    await until(() => Math.abs(p.sp.sim.y - arrive.y) < 0.01 && Math.abs(p.sp.sim.x - arrive.x) < 0.01, 4000);
+    expect(isCryptY(p.sp.sim.y)).toBe(true);
+    // the reliquary is sealed until the hall is cleared
+    const rel = cryptReliquary(crypt);
+    await tp(p, rel.x + 0.5, rel.y - 0.5);
+    await until(() => p.room.store.objectAt(rel.x, rel.y)?.sub === 'crypt_reliquary', 4000);
+    p.r.send(MSG.OPEN, { tx: rel.x, ty: rel.y });
+    await until(() => p.toasts.some((t) => /sealed while its wardens/.test(t.text)), 3000);
+    // into the hall: the wardens rise
+    const spot = cryptWardenSpots(crypt)[0]!;
+    await tp(p, spot.x, spot.y + 2);
+    await until(() => !!p.room.crypts.trialOf(ru!.id), 3000);
     for (let wave = 1; wave <= 3; wave++) {
-      await until(() => (p.room.crypts.trialOf(p.sp)?.wave ?? 0) >= wave, 6000);
+      await until(() => (p.room.crypts.trialOf(ru!.id)?.wave ?? 0) >= wave, 6000);
       p.sp.hp = p.sp.maxHp;
-      // stand on the door, out of harm's way, and strike everything round it down
-      for (let i = 0; i < 10 && p.room.crypts.trialOf(p.sp)?.enemies.length; i++) {
+      for (let i = 0; i < 12 && p.room.crypts.trialOf(ru!.id)?.enemies.length; i++) {
         dev(p, { cmd: 'kill', d: 30 });
         await sleep(150);
       }
     }
-    await until(() => !p.room.crypts.trialOf(p.sp), 6000);
+    await until(() => !p.room.crypts.trialOf(ru!.id), 6000);
+    expect(p.sp.data.prog.ruins).toContain(`cryptclear:${ru!.id}`);
+    // the reliquary opens, once
+    await tp(p, rel.x + 0.5, rel.y - 0.5);
+    const coins = p.sp.data.coins;
+    p.r.send(MSG.OPEN, { tx: rel.x, ty: rel.y });
+    await until(() => p.sp.data.coins > coins, 3000);
     expect(p.sp.data.prog.ruins).toContain(`crypt:${ru!.id}`);
-    expect(p.toasts.some((t) => /reliquary opens/.test(t.text))).toBe(true);
-    // once only
-    p.r.send(MSG.OPEN, { tx: door.x, ty: door.y });
+    p.r.send(MSG.OPEN, { tx: rel.x, ty: rel.y });
     await until(() => p.toasts.some((t) => /open and empty/.test(t.text)), 3000);
-    expect(p.room.crypts.trialOf(p.sp)).toBeNull();
+    // walking back into the hall wakes nobody now
+    await tp(p, spot.x, spot.y + 2);
+    await sleep(400);
+    expect(p.room.crypts.trialOf(ru!.id)).toBeNull();
+    // and the stairs lead back up into the ruin
+    const exit = { x: crypt.x, y: crypt.y - 2 };
+    await tp(p, exit.x + 0.5, exit.y + 1.5);
+    await until(() => p.room.store.objectAt(exit.x, exit.y)?.sub === 'crypt_exit', 4000);
+    p.r.send(MSG.OPEN, { tx: exit.x, ty: exit.y });
+    await until(() => !isCryptY(p.sp.sim.y), 4000);
+    expect(Math.hypot(p.sp.sim.x - door.x, p.sp.sim.y - door.y)).toBeLessThan(3);
     await p.r.leave();
-  }, 60_000);
+  }, 90_000);
 
   it('a bonded fox noses up forage while it follows a quiet owner', async () => {
     const p = await spawn3(app, 'Fox friend');

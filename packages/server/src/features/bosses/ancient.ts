@@ -4,6 +4,7 @@ import {
   biomeAt,
   caveRegionAt,
   isCaveY,
+  isCryptY,
   isDiveY,
   isUpperY,
   SpellState,
@@ -27,7 +28,7 @@ export interface AncientRun {
 export function ancientGround(room: GameRoom, p: ServerPlayer, def: BossDef, x: number, y: number): boolean {
   const r = ancientRite(def.id);
   if (!r) return true;
-  const badLayer = isUpperY(y) || isDiveY(y) || (r.where !== 'cave' && isCaveY(y));
+  const badLayer = isCryptY(y) || isUpperY(y) || isDiveY(y) || (r.where !== 'cave' && isCaveY(y));
   const habitatOK =
     r.where === 'sea'
       ? p.sim.boat && room.store.getTile(Math.floor(x), Math.floor(y)) === T.DEEP_WATER

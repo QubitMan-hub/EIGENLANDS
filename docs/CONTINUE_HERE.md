@@ -4,7 +4,7 @@ Read [ADVENTURER_PATHS_AND_BESTIARY.md](ADVENTURER_PATHS_AND_BESTIARY.md), [BOSS
 
 Six families/thirty specializations, ecology, mythical bonds, visible-sighting records and five ancient encounters are implemented. The user's subsequent art critique superseded the rounded procedural ancient designs: **all fourteen bosses now use original authored sprite sheets**, not the rejected geometry prototype. Source art stays under `art-source/bosses`; normalized day/night atlases, portraits and manifests ship under `client/public/art/bestiary`. Keep the normalization/atlas checks when changing any sheet; never reintroduce ordinary-monster aliases or elastic boss squash. Detailed scope and test commands are in the linked documents. Local integration and final-head CI are recorded with the batch PR.
 
-Main's living-world, festivals, stories, travel and fox changes were integrated from `16873cf`. Continue integrating incoming main changes. Work remains inline without subagents. Render deployment remains the user's work.
+Main's living-world, festivals, stories, travel and fox changes were integrated through `c4ad6e2` (including road life, crypt interiors, stables and settlement growth). Continue integrating incoming main changes. Work remains inline without subagents. Render deployment remains the user's work.
 
 ---
 
@@ -13,6 +13,32 @@ Main's living-world, festivals, stories, travel and fox changes were integrated 
 Read [GUILD_HALLS.md](GUILD_HALLS.md), the [hall plan](superpowers/plans/2026-10-26-guild-halls.md), [HOMESTEADS_AND_GUILD.md](HOMESTEADS_AND_GUILD.md), [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) and the [master plan](EIGENLANDS_MASTER_PLAN.md). Current work follows merged PR #43. Regional guild designation/furnishing, projected identity, expedition tracking and a discovered-hall atlas directory are implemented with focused art/gameplay proof. Rest persistence was genuinely broken and fixed at the buff allowlist. Full integration checks remain pending.
 
 The user expanded the task to complete master-plan §§12–13: thirty named class paths across six families, meaningful progression/skills/passives/equipment and cooperative mechanics; audit/expand the bestiary, habitats, taming and phased bosses. Preserve Superposer/Entangler, authored art, controls and saves; no placeholder completion claims. Continue inline without subagents, integrate incoming main, and require tested final-head CI before merging. Render remains the user's work.
+
+# Current continuation: a livelier, more realistic world (2026-10-27)
+
+Read [LIVING_WORLD.md](LIVING_WORLD.md) and [TRAVEL.md](TRAVEL.md) for the player-facing detail and limits.
+
+- **On the roads and in the wilds:** wayfarers on every kingdom road (`shared/src/wayfarers.ts`), wild folk at work
+  (`shared/src/wildfolk.ts`), both drawn by `client/src/features/travel/roadlife.ts`; street crowds in every home,
+  frontier and cave town (`client/src/game/life.ts`).
+- **Senses:** ambient soundscape (`client/src/game/soundscape.ts`, Ambience slider) and footprints and puddles
+  (`client/src/game/groundmarks.ts`).
+- **Civilization:** evolving NPC ties and weddings (`shared/src/npc-ties.ts`), royal events and named monarchs
+  (`shared/src/civ.ts`), settlement growth with crown-owned cottages (`shared/src/growth.ts`, server
+  `features/civ`). Crown cottages are stored against a fixed per-realm UUID (`civOwner`) because building cells need
+  a UUID owner in Postgres.
+- **Dungeons and discoveries:** crypt interiors on their own plane at `CRYPT_OY` (`shared/src/crypts.ts`,
+  `cryptplane.ts`, server `features/crypts`); shipwrecks and summit cairns (`shared/src/stories.ts`).
+- **Survival and travel:** mount fatigue and stables, death penalties by difficulty with the Hardcore lost satchel,
+  murky water and boiling, balanced-diet Nourished buff, hiring residents, dagger and greatsword.
+- **Validation (2026-10-27):** shared 313/313, client 187/187, server 338/338 (Postgres and Redis running), lint,
+  prettier and build clean; `e2e/lively-world.mjs` and `e2e/living-world.mjs` pass with no page errors.
+
+Not possible from this environment: physical phone GPU/thermal profiling, a physical gamepad review, the live Render
+deploy, licence verification of the external art packs, and private friend-world hosting or new realms (large
+separate systems). See [REMAINING_WORK.md](REMAINING_WORK.md).
+
+---
 
 # Current continuation: living world, economy and civilizations (2026-10-26)
 

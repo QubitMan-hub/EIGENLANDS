@@ -36,7 +36,11 @@ export class HeldWeapons {
           const thrust = fam === 'spear' && n >= ATTACK_FRAME && n < ATTACK_FRAME + 4;
           // Broad heads rest outside the face; grip/arm anchors remain unchanged.
           const resting =
-            (fam === 'spear' || fam === 'battle_axe' || fam === 'warhammer' || (tool && id !== 'can')) &&
+            (fam === 'spear' ||
+              fam === 'battle_axe' ||
+              fam === 'warhammer' ||
+              fam === 'greatsword' ||
+              (tool && id !== 'can')) &&
             (n < ATTACK_FRAME || (n >= RUN_FRAME && n < SHOT_FRAME));
           const angle =
             id === 'can' && !aimedTool
@@ -125,6 +129,31 @@ export class HeldWeapons {
               const a = pt(8, -2),
                 q = pt(10, 2);
               line(b.ctx, ...a, ...q, C.e6);
+            } else if (fam === 'dagger') {
+              // a short leaf blade with a crossguard; its twin rides in the other hand
+              stroke(-3, 1, C.e2);
+              {
+                const g0 = pt(0.5, -2),
+                  g1 = pt(0.5, 2);
+                line(b.ctx, ...g0, ...g1, C.e6);
+              }
+              poly(b.ctx, [pt(1, -1.2), pt(7, -0.6), pt(8.5, 0), pt(7, 0.6), pt(1, 1.2)], metal);
+              poly(b.ctx, [pt(1, -1.2), pt(7, -0.6), pt(8.5, 0)], shine);
+              const twin = [pt(-1, 5), pt(4, 6.5), pt(5, 7), pt(4, 7.5), pt(-1, 6)] as Array<[number, number]>;
+              poly(b.ctx, twin, metal);
+            } else if (fam === 'greatsword') {
+              // a long two-handed blade: a wide guard, a long grip and a fuller down the middle
+              stroke(-6, 0, C.e2);
+              {
+                const g0 = pt(0.5, -3.5),
+                  g1 = pt(0.5, 3.5);
+                line(b.ctx, ...g0, ...g1, C.e6);
+              }
+              poly(b.ctx, [pt(1, -1.6), pt(17, -1), pt(19, 0), pt(17, 1), pt(1, 1.6)], metal);
+              poly(b.ctx, [pt(1, -1.6), pt(17, -1), pt(19, 0)], shine);
+              const a = pt(2, 0),
+                q = pt(15, 0);
+              line(b.ctx, ...a, ...q, C.slate);
             } else if (fam === 'warhammer') {
               stroke(-5, 9, C.e1, 0.8);
               stroke(-5, 9, C.e4);

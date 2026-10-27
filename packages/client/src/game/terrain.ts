@@ -20,6 +20,7 @@ import {
   biomeAt,
   chunkKey,
   isCaveY,
+  isCryptY,
   sampleClimate,
   LEVEL_PX,
   townFor,
@@ -172,7 +173,8 @@ export class Terrain {
     const out = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE * 4);
     const levels = this.store.get(cx, cy).levels;
     const seed = this.store.seed;
-    const cave = isCaveY(cy * CHUNK_SIZE);
+    // crypt interiors are hewn from the same rock as the Undercroft
+    const cave = isCaveY(cy * CHUNK_SIZE) || isCryptY(cy * CHUNK_SIZE);
     for (let y = 0; y < CHUNK_SIZE; y++) {
       for (let x = 0; x < CHUNK_SIZE; x++) {
         const o = (y * CHUNK_SIZE + x) * 4;

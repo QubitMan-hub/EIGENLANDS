@@ -44,6 +44,6 @@ export interface RoomApi {
   summonBoss?(p: ServerPlayer, itemId: string, x: number, y: number): boolean;
   vaultGuard?(p: ServerPlayer, o: import('@eigenlands/shared').WorldObj): boolean;
   /** break a ruin crypt's seal (features/crypts) */
-  cryptInteract?(p: ServerPlayer, o: import('@eigenlands/shared').WorldObj): void;
+  cryptInteract?(p: ServerPlayer, o: import('@eigenlands/shared').WorldObj): Promise<void> | void;
   grantXp?(p: ServerPlayer, xp: number): void;
 }

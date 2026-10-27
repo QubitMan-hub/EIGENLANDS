@@ -9,6 +9,10 @@ import {
   ITEMS,
   NODES,
   T,
+  NOURISHED_SECS,
+  balanced,
+  foodGroup,
+  recordMeal,
   chunkOf,
   isSolid,
   toolDamage,
@@ -21,6 +25,7 @@ import { tuning } from '../rooms/runtime';
 import { useCatalogItem } from './gear';
 import type { ServerPlayer } from '../rooms/player';
 import type { RoomApi } from './api';
+import { inflict } from './travel-needs';
 import { startCast } from './fishing';
 import { catchBug } from './bugs';
 import { fertilize, harvestCrop, plantSeed, uprootCrop, waterCrop, wetTile } from './farming';
@@ -93,6 +98,22 @@ export async function handleUse(room: RoomApi, p: ServerPlayer, msg: UseMsg): Pr
     return;
   }
 
+  if (first.id === 'waterskin_murky') {
+    p.toolReadyAt = t0 + tuning.toolCooldownMs;
+    if (p.data.needs.water >= 100) {
+      p.toast('You are not thirsty.');
+      return;
+    }
+    p.data.needs.water = Math.min(100, p.data.needs.water + 30);
+    p.data.inv[msg.slot] = { id: 'waterskin_empty', n: 1 };
+    p.dirty('needs', 'inv');
+    room.fx({ kind: 'water', x: p.sim.x, y: p.sim.y });
+    // unboiled water: a fair chance of a sick stomach for those who live by the survival rules
+    const mode = p.data.needs.mode;
+    if (mode !== 'cozy' && room.rand() < (mode === 'hardcore' ? 0.5 : 0.3)) inflict(room, p, 'poison');
+    return;
+  }
+
   if (first.id === 'waterskin_full') {
     p.toolReadyAt = t0 + tuning.toolCooldownMs;
     if (p.data.needs.water >= 100) {
@@ -142,7 +163,15 @@ export async function handleUse(room: RoomApi, p: ServerPlayer, msg: UseMsg): Pr
   }
   if (stack.id === 'waterskin_empty') {
     if (obj?.sub !== 'well') {
-      p.toast('Fill an empty waterskin at a town well.');
+      const t = room.store.getTile(tx, ty);
+      if (t === T.WATER || t === T.DEEP_WATER) {
+        p.data.inv[slot] = { id: 'waterskin_murky', n: 1 };
+        p.dirty('inv');
+        room.fx({ kind: 'water', x: tx + 0.5, y: ty + 0.5 });
+        p.toast('Murky river water. Boil it in a cooking pot before you drink, or risk a sick stomach.', 'info');
+        return;
+      }
+      p.toast('Fill an empty waterskin at a town well, or at a river or lake.');
       return;
     }
     p.data.inv[slot] = { id: 'waterskin_full', n: 1 };
@@ -333,6 +362,24 @@ function eat(room: RoomApi, p: ServerPlayer, slot: number): void {
   if (def.buff) {
     p.data.buffs[def.buff.kind] = { until: room.wclock.now() + def.buff.secs * 1000, power: def.buff.power };
     p.dirty('buffs');
+  }
+  // a balanced diet: produce, protein and something hearty within half an hour leaves you nourished
+  const group = foodGroup(stack.id, def.kind);
+  if (group) {
+    const now = room.wclock.now();
+    const meals = recordMeal(p.data.prog.meals ?? [], group, now);
+    p.data.prog.meals = meals;
+    p.dirty('stats');
+    if (balanced(meals)) {
+      p.data.prog.meals = [];
+      const cur = p.data.buffs.regen;
+      p.data.buffs.regen = {
+        until: Math.max(cur?.until ?? 0, now + NOURISHED_SECS * 1000),
+        power: Math.max(cur?.power ?? 0, 0.6),
+      };
+      p.dirty('buffs');
+      p.toast('A balanced diet: you feel nourished (slow healing for ten minutes).', 'good');
+    }
   }
   stack.n -= 1;
   if (stack.n <= 0) p.data.inv[slot] = null;

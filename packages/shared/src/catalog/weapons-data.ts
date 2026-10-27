@@ -53,6 +53,14 @@ export const FAMILIES: FamilyForm[] = [
     blurb: 'Slow, crushing blows.',
     from: ALL.filter((m) => m !== 'bronze'),
   },
+  { base: 'dagger', noun: 'Daggers', mult: 0.75, blurb: 'Quick twin cuts and a darting stab.', from: ALL },
+  {
+    base: 'greatsword',
+    noun: 'Greatsword',
+    mult: 1.25,
+    blurb: 'Long two-handed sweeps.',
+    from: ALL.filter((m) => m !== 'bronze'),
+  },
   {
     base: 'crossbow',
     noun: 'Crossbow',

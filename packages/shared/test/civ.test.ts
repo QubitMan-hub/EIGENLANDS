@@ -99,3 +99,32 @@ describe('local economies', () => {
     expect(localPriceFactor(null, 'food')).toBe(1);
   });
 });
+
+describe('royal events', () => {
+  it('over a long reign the crowns see births, jubilees, hunts and weddings, and celebrations steady the realm', async () => {
+    const { initCiv, stepCiv, royalCelebration, civPriceFactor, REALM_IDS } = await import('../src/index');
+    const w = initCiv(77, 0);
+    const kinds = new Set<string>();
+    let celebrating = 0;
+    for (let d = 1; d <= 600; d++) {
+      stepCiv(77, w, d);
+      for (const r of REALM_IDS) {
+        const k = w.kingdoms[r];
+        if (k.royal && k.royal.day === d) kinds.add(k.royal.kind);
+        if (royalCelebration(k, d)) celebrating++;
+        if (k.royal?.kind === 'plague')
+          expect(civPriceFactor(k, true)).toBeGreaterThan(civPriceFactor({ ...k, royal: null }, true));
+      }
+    }
+    expect(kinds.size).toBeGreaterThanOrEqual(3);
+    expect(celebrating).toBeGreaterThan(5);
+    // a reloaded world keeps its royal state, and nonsense is cleaned up
+    const { validCiv } = await import('../src/index');
+    const raw = JSON.parse(JSON.stringify(w));
+    raw.kingdoms.aurelion.royal = { kind: 'birth' };
+    raw.kingdoms.sylvaris.monarch = 7;
+    const v = validCiv(77, raw, 600);
+    expect(v.kingdoms.aurelion.royal).toBeNull();
+    expect(v.kingdoms.sylvaris.monarch).toBeUndefined();
+  });
+});

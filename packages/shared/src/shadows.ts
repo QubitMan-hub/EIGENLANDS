@@ -39,6 +39,12 @@ export interface ShadowRec {
   xp: number;
   /** Guild escorts use the same follow/combat slots, but their paid contract expires. */
   contractUntil?: number;
+  /** a hired resident (their NPC id): one employer at a time, and they go back to their post when the lease ends */
+  npc?: string;
+  /** coins paid for the contract (an early end refunds half of what is left) */
+  paid?: number;
+  /** contract length in ms (for the refund) */
+  term?: number;
   /** A living wildlife bond, rather than an extracted echo. Valid only for companionBond kinds. */
   bonded?: true;
 }
@@ -134,3 +140,10 @@ export function newShadow(id: string, kind: number, level: number): ShadowRec {
     xp: 0,
   };
 }
+
+/** Fighting residents of the kingdoms who will sign on with a friend (three hearts) for an hour. */
+export const RECRUIT_ROLES = new Set(['guard', 'soldier', 'archer', 'commander']);
+export const RECRUIT_HEARTS = 3;
+export const RECRUIT_TERM_MS = 60 * 60_000;
+export const recruitFee = (role: string | undefined, level: number): number =>
+  (role === 'commander' ? 420 : 220) + Math.max(0, level - 5) * 15;

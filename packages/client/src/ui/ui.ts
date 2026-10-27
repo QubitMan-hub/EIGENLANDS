@@ -16,6 +16,8 @@ export interface Settings {
   muted: boolean;
   captions: boolean;
   volume: number;
+  /** the ambient soundscape (wind, rain, birds, towns), 0..1 of the master volume */
+  ambience: number;
   highContrastHud: boolean;
   /** camera distance: how many tiles fit across the view */
   zoom: ZoomLevel;
@@ -40,6 +42,7 @@ export function loadSettings(): Settings {
     muted: false,
     captions: false,
     volume: 0.5,
+    ambience: 0.7,
     highContrastHud: false,
     zoom: 'normal',
   };
@@ -51,6 +54,7 @@ export function loadSettings(): Settings {
       graphics: validGraphics(s.graphics),
       weatherDetail: validWeather(s.weatherDetail),
       zoom: validZoom(s.zoom),
+      ambience: typeof s.ambience === 'number' && s.ambience >= 0 && s.ambience <= 1 ? s.ambience : d.ambience,
     };
   } catch {
     return d;
@@ -200,6 +204,7 @@ export const HTML = `
         <label class="tog"><input type="checkbox" id="s-cap"> Sound captions</label>
         <label class="tog"><input type="checkbox" id="s-mute"> Mute sound</label>
         <label>Volume <input type="range" id="s-vol" min="0" max="100"></label>
+        <label>World sounds <input type="range" id="s-amb" min="0" max="100"></label>
       </section>
       <section><h3>Your wanderer</h3><div id="look-settings"></div></section>
       <section><h3>Account</h3><p id="acct-info" class="small"></p>
@@ -259,6 +264,7 @@ export class SettingsUI {
     $<HTMLInputElement>('s-cap').checked = s.captions;
     $<HTMLInputElement>('s-mute').checked = s.muted;
     $<HTMLInputElement>('s-vol').value = String(Math.round(s.volume * 100));
+    $<HTMLInputElement>('s-amb').value = String(Math.round(s.ambience * 100));
     const upd = () => {
       s.graphics = validGraphics($<HTMLSelectElement>('s-graphics').value);
       s.weatherDetail = validWeather($<HTMLSelectElement>('s-weather').value);
@@ -271,6 +277,7 @@ export class SettingsUI {
       s.captions = $<HTMLInputElement>('s-cap').checked;
       s.muted = $<HTMLInputElement>('s-mute').checked;
       s.volume = Number($<HTMLInputElement>('s-vol').value) / 100;
+      s.ambience = Number($<HTMLInputElement>('s-amb').value) / 100;
       saveSettings(s);
       this.apply();
     };
@@ -286,6 +293,7 @@ export class SettingsUI {
       's-cap',
       's-mute',
       's-vol',
+      's-amb',
     ])
       $(id).addEventListener('input', upd);
     $('btn-signout').addEventListener('click', handlers.signOut);

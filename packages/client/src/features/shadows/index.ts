@@ -299,6 +299,20 @@ export class ShadowClient implements ClientModule {
     const p = companionPortrait(kind),
       crest = h('div', { class: 'sh-crest' });
     if (p) crest.append(h('img', { src: p.url, alt: '', style: `width:${p.width}px;height:${p.height}px` }));
+    else {
+      // no painted portrait (the fox and other later bonds): crop the creature's own idle frame from its sheet
+      const tex = this.d.foes?.().frame(kind, false, 0, 'idle', 0);
+      const src = tex?.source.resource as CanvasImageSource | undefined;
+      if (tex && src) {
+        const f = tex.frame;
+        const c = document.createElement('canvas');
+        c.width = f.width;
+        c.height = f.height;
+        c.style.cssText = `width:${f.width}px;height:${f.height}px;image-rendering:pixelated`;
+        c.getContext('2d')?.drawImage(src, f.x, f.y, f.width, f.height, 0, 0, f.width, f.height);
+        crest.append(c);
+      }
+    }
     return crest;
   }
   private wildlifeSection(): HTMLElement {
@@ -470,7 +484,7 @@ export class ShadowClient implements ClientModule {
           h('span', {
             class: 'sh-rank',
             text: rec.contractUntil
-              ? `Guild contract · ${Math.max(0, Math.ceil((rec.contractUntil - Date.now()) / 60000))} min`
+              ? `${rec.npc ? 'Hired' : 'Guild contract'} · ${Math.max(0, Math.ceil((rec.contractUntil - Date.now()) / 60000))} min left`
               : `${SHADOW_RANKS[rank]} · Lv ${rec.level}`,
           }),
         ),
@@ -500,11 +514,14 @@ export class ShadowClient implements ClientModule {
             }),
         h('button', {
           class: 'danger',
-          text: 'Release',
+          text: rec.npc ? 'End contract' : 'Release',
           data: { shControl: `release-${rec.id}` },
           on: {
             click: () => {
-              if (window.confirm(`Release ${rec.name} forever?`)) this.send({ act: 'release', id: rec.id });
+              const ask = rec.npc
+                ? `End ${rec.name}'s contract now? Half of the unused time is refunded.`
+                : `Release ${rec.name} forever?`;
+              if (window.confirm(ask)) this.send({ act: 'release', id: rec.id });
             },
           },
         }),

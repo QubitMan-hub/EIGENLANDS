@@ -19,6 +19,7 @@ import type { ClientModule, P34Deps } from '../types';
 import { setCivSender, setCivState } from '../../game/civ-store';
 import { CaravanViews } from './caravans';
 import { SettlementViews } from './settlements';
+import { RoadLife } from './roadlife';
 import { BridgeViews } from './bridges';
 import { VoyageCard } from '../../ui/voyage';
 
@@ -52,6 +53,7 @@ export class TravelClient implements ClientModule {
   readonly caravans: CaravanViews;
   readonly bridges: BridgeViews;
   readonly settlements: SettlementViews;
+  readonly roadLife: RoadLife;
   private voyage: VoyageCard;
 
   constructor(private d: P34Deps) {
@@ -59,6 +61,7 @@ export class TravelClient implements ClientModule {
     this.d.fxLayer().addChild(this.gfx);
     this.caravans = new CaravanViews(d);
     this.settlements = new SettlementViews(d);
+    this.roadLife = new RoadLife(d);
     setCivSender((type, msg) => {
       try {
         this.d.net().send(type, msg);
@@ -175,6 +178,7 @@ export class TravelClient implements ClientModule {
     this.caravans.frame(dt);
     this.bridges.frame(now);
     this.settlements.frame(now, dt);
+    this.roadLife.frame(now, dt);
     const me = this.d.me();
     const g = this.gfx;
     g.clear();

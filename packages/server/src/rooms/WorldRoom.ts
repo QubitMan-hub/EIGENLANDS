@@ -122,6 +122,9 @@ import {
   isCaveY,
   isUpperY,
   isDiveY,
+  arrivalOf,
+  waystoneById,
+  isCryptY,
   sanctuaryAt,
   CANNON,
   ITEMS,
@@ -1601,6 +1604,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       p.deadT = RESPAWN_TIME;
       p.queue.length = 0;
       this.fx({ kind: 'die', x: p.sim.x, y: p.sim.y, id: p.client.sessionId, by: String(e.def.kind) });
+      this.deathPenalty(p);
     }
     return true;
   }
@@ -1618,8 +1622,54 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     this.fx({ kind: 'perfect', x: p.sim.x, y: p.sim.y, id: p.id });
   }
 
+  /**
+   * What a fall costs, by difficulty. Cozy: nothing. Adventure: a tenth of the coins you carry. Hardcore: a quarter
+   * of your coins, and your whole pack is left in a satchel where you fell, for you (and only you) to go back for.
+   */
+  private deathPenalty(p: ServerPlayer): void {
+    const mode = p.data.needs.mode;
+    if (mode === 'cozy') return;
+    const lost = Math.floor(p.data.coins * (mode === 'hardcore' ? 0.25 : 0.1));
+    if (lost) {
+      p.data.coins -= lost;
+      p.dirty('coins');
+    }
+    let satchel = '';
+    if (mode === 'hardcore' && p.data.inv.some(Boolean)) {
+      const fx = Math.floor(p.sim.x),
+        fy = Math.floor(p.sim.y);
+      let spot: { x: number; y: number } | null = null;
+      for (let r = 0; r <= 3 && !spot; r++)
+        for (let dy = -r; dy <= r && !spot; dy++)
+          for (let dx = -r; dx <= r && !spot; dx++) {
+            const x = fx + dx,
+              y = fy + dy;
+            if (!this.store.solidAt(x, y) && !this.store.objectAt(x, y) && !this.store.structureAt(x, y))
+              spot = { x, y };
+          }
+      if (spot) {
+        const slots = p.data.inv.map((s) => (s ? { ...s } : null));
+        p.data.inv.fill(null);
+        p.dirty('inv');
+        this.objects.put({
+          x: spot.x,
+          y: spot.y,
+          kind: 'chest',
+          sub: 'lost_satchel',
+          owner: p.accountId,
+          data: { slots },
+        });
+        satchel = ` Your pack lies where you fell (${spot.x}, ${spot.y}).`;
+      }
+    }
+    p.toast(`You fell${lost ? ` and lost ${lost} coins` : ''}.${satchel}`, 'bad');
+  }
+
   private respawn(p: ServerPlayer): void {
-    p.sim = newPlayerSim(SPAWN.x, SPAWN.y);
+    // back at your bound home stone, or the spawn shrine if you have none
+    const home = p.data.prog.home ? waystoneById(this.seed, p.data.prog.home) : null;
+    const at = home ? arrivalOf(home) : SPAWN;
+    p.sim = newPlayerSim(at.x, at.y);
     p.hp = p.maxHp;
     p.invuln = 2;
     p.dashTick = -1;
@@ -1666,7 +1716,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     let total = [...this.enemies.values()].filter((e) => !e.def.passive && !e.def.neutral).length;
     for (const id of this.encounterAt.keys()) if (!this.players.has(id)) this.encounterAt.delete(id);
     for (const p of this.players.values()) {
-      if (p.deadT > 0 || isUpperY(p.sim.y) || isDiveY(p.sim.y) || total >= MAX_ENEMIES) continue;
+      if (p.deadT > 0 || isUpperY(p.sim.y) || isDiveY(p.sim.y) || isCryptY(p.sim.y) || total >= MAX_ENEMIES) continue;
       if (sanctuaryAt(this.seed, p.sim.x, p.sim.y)) {
         this.encounterAt.set(p.id, now + 12000);
         continue;
@@ -1769,7 +1819,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     if (total >= MAX_FAUNA) return;
     for (const p of this.players.values()) {
       if (total >= MAX_FAUNA) break;
-      if (p.deadT > 0 || isUpperY(p.sim.y) || isDiveY(p.sim.y)) continue;
+      if (p.deadT > 0 || isUpperY(p.sim.y) || isDiveY(p.sim.y) || isCryptY(p.sim.y)) continue;
       let near = 0;
       for (const e of this.enemies.values())
         if ((e.def.passive || e.def.neutral) && Math.hypot(e.x - p.sim.x, e.y - p.sim.y) < 40) near++;

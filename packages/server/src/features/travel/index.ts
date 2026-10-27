@@ -25,6 +25,10 @@ import {
   validMountName,
   type MountKind,
   type StableEntry,
+  MOUNT_REST_PER_SEC,
+  MOUNT_TIRE_PER_TILE,
+  MOUNT_TOO_TIRED,
+  STABLE_FEE,
   T,
   RECALL_CHANNEL,
   STAG_AT,
@@ -229,7 +233,32 @@ export class TravelModule implements Module {
       kind,
       name: this.nameOf(p, kind),
       fedMs: Math.max(0, this.fedUntil(p, kind) - now),
+      fatigue: Math.round(this.worn(p, kind)),
     }));
+  }
+  private worn(p: ServerPlayer, kind: MountKind): number {
+    return p.data.prog.mountWorn?.[kind] ?? 0;
+  }
+  private setWorn(p: ServerPlayer, kind: MountKind, v: number): void {
+    const w = (p.data.prog.mountWorn ??= {});
+    const next = Math.max(0, Math.min(100, v));
+    if (next <= 0) delete w[kind];
+    else w[kind] = next;
+  }
+
+  /** Stable a mount at this waystone for the fee: it is rested and given a good feed. */
+  stableMount(p: ServerPlayer, kind: MountKind): boolean {
+    if (p.data.coins < STABLE_FEE) {
+      p.toast(`The stable hand wants ${STABLE_FEE} coins.`, 'bad');
+      return false;
+    }
+    p.data.coins -= STABLE_FEE;
+    this.setWorn(p, kind, 0);
+    (p.data.prog.mountFed ??= {})[kind] = this.room.wclock.now() + MOUNT_FED_MS;
+    if (mountKindOf(p.sim.mount) === kind) p.sim.mount = mountCode(kind, true);
+    p.dirty('coins', 'stats');
+    p.toast(`${this.nameOf(p, kind)} is rubbed down, watered and fed: fresh as morning.`, 'good');
+    return true;
   }
 
   /** Feed a mount from the pack (a stable's Feed button, or using feed while riding). Returns whether it ate. */
@@ -249,6 +278,7 @@ export class TravelModule implements Module {
     p.dirty('inv', 'stats');
     const fed = (p.data.prog.mountFed ??= {});
     fed[kind] = this.room.wclock.now() + MOUNT_FED_MS;
+    this.setWorn(p, kind, this.worn(p, kind) - 20);
     if (mountKindOf(p.sim.mount) === kind) p.sim.mount = mountCode(kind, true);
     p.toast(
       `${this.nameOf(p, kind)} munches the ${food.toLowerCase()} happily: 10% swifter for a quarter of an hour.`,
@@ -282,6 +312,11 @@ export class TravelModule implements Module {
       p.toast('Stand at an attuned waystone to use it.', 'bad');
       return;
     }
+    if (m.stable) {
+      if (this.owned(p).includes(m.stable)) this.stableMount(p, m.stable);
+      p.client.send(MSG.PANEL, { kind: 'travel', tx: here.x, ty: here.y, sub: '', travel: this.panel(p, here) });
+      return;
+    }
     if (m.rename || m.feed) {
       const kind = m.rename?.kind ?? m.feed;
       if (kind !== 'horse' && kind !== 'stag' && kind !== 'griffin') return;
@@ -297,7 +332,10 @@ export class TravelModule implements Module {
         }
         (p.data.prog.mountNames ??= {})[kind] = name;
         p.dirty('stats');
-        p.toast(`Your ${kind === 'stag' ? 'Stag' : 'horse'} is now called ${name}.`, 'good');
+        p.toast(
+          `Your ${kind === 'stag' ? 'Stag' : kind === 'griffin' ? 'griffin' : 'horse'} is now called ${name}.`,
+          'good',
+        );
       } else this.feedMount(p, kind);
       p.client.send(MSG.PANEL, { kind: 'travel', tx: here.x, ty: here.y, sub: '', travel: this.panel(p, here) });
       return;
@@ -446,6 +484,13 @@ export class TravelModule implements Module {
       }
     }
     const mk: MountKind = kind === 'stag' ? 'stag' : kind === 'griffin' ? 'griffin' : 'horse';
+    if (this.worn(p, mk) >= MOUNT_TOO_TIRED) {
+      p.toast(
+        `${this.nameOf(p, mk)} is worn out. Let it rest a while, feed it, or stable it at a waystone's hitching post.`,
+        'bad',
+      );
+      return;
+    }
     p.sim.mount = mountCode(mk, this.fedUntil(p, mk) > this.room.wclock.now());
     p.toast(`You call ${this.nameOf(p, mk)} and swing into the saddle.`, 'info');
     p.sim.sprint = 0;
@@ -454,8 +499,51 @@ export class TravelModule implements Module {
     this.room.fx({ kind: 'dust', x: p.sim.x, y: p.sim.y });
   }
 
+  private ridden = new Map<string, { x: number; y: number }>();
+  private staminaAt = 0;
+  /** Once a second: riding tires the mount by the distance covered; mounts not being ridden rest. */
+  private stamina(): void {
+    for (const p of this.room.players.values()) {
+      const mk = mountKindOf(p.sim.mount);
+      const last = this.ridden.get(p.id);
+      for (const kind of this.owned(p)) {
+        const before = this.worn(p, kind);
+        if (kind === mk) {
+          const d = last ? Math.min(12, Math.hypot(p.sim.x - last.x, p.sim.y - last.y)) : 0;
+          const next = before + d * MOUNT_TIRE_PER_TILE[kind];
+          this.setWorn(p, kind, next);
+          if (before < 75 && next >= 75)
+            p.toast(`${this.nameOf(p, kind)} is tiring. Rest, feed or stable it soon.`, 'info');
+          if (next >= 100) this.exhausted(p, kind);
+        } else if (before > 0) this.setWorn(p, kind, before - MOUNT_REST_PER_SEC);
+      }
+      if (mk) this.ridden.set(p.id, { x: p.sim.x, y: p.sim.y });
+      else this.ridden.delete(p.id);
+    }
+  }
+  /** an exhausted mount sets its rider down (a griffin only once there is ground to land on) */
+  private exhausted(p: ServerPlayer, kind: MountKind): void {
+    if (isFlying(p.sim.mount)) {
+      const lx = Math.floor(p.sim.x),
+        ly = Math.floor(p.sim.y);
+      const lt = this.room.store.getTile(lx, ly);
+      if (this.room.store.solidAt(lx, ly) || lt === T.WATER || lt === T.DEEP_WATER || lt === T.LAVA) {
+        if (Math.floor(this.t) % 5 === 0)
+          p.toast(`${this.nameOf(p, kind)} is flagging: find ground to land on!`, 'bad');
+        return;
+      }
+    }
+    p.sim.mount = 0;
+    this.room.fx({ kind: 'dust', x: p.sim.x, y: p.sim.y });
+    p.toast(`${this.nameOf(p, kind)} is exhausted and will carry you no further for now.`, 'bad');
+  }
+
   tick(_now: number, dt: number): void {
     this.t += dt;
+    if (this.t >= this.staminaAt) {
+      this.staminaAt = this.t + 1;
+      this.stamina();
+    }
     // a rider who is struck is thrown from the saddle; a good feed wears off
     const wnow = this.room.wclock.now();
     for (const p of this.room.players.values()) {

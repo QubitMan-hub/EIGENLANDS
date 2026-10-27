@@ -37,7 +37,8 @@ export function objSolid(kind: WorldObjKind, sub: string): boolean {
   )
     return false;
   if (kind === 'crop' || kind === 'sprinkler') return false;
-  if (sub === 'sea_cache' || sub === 'rug' || sub === 'shrine_altar' || sub === 'shrine_pillar') return false; // resonance projections leave no invisible collision after completion
+  if (sub === 'sea_cache' || sub === 'rug' || sub === 'shrine_altar' || sub === 'shrine_pillar') return false;
+  if (sub === 'crypt_bones') return false; // scattered bones underfoot // resonance projections leave no invisible collision after completion
   return true;
 }
 

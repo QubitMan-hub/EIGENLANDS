@@ -1,5 +1,6 @@
 /** The waystone window: where the stone you stand at can take you, grouped by kingdom network. */
 import {
+  STABLE_FEE,
   netName,
   WAYFARER_STEP,
   WAYFARER_MAX,
@@ -44,7 +45,7 @@ function ensureStyles(): void {
 .travel-row .fare { font-family: var(--pix); color: #7a4d0a; white-space: nowrap; }
 .travel-row.far .g, .travel-row.far .nm { opacity: .7; }
 .travel-row button { min-height: 36px; padding: 4px 14px; }
-.stable-row { grid-template-columns: 26px minmax(0, 1fr) auto auto; }
+.stable-row { grid-template-columns: 26px minmax(0, 1fr) auto auto auto; }
 .stable-row input { width: min(220px, 100%); }
 .travel-empty { padding: 10px 12px; background: var(--parch-hi); box-shadow: inset 0 0 0 1px #8a7143; }
 @media (max-width: 560px) { .travel-row { grid-template-columns: 22px minmax(0, 1fr) auto; } .travel-row .fare { grid-column: 2; } }
@@ -57,6 +58,7 @@ export interface TravelActions {
   bind(): void;
   rename?(kind: MountKind, name: string): void;
   feed?(kind: MountKind): void;
+  stable?(kind: MountKind): void;
 }
 
 export function buildTravel(t: TravelPanel, act: TravelActions): HTMLElement {
@@ -141,7 +143,9 @@ function stable(t: TravelPanel, act: TravelActions): HTMLElement {
           { class: 'nm' },
           input,
           h('small', {
-            text: `${MOUNT_LABEL[m.kind]} · ${mins > 0 ? `well fed for ${mins} min (10% swifter)` : 'hungry for hay, carrots, apples or oats'}`,
+            text: `${MOUNT_LABEL[m.kind]} · ${mins > 0 ? `well fed for ${mins} min (10% swifter)` : 'hungry for hay, carrots, apples or oats'} · ${
+              m.fatigue >= 90 ? 'worn out' : m.fatigue >= 60 ? 'tired' : m.fatigue >= 25 ? 'a little weary' : 'fresh'
+            }`,
           }),
         ),
         h('button', { text: 'Rename', on: { click: () => act.rename?.(m.kind, input.value) } }),
@@ -149,6 +153,12 @@ function stable(t: TravelPanel, act: TravelActions): HTMLElement {
           text: `Feed${t.feed ? ` (${t.feed})` : ''}`,
           disabled: !t.feed,
           on: { click: () => act.feed?.(m.kind) },
+        }),
+        h('button', {
+          text: `Stable · ${STABLE_FEE}c`,
+          title: 'Rested, watered and fed at once',
+          disabled: t.coins < STABLE_FEE || (m.fatigue < 1 && m.fedMs > 0),
+          on: { click: () => act.stable?.(m.kind) },
         }),
       ),
     );

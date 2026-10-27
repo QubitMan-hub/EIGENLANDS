@@ -28,7 +28,7 @@ import {
   STORY_READ,
   STORY_READABLE,
   STORY_XP,
-  storyOfCell,
+  storySiteById,
   storyText,
   type StoryKind,
   RUIN_NAMES,
@@ -296,8 +296,8 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
     await climb(room, p, o);
     return;
   }
-  if (o.static && o.sub === 'ruin_crypt') {
-    room.cryptInteract?.(p, o);
+  if (o.static && (o.sub === 'ruin_crypt' || o.sub === 'crypt_exit' || o.sub === 'crypt_reliquary')) {
+    await room.cryptInteract?.(p, o);
     return;
   }
   if (o.static && STORY_READABLE.has(o.sub)) {
@@ -364,8 +364,14 @@ export function handleChest(room: RoomApi, p: ServerPlayer, msg: ChestMsg): void
   s.n -= moved;
   if (s.n <= 0) from[msg.slot] = null;
   o.data = { ...(o.data ?? {}), slots: slots.slice(0, 30) };
-  room.objects.update(o);
   p.dirty('inv');
+  // a recovered satchel, once emptied, is simply gone
+  if (o.sub === 'lost_satchel' && !slots.some(Boolean)) {
+    room.objects.remove(o.x, o.y);
+    p.toast('You have recovered everything from your satchel.', 'good');
+    return;
+  }
+  room.objects.update(o);
   sendPanel(p, o);
 }
 
@@ -556,10 +562,9 @@ function readStory(room: RoomApi, p: ServerPlayer, o: WorldObj): void {
   }
 }
 
-/** a story's site coordinates, from its id ("st<gx>_<gy>") */
+/** a story's site coordinates, from its id */
 function storyAnchor(seed: number, id: string, o: WorldObj): [number, number] {
-  const m = /^st(-?\d+)_(-?\d+)$/.exec(id);
-  const s = m ? storyOfCell(seed, Number(m[1]), Number(m[2])) : null;
+  const s = storySiteById(seed, id);
   return s ? [s.x, s.y] : [o.x, o.y];
 }
 

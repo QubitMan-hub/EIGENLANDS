@@ -216,7 +216,155 @@ function crypt(face: Facing): ObjSprite {
   );
 }
 
+const GILT: Ramp = [C.e0, C.e2, C.e4, C.c3, C.c4, C.e7];
+const BONE: Ramp = [C.mist, C.fog, C.pale, C.white];
+
+/** steps rising to a square of daylight under a stone lintel */
+function cryptExit(face: Facing): ObjSprite {
+  return iso(
+    48,
+    64,
+    face,
+    (p) => {
+      for (let k = 0; k < 5; k++) p.box(3, 10 - k * 2, k * 3, 10, 2, 3, { ramp: STONEM });
+      for (const a of [1, 13]) p.box(a, 0, 0, 2, 12, 18, { ramp: STONEM });
+      p.box(1, 0, 18, 14, 3, 3, {
+        ramp: STONEM,
+        front: (s, t) => (t > 0.3 && t < 0.7 && Math.round(s * 12) % 3 === 0 ? RUNE : null),
+      });
+      p.box(3, 0, 15, 10, 0.6, 3, { ramp: [C.e5, C.e6, C.e7, C.white, C.white] }); // the light from above
+    },
+    { margin: 8 },
+  );
+}
+
+/** a gilded reliquary on a stepped dais, runes glowing along its lid */
+function reliquary(face: Facing): ObjSprite {
+  return iso(
+    44,
+    48,
+    face,
+    (p) => {
+      p.box(1, 1, 0, 14, 14, 2, { ramp: STONEM });
+      p.box(3, 3, 2, 10, 10, 2, { ramp: STONEM });
+      p.box(4, 5, 4, 8, 6, 6, {
+        ramp: GILT,
+        front: (s, t) => (Math.abs(t - 0.5) < 0.1 && s > 0.15 && s < 0.85 ? RUNE : null),
+      });
+      p.box(3.6, 4.6, 10, 8.8, 6.8, 1.6, { ramp: GILT });
+      p.box(7, 7, 11.6, 2, 2, 1.6, { ramp: [C.q3, C.q5, C.q6, C.q7] }); // a gem on the lid
+    },
+    { margin: 8 },
+  );
+}
+
+/** a stone coffin with a carved effigy on its lid */
+function sarcophagus(face: Facing): ObjSprite {
+  return iso(
+    44,
+    40,
+    face,
+    (p) => {
+      p.box(2, 4, 0, 13, 7, 5, {
+        ramp: STONEM,
+        front: (s, t) => (t > 0.4 && t < 0.6 && Math.round(s * 13) % 4 === 0 ? C.night : null),
+      });
+      p.box(1.5, 3.5, 5, 14, 8, 1.4, { ramp: STONEM });
+      p.box(4, 5.5, 6.4, 9, 4, 1.6, { ramp: [C.slate, C.steel, C.mist, C.fog] }); // the effigy
+      p.box(12, 6.5, 8, 2, 2, 1.2, { ramp: [C.slate, C.steel, C.mist, C.fog] });
+    },
+    { margin: 8 },
+  );
+}
+
+function bones(face: Facing): ObjSprite {
+  return iso(
+    32,
+    20,
+    face,
+    (p) => {
+      p.box(3, 5, 0, 7, 1, 0.8, { ramp: BONE });
+      p.box(6, 2, 0, 1, 8, 0.8, { ramp: BONE });
+      p.box(10, 7, 0, 3, 3, 2.4, {
+        ramp: BONE,
+        front: (s, t) => (t > 0.3 && t < 0.6 && Math.abs(s - 0.5) > 0.15 && Math.abs(s - 0.5) < 0.35 ? C.ink : null),
+      });
+    },
+    { margin: 4 },
+  );
+}
+
+/** a traveller's pack, dropped where they fell (Hardcore) */
+function satchel(face: Facing): ObjSprite {
+  return iso(
+    32,
+    28,
+    face,
+    (p) => {
+      p.box(3, 4, 0, 9, 7, 5, {
+        ramp: [C.e1, C.e2, C.e3, C.e4, C.e5],
+        front: (_s, t) => (Math.abs(t - 0.5) < 0.1 ? C.e1 : null),
+      });
+      p.box(3.5, 4.5, 5, 8, 6, 1.4, { ramp: [C.e2, C.e3, C.e4, C.e5] });
+      p.box(6.5, 3.6, 2.5, 2, 0.6, 2, { ramp: [C.e4, C.e5, C.e6, C.e7] }); // buckle
+      p.box(11, 5, 0, 3, 2, 0.8, { ramp: [C.r2, C.r3, C.r4] }); // a spilled bedroll strap
+    },
+    { margin: 6 },
+  );
+}
+
+/** the ribs of a wrecked ship standing out of the sand */
+function wreck(face: Facing): ObjSprite {
+  return iso(
+    72,
+    64,
+    face,
+    (p) => {
+      // the keel half-buried, ribs curving up from it, a stub of mast
+      p.box(-4, 6, 0, 26, 3, 1.4, { ramp: DARKWOOD });
+      for (let k = 0; k < 5; k++) {
+        const a = -2 + k * 5;
+        const h = 9 - Math.abs(k - 2) * 1.5;
+        for (const side of [-1, 1]) p.box(a, 7 + side * 3.2, 0, 1.2, 1, h, { ramp: [C.e1, C.e2, C.e3, C.e4] });
+      }
+      p.box(4, 3.2, 6, 14, 0.8, 1.2, { ramp: WOODM }); // a surviving strake
+      p.box(9, 7, 0, 1.4, 1.4, 16, { ramp: DARKWOOD });
+      p.box(9.5, 7.4, 14, 5, 0.5, 4, { ramp: [C.e5, C.e6, C.e7, C.white], front: (s) => (s > 0.7 ? -1 : null) }); // a rag of sail
+    },
+    { margin: 8 },
+  );
+}
+
+/** a cairn of piled stones on a summit, with a weathered flag */
+function cairn(face: Facing): ObjSprite {
+  return iso(
+    40,
+    56,
+    face,
+    (p) => {
+      p.box(2, 2, 0, 12, 12, 4, { ramp: STONEM });
+      p.box(3.5, 3.5, 4, 9, 9, 4, { ramp: STONEM });
+      p.box(5, 5, 8, 6, 6, 4, { ramp: STONEM });
+      p.box(6.5, 6.5, 12, 3, 3, 3, { ramp: STONEM });
+      p.box(7.5, 7.5, 15, 0.8, 0.8, 9, { ramp: DARKWOOD });
+      p.box(8.3, 7.6, 20, 5, 0.4, 3, {
+        ramp: [C.r2, C.r3, C.r4, C.r5],
+        front: (s, t) => (s > 0.8 && t < 0.5 ? -1 : null),
+      });
+      p.box(4, 9, 4, 2, 2, 1, { ramp: [C.e3, C.e4, C.e5, C.e6] }); // the tin box
+    },
+    { margin: 8 },
+  );
+}
+
 export const STORY_ART: Record<string, (face: Facing) => ObjSprite> = {
+  story_wreck: wreck,
+  story_cairn: cairn,
+  lost_satchel: satchel,
+  crypt_exit: cryptExit,
+  crypt_reliquary: reliquary,
+  crypt_sarcophagus: sarcophagus,
+  crypt_bones: bones,
   story_firepit: firepit,
   story_bedroll: bedroll,
   story_journal: journal,

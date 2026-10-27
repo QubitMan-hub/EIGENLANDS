@@ -28,6 +28,7 @@ import {
   tourneyOn,
   dayNumber,
   CHAMPION_TITLE,
+  ROYAL_CELEBRATIONS,
   type FestHost,
   realmRankName,
   relationsOf,
@@ -501,6 +502,14 @@ function realmState(id: RealmId): HTMLElement | null {
       text: `Treasury ${k.treasury.toLocaleString()} crowns · Decree: ${DECREES[k.decree.id].name}. ${DECREES[k.decree.id].text}`,
     }),
   );
+  if (k.monarch) box.append(h('div', { class: 'small', text: `Reigning: ${k.monarch}` }));
+  if (k.royal && (civState()?.day ?? 0) <= k.royal.until)
+    box.append(
+      h('div', {
+        class: k.royal.kind === 'plague' ? 'small bad' : 'small',
+        text: `${k.royal.title}${ROYAL_CELEBRATIONS.has(k.royal.kind) ? ': the realm is celebrating' : ''} (until day ${k.royal.until}).`,
+      }),
+    );
   if (k.project) {
     const site = REALM_SITES.find((s) => s.id === k.project!.site);
     box.append(
