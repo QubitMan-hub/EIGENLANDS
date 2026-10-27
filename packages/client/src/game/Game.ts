@@ -1,3 +1,4 @@
+import { actionFrame, type PersonAction } from '../art/person-actions';
 import { FLY_Z, SADDLE_Z } from '../art/mounts';
 import { livestockTexture } from '../art/livestock';
 import { isLivestock } from '@eigenlands/shared';
@@ -85,6 +86,7 @@ import {
   CAST_FRAME,
   RUN_FRAME,
   RUN_FRAMES,
+  personGrip,
   DIR_DOWN,
   DIR_LEFT,
   type Sheets,
@@ -792,7 +794,16 @@ export class Game {
       rhythmResult: (m: RhythmResultMsg) => this.gameplay.onRhythmResult(m),
       fishBite: (m: FishBiteMsg) => this.gameplay.onFishBite(m),
       fishCast: (m) => this.gameplay.onFishCast(m),
-      dialogue: (m: DialogueMsg) => this.gameplay.onDialogue(m),
+      dialogue: (m: DialogueMsg) => {
+        this.gameplay.onDialogue(m);
+        const npc = this.views.get(m.npcId),
+          me = this.views.get(this.myId);
+        if (npc && me) {
+          const at = 0;
+          this.workActions.set(npc, { action: 'talk', at, x: me.lx, y: me.ly });
+          this.workActions.set(me, { action: 'talk', at, x: npc.lx, y: npc.ly });
+        }
+      },
       shopView: (m: ShopViewMsg) => this.gameplay.onShopView(m),
       forgePreview: (_m: ForgePreviewReply) => {},
       toast: (m: ToastMsg) => this.gameplay.onToast(m),
@@ -870,7 +881,21 @@ export class Game {
     }
   >();
 
+  private transportPoses = new WeakMap<ActorView, { kind: number; at: number; fromY: number }>();
+
+  private workActions = new WeakMap<ActorView, { action: PersonAction; at: number; x: number; y: number }>();
+
   private fxFromServer(f: FxMsg): void {
+    const workAction: PersonAction | undefined =
+      f.kind === 'plant' || f.kind === 'harvest'
+        ? 'gather'
+        : f.kind === 'craft'
+          ? 'craft'
+          : f.kind === 'place'
+            ? 'dig'
+            : undefined;
+    const worker = f.id ? this.views.get(f.id) : undefined;
+    if (worker && workAction) this.workActions.set(worker, { action: workAction, at: 0, x: f.x, y: f.y });
     if (f.kind === 'chest') {
       this.worldObjs.animateChest(Math.floor(f.x), Math.floor(f.y));
       return;
@@ -1713,6 +1738,7 @@ export class Game {
           now - use.at < 300 &&
           !deadP &&
           !dash &&
+          !walking &&
           combatStrike < 0;
         const strike = harvesting ? (reduced ? 2 : Math.min(3, Math.floor((now - use!.at) / 75))) : combatStrike;
         const running = dash || moved / Math.max(0.001, dtMs / 1000) > 5.6;
@@ -1723,7 +1749,7 @@ export class Game {
           : s?.weapon;
         const weapon = isWeaponId(weaponId) ? weaponId : null;
         const tool = isMe ? ITEMS[this.gameplay.selected()?.id ?? '']?.tool?.type : s?.held;
-        const heldItem = harvesting ? use!.tool : strike < 0 && isHeldId(tool) ? tool : weapon;
+        let heldItem = harvesting ? use!.tool : strike < 0 && isHeldId(tool) ? tool : weapon;
         const family = harvesting
           ? use!.tool === 'can' || use!.tool === 'rod'
             ? CAST_FRAME
@@ -1733,7 +1759,7 @@ export class Game {
             : weapon && WEAPONS[weapon].cls === 'staff'
               ? CAST_FRAME
               : ATTACK_FRAME;
-        const frame =
+        let frame =
           deadP || cart || mount
             ? -1
             : strike >= 0
@@ -1745,11 +1771,59 @@ export class Game {
                 : reduced
                   ? -1
                   : 0;
+        const transportKind = cart ? -1 : mount;
+        let transport = this.transportPoses.get(v);
+        if (!transport || transport.kind !== transportKind) {
+          transport = { kind: transportKind, at: transport ? now : now - 220, fromY: v.sprite.y };
+          this.transportPoses.set(v, transport);
+        }
+        const confirmed = this.workActions.get(v);
+        // Start confirmed gestures on their first presentation, just like tool swings.
+        if (confirmed && confirmed.at === 0) confirmed.at = now;
+        const fishing = isMe ? this.gameplay.fishing : null;
+        if (fishing && combatStrike < 0) heldItem = 'rod';
+        const channel = isMe ? this.ext.shadows.channelProgress(now) : null;
+        let unarmedWork = false;
+        let actionTarget: { x: number; y: number } | null = null;
+        if (!deadP && !dash && combatStrike < 0) {
+          if (cart || mount) frame = actionFrame('sit', (v.travel % 0.8) / 0.8, reduced);
+          else if (harvesting) {
+            const action: PersonAction =
+              use!.tool === 'pickaxe'
+                ? 'mine'
+                : use!.tool === 'axe'
+                  ? 'chop'
+                  : use!.tool === 'hoe'
+                    ? 'dig'
+                    : use!.tool === 'can'
+                      ? 'water'
+                      : use!.tool === 'rod'
+                        ? 'fish'
+                        : 'gather';
+            frame = actionFrame(action, (now - use!.at) / 300, reduced);
+          } else if (!walking && fishing) {
+            frame = actionFrame('fish', fishing.bite ? 0.5 : 0.85, reduced);
+            actionTarget = { x: fishing.tx + 0.5, y: fishing.ty + 0.5 };
+          } else if (!walking && channel !== null) {
+            frame = actionFrame('channel', channel, reduced);
+            actionTarget = this.ext.shadows.channelTarget();
+          } else if (isDiveY(y) && !this.buildings.insideBuilding(Math.floor(x), Math.floor(y)))
+            frame = actionFrame('swim', (v.travel % 0.9) / 0.9, reduced);
+          else if (!walking && transportKind === 0 && now - transport.at < 220)
+            frame = actionFrame('sit', 1 - (now - transport.at) / 220, reduced);
+          else if (!walking && confirmed && now - confirmed.at < 650) {
+            unarmedWork = true;
+            frame = actionFrame(confirmed.action, (now - confirmed.at) / 650, reduced);
+            actionTarget = confirmed;
+          }
+        }
         const look = s?.look ?? (isMe ? this.gameplay.profile.equip.outfit : v.outfit);
         const sd =
-          harvesting && Math.hypot(use!.x - x, use!.y - y) > 0.05
-            ? screenDir(use!.x - x, use!.y - y)
-            : screenDir(fx, fy);
+          actionTarget && Math.hypot(actionTarget.x - x, actionTarget.y - y) > 0.05
+            ? screenDir(actionTarget.x - x, actionTarget.y - y)
+            : harvesting && Math.hypot(use!.x - x, use!.y - y) > 0.05
+              ? screenDir(use!.x - x, use!.y - y)
+              : screenDir(fx, fy);
         const lookIx = ((look % OUTFITS.length) + OUTFITS.length) % OUTFITS.length;
         v.sprite.texture = s?.app
           ? this.sheets.styled(lookIx, s.app, dirOf(sd.x, sd.y), frame)
@@ -1763,7 +1837,12 @@ export class Game {
         this.combat.minecart(v, cart, fx, fy);
         const riding = !boat && !cart && !deadP ? (isMe ? this.predictor.sim.mount : (s?.mount ?? 0)) : 0;
         this.combat.mount(v, riding, fx, fy, walking, v.travel, reduced);
-        if (heldItem && !boat && !cart && !deadP) {
+        if (!reduced && transport && now - transport.at < 220) {
+          const t = Math.max(0, (now - transport.at) / 220),
+            ease = t * t * (3 - 2 * t);
+          v.sprite.y = Math.round(transport.fromY + (v.sprite.y - transport.fromY) * ease);
+        }
+        if (heldItem && !unarmedWork && !(frame >= 50 && frame < 62) && frame < 66 && !boat && !cart && !deadP) {
           if (!v.held) {
             v.held = new Sprite();
             v.held.anchor.set(0.5, 0.75);
@@ -1772,10 +1851,10 @@ export class Game {
           }
           const direction = dirOf(sd.x, sd.y);
           // Stable idle uses the body's resolved breath column, so the hand never drifts off the grip.
-          const pose = v.sprite.texture.frame.x / 24;
+          const pose = frame >= 30 ? frame : v.sprite.texture.frame.x / 24;
           v.held.texture = this.heldWeapons.texture(heldItem, direction, pose);
           v.held.visible = true;
-          v.held.y = riding ? v.sprite.y + 9 : 0;
+          v.held.y = riding ? v.sprite.y + 9 : v.sprite.y;
           v.held.alpha = v.sprite.alpha;
           v.root.setChildIndex(v.held, direction === 1 || direction >= 6 ? 1 : v.root.children.length - 1);
         } else if (v.held) v.held.visible = false;
@@ -1805,13 +1884,17 @@ export class Game {
         const hisB = this.buildings.insideBuilding(Math.floor(x), Math.floor(y));
         const hidden = inside && (!hisB || hisB !== myB);
         v.root.visible = !hidden;
-        const frame =
+        let frame =
           walking || ((s?.flags ?? 0) & 1) !== 0
             ? 1 + (Math.floor(v.travel / 0.17) % (WALK_FRAMES - 1))
             : reduced
               ? -1
               : 0;
-        const nd = screenDir(fx, fy);
+        const gesture = this.workActions.get(v);
+        if (gesture && gesture.at === 0) gesture.at = now;
+        if (!walking && gesture && now - gesture.at < 650)
+          frame = actionFrame(gesture.action, (now - gesture.at) / 650, reduced);
+        const nd = gesture && now - gesture.at < 650 ? screenDir(gesture.x - x, gesture.y - y) : screenDir(fx, fy);
         if (isLivestock(s?.farm)) {
           v.sprite.texture = livestockTexture(
             s!.farm as import('@eigenlands/shared').LivestockSpecies,
@@ -1867,8 +1950,15 @@ export class Game {
       this.bobber.ellipse(bx, by + 1, 5, 2.2).stroke({ color: pc(30), width: 1, alpha: 0.7 });
       if (this.predictor) {
         const p = this.predictor.sim;
+        const sd = screenDir(f.tx + 0.5 - p.x, f.ty + 0.5 - p.y);
+        const grip = personGrip(
+          dirOf(sd.x, sd.y),
+          actionFrame('fish', f.bite ? 0.5 : 0.85, this.settings().reducedMotion),
+        );
+        const tipX = isoX(p.x, p.y) + grip.x - 12 + Math.cos(grip.angle) * 13;
+        const tipY = isoY(p.x, p.y) + grip.y - 31 + Math.sin(grip.angle) * 13;
         this.bobber
-          .moveTo(isoX(p.x, p.y), isoY(p.x, p.y) - 10)
+          .moveTo(tipX, tipY)
           .lineTo(bx, by - 2)
           .stroke({ color: pc(6), width: 0.5, alpha: 0.7 });
       }
@@ -2184,6 +2274,7 @@ export class Game {
       rtt: this.rtt,
       chunks: this.terrain?.count,
       entities: this.views.size,
+      creatureAtlases: this.foes?.cache(),
       hp: this.self?.hp,
       stamina: this.predictor?.sim.stamina,
       sprinting: this.predictor?.sim.sprint === 1,

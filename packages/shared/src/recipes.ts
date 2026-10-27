@@ -1,3 +1,4 @@
+import { ANCIENT_RITES } from './bestiary';
 import { BUILD_PIECES } from './construction';
 import { ITEMS } from './items';
 import { ARMOR_SLOTS, armorId } from './equipment';
@@ -1332,6 +1333,34 @@ r(
   30,
   'discover',
   "A warden's heart wrapped in crystal and iron.",
+);
+
+for (const rite of ANCIENT_RITES)
+  r(
+    rite.item,
+    'workbench',
+    [
+      [rite.ingredient, 1],
+      ['wild_essence', 6],
+      ['qubit_crystal', 5],
+      ['gold_ingot', 3],
+    ],
+    [rite.item, 1],
+    45,
+    'discover',
+    `Prepare ${rite.name}'s rite after obtaining ${rite.ingredient}. Bring a party and clear ground in the required habitat.`,
+  );
+r(
+  'sixfold_crystals',
+  'jeweler',
+  [
+    ['sixfold_crown', 1],
+    ['wild_essence', 8],
+  ],
+  ['qubit_crystal', 32],
+  100,
+  'discover',
+  'The guardian’s crown releases enough crystals for a lasting Circuit upgrade.',
 );
 
 export const RECIPES: ReadonlyArray<Recipe> = R;

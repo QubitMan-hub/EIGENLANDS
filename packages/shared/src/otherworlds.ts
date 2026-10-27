@@ -367,7 +367,7 @@ export const DIAL_WORDS = ['dawn', 'noon', 'dusk', 'midnight'];
 // ───────────────────────── creatures, resources, lore ─────────────────────────
 
 export const OTHERWORLD_CREATURES: Record<OtherworldId, { roam: string[]; boss: string; bossName: string }> = {
-  aetheria: { roam: ['zephyr_ray', 'gilded_sentinel'], boss: 'phoenix', bossName: 'the Phoenix of the Eyrie' },
+  aetheria: { roam: ['zephyr_ray', 'gilded_sentinel'], boss: 'eyrie_phoenix', bossName: 'the Phoenix of the Eyrie' },
   umbra: { roam: ['shade_stalker', 'abyss_serpent'], boss: 'umbral_maw', bossName: 'the Umbral Maw' },
   chronoria: { roam: ['gear_hound', 'paradox_echo'], boss: 'the_unwound', bossName: 'the Unwound' },
 };

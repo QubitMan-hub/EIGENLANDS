@@ -2,6 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   MSG,
   MSG_TRAVEL,
+  RECALL_CHANNEL,
+  VOYAGE_CHANNEL,
   T,
   arrivalOf,
   mountCode,
@@ -48,7 +50,7 @@ describe('waystones', () => {
     expect(p.sp.data.prog.home).toBe(gate.id); // the first stone becomes the Recall home
     const coins0 = p.sp.data.coins;
     await at(p, wild);
-    await until(() => ways(p).includes(wild.id), 3000);
+    await until(() => ways(p).includes(wild.id) && evs.some((e) => e.kind === 'attune' && e.id === wild.id), 3000);
     expect(p.sp.data.coins).toBeGreaterThan(coins0); // wild stones pay
     expect(evs.some((e) => e.kind === 'attune' && e.id === wild.id)).toBe(true);
     // an unattuned destination is refused
@@ -86,11 +88,17 @@ describe('waystones', () => {
     await until(() => evs.some((e) => e.kind === 'cancel'), 2000);
     await sleep(3000);
     expect(evs.some((e) => e.kind === 'arrive')).toBe(false);
-    // a hostile close by
-    await at(p, gate);
-    const e = p.room.spawnEnemy('slime', gate.x + 3.5, gate.y + 3.5, false);
-    p.r.send(MSG_TRAVEL.GO, { from: gate.id, to: wild.id });
+    // Town wards disperse intruders each tick. Exercise danger at an unwarded wilderness stone,
+    // rather than racing the ward's legitimate removal of a slime inside the city gate.
+    await at(p, wild);
+    const ex = p.sp.sim.x + 1.5,
+      ey = p.sp.sim.y;
+    expect(sanctuaryAt(p.room.seed, ex, ey)).toBeNull();
+    const e = p.room.spawnEnemy('slime', ex, ey, false);
+    e.def = { ...e.def, speed: 0, sight: 0.1 };
+    p.r.send(MSG_TRAVEL.GO, { from: wild.id, to: gate.id });
     await until(() => p.toasts.some((t) => /hunting/.test(t.text)), 2000);
+    expect(p.room.state.enemies.has(e.id)).toBe(true);
     p.room.enemies.delete(e.id);
     p.room.state.enemies.delete(e.id);
     await p.r.leave();
@@ -106,7 +114,13 @@ describe('waystones', () => {
     await until(() => p.sp.data.inv.some((s) => s?.id === 'recall_shard'), 2000);
     const slot = p.sp.data.inv.findIndex((s) => s?.id === 'recall_shard');
     p.r.send(MSG.USE, { slot, tx: 0, ty: 0 });
-    await until(() => evs.some((e) => e.kind === 'arrive'), 8000);
+    await until(() => evs.some((e) => e.kind === 'channel'), 3000);
+    const channel = evs.find((e) => e.kind === 'channel') as Extract<TravelEvent, { kind: 'channel' }>;
+    expect(channel.seconds).toBe(RECALL_CHANNEL);
+    expect(evs.some((e) => e.kind === 'arrive')).toBe(false);
+    // Advance the real travel simulation clock; slow CI ticks must not be confused with wall time.
+    p.room.travel.tick(p.room.wclock.now(), RECALL_CHANNEL + 0.05);
+    await until(() => evs.some((e) => e.kind === 'arrive'), 3000);
     const a = arrivalOf(gate);
     expect(Math.hypot(p.sp.sim.x - a.x, p.sp.sim.y - a.y)).toBeLessThan(0.2);
     expect(p.sp.data.inv.some((s) => s?.id === 'recall_shard')).toBe(false);
@@ -166,7 +180,10 @@ describe('ferries and the hitching post', () => {
     await until(() => evs.some((e) => e.kind === 'channel'), 3000);
     const ch = evs.find((e) => e.kind === 'channel') as Extract<TravelEvent, { kind: 'channel' }>;
     expect(ch.voyage?.to.name).toBe(b!.name);
-    await until(() => evs.some((e) => e.kind === 'arrive'), 8000);
+    expect(ch.seconds).toBe(VOYAGE_CHANNEL);
+    expect(evs.some((e) => e.kind === 'arrive')).toBe(false);
+    p.room.travel.tick(p.room.wclock.now(), VOYAGE_CHANNEL + 0.05);
+    await until(() => evs.some((e) => e.kind === 'arrive'), 3000);
     const dest = arrivalOf(b!);
     expect(Math.hypot(p.sp.sim.x - dest.x, p.sp.sim.y - dest.y)).toBeLessThan(0.2);
     await p.r.leave();

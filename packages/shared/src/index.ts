@@ -88,6 +88,12 @@ export * from './mounts';
 export * from './cozy-town';
 export * from './caravans';
 export * from './bridges';
+
+export * from './guild-halls';
+
+export * from './adventurer-paths';
+
+export * from './bestiary';
 export * from './civ';
 export * from './local-economy';
 export * from './pageantry';

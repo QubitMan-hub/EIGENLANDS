@@ -1018,7 +1018,7 @@ item('phoenix_plume', 'Phoenix Plume', 'reagent', {
   a: C.r5,
   b: C.e7,
   d: 'A feather of the Phoenix of the Eyrie, still burning without heat.',
-  src: [src.boss('phoenix')],
+  src: [src.boss('eyrie_phoenix')],
 });
 item('abyss_heart', 'Heart of the Maw', 'monster', {
   v: 650,

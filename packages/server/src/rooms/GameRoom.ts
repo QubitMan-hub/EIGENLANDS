@@ -528,6 +528,15 @@ export class GameRoom extends WorldRoom {
     for (const m of this.modules) m.killed?.(e, killer);
   }
 
+  protected hookOutgoingDamage(p: ServerPlayer, e: Enemy, damage: number): number {
+    let d = damage;
+    for (const m of this.modules) if (m.outgoingDamage) d = m.outgoingDamage(p, e, d);
+    return d;
+  }
+  protected hookDealtDamage(p: ServerPlayer, e: Enemy, damage: number): void {
+    for (const m of this.modules) m.dealtDamage?.(p, e, damage);
+  }
+
   protected hookIncomingDamage(p: ServerPlayer, dmg: number, e: Enemy): number {
     let d = dmg;
     for (const m of this.modules) {

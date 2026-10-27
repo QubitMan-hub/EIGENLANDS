@@ -21,6 +21,8 @@ export function guildPanel(room: RoomApi, p: ServerPlayer, board: WorldObj): Pan
     ty: board.y,
     sub: 'guild_board',
     guild: {
+      day: room.wclock.day(),
+      hall: typeof board.data?.town === 'string' ? board.data.town : undefined,
       generation: room.store.generation,
       owned: board.owner === p.accountId,
       name: p.name,

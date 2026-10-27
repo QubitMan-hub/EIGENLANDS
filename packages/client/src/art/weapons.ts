@@ -1,6 +1,7 @@
 import { Rectangle, Texture } from 'pixi.js';
 import { HUE_PALETTE, WEAPONS, isWeaponId, type WeaponId, type ToolSpec } from '@eigenlands/shared';
 import { ATTACK_FRAME, RUN_FRAME, SHOT_FRAME, CAST_FRAME, personGrip } from './actors';
+import { actionPose } from './person-actions';
 import { C, line, makeCanvas, outline, poly, put, undithered } from './shade';
 
 export type HeldId = WeaponId | ToolSpec['type'];
@@ -9,7 +10,7 @@ export const isHeldId = (id: unknown): id is HeldId =>
 
 /** Held geometry is rasterized at each facing, never rotated as a finished frontal sprite. */
 export class HeldWeapons {
-  private sheets = new Map<HeldId, Texture>();
+  private sheets = new Map<string, Texture>();
   private frames = new Map<string, Texture>();
 
   texture(id: HeldId, dir: number, frame: number): Texture {
@@ -17,11 +18,15 @@ export class HeldWeapons {
       key = `${id}:${dir}:${f}`;
     const old = this.frames.get(key);
     if (old) return old;
-    let sheet = this.sheets.get(id);
+    const extra = f >= 30,
+      cols = extra ? 1 : 30,
+      sheetKey = extra ? `${id}:${f}` : id;
+    let sheet = this.sheets.get(sheetKey);
     if (!sheet) {
-      const { canvas, ctx } = makeCanvas(56 * 30, 64 * 8);
+      const { canvas, ctx } = makeCanvas(56 * cols, 64 * 8);
       for (let d = 0; d < 8; d++)
-        for (let n = 0; n < 30; n++) {
+        for (let column = 0; column < cols; column++) {
+          const n = extra ? f : column;
           const b = makeCanvas(56, 64),
             g = personGrip(d, n),
             x = g.x + 16,
@@ -32,7 +37,8 @@ export class HeldWeapons {
             bow = w?.cls === 'crossbow',
             staff = w?.cls === 'staff',
             tool = !w;
-          const aimedTool = (id === 'can' || id === 'rod') && n >= CAST_FRAME;
+          const work = actionPose(d, n);
+          const aimedTool = !work && (id === 'can' || id === 'rod') && n >= CAST_FRAME;
           const thrust = fam === 'spear' && n >= ATTACK_FRAME && n < ATTACK_FRAME + 4;
           // Broad heads rest outside the face; grip/arm anchors remain unchanged.
           const resting =
@@ -42,8 +48,9 @@ export class HeldWeapons {
               fam === 'greatsword' ||
               (tool && id !== 'can')) &&
             (n < ATTACK_FRAME || (n >= RUN_FRAME && n < SHOT_FRAME));
-          const angle =
-            id === 'can' && !aimedTool
+          const angle = work
+            ? work.angle
+            : id === 'can' && !aimedTool
               ? 0
               : thrust || aimedTool
                 ? personGrip(d, SHOT_FRAME).angle
@@ -93,7 +100,7 @@ export class HeldWeapons {
                   q = pt(9, -3);
                 line(b.ctx, ...a, ...q, C.w4);
                 stroke(0, 4, C.w6, -5);
-              } else if (id === 'rod') {
+              } else if (id === 'rod' && work?.action !== 'fish') {
                 const a = pt(13),
                   q = pt(8, 7);
                 line(b.ctx, ...a, ...q, C.fog);
@@ -209,13 +216,13 @@ export class HeldWeapons {
           outline(b.ctx, 56, 64, C.night);
           // Let the body hand cover the handle instead of painting a shaft across its fingers.
           b.ctx.clearRect(Math.round(x) - 1, Math.round(y) - 1, 3, 2);
-          ctx.drawImage(b.canvas, n * 56, d * 64);
+          ctx.drawImage(b.canvas, column * 56, d * 64);
         }
       sheet = Texture.from(canvas);
       sheet.source.scaleMode = 'nearest';
-      this.sheets.set(id, sheet);
+      this.sheets.set(sheetKey, sheet);
     }
-    const t = new Texture({ source: sheet.source, frame: new Rectangle(f * 56, dir * 64, 56, 64) });
+    const t = new Texture({ source: sheet.source, frame: new Rectangle((extra ? 0 : f) * 56, dir * 64, 56, 64) });
     this.frames.set(key, t);
     return t;
   }

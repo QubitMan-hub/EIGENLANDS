@@ -1,3 +1,4 @@
+import { buildBestiary, type BestiaryPageState } from './bestiary';
 import { chooseIntrigue, civState, festJoin } from '../game/civ-store';
 import {
   ITEMS,
@@ -56,7 +57,8 @@ import { ACTIONS, ACTION_LABELS, DEFAULT_KEYS, type KeyMap } from '../input/keym
 import { binding } from './first-steps';
 import { heartsRow } from './dialogue';
 
-export type JournalTab = 'journey' | 'quests' | 'skills' | 'friends' | 'kingdoms' | 'recipes' | 'guide' | 'help';
+export type JournalTab =
+  'bestiary' | 'journey' | 'quests' | 'skills' | 'friends' | 'kingdoms' | 'recipes' | 'guide' | 'help';
 
 /** "How do I…?" pages: everything Phase 2 adds, explained in-game. */
 export const GUIDE: Array<[string, string]> = [
@@ -144,6 +146,7 @@ export function buildJournal(
   body.setAttribute('role', 'region');
   body.setAttribute('aria-label', 'Journal pages');
   let tab: JournalTab = tab0;
+  const bestiaryState: BestiaryPageState = { query: '', category: 'all', limit: 24, open: new Set() };
   const tabs = h('div', { class: 'tabs' });
 
   const render = () => {
@@ -164,6 +167,7 @@ export function buildJournal(
     for (const [id, label] of [
       ['quests', 'Quests'],
       ['journey', 'Journey'],
+      ['bestiary', 'Bestiary'],
       ['skills', 'Skills'],
       ['friends', 'Friends'],
       ['kingdoms', 'Kingdoms'],
@@ -311,6 +315,8 @@ export function buildJournal(
       );
       for (const q of done)
         body.append(h('div', { class: 'small dim', text: `✓ ${q.title} (${NPC_BY_ID[q.giver]?.name.split(' ')[0]})` }));
+    } else if (tab === 'bestiary') {
+      body.append(buildBestiary(profile, bestiaryState));
     } else if (tab === 'guide') {
       const box = h('div', { class: 'jhelp' });
       for (const [title, text] of GUIDE) box.append(h('h4', { text: title }), h('p', { text: shortcutText(text) }));

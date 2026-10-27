@@ -118,7 +118,7 @@ export class Progress {
   }
 
   allowed(): AbilityId[] {
-    return allowedAbilities(this.cls, this.second);
+    return allowedAbilities(this.cls, this.second, this.spec);
   }
   get tutorialActive(): boolean {
     return this.loaded && !this.tutorial.skipped && this.tutorial.step < TUTORIAL_DONE;

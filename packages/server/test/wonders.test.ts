@@ -4,6 +4,7 @@ import {
   MSG,
   RESTED_XP_MULT,
   bountyOf,
+  chunkOf,
   dayNumber,
   gameHour,
   starfallOn,
@@ -111,20 +112,23 @@ describe('town bounties', () => {
     const town = townsNear(p.room.seed, -200, -200, 200, 200).find((t) => !t.abandoned)!;
     expect(town).toBeTruthy();
     const offset = p.room.wclock.offset;
+    const initialDay = p.room.wclock.day();
     setClock(p, (t) => {
       const b = bountyOf(p.room.seed, town, dayNumber(t));
-      return gameHour(t) >= 11 && gameHour(t) < 12 && !!b && p.room.owns(b.x, b.y);
+      return dayNumber(t) > initialDay && gameHour(t) >= 11 && gameHour(t) < 12 && !!b && p.room.owns(b.x, b.y);
     });
     const day = p.room.wclock.day();
     const b = bountyOf(p.room.seed, town, day)!;
     await tp(p, town.cx + 0.5, town.cy + 0.5);
     expect(townAt(p.room.seed, Math.floor(p.sp.sim.x), Math.floor(p.sp.sim.y))?.name).toBe(town.name);
-    // generous: the unsharded test room is still loading every kingdom's residents in its first seconds
-    await until(() => p.toasts.some((t) => t.text.includes(`Bounty posted in ${town.name}`)), 15000);
+    p.room.wonders.tick(p.room.wclock.now(), 2.1);
+    await until(() => p.toasts.some((t) => t.text.includes(`Bounty posted in ${town.name}`)), 5000);
     expect(p.toasts.find((t) => t.text.includes('Bounty posted'))!.text).toContain(b.name);
     // out to where it was seen
     await tp(p, b.x + 0.5, b.y + 6.5);
-    await until(() => p.room.wonders.bountyState(b.id) === 'out', 20000);
+    await p.room.ensureChunk(chunkOf(b.x), chunkOf(b.y));
+    p.room.wonders.tick(p.room.wclock.now(), 2.1);
+    await until(() => p.room.wonders.bountyState(b.id) === 'out', 8000);
     const coins = p.sp.data.coins;
     p.sp.hp = p.sp.maxHp;
     for (let i = 0; i < 20 && p.room.wonders.bountyState(b.id) !== 'slain'; i++) {
@@ -133,6 +137,7 @@ describe('town bounties', () => {
     }
     expect(p.room.wonders.bountyState(b.id)).toBe('slain');
     await until(() => p.sp.data.coins >= coins + b.reward, 3000);
+    await until(() => p.toasts.some((t) => t.text.includes(`${b.name} is slain`)), 3000);
     expect(p.toasts.some((t) => t.text.includes(`${b.name} is slain`))).toBe(true);
     // it does not rise again today
     await sleep(2500);

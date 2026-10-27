@@ -1,6 +1,8 @@
 import { chromium } from 'playwright-core';
 import assert from 'node:assert/strict';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
+const veyr = JSON.parse(readFileSync(new URL('../packages/client/src/art/boss-manifest.json', import.meta.url), 'utf8'))
+  .atlases.veyr;
 
 const base = process.argv[2] ?? 'http://127.0.0.1:5240/';
 const out = process.argv[3] ?? '/tmp/stormbound-play';
@@ -74,8 +76,11 @@ try {
     });
   });
   await page.waitForFunction(
-    () => [...window.__eigen.game.views.values()].some((v) => v.kind === 33 && v.sprite.texture.width === 96),
-    null,
+    ({ w, cols }) =>
+      [...window.__eigen.game.views.values()].some(
+        (v) => v.kind === 33 && v.sprite.texture.width === w && v.sprite.texture.source.width === w * cols,
+      ),
+    { w: veyr.w, cols: veyr.cols },
     { timeout: 15000 },
   );
   assert.equal(await page.evaluate(() => window.__eigen.game.gameplay.profile.count('storm_beacon')), 1);

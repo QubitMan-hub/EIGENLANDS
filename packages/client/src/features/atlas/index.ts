@@ -23,7 +23,7 @@ import { iconSvg } from '../../ui/icons';
 import type { ClientModule, P34Deps } from '../types';
 import { Exploration, chartY, planeOf, type ChartChunk } from './model';
 import { ChartArchive } from './archive';
-import { partyDestinations, questDestinations, type Destination } from './destinations';
+import { guildDestinations, partyDestinations, questDestinations, type Destination } from './destinations';
 interface Point {
   x: number;
   y: number;
@@ -43,6 +43,8 @@ const known = new Map<string, string>([
   ['stairs_up', 'Upper floor'],
   ['stairs_down', 'Downstairs'],
   ['board', 'Town board'],
+  ['guild_board', 'Adventurer Guild'],
+  ['guild_noticeboard', 'Chartered Guild Hall'],
 ]);
 const colors = [
   '#224555',
@@ -106,8 +108,13 @@ export class AtlasClient implements ClientModule {
   private showMini = true;
   private size = 144;
   private filters = { locations: true, players: true, npcs: true, enemies: false, quests: true, party: true };
-  private destinations: Record<'quests' | 'party', Destination[]> = { quests: [], party: [] };
-  private directories: { key: 'quests' | 'party'; summary: HTMLElement; list: HTMLElement; signature: string }[] = [];
+  private destinations: Record<'quests' | 'party' | 'guilds', Destination[]> = { quests: [], party: [], guilds: [] };
+  private directories: {
+    key: 'quests' | 'party' | 'guilds';
+    summary: HTMLElement;
+    list: HTMLElement;
+    signature: string;
+  }[] = [];
   private centres = new Map<string, Point>();
   private centre: Point = { x: 0, y: 0, name: '' };
   private plane = 'Overworld';
@@ -626,6 +633,7 @@ export class AtlasClient implements ClientModule {
     for (const [key, title] of [
       ['quests', 'Quest destinations'],
       ['party', 'Party destinations'],
+      ['guilds', 'Guild halls'],
     ] as const) {
       const summary = h('summary', { text: title });
       const list = h('div', { class: 'atlas-destinations' });
@@ -665,7 +673,7 @@ export class AtlasClient implements ClientModule {
       onClose: () => {
         this.chart = null;
         this.directories = [];
-        this.destinations = { quests: [], party: [] };
+        this.destinations = { quests: [], party: [], guilds: [] };
         this.save();
       },
     });
@@ -688,6 +696,11 @@ export class AtlasClient implements ClientModule {
       false,
       this.guildPoints(),
     );
+    this.destinations.guilds = guildDestinations(
+      this.d.store().seed,
+      [...this.d.store().objects.values()].filter((o) => o.sub === 'guild_board' || o.sub === 'guild_noticeboard'),
+      (x, y) => this.seen(x, y),
+    );
     this.destinations.party = partyDestinations(this.party(), this.d.identity?.() ?? '', this.d.myId());
     for (const directory of this.directories) {
       const routes = this.destinations[directory.key];
@@ -697,16 +710,18 @@ export class AtlasClient implements ClientModule {
       );
       if (signature === directory.signature) continue;
       directory.signature = signature;
-      directory.summary.textContent = `${directory.key === 'quests' ? 'Quest' : 'Party'} destinations (${routes.length})`;
+      directory.summary.textContent = `${directory.key === 'guilds' ? 'Guild halls' : directory.key === 'quests' ? 'Quest destinations' : 'Party destinations'} (${routes.length})`;
       directory.list.replaceChildren();
       if (!routes.length)
         directory.list.append(
           h('p', {
             class: 'atlas-note',
             text:
-              directory.key === 'quests'
-                ? 'No active quests. Visit the Journal for your quest history.'
-                : 'No party companions. Invite a traveller through the party window.',
+              directory.key === 'guilds'
+                ? 'No charted guild halls. Visit a settlement reception to add it here.'
+                : directory.key === 'quests'
+                  ? 'No active quests. Visit the Journal for your quest history.'
+                  : 'No party companions. Invite a traveller through the party window.',
           }),
         );
       for (const route of routes) {

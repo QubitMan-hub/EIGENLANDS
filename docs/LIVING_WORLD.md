@@ -343,6 +343,7 @@ opens the lore panel. The first reading pays 40 XP and counts toward your storie
   or followed home, and other players see the same people only because they compute the same thing.
 - Story scenes, crypts, wrecks, cairns and settlement growth exist only in revision-6 worlds, so older worlds' ground
   is untouched.
+- The subsequent bestiary batch adds seven wildlife bonds and matching original portraits; see ADVENTURER_PATHS_AND_BESTIARY.md.
 - Star shards are a trade good only: no recipes use them yet. Bounty beasts are ordinary hardened creatures with no
   unique attacks or art, and a bounty is told by a toast rather than a notice on a board. The sky effects are drawn in
   screen space over the world.

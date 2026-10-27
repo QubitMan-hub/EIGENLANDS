@@ -233,8 +233,8 @@ export function plantSeed(room: RoomApi, p: ServerPlayer, slot: number, tx: numb
     owner: p.accountId,
     data: data as unknown as Record<string, unknown>,
   });
-  addSkillXp(p, 'farming', 2);
-  room.fx({ kind: 'plant', x: tx + 0.5, y: ty + 0.5 });
+  // Planting can be reversed with a trowel; pay progress only when the crop produces a harvest.
+  room.fx({ kind: 'plant', x: tx + 0.5, y: ty + 0.5, id: p.id });
   questEvent(p, { type: 'plant', target: crop, n: 1 });
   recordDeed(p, 'plant', cropName(crop), day);
 }
@@ -243,6 +243,10 @@ export function waterCrop(room: RoomApi, p: ServerPlayer, o: WorldObj): void {
   const d = cropOf(o);
   if (d.dead) {
     p.toast('It has withered.');
+    return;
+  }
+  if (d.watered === room.wclock.day()) {
+    p.toast('This crop is already watered today.');
     return;
   }
   d.watered = room.wclock.day();
@@ -336,8 +340,8 @@ export function harvestCrop(room: RoomApi, p: ServerPlayer, o: WorldObj): void {
     o.data = next as unknown as Record<string, unknown>;
     room.objects.update(o);
   } else room.objects.remove(o.x, o.y);
-  addSkillXp(p, 'farming', CROPS[crop]!.xp);
-  room.fx({ kind: 'harvest', x: o.x + 0.5, y: o.y + 0.5 });
+  addSkillXp(p, 'farming', CROPS[crop]!.xp + 2);
+  room.fx({ kind: 'harvest', x: o.x + 0.5, y: o.y + 0.5, id: p.id });
   if (d.alt) p.toast(`The superposition collapses into ${cropName(crop)}!`, 'good');
   questEvent(p, { type: 'harvest', target: crop, n: 1 });
   recordDeed(p, 'harvest', cropName(crop).toLowerCase(), room.wclock.day());

@@ -243,7 +243,7 @@ export function sanitizeCmd(raw: Partial<InputCmd>): InputCmd {
 
 const EPS = 1e-4;
 
-function overlapsSolid(x: number, y: number, r: number, solid: SolidQuery): boolean {
+export function overlapsSolid(x: number, y: number, r: number, solid: SolidQuery): boolean {
   const x0 = Math.floor(x - r);
   const x1 = Math.floor(x + r - EPS);
   const y0 = Math.floor(y - r);

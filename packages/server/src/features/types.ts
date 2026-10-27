@@ -40,6 +40,8 @@ export interface Module {
   /** every server tick (20 Hz), before interest management */
   tick?(now: number, dt: number): void;
   /** an enemy strike is about to hurt `p` by `dmg`; return the damage to apply (0 = none) */
+  outgoingDamage?(p: ServerPlayer, e: Enemy, damage: number): number;
+  dealtDamage?(p: ServerPlayer, e: Enemy, damage: number): void;
   incomingDamage?(p: ServerPlayer, dmg: number, e: Enemy): number;
   killed?(e: Enemy, killer: ServerPlayer | undefined): void;
   viewEntities?(push: (id: string, x: number, y: number, st: Schema) => void): void;

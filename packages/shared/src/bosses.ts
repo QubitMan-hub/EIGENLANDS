@@ -1,3 +1,4 @@
+import { ANCIENT_RITES, bestiaryKind, type AncientId } from './bestiary';
 /**
  * Boss encounters, Terraria style: each boss is called with a crafted summoning item, and what it drops is the
  * ingredient for the next boss's item, so they form a chain. Player level scales their health and damage.
@@ -11,7 +12,8 @@ export type BossId =
   | 'geode_tyrant'
   | 'cinder_wyrm'
   | 'rime_sovereign'
-  | 'tide_leviathan';
+  | 'tide_leviathan'
+  | AncientId;
 export interface BossDef {
   id: BossId;
   name: string;
@@ -29,7 +31,11 @@ export interface BossDef {
   /** what it teaches/drops, for the journal */
   loot: string;
 }
+const ancientBosses = {} as Record<AncientId, BossDef>;
+for (const r of ANCIENT_RITES)
+  ancientBosses[r.id] = { ...r, kind: bestiaryKind(r.id), townGap: 70, phases: [0.75, 0.5, 0.25] };
 export const BOSSES: Record<BossId, BossDef> = {
+  ...ancientBosses,
   geode_tyrant: {
     id: 'geode_tyrant',
     name: 'The Geode Tyrant',

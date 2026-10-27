@@ -7,6 +7,9 @@ import { GUILD_RANKS, guildRank } from '@eigenlands/shared';
  */
 import {
   ABILITIES,
+  isAdventurerFamily,
+  pathFor,
+  BOSS_BY_KIND,
   ACTIVE_LINES,
   ATTUNE_COOLDOWN_MS,
   CLASSES,
@@ -103,6 +106,7 @@ export interface CircuitState {
   cd: Map<AbilityId | 'ult', number>;
   attuneReady: number;
   res: number;
+  lastResourceAt: number;
   resSent: number;
   resSentAt: number;
   lastCombat: number;
@@ -133,6 +137,7 @@ export class CircuitModule implements Module, CircuitApi {
     this.engine = new AbilityEngine(room, {
       kit: (sid) => this.kit(sid),
       onHit: (p) => this.onHit(p),
+      onSupport: (p, amount) => this.onSupport(p, amount),
       onEchoed: (p, amount) => this.onEchoed(p, amount),
       onKill: (p) => this.onKill(p),
       onTether: (p) => {
@@ -200,6 +205,7 @@ export class CircuitModule implements Module, CircuitApi {
       cd: new Map(),
       attuneReady: 0,
       res: 0,
+      lastResourceAt: 0,
       resSent: -1,
       resSentAt: 0,
       lastCombat: 0,
@@ -295,7 +301,10 @@ export class CircuitModule implements Module, CircuitApi {
 
   incomingDamage(p: ServerPlayer, dmg: number, e: Enemy): number {
     if (!this.states.has(p.id)) return dmg;
-    return this.engine.incoming(p, this.states.get(p.id)?.pr.spec === 'guild_warden' ? dmg * 0.94 : dmg, e);
+    const pr = this.states.get(p.id)!.pr;
+    const traits = pathFor(pr.cls, pr.spec)?.traits;
+    const family = pr.cls === 'warrior' ? 0.94 : pr.cls === 'mage' ? 1.08 : pr.cls === 'stealth' ? 1.05 : 1;
+    return this.engine.incoming(p, dmg * family * (traits?.incoming ?? 1) * (pr.spec === 'guild_warden' ? 0.94 : 1), e);
   }
 
   killed(e: Enemy): void {
@@ -304,6 +313,49 @@ export class CircuitModule implements Module, CircuitApi {
 
   viewEntities(push: (id: string, x: number, y: number, st: Schema) => void): void {
     this.engine.view(push);
+  }
+
+  companionPower(sid: string): number {
+    const s = this.states.get(sid);
+    return s ? (pathFor(s.pr.cls, s.pr.spec)?.traits.summonDamage ?? 1) : 1;
+  }
+
+  outgoingDamage(p: ServerPlayer, e: Enemy, damage: number): number {
+    const s = this.states.get(p.id);
+    if (!s || !isAdventurerFamily(s.pr.cls)) return damage;
+    const { cls, spec } = s.pr,
+      traits = pathFor(cls, spec)?.traits;
+    const distance = Math.hypot(e.x - p.sim.x, e.y - p.sim.y);
+    let mult = cls === 'mage' ? 1.1 : cls === 'support' ? 0.9 : cls === 'stealth' && e.targetId !== p.id ? 1.15 : 1;
+    if (cls === 'ranged') mult *= distance > 5 ? 1.1 : distance < 2 ? 0.92 : 1;
+    mult *= traits?.damage ?? 1;
+    if (distance > 5) mult *= traits?.distant ?? 1;
+    if (distance < 2) mult *= traits?.close ?? 1;
+    if (p.hp / p.maxHp < 0.4) mult *= traits?.lowHealth ?? 1;
+    if (e.hp / e.maxHp > 0.9) mult *= traits?.opening ?? 1;
+    if (e.hp / e.maxHp < 0.35) mult *= traits?.execute ?? 1;
+    if (BOSS_BY_KIND[e.def.kind] || e.def.mythical || (e.def.kind >= 44 && e.def.kind <= 49))
+      mult *= traits?.mythical ?? 1;
+    return damage * mult;
+  }
+  dealtDamage(p: ServerPlayer, e: Enemy, damage: number): void {
+    const s = this.states.get(p.id);
+    if (!s || !isAdventurerFamily(s.pr.cls) || e.def.passive || e.noRewards || e.state.ally) return;
+    const traits = pathFor(s.pr.cls, s.pr.spec)?.traits;
+    if (traits?.lifesteal && p.deadT <= 0) this.engine.heal(p, damage * traits.lifesteal, false);
+    this.disciplineResource(s, Math.min(12, 6 + damage * 0.15));
+  }
+  private onSupport(p: ServerPlayer, amount: number): void {
+    const s = this.states.get(p.id);
+    if (!s || !isAdventurerFamily(s.pr.cls) || amount <= 0) return;
+    this.disciplineResource(s, Math.min(12, amount * 0.35));
+  }
+  private disciplineResource(s: CircuitState, amount: number): void {
+    const now = Date.now();
+    s.lastCombat = now;
+    if (now - s.lastResourceAt < 200) return;
+    s.lastResourceAt = now;
+    this.addRes(s, amount * (pathFor(s.pr.cls, s.pr.spec)?.traits.resource ?? 1));
   }
 
   // ───────────────────────── messages ─────────────────────────
@@ -373,7 +425,7 @@ export class CircuitModule implements Module, CircuitApi {
     const results: CastLineResult[] = [];
     if (free)
       s.freeSwap = false; // spent before executing, so a Tether in the same cast re-arms it
-    else s.cd.set(ability, now + ABILITIES[ability].cd * 1000);
+    else s.cd.set(ability, now + ABILITIES[ability].cd * 1000 * (pathFor(s.pr.cls, s.pr.spec)?.traits.recharge ?? 1));
     s.lastCombat = now;
     for (const l of lines) {
       const a = s.pr.board.abilities[l.q] ?? null;
@@ -412,6 +464,7 @@ export class CircuitModule implements Module, CircuitApi {
     const cls = s.pr.cls;
     if (cls === 'wanderer') return fail('Choose a class to unlock an ultimate.');
     if (p.deadT > 0) return fail('You are down.');
+    if (isAdventurerFamily(cls) && p.level < 15) return fail('Your family ultimate opens at level 15.');
     const now = Date.now();
     if ((s.cd.get('ult') ?? 0) > now) return fail('Not ready yet.');
     if (s.res < RESOURCE_MAX - 1e-6) return fail(`${CLASSES[cls].resource.name} is not full yet.`);
@@ -420,7 +473,8 @@ export class CircuitModule implements Module, CircuitApi {
     const [ax, ay] = tgt ? this.toward(p, tgt) : this.aim(p, m.aimX, m.aimY);
     const secs = CLASSES[cls].ultimate.secs;
     if (cls === 'superposer') this.engine.manyWorlds(p, secs, ax, ay);
-    else this.engine.bellState(p, secs);
+    else if (cls === 'entangler') this.engine.bellState(p, secs);
+    else this.engine.disciplineUltimate(p, cls, ax, ay);
     s.res = 0;
     s.lastCombat = now;
     s.cd.set('ult', now + secs * 1000);
@@ -467,8 +521,10 @@ export class CircuitModule implements Module, CircuitApi {
         return;
       }
       pr.spec = spec.id;
+      placeAbilities(pr, s.n);
+      this.recompute(s);
       p.toast(`Specialization: ${spec.name}.`, 'good');
-      this.sendProgress(s, ['spec']);
+      this.sendProgress(s, ['spec', 'board']);
     } else if (m.what === 'second') {
       if (!isClass(m.cls) || !PLAYABLE_CLASSES.includes(m.cls)) return;
       if (pr.cls === 'wanderer') {

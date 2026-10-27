@@ -1,4 +1,5 @@
 import { ENEMY_BY_KIND, type EnemyDef } from './combat';
+import { BESTIARY_KEYS, CREATURE_BLUEPRINTS } from './bestiary';
 
 /**
  * Shadow Army: the echoes of the creatures you defeat can be extracted, bound to you, and evolved.
@@ -83,7 +84,8 @@ export const shadowXpNeeded = (level: number): number => 18 + level * 12;
 const base = (kind: number): EnemyDef => ENEMY_BY_KIND[kind]!;
 export const canExtract = (kind: number): boolean => {
   const d = ENEMY_BY_KIND[kind];
-  return !!d && kind !== 21 && !d.passive && !d.sea;
+  const key = BESTIARY_KEYS[kind - 74];
+  return !!d && kind !== 21 && !d.passive && !d.sea && (!key || CREATURE_BLUEPRINTS[key].category !== 'ancient');
 };
 
 /** Shadow stats from the source creature, its level and rank. */

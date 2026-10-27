@@ -1,3 +1,4 @@
+import { BESTIARY_DEFS, BESTIARY_KEYS, rareSpawnEntries, type BestiaryKey, type CreatureTrait } from './bestiary';
 import type { CaveBiome } from './undercroft';
 import type { Biome } from './worldgen';
 import { WEAPONS } from './equipment';
@@ -328,6 +329,10 @@ export interface DropDef {
 }
 export type EnemyAi = 'melee' | 'leap' | 'caster' | 'brute' | 'swarm' | 'passive' | 'boar' | 'ambusher' | 'harrier';
 export interface EnemyDef {
+  trait?: CreatureTrait;
+  territory?: number;
+  predator?: boolean;
+  mythical?: boolean;
   kind: number;
   /** passive fauna flees instead of fighting */
   passive?: boolean;
@@ -387,6 +392,9 @@ export const REFLECT_SPEED_MULT = 1.7;
 export const REFLECT_DAMAGE = 18;
 
 const melee = { ai: 'melee' as const };
+/** The realm creatures and peoples (otherworlds.ts, realmfolk.ts) follow the living bestiary's kinds. */
+export const REALM_KIND_BASE = 74 + BESTIARY_KEYS.length;
+
 const BASE_ENEMY_DEFS: Record<
   | 'slime'
   | 'hopper'
@@ -440,7 +448,7 @@ const BASE_ENEMY_DEFS: Record<
   | 'hellhound'
   | 'zephyr_ray'
   | 'gilded_sentinel'
-  | 'phoenix'
+  | 'eyrie_phoenix'
   | 'shade_stalker'
   | 'abyss_serpent'
   | 'umbral_maw'
@@ -1553,7 +1561,7 @@ const BASE_ENEMY_DEFS: Record<
   // ───────── the three realms (otherworlds.ts) ─────────
   /** Aetheria: a manta of the cloud sea that skims in and out, trailing static */
   zephyr_ray: {
-    kind: 80,
+    kind: REALM_KIND_BASE + 0,
     name: 'Zephyr Ray',
     hp: 70,
     speed: 3.6,
@@ -1575,7 +1583,7 @@ const BASE_ENEMY_DEFS: Record<
   },
   /** Aetheria: a gilded guardian of the old sky-temples; slow, armoured, fires bolts of light */
   gilded_sentinel: {
-    kind: 81,
+    kind: REALM_KIND_BASE + 1,
     name: 'Gilded Sentinel',
     hp: 130,
     speed: 1.6,
@@ -1597,8 +1605,8 @@ const BASE_ENEMY_DEFS: Record<
     ],
   },
   /** Aetheria's guardian: the Phoenix, burning and reborn in its eyrie */
-  phoenix: {
-    kind: 82,
+  eyrie_phoenix: {
+    kind: REALM_KIND_BASE + 2,
     name: 'The Phoenix of the Eyrie',
     boss: true,
     hp: 1500,
@@ -1624,7 +1632,7 @@ const BASE_ENEMY_DEFS: Record<
   },
   /** the Abyss: a beast of living shadow that waits in the dark and pounces */
   shade_stalker: {
-    kind: 83,
+    kind: REALM_KIND_BASE + 3,
     name: 'Shade Stalker',
     hp: 95,
     speed: 3.2,
@@ -1646,7 +1654,7 @@ const BASE_ENEMY_DEFS: Record<
   },
   /** the Abyss: a long pale serpent of the deep pools that spits from range */
   abyss_serpent: {
-    kind: 84,
+    kind: REALM_KIND_BASE + 4,
     name: 'Abyssal Serpent',
     hp: 150,
     speed: 2.4,
@@ -1668,7 +1676,7 @@ const BASE_ENEMY_DEFS: Record<
   },
   /** the Abyss's guardian: a maw in the dark that eats the light */
   umbral_maw: {
-    kind: 85,
+    kind: REALM_KIND_BASE + 5,
     name: 'The Umbral Maw',
     boss: true,
     hp: 1800,
@@ -1695,7 +1703,7 @@ const BASE_ENEMY_DEFS: Record<
   },
   /** Chronoria: a clockwork hound that leaps in bursts, as if skipping frames */
   gear_hound: {
-    kind: 86,
+    kind: REALM_KIND_BASE + 6,
     name: 'Gear Hound',
     hp: 120,
     speed: 3.4,
@@ -1718,7 +1726,7 @@ const BASE_ENEMY_DEFS: Record<
   },
   /** Chronoria: a knight's echo out of another moment; casts bolts that hang in time */
   paradox_echo: {
-    kind: 87,
+    kind: REALM_KIND_BASE + 7,
     name: 'Paradox Echo',
     hp: 140,
     speed: 2.2,
@@ -1740,7 +1748,7 @@ const BASE_ENEMY_DEFS: Record<
   },
   /** Chronoria's guardian: a titan of clockwork and broken hours */
   the_unwound: {
-    kind: 88,
+    kind: REALM_KIND_BASE + 8,
     name: 'The Unwound',
     boss: true,
     hp: 2100,
@@ -1766,7 +1774,7 @@ const BASE_ENEMY_DEFS: Record<
     ],
   }, // ───────── the realms' hostile peoples (realmfolk.ts) ─────────
   gale_reaver: {
-    kind: 89,
+    kind: REALM_KIND_BASE + 9,
     name: 'Gale Reaver',
     hp: 90,
     speed: 3.2,
@@ -1787,7 +1795,7 @@ const BASE_ENEMY_DEFS: Record<
     ],
   },
   gale_gunner: {
-    kind: 90,
+    kind: REALM_KIND_BASE + 10,
     name: 'Gale Gunner',
     hp: 70,
     speed: 2.6,
@@ -1805,7 +1813,7 @@ const BASE_ENEMY_DEFS: Record<
     drops: [{ item: 'feather', min: 1, max: 2, chance: 0.5 }],
   },
   gale_captain: {
-    kind: 91,
+    kind: REALM_KIND_BASE + 11,
     name: 'Reaver Captain',
     hp: 380,
     speed: 3,
@@ -1824,7 +1832,7 @@ const BASE_ENEMY_DEFS: Record<
     drops: [{ item: 'gold_ore', min: 2, max: 4, chance: 0.9 }],
   },
   gloam_zealot: {
-    kind: 92,
+    kind: REALM_KIND_BASE + 12,
     name: 'Gloam Zealot',
     hp: 120,
     speed: 2.9,
@@ -1842,7 +1850,7 @@ const BASE_ENEMY_DEFS: Record<
     drops: [{ item: 'raw_meat', min: 1, max: 1, chance: 0.2 }],
   },
   gloam_hexer: {
-    kind: 93,
+    kind: REALM_KIND_BASE + 13,
     name: 'Gloam Hexer',
     hp: 95,
     speed: 2.3,
@@ -1860,7 +1868,7 @@ const BASE_ENEMY_DEFS: Record<
     drops: [{ item: 'slime_gel', min: 1, max: 2, chance: 0.4 }],
   },
   gloam_hierophant: {
-    kind: 94,
+    kind: REALM_KIND_BASE + 14,
     name: 'Gloam Hierophant',
     hp: 520,
     speed: 2.2,
@@ -1879,7 +1887,7 @@ const BASE_ENEMY_DEFS: Record<
     drops: [{ item: 'qubit_crystal', min: 1, max: 2, chance: 0.6 }],
   },
   sundered_blade: {
-    kind: 95,
+    kind: REALM_KIND_BASE + 15,
     name: 'Sundered Blade',
     hp: 150,
     speed: 3,
@@ -1898,7 +1906,7 @@ const BASE_ENEMY_DEFS: Record<
     drops: [{ item: 'iron_ore', min: 1, max: 3, chance: 0.5 }],
   },
   sundered_seer: {
-    kind: 96,
+    kind: REALM_KIND_BASE + 16,
     name: 'Sundered Seer',
     hp: 120,
     speed: 2.4,
@@ -1916,7 +1924,7 @@ const BASE_ENEMY_DEFS: Record<
     drops: [{ item: 'qubit_crystal', min: 1, max: 1, chance: 0.2 }],
   },
   sundered_warlord: {
-    kind: 97,
+    kind: REALM_KIND_BASE + 17,
     name: 'Sundered Warlord',
     hp: 700,
     speed: 2.6,
@@ -1937,8 +1945,8 @@ const BASE_ENEMY_DEFS: Record<
   },
 };
 import { ARMY_DEFS, type ArmyKey } from './army';
-export const ENEMY_DEFS = { ...BASE_ENEMY_DEFS, ...ARMY_DEFS } as Record<
-  keyof typeof BASE_ENEMY_DEFS | ArmyKey,
+export const ENEMY_DEFS = { ...BASE_ENEMY_DEFS, ...ARMY_DEFS, ...BESTIARY_DEFS } as Record<
+  keyof typeof BASE_ENEMY_DEFS | ArmyKey | BestiaryKey,
   EnemyDef
 >;
 export const ENEMY_BY_KIND: EnemyDef[] = [
@@ -1993,9 +2001,11 @@ export const ENEMY_BY_KIND: EnemyDef[] = [
   ENEMY_DEFS.reef_naga,
   ENEMY_DEFS.hellhound,
   ...Object.values(ARMY_DEFS),
+  ...BESTIARY_KEYS.map((id) => BESTIARY_DEFS[id]),
+  ...Object.values(BASE_ENEMY_DEFS)
+    .filter((d) => d.kind >= REALM_KIND_BASE)
+    .sort((a, b) => a.kind - b.kind),
 ];
-// The realm creatures and peoples start at 80 (74..77 are farm animals on the wire), each at its own index.
-for (const d of Object.values(ENEMY_DEFS)) if (d.kind >= 80) ENEMY_BY_KIND[d.kind] = d;
 export type EnemyKindName = keyof typeof ENEMY_DEFS;
 /** ENEMY_DEFS key by numeric kind, for rules that are written by species name. */
 export const ENEMY_KEY_BY_KIND: Record<number, string> = Object.fromEntries(
@@ -2131,15 +2141,18 @@ export function spawnTable(
                     ['hopper', 3],
                     ['wisp', night ? 2 : 0],
                   ];
-  return table
-    .filter(
-      ([kind, w]) =>
-        w > 0 &&
-        (kind !== 'reed_stalker' || level >= 4) &&
-        (kind !== 'cinder_moth' || level >= 5) &&
-        (!['brute', 'wolf', 'thornling', 'glasscrawler'].includes(kind) || level >= (kind === 'brute' ? 4 : 3)),
-    )
-    .map(([kind, w]) => ({ kind, w }));
+  return [
+    ...(modern ? rareSpawnEntries(level, night, biome) : []),
+    ...table
+      .filter(
+        ([kind, w]) =>
+          w > 0 &&
+          (kind !== 'reed_stalker' || level >= 4) &&
+          (kind !== 'cinder_moth' || level >= 5) &&
+          (!['brute', 'wolf', 'thornling', 'glasscrawler'].includes(kind) || level >= (kind === 'brute' ? 4 : 3)),
+      )
+      .map(([kind, w]) => ({ kind, w })),
+  ];
 }
 
 export function pickSpawn(
