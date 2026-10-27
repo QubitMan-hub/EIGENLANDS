@@ -3,6 +3,7 @@ import { livestockTexture } from '../art/livestock';
 import { isLivestock } from '@eigenlands/shared';
 import { FrameRateWindow } from './frame-rate';
 import { Soundscape } from './soundscape';
+import { GroundMarks } from './groundmarks';
 import { T, CAVE_BIOME_NAMES, caveRegionAt, isFlying } from '@eigenlands/shared';
 import { ClickMining } from './click-mining';
 import { WorldPreparer } from './world-preparer';
@@ -341,6 +342,7 @@ export class Game {
       this.constructionFloor,
       this.shadowLayer,
       this.decalLayer,
+      this.ground.layer,
       this.entityLayer,
       this.roofLayer,
       this.buildGhost,
@@ -1342,6 +1344,7 @@ export class Game {
   private focusSent: string | null = null;
   private focusAt = 0;
   private soundscape: Soundscape | null = null;
+  private ground = new GroundMarks(() => this.store);
   private hear = { at: 0, water: 0, town: false, biome: 'meadow' as Biome, lx: NaN, ly: NaN, speed: 0 };
   /** the ambient soundscape: what the place sounds like right now (surroundings sampled about once a second) */
   private listen(
@@ -1373,6 +1376,25 @@ export class Game {
       h.town = !!sanctuaryAt(this.seed, me.x, me.y);
       h.biome = biomeAt(this.seed, px, py);
     }
+    // footprints for everyone walking near you (you first), puddles in the rain
+    const walkers = [{ id: 'me', x: me.x, y: me.y }];
+    for (const v of this.views.values())
+      if (
+        (v.type === 'player' || v.type === 'npc') &&
+        v.id !== this.myId &&
+        v.root.visible &&
+        Math.hypot(v.lx - me.x, v.ly - me.y) < 30
+      )
+        walkers.push({ id: v.id, x: v.lx, y: v.ly });
+    this.ground.frame({
+      dt,
+      weather,
+      season: this.seasonIdx,
+      biome: h.biome,
+      reduced: this.settings().reducedMotion,
+      walkers: underground ? [] : walkers,
+      me,
+    });
     this.soundscape ??= new Soundscape(this.audio);
     this.soundscape.level = this.settings().ambience;
     this.soundscape.frame({
