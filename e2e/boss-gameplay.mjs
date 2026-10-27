@@ -111,13 +111,24 @@ try {
       e.t = 0;
     });
     const states = new Set();
-    for (let i = 0; i < 12; i++) {
-      await page.waitForTimeout(300);
+    let attackDrawn = false;
+    for (let i = 0; i < 20; i++) {
+      await page.waitForTimeout(180);
       const st = await page.evaluate(
         (kind) => [...window.__eigen.game.net.room.state.enemies.values()].find((e) => e.kind === kind)?.st,
         kind,
       );
       if (st !== undefined) states.add(st);
+      attackDrawn ||= await page.evaluate(
+        ({ kind, w, h, cols, poseRows }) => {
+          const v = [...window.__eigen.game.views.values()].find((v) => v.type === 'enemy' && v.kind === kind);
+          if (!v) return false;
+          const f = v.sprite.texture.frame;
+          const pose = (Math.floor(f.y / h) % poseRows) * cols + Math.floor(f.x / w);
+          return pose === 6 || pose === 7;
+        },
+        { kind, w: d.w, h: d.h, cols: d.cols, poseRows: d.poseRows },
+      );
     }
     if (['primordial_dragon', 'world_serpent', 'sealed_entity', 'forgotten_titan', 'realm_guardian'].includes(id)) {
       await page.screenshot({ path: out + '/' + id + '-combat.png' });
@@ -136,7 +147,12 @@ try {
       await page.screenshot({ path: out + '/' + id + '-mobile.png' });
       await page.setViewportSize({ width: 1280, height: 900 });
     }
-    report.push({ id, kind, ...check, states: [...states] });
+    if (['primordial_dragon', 'world_serpent', 'sealed_entity'].includes(id))
+      assert(
+        attackDrawn,
+        id + ' must show its actual strike/recovery art, even when server AI jumps directly to recovery',
+      );
+    report.push({ id, kind, ...check, states: [...states], attackDrawn });
     console.log('rendered and simulated', id, [...states]);
   }
   assert.equal(report.length, 14);

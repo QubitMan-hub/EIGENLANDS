@@ -162,7 +162,12 @@ export class CombatView {
   }
 
   private strike(v: CombatActor | undefined, duration: number): void {
-    if (v) this.swings.set(v, { at: performance.now(), duration });
+    if (!v) return;
+    const now = performance.now(),
+      active = this.swings.get(v);
+    // Multi-orb fans and chained ground impacts share one weighted strike/recovery, not a twitch per projectile.
+    if (BOSS_BY_KIND[v.kind] && active && now < active.at + active.duration) return;
+    this.swings.set(v, { at: now, duration });
   }
   killedBy = '';
 
@@ -355,10 +360,13 @@ export class CombatView {
         this.d.sound('crash', f.x, f.y);
         if (near()) fx.kick(shakeFor(2, false, this.d.reduced()));
         return true;
-      case 'orb':
+      case 'orb': {
+        const actor = f.id ? view(f.id) : undefined;
+        if (actor && BOSS_BY_KIND[actor.kind]) this.strike(actor, 450);
         fx.burst(f.x, f.y, [45, 46, 37], 6);
         this.d.sound('orb', f.x, f.y);
         return true;
+      }
       case 'reflect':
         fx.ring(f.x, f.y, 47, 0.8, 0.25, 2);
         fx.burst(f.x, f.y, [47, 30, 7], 8);
@@ -374,11 +382,14 @@ export class CombatView {
         }
         this.d.sound(f.v === 0 ? 'charge' : 'perfect', f.x, f.y);
         return true;
-      case 'blast':
+      case 'blast': {
+        const actor = f.id ? view(f.id) : undefined;
+        if (actor && BOSS_BY_KIND[actor.kind]) this.strike(actor, 450);
         fx.shockwave(f.x, f.y, f.v ?? 1.8, 36);
         this.d.sound('blast', f.x, f.y);
         if (near(8)) fx.kick(shakeFor(2, false, this.d.reduced()));
         return true;
+      }
       case 'bomb':
         this.bombs.push({ x: f.x, y: f.y, r: f.w ?? 1.7, t0: performance.now(), dur: (f.v ?? 0.9) * 1000 });
         this.d.sound('bomb', f.x, f.y);
@@ -828,15 +839,21 @@ export class CombatView {
       let anim: Anim = 'idle',
         f: number;
       const n = (a: Anim) => foes.frames(model, a);
+      const impact = authoredBoss ? this.attackFrame(v, now, this.d.reduced()) : -1;
       if (st === 5 || v.flash > 0.55) {
         anim = 'hurt';
         f = Math.min(n('hurt') - 1, Math.floor(elapsed * 12));
       } else if (st === 2) {
         anim = 'windup';
         f = Math.min(n('windup') - 1, Math.floor(tele0 * n('windup')));
-      } else if (st === 3) {
+      } else if (st === 3 || impact >= 0) {
         anim = 'attack';
-        f = Math.min(n('attack') - 1, Math.floor(elapsed * (authoredBoss ? 4.5 : 12)));
+        f =
+          impact >= 0
+            ? this.d.reduced()
+              ? 0
+              : Math.min(n('attack') - 1, Math.floor((impact * n('attack')) / 4))
+            : Math.min(n('attack') - 1, Math.floor(elapsed * (authoredBoss ? 4.5 : 12)));
       } else if (moved) {
         anim = 'move';
         const stride = authoredBoss ? 0.48 : model >= 15 ? 0.18 : MOVE_STRIDE[model];
