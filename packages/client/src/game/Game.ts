@@ -1740,6 +1740,14 @@ export class Game {
         const dash = isMe ? this.predictor.sim.dashT > 0 : ((s?.flags ?? 0) & 1) !== 0;
         const deadP = isMe ? this.dead : ((s?.flags ?? 0) & 4) !== 0;
         const combatStrike = !deadP && !dash ? this.combat.playerAttackFrame(v, now, reduced) : -1;
+        const charging = isMe
+          ? this.predictor.sim.hold > 0 && this.predictor.sim.charge > 0
+          : ((s?.flags ?? 0) & 8) !== 0;
+        // Work confirmations must not resume after a newer combat or transport action.
+        if (combatStrike >= 0 || charging || dash || deadP || mount || cart) {
+          this.toolSwings.delete(v);
+          this.workActions.delete(v);
+        }
         const use = this.toolSwings.get(v);
         if (use?.waitForResult) {
           if (this.gameplay.rhythm.open) use.received = now;
@@ -1764,7 +1772,7 @@ export class Game {
           : s?.weapon;
         const weapon = isWeaponId(weaponId) ? weaponId : null;
         const tool = isMe ? ITEMS[this.gameplay.selected()?.id ?? '']?.tool?.type : s?.held;
-        let heldItem = harvesting ? use!.tool : strike < 0 && isHeldId(tool) ? tool : weapon;
+        let heldItem = harvesting ? use!.tool : strike < 0 && !charging && isHeldId(tool) ? tool : weapon;
         const family = harvesting
           ? use!.tool === 'can' || use!.tool === 'rod'
             ? CAST_FRAME
@@ -1799,11 +1807,11 @@ export class Game {
         // Start confirmed gestures on their first presentation, just like tool swings.
         if (confirmed && confirmed.at === 0) confirmed.at = now;
         const fishing = isMe ? this.gameplay.fishing : null;
-        if (fishing && combatStrike < 0) heldItem = 'rod';
+        if (fishing && !charging && combatStrike < 0) heldItem = 'rod';
         const channel = isMe ? this.ext.shadows.channelProgress(now) : null;
         let unarmedWork = false;
         let actionTarget: { x: number; y: number } | null = null;
-        if (!deadP && !dash && combatStrike < 0) {
+        if (!deadP && !dash && !charging && combatStrike < 0) {
           if (cart || mount) frame = actionFrame('sit', (v.travel % 0.8) / 0.8, reduced);
           else if (harvesting) {
             const action: PersonAction =
@@ -1835,9 +1843,6 @@ export class Game {
             actionTarget = confirmed;
           }
         }
-        const charging = isMe
-          ? this.predictor.sim.hold > 0 && this.predictor.sim.charge > 0
-          : ((s?.flags ?? 0) & 8) !== 0;
         if (charging && !walking && !deadP && !dash && combatStrike < 0)
           frame = family === ATTACK_FRAME ? actionFrame(meleeAction(meleeFamily), 0.34, reduced) : family;
         if (deadP) frame = actionFrame('death', Math.min(1, (now - (v.deathAt ??= now)) / 650), reduced);
@@ -1846,7 +1851,7 @@ export class Game {
           if (dash) frame = actionFrame('dodge', (now - (v.dashAt ??= now)) / 180, reduced);
           else v.dashAt = undefined;
           if (v.flash > 0.9) v.hurtAt ??= now;
-          if (!dash && !walking && combatStrike < 0 && v.hurtAt && now - v.hurtAt < 220)
+          if (!dash && !mount && !cart && !charging && !walking && combatStrike < 0 && v.hurtAt && now - v.hurtAt < 220)
             frame = actionFrame('hit', (now - v.hurtAt) / 220, reduced);
           if (v.hurtAt && now - v.hurtAt >= 220) v.hurtAt = undefined;
         }
