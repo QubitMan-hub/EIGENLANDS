@@ -219,7 +219,10 @@ export function buildJournal(
             text: 'Grave wounds: golems, brutes and rams can break a bone (no running or dodging until a splint sets it) and spirits can curse you (weaker blows, no healing over time) until holy water or a prayer at any shrine altar lifts it. Splints and holy water are start recipes at the alchemy bench.',
           }),
           h('p', {
-            text: 'Clothing and camp: furs and wool keep the cold out, linen and silk the heat; metal plate is warm in snow but bakes in the sun. A Travel Tent (Field crafting) shelters you from the weather; rest in it to make it your camp, where you wake if you fall. Raw fish and meat spoil in your pack (slower in the cold): cook them or keep them in a chest. Spoiled food makes compost.',
+            text: 'Clothing and camp: furs and wool keep the cold out, linen and silk the heat; metal plate is warm in snow but bakes in the sun. A Travel Tent (Field crafting) shelters you from the weather; rest in it to make it your camp, where you wake if you fall. Raw fish and meat spoil in your pack (slower in the cold): cook them or keep them in a chest. Spoiled food makes compost. Sleep in your own bed under your own roof to wake well rested (+15% experience for half an hour).',
+          }),
+          h('p', {
+            text: 'Wonders and hunts: on some clear nights the stars fall; one comes down near you out in the open, and you can break it open for star shards before mid-morning. Each town posts a bounty most days: walk into town to hear of the beast and where it was seen, and everyone near when it falls is paid. Watch for aurora over the northern pines and a rainbow the morning after rain.',
           }),
         ),
       );

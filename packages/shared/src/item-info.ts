@@ -23,6 +23,7 @@ export const BUFF_TEXT: Record<BuffKind, (p: number) => string> = {
   frostbite: () => 'Frostbitten',
   fracture: () => 'Fractured: no running or dodging',
   curse: () => 'Cursed: weaker blows, no healing over time',
+  rested: (p) => `Well rested: +${Math.round((p - 1) * 100)}% experience`,
   warmth: () => 'Resist cold',
   coolness: () => 'Resist heat',
   vigor: (p) => `Maximum health +${Math.round(p)}`,

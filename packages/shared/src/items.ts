@@ -132,6 +132,7 @@ export type BuffKind =
   | 'frostbite'
   | 'fracture'
   | 'curse'
+  | 'rested'
   | 'warmth'
   | 'coolness'
   | 'vigor'
@@ -152,6 +153,7 @@ export const BUFF_KIND_LIST: readonly BuffKind[] = [
   'frostbite',
   'fracture',
   'curse',
+  'rested',
   'warmth',
   'coolness',
   'vigor',
@@ -601,6 +603,7 @@ def('antidote', 'Antidote', 'potion', 60, 'bottle', C.g4, C.g7, 'Clears poison.'
 def('burn_salve', 'Burn Salve', 'potion', 70, 'bottle', C.w3, C.e6, 'Soothes burns and frostbite.', {
   cure: ['burn', 'frostbite'],
 });
+def('star_shard', 'Star Shard', 'material', 140, 'gem', C.w6, C.q6, 'A splinter of a fallen star, still faintly warm.');
 def('splint', 'Splint', 'potion', 40, 'bottle', C.e3, C.pale, 'Sets a broken bone so you can run again.', {
   heal: 6,
   cure: ['fracture'],

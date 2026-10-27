@@ -171,6 +171,12 @@ export const STATUS_DEFS: Record<string, StatusDef> = {
     desc: () => 'No running or dodging until a splint sets it, or it knits on its own.',
   },
   poison: { label: 'Poisoned', tone: 'debuff', icon: 'st_poison', desc: () => 'Poison drains health over time.' },
+  rested: {
+    label: 'Well rested',
+    tone: 'buff',
+    icon: 'st_heat',
+    desc: (p) => `You slept in your own bed: +${Math.round((p - 1) * 100)}% experience for a while.`,
+  },
   curse: {
     label: 'Cursed',
     tone: 'debuff',

@@ -2,6 +2,8 @@ import { ENEMY_DEFS, ENEMY_KEY_BY_KIND, WAY_SUBS } from '@eigenlands/shared';
 import { guildPanel } from './guild';
 import {
   isCryptY,
+  RESTED_SECS,
+  RESTED_XP_MULT,
   readHerd,
   advanceHerd,
   breedHerd,
@@ -224,6 +226,10 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
     p.toast('Minecart: push along the rails to roll, against them to reverse; the buffers stop you. Use steps off.');
     return;
   }
+  if (o.sub === 'fallen_star') {
+    room.openStar?.(p, o);
+    return;
+  }
   if (['bed', 'double_bed', 'canopy_bed', 'hammock', 'camp_tent'].includes(o.sub)) {
     if (o.owner && o.owner !== p.accountId) {
       p.toast('Ask the owner before using their bed.');
@@ -254,6 +260,13 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
       p.data.prog.camp = { x: o.x, y: o.y };
       p.dirty('stats');
       p.toast('You rest in your tent. If you fall, you will wake here.', 'good');
+      return;
+    }
+    // your own bed under your own roof: you wake well rested
+    const home = room.store.structureAt(o.x, o.y);
+    if (o.owner === p.accountId && home?.owner === p.accountId && home.data.roof) {
+      p.data.buffs.rested = { until: now + RESTED_SECS * 1000, power: RESTED_XP_MULT };
+      p.toast('You sleep soundly in your own bed, under your own roof, and wake well rested.', 'good');
       return;
     }
     p.toast('You rest and recover health and stamina. The shared world clock keeps running.', 'good');

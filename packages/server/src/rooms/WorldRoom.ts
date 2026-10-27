@@ -1386,6 +1386,8 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   }
 
   protected giveXp(p: ServerPlayer, xp: number): void {
+    const rested = p.data.buffs.rested;
+    if (rested && rested.until > this.wclock.now()) xp = Math.round(xp * rested.power);
     p.xp += xp;
     while (p.xp >= xpForLevel(p.level)) {
       p.xp -= xpForLevel(p.level);

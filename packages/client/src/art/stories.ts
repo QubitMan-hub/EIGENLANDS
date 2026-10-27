@@ -412,7 +412,42 @@ function campTent(face: Facing): ObjSprite {
   );
 }
 
+/** a fallen star: a scorched crater ringed with thrown earth, a pale-blue glowing stone smoking in its heart */
+function fallenStar(face: Facing): ObjSprite {
+  return iso(
+    40,
+    32,
+    face,
+    (p) => {
+      // the rim of thrown-up earth and the scorched bowl
+      for (let k = 0; k < 10; k++) {
+        const a = (k / 10) * Math.PI * 2;
+        p.box(7 + Math.cos(a) * 6.5 - 1.5, 7 + Math.sin(a) * 6.5 - 1.5, 0, 3, 3, 1 + (k % 3) * 0.6, {
+          ramp: [C.e0, C.e1, C.e2, C.e3],
+        });
+      }
+      p.box(3.5, 3.5, 0, 8, 8, 0.2, { ramp: [C.ink, C.ink, C.e0] });
+      // the star itself: a tall faceted stone, white-hot at the heart, with a cold blue skin
+      p.box(4.5, 4.5, 0, 6, 6, 4, {
+        ramp: [C.w4, C.w5, C.w6, C.white, C.white],
+        front: (s, t) => (Math.abs(s - 0.5) < 0.18 && t > 0.2 ? C.white : null),
+        end: (s, t) => (Math.abs(s - t) < 0.15 ? C.white : null),
+      });
+      p.box(5.5, 5.5, 4, 4, 4, 3.5, { ramp: [C.w5, C.w6, C.white, C.white] });
+      p.box(6.5, 6.5, 7.5, 2, 2, 2.5, { ramp: [C.w6, C.white, C.white] });
+      // sparks thrown up around it, and wisps of smoke
+      p.dot(3, 8, 6, C.white);
+      p.dot(11, 6, 8, C.w6);
+      p.dot(9, 11, 5, C.white);
+      p.dot(6, 8, 13, C.steel);
+      p.dot(8, 6, 16, C.mist);
+    },
+    { margin: 8 },
+  );
+}
+
 export const STORY_ART: Record<string, (face: Facing) => ObjSprite> = {
+  fallen_star: fallenStar,
   camp_tent: campTent,
   crypt_plaque: plaque,
   story_wreck: wreck,

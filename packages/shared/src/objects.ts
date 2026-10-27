@@ -118,6 +118,7 @@ export function objLight(kind: WorldObjKind, sub: string): ObjLight | null {
   if (sub === 'lamp' || sub === 'street_lamp' || sub === 'cave_lamp') return { radius: 5.5, color: C.e6 };
   if (PROP_LIGHT[sub]) return PROP_LIGHT[sub]!;
   if (sub === 'campfire') return { radius: 7, color: C.e6 };
+  if (sub === 'fallen_star') return { radius: 7.5, color: C.w6 };
   if (sub === 'merchant_cart') return { radius: 3.5, color: C.e6 };
   if (sub === 'trial_brazier') return { radius: 5, color: C.q5 };
   if (sub === 'vault_plate') return { radius: 1.5, color: C.q4 };
