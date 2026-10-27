@@ -32,6 +32,9 @@ import type { Sfx } from '../audio';
 import type { HeldId, HeldWeapons } from '../art/weapons';
 import { planScenes, type Scene } from './scenes';
 import { SceneLife, sceneLook, type SceneActor } from './scene-life';
+import { rodSprite, umbrellaSprite } from '../art/scene-props';
+import { livestockTexture } from '../art/livestock';
+import { setExtraLights } from './worldobjviews';
 import { depth, isoX, isoY, screenDir } from './iso';
 import type { Fx } from './fx';
 
@@ -206,6 +209,12 @@ export class WorldLife {
       all: () => this.cast.filter((a) => a.role === 'scene'),
       findPath: (sx, sy, tx, ty) => findPath(sx, sy, tx, ty, this.d.store().solidAt, 900),
     });
+    // the night watch's lantern really lights the street around it
+    setExtraLights('life-lanterns', (x0, y0, x1, y1) =>
+      this.cast
+        .filter((a) => a.sc?.kind === 'watchman' && a.root.visible && a.x >= x0 && a.x <= x1 && a.y >= y0 && a.y <= y1)
+        .map((a) => ({ x: a.x + 0.3, y: a.y + 0.3, radius: 4.2, color: 0xffc870, intensity: 0.95 })),
+    );
   }
 
   /** the everyday scenes of the current settlement, by kind (tests, screenshots) */
@@ -501,7 +510,7 @@ export class WorldLife {
           }
         }
       };
-      const animal = (kind: 'cat' | 'dog' | 'pigeon' | 'prop', x: number, y: number) => {
+      const animal = (kind: 'cat' | 'dog' | 'pigeon' | 'prop' | 'horse' | 'chicken', x: number, y: number) => {
         const a = this.mk('scene', x, y, { x: sc.x, y: sc.y, r: 5 }, [0, 24]);
         a.sc = sc;
         a.animal = kind;
@@ -512,7 +521,13 @@ export class WorldLife {
           a.body.visible = false;
           a.carry = new Graphics();
           a.root.addChild(a.carry);
-        } else if (art) a.body.texture = (kind === 'cat' ? art.cat : kind === 'dog' ? art.dog : art.pigeon)[0]!;
+        } else if (kind === 'horse') {
+          a.body.anchor.set(0.5, 49 / 56); // livestock canvases are 48×56, standing at (24, 49)
+          a.body.texture = livestockTexture('horse', 0, 2);
+        } else if (art)
+          a.body.texture = (
+            kind === 'cat' ? art.cat : kind === 'dog' ? art.dog : kind === 'chicken' ? art.chicken : art.pigeon
+          )[0]!;
         return a;
       };
       switch (sc.kind) {
@@ -536,6 +551,14 @@ export class WorldLife {
           break;
         case 'dressing':
           animal('prop', sc.x, sc.y);
+          break;
+        case 'stablehand':
+          animal('horse', sc.x, sc.y);
+          people(1, 0);
+          break;
+        case 'hens':
+          for (let i = 0; i < 4; i++) animal('chicken', sc.x - 0.9 + i * 0.6, sc.y + 0.8 + (i % 2) * 0.5);
+          people(1, 0);
           break;
         case 'woodchop':
           animal('prop', sc.x, sc.y);
@@ -1065,12 +1088,19 @@ export class WorldLife {
     const p0 = { x: 0, y: -18 };
     const end = { x: isoX(a.tx, a.ty) - isoX(a.x, a.y), y: isoY(a.tx, a.ty) - isoY(a.x, a.y) };
     const dip = Math.max(0, Math.sin(a.t * 0.9 + a.phase) - 0.92) * 40;
+    // the rod is an isometric sprite angled out over the water; only the line itself is a drawn string
+    if (!g.children.length) {
+      const art = rodSprite(a.tx - a.x > a.ty - a.y ? 'sw' : 'se');
+      const sp = new Sprite(art.tex);
+      sp.anchor.set(art.ax / art.tex.width, art.ay / art.tex.height);
+      sp.position.set(p0.x + 3, p0.y);
+      g.addChild(sp);
+    }
+    // the rod tip in screen pixels: 14 units out along the rod's axis, 18 up (see rodSprite)
+    const tip = a.tx - a.x > a.ty - a.y ? { x: 14, y: -11 } : { x: -14, y: -11 };
     g.clear()
-      .moveTo(p0.x + 3, p0.y)
-      .lineTo(p0.x + 11, p0.y - 12)
-      .stroke({ color: 0x6b4a2a, width: 1 })
-      .moveTo(p0.x + 11, p0.y - 12)
-      .quadraticCurveTo((p0.x + end.x) / 2 + 8, p0.y - 4, end.x, end.y + dip * 0.2)
+      .moveTo(p0.x + 3 + tip.x, p0.y + tip.y)
+      .quadraticCurveTo((p0.x + tip.x + end.x) / 2, p0.y - 4, end.x, end.y + dip * 0.2)
       .stroke({ color: 0xe8e0d0, width: 0.6, alpha: 0.8 })
       .circle(end.x, end.y + dip * 0.2, 1.3)
       .fill(0xd23a2a);
@@ -1318,16 +1348,13 @@ export class WorldLife {
     }
     if (a.role === 'fisher') return;
     if (!a.extra) {
+      // an isometric umbrella held up at the hand (its stick foot sits at the grip)
+      const art = umbrellaSprite(['r3', 'w3', 'e5', 'g3'][a.look % 4]!);
+      const sp = new Sprite(art.tex);
+      sp.anchor.set(art.ax / art.tex.width, art.ay / art.tex.height);
+      sp.position.set(3 * a.body.scale.y, -18 * a.body.scale.y);
       a.extra = new Graphics();
-      const col = [0xc23b3b, 0x3b6bc2, 0xc2a33b, 0x4a9a5c][a.look % 4]!;
-      a.extra
-        .moveTo(-9, -32)
-        .quadraticCurveTo(0, -46, 9, -32)
-        .lineTo(-9, -32)
-        .fill(col)
-        .moveTo(0, -32)
-        .lineTo(0, -20)
-        .stroke({ color: 0x3a2a1a, width: 1 });
+      a.extra.addChild(sp);
       a.root.addChild(a.extra);
     }
   }
@@ -1485,7 +1512,12 @@ export class WorldLife {
       const x = isoX(x0 + (x1 - x0) * k, y0 + (y1 - y0) * k);
       const y = isoY(x0 + (x1 - x0) * k, y0 + (y1 - y0) * k) - 40 + Math.sin(k * Math.PI) * 7;
       g.moveTo(px, py).lineTo(x, y).stroke({ color: 0x3a2a1a, width: 1 });
-      g.poly([x - 2, y, x + 2, y, x, y + 5]).fill(cols[i % cols.length]!);
+      // each pennant hangs in the vertical plane of the string: its top edge follows the string's iso slope
+      const mx = (px + x) / 2,
+        my = (py + y) / 2,
+        ux = (x - px) * 0.32,
+        uy = (y - py) * 0.32;
+      g.poly([mx - ux, my - uy, mx + ux, my + uy, mx, my + 6]).fill(cols[i % cols.length]!);
       px = x;
       py = y;
     }

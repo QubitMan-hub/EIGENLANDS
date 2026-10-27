@@ -35,7 +35,21 @@ describe('everyday scenes', () => {
 
   it('covers the chores of a real street across the kingdoms', () => {
     const kinds = new Set(plans.flatMap(({ plan }) => plan.map((s) => s.kind)));
-    for (const k of ['well', 'chat', 'kids', 'sweep', 'porter', 'cat', 'dog', 'laundry', 'woodchop', 'lamplighter'])
+    for (const k of [
+      'well',
+      'chat',
+      'kids',
+      'sweep',
+      'porter',
+      'cat',
+      'dog',
+      'laundry',
+      'woodchop',
+      'lamplighter',
+      'watchman',
+      'stablehand',
+      'hens',
+    ])
       expect(kinds.has(k as never), k).toBe(true);
     // a capital is busier than a village
     const cap = plans.find((p) => p.t.buildings.length > 40)!,
@@ -53,5 +67,33 @@ describe('everyday scenes', () => {
     const well = plans.flatMap(({ plan }) => plan).find((s) => s.kind === 'well')!;
     expect(sceneOut(well, 7, 'clear')).toBe(true);
     expect(sceneOut(well, 23, 'clear')).toBe(false);
+  });
+
+  it('dresses doorsteps in order: a matching pair either side of the door, chosen by the building', () => {
+    let pairs = 0;
+    for (const { t, plan } of plans)
+      for (const s of plan.filter((p) => p.kind === 'dressing')) {
+        const fx = Math.floor(s.x),
+          fy = Math.floor(s.y);
+        // right beside a door, on the step in front of the wall: never somewhere at random
+        const door = t.buildings.find((b) => b.doorY + 1 === fy && Math.abs(b.doorX - fx) === 1);
+        expect(door, `${t.name} dressing at ${fx},${fy}`).toBeTruthy();
+        // what stands there fits the building
+        const want: Record<string, number[]> = { inn: [1], store: [4, 2], smithy: [3, 1], farmhouse: [6, 3] };
+        if (want[door!.kind]) expect(want[door!.kind]).toContain(s.set);
+        const twin = plan.find(
+          (p) => p.kind === 'dressing' && p !== s && Math.floor(p.y) === fy && Math.abs(Math.floor(p.x) - fx) === 2,
+        );
+        if (twin) pairs++;
+      }
+    expect(pairs).toBeGreaterThan(40);
+  });
+
+  it('keeps a night watch from dusk to first light', () => {
+    const w = plans.flatMap(({ plan }) => plan).find((s) => s.kind === 'watchman')!;
+    expect(sceneOut(w, 23, 'clear')).toBe(true);
+    expect(sceneOut(w, 3, 'storm')).toBe(true);
+    expect(sceneOut(w, 12, 'clear')).toBe(false);
+    expect(w.route!.length).toBeGreaterThanOrEqual(2);
   });
 });

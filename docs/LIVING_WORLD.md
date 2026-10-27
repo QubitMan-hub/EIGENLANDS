@@ -269,9 +269,15 @@ sees the same washerwoman at the same line.
 - **Washing day:** a washer scrubs at the basket and pegs the washing along the line, which stirs in the wind. When
   it rains or snows the washing is taken in and the line comes down.
 - **Firewood:** a woodcutter with an axe splits logs on a block (chips fly, the axe thuds) and stacks them on the pile.
-- **The doorstep:** brooms sweep the step in the morning, window boxes are watered with a can before 10:30, and most
-  doors have something standing beside them: a planter, a barrel, a basket, a woodpile, a crate, a potted plant or a
-  hay bale.
+- **The doorstep:** brooms sweep the step in the morning and window boxes are watered with a can before 10:30. Every
+  door is dressed in order: a matching pair stands against the wall either side of it, chosen by what the building
+  is. Homes get planters or potted plants, the inn barrels of ale, a shop a crate and a basket, the smithy a woodpile
+  and a quenching barrel, a farmhouse hay and firewood.
+- **Each building's own business:** innkeepers and shopkeepers sweep their steps, the smithy and farms split
+  firewood, farms keep a dog and feed their hens in the morning, and the inn has a horse tied at the rail, groomed
+  by a stable hand. Homes wash, garden, chat and keep cats and dogs.
+- **The night watch:** from 20:00 until first light a watchman walks the round of the lamps the other way from the
+  lamplighter, calling the hour ("Midnight, and all is well!"). His lantern lights the street around him.
 - **Neighbours:** two people chat at a door and take turns telling and reacting ("My youngest has the sniffles
   again." "Poor thing. Honey and lemon.").
 - **The square:** children play tag (whoever is "it" chases the nearest friend) until they are called in for supper.
@@ -398,8 +404,9 @@ sees the same washerwoman at the same line.
   doorstep crate or a washing line. They exist only in the kingdom and frontier towns animated by `life.ts`
   (Hadamere keeps its own ambient villagers). The people are anonymous and cannot be talked to. Scene props are the
   towns' own isometric prop sprites, plus a chopping block, bucket, sack and realm standard built with the same
-  isokit (`client/src/art/scene-props.ts`). Brooms, the lamplighter's pole and the busker's lute are still thin drawn
-  lines held in the hand. Until a villager's own appearance sheet has been built (one per frame),
+  isokit (`client/src/art/scene-props.ts`). Everything held is an isokit sprite too: broom, lamplighter's pole, lute, lantern,
+  umbrella, fishing rod, bucket and sack. Only the fishing line is a drawn string, and festival pennants hang in the
+  vertical plane of their string. Until a villager's own appearance sheet has been built (one per frame),
   they stay hidden rather than appear in a stock outfit.
 - Star shards are a trade good only: no recipes use them yet. Bounty beasts are ordinary hardened creatures with no
   unique attacks or art, and a bounty is told by a toast rather than a notice on a board. The sky effects are drawn in

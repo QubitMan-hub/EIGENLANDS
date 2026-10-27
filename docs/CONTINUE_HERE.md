@@ -1,3 +1,13 @@
+# Current continuation: orderly, isometric, livelier towns (2026-10-27)
+
+Everything the street-life layer adds to a town is now an isometric sprite. That covers the umbrellas, fishing rods,
+brooms, lamplighter poles, lutes, the watchman's lantern, buckets and sacks (`client/src/art/scene-props.ts`), plus
+the town prop library. Doorsteps are dressed in matching pairs either side of each door, chosen by building
+(planters at homes, barrels at the inn, a crate and basket at shops, woodpile and barrel at the smithy, hay and
+firewood at farms). Chores follow the building too. New: the night watch with a real lantern light, a stable hand
+and tied horse at the inn, hens fed at farmhouses. Tests: `client/test/scenes.test.ts`. See
+[LIVING_WORLD.md](LIVING_WORLD.md#everyday-scenes).
+
 # Current continuation: busier roads and isometric scene props (2026-10-27)
 
 Kingdom roads now carry thirteen travellers each. Every road has a marching column of the realm's soldiers (a mounted

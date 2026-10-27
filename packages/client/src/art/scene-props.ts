@@ -115,3 +115,117 @@ export function sackSprite(): ObjSprite {
     ),
   );
 }
+
+/** A broom standing at the sweeper's side, bristles on the ground; `k` (0..2) tilts it through the stroke. */
+export function broomSprite(k: number): ObjSprite {
+  const t = ((k % 3) + 3) % 3;
+  return once(`broom:${t}`, () =>
+    iso(
+      30,
+      40,
+      'sw',
+      (p) => {
+        const lean = (t - 1) * 3;
+        p.line(8 + lean, 8, 3, 8, 8, 26, C.e2);
+        p.box(5.5 + lean, 7, 0, 5, 2, 3, { ramp: [C.e3, C.e4, C.e5, C.e6, C.e6, C.e7] });
+        p.box(6.5 + lean, 7.5, 3, 3, 1, 1, { ramp: [C.e1, C.e2, C.e2, C.e3, C.e3, C.e4] });
+      },
+      { margin: 5 },
+    ),
+  );
+}
+
+/** The lamplighter's pole: its foot on the ground, a taper burning at the top; `lift` 0/1 raises it to a lamp. */
+export function lampPoleSprite(lift: number): ObjSprite {
+  const l = lift ? 1 : 0;
+  return once(`lpole:${l}`, () =>
+    iso(
+      30,
+      90,
+      'sw',
+      (p) => {
+        const top = 58 + l * 10;
+        p.line(8, 8, 0, 11, 6, top, C.e1);
+        p.line(9, 8, 0, 12, 6, top, C.e2);
+        p.box(10.5, 5.5, top, 1.5, 1.5, 2, { ramp: IRONM });
+        p.dot(11, 6, top + 3.5, C.e7, 1, 2);
+        p.dot(11, 6, top + 5, C.white);
+      },
+      { margin: 5 },
+    ),
+  );
+}
+
+/** A lute held across the body: a round-backed bowl and a fretted neck (`strum` nudges the hand frame). */
+export function luteSprite(): ObjSprite {
+  return once('lute', () =>
+    iso(
+      30,
+      26,
+      'sw',
+      (p) => {
+        const BOWL: Ramp = [C.r0, C.e1, C.e2, C.e3, C.e4, C.e5];
+        p.box(5, 7, 2, 6, 2, 5, { ramp: BOWL });
+        p.dot(8, 9, 4.5, C.ink, 2, 2); // the rose
+        p.line(11, 8, 5, 18, 8, 9, C.e1);
+        p.box(17, 7.5, 8.5, 2, 1, 1.5, { ramp: DARKWOOD });
+      },
+      { margin: 4 },
+    ),
+  );
+}
+
+/** An umbrella: a ribbed cone canopy on a stick (anchor at the hand that holds it). */
+export function umbrellaSprite(colour: string): ObjSprite {
+  return once(`umb:${colour}`, () =>
+    iso(
+      40,
+      44,
+      'sw',
+      (p) => {
+        const r = rampOf(colour);
+        p.line(8, 8, 0, 8, 8, 24, C.e1);
+        for (let k = 0; k < 4; k++) p.cyl(8, 8, 20 + k * 1.6, 9 - k * 2.4, 1.6, r, r);
+        p.dot(8, 8, 27.5, C.e1);
+      },
+      { margin: 4 },
+    ),
+  );
+}
+
+/** A watchman's lantern on its ring: glazed sides lit from within (carried at the hand). */
+export function lanternSprite(): ObjSprite {
+  return once('lantern', () =>
+    iso(
+      22,
+      32,
+      'sw',
+      (p) => {
+        const GLOW: Ramp = [C.e5, C.e6, C.e7, C.e7, C.white, C.white];
+        p.box(5, 5, 0, 6, 6, 1.5, { ramp: IRONM });
+        p.box(5.5, 5.5, 1.5, 5, 5, 7, { ramp: GLOW, front: (s) => (Math.abs(s - 0.5) < 0.08 ? C.slate : null) });
+        p.box(5, 5, 8.5, 6, 6, 1.5, { ramp: IRONM });
+        p.cyl(8, 8, 10, 1.6, 1.5, IRONM, IRONM);
+        p.line(8, 8, 11.5, 8, 8, 15, C.slate);
+      },
+      { margin: 4 },
+    ),
+  );
+}
+
+/** A fishing rod angled out over the water from the hand (the line itself is drawn as a string). */
+export function rodSprite(face: Facing): ObjSprite {
+  return once(`rod:${face}`, () =>
+    iso(
+      48,
+      40,
+      face,
+      (p) => {
+        p.line(8, 8, 0, 22, 8, 18, C.e1);
+        p.line(9, 8, 0, 9.5, 8, 2, C.e3);
+        p.dot(22, 8, 18, C.e4);
+      },
+      { margin: 4, flat: true },
+    ),
+  );
+}

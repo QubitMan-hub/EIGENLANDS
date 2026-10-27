@@ -5,8 +5,17 @@ import { actionFrame, type PersonAction } from '../art/person-actions';
 import type { HeldId, HeldWeapons } from '../art/weapons';
 import { SCENE_TALK, sceneSheltered, type Scene } from './scenes';
 import { PROPS } from '../art/props';
-import { bucketSprite, choppingBlockSprite, sackSprite } from '../art/scene-props';
+import {
+  broomSprite,
+  bucketSprite,
+  choppingBlockSprite,
+  lampPoleSprite,
+  lanternSprite,
+  luteSprite,
+  sackSprite,
+} from '../art/scene-props';
 import type { ObjSprite } from '../art/objects';
+import { livestockTexture } from '../art/livestock';
 
 /** what may stand by a door, from the town prop library (scenes.ts picks one per spot) */
 const DRESSING = ['planter', 'barrel', 'basket', 'woodpile', 'crate', 'plant', 'hay'];
@@ -64,6 +73,7 @@ export interface SceneDeps {
   sound: (s: 'chop' | 'splash' | 'lute' | 'sweep' | 'coin', x: number, y: number) => void;
   held: () => HeldWeapons | null;
   art: () => {
+    chicken: SceneActor['body']['texture'][];
     cat: SceneActor['body']['texture'][];
     dog: SceneActor['body']['texture'][];
     pigeon: SceneActor['body']['texture'][];
@@ -90,7 +100,9 @@ const pick = <T>(a: T[]): T => a[Math.floor(Math.random() * a.length)]!;
 
 export function sceneOut(sc: Scene, hour: number, weather: string): boolean {
   const [a, b] = sc.hours;
-  return hour >= a && hour < b && !sceneSheltered(sc.kind, weather);
+  // an end past midnight wraps into the next morning (the night watch)
+  const on = b > 24 ? hour >= a || hour < b - 24 : hour >= a && hour < b;
+  return on && !sceneSheltered(sc.kind, weather);
 }
 
 /** A per-scene clock in [0, 1) so related actors keep time with each other. */
@@ -147,6 +159,17 @@ export class SceneLife {
         break;
       case 'lamplighter':
         this.lamplighter(a, f);
+        break;
+      case 'watchman':
+        this.watchman(a, f);
+        break;
+      case 'stablehand':
+        if (a.animal === 'horse') this.tethered(a, f);
+        else this.stablehand(a, f);
+        break;
+      case 'hens':
+        if (a.animal === 'chicken') this.hen(a, f);
+        else this.hens(a, f);
         break;
     }
     return true;
@@ -217,60 +240,57 @@ export class SceneLife {
     const pd = Math.hypot(a.x - f.me.x, a.y - f.me.y);
     if (!a.bark && pd < 7 && Math.random() < odds) this.d.say(a, pick(SCENE_TALK[pool]!), f.now);
   }
-  private carryDraw(a: SceneActor, what: 'bucket' | 'sack' | 'none' | 'broom' | 'pole' | 'lute', k = 0): void {
-    const g = a.carry;
-    if (!g) return;
-    g.clear();
-    // villagers are 32×48: hands hang at about y -20, shoulders at -34, the head tops out near -46; small people scale
+  /**
+   * What the actor holds, as an isometric sprite riding along with the body: a bucket at the hand, a sack on the
+   * shoulder, a broom or the lamplighter's pole standing at the side, a lute across the chest, a lantern at night.
+   * Villagers are 32×48 (hands near y -20, shoulders near -34); children scale down.
+   */
+  private carryDraw(
+    a: SceneActor,
+    what: 'bucket' | 'sack' | 'none' | 'broom' | 'pole' | 'lute' | 'lantern',
+    k = 0,
+  ): void {
     const m = a.body.scale.y;
-    const Y = (y: number) => y * m,
-      X = (x: number) => x * m;
-    // a bucket at the hand or a sack on the shoulder: isometric sprites riding along with the body
-    const carried = (o: ObjSprite | null, x: number, y: number) => {
-      let sp = a.sprites?.[0];
-      if (!o) {
-        if (sp) sp.visible = false;
-        return;
-      }
-      if (!sp) {
-        sp = new Sprite();
-        a.root.addChild(sp);
-        a.sprites = [sp];
-      }
-      sp.texture = o.tex;
-      sp.anchor.set(o.ax / o.tex.width, o.ay / o.tex.height);
-      sp.position.set(X(x), Y(y));
-      sp.visible = true;
-    };
-    carried(
-      what === 'bucket' ? bucketSprite() : what === 'sack' ? sackSprite() : null,
-      what === 'sack' ? -4 : 9,
-      what === 'sack' ? -32 : -10,
-    );
-    if (what === 'bucket' || what === 'sack') return;
-    if (what === 'broom') {
-      const sw = Math.sin(k) * 5;
-      g.moveTo(X(4), Y(-24))
-        .lineTo(X(8) + sw, 0)
-        .stroke({ color: 0x8a6034, width: 1.6 })
-        .poly([X(4) + sw, 1, X(13) + sw, 1, X(11) + sw, -5, X(6) + sw, -5])
-        .fill(0xc8a14a);
-    } else if (what === 'pole')
-      g.moveTo(X(6), Y(-20))
-        .lineTo(X(13), Y(-64 - k * 5))
-        .stroke({ color: 0x6b4a2a, width: 1.6 })
-        .circle(X(13), Y(-65 - k * 5), 2)
-        .fill(0xffd36a);
-    else if (what === 'lute')
-      g.ellipse(X(2), Y(-21), X(6), Y(4.5))
-        .fill(0x9a5a2a)
-        .ellipse(X(1), Y(-22), X(3), Y(2))
-        .fill(0xaf6a3a)
-        .circle(X(2), Y(-21), 1.3)
-        .fill(0x2a1a10)
-        .moveTo(X(6), Y(-23))
-        .lineTo(X(15), Y(-31 - k))
-        .stroke({ color: 0x6b4a2a, width: 1.8 });
+    let sp = a.sprites?.[0];
+    const art: ObjSprite | null =
+      what === 'bucket'
+        ? bucketSprite()
+        : what === 'sack'
+          ? sackSprite()
+          : what === 'broom'
+            ? broomSprite(Math.round(Math.sin(k) + 1))
+            : what === 'pole'
+              ? lampPoleSprite(k > 0.5 ? 1 : 0)
+              : what === 'lute'
+                ? luteSprite()
+                : what === 'lantern'
+                  ? lanternSprite()
+                  : null;
+    if (!art) {
+      if (sp) sp.visible = false;
+      return;
+    }
+    if (!sp) {
+      sp = new Sprite();
+      a.root.addChild(sp);
+      a.sprites = [sp];
+    }
+    const [x, y] =
+      what === 'sack'
+        ? [-4, -32]
+        : what === 'bucket'
+          ? [9, -10]
+          : what === 'broom'
+            ? [7, 1]
+            : what === 'pole'
+              ? [5, 1]
+              : what === 'lute'
+                ? [-6, -17 - k]
+                : [8, -6];
+    sp.texture = art.tex;
+    sp.anchor.set(art.ax / art.tex.width, art.ay / art.tex.height);
+    sp.position.set(x * m, y * m);
+    sp.visible = true;
   }
 
   // ───────────── scenes ─────────────
@@ -641,6 +661,73 @@ export class SceneLife {
       a.beat++;
       a.t = 0;
     }
+  }
+
+  /** the night watch: lamp to lamp the other way round, lantern in hand, calling the hour */
+  private watchman(a: SceneActor, f: SceneFrame): void {
+    const route = a.sc!.route!;
+    a.beat ??= 0;
+    const [x, y] = route[a.beat % route.length]!;
+    a.tx = x;
+    a.ty = y;
+    this.carryDraw(a, 'lantern');
+    if (this.walk(a, f, 0.75)) {
+      a.beat++;
+      this.chatter(a, f, 'watchman', 0.5);
+    }
+  }
+
+  /** brushing down the inn's horse at the rail, a stroke at a time */
+  private stablehand(a: SceneActor, f: SceneFrame): void {
+    const sc = a.sc!;
+    a.tx = sc.x - 0.9;
+    a.ty = sc.y + 0.3;
+    if (Math.hypot(a.x - a.tx, a.y - a.ty) > 0.15) {
+      this.walk(a, f, 0.9);
+      return;
+    }
+    this.faceTo(a, sc.x, sc.y);
+    this.pose(a, 'gather', 0.35 + 0.25 * Math.sin(f.now / 350 + a.phase), f);
+    this.chatter(a, f, 'stablehand', 0.003);
+  }
+  /** the horse stands at the rail, shifting its weight and flicking its tail */
+  private tethered(a: SceneActor, f: SceneFrame): void {
+    const sc = a.sc!;
+    a.x = a.tx = sc.x;
+    a.y = a.ty = sc.y;
+    a.body.texture = livestockTexture('horse', f.reduced ? 0 : Math.floor(f.now / 1400 + a.phase) % 2, 2);
+  }
+
+  /** a farm wife scattering grain for the hens in the morning */
+  private hens(a: SceneActor, f: SceneFrame): void {
+    const sc = a.sc!;
+    a.tx = sc.x;
+    a.ty = sc.y - 0.6;
+    if (Math.hypot(a.x - a.tx, a.y - a.ty) > 0.15) {
+      this.walk(a, f, 0.9);
+      return;
+    }
+    const k = loop(f.now, 2.2, sc.seed);
+    this.pose(a, 'gather', k, f, dirOf(0.3, 1));
+    if (!f.reduced && k > 0.45 && k < 0.5) this.d.burst(sc.x, sc.y + 0.6, [22, 23], 4);
+    this.chatter(a, f, 'hens', 0.003);
+  }
+  private hen(a: SceneActor, f: SceneFrame): void {
+    const art = this.d.art();
+    if (!art) return;
+    const sc = a.sc!;
+    const pd = Math.hypot(a.x - f.me.x, a.y - f.me.y);
+    if (pd < 1.5 || (a.st !== 'walk' && Math.random() < 0.01)) {
+      // peck about the scattered grain, scatter from a passer-by
+      a.tx = sc.x + (Math.random() - 0.5) * 2.4;
+      a.ty = sc.y + 0.4 + Math.random() * 1.4;
+      a.st = 'walk';
+    }
+    if (a.st === 'walk') {
+      if (this.d.moveTo(a, f.dt, pd < 1.5 ? 2.4 : 0.8)) a.st = 'idle';
+      a.body.texture = art.chicken[2 + (Math.floor(f.now / 120) % 2)]!;
+      a.body.scale.x = a.tx >= a.x ? 1 : -1;
+    } else a.body.texture = art.chicken[Math.floor(f.now / 300 + a.phase) % 2]!;
   }
 
   // ───────────── props ─────────────

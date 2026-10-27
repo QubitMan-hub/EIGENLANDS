@@ -23,7 +23,11 @@ export type SceneKind =
   | 'dog'
   | 'garden'
   | 'lamplighter'
-  | 'dressing';
+  | 'dressing'
+  // the night watch walks the lamps with a lantern; a stable hand grooms a horse at the inn; hens fed at a farm
+  | 'watchman'
+  | 'stablehand'
+  | 'hens';
 
 export interface Scene {
   kind: SceneKind;
@@ -59,15 +63,17 @@ export const SCENE_HOURS: Record<SceneKind, [number, number]> = {
   garden: [7, 10.5],
   lamplighter: [17.6, 19.4],
   dressing: [0, 24],
+  // after the lamps are lit until first light (an end past 24 wraps into the next morning)
+  watchman: [20, 29.5],
+  stablehand: [7.5, 18.5],
+  hens: [6.5, 9.5],
 };
-/** how many doorstep sets scene-life.ts can draw */
-export const DRESSING_SETS = 7;
 
 /** Weather a scene does not happen in: nobody hangs washing in the rain, children go in, buskers pack up. */
 export function sceneSheltered(kind: SceneKind, weather: string): boolean {
   const wet = weather === 'rain' || weather === 'storm';
   if (kind === 'dressing') return false;
-  if (weather === 'storm') return kind !== 'cat' && kind !== 'lamplighter';
+  if (weather === 'storm') return kind !== 'cat' && kind !== 'lamplighter' && kind !== 'watchman';
   if (wet) return kind === 'laundry' || kind === 'kids' || kind === 'bench' || kind === 'busker' || kind === 'garden';
   if (weather === 'snow') return kind === 'laundry' || kind === 'garden';
   return false;
@@ -98,6 +104,9 @@ export const SCENE_TALK: Record<string, string[]> = {
   kids: ['Tag, you’re it!', 'Can’t catch me!', 'No fair!', 'One more game!', 'My turn!'],
   supper: ['Supper! Come inside!', 'Wash your hands first!'],
   bench: ['In my day, the winters were real winters.', 'Here, little birds.', 'Sit a while, traveller.'],
+  watchman: ['Midnight, and all is well!', 'Who goes there?', 'Mind how you go, it is late.', 'Two of the clock!'],
+  stablehand: ['Easy, girl, easy.', 'Fed and watered, sir.', 'She’s a fine mare, this one.'],
+  hens: ['Chook chook chook!', 'Come on, girls!', 'Three eggs today.'],
   porter: ['Coming through!', 'Mind your backs!', 'Flour for the baker.', 'Heavy one, this.'],
   busker: ['A song for a copper!', 'This one’s about a lost sheep.', 'Thank you, kind soul!'],
   garden: ['Thirsty little things.', 'The geraniums are coming on nicely.'],
@@ -177,40 +186,28 @@ export function planScenes(t: Town, seed: number, o: PlanOpts): Scene[] {
     if (p) add('bench', p, null, 4);
   }
 
-  // the houses: a round of chores and neighbourly talk, one scene per door until the budget runs out
-  const budget = Math.round(7 * o.size);
-  const chores: SceneKind[] = ['sweep', 'chat', 'laundry', 'woodchop', 'garden', 'cat', 'chat', 'dog', 'sweep', 'cat'];
-  let c = 0;
+  // Doorsteps first, and in order: a matching pair either side of the door, hugging the wall, chosen by what the
+  // building is (planters at a home, barrels at the inn, a crate and a basket at a shop, a woodpile and a quenching
+  // barrel at the smithy, hay and firewood at a farmhouse). Indices are into DRESSING in scene-life.ts.
+  const PAIRS: Record<string, Array<[number, number]>> = {
+    house: [
+      [0, 0], // planter, planter
+      [5, 5], // potted plant, potted plant
+      [0, 5],
+    ],
+    inn: [[1, 1]], // barrels of ale
+    store: [[4, 2]], // a crate, a basket
+    smithy: [[3, 1]], // woodpile, quenching barrel
+    farmhouse: [[6, 3]], // hay, woodpile
+  };
   for (const d of doors) {
-    if (out.length >= budget + 4) break;
-    const kind = chores[(c + Math.floor(hs(d.x, d.y, 5) * 3)) % chores.length]!;
-    c++;
-    if (kind === 'laundry' || kind === 'woodchop') {
-      // the side yard: a step along the wall from the door
-      const side = hs(d.x, d.y, 6) < 0.5 ? -1 : 1;
-      const p = near(d.x + side * 3, d.y + 1, 2);
-      if (!p) continue;
-      add(kind, p, kind === 'laundry' ? [p[0] + side, p[1]] : null, 6);
-      continue;
-    }
-    if (kind === 'chat') {
-      const p = near(d.x, d.y + 1, 1);
-      if (!p) continue;
-      const q = near(p[0] + 1, p[1], 1);
-      if (!q) continue;
-      add('chat', p, q, 7);
-      continue;
-    }
-    const p = near(d.x + (kind === 'cat' ? 1 : 0), d.y, 1);
-    if (p) add(kind, p, null, 8);
-  }
-
-  // every door is dressed: pots, a barrel, sacks or a stack of firewood against the wall either side of it
-  for (const d of doors) {
-    for (const side of [-1, 1]) {
-      const x = d.x + side * (1 + Math.floor(hs(d.x, d.y, 20 + side) * 2)),
+    const pairs = PAIRS[d.b.kind];
+    if (!pairs) continue;
+    const pair = pairs[Math.floor(hs(d.x, d.y, 24) * pairs.length)]!;
+    ([-1, 1] as const).forEach((side, k) => {
+      const x = d.x + side,
         y = d.y;
-      if (!o.free(x, y) || taken.has(key(x, y)) || hs(x, y, 21) < 0.25) continue;
+      if (!o.free(x, y) || taken.has(key(x, y))) return;
       taken.add(key(x, y));
       out.push({
         kind: 'dressing',
@@ -220,8 +217,46 @@ export function planScenes(t: Town, seed: number, o: PlanOpts): Scene[] {
         y2: y + 0.5,
         hours: SCENE_HOURS.dressing,
         seed: Math.floor(hs(x, y, 22) * 2 ** 30),
-        set: Math.floor(hs(x, y, 23) * DRESSING_SETS),
+        set: pair[k]!,
       });
+    });
+  }
+
+  // Each building's own business: the innkeeper and shopkeepers sweep their steps in the morning, the smithy and the
+  // farms split firewood, farms keep a dog; homes wash, garden, keep a cat or a dog and chat with the neighbours.
+  const budget = Math.round(7 * o.size);
+  const HOME: SceneKind[] = ['chat', 'laundry', 'garden', 'cat', 'chat', 'dog', 'laundry', 'sweep', 'cat', 'woodchop'];
+  const BY_KIND: Record<string, SceneKind[]> = {
+    inn: ['sweep'],
+    store: ['sweep'],
+    smithy: ['woodchop'],
+    farmhouse: ['woodchop', 'dog'],
+  };
+  let c = 0;
+  for (const d of doors) {
+    if (out.filter((sc) => sc.kind !== 'dressing').length >= budget + 4) break;
+    const kinds = BY_KIND[d.b.kind] ?? [HOME[(c++ + Math.floor(hs(d.x, d.y, 5) * 2)) % HOME.length]!];
+    for (const kind of kinds) {
+      if (kind === 'laundry' || kind === 'woodchop') {
+        // the side yard: along the wall from the door, on whichever side has room
+        for (const side of [1, -1]) {
+          const p = near(d.x + side * 3, d.y + 1, 1);
+          if (!p) continue;
+          add(kind, p, kind === 'laundry' ? [p[0] + side, p[1]] : null, 6);
+          break;
+        }
+        continue;
+      }
+      if (kind === 'chat') {
+        const p = near(d.x, d.y + 1, 1);
+        if (!p) continue;
+        const q = near(p[0] + 1, p[1], 1);
+        if (!q) continue;
+        add('chat', p, q, 7);
+        continue;
+      }
+      const p = near(d.x + (kind === 'cat' ? 1 : 0), d.y, 1);
+      if (p) add(kind, p, null, 8);
     }
   }
 
@@ -238,6 +273,13 @@ export function planScenes(t: Town, seed: number, o: PlanOpts): Scene[] {
   const from = cart ? near(cart.x + 1, cart.y + 1, 2) : near(plaza.x + 2, plaza.y + 2, 3);
   const to = store ? near(store.x, store.y + 1, 2) : null;
   if (from && to) add('porter', from, to, 13);
+
+  // the inn keeps a horse tied at the rail, groomed by day; a farmhouse feeds its hens in the morning
+  for (const d of doors) {
+    if (d.b.kind !== 'inn' && d.b.kind !== 'farmhouse') continue;
+    const p = near(d.x + 3, d.y + 2, 2);
+    if (p) add(d.b.kind === 'inn' ? 'stablehand' : 'hens', p, null, 15);
+  }
 
   // at dusk the lamplighter walks the round of the street lamps
   const lamps = objs('street_lamp');
@@ -259,6 +301,17 @@ export function planScenes(t: Town, seed: number, o: PlanOpts): Scene[] {
         hours: SCENE_HOURS.lamplighter,
         seed: Math.floor(hs(x, y, 14) * 2 ** 30),
         route,
+      });
+      // and through the night the watch walks the same round the other way, lantern in hand
+      out.push({
+        kind: 'watchman',
+        x: x2,
+        y: y2,
+        x2: x,
+        y2: y,
+        hours: SCENE_HOURS.watchman,
+        seed: Math.floor(hs(x, y, 16) * 2 ** 30),
+        route: route.slice().reverse(),
       });
     }
   }
