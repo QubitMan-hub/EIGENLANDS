@@ -1,4 +1,4 @@
-import { ENEMY_BY_KIND, type EnemyDef } from './combat';
+import { ENEMY_BY_KIND, ENEMY_KEY_BY_KIND, type EnemyDef } from './combat';
 import { BESTIARY_KEYS, CREATURE_BLUEPRINTS } from './bestiary';
 
 /**
@@ -21,6 +21,54 @@ export const RESIDUE_SECS = 12;
 export const ROSTER_MAX = 16;
 /** shadows that fall are re-formed after this long, at 60% health */
 export const SHADOW_REFORM_SECS = 20;
+
+/** Shadow Exchange: trade places with one of your summoned shadows, wherever it stands nearby. */
+export const EXCHANGE_LEVEL = 10;
+export const EXCHANGE_COOLDOWN = 18;
+export const EXCHANGE_RANGE = 40;
+/** Monarch's Domain: for a few seconds the ground around you belongs to your army. */
+export const DOMAIN_LEVEL = 15;
+export const DOMAIN_SECS = 12;
+export const DOMAIN_COOLDOWN = 150;
+export const DOMAIN_RADIUS = 9;
+/** shadow damage inside the domain, the share of their health it restores when raised, the shadows it needs */
+export const DOMAIN_POWER = 1.5;
+export const DOMAIN_HEAL = 0.25;
+export const DOMAIN_MIN_SHADOWS = 2;
+
+/**
+ * A guardian's shadow keeps something of what it was. The realm guardians rise as named shadows with a signature
+ * trait; any other boss rises as a commander whose presence hardens the rest of the army.
+ */
+export type ShadowTrait = 'rebirth' | 'devour' | 'rewind' | 'commander';
+export const TRAIT_INFO: Record<ShadowTrait, { name: string; text: string }> = {
+  rebirth: {
+    name: 'Rebirth',
+    text: 'When it falls it bursts back into flame at full strength (once every 2 minutes).',
+  },
+  devour: { name: 'Devour', text: 'Every foe it brings down feeds it a quarter of its health.' },
+  rewind: { name: 'Rewind', text: 'Brought low, it unwinds to a moment ago, whole again (once every 90 seconds).' },
+  commander: { name: 'Commander', text: 'While it stands with you, your other shadows strike 15% harder.' },
+};
+export const REBIRTH_COOLDOWN = 120;
+export const REWIND_COOLDOWN = 90;
+export const REWIND_AT = 0.3;
+export const DEVOUR_HEAL = 0.25;
+export const COMMANDER_AURA = 1.15;
+export const LEGEND_SHADOWS: Record<string, { name: string; trait: ShadowTrait }> = {
+  eyrie_phoenix: { name: 'Ignis', trait: 'rebirth' },
+  umbral_maw: { name: 'Gloam', trait: 'devour' },
+  the_unwound: { name: 'Tick', trait: 'rewind' },
+};
+/** a guardian's shadow rises a Knight at least */
+export const LEGEND_LEVEL = 6;
+/** the name and trait a boss's shadow rises with (null for ordinary creatures) */
+export function legendOf(kind: number): { name: string; trait: ShadowTrait } | null {
+  const d = ENEMY_BY_KIND[kind];
+  if (!d?.boss) return null;
+  const named = LEGEND_SHADOWS[ENEMY_KEY_BY_KIND[kind] ?? ''];
+  return named ?? { name: `Shade ${d.name.replace(/^The /, '')}`.slice(0, 20), trait: 'commander' };
+}
 
 export type Stance = 'assist' | 'guard' | 'aggressive';
 export const STANCES: Stance[] = ['assist', 'guard', 'aggressive'];
@@ -47,6 +95,8 @@ export interface ShadowRec {
   term?: number;
   /** A living wildlife bond, rather than an extracted echo. Valid only for companionBond kinds. */
   bonded?: true;
+  /** a guardian's shadow: its signature trait (see TRAIT_INFO) */
+  trait?: ShadowTrait;
 }
 
 export interface ShadowRosterMsg {
@@ -57,12 +107,20 @@ export interface ShadowRosterMsg {
   stance: Stance;
   /** player level needed before the Sigil works */
   unlock: number;
+  /** seconds until Shadow Exchange and Monarch's Domain are ready (0 = ready), and the domain's seconds left */
+  exchangeIn?: number;
+  domainIn?: number;
+  domainLeft?: number;
 }
 
 export type ShadowEvent =
   | { kind: 'channel'; chance: number; secs: number; name: string }
   | { kind: 'extracted'; rec: ShadowRec }
   | { kind: 'failed'; reason: 'roll' | 'moved' | 'gone' | 'full' | 'level' | 'range' }
+  | { kind: 'exchanged'; id: string; name: string }
+  | { kind: 'domain'; secs: number }
+  | { kind: 'trait'; id: string; name: string; trait: ShadowTrait }
+  | { kind: 'refused'; text: string }
   | { kind: 'level'; id: string; level: number }
   | { kind: 'evolved'; id: string; rank: number; name: string }
   | { kind: 'fallen'; id: string; name: string }
@@ -88,14 +146,20 @@ export const canExtract = (kind: number): boolean => {
   return !!d && kind !== 21 && !d.passive && !d.sea && (!key || CREATURE_BLUEPRINTS[key].category !== 'ancient');
 };
 
+export const BOSS_SHADOW_HP = 0.15;
+export const BOSS_SHADOW_DMG = 0.7;
+
 /** Shadow stats from the source creature, its level and rank. */
 export function shadowStats(kind: number, level: number): { hp: number; dmg: number; speed: number } {
   const d = base(kind),
     r = rankOf(level),
     lv = 1 + 0.06 * (level - 1);
+  // a boss's shadow keeps a fraction of its bulk: still the army's strongest, never an unkillable wall
+  const hpScale = d.boss ? BOSS_SHADOW_HP : 1,
+    dmgScale = d.boss ? BOSS_SHADOW_DMG : 1;
   return {
-    hp: Math.round(d.hp * lv * RANK_HP[r]! * 1.15),
-    dmg: lv * RANK_DMG[r]!,
+    hp: Math.round(d.hp * lv * RANK_HP[r]! * 1.15 * hpScale),
+    dmg: lv * RANK_DMG[r]! * dmgScale,
     speed: 1 + Math.min(0.25, level * 0.005),
   };
 }
@@ -132,12 +196,14 @@ export function addShadowXp(rec: ShadowRec, xp: number, playerLevel: number): { 
 }
 
 export function newShadow(id: string, kind: number, level: number): ShadowRec {
+  const legend = legendOf(kind);
   return {
     id,
     kind,
-    name: `Shade ${base(kind).name.replace(/^(Wisp|Glint|Phase|Decoherent|Static|Wild|Dire) /, '')}`,
-    level: Math.max(1, Math.min(MAX_SHADOW_LEVEL, Math.round(level))),
+    name: legend?.name ?? `Shade ${base(kind).name.replace(/^(Wisp|Glint|Phase|Decoherent|Static|Wild|Dire) /, '')}`,
+    level: Math.max(legend ? LEGEND_LEVEL : 1, Math.min(MAX_SHADOW_LEVEL, Math.round(level))),
     xp: 0,
+    ...(legend ? { trait: legend.trait } : {}),
   };
 }
 

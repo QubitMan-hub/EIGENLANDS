@@ -27,6 +27,22 @@ import {
   ENEMY_BY_KIND,
   NPC_BY_ID,
   giftTaste,
+  COMMANDER_AURA,
+  DEVOUR_HEAL,
+  DOMAIN_COOLDOWN,
+  DOMAIN_HEAL,
+  DOMAIN_LEVEL,
+  DOMAIN_MIN_SHADOWS,
+  DOMAIN_POWER,
+  DOMAIN_RADIUS,
+  DOMAIN_SECS,
+  EXCHANGE_COOLDOWN,
+  EXCHANGE_LEVEL,
+  EXCHANGE_RANGE,
+  REBIRTH_COOLDOWN,
+  REWIND_AT,
+  REWIND_COOLDOWN,
+  legendOf,
   EXTRACT_LEVEL,
   EXTRACT_RANGE,
   EXTRACT_SECS,
@@ -98,6 +114,8 @@ interface Unit {
   forageT?: number;
   route?: Array<[number, number]>;
   routeAt?: number;
+  /** when a guardian's trait (rebirth, rewind) can fire again */
+  traitAt?: number;
 }
 interface Saved {
   roster: ShadowRec[];
@@ -114,9 +132,15 @@ interface Live {
   loaded: boolean;
   dirty: boolean;
   level: number;
+  /** module time when Shadow Exchange and Monarch's Domain are ready again, and when the domain fades */
+  exchangeAt: number;
+  domainAt: number;
+  domainUntil: number;
+  domainPulse: number;
 }
 
-const clean = (raw: unknown): Saved => {
+/** Sanitise a saved roster (exported for tests). */
+export const clean = (raw: unknown): Saved => {
   const out: Saved = { roster: [], active: [], stance: 'assist', seq: 0 };
   const r = raw as Partial<Saved> | null;
   if (!r || typeof r !== 'object') return out;
@@ -150,6 +174,8 @@ const clean = (raw: unknown): Saved => {
       name: String(x.name ?? '').slice(0, 20) || (bonded ? companionBond(k)!.name : newShadow(x.id, k, 1).name),
       level: Math.max(1, Math.min(50, Math.floor(Number(x.level) || 1))),
       xp: Math.max(0, Math.floor(Number(x.xp) || 0)),
+      // a guardian's trait is the one its kind rises with, never a saved claim
+      ...(!bonded && legendOf(k) ? { trait: legendOf(k)!.trait } : {}),
     });
   }
   const ids = new Set(out.roster.map((x) => x.id));
@@ -192,6 +218,10 @@ export class ShadowModule implements Module {
       loaded: true,
       dirty: false,
       level: p.level,
+      exchangeAt: 0,
+      domainAt: 0,
+      domainUntil: 0,
+      domainPulse: 0,
     };
     this.live.set(p.id, L);
     for (const id of L.data.active.slice(0, shadowSlots(p.level))) this.summon(L, id, true);
@@ -474,6 +504,12 @@ export class ShadowModule implements Module {
       case 'extend':
         if (typeof m.id === 'string') p.toast(this.extend(L, m.id), 'info');
         break;
+      case 'exchange':
+        this.exchange(L, typeof m.id === 'string' ? m.id : undefined);
+        break;
+      case 'domain':
+        this.domain(L);
+        break;
       case 'release': {
         const i = L.data.roster.findIndex((r) => r.id === m.id);
         if (i >= 0) {
@@ -496,6 +532,98 @@ export class ShadowModule implements Module {
       }
     }
     this.sendRoster(L);
+  }
+
+  // ───────────────────────── Shadow Exchange and Monarch's Domain ─────────────────────────
+
+  private refuse(p: ServerPlayer, text: string): void {
+    this.ev(p, { kind: 'refused', text });
+  }
+
+  /** Trade places with a summoned shadow: the one asked for, or the farthest within reach. */
+  private exchange(L: Live, id: string | undefined): void {
+    const p = L.p;
+    if (p.level < EXCHANGE_LEVEL) return this.refuse(p, `Shadow Exchange awakens at level ${EXCHANGE_LEVEL}.`);
+    if (this.t < L.exchangeAt)
+      return this.refuse(p, `Shadow Exchange gathers itself: ${Math.ceil(L.exchangeAt - this.t)} s.`);
+    if (p.sim.mount || p.sim.boat) return this.refuse(p, 'Step down first: a shadow cannot carry your mount.');
+    const solid = this.room.store.solidAt;
+    let pick: Unit | null = null,
+      far = -1;
+    for (const u of L.units.values()) {
+      if (u.downUntil || u.en.hp <= 0 || (id && u.rec.id !== id)) continue;
+      const d = Math.hypot(u.en.x - p.sim.x, u.en.y - p.sim.y);
+      if (d > EXCHANGE_RANGE || solid(Math.floor(u.en.x), Math.floor(u.en.y))) continue;
+      if (d > far) {
+        far = d;
+        pick = u;
+      }
+    }
+    if (!pick) return this.refuse(p, 'No shadow of yours stands where you could trade places with it.');
+    const px = p.sim.x,
+      py = p.sim.y;
+    this.room.fx({ kind: 'shadow', x: px, y: py, v: 6, id: p.id });
+    this.room.fx({ kind: 'shadow', x: pick.en.x, y: pick.en.y, v: 6, id: p.id });
+    p.sim.x = pick.en.x;
+    p.sim.y = pick.en.y;
+    p.sim.dashT = 0;
+    p.queue.length = 0;
+    // a breath of untouchability as you step out of the shadow
+    p.invuln = Math.max(p.invuln, 0.5);
+    pick.en.x = px;
+    pick.en.y = py;
+    pick.route = undefined;
+    pick.routeAt = 0;
+    this.sync(pick);
+    L.exchangeAt = this.t + EXCHANGE_COOLDOWN;
+    this.ev(p, { kind: 'exchanged', id: pick.rec.id, name: pick.rec.name });
+  }
+
+  /** Monarch's Domain: the army's ground for a few seconds. Heals them, sharpens them, slows every foe inside. */
+  private domain(L: Live): void {
+    const p = L.p;
+    if (p.level < DOMAIN_LEVEL) return this.refuse(p, `Monarch's Domain awakens at level ${DOMAIN_LEVEL}.`);
+    if (this.t < L.domainAt)
+      return this.refuse(p, `Your domain is still gathering: ${Math.ceil(L.domainAt - this.t)} s.`);
+    const standing = [...L.units.values()].filter((u) => !u.downUntil && u.en.hp > 0);
+    if (standing.length < DOMAIN_MIN_SHADOWS)
+      return this.refuse(p, `A domain needs an army: at least ${DOMAIN_MIN_SHADOWS} shadows standing with you.`);
+    for (const u of standing) {
+      u.en.hp = Math.min(u.en.maxHp, u.en.hp + u.en.maxHp * DOMAIN_HEAL);
+      this.sync(u);
+    }
+    L.domainUntil = this.t + DOMAIN_SECS;
+    L.domainAt = this.t + DOMAIN_COOLDOWN;
+    L.domainPulse = 0;
+    this.room.fx({ kind: 'shadow', x: p.sim.x, y: p.sim.y, v: 7, w: DOMAIN_RADIUS, id: p.id });
+    this.ev(p, { kind: 'domain', secs: DOMAIN_SECS });
+  }
+
+  /** a shadow's damage multiplier right now: inside its owner's domain, and beside a commander */
+  private power(L: Live, u: Unit): number {
+    let m = 1;
+    if (this.t < L.domainUntil && Math.hypot(u.en.x - L.p.sim.x, u.en.y - L.p.sim.y) <= DOMAIN_RADIUS)
+      m *= DOMAIN_POWER;
+    for (const o of L.units.values())
+      if (o !== u && o.rec.trait === 'commander' && !o.downUntil && o.en.hp > 0) {
+        m *= COMMANDER_AURA;
+        break;
+      }
+    return m;
+  }
+
+  /** Rebirth and Rewind: a guardian's shadow refuses to stay down. True when it rose again. */
+  private defy(L: Live, u: Unit): boolean {
+    const t = u.rec.trait;
+    if ((t !== 'rebirth' && t !== 'rewind') || this.t < (u.traitAt ?? 0)) return false;
+    const fell = u.en.hp <= 0;
+    if (t === 'rebirth' && !fell) return false;
+    if (t === 'rewind' && u.en.hp > u.en.maxHp * REWIND_AT) return false;
+    u.en.hp = u.en.maxHp;
+    u.traitAt = this.t + (t === 'rebirth' ? REBIRTH_COOLDOWN : REWIND_COOLDOWN);
+    this.room.fx({ kind: 'shadow', x: u.en.x, y: u.en.y, v: 9, w: t === 'rebirth' ? 0 : 1, id: L.p.id });
+    this.ev(L.p, { kind: 'trait', id: u.rec.id, name: u.rec.name, trait: t });
+    return true;
   }
 
   /** Synchronous claim: food and wildlife commit together; no kill hooks or random rolls. */
@@ -729,7 +857,19 @@ export class ShadowModule implements Module {
       for (const u of [...L.units.values()])
         if (u.temporaryUntil !== undefined && (u.temporaryUntil <= this.t || p.deadT > 0 || u.downUntil > 0))
           this.dismiss(L, u.rec.id);
-      if (p.deadT > 0) continue;
+      if (p.deadT > 0) {
+        L.domainUntil = 0;
+        continue;
+      }
+      if (this.t < L.domainUntil) {
+        // the domain holds every foe inside it slowed
+        for (const e of this.hostiles())
+          if (Math.hypot(e.x - p.sim.x, e.y - p.sim.y) <= DOMAIN_RADIUS) e.slowT = Math.max(e.slowT, 0.6);
+        if (this.t >= L.domainPulse) {
+          L.domainPulse = this.t + 1;
+          this.room.fx({ kind: 'shadow', x: p.sim.x, y: p.sim.y, v: 8, w: DOMAIN_RADIUS, id: p.id });
+        }
+      }
       // too many for the player's level (they were summoned at a higher level, or the roster changed): send the extras home
       const permanent = [...L.units.values()].filter((u) => u.temporaryUntil === undefined);
       while (permanent.length > shadowSlots(p.level)) this.dismiss(L, permanent.pop()!.rec.id);
@@ -924,9 +1064,10 @@ export class ShadowModule implements Module {
       const dx = e.x - en.x,
         dy = e.y - en.y,
         d = Math.hypot(dx, dy) || 1;
+      const alive = e.hp > 0;
       this.room.hitEnemy(
         e,
-        dmg * (u.temporaryUntil === undefined ? this.room.circuit.companionPower(owner.id) : 1),
+        dmg * (u.temporaryUntil === undefined ? this.room.circuit.companionPower(owner.id) : 1) * this.power(L, u),
         owner,
         dx / d,
         dy / d,
@@ -936,6 +1077,11 @@ export class ShadowModule implements Module {
       if (u.rec.bonded && u.rec.kind === bestiaryKind('dragon')) e.regenBlockT = Math.max(e.regenBlockT ?? 0, 8);
       if (e.hp > 0 && u.rec.bonded && u.rec.kind === 9) e.slowT = Math.max(e.slowT, 2);
       if (e.hp > 0 && e.def.neutral) e.provoked = true;
+      // Devour: the Maw's shadow feeds on what it fells
+      if (alive && e.hp <= 0 && u.rec.trait === 'devour' && en.hp > 0) {
+        en.hp = Math.min(en.maxHp, en.hp + en.maxHp * DEVOUR_HEAL);
+        this.room.fx({ kind: 'shadow', x: en.x, y: en.y, v: 9, w: 2, id: owner.id });
+      }
     };
     return {
       telegraph: () => {},
@@ -986,6 +1132,10 @@ export class ShadowModule implements Module {
         if (u.downUntil || u.en.hp <= 0 || !shapeHits(shape, { x: u.en.x, y: u.en.y, r: 0.4 })) continue;
         u.en.hp -= Math.max(1, Math.round(dmg * 0.75));
         u.en.flinchT = 0.1;
+        if (u.rec.trait && this.defy(L, u)) {
+          this.sync(u);
+          continue;
+        }
         if (u.en.hp <= 0) {
           u.en.hp = 0;
           u.downUntil = this.t + SHADOW_REFORM_SECS;
@@ -1015,6 +1165,9 @@ export class ShadowModule implements Module {
       slots: shadowSlots(L.p.level),
       stance: L.data.stance,
       unlock: EXTRACT_LEVEL,
+      exchangeIn: Math.max(0, Math.ceil(L.exchangeAt - this.t)),
+      domainIn: Math.max(0, Math.ceil(L.domainAt - this.t)),
+      domainLeft: Math.max(0, Math.ceil(L.domainUntil - this.t)),
     };
     L.p.client.send(MSG34.SHADOW_ROSTER, m);
   }

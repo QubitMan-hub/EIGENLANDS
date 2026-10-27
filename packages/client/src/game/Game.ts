@@ -1032,6 +1032,36 @@ export class Game {
           this.fx.burst(f.x, f.y, [5, 6, 7], 8);
           break;
         }
+        if (v === 6) {
+          // Shadow Exchange: a dark swap at both ends
+          this.fx.burst(f.x, f.y, [43, 44, 7], 14);
+          this.fx.ring(f.x, f.y, 44, 1.6, 0.35, 2);
+          if (f.id === this.myId) this.sound('dash', f.x, f.y);
+          break;
+        }
+        if (v === 7) {
+          // Monarch's Domain rises
+          const r = f.w ?? 9;
+          this.fx.ring(f.x, f.y, 43, r, 0.9, 3);
+          this.fx.ring(f.x, f.y, 45, r * 0.6, 0.7, 2);
+          this.fx.burst(f.x, f.y, [43, 44, 45, 7], 30);
+          this.fx.number(f.x, f.y - 1.5, 'DOMAIN', 45, 22, 11, 1.4);
+          this.sound('levelup', f.x, f.y);
+          break;
+        }
+        if (v === 8) {
+          // the domain's edge, pulsing once a second while it holds
+          this.fx.ring(f.x, f.y, 43, f.w ?? 9, 0.8, 1);
+          break;
+        }
+        if (v === 9) {
+          // a guardian's shadow refuses to stay down (0 rebirth, 1 rewind, 2 devour)
+          const w = f.w ?? 0;
+          this.fx.burst(f.x, f.y, w === 0 ? [59, 60, 61] : w === 1 ? [47, 63, 7] : [43, 45], w === 2 ? 8 : 18);
+          this.fx.ring(f.x, f.y, w === 0 ? 60 : w === 1 ? 47 : 44, w === 2 ? 1 : 2, 0.5, 2);
+          if (w !== 2) this.fx.number(f.x, f.y - 1, w === 0 ? 'REBORN' : 'REWIND', w === 0 ? 61 : 47);
+          break;
+        }
         if (v === 5) {
           this.fx.ring(f.x, f.y, 46, 1.2, 0.25, 1);
           this.fx.burst(f.x, f.y, [46, 47, 7], 8);
