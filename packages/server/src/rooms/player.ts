@@ -44,6 +44,8 @@ export class ServerPlayer implements PlayerRef {
   travelDamageT = 0;
   /** seconds of extreme exposure, and per-injury tick counters */
   exposureT = 0;
+  /** seconds toward the next rot of raw food carried in the pack */
+  rotT = 0;
   condT: Record<string, number> = {};
   queue: InputCmd[] = [];
   lastSeq = 0;

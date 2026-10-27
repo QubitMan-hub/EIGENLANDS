@@ -119,6 +119,7 @@ import { Gameplay } from './gameplay';
 const CAVE_AMBIENT: [number, number, number] = [0.52, 0.49, 0.57];
 import { BuildingViews } from './buildingviews';
 import { WeatherFx } from './weatherfx';
+import { SkyFx } from './skyfx';
 import { WorldObjViews } from './worldobjviews';
 import { ObjectViews, sunFor } from './objectviews';
 import { Terrain } from './terrain';
@@ -276,6 +277,8 @@ export class Game {
   private worldObjs!: WorldObjViews;
   private buildings!: BuildingViews;
   private weatherFx!: WeatherFx;
+  /** shooting stars, aurora and rainbows (screen space, above the lighting) */
+  skyFx!: SkyFx;
   private construction!: ConstructionViews;
   private constructionFloor = new Container();
   private roofLayer = new Container();
@@ -561,6 +564,7 @@ export class Game {
       this.roofLayer,
     );
     this.buildings = new BuildingViews(seed, this.shadowLayer, this.entityLayer, this.roofLayer);
+    this.skyFx = new SkyFx(this.weatherLayer);
     this.weatherFx = new WeatherFx(this.weatherLayer);
     this.app.stage.addChildAt(this.terrain.sprite, 0);
     this.app.stage.addChildAt(this.world, 1);
@@ -1335,6 +1339,18 @@ export class Game {
       this.economy,
       this.settings().weatherDetail,
     );
+    this.skyFx.update({
+      dt,
+      w: W,
+      h: H,
+      seed: this.store.seed,
+      day: dayNumber(this.clock.serverNow(now)),
+      hour,
+      weather,
+      biome: biomeAt(this.store.seed, Math.floor(me.x), Math.floor(me.y)),
+      outdoors: !underground,
+      reduced,
+    });
     const wa = this.weatherFx.ambient(weather),
       amb = diving ? [0.27, 0.53, 0.61] : upper ? [0.72, 0.67, 0.59] : underground ? CAVE_AMBIENT : ambientColor(hour);
     this.lighting.render(
@@ -1615,6 +1631,11 @@ export class Game {
       this.mining.cancel();
     const mining = this.mining.step(now, this.predictor.sim.x, this.predictor.sim.y);
     if (mining) Object.assign(r, mining);
+    // a broken bone: no running or dodging (the server drops the same inputs)
+    if (this.gameplay.profile.buffs.fracture) {
+      r.sprint = false;
+      r.dash = false;
+    }
     const viewTick = Math.max(
       0,
       Math.floor(this.clock.tickAt(this.clock.serverNow(now) - this.clock.interpDelay - this.combat.warp)),

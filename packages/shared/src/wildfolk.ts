@@ -5,6 +5,7 @@
  * by day and goes home at dusk (the hermit never leaves). Spots are a pure function of the seed; how they move is
  * drawn on the client only, like the rest of the ambient life.
  */
+import type { Weather } from './weather';
 import { hash2 } from './rng';
 import { T, isSolid } from './tiles';
 import { HOME_VALE, biomeAt, tileAt, type Biome } from './worldgen';
@@ -16,7 +17,16 @@ import { isUpperY } from './floors';
 import { isDiveY } from './sanctuaries';
 import { isCryptY } from './cryptplane';
 
-export type WildKind = 'woodcutter' | 'forager' | 'fisher' | 'hunter' | 'herbalist' | 'prospector' | 'hermit';
+export type WildKind =
+  | 'woodcutter'
+  | 'forager'
+  | 'fisher'
+  | 'hunter'
+  | 'herbalist'
+  | 'prospector'
+  | 'hermit'
+  /** the family in a kingdom's new cottage (growth.ts) */
+  | 'cottager';
 export interface WildFolk {
   id: string;
   x: number;
@@ -92,8 +102,13 @@ export function wildFolkNear(seed: number, x: number, y: number, rad: number): W
 }
 
 /** Whether a wild worker is out at this game hour (the hermit always is). */
-export const wildFolkOut = (f: WildFolk, hour: number): boolean =>
-  f.kind === 'hermit' || (hour >= WILD_DAY[0] && hour < WILD_DAY[1]);
+/** Out at work by day; a storm sends everyone but the hermit home. */
+export const wildFolkOut = (f: WildFolk, hour: number, weather?: Weather): boolean =>
+  f.kind === 'hermit' ||
+  (hour >= WILD_DAY[0] &&
+    hour < WILD_DAY[1] &&
+    weather !== 'storm' &&
+    !(f.kind === 'cottager' && (weather === 'rain' || weather === 'snow')));
 
 export const WILD_BARKS: Record<WildKind, string[]> = {
   woodcutter: ['Timber!', 'Good oak, this.', 'Mind the swing, friend.'],
@@ -103,4 +118,10 @@ export const WILD_BARKS: Record<WildKind, string[]> = {
   herbalist: ['Bogbean for fevers, moss for cuts.', 'Watch your step, it is deep here.', 'Smell that? Marsh mint.'],
   prospector: ['There is a seam here, I can feel it.', 'Sand in everything…', 'Gold! No. Pyrite again.'],
   hermit: ['Few come this way.', 'The stones hum at night. Listen.', 'Sit a while, if you like.'],
+  cottager: [
+    'We only moved in this season!',
+    'The crown built it. Good walls, too.',
+    'Mind the herbs by the door.',
+    'Times are good here. Long may it last.',
+  ],
 };

@@ -103,3 +103,4 @@ export * from './wayfarers';
 export * from './wildfolk';
 export * from './crypts';
 export * from './growth';
+export * from './wonders';

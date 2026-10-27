@@ -11,7 +11,7 @@ const TABLE: number[][] = [
 ];
 const NAMES: Weather[] = ['clear', 'cloudy', 'rain', 'storm', 'snow', 'fog'];
 
-export const seasonOfDay = (day: number): number => Math.floor(day / DAYS_PER_SEASON) % 4;
+export const seasonOfDay = (day: number): number => ((Math.floor(day / DAYS_PER_SEASON) % 4) + 4) % 4;
 
 /** Deterministic weather for a world day (same on every server/client). */
 export function weatherForDay(seed: number, day: number): Weather {

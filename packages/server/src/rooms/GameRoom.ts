@@ -53,6 +53,7 @@ import { CaravanModule } from '../features/caravans';
 import { CivModule } from '../features/civ';
 import { FestivalModule } from '../features/festivals';
 import { CryptModule } from '../features/crypts';
+import { WondersModule } from '../features/wonders';
 import { SocialModule } from '../features/social';
 import type { BucketName, Carry, JoinOpts, Module, Registrar } from '../features/types';
 import type { VillageHost, VillageSystem } from '../systems/types';
@@ -102,6 +103,7 @@ export class GameRoom extends WorldRoom {
   civ!: CivModule;
   festivals!: FestivalModule;
   crypts!: CryptModule;
+  wonders!: WondersModule;
   shardMod!: ShardModule;
   private modules: Module[] = [];
   private buckets = new Map<string, Map<BucketName, TokenBucket>>();
@@ -155,6 +157,7 @@ export class GameRoom extends WorldRoom {
     this.civ = new CivModule(this);
     this.festivals = new FestivalModule(this);
     this.crypts = new CryptModule(this);
+    this.wonders = new WondersModule(this);
     this.modules = [
       this.shardMod,
       this.journeys,
@@ -172,6 +175,7 @@ export class GameRoom extends WorldRoom {
       this.civ,
       this.festivals,
       this.crypts,
+      this.wonders,
       this.army,
       this.voice,
     ];
@@ -454,6 +458,10 @@ export class GameRoom extends WorldRoom {
   summonBoss(p: ServerPlayer, itemId: string, x: number, y: number): boolean {
     return this.bosses?.summon(p, itemId, x, y) ?? false;
   }
+  openStar(p: ServerPlayer, o: WorldObj): void {
+    this.wonders.openStar(p, o);
+  }
+
   async cryptInteract(p: ServerPlayer, o: WorldObj): Promise<void> {
     await this.crypts?.interact(p, o);
   }

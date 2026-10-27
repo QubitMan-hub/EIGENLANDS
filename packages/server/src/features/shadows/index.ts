@@ -12,7 +12,9 @@ import {
   companionBond,
   RECRUIT_HEARTS,
   RECRUIT_ROLES,
+  RECRUIT_MAX_MS,
   RECRUIT_TERM_MS,
+  RECRUIT_VETERAN_LEVEL,
   hearts,
   recruitFee,
   FOX_FINDS,
@@ -142,7 +144,7 @@ const clean = (raw: unknown): Saved => {
         : {}),
       ...(npc ? { npc } : {}),
       ...(k === 21 && Number.isFinite(x.paid) ? { paid: Math.max(0, Math.min(5000, Math.floor(x.paid!))) } : {}),
-      ...(k === 21 && Number.isFinite(x.term) ? { term: Math.max(1, Math.min(RECRUIT_TERM_MS, x.term!)) } : {}),
+      ...(k === 21 && Number.isFinite(x.term) ? { term: Math.max(1, Math.min(RECRUIT_MAX_MS, x.term!)) } : {}),
       id: x.id,
       kind: k,
       name: String(x.name ?? '').slice(0, 20) || (bonded ? companionBond(k)!.name : newShadow(x.id, k, 1).name),
@@ -396,6 +398,36 @@ export class ShadowModule implements Module {
     return `${fee} coins it is. I'll guard your back for the hour; release me early and I'll return half of what's left.`;
   }
 
+  /** Keep a hired resident on for another hour (up to three paid ahead); each renewal seasons them a level. */
+  private extend(L: Live, id: string): string {
+    const p = L.p,
+      rec = L.data.roster.find((r) => r.id === id);
+    const now = Date.now();
+    if (!rec?.npc || !rec.contractUntil || rec.contractUntil <= now) return 'There is no contract to extend.';
+    const npc = NPC_BY_ID[rec.npc];
+    const fee = recruitFee(npc?.role, p.level);
+    if (rec.contractUntil - now + RECRUIT_TERM_MS > RECRUIT_MAX_MS) return `${rec.name} is paid up for long enough.`;
+    if (p.data.coins < fee) return `Another hour is ${fee} coins.`;
+    // what is still owed carries over, so an early end still refunds half of the time left
+    const left = rec.contractUntil - now;
+    const owed = rec.paid && rec.term ? (rec.paid * left) / rec.term : 0;
+    p.data.coins -= fee;
+    p.dirty('coins');
+    rec.contractUntil += RECRUIT_TERM_MS;
+    rec.term = rec.contractUntil - now;
+    rec.paid = Math.round(owed + fee);
+    if (rec.level < RECRUIT_VETERAN_LEVEL) {
+      rec.level++;
+      const u = L.units.get(rec.id);
+      if (u) {
+        this.applyStats(u.en, rec, u.en.hp / u.en.maxHp);
+        u.st.level = rec.level;
+      }
+    }
+    L.dirty = true;
+    return `${rec.name} stays on another hour (${fee} coins).`;
+  }
+
   private command(p: ServerPlayer, m: ShadowCmd): void {
     const L = this.live.get(p.id);
     if (!L || p.deadT > 0) return;
@@ -439,6 +471,9 @@ export class ShadowModule implements Module {
         }
         break;
       }
+      case 'extend':
+        if (typeof m.id === 'string') p.toast(this.extend(L, m.id), 'info');
+        break;
       case 'release': {
         const i = L.data.roster.findIndex((r) => r.id === m.id);
         if (i >= 0) {

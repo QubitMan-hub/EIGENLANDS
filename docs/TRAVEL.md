@@ -147,8 +147,8 @@ when they walk across a border.
 
 ## Death and respawn
 
-- You wake at your **home waystone** (the one your Recall Shard is bound to) when you have one, otherwise at the
-  world spawn.
+- You wake at your **camp** if you have rested in your own Travel Tent and it still stands; otherwise at your
+  **home waystone** (the one your Recall Shard is bound to) when you have one, otherwise at the world spawn.
 - **Cozy:** nothing is lost.
 - **Adventure:** you lose 10% of your coins.
 - **Hardcore:** you lose 25% of your coins, and your whole pack is left in a **lost satchel** where you fell. Only you

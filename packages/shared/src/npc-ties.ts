@@ -273,3 +273,45 @@ export function weddingsOn(place: string, day: number): Array<[string, string]> 
 /** Is this resident getting married today? */
 export const marriesOn = (npcId: string, day: number): boolean =>
   tiesOn(npcId, day).some((t) => t.kind === 'spouse' && t.since === day);
+
+// ───────────────────────── word travels ─────────────────────────
+
+const CLOSE: ReadonlySet<TieKind> = new Set([
+  'friend',
+  'kin',
+  'sweetheart',
+  'betrothed',
+  'spouse',
+  'mentor',
+  'apprentice',
+  'reconciled',
+]);
+
+/**
+ * How a kindness to one resident spreads (master plan §17 "NPC memories"): those close to them think a little better of
+ * you (a quarter of it), while a rival who hears of it cools a little (a sixth, and only for kindnesses).
+ */
+export function tieSpill(npcId: string, day: number, delta: number): Array<{ npc: string; delta: number }> {
+  if (!delta) return [];
+  const out: Array<{ npc: string; delta: number }> = [];
+  for (const t of tiesOn(npcId, day)) {
+    if (CLOSE.has(t.kind)) out.push({ npc: t.other, delta: Math.round(delta / 4) });
+    else if (t.kind === 'rival' && delta > 0) out.push({ npc: t.other, delta: -Math.round(delta / 6) });
+  }
+  return out.filter((x) => x.delta !== 0);
+}
+
+/**
+ * What a resident says about you and the people they know: a close tie who counts you a friend speaks well of you;
+ * standing with their rival earns a sniff. `heartsWith` gives your hearts with any resident.
+ */
+export function standingLine(npcId: string, day: number, heartsWith: (npc: string) => number): string | null {
+  for (const t of tiesOn(npcId, day)) {
+    const o = NPC_BY_ID[t.other];
+    if (!o || heartsWith(t.other) < 4) continue;
+    const n = first(o);
+    if (t.kind === 'rival') return `I see you keep company with ${n}. Well. Each to their own.`;
+    if (CLOSE.has(t.kind)) return `${n} speaks well of you, you know. That counts for something with me.`;
+  }
+  return null;
+}

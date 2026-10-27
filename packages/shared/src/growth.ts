@@ -1,14 +1,17 @@
 /**
  * Settlement growth (master plan §16 "dynamic settlements"). A prosperous kingdom's settlements spread: new cottages
  * go up on their outskirts, one a day, as real building cells (the same floors, walls and roofs players build with),
- * owned by the kingdom (a fixed per-realm id, `civOwner`) so no traveller can take them apart. How many a settlement has earned follows
- * from the kingdom's prosperity and the works finished there; where they may stand is a fixed, seeded list of plots
- * around the settlement, each checked on the ground before anything is raised. Nothing is ever pulled down.
+ * owned by the kingdom (a fixed per-realm id, `civOwner`) so no traveller can take them apart. Each is furnished and a
+ * family moves in. How many a settlement has earned follows from the kingdom's prosperity and the works finished there;
+ * where they may stand is a fixed, seeded list of plots around the settlement, each checked on the ground before
+ * anything is raised. Nothing is ever pulled down.
  */
 import type { KingdomCiv } from './civ';
 import type { BuildData } from './construction';
 import type { RealmId, RealmSite } from './realms';
 import { hash2 } from './rng';
+import { REALM_SITES } from './realms';
+import type { WildFolk } from './wildfolk';
 
 export const COTTAGE_W = 5;
 export const COTTAGE_H = 4;
@@ -57,6 +60,38 @@ export function growthPlots(seed: number, site: RealmSite): Array<{ x: number; y
     out.push({ x, y });
   }
   return out;
+}
+
+/** Every plot (top-left corner) of every settlement whose outskirts reach within `r` tiles of (x, y). */
+export function plotsNear(seed: number, x: number, y: number, r: number): Array<{ x: number; y: number }> {
+  const out: Array<{ x: number; y: number }> = [];
+  for (const s of REALM_SITES)
+    if (Math.abs(s.cx - x) < s.w / 2 + 16 + r && Math.abs(s.cy - y) < s.h / 2 + 16 + r)
+      out.push(...growthPlots(seed, s));
+  return out;
+}
+
+/** The family living in the cottage at plot (x, y): they potter about in front of their door by day. */
+export function cottagerOf(x: number, y: number): WildFolk {
+  return {
+    id: `ct${x}_${y}`,
+    x: x + 2.5,
+    y: y + COTTAGE_H + 1.2,
+    kind: 'cottager',
+    look: Math.floor(hash2(0x77, x, y, 1) * 1e6),
+    r: 2,
+  };
+}
+
+/** The furniture inside a cottage at (x, y): a bed, a table and chair, a shelf and a lamp, with the doorway clear. */
+export function cottageFurniture(x: number, y: number): Array<{ x: number; y: number; sub: string }> {
+  return [
+    { x: x + 1, y: y + 1, sub: 'bed' },
+    { x: x + 3, y: y + 1, sub: 'shelf' },
+    { x: x + 3, y: y + 2, sub: 'table' },
+    { x: x + 1, y: y + 2, sub: 'lamp' },
+    { x: x + 2, y: y + 1, sub: 'rug' },
+  ];
 }
 
 /** The building cells of one cottage at (x, y): walls round the edge, a door and windows, a floor and roof over all. */

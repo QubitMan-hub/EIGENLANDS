@@ -443,4 +443,6 @@ function dismantle(room: RoomApi, p: ServerPlayer, o: WorldObj): void {
     return;
   }
   room.objects.remove(o.x, o.y);
+  const camp = p.data.prog.camp;
+  if (camp && camp.x === o.x && camp.y === o.y) p.data.prog.camp = null;
 }

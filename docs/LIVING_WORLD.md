@@ -118,11 +118,18 @@ their peace and become friends; apprentices and their mentors become peers. Resi
 their own life as fresh news and pass on gossip about their neighbours'. On a wedding day the couple's settlement holds a celebration in the plaza
 and the street crowd turns festive.
 
+**Word travels.** A gift a resident likes or loves, or a kind choice in one of their heart events, also warms those
+close to them (friends, family, sweethearts, mentors) by a quarter as much, while their rival cools by a sixth. A
+gift they hate sours those close to them too. Residents mention it: "Wren speaks well of you, you know", or "I see
+you keep company with Tam. Well. Each to their own."
+
 **Hiring residents.** A guard, soldier, archer or commander who counts you a friend (three hearts) offers **Hire me**
 in conversation. A contract runs for one world hour for a fee that scales with the role and your level (from 220
 coins; commanders from 420). The hired resident follows and fights beside you, and only one player can employ them at
-a time. While hired they are missing from their post, and their neighbours say so. Ending a contract early refunds
-half of the unused time. The companion window shows **Hired · N min left** and an **End contract** button.
+a time. While hired they are missing from their post, and their neighbours say so. **Extend 1 h** keeps them on
+another hour for the same fee, up to three hours paid ahead, and each renewal seasons them a level (up to 14).
+Ending a contract early refunds half of the unused time. The companion window shows **Hired · N min left**,
+**Extend 1 h** and **End contract**.
 
 ### Royal events
 
@@ -152,7 +159,9 @@ The kingdom state shows on the ground, in each settlement's open squares and law
   building cells, the same floors, walls, door, windows and roof that players build with, in the realm's own
   materials: plaster and tile in Aurelion, logs and moss in Sylvaris, granite and slate in Khar-Dum, timber and tile
   in Raijin, sandstone and reed in Thalassara, brick and slate in Nethrakar. They have real collision and are owned by
-  the crown, so anyone may open their doors but nobody can take them apart. Nothing is pulled down when times turn
+  the crown, so anyone may open their doors but nobody can take them apart. Each is furnished (a bed, a table, a
+  shelf, a lamp and a rug) and a family lives there: by day one of them potters about in front of the door, and goes
+  in when it rains, snows or gets dark. Nothing is pulled down when times turn
   hard. The chronicle records each new cottage.
 
 ### Life on the roads and in the wilds
@@ -162,6 +171,7 @@ The kingdom state shows on the ground, in each settlement's open squares and law
   and mostly go home at night; couriers and patrols ride on after dark with lanterns. They greet you as you pass.
 - **Wild folk:** woodcutters, foragers, herbalists, hunters, fishers, prospectors and the odd hermit work out in the
   wilds by day, in nearly four of every ten 40×40-tile cells, wandering round their spot and talking to passers-by.
+  A storm sends everyone but the hermit home.
 - **Every town is lived in:** home, frontier and cave towns that had no street crowd now have one, with stand-in
   sites when a town has no square.
 - **Soundscape:** wind, birdsong, crickets and owls at night, rain and thunder, surf near the shore, the murmur of
@@ -176,8 +186,15 @@ with a real interior on its own underground plane:
 
 - **Going down:** the sealed door opens at level 5 or higher and takes you down the stairs to the entrance. Stairs
   in the entrance lead back up to the ruin.
-- **Layout:** entrance, a passage, the wardens' hall (pillars, braziers, bones and rubble that differ under every
-  ruin), another passage, and the reliquary chamber with its sarcophagi. Torches light the walls.
+- **Layout:** every crypt runs from the same stairs to the same reliquary chamber with its sarcophagi, but follows
+  one of three floor plans in between: a **pillared hall**; a **long gallery** behind an antechamber, narrower and
+  lined with six pillars; or **catacombs**, whose hall has burial niches cut into its walls. Bones and rubble differ
+  under every ruin, and torches light the walls.
+- **The braziers' riddle:** a carved plaque by the stairs names four of the dead (the Mason, the Widow, the Knight
+  and the Child) in the order they were laid to rest. Each of the hall's four braziers bears one of their names, and
+  which brazier bears which name differs from crypt to crypt. Once the hall is cleared, light the four in the
+  plaque's order and a hidden ossuary opens: a ruin loot roll, coins, XP and a good chance of a rare find, once per
+  player per crypt. A wrong flame puts them all out, and a wisp rises from the cold.
 - **The wardens:** the first time someone walks into the hall, the wardens rise there in three waves (wisps, then a
   vault guardian with wisps, then two guardians and a brute). Everyone in the hall fights them together.
 - **Reward:** clearing the hall unseals the reliquary for everyone who fought in it: two ruin loot rolls, coins, XP
@@ -215,6 +232,22 @@ Revision-6 worlds also have:
 
 Each scene's words are generated from the seed: names, the nearest kingdom, its capital and the land. Reading one
 opens the lore panel. The first reading pays 40 XP and counts toward your stories found.
+
+### Wonders and hunts
+
+- **Starfall nights:** about one clear night in seven, from 21:00 to 04:00, stars fall. Shooting stars streak across
+  the sky in a shower (on any other clear night one goes by now and then). One star comes down near each traveller out
+  in the open (not in a town, a sanctuary, a cave or indoors), 10–22 tiles away, with a flash and a word of the
+  direction. It lies glowing in its crater until mid-morning; anyone may break it open for 2–4 **star shards** (a
+  valuable trade good, 140 coins each), sometimes a qubit crystal, and some experience.
+- **Aurora** curtains ripple over the taiga on clear nights.
+- **Rainbow:** the morning after a rainy day, if it has cleared, a rainbow hangs over the land from 7:00 to 10:00.
+- **Well rested:** sleeping in your own bed under your own roof (a bed you placed, in a roofed cell you built) leaves you
+  well rested: +15% experience for half an hour.
+- **Town bounties:** most towns post a named beast on most days (Old Greymaw the wolf, Mother Bristle the boar, the
+  Unmade, Grimclaw, the Bramble Knight and more). Walk into the town to hear of it and which way it was seen. Out there,
+  48–70 tiles from the town, it waits, hardened and a level above you. Everyone within 25 tiles when it falls is paid
+  the bounty (120–220 coins), gains experience and, in a kingdom, standing. Each bounty is brought down once a day.
 
 ## Efficient simulation
 
@@ -277,21 +310,40 @@ opens the lore panel. The first reading pays 40 XP and counts toward your storie
   and flock on a Khar-Dum road, a wild hunter, street life in a home town, a story scene read, the festivals card and
   the inside of a crypt; no page errors.
 
+- **Deeper world (2026-10-27, second pass):** shared `deeper-world.test.ts` (all three crypt plans sealed and
+  walkable from the stairs to the reliquary, braziers in the hall, the plaque's order, word travelling through ties,
+  cottage furniture inside the walls, clothing warmth, grave wounds); server `deeper.test.ts` (fracture blocks dodge
+  and sprint until a splint, curse weakens blows and stops regeneration until a shrine prayer, contract extension,
+  tent camp respawn, the braziers' riddle in both orders, food spoiling in the pack), `village.ties.test.ts` (a loved
+  gift warms a friend and cools a rival) and the furnished cottage in `realism.test.ts`. Browser proof
+  `e2e/deeper-world.mjs`: the three crypt plans, the plaque's riddle text and a pitched tent; no page errors.
+
+- **Wonders and hunts:** shared `wonders.test.ts` (starfall frequency and weather, the rainbow's morning, the screen
+  compass, bounties placed out in the hills and the same for everyone); server `wonders.test.ts` (a star falls near a
+  traveller once per night and breaks open for shards, a home bed leaves you well rested and XP comes 15% easier, a
+  town's bounty is heard of, met and paid). Browser proof `e2e/wonders.mjs` (2026-10-27): a starfall night on the
+  server with a fallen star beside the traveller and shooting stars in flight; aurora and the rainbow drawn with forced
+  sky inputs; no page errors.
+
 ## Limits and what is not built
 
-- Crypts are a single fixed floor plan (five rooms), the same under every ruin apart from the scattered bones. There
-  are no multi-floor dungeons, puzzles or bosses in them.
+- Crypts have three floor plans and one riddle (the braziers). There are no multi-floor dungeons, crypt bosses or
+  other puzzle types, and the riddle's flames are told by toasts rather than drawn alight.
 - Tournaments are fought against ordinary soldier AI; there is no mounted jousting minigame. The jousting knights
   in Goldspire are cosmetic.
-- NPC ties follow seeded arcs. They do not react to what the player does, apart from hiring.
-- Settlement growth adds cottages on the outskirts only. Existing town layouts never change, and the cottages are
-  empty shells (no furniture or residents of their own). A cottage is only raised in the room that holds its
+- NPC ties follow seeded arcs; the player can sway how residents feel about them (word travels) but cannot change
+  who loves or quarrels with whom.
+- Settlement growth adds cottages on the outskirts only, and existing town layouts never change. The cottage families
+  are drawn on each client (like wild folk): they cannot be talked to, traded with or hired. A cottage is only raised in the room that holds its
   settlement, and plots on slopes, roads or occupied ground are skipped, so a settlement can have fewer cottages than
   it has earned.
-- Hired residents are a one-hour contract with the existing companion AI; they do not level, equip or persist past
-  the contract.
+- Hired residents use the existing companion AI. They gain a level per renewal but cannot be given gear, and they
+  go back to their post when the contract ends.
 - Wayfarers and wild folk are drawn on each client from the seed and the clock. They cannot be fought, traded with
   or followed home, and other players see the same people only because they compute the same thing.
 - Story scenes, crypts, wrecks, cairns and settlement growth exist only in revision-6 worlds, so older worlds' ground
   is untouched.
 - The subsequent bestiary batch adds seven wildlife bonds and matching original portraits; see ADVENTURER_PATHS_AND_BESTIARY.md.
+- Star shards are a trade good only: no recipes use them yet. Bounty beasts are ordinary hardened creatures with no
+  unique attacks or art, and a bounty is told by a toast rather than a notice on a board. The sky effects are drawn in
+  screen space over the world.

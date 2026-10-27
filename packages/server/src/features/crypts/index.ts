@@ -7,7 +7,10 @@
  */
 import {
   CHUNK_SIZE,
+  brazierName,
   cryptAt,
+  cryptOrder,
+  cryptPlaqueText,
   cryptArrival,
   cryptOf,
   cryptSurface,
@@ -50,6 +53,7 @@ interface Trial {
 const chunkOf = (v: number) => Math.floor(v / CHUNK_SIZE);
 const clearedKey = (ruin: string) => `cryptclear:${ruin}`;
 const lootedKey = (ruin: string) => `crypt:${ruin}`;
+const cacheKey = (ruin: string) => `cryptcache:${ruin}`;
 
 export class CryptModule implements Module {
   private t = 0;
@@ -97,6 +101,62 @@ export class CryptModule implements Module {
       await this.move(p, cryptSurface(c));
       p.toast('You climb back up into the ruin.', 'info');
     } else if (o.sub === 'crypt_reliquary') this.openReliquary(p, c, o);
+    else if (o.sub === 'crypt_plaque') p.toast(cryptPlaqueText(this.room.seed, c), 'info');
+    else if (o.sub === 'trial_brazier') this.lightBrazier(p, c, o);
+  }
+
+  /** player id -> braziers lit so far, in order, in one crypt */
+  private lit = new Map<string, { ruin: string; seq: number[] }>();
+
+  /** The braziers' riddle: light the four flames in the order the dead were laid, and the ossuary opens. */
+  private lightBrazier(p: ServerPlayer, c: CryptSite, o: WorldObj): void {
+    const idx = Number((o.data as { idx?: unknown } | undefined)?.idx);
+    if (!Number.isInteger(idx) || idx < 0 || idx > 3) return;
+    const ruins = p.data.prog.ruins,
+      id = c.ruin.id;
+    const name = brazierName(this.room.seed, c, idx);
+    if (this.trials.has(id) || !ruins.includes(clearedKey(id))) {
+      p.toast(`The brazier is carved with ${name}'s name. Its bowl is cold while the wardens stand.`, 'info');
+      return;
+    }
+    if (ruins.includes(cacheKey(id))) {
+      p.toast(`${name}'s flame burns low and steady. The dead have shared what they kept.`, 'info');
+      return;
+    }
+    const st = this.lit.get(p.id)?.ruin === id ? this.lit.get(p.id)! : { ruin: id, seq: [] };
+    if (st.seq.includes(idx)) {
+      p.toast(`${name}'s flame is already lit.`, 'info');
+      return;
+    }
+    st.seq.push(idx);
+    this.lit.set(p.id, st);
+    this.room.fx({ kind: 'craft', x: o.x + 0.5, y: o.y + 0.5 });
+    const order = cryptOrder(this.room.seed, c);
+    if (st.seq.some((v, i) => order[i] !== v)) {
+      this.lit.delete(p.id);
+      p.toast(`${name}'s flame gutters out, and every flame with it. A cold draught: that was not the order.`, 'bad');
+      const spot = cryptWardenSpots(c)[0]!;
+      this.room.spawnEnemy('wisp', spot.x, spot.y, false, { level: Math.max(3, p.level) });
+      return;
+    }
+    if (st.seq.length < 4) {
+      p.toast(`You light ${name}'s flame. (${st.seq.length} of 4)`, 'info');
+      return;
+    }
+    // all four in order: the ossuary behind the sarcophagi opens
+    this.lit.delete(p.id);
+    const loot: Stack[] = [...ruinLoot(this.room.seed, id, c.ruin.biome, this.room.rand)];
+    if (this.room.rand() < 0.5) loot.push({ id: RARE[Math.floor(this.room.rand() * RARE.length)]!, n: 1 });
+    if (!giveStacks(p, loot)) {
+      p.toast('A hidden niche grinds open, but your pack is too full. Make room and light them again.', 'bad');
+      return;
+    }
+    ruins.push(cacheKey(id));
+    const coins = 40 + p.level * 8;
+    p.data.coins += coins;
+    p.dirty('inv', 'coins', 'stats');
+    this.room.grantXp(p, 90 + p.level * 10);
+    p.toast(`All four flames roar. Stone grinds in the walls: a hidden ossuary opens! (+${coins} coins)`, 'good');
   }
 
   private openReliquary(p: ServerPlayer, c: CryptSite, o: WorldObj): void {
@@ -158,7 +218,10 @@ export class CryptModule implements Module {
         if (!p.data.prog.ruins.includes(clearedKey(tr.crypt.ruin.id)))
           p.data.prog.ruins.push(clearedKey(tr.crypt.ruin.id));
         p.dirty('stats');
-        p.toast('The last warden falls. At the far end of the crypt, the reliquary’s seal breaks.', 'good');
+        p.toast(
+          'The last warden falls. At the far end of the crypt, the reliquary’s seal breaks. The four braziers stand cold, waiting.',
+          'good',
+        );
       } else if (isCryptY(p.sim.y)) p.toast('The wardens sink back into the stone. The hall falls silent.', 'bad');
     }
   }

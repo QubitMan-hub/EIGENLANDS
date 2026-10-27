@@ -164,8 +164,25 @@ export const STATUS_DEFS: Record<string, StatusDef> = {
     desc: () => 'You are hot. Find shade or water; extreme heat drains health.',
   },
   bleed: { label: 'Bleeding', tone: 'debuff', icon: 'st_bleed', desc: () => 'Losing health until bandaged.' },
-  fracture: { label: 'Fracture', tone: 'debuff', icon: 'st_crack', desc: () => 'Movement is hampered until healed.' },
+  fracture: {
+    label: 'Fracture',
+    tone: 'debuff',
+    icon: 'st_crack',
+    desc: () => 'No running or dodging until a splint sets it, or it knits on its own.',
+  },
   poison: { label: 'Poisoned', tone: 'debuff', icon: 'st_poison', desc: () => 'Poison drains health over time.' },
+  rested: {
+    label: 'Well rested',
+    tone: 'buff',
+    icon: 'st_heat',
+    desc: (p) => `You slept in your own bed: +${Math.round((p - 1) * 100)}% experience for a while.`,
+  },
+  curse: {
+    label: 'Cursed',
+    tone: 'debuff',
+    icon: 'st_curse',
+    desc: () => 'Your blows are weaker and wounds will not close. Holy water or a prayer at a shrine lifts it.',
+  },
 };
 
 export interface StatusEntry {

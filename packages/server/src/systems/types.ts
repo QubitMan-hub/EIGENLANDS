@@ -68,6 +68,8 @@ export interface PlayerData {
     ways?: string[];
     /** the stone a Recall Shard returns to */
     home?: string | null;
+    /** the tent you last rested in: where you wake if you fall */
+    camp?: { x: number; y: number } | null;
     /** mounts owned ('horse', 'stag') */
     mounts?: string[];
     /** road caravans met (caravans.ts route ids) */

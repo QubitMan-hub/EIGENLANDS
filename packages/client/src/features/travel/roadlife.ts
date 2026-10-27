@@ -3,7 +3,12 @@ import {
   WAYFARER_BARKS,
   WILD_BARKS,
   armyKind,
+  dayNumber,
   gameHour,
+  cottagerOf,
+  isCivOwner,
+  plotsNear,
+  weatherForDay,
   hash2,
   wayfarersNear,
   wildFolkNear,
@@ -98,7 +103,12 @@ export class RoadLife {
     // wild folk: look the spots up a few times a second, move them every frame
     if (now - this.at > 400) {
       this.at = now;
-      this.folk = wildFolkNear(seed, me.x, me.y, VIEW).filter((f) => wildFolkOut(f, hour));
+      const weather = weatherForDay(seed, dayNumber(server));
+      // the families in a kingdom's new cottages (only where a cottage really stands)
+      const cottagers = plotsNear(seed, me.x, me.y, VIEW)
+        .filter((pl) => Math.hypot(pl.x - me.x, pl.y - me.y) < VIEW && isCivOwner(store.structureAt(pl.x, pl.y)?.owner))
+        .map((pl) => cottagerOf(pl.x, pl.y));
+      this.folk = [...wildFolkNear(seed, me.x, me.y, VIEW), ...cottagers].filter((f) => wildFolkOut(f, hour, weather));
     }
     for (const f of this.folk) {
       seen.add(f.id);

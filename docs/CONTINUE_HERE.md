@@ -1,6 +1,6 @@
 # Latest continuation: directional character actions (2026-10-27)
 
-Read [CHARACTER_ACTIONS.md](CHARACTER_ACTIONS.md) for the implemented animation rig, art changes, proof commands and explicit remaining work. Current main through `c4ad6e2` is integrated. Eleven appended directional action families preserve legacy combat/walk/run indices and appearance saves; full higher-resolution authored player/NPC replacement and every bespoke interaction remain open. Keep the existing boss art and the no-subagent workflow.
+Read [CHARACTER_ACTIONS.md](CHARACTER_ACTIONS.md) for the implemented animation rig, art changes, proof commands and explicit remaining work. Current main through `d37f5c0` is integrated, including the deeper-world, crypt-roof, wonders and hunts updates. Eleven appended directional action families preserve legacy combat/walk/run indices and appearance saves; full higher-resolution authored player/NPC replacement and every bespoke interaction remain open. Keep the existing boss art and the no-subagent workflow.
 
 ---
 
@@ -19,6 +19,38 @@ Main's living-world, festivals, stories, travel and fox changes were integrated 
 Read [GUILD_HALLS.md](GUILD_HALLS.md), the [hall plan](superpowers/plans/2026-10-26-guild-halls.md), [HOMESTEADS_AND_GUILD.md](HOMESTEADS_AND_GUILD.md), [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) and the [master plan](EIGENLANDS_MASTER_PLAN.md). Current work follows merged PR #43. Regional guild designation/furnishing, projected identity, expedition tracking and a discovered-hall atlas directory are implemented with focused art/gameplay proof. Rest persistence was genuinely broken and fixed at the buff allowlist. Full integration checks remain pending.
 
 The user expanded the task to complete master-plan §§12–13: thirty named class paths across six families, meaningful progression/skills/passives/equipment and cooperative mechanics; audit/expand the bestiary, habitats, taming and phased bosses. Preserve Superposer/Entangler, authored art, controls and saves; no placeholder completion claims. Continue inline without subagents, integrate incoming main, and require tested final-head CI before merging. Render remains the user's work.
+
+# Current continuation: wonders and hunts (2026-10-27)
+
+- **Fix:** crypt rock rendered as a field of zigzag triangles because the terrain shader did not treat the crypt plane
+  as enclosed (`gl/terrain.frag.ts` `enclosed`); crypt levels are now flat like the Undercroft's
+  (`worldgen.ts` `cryptLevels`).
+- **New:** `shared/src/wonders.ts` (starfall nights, rainbow, aurora, well rested, bounties, `compassWord`); server
+  `features/wonders` (fallen stars, bounty hunts; `openStar` via `systems/containers.ts`; rested XP in
+  `WorldRoom.giveXp`); client `game/skyfx.ts` (shooting stars, aurora, rainbow; `Game.skyFx`), fallen-star art in
+  `art/stories.ts`. `seasonOfDay` now wraps negative days.
+- **Validation:** shared `wonders.test.ts`, server `wonders.test.ts`, browser `e2e/wonders.mjs`.
+
+---
+
+# Current continuation: deeper world, second pass (2026-10-27)
+
+Builds on the section below. New this pass (see [LIVING_WORLD.md](LIVING_WORLD.md) and [TRAVEL.md](TRAVEL.md)):
+
+- **Survival:** fractures and curses (`shared/src/survival.ts` `graveInjuryOnHit`, `CURSE_ATTACK_MULT`; server
+  `WorldRoom` drops dash/sprint and weakens `outgoing`, client `Game.fixedStep` drops the same inputs), splint and
+  holy water, armour warmth by material (`equipment.ts` `armorClimate`, added in `gear-state.ts`), the Travel Tent
+  (`catalog/legendary.ts`, rest in `systems/containers.ts`, `prog.camp`, respawn in `WorldRoom.respawn`, shelter in
+  `travel-needs.ts`), food spoilage (`perishable`, `rotEvery`, `ServerPlayer.rotT`).
+- **Crypts:** three plans (`CRYPT_PLANS`, `cryptPlan`) and the braziers' riddle (`cryptOrder`, `brazierName`,
+  `cryptPlaqueText`; server `features/crypts` `lightBrazier`, prog key `cryptcache:<ruin>`).
+- **People:** word travels (`npc-ties.ts` `tieSpill`, `standingLine`; village `spill`), contract extension
+  (`shadows.ts` `RECRUIT_MAX_MS`; server `extend`), furnished crown cottages and their families (`growth.ts`
+  `cottageFurniture`, `plotsNear`, `cottagerOf`, drawn by `roadlife.ts`), wild folk home in storms.
+- **Validation:** shared `deeper-world.test.ts`, server `deeper.test.ts` and `village.ties.test.ts`, browser
+  `e2e/deeper-world.mjs`. Full results are in the commit and the final report of this pass.
+
+---
 
 # Current continuation: a livelier, more realistic world (2026-10-27)
 

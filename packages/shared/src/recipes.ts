@@ -147,6 +147,8 @@ r(
   'Fiber and something gooey.',
 );
 
+r('compost_spoiled', 'hand', [['spoiled_food', 2]], ['compost', 1], 1, 'start', 'Rot, turned into something useful.');
+
 // Workbench
 r('plank', 'workbench', [['wood', 2]], ['plank', 1], 1, 'start', 'Wood, sawn.');
 r(
@@ -725,6 +727,30 @@ r(
   4,
   'start',
   'Clean cloth and a herb poultice.',
+);
+r(
+  'splint',
+  'alchemy',
+  [
+    ['wood', 2],
+    ['cloth', 1],
+  ],
+  ['splint', 1],
+  4,
+  'start',
+  'Two straight sticks and a strip of cloth.',
+);
+r(
+  'holy_water',
+  'alchemy',
+  [
+    ['healing_herb', 1],
+    ['silver_ore', 1],
+  ],
+  ['holy_water', 1],
+  8,
+  'start',
+  'Herb steeped over silver, which no curse abides.',
 );
 r(
   'antidote',

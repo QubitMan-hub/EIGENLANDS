@@ -1,4 +1,6 @@
 import {
+  NPC_BY_ID,
+  recruitFee,
   BOND_RANGE,
   COMPANION_BONDS,
   companionBond,
@@ -534,6 +536,14 @@ export class ShadowClient implements ClientModule {
               disabled: R.active.length >= R.slots,
               on: { click: () => this.send({ act: 'summon', id: rec.id }) },
             }),
+        rec.npc
+          ? h('button', {
+              text: `Extend 1 h · ${recruitFee(NPC_BY_ID[rec.npc]?.role, this.d.level())}`,
+              title: 'Pay for another hour (up to three ahead). Each renewal seasons them a level.',
+              data: { shControl: `extend-${rec.id}` },
+              on: { click: () => this.send({ act: 'extend', id: rec.id }) },
+            })
+          : null,
         h('button', {
           class: 'danger',
           text: rec.npc ? 'End contract' : 'Release',

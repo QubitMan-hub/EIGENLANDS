@@ -4,7 +4,7 @@
  */
 import { catalogSources, type GearBonus, type Source } from './catalog';
 import { STATION_BY_ID } from './crafting';
-import { SET_BY_ID, WEAPONS } from './equipment';
+import { SET_BY_ID, WEAPONS, armorClimate } from './equipment';
 import { ITEMS, itemDef, type BuffKind, type Stack } from './items';
 import { recipesMaking } from './recipes';
 import { TILE_DEFS } from './tiles';
@@ -21,6 +21,9 @@ export const BUFF_TEXT: Record<BuffKind, (p: number) => string> = {
   poison: () => 'Poisoned',
   burn: () => 'Burning',
   frostbite: () => 'Frostbitten',
+  fracture: () => 'Fractured: no running or dodging',
+  curse: () => 'Cursed: weaker blows, no healing over time',
+  rested: (p) => `Well rested: +${Math.round((p - 1) * 100)}% experience`,
   warmth: () => 'Resist cold',
   coolness: () => 'Resist heat',
   vigor: (p) => `Maximum health +${Math.round(p)}`,
@@ -48,7 +51,7 @@ export function bonusLines(b: GearBonus | undefined, k = 1): string[] {
   n(b.haste, (v) => `+${r1(v)} haste`);
   n(b.phase, (v) => `${pct(v)} of hits pass through`);
   n(b.warm, (v) => `+${Math.round(v)} warmth`);
-  n(b.cool, (v) => `+${Math.round(v)} coolness`);
+  n(b.cool, (v) => (v > 0 ? `+${Math.round(v)} coolness` : `Bakes in the heat (${Math.round(v)} coolness)`));
   n(b.drain, (v) => `-${pct(v)} hunger and thirst`);
   n(b.light, (v) => `Light radius ${Math.round(v)}`);
   n(b.craft, (v) => `${Math.round(v)}% to save an ingredient`);
@@ -67,6 +70,7 @@ export function effectLines(s: Stack, k = 1): string[] {
     const set = SET_BY_ID[d.armor.set];
     if (set) {
       out.push(...bonusLines(set.piece, k));
+      out.push(...bonusLines(armorClimate(set)));
       out.push(`Set ${set.name}: 2 pieces ${bonusLines(set.two).join(', ') || 'no bonus'}`);
       out.push(`4 pieces ${bonusLines(set.four).join(', ') || 'no bonus'}`);
     }

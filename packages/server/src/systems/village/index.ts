@@ -15,6 +15,9 @@ import {
   recruitFee,
   royalCelebration,
   tieNewsOn,
+  tieSpill,
+  NPC_BY_ID,
+  standingLine,
   localPriceFactor,
   DELVER_MERCHANTS,
   type ScheduleBlock,
@@ -537,6 +540,12 @@ export class Village implements VillageSystem {
             : `I heard that ${rumor.charAt(0).toLowerCase()}${rumor.slice(1)}`);
       }
     }
+    // what their friends and rivals think of you
+    else if (rand() < 0.2) {
+      const day = this.host.clock.day();
+      const said = standingLine(npcId, day, (o) => hearts(p.data.friends[o]?.pts ?? 0));
+      if (said) text += ' ' + said;
+    }
     // otherwise, now and then, talk about the neighbours or the kingdom's news
     else if (rand() < 0.3) {
       const g = this.gossip(r.def, rand);
@@ -629,6 +638,16 @@ export class Village implements VillageSystem {
     });
   }
 
+  /** word of a kindness (or a slight) reaches the resident's friends, family and rivals */
+  private spill(p: PlayerRef, npcId: string, delta: number): void {
+    for (const s of tieSpill(npcId, this.host.clock.day(), delta)) {
+      if (!NPC_BY_ID[s.npc]) continue;
+      const o = this.friend(p, s.npc);
+      o.pts = Math.max(0, Math.min(400, o.pts + s.delta));
+    }
+    p.dirty('friends');
+  }
+
   private eventChoice(p: PlayerRef, r: Runner, rec: FriendRec, topic: string): DialogueMsg {
     const [, a, b] = topic.split(':');
     const idx = Number(a),
@@ -640,6 +659,7 @@ export class Village implements VillageSystem {
     if (!c) return this.message(p, r, rec, '…');
     (p.data.events ??= []).push(ev.id);
     rec.pts = Math.min(400, rec.pts + c.pts);
+    this.spill(p, r.def.id, c.pts);
     p.dirty('friends', 'quests');
     return this.message(p, r, rec, c.reply, { mood: 'happy', gift: undefined });
   }
@@ -711,6 +731,7 @@ export class Village implements VillageSystem {
     stack.n -= 1;
     if (stack.n <= 0) p.data.inv[slot] = null;
     rec.pts = Math.max(0, Math.min(400, rec.pts + delta));
+    this.spill(p, npcId, delta);
     rec.gifted = day;
     rec.lastGift = stack.id;
     p.dirty('inv', 'friends');

@@ -217,7 +217,16 @@ export function buildJournal(
             text: 'Injuries: wolves, boars and brutes can make you bleed (bandage), swamp and cave creatures poison (antidote), cinder creatures and lava burn (burn salve, or stand by water), frost creatures and freezing cause frostbite (burn salve or a fire). Bandages and antidotes are a start recipe at the alchemy bench; salves and tonics are discovered. Injuries never kill you outright; they stop at 1 HP.',
           }),
           h('p', {
-            text: 'Food restores 25 nourishment, even at full health. Craft an empty waterskin from 1 hide + 2 fiber in Field crafting, select it in the quick-bar and Use it facing a town well. Each filled skin restores 35 water and keeps the empty container. Rivers and ocean water cannot fill it. The mode changes food and water needs only.',
+            text: 'Food restores 25 nourishment, even at full health. Craft an empty waterskin from 1 hide + 2 fiber in Field crafting, select it in the quick-bar and Use it facing a town well. Each filled skin restores 35 water and keeps the empty container. Filling it at a river or lake gives murky water, which quenches but may poison you: boil it at a cooking pot first. Eating produce, protein and something hearty within half an hour leaves you Nourished.',
+          }),
+          h('p', {
+            text: 'Grave wounds: golems, brutes and rams can break a bone (no running or dodging until a splint sets it) and spirits can curse you (weaker blows, no healing over time) until holy water or a prayer at any shrine altar lifts it. Splints and holy water are start recipes at the alchemy bench.',
+          }),
+          h('p', {
+            text: 'Clothing and camp: furs and wool keep the cold out, linen and silk the heat; metal plate is warm in snow but bakes in the sun. A Travel Tent (Field crafting) shelters you from the weather; rest in it to make it your camp, where you wake if you fall. Raw fish and meat spoil in your pack (slower in the cold): cook them or keep them in a chest. Spoiled food makes compost. Sleep in your own bed under your own roof to wake well rested (+15% experience for half an hour).',
+          }),
+          h('p', {
+            text: 'Wonders and hunts: on some clear nights the stars fall; one comes down near you out in the open, and you can break it open for star shards before mid-morning. Each town posts a bounty most days: walk into town to hear of the beast and where it was seen, and everyone near when it falls is paid. Watch for aurora over the northern pines and a rainbow the morning after rain.',
           }),
         ),
       );

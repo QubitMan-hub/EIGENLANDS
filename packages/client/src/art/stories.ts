@@ -357,7 +357,99 @@ function cairn(face: Facing): ObjSprite {
   );
 }
 
+/** a carved stone tablet on a plinth: the crypt's riddle of the four dead */
+function plaque(face: Facing): ObjSprite {
+  return iso(
+    32,
+    40,
+    face,
+    (p) => {
+      p.box(4, 6, 0, 8, 4, 2, { ramp: STONEM });
+      p.box(5, 7, 2, 6, 2, 11, {
+        ramp: STONEM,
+        // four rows of carved names
+        front: (s, t) =>
+          s > 0.15 && s < 0.85 && [0.25, 0.42, 0.59, 0.76].some((r) => Math.abs(t - r) < 0.04) ? C.ink : null,
+      });
+      p.box(4.6, 6.6, 13, 6.8, 2.8, 1, { ramp: STONEM });
+    },
+    { margin: 6 },
+  );
+}
+
+/** a traveller's A-frame tent: canvas over a ridge pole, the door flap open at one end, pegged guy ropes */
+function campTent(face: Facing): ObjSprite {
+  return iso(
+    40,
+    40,
+    face,
+    (p) => {
+      const canvas: Ramp = [C.e3, C.e4, C.e5, C.e6, C.e7];
+      const flat = (_s: number, _t: number, lvl: (k: number) => number) => lvl(0);
+      const N = 8,
+        H = 1.5;
+      for (let k = 0; k < N; k++) {
+        const w = 16 - k * 2,
+          b0 = (16 - w) / 2;
+        p.box(1, b0, k * H, 14, w, H, {
+          ramp: canvas,
+          top: flat,
+          front: flat,
+          // the gable end: a dark doorway under the open flap
+          end: (s, _t, lvl) => (k < 5 && Math.abs(s - 0.5) < 0.3 * (1 - k / 5) ? C.ink : lvl(-1)),
+        });
+      }
+      p.box(0, 7.5, 0, 1, 1, N * H + 1.5, { ramp: DARKWOOD });
+      p.box(15, 7.5, 0, 1, 1, N * H + 1.5, { ramp: DARKWOOD });
+      p.box(0, 7.5, N * H, 16, 1, 0.8, { ramp: DARKWOOD });
+      // guy ropes to pegs
+      p.line(0.5, 8, N * H + 1, -2, 8, 0, C.e2);
+      p.line(15.5, 8, N * H + 1, 18, 8, 0, C.e2);
+      p.dot(-2, 8, 0, C.e1, 1, 2);
+      p.dot(18, 8, 0, C.e1, 1, 2);
+    },
+    { margin: 8 },
+  );
+}
+
+/** a fallen star: a scorched crater ringed with thrown earth, a pale-blue glowing stone smoking in its heart */
+function fallenStar(face: Facing): ObjSprite {
+  return iso(
+    40,
+    32,
+    face,
+    (p) => {
+      // the rim of thrown-up earth and the scorched bowl
+      for (let k = 0; k < 10; k++) {
+        const a = (k / 10) * Math.PI * 2;
+        p.box(7 + Math.cos(a) * 6.5 - 1.5, 7 + Math.sin(a) * 6.5 - 1.5, 0, 3, 3, 1 + (k % 3) * 0.6, {
+          ramp: [C.e0, C.e1, C.e2, C.e3],
+        });
+      }
+      p.box(3.5, 3.5, 0, 8, 8, 0.2, { ramp: [C.ink, C.ink, C.e0] });
+      // the star itself: a tall faceted stone, white-hot at the heart, with a cold blue skin
+      p.box(4.5, 4.5, 0, 6, 6, 4, {
+        ramp: [C.w4, C.w5, C.w6, C.white, C.white],
+        front: (s, t) => (Math.abs(s - 0.5) < 0.18 && t > 0.2 ? C.white : null),
+        end: (s, t) => (Math.abs(s - t) < 0.15 ? C.white : null),
+      });
+      p.box(5.5, 5.5, 4, 4, 4, 3.5, { ramp: [C.w5, C.w6, C.white, C.white] });
+      p.box(6.5, 6.5, 7.5, 2, 2, 2.5, { ramp: [C.w6, C.white, C.white] });
+      // sparks thrown up around it, and wisps of smoke
+      p.dot(3, 8, 6, C.white);
+      p.dot(11, 6, 8, C.w6);
+      p.dot(9, 11, 5, C.white);
+      p.dot(6, 8, 13, C.steel);
+      p.dot(8, 6, 16, C.mist);
+    },
+    { margin: 8 },
+  );
+}
+
 export const STORY_ART: Record<string, (face: Facing) => ObjSprite> = {
+  fallen_star: fallenStar,
+  camp_tent: campTent,
+  crypt_plaque: plaque,
   story_wreck: wreck,
   story_cairn: cairn,
   lost_satchel: satchel,

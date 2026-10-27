@@ -147,3 +147,7 @@ export const RECRUIT_HEARTS = 3;
 export const RECRUIT_TERM_MS = 60 * 60_000;
 export const recruitFee = (role: string | undefined, level: number): number =>
   (role === 'commander' ? 420 : 220) + Math.max(0, level - 5) * 15;
+/** the most service paid ahead: three hours */
+export const RECRUIT_MAX_MS = 3 * RECRUIT_TERM_MS;
+/** a hireling kept on for another hour grows seasoned: a level per renewal, up to this */
+export const RECRUIT_VETERAN_LEVEL = 14;
