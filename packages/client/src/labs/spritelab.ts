@@ -3,12 +3,22 @@
 //   people              &look=0..7 | &npc=<id> — rows = 8 directions; cols = idle, walk, attack, hurt, death
 //   lineup              one idle frame of everything on a grass strip (&scale=)
 //   icons               item icons
+//   review              the character system's review board: scale by a door and furniture, outfits in 8 facings,
+//                       work and combat clips with their tools, statues beside a person
 import { Application, Container, Graphics, Sprite, Text, type Texture } from 'pixi.js';
 import { ANIMS, critter, critterFrames, critterShadow, type CritterKind } from '../art/foes';
 import { softShadow } from '../art/sprite';
 import { buildActorSheets, OUTFITS, PERSON_H, NPC_W, NPC_H, PERSON_W, WALK_FRAMES } from '../art/actors';
 import { drawWorldBar } from '../game/worldbar';
-import { NPCS, packAppearance, APPEARANCE_COUNTS } from '@eigenlands/shared';
+import { NPCS, packAppearance, APPEARANCE_COUNTS, townFor } from '@eigenlands/shared';
+import { buildBuildingArt } from '../art/buildings';
+import { PROPS } from '../art/props';
+import '../art/catalog-props';
+import { TOWN_DECO } from '../art/town';
+import { STORY_ART } from '../art/stories';
+import { HeldWeapons, HELD_W, HELD_H } from '../art/weapons';
+import { actionKeys, type PersonAction } from '../art/person-actions';
+import { isoX, isoY } from '../game/iso';
 
 const q = new URLSearchParams(location.search);
 const S = Number(q.get('scale') ?? 4);
@@ -171,3 +181,138 @@ if (mode === 'lineup') {
 }
 void Graphics;
 (window as unknown as { __lab: unknown }).__lab = { ready: true };
+
+if (mode === 'review') {
+  const sheets = buildActorSheets();
+  const g = new Graphics().rect(0, 0, 4000, 4000).fill(0x4f7240);
+  root.addChild(g);
+  const man = packAppearance({
+      skin: 1,
+      hairStyle: 0,
+      hairColor: 0,
+      eyes: 2,
+      dress: 3,
+      dressColor: 3,
+      trim: 0,
+      body: 0,
+      cut: 2,
+    }),
+    woman = packAppearance({
+      skin: 3,
+      hairStyle: 0,
+      hairColor: 3,
+      eyes: 1,
+      dress: 0,
+      dressColor: 1,
+      trim: 2,
+      body: 1,
+      cut: 16,
+    });
+  const person = (app: number, d: number, f: number, x: number, y: number) =>
+    place(sheets.styled(0, app, d, f), x, y, [6, 2]);
+  // 1) scale: a real cottage from the home town, both bodies at its door, and furniture beside them
+  const b = townFor(20260101).buildings.find((t) => t.kind === 'house') ?? townFor(20260101).buildings[0]!;
+  const art = buildBuildingArt(b);
+  const door = art.walls.find((w) => w.door) ?? art.walls[0]!;
+  const ox = 120 - isoX(door.tx, door.ty),
+    oy = 150 - isoY(door.tx, door.ty);
+  const house = new Container();
+  house.x = ox;
+  house.y = oy;
+  for (const w of art.walls) {
+    const sp = new Sprite(w.day);
+    sp.x = w.x;
+    sp.y = w.y;
+    house.addChild(sp);
+  }
+  root.addChild(house);
+  label('scale: 1.78 m man / 1.68 m woman at a 2.1 m door', 6, 4);
+  const dx = isoX(door.tx + 0.5, door.ty + 1.3) + ox,
+    dy = isoY(door.tx + 0.5, door.ty + 1.3) + oy;
+  person(man, 0, 0, dx - 9, dy);
+  person(woman, 0, 0, dx + 9, dy + 2);
+  let fx = 230;
+  for (const k of ['chair', 'table', 'workbench', 'bed', 'barrel', 'well']) {
+    const mk = PROPS[k];
+    if (!mk) continue;
+    const def = mk('sw');
+    const fr = def.frames[0]!;
+    const sp = new Sprite(fr.tex);
+    sp.anchor.set(fr.ax / fr.tex.width, fr.ay / fr.tex.height);
+    sp.x = fx;
+    sp.y = 150;
+    root.addChild(sp);
+    person(k === 'table' ? woman : man, 5, 0, fx + 16, 158);
+    label(k, fx - 10, 166);
+    fx += 62;
+  }
+  // 2) outfits in all eight facings: the player presets and some residents
+  const dirs = [0, 5, 3, 7, 1, 6, 2, 4];
+  label('outfits x 8 facings (S, SE, E, NE, N, NW, W, SW)', 6, 190);
+  [0, 3, 6, 9, 10].forEach((o, r) =>
+    dirs.forEach((d, c) => place(sheets.person(o, d, 0), 20 + c * 26, 240 + r * 40, [6, 2])),
+  );
+  ['orla', 'tobin', NPCS[3]!.id, NPCS[7]!.id, NPCS[12]!.id].forEach((id, r) =>
+    dirs.forEach((d, c) => place(sheets.npc(id, d, 0), 250 + c * 26, 240 + r * 40, [6, 2])),
+  );
+  // 3) work and combat: each clip's eight keys with the tool the game puts in the hand
+  const held = new HeldWeapons();
+  const clips: Array<[PersonAction, string | null]> = [
+    ['mine', 'pickaxe'],
+    ['chop', 'axe'],
+    ['dig', 'hoe'],
+    ['water', 'can'],
+    ['fish', 'rod'],
+    ['gather', null],
+    ['craft', null],
+    ['slash', 'sword'],
+    ['thrust', 'spear'],
+    ['dodge', null],
+    ['hit', null],
+    ['death', null],
+  ];
+  label('clips: 8 keys each, contact on the 5th; tools from the same skeleton', 480, 190);
+  clips.forEach(([a, tool], r) => {
+    label(a, 470, 222 + r * 34);
+    actionKeys(a).forEach((f, c) => {
+      const x = 520 + c * 28,
+        y = 236 + r * 34;
+      if (tool) {
+        const t = held.texture(tool as never, 5, f);
+        const sp = new Sprite(t);
+        sp.anchor.set(0.5, 0.75);
+        sp.x = x;
+        sp.y = y + 1;
+        void HELD_W;
+        void HELD_H;
+        root.addChild(sp);
+      }
+      place(sheets.styled(0, r % 2 ? woman : man, 5, f), x, y, [6, 2]);
+    });
+  });
+  // 4) statues beside a living person
+  label('statues beside a person', 6, 450);
+  const statue = TOWN_DECO.statue!().frames[0]!;
+  const st = new Sprite(statue.tex);
+  st.anchor.set(statue.ax / statue.tex.width, statue.ay / statue.tex.height);
+  st.x = 100;
+  st.y = 700;
+  root.addChild(st);
+  person(man, 5, 0, 190, 704);
+  const crypt = STORY_ART.crypt_statue!('sw');
+  const cs = new Sprite(crypt.tex);
+  cs.anchor.set(crypt.ax / crypt.tex.width, crypt.ay / crypt.tex.height);
+  cs.x = 250;
+  cs.y = 700;
+  root.addChild(cs);
+  person(woman, 4, 0, 276, 704);
+  const garden = PROPS.statue_marble?.('se').frames[0];
+  if (garden) {
+    const gs = new Sprite(garden.tex);
+    gs.anchor.set(garden.ax / garden.tex.width, garden.ay / garden.tex.height);
+    gs.x = 330;
+    gs.y = 700;
+    root.addChild(gs);
+    person(man, 4, 0, 356, 704);
+  }
+}

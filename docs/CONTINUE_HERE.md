@@ -37,7 +37,7 @@ Read [REALMS.md](REALMS.md).
 
 # NPC appearance preference (2026-10-27)
 
-The user prefers the previous NPC designs. Residents now use the restored original 24×32 painter, with the newer eight-direction action/conversation animation rig retained. Player 32×48 art stays unchanged. Preserve this split; do not apply the player redesign to NPCs again.
+The user later asked for one unified character system: players, residents and humanoid statues now share the reference-based bodies in `client/src/art/body` (see [CHARACTERS.md](CHARACTERS.md)). Keep everyone on it; outfits stay data (`Outfit`), drawn as layers.
 
 # Latest continuation: gameplay QA and native character replacement (2026-10-27)
 

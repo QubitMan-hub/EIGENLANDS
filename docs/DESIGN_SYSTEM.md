@@ -2,7 +2,7 @@
 
 Authoritative existing art details: [art style guide](art/style-guide.md). Requested direction: [master request](design/master-request.md). Experience: medieval field journal and crafted adventurer equipment, with restrained quantum cyan/violet reserved for magic. The world is the primary surface; compact functional chrome must leave movement and telegraphs visible.
 
-Geometry: 32×16 2:1 diamonds, existing isokit/Iso geometry, projected visible faces, correct ground/hand anchors, integer device-pixel scaling, nearest-neighbour textures. Players native 32×48, NPCs original 24×32, both with eight facings; held objects use personGrip. Creatures retain their directional animation interfaces. Use original or verified licensed art.
+Geometry: 32×16 2:1 diamonds, existing isokit/Iso geometry, projected visible faces, correct ground/hand anchors, integer device-pixel scaling, nearest-neighbour textures. People (players and NPCs) share the art/body system in 32×48 cells: a 29 px man / 28 px woman, eight facings; held objects use personGrip from the same skeleton. Creatures carry the shared one-pixel dark outline. Creatures retain their directional animation interfaces. Use original or verified licensed art.
 
 UI direction: warm parchment text, ink/navy recesses, weathered bronze and wood framing, square pixel-stepped corners and selective rune decoration. Health carmine, magic mineral teal, stamina ochre, food leaf green, water blue; always accompany colour with labels/icons. Quantum accents are functional state, not generic decoration. Pixel display face for titles/short labels; readable body text for dialogue, recipes and descriptions. Font assets remain local.
 
