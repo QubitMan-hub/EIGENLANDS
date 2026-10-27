@@ -20,6 +20,8 @@ import {
   SLIP_SLOW,
   enemyScale,
   moveBody,
+  findPath,
+  overlapsSolid,
   type EnemyDef,
   type EnemyKindName,
   type PosSample,
@@ -35,6 +37,12 @@ import { EnemyState } from '@eigenlands/shared';
 export type EnemyMode = 'idle' | 'wander' | 'chase' | 'windup' | 'leap' | 'recover' | 'stagger' | 'charge';
 
 export interface Enemy {
+  route?: Array<[number, number]>;
+  routeX?: number;
+  routeY?: number;
+  routeUntil?: number;
+  seen?: Target;
+  searchT?: number;
   homeX?: number;
   homeY?: number;
   regenBlockT?: number;
@@ -196,6 +204,8 @@ export interface EnemyHooks {
 
 export interface AiContext {
   allies: Enemy[];
+  /** At most four bounded route searches across this simulation tick. */
+  routes?: number;
   /** committed attackers per target id (windup/leap/charge), by token class */
   engaged: Map<string, number>;
   casting: Map<string, number>;
@@ -222,7 +232,12 @@ export function stepEnemies(
     .filter((e) => e.def.predator && e.hp > 0)
     .map((e) => ({ id: e.id, x: e.x, y: e.y, alive: true }));
   const prey = all.filter((e) => e.def.passive && e.hp > 0).map((e) => ({ id: e.id, x: e.x, y: e.y, alive: true }));
-  const ctx: AiContext = { allies: all.filter((e) => !e.def.passive), engaged: new Map(), casting: new Map() };
+  const ctx: AiContext = {
+    routes: 4,
+    allies: all.filter((e) => !e.def.passive),
+    engaged: new Map(),
+    casting: new Map(),
+  };
   for (const e of ctx.allies) {
     if (!e.targetId || !committed(e)) continue;
     const m = e.def.ai === 'caster' || e.def.ai === 'harrier' ? ctx.casting : e.def.ai === 'swarm' ? null : ctx.engaged;
@@ -288,6 +303,59 @@ function rayEnd(
     py = ny;
   }
   return { x: px, y: py };
+}
+
+/** Follow short cached routes only after direct movement is blocked. Reuse the shared no-corner-cutting A*. */
+function navigate(
+  e: Enemy,
+  vx: number,
+  vy: number,
+  gx: number,
+  gy: number,
+  dt: number,
+  tick: number,
+  solid: SolidQuery,
+  ctx?: AiContext,
+): void {
+  if (e.route && (tick >= (e.routeUntil ?? 0) || Math.hypot(gx - (e.routeX ?? gx), gy - (e.routeY ?? gy)) > 2))
+    e.route = undefined;
+  while (e.route?.length && Math.hypot(e.x - e.route[0]![0] - 0.5, e.y - e.route[0]![1] - 0.5) < 0.22) e.route.shift();
+  if (e.route?.length) {
+    const [x, y] = e.route[0]!;
+    if (solid(x, y)) e.route = undefined;
+    else {
+      let dx = x + 0.5 - e.x,
+        dy = y + 0.5 - e.y;
+      for (const other of ctx?.allies ?? []) {
+        if (other === e) continue;
+        const ox = e.x - other.x,
+          oy = e.y - other.y,
+          d = Math.hypot(ox, oy),
+          gap = e.def.radius + other.def.radius + 0.2;
+        if (d > 0.001 && d < gap) {
+          dx += (ox / d) * (gap - d);
+          dy += (oy / d) * (gap - d);
+        }
+      }
+      const d = Math.hypot(dx, dy) || 1,
+        step = Math.min(Math.hypot(vx, vy) * dt, d);
+      moveBody(e, (dx / d) * step, (dy / d) * step, e.def.radius, solid);
+      return;
+    }
+  }
+  const x = e.x,
+    y = e.y;
+  moveBody(e, vx * dt, vy * dt, e.def.radius, solid);
+  if (Math.hypot(e.x - x, e.y - y) >= Math.hypot(vx, vy) * dt * 0.55 || tick < (e.routeUntil ?? 0)) return;
+  if (ctx && (ctx.routes ?? 4) <= 0) return;
+  if (ctx) ctx.routes = (ctx.routes ?? 4) - 1;
+  const blocked = Object.assign((x: number, y: number) => overlapsSolid(x + 0.5, y + 0.5, e.def.radius, solid), {
+    level: solid.level,
+  });
+  e.route = findPath(Math.floor(e.x), Math.floor(e.y), Math.floor(gx), Math.floor(gy), blocked, 256) ?? undefined;
+  e.routeX = gx;
+  e.routeY = gy;
+  e.routeUntil = tick + 20;
 }
 
 function knockback(e: Enemy, dt: number, solid: SolidQuery, hooks: EnemyHooks): void {
@@ -365,7 +433,7 @@ export function stepEnemy(
     if (!p.alive || (e.def.territory && Math.hypot(p.x - (e.homeX ?? e.x), p.y - (e.homeY ?? e.y)) > e.def.territory))
       continue;
     const d = Math.hypot(p.x - e.x, p.y - e.y);
-    if (d < best) {
+    if (d < best && lineOfSight(solid, e.x, e.y, p.x, p.y)) {
       best = d;
       target = p;
     }
@@ -375,9 +443,18 @@ export function stepEnemy(
     cur &&
     (!e.def.territory || Math.hypot(cur.x - (e.homeX ?? e.x), cur.y - (e.homeY ?? e.y)) <= e.def.territory) &&
     Math.hypot(cur.x - e.x, cur.y - e.y) < e.def.sight * 1.4 &&
+    lineOfSight(solid, e.x, e.y, cur.x, cur.y) &&
     (!target || Math.hypot(cur.x - e.x, cur.y - e.y) < best + 1.5)
   )
     target = cur;
+  const visibleTarget = !!target;
+  if (target) {
+    e.seen = { ...target };
+    e.searchT = 6;
+  } else {
+    e.searchT = Math.max(0, (e.searchT ?? 0) - dt);
+    if (e.searchT && e.seen && targets.some((t) => t.id === e.seen!.id && t.alive)) target = e.seen;
+  }
   if (!committed(e)) e.targetId = target?.id ?? null;
   if (
     e.def.territory &&
@@ -389,7 +466,7 @@ export function stepEnemy(
     const dx = (e.homeX ?? e.x) - e.x,
       dy = (e.homeY ?? e.y) - e.y,
       d = Math.hypot(dx, dy) || 1;
-    moveBody(e, (dx / d) * e.def.speed * dt, (dy / d) * e.def.speed * dt, e.def.radius, solid);
+    navigate(e, (dx / d) * e.def.speed, (dy / d) * e.def.speed, e.homeX ?? e.x, e.homeY ?? e.y, dt, tick, solid, ctx);
     e.mode = 'wander';
     e.targetId = null;
     e.state.faceX = dx / d;
@@ -451,7 +528,7 @@ export function stepEnemy(
       const casting = ctx?.casting.get(target.id) ?? 0;
       const token = engaged < MAX_ENGAGED;
       if (ai === 'ambusher' && d > 4.5 && e.cd <= 0) break;
-      if (e.cd <= 0 && e.flinchT <= 0) {
+      if (e.cd <= 0 && e.flinchT <= 0 && visibleTarget) {
         if (ai === 'ambusher' && token && d <= 3 && lineOfSight(solid, e.x, e.y, target.x, target.y)) {
           startWindup(e, ATK.LEAP, e.def.windup, target, hooks);
           break;
@@ -566,7 +643,20 @@ export function stepEnemy(
         }
       }
       const vl = Math.hypot(vx, vy);
-      if (vl > 1e-6) moveBody(e, (vx / vl) * speed * k * dt, (vy / vl) * speed * k * dt, e.def.radius, solid);
+      if (vl > 1e-6) {
+        const retreat = vx * ux + vy * uy < 0;
+        navigate(
+          e,
+          (vx / vl) * speed * k,
+          (vy / vl) * speed * k,
+          retreat ? e.x + (vx / vl) * 3 : target.x,
+          retreat ? e.y + (vy / vl) * 3 : target.y,
+          dt,
+          tick,
+          solid,
+          ctx,
+        );
+      }
       break;
     }
     case 'windup': {

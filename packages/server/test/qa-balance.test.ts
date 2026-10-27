@@ -80,3 +80,23 @@ it('never heals, applies debuffs or earns spell-hit credit from protected target
   expect(e.mode).not.toBe('recover');
   await p.r.leave();
 });
+
+it('blocks an enemy melee impact through intervening rock but still hits on a clear lane', async () => {
+  const p = await spawn3(app, 'Cover audit');
+  await p.room.ensureChunk(2, 2);
+  flatten(p.room, 85, 84, 5);
+  p.room.store.get(2, 2).levels?.fill(0);
+  clearEnemies(p.room);
+  await tp(p, 86.5, 84.5);
+  p.sp.invuln = 0;
+  p.sp.viewLag = 0;
+  p.sp.hp = p.sp.maxHp;
+  const e = p.room.spawnEnemy('goblin', 84.5, 84.5, false);
+  p.room.setTile(85, 84, T.ROCK);
+  p.room.enemyStrike(e, e.x, e.y, 3);
+  expect(p.sp.hp).toBe(p.sp.maxHp);
+  p.room.setTile(85, 84, T.GRASS);
+  p.room.enemyStrike(e, e.x, e.y, 3);
+  expect(p.sp.hp).toBeLessThan(p.sp.maxHp);
+  await p.r.leave();
+});

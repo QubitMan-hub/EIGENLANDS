@@ -1527,6 +1527,8 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   private applyStrike(st: PendingStrike, p: ServerPlayer): void {
     if (p.deadT > 0 || st.dedupe?.has(p.id)) return;
     if (!shapeHits(st.shape, { x: p.sim.x, y: p.sim.y, r: PLAYER_RADIUS })) return;
+    const origin = st.shape.kind === 'circle' ? { x: st.shape.x, y: st.shape.y } : { x: st.shape.ax, y: st.shape.ay };
+    if (!lineOfSight(this.store.solidAt, origin.x, origin.y, p.sim.x, p.sim.y)) return;
     if (hasIframes(p.sim)) {
       // dodged
       if (isPerfectDodge(p.sim)) this.perfectDodge(p);
