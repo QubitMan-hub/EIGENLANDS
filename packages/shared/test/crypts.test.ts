@@ -184,8 +184,16 @@ describe('the Sunken Vault (a crypt’s second floor)', () => {
     const subs = new Set<string>();
     for (let cy = Math.floor((a.y - 4) / 32); cy <= Math.floor((a.y + 30) / 32); cy++)
       for (let cx = Math.floor((a.x - 8) / 32); cx <= Math.floor((a.x + 8) / 32); cx++)
-        for (const o of cryptObjectsIn(SEED, cx, cy)) if ((o.data as { ruin?: string }).ruin === c.ruin.id) subs.add(o.sub);
-    for (const s of ['crypt_stairs_up', 'crypt_lever', 'crypt_gate', 'crypt_statue', 'crypt_inscription', 'crypt_vault'])
+        for (const o of cryptObjectsIn(SEED, cx, cy))
+          if ((o.data as { ruin?: string }).ruin === c.ruin.id) subs.add(o.sub);
+    for (const s of [
+      'crypt_stairs_up',
+      'crypt_lever',
+      'crypt_gate',
+      'crypt_statue',
+      'crypt_inscription',
+      'crypt_vault',
+    ])
       expect(subs).toContain(s);
   });
 });

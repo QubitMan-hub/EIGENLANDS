@@ -87,7 +87,14 @@ describe('injuries and needs', () => {
 
 describe('diseases', () => {
   it('the cold and wet breed fever; the night swamp breeds ague; shelter and fire keep both off', () => {
-    const base = { thermal: 'cold' as const, weather: 'rain', nearFire: false, indoors: false, biome: 'meadow', hour: 12 };
+    const base = {
+      thermal: 'cold' as const,
+      weather: 'rain',
+      nearFire: false,
+      indoors: false,
+      biome: 'meadow',
+      hour: 12,
+    };
     expect(diseaseRisk(base)).toBe('fever');
     expect(diseaseRisk({ ...base, nearFire: true })).toBeNull();
     expect(diseaseRisk({ ...base, weather: 'clear' })).toBeNull();

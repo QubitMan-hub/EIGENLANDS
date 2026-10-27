@@ -262,7 +262,9 @@ describe('hireling gear', () => {
     await until(() => countItem(a.sp.data.inv, vest) === 1, 4000);
     // a lease that ran out while away hands its kit back on the next login
     const saved = clean({
-      roster: [{ id: 'x1', kind: 21, npc: guard.id, contractUntil: Date.now() - 5, gear: { chest: { id: vest, n: 1 } } }],
+      roster: [
+        { id: 'x1', kind: 21, npc: guard.id, contractUntil: Date.now() - 5, gear: { chest: { id: vest, n: 1 } } },
+      ],
     });
     expect(saved.roster.length).toBe(0);
     expect(saved.pending).toEqual([{ id: vest, n: 1 }]);

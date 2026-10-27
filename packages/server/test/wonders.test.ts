@@ -158,7 +158,8 @@ describe('town bounties', () => {
   it('a town without a request board gets a notice board by its well, once', async () => {
     const p = await spawn3(app, 'Reader');
     const town = townsNear(p.room.seed, -700, -700, 700, 700).find(
-      (t) => !t.abandoned && !t.objects.some((o) => o.sub === 'board') && p.room.owns(Math.round(t.cx), Math.round(t.cy)),
+      (t) =>
+        !t.abandoned && !t.objects.some((o) => o.sub === 'board') && p.room.owns(Math.round(t.cx), Math.round(t.cy)),
     );
     expect(town).toBeTruthy();
     if (!town) return;
