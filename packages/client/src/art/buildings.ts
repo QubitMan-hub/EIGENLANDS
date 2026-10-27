@@ -79,10 +79,10 @@ export type RoofShape = 'gable' | 'hip' | 'pagoda' | 'dome' | 'flat' | 'spire';
 type Form = 'plain' | 'cross' | 'gambrel' | 'barrel' | 'swoop' | 'jerkin';
 const FORMS_BY_REALM: Form[][] = [
   ['plain', 'cross', 'cross', 'jerkin', 'gambrel', 'plain'], // aurelion: timbered gables
-  ['barrel', 'swoop', 'barrel', 'cross', 'swoop', 'plain'], // sylvaris: living, curved roofs
+  ['plain', 'swoop', 'cross', 'barrel', 'plain', 'jerkin'], // sylvaris: living, curved roofs
   ['plain', 'jerkin', 'gambrel', 'plain', 'cross', 'jerkin'], // khardum: steep and heavy
-  ['swoop', 'cross', 'swoop', 'jerkin', 'plain', 'barrel'], // raijin
-  ['barrel', 'barrel', 'swoop', 'cross', 'gambrel', 'barrel'], // thalassara
+  ['swoop', 'cross', 'plain', 'jerkin', 'plain', 'cross'], // raijin
+  ['plain', 'barrel', 'jerkin', 'cross', 'plain', 'barrel'], // thalassara
   ['jerkin', 'cross', 'plain', 'gambrel', 'jerkin', 'cross'], // nethrakar
 ];
 /** Roof colours a house can wear instead of its kingdom's default: terracotta, teal, violet slate, blue, moss, honey thatch. */
@@ -565,14 +565,24 @@ function paint(b: Building, st: Style): Style {
   if (st.timber && h(5) < 0.25) out.timber = [C.ink, C.night, C.slate, C.steel];
   return out;
 }
-const styleFor = (b: Building) =>
-  buildingRealm(b) === 'cave'
-    ? CAVE_STYLE
-    : buildingRealm(b) === 'sea'
-      ? SEA_STYLE
-      : b.style >= 4
-        ? paint(b, realmStyle(b))
-        : paint(b, STYLES[b.style % 4]!);
+const styleFor = (b: Building): Style => {
+  const realm = buildingRealm(b);
+  const st =
+    realm === 'cave'
+      ? CAVE_STYLE
+      : realm === 'sea'
+        ? SEA_STYLE
+        : b.style >= 4
+          ? paint(b, realmStyle(b))
+          : paint(b, STYLES[b.style % 4]!);
+  if (!b.guild || b.kind !== 'hall' || realm !== 'surface') return st;
+  // Civic silhouettes keep the regional language: a timber lodge, grove pavilion,
+  // stone bastion, swept-roof dojo, tide dome and steep obsidian archive.
+  const shapes: RoofShape[] = ['gable', 'hip', 'flat', 'pagoda', 'dome', 'gable'];
+  const region = b.style >= 4 ? Math.floor((b.style - 4) / 5) % shapes.length : 0;
+  return { ...st, shape: shapes[region] };
+};
+
 function realmStyle(b: Building): Style {
   const st = REALM_STYLES[(b.style - 4) % REALM_STYLES.length]!;
   return (b.kind as string) === 'tower' ? { ...st, shape: 'spire' } : st;
@@ -603,6 +613,33 @@ function wallMat(b: Building, st: Style, seed: number, interior: boolean, capC: 
     // Dark timber jambs make the open entrance readable against pale plaster.
     if (face === 'south' && Math.floor(x) === b.doorX && z > 1.5 && z < 34 && (fu < 0.15 || fu > 0.85))
       return fu < 0.15 ? C.e3 : C.e1;
+    const lampTile = b.doorX + 1 < b.x + b.w - 1 ? b.doorX + 1 : b.doorX - 1;
+    if (
+      buildingRealm(b) === 'surface' &&
+      !interior &&
+      face === 'south' &&
+      Math.floor(x) === lampTile &&
+      z >= 21 &&
+      z <= 30
+    ) {
+      const u = Math.abs(fu - 0.5) * 16;
+      if (u < 2.5) {
+        if (z > 28.5 || z < 22.5 || u > 1.5 || Math.abs(z - 25.5) < 0.5) return C.e2;
+        return GLASS + (z > 25 ? 3 : 2);
+      }
+    }
+    // Guild standards lie on the actual wall plane. Their motif is a brass compass,
+    // shared across regional halls while the surrounding architecture stays local.
+    if (b.guild && !interior && face === 'south' && Math.floor(x) === b.doorX - 1 && z >= 10 && z < 38) {
+      const u = (fu - 0.5) * 16,
+        v = z - 25;
+      if (Math.abs(u) <= 5 && !(z < 13 && Math.abs(u) < 13 - z)) {
+        if (z > 35 || Math.abs(u) > 4) return C.e4;
+        if (Math.abs(u) + Math.abs(v) * 0.6 < 4.4 && Math.abs(u) + Math.abs(v) * 0.6 > 2.6) return C.e6;
+        if ((Math.abs(u) < 0.8 && Math.abs(v) < 6) || (Math.abs(v) < 0.8 && Math.abs(u) < 3)) return C.e7;
+        return u < 0 ? C.g1 : C.g2;
+      }
+    }
     // foundation course
     if (z < 6) {
       const brick = Math.floor((upx + (iz < 3 ? 0 : 5)) / 10);
@@ -712,9 +749,17 @@ function buildRoof(
   const house = realm === 'surface' && shape === 'gable' && HOUSE_KINDS.includes(b.kind);
   const form: Form = house ? FORMS_BY_REALM[realmIdx]![Math.floor(hv(1) * 6)]! : 'plain';
   const church = b.kind === 'church' && realm === 'surface';
-  const pitch = house ? 0.85 + hv(2) * 0.7 : church ? 1.9 : 1;
+  const pitch = house ? 0.92 + hv(2) * 0.34 : church ? 1.9 : 1;
   // a third of the houses wear another colour of roof than their kingdom's default
-  const alt = house && hv(3) < 0.4 ? ALT_ROOFS[Math.floor(hv(4) * ALT_ROOFS.length)]! : null;
+  const family = [
+    [6, 5, 2],
+    [4, 0, 5],
+    [2, 1, 6],
+    [6, 0, 2],
+    [3, 0, 5],
+    [1, 3, 6],
+  ][realmIdx]!;
+  const alt = house && hv(3) < 0.32 ? ALT_ROOFS[family[Math.floor(hv(4) * family.length)]!]! : null;
   const rk = alt ? alt.kind : st.roofKind;
   const baseRise = Math.min(span * 11 * pitch * (form === 'gambrel' ? 1.2 : 1), church ? 76 : 54);
   const rise =
@@ -1150,7 +1195,9 @@ function buildRoof(
             const border = Math.min(x - X0, X1 - x, y - Y0, Y1 - y);
             const edge = border < 0.09 && z < rz - 0.6;
             if (edge) {
-              put(ctx, px, py, alongX ? (y > mid ? st.trim : R0[0]!) : x > mid ? st.trim : R0[0]!);
+              const front = alongX ? y > mid : x > mid;
+              const fascia = house && !b.id.endsWith('.palace') ? (front ? C.e4 : C.e1) : front ? st.trim : R0[0]!;
+              put(ctx, px, py, fascia);
               break;
             }
             // Refine the half-pixel ray hit back onto its surface. Sampling
@@ -1207,7 +1254,7 @@ function buildRoof(
               form !== 'swoop' &&
               Math.abs(down) < 0.12
             ) {
-              c = rampAt(R0, 0.85 + lit, px, py);
+              c = rampAt(R0, 0.72 + lit - (Math.floor(along * 16) % 7 === 0 ? 0.08 : 0), px, py);
               put(ctx, px, py, c);
               break;
             } // ridge cap
@@ -1218,28 +1265,29 @@ function buildRoof(
               const rib = Math.floor(apx) % 24;
               t += (rib < 2 ? 0.25 : 0) + (Math.floor(dpx) % 6 === 0 ? -0.12 : 0);
             } else if (rk === 'thatch') {
-              const strand = hash2(seed, Math.floor(apx / 3), Math.floor(dpx / 4), 9);
-              const course = Math.floor(dpx) % 10;
-              t += (strand - 0.5) * 0.06 + (course === 0 ? -0.1 : course < 2 ? 0.06 : 0);
+              // Bound straw bundles read as a continuous roof; per-bundle random tones made a noisy maze.
+              const course = Math.floor(dpx / 10),
+                within = dpx - course * 10;
+              const bundle = (apx + (course % 2) * 6) % 12;
+              t += (within > 8.8 ? -0.08 : within > 7.6 ? 0.035 : 0) + (bundle < 0.7 && within > 4 ? -0.025 : 0);
             } else {
               // Broad overlapping shingles. All seams live in roof space;
               // one material value per tile, never per-pixel noise or dots.
               const rowH = rk === 'slate' ? 5 : 6;
               const row = Math.floor(dpx / rowH);
-              const len = rk === 'tile' ? 7 : 9;
+              const len = rk === 'tile' ? 9 : 11;
               const off = (row % 2) * (len / 2);
               const k = Math.floor((apx + off) / len);
               const fr = apx + off - k * len,
                 fz = dpx - row * rowH;
-              t += (hash2(seed, k, row, 10) - 0.5) * 0.12;
+
               if (fz > rowH - 0.85)
-                t -= 0.19; // under the overlapping lip
+                t -= 0.12; // under the overlapping lip
               else if (fr < 0.65)
-                t -= 0.13; // staggered vertical joint
+                t -= 0.07; // staggered vertical joint
               else if (fz > rowH - 1.7)
-                t += 0.12; // lit tile bevel
+                t += 0.08; // lit tile bevel
               else if (rk === 'tile' && fr < 1.8) t += 0.06;
-              if (rk === 'shingle' && row > 1 && hash2(seed, k, row, 11) > 0.97) t -= 0.12; // occasional weathered shingle, not a noise mask
             }
             // eave darkening: the lowest course reads as an overhang
             if (dpx > span * 16 - 1.5) t -= 0.14;
@@ -1364,6 +1412,16 @@ function buildRoof(
 }
 
 const SIGN: Record<string, { text: string; icon: (ctx: Ctx, x: number, y: number) => void; board: Ramp }> = {
+  guild: {
+    text: 'GUILD',
+    board: [C.g0, C.g1, C.g2, C.g3],
+    icon: (c, x, y) => {
+      for (let dy = -4; dy <= 4; dy++)
+        for (let dx = -4; dx <= 4; dx++) if (Math.abs(dx) + Math.abs(dy) === 4) put(c, x + 4 + dx, y + 4 + dy, C.e5);
+      put(c, x + 4, y, C.e7, 1, 9);
+      put(c, x, y + 4, C.e6, 9, 1);
+    },
+  },
   bakery: {
     text: 'BAKER',
     board: [C.e0, C.e1, C.e2, C.e3],
@@ -1639,6 +1697,7 @@ function buildBuildingArtInner(b: Building): BuildingArt {
   const rf = buildRoof(b, st, seed);
   const chimney = rf.chimney;
   windows.push(...rf.windows);
+  windows.push({ x: (b.doorX + 1 < b.x + b.w - 1 ? b.doorX + 1 : b.doorX - 1) + 0.5, y: b.doorY + 1.15 });
 
   // ground shadow: footprint smeared to the lower right (light from the top-left)
   const sx0 = (b.x - y1) * 16 - 2,
@@ -1665,7 +1724,7 @@ function buildBuildingArtInner(b: Building): BuildingArt {
         if (hit && !(x >= b.x && x <= x1 && y >= b.y && y <= y1)) put(sc.ctx, px, py, C.q0);
       }
   });
-  const sign = signTexture(SIGN[b.id] ? b.id : b.kind);
+  const sign = signTexture(b.guild ? 'guild' : SIGN[b.id] ? b.id : b.kind);
   return {
     walls,
     roof: { tex: tex(rf.canvas), night: rf.night ? tex(rf.night) : null, x: rf.left, y: rf.top },

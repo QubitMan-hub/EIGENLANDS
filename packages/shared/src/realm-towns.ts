@@ -1,8 +1,10 @@
+import { cozyTown } from './cozy-town';
 import { KINGDOMS } from './kingdoms';
 import { residentsOfSite, type Place, type ResidentPlan } from './realm-npcs';
 import { REALM_IDS, REALM_SITES, type RealmId, type RealmSite } from './realms';
 import { mulberry32 } from './rng';
-import { T } from './tiles';
+import { objSolid, propFootprint } from './objects';
+import { T, isSolid } from './tiles';
 import { furnish, type Building, type BuildingKind, type Town } from './town';
 
 /**
@@ -235,7 +237,12 @@ export function buildRealmTown(site: RealmSite, seed: number, generation = 5): T
   ) => {
     if (inPlot(x, y)) {
       const key = `${x},${y}`;
-      if (generation >= 6 && occupiedObjects.has(key)) return;
+      if (generation >= 6) {
+        // a large prop claims every tile its art stands on; nothing else may be put inside it, nor it over something
+        const fp = propFootprint(sub, x, y, get).map(([fx, fy]) => `${fx},${fy}`);
+        if (occupiedObjects.has(key) || fp.some((k) => occupiedObjects.has(k))) return;
+        for (const k of fp) occupiedObjects.add(k);
+      }
       t.objects.push({ x, y, kind, sub, data });
       occupiedObjects.add(key);
     }
@@ -818,7 +825,9 @@ export function buildRealmTown(site: RealmSite, seed: number, generation = 5): T
         const sub = `stall_${AWN[(awnStart + n * 2) % AWN.length]}_${WARES[(n * 3 + awnStart) % WARES.length]}`;
         obj(sx, row, 'deco', sub);
         spot(`${site.id}.stall.${n++}`, sx, row - 1);
-        if (chance(0.55)) obj(sx + 1, row, 'deco', pickOf(['crate', 'barrel', 'basket', 'hay']));
+        // clutter stands in the gap after the counter (revision 6+), not on the counter's second tile
+        if (chance(0.55))
+          obj(sx + (generation >= 6 ? 2 : 1), row, 'deco', pickOf(['crate', 'barrel', 'basket', 'hay']));
       }
     // a few loose carts and sacks in the open middle
     for (let i = 0; i < 3; i++)
@@ -1265,18 +1274,22 @@ export function buildRealmTown(site: RealmSite, seed: number, generation = 5): T
       if (pal) spot(`${r.id}.home`, pal.x + 3, pal.y + 4);
     }
   });
-  // a last safety net: any spot that landed on a solid tile slides to the nearest open one
+  // a last safety net: any spot that landed on a solid tile, a solid object or a large prop's footprint slides to the
+  // nearest open tile (a villager cannot path onto a blocked spot, and would otherwise be placed inside the object)
+  const blocked = new Set<string>();
+  for (const o of t.objects)
+    if (objSolid(o.kind, o.sub)) {
+      blocked.add(`${o.x},${o.y}`);
+      for (const [fx, fy] of propFootprint(o.sub, o.x, o.y, get)) blocked.add(`${fx},${fy}`);
+    }
+  const open = (x: number, y: number) =>
+    walkable(x, y) && !isSolid(get(x, y)) && !blocked.has(`${x},${y}`) && get(x, y) !== T.WATER;
   for (const [k, s] of Object.entries(t.spots)) {
-    if (
-      walkable(s.x, s.y) &&
-      !t.objects.some((o) => o.x === s.x && o.y === s.y && o.kind === 'deco' && o.sub === 'well')
-    )
-      continue;
+    if (open(s.x, s.y)) continue;
     let best: { x: number; y: number } | null = null;
     for (let r = 1; r < 8 && !best; r++)
       for (let dy = -r; dy <= r && !best; dy++)
-        for (let dx = -r; dx <= r && !best; dx++)
-          if (walkable(s.x + dx, s.y + dy) && get(s.x + dx, s.y + dy) !== T.WATER) best = { x: s.x + dx, y: s.y + dy };
+        for (let dx = -r; dx <= r && !best; dx++) if (open(s.x + dx, s.y + dy)) best = { x: s.x + dx, y: s.y + dy };
     if (best) t.spots[k] = best;
   }
   if (generation >= 6) {
@@ -1293,5 +1306,5 @@ export function buildRealmTown(site: RealmSite, seed: number, generation = 5): T
       }
   }
   void buildingsAt;
-  return t;
+  return cozyTown(t);
 }

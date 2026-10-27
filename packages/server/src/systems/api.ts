@@ -6,6 +6,13 @@ import type { VillageSystem } from './types';
 
 /** What the Phase 2 systems may use from the world room. */
 export interface RoomApi {
+  guildClear?: (p: ServerPlayer, id: string) => void;
+  guildStart?: (
+    p: ServerPlayer,
+    id: string,
+    board: import('@eigenlands/shared').WorldObj,
+  ) => Promise<import('@eigenlands/shared').GuildJourney | null>;
+  guildInteract?: (p: ServerPlayer, o: import('@eigenlands/shared').WorldObj) => boolean;
   seed: number;
   store: ChunkStore;
   state: WorldState;
@@ -29,7 +36,18 @@ export interface RoomApi {
   nearby(x: number, y: number, radius: number): ServerPlayer[];
   /** call a boss at (x, y); false = refused (the module toasts why) */
   shrineInteract?(p: ServerPlayer, o: import('@eigenlands/shared').WorldObj): void;
+  travelInteract?(p: ServerPlayer, o: import('@eigenlands/shared').WorldObj): void;
+  recall?(p: ServerPlayer, slot: number): void;
+  toggleMount?(p: ServerPlayer, kind: string): void;
+  feedMount?(p: ServerPlayer, slot: number): void;
   toggleShip?(p: ServerPlayer): void;
   summonBoss?(p: ServerPlayer, itemId: string, x: number, y: number): boolean;
   vaultGuard?(p: ServerPlayer, o: import('@eigenlands/shared').WorldObj): boolean;
+  /** break a ruin crypt's seal (features/crypts) */
+  cryptInteract?(p: ServerPlayer, o: import('@eigenlands/shared').WorldObj): Promise<void> | void;
+  /** the realm portals and their mechanics (features/otherworlds); true when handled */
+  otherworldInteract?(p: ServerPlayer, o: import('@eigenlands/shared').WorldObj): Promise<boolean>;
+  /** break open a fallen star (features/wonders) */
+  openStar?(p: ServerPlayer, o: import('@eigenlands/shared').WorldObj): void;
+  grantXp?(p: ServerPlayer, xp: number): void;
 }

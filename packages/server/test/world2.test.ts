@@ -228,7 +228,12 @@ describe('inventory operations', () => {
 
 describe('village wiring', () => {
   it('all settlement NPCs exist, sync to nearby clients, and TALK/SHOP are routed (only when near)', async () => {
-    expect(p.room.state.npcs.size).toBe(NPCS.length);
+    expect([...p.room.state.npcs.keys()].filter((id) => NPCS.some((n) => n.id === id))).toHaveLength(NPCS.length);
+    expect(
+      [...p.room.state.npcs.keys()]
+        .filter((id) => !NPCS.some((n) => n.id === id))
+        .every((id) => /^(guild-steward:|resident:|livestock:|journey:)/.test(id)),
+    ).toBe(true);
     // far from town: ignored
     p.r.send(MSG.TALK, { npcId: 'tobin' });
     await sleep(150);

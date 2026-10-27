@@ -1,10 +1,15 @@
+import { livestockTexture } from '../art/livestock';
 import { minecartSprite } from '../art/mining';
+import { FLY_Z, MOUNT_FRAMES, SADDLE_Z, mountDir, mountSprite } from '../art/mounts';
+import { Rectangle, Texture } from 'pixi.js';
 import type { HeldWeapons } from '../art/weapons';
 import { type Critters, type CritterId } from '../art/critters';
 import { Sprite, type Container, type Graphics } from 'pixi.js';
 import { SHIP_AX, SHIP_AY, headingOf, type Ships } from '../art/ships';
 import {
   HUE_PALETTE,
+  mountKindOf,
+  GLIMMERHART_MOUNT,
   armyOfKind,
   ATK,
   BRUTE_SLAM_RADIUS,
@@ -19,6 +24,7 @@ import {
   DASH_COOLDOWN,
   ELITE,
   ENEMY_BY_KIND,
+  BOSS_BY_KIND,
   LEAP_RADIUS,
   PALETTE,
   PLAYER_RADIUS,
@@ -69,6 +75,8 @@ export interface CombatActor {
   /** hull sprite under a sailing player */
   ship?: Sprite;
   cartSprite?: Sprite;
+  /** horse or Stag under a riding player */
+  mountSprite?: Sprite;
 }
 
 /** Synced fields combat reads from interpolated snapshots. */
@@ -142,6 +150,7 @@ export class CombatView {
   private wasCharging = false;
   /** last D4 facing per drawn creature (hysteresis) */
   private dirs = new WeakMap<CombatActor, number>();
+  private nights = new WeakMap<CombatActor, boolean>();
   private swings = new WeakMap<CombatActor, { at: number; duration: number }>();
   private states = new WeakMap<CombatActor, { st: number; at: number }>();
 
@@ -152,8 +161,26 @@ export class CombatView {
     return reduced ? 2 : Math.min(3, Math.floor((Math.max(0, now - swing.at) / swing.duration) * 4));
   }
 
+  playerAttackProgress(v: CombatActor, now: number): number {
+    const swing = this.swings.get(v);
+    return swing ? Math.max(0, Math.min(1, (now - swing.at) / swing.duration)) : 1;
+  }
+
+  /** Player events arrive at release/impact. Windup belongs to the actual held charge, not after damage. */
+  playerAttackFrame(v: CombatActor, now: number, reduced: boolean): number {
+    const swing = this.swings.get(v);
+    if (!swing || now - swing.at >= swing.duration) return -1;
+    const t = Math.max(0, now - swing.at) / swing.duration;
+    return reduced ? 2 : t < 0.12 ? 1 : t < 0.42 ? 2 : 3;
+  }
+
   private strike(v: CombatActor | undefined, duration: number): void {
-    if (v) this.swings.set(v, { at: performance.now(), duration });
+    if (!v) return;
+    const now = performance.now(),
+      active = this.swings.get(v);
+    // Multi-orb fans and chained ground impacts share one weighted strike/recovery, not a twitch per projectile.
+    if (BOSS_BY_KIND[v.kind] && active && now < active.at + active.duration) return;
+    this.swings.set(v, { at: now, duration });
   }
   killedBy = '';
 
@@ -346,21 +373,36 @@ export class CombatView {
         this.d.sound('crash', f.x, f.y);
         if (near()) fx.kick(shakeFor(2, false, this.d.reduced()));
         return true;
-      case 'orb':
+      case 'orb': {
+        const actor = f.id ? view(f.id) : undefined;
+        if (actor && BOSS_BY_KIND[actor.kind]) this.strike(actor, 450);
         fx.burst(f.x, f.y, [45, 46, 37], 6);
         this.d.sound('orb', f.x, f.y);
         return true;
+      }
       case 'reflect':
         fx.ring(f.x, f.y, 47, 0.8, 0.25, 2);
         fx.burst(f.x, f.y, [47, 30, 7], 8);
         this.d.sound('reflect', f.x, f.y);
         this.hitStop(60);
         return true;
-      case 'blast':
+      case 'warp':
+        // waystone travel: a ring gathers as the spell begins, a burst of rune light where you vanish and arrive
+        if (f.v === 0) fx.ring(f.x, f.y, 30, 1.2, 0.6, 2);
+        else {
+          fx.burst(f.x, f.y, [30, 31, 46, 7], 14);
+          fx.ring(f.x, f.y, 46, 1.4, 0.35, 2);
+        }
+        this.d.sound(f.v === 0 ? 'charge' : 'perfect', f.x, f.y);
+        return true;
+      case 'blast': {
+        const actor = f.id ? view(f.id) : undefined;
+        if (actor && BOSS_BY_KIND[actor.kind]) this.strike(actor, 450);
         fx.shockwave(f.x, f.y, f.v ?? 1.8, 36);
         this.d.sound('blast', f.x, f.y);
         if (near(8)) fx.kick(shakeFor(2, false, this.d.reduced()));
         return true;
+      }
       case 'bomb':
         this.bombs.push({ x: f.x, y: f.y, r: f.w ?? 1.7, t0: performance.now(), dur: (f.v ?? 0.9) * 1000 });
         this.d.sound('bomb', f.x, f.y);
@@ -397,10 +439,17 @@ export class CombatView {
         }
         return true;
       case 'die':
-        if (f.v === 33) {
+        if (f.v !== undefined && BOSS_BY_KIND[f.v]) {
           const actor = f.id ? view(f.id) : undefined,
-            dir = actor ? Math.floor(actor.sprite.texture.frame.y / STORM_SIZE) : 0;
-          fx.remains(this.d.critters().stormbound.frame(dir, 'death', 0), f.x, f.y, STORM_FOOT / STORM_SIZE);
+            foes = this.d.foes();
+          const corpse = foes.frame(
+            f.v,
+            actor ? (this.nights.get(actor) ?? false) : false,
+            actor ? (this.dirs.get(actor) ?? 0) : 0,
+            'death',
+            0,
+          );
+          if (corpse !== Texture.EMPTY) fx.remains(corpse, f.x, f.y, foes.anchor(f.v));
         }
         if (f.by !== undefined && f.id === this.d.myId()) this.killedBy = ENEMY_BY_KIND[Number(f.by)]?.name ?? '';
         fx.burst(f.x, f.y, [28, 29, 45, 6], 14);
@@ -615,13 +664,11 @@ export class CombatView {
     }
   }
 
-  /** Hull, wake and bobbing under a sailing player; restores the walking pose when they step ashore. */
+  /** Active transport owns rider height; inactive visuals only hide themselves. Game resets the ground pose each frame. */
   rig(v: CombatActor, boat: boolean, fx: number, fy: number, t: number): void {
     if (!boat) {
       if (v.ship) {
         v.ship.visible = false;
-        v.sprite.y = 0;
-        v.fl.y = 0;
       }
       return;
     }
@@ -644,8 +691,6 @@ export class CombatView {
     if (!riding) {
       if (v.cartSprite?.visible) {
         v.cartSprite.visible = false;
-        v.sprite.y = 0;
-        v.fl.y = 0;
       }
       return;
     }
@@ -659,6 +704,54 @@ export class CombatView {
     v.cartSprite.visible = true;
     v.sprite.y = -6;
     v.fl.y = -6;
+  }
+
+  /**
+   * A riding player: the mount stands under them and gallops while they move; the rider is drawn from the hips up
+   * (the legs are hidden by the flanks) and sits in the saddle.
+   */
+  mount(v: CombatActor, kind: number, fx: number, fy: number, moving: boolean, travel: number, reduced = false): void {
+    if (!kind) {
+      if (v.mountSprite?.visible) {
+        v.mountSprite.visible = false;
+        v.mountSprite.y = 0;
+      }
+      return;
+    }
+    if (!v.mountSprite) {
+      v.mountSprite = new Sprite();
+      v.root.addChildAt(v.mountSprite, 0);
+    }
+    const mk = kind === GLIMMERHART_MOUNT ? null : (mountKindOf(kind) ?? 'horse');
+    const flying = mk === 'griffin';
+    // a griffin's wings never stop: it beats them in flight and hovers when you stand still
+    const now = performance.now() / 1000;
+    const frame = flying
+      ? 1 + (Math.floor(now * (moving && !reduced ? 7 : 4)) % (MOUNT_FRAMES - 1))
+      : moving
+        ? 1 + (Math.floor(travel / 0.32) % (MOUNT_FRAMES - 1))
+        : 0;
+    // horses (whistle or ranch) and the ranch Glimmerhart use the authored livestock art; the Stag and griffin their own
+    const texture =
+      mk === 'stag' || mk === 'griffin'
+        ? null
+        : livestockTexture(
+            mk === null ? 'phasehart' : 'horse',
+            moving && !reduced ? 2 + (Math.floor(travel / 0.22) % 2) : 0,
+            Math.abs(fx) >= Math.abs(fy) ? (fx < 0 ? 2 : 0) : fy < 0 ? 3 : 1,
+          );
+    const art = texture
+      ? { tex: texture, ax: 24, ay: 49 }
+      : mountSprite(mk ?? 'stag', mountDir(fx, fy), reduced && !flying ? 0 : frame);
+    v.mountSprite.texture = art.tex;
+    v.mountSprite.anchor.set(art.ax / art.tex.width, art.ay / art.tex.height);
+    v.mountSprite.visible = true;
+    v.sprite.texture = riderCrop(v.sprite.texture);
+    const lift = flying ? FLY_Z + (reduced ? 0 : Math.round(Math.sin(now * 2.4) * 1.5)) : 0;
+    v.mountSprite.y = -lift;
+    const bob = !flying && moving && !reduced ? [0, 1, 0, 0][frame - 1]! : 0;
+    v.sprite.y = -SADDLE_Z - bob - lift;
+    v.fl.y = v.sprite.y;
   }
 
   /** Enemy sprite, animation, flash, squash/stretch, stagger, elite aura, bars and its telegraph. */
@@ -677,6 +770,7 @@ export class CombatView {
     const kind = s?.kind ?? v.kind,
       night = !!s?.night || (isShadow && !bonded);
     v.kind = kind;
+    this.nights.set(v, night);
     const st = s?.st ?? 0;
     const t = now / 1000;
     let state = this.states.get(v);
@@ -689,15 +783,16 @@ export class CombatView {
     const def = ENEMY_BY_KIND[kind];
     const fsx = screenDir(fx, s?.faceY ?? 1).x;
     let flip = false;
-    const isCritter = kind === 3 || (kind >= 7 && kind <= 11 && kind !== 10);
+    const authoredBoss = !!BOSS_BY_KIND[kind];
+    const isCritter = kind === 3 || (kind >= 7 && kind <= 9);
     if (!isCritter && v.sprite.anchor.y !== 1) {
       v.sprite.anchor.set(0.5, 1);
       v.fl.anchor.set(0.5, 1);
     }
-    // the drawn creatures (slime, hopper, rabbit, wisp, brute, mite; slime king and colossus reuse their models):
+    // Authored bosses retain their own atlas, proportions and palette; ordinary creatures keep their existing rigs.
     // four iso facings with hysteresis, never mirrored, so the key light stays top-left
-    const model = kind === 10 ? 0 : kind === 12 ? 5 : kind;
-    const drawn = (model <= 6 && model !== 3) || model >= 15;
+    const model = kind;
+    const drawn = authoredBoss || (model <= 6 && model !== 3) || model >= 15;
     const hired = isShadow && kind === 21;
     if (hired) {
       const sd = screenDir(fx, s?.faceY ?? 1),
@@ -722,7 +817,7 @@ export class CombatView {
         v.held.y = 0;
         v.root.setChildIndex(v.held, dir === 1 || dir >= 6 ? 1 : v.root.children.length - 1);
       }
-    } else if (kind === 33) {
+    } else if (kind === 33 && !authoredBoss) {
       const sd = screenDir(fx, s?.faceY ?? 1),
         dir = dir4(sd.x, sd.y, this.dirs.get(v) ?? D4_SE);
       this.dirs.set(v, dir);
@@ -751,23 +846,29 @@ export class CombatView {
       let anim: Anim = 'idle',
         f: number;
       const n = (a: Anim) => foes.frames(model, a);
+      const impact = authoredBoss ? this.attackFrame(v, now, this.d.reduced()) : -1;
       if (st === 5 || v.flash > 0.55) {
         anim = 'hurt';
         f = Math.min(n('hurt') - 1, Math.floor(elapsed * 12));
       } else if (st === 2) {
         anim = 'windup';
         f = Math.min(n('windup') - 1, Math.floor(tele0 * n('windup')));
-      } else if (st === 3) {
+      } else if (st === 3 || impact >= 0) {
         anim = 'attack';
-        f = Math.min(n('attack') - 1, Math.floor(elapsed * 12));
+        f =
+          impact >= 0
+            ? this.d.reduced()
+              ? 0
+              : Math.min(n('attack') - 1, Math.floor((impact * n('attack')) / 4))
+            : Math.min(n('attack') - 1, Math.floor(elapsed * (authoredBoss ? 4.5 : 12)));
       } else if (moved) {
         anim = 'move';
-        const stride = model >= 15 ? 0.18 : MOVE_STRIDE[model];
+        const stride = authoredBoss ? 0.48 : model >= 15 ? 0.18 : MOVE_STRIDE[model];
         f = stride ? Math.floor(v.travel / stride) : Math.floor(t * (model === 6 ? 14 : 8) + v.outfit);
       } else f = Math.floor(t * (model === 6 ? 6 : 5) + v.outfit * 1.7);
       if (this.d.reduced()) f = anim === 'move' || anim === 'idle' ? 0 : Math.min(f, 1);
-      v.sprite.texture = foes.frame(model, night || kind === 12, dir, anim, f);
-      if (model >= 15) {
+      v.sprite.texture = foes.frame(model, night, dir, anim, f);
+      if (authoredBoss || model >= 15) {
         v.sprite.anchor.set(0.5, foes.anchor(model));
         v.fl.anchor.copyFrom(v.sprite.anchor);
       }
@@ -793,17 +894,15 @@ export class CombatView {
     v.flash *= Math.exp(-dt * 22);
     const reduced = this.d.reduced();
     const tele = st === 2 ? Math.min(1, (s?.tele ?? 0) / 100) : 0;
-    const big =
-      (kind === 5 ? 1.25 : kind === 10 ? 3.4 : kind === 11 ? 2.4 : kind === 12 ? 2.4 : 1) *
-      (s && s.elite & ELITE.HARDENED ? 1.2 : 1);
+    const big = (kind === 5 ? 1.25 : 1) * (s && s.elite & ELITE.HARDENED ? 1.2 : 1);
     let sx = 1 + 0.28 * v.punch - 0.06 * tele,
       sy = 1 - 0.22 * v.punch + 0.12 * tele;
-    if (reduced) {
+    if (reduced || authoredBoss) {
       sx = 1;
       sy = 1;
     }
     v.sprite.scale.set(sx * big * (flip ? -1 : 1), sy * big);
-    v.sprite.rotation = st === 5 && !reduced ? Math.sin(t * 22) * 0.12 : 0;
+    v.sprite.rotation = st === 5 && !reduced && !authoredBoss ? Math.sin(t * 22) * 0.12 : 0;
     v.sprite.x = st === 2 && !reduced && tele > 0.6 ? Math.round(Math.sin(t * 60) * tele) : 0; // shiver before the hit
     v.fl.texture = v.sprite.texture;
     v.fl.scale.copyFrom(v.sprite.scale);
@@ -819,7 +918,7 @@ export class CombatView {
         ? 0
         : Math.min(1, Math.max(v.flash * 1.4, reduced ? 0.25 : 0.28 + 0.14 * Math.sin(t * 3 + v.outfit)));
     } else {
-      v.sprite.tint = kind === 10 ? 0xb8ffc8 : kind === 12 ? 0xb8a0ff : kind === 11 ? 0xe0b090 : 0xffffff;
+      v.sprite.tint = 0xffffff;
       v.sprite.alpha = 1;
       v.fl.tint = 0xffffff;
       v.fl.alpha = Math.min(1, v.flash * 1.4);
@@ -839,10 +938,12 @@ export class CombatView {
       g.ellipse(
         0,
         0,
-        7 *
-          (kind === 5 ? 1.5 : kind === 6 ? 0.6 : kind === 7 ? 1.3 : kind === 8 ? 1.1 : kind === 9 ? 0.8 : 1) *
-          (big > 1.4 ? big * 0.75 : 1),
-        3 * (big > 1.4 ? big * 0.6 : 1),
+        authoredBoss
+          ? foes.shadow(kind)[0]
+          : 7 *
+              (kind === 5 ? 1.5 : kind === 6 ? 0.6 : kind === 7 ? 1.3 : kind === 8 ? 1.1 : kind === 9 ? 0.8 : 1) *
+              (big > 1.4 ? big * 0.75 : 1),
+        authoredBoss ? foes.shadow(kind)[1] : 3 * (big > 1.4 ? big * 0.6 : 1),
       ).fill({ color: 0x2a1060, alpha: 0.28 });
     if (s && s.elite) {
       const col = s.elite & ELITE.VOLATILE ? 36 : s.elite & ELITE.SWIFT ? 29 : 6;
@@ -1012,4 +1113,17 @@ export class CombatView {
   noticeEnemies(nearest: number): void {
     if (nearest < 9) this.showTip('combo');
   }
+}
+
+/** Rider frames from the hips up: the bottom of a person frame (legs) is hidden by the mount's flanks. */
+const RIDER_LEGS = 14;
+const riderCrops = new WeakMap<Texture, Texture>();
+function riderCrop(t: Texture): Texture {
+  let c = riderCrops.get(t);
+  if (!c) {
+    const f = t.frame;
+    c = new Texture({ source: t.source, frame: new Rectangle(f.x, f.y, f.width, Math.max(1, f.height - RIDER_LEGS)) });
+    riderCrops.set(t, c);
+  }
+  return c;
 }

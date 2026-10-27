@@ -1,9 +1,30 @@
-import { gainRep } from '../reputation';
+import { civOf, recordCiv } from '../../features/civ/registry';
+import { gainRep, gainStanding } from '../reputation';
 import {
   DAY_MS,
   GIFT_EXTRA,
   GIFT_POINTS,
   ITEMS,
+  civPriceFactor,
+  localEconomy,
+  neighbourLine,
+  neighboursText,
+  tieGossipOn,
+  marriesOn,
+  RECRUIT_ROLES,
+  recruitFee,
+  royalCelebration,
+  tieNewsOn,
+  tieSpill,
+  REALMFOLK,
+  RACES,
+  STANDING,
+  isRace,
+  realmfolkSpots,
+  type ShopStock,
+  NPC_BY_ID,
+  standingLine,
+  localPriceFactor,
   DELVER_MERCHANTS,
   type ScheduleBlock,
   KINGDOMS,
@@ -104,18 +125,31 @@ export class Village implements VillageSystem {
     // revision 4 adds the travelling merchants and the delver camps they trade from
     const modern = host.store.generation >= 4;
     if (modern) Object.assign(this.spots, delverSpots(host.seed));
+    // revision 6: the peoples of the three realms
+    if (gen >= 6) Object.assign(this.spots, realmfolkSpots(host.seed));
     const all =
-      gen >= 5 ? [...NPCS, ...DELVER_MERCHANTS, ...realmNpcs()] : modern ? [...NPCS, ...DELVER_MERCHANTS] : NPCS;
+      gen >= 6
+        ? [...NPCS, ...DELVER_MERCHANTS, ...realmNpcs(), ...REALMFOLK]
+        : gen >= 5
+          ? [...NPCS, ...DELVER_MERCHANTS, ...realmNpcs()]
+          : modern
+            ? [...NPCS, ...DELVER_MERCHANTS]
+            : NPCS;
     this.defs = opts.npcIds ? all.filter((n) => opts.npcIds!.includes(n.id)) : all;
   }
 
   /** the schedule block for now; on a kingdom's festival day its folk gather in the plaza from noon until night */
   private blockAt(def: NpcDef, hour: number, weather: ReturnType<VillageHost['clock']['weather']>): ScheduleBlock {
+    if (this.host.away?.(def.id)) return { h0: 0, h1: 24, spot: def.home, doing: 'away on a hired contract' };
     const block = scheduleAt(def, hour, weather);
     if (def.realm && hour >= 12 && hour < 22 && def.role !== 'guard' && def.role !== 'archer' && def.role !== 'ruler') {
-      const day = Math.floor(this.host.clock.now() / DAY_MS);
+      const day = this.host.clock.day();
       if (festivalOn(def.realm as RealmId, day))
         return { h0: 12, h1: 22, spot: `${def.id}.plaza`, doing: 'celebrating the festival' };
+      if (marriesOn(def.id, day))
+        return { h0: 12, h1: 22, spot: `${def.id}.plaza`, doing: 'celebrating their wedding' };
+      const royal = royalCelebration(civOf(this.host.seed)?.kingdoms[def.realm as RealmId], day);
+      if (royal) return { h0: 12, h1: 22, spot: `${def.id}.plaza`, doing: `celebrating ${royal.title.toLowerCase()}` };
     }
     return block;
   }
@@ -389,6 +423,12 @@ export class Village implements VillageSystem {
     }));
     if (def.settlement && def.shop && this.host.hire)
       ch.push({ id: 'hire', text: 'Guild escort · 250 coins / 30 min · companion slot', kind: 'ask' });
+    else if (def.realm && RECRUIT_ROLES.has(def.role ?? '') && this.host.hire)
+      ch.push({
+        id: 'hire',
+        text: `Hire me · from ${recruitFee(def.role, 5)} coins / hour · companion slot`,
+        kind: 'ask',
+      });
     ch.push({ id: 'ask', text: 'Ask about…', kind: 'ask' });
     return ch;
   }
@@ -514,7 +554,44 @@ export class Village implements VillageSystem {
             : `I heard that ${rumor.charAt(0).toLowerCase()}${rumor.slice(1)}`);
       }
     }
+    // what their friends and rivals think of you
+    else if (rand() < 0.2) {
+      const day = this.host.clock.day();
+      const said = standingLine(npcId, day, (o) => hearts(p.data.friends[o]?.pts ?? 0));
+      if (said) text += ' ' + said;
+    }
+    // otherwise, now and then, talk about the neighbours or the kingdom's news
+    else if (rand() < 0.3) {
+      const g = this.gossip(r.def, rand);
+      if (g) text += ' ' + g;
+    }
     return this.message(p, r, rec, text, rumor ? { rumor } : {});
+  }
+
+  /** a neighbour, the kingdom's latest news, or what the settlement is short of today */
+  private gossip(def: NpcDef, rand: () => number): string | null {
+    const c = this.host.clock;
+    const roll = rand();
+    const day = c.day();
+    // fresh news first: their own, then the village's
+    const mine = tieNewsOn(def.id, day) ?? (roll < 0.35 ? tieGossipOn(def.id, day) : null);
+    if (mine) return mine;
+    if (roll < 0.5) return neighbourLine(def.id, c.hour(), c.weather(), rand(), day);
+    const civ = civOf(this.host.seed);
+    if (roll < 0.8 && civ) {
+      const realm = def.realm as RealmId | undefined;
+      const news = realm
+        ? civ.kingdoms[realm].chronicle[0]
+        : REALM_IDS.map((k) => civ.kingdoms[k].chronicle[0])
+            .filter((n): n is NonNullable<typeof n> => !!n)
+            .sort((a, b) => b.day - a.day)[0];
+      if (news) return `${realm ? 'Have you heard?' : 'Travellers from over the sea say'} ${news.text}`;
+    }
+    if (def.site) {
+      const e = localEconomy(this.host.seed, def.site, c.day());
+      if (e) return `We're short of ${e.short} today; the shops here will pay well for them.`;
+    }
+    return null;
   }
 
   private ask(p: PlayerRef, r: Runner, rec: FriendRec, what: string): DialogueMsg {
@@ -525,6 +602,7 @@ export class Village implements VillageSystem {
       { id: 'ask:town', text: 'Tell me about this settlement.', kind: 'ask' },
       { id: 'ask:qubitman', text: 'Who is QubitMan?', kind: 'ask' },
       { id: 'ask:rumor', text: 'Heard any rumors?', kind: 'ask' },
+      { id: 'ask:folk', text: 'Who are your neighbours?', kind: 'ask' },
       { id: 'back', text: "That's all.", kind: 'back' },
     ].filter((c) => c.id !== `ask:${what}`) as DialogueChoice[];
     let text = v ? pickOne(v.again, rand) : 'What would you like to know?';
@@ -539,6 +617,7 @@ export class Village implements VillageSystem {
           : v.noRumor;
       }
     }
+    if (what === 'folk') text = neighboursText(r.def.id, this.host.clock.day());
     if (what === 'about' && tierOf(rec.pts) < 2)
       text +=
         tierOf(rec.pts) === 0
@@ -573,6 +652,16 @@ export class Village implements VillageSystem {
     });
   }
 
+  /** word of a kindness (or a slight) reaches the resident's friends, family and rivals */
+  private spill(p: PlayerRef, npcId: string, delta: number): void {
+    for (const s of tieSpill(npcId, this.host.clock.day(), delta)) {
+      if (!NPC_BY_ID[s.npc]) continue;
+      const o = this.friend(p, s.npc);
+      o.pts = Math.max(0, Math.min(400, o.pts + s.delta));
+    }
+    p.dirty('friends');
+  }
+
   private eventChoice(p: PlayerRef, r: Runner, rec: FriendRec, topic: string): DialogueMsg {
     const [, a, b] = topic.split(':');
     const idx = Number(a),
@@ -584,6 +673,7 @@ export class Village implements VillageSystem {
     if (!c) return this.message(p, r, rec, '…');
     (p.data.events ??= []).push(ev.id);
     rec.pts = Math.min(400, rec.pts + c.pts);
+    this.spill(p, r.def.id, c.pts);
     p.dirty('friends', 'quests');
     return this.message(p, r, rec, c.reply, { mood: 'happy', gift: undefined });
   }
@@ -655,6 +745,7 @@ export class Village implements VillageSystem {
     stack.n -= 1;
     if (stack.n <= 0) p.data.inv[slot] = null;
     rec.pts = Math.max(0, Math.min(400, rec.pts + delta));
+    this.spill(p, npcId, delta);
     rec.gifted = day;
     rec.lastGift = stack.id;
     p.dirty('inv', 'friends');
@@ -706,11 +797,15 @@ export class Village implements VillageSystem {
   private realmFactor(p: PlayerRef | null, def: NpcDef, itemId: string): number {
     const realm = def.realm as RealmId | undefined;
     if (!realm) return 1;
-    const day = Math.floor(this.host.clock.now() / DAY_MS);
+    const day = this.host.clock.day();
     const origin = REALM_IDS.find((r) => r !== realm && KINGDOMS[r].economy.exports.includes(itemId));
     const trade = origin ? tradeModifier(this.host.seed, day, origin, realm) : 1;
     const rep = repPriceMultiplier(p?.data.rep?.[realm] ?? 0);
-    return trade * rep * (festivalOn(realm, day) ? 0.9 : 1);
+    // the kingdom's state: its decree, wars, prosperity and granaries (shared civ.ts)
+    const civ = civPriceFactor(civOf(this.host.seed)?.kingdoms[realm], ITEMS[itemId]?.kind === 'food');
+    // the settlement's own trade: what it makes is cheap, what it wants and today's shortage are dear
+    const local = def.site ? localPriceFactor(localEconomy(this.host.seed, def.site, day), ITEMS[itemId]?.kind) : 1;
+    return trade * rep * civ * local * (festivalOn(realm, day) ? 0.9 : 1);
   }
 
   private unitSell(def: NpcDef, itemId: string, extraSupply = 0, p: PlayerRef | null = null): number {
@@ -718,6 +813,13 @@ export class Village implements VillageSystem {
     return Math.max(
       1,
       Math.floor(sellPrice(itemId, this.supply(itemId) + extraSupply) * (def.shop?.buyBonus ?? 1) * f),
+    );
+  }
+
+  /** a realm resident only sells their better wares to those who stand well with their people */
+  private standingOk(p: PlayerRef, def: NpcDef, s: ShopStock): boolean {
+    return (
+      !s.standing || !def.race || ((p.data.rep as Record<string, number | undefined>)[def.race] ?? 0) >= s.standing
     );
   }
 
@@ -729,13 +831,16 @@ export class Village implements VillageSystem {
       p.data.inv.forEach((s, i) => {
         if (s && this.canBuyKind(def, s.id)) sell[i] = this.unitSell(def, s.id, 0, p);
       });
+    const local = def.realm && def.site ? localEconomy(this.host.seed, def.site, this.host.clock.day()) : null;
     return {
       npcId: def.id,
       name: shop?.name ?? def.name,
       coins: p.data.coins,
       sell,
+      note: local?.note,
       stock: (shop?.stock ?? [])
         .filter((s) => !s.seasons || s.seasons.includes(season))
+        .filter((s) => this.standingOk(p, def, s))
         .map((s) => ({
           item: s.item,
           price: Math.max(1, Math.round(buyPrice(s.item, s.markup) * this.realmFactor(p, def, s.item))),
@@ -775,7 +880,9 @@ export class Village implements VillageSystem {
     if (!Number.isInteger(n) || n < 1 || n > 99) return this.view(p, def);
     if (msg.action === 'buy') {
       const season = this.host.clock.season();
-      const entry = def.shop.stock.find((s) => s.item === msg.item && (!s.seasons || s.seasons.includes(season)));
+      const entry = def.shop.stock.find(
+        (s) => s.item === msg.item && (!s.seasons || s.seasons.includes(season)) && this.standingOk(p, def, s),
+      );
       if (!entry) {
         p.toast('Not for sale right now.', 'bad');
         return this.view(p, def);
@@ -796,6 +903,7 @@ export class Village implements VillageSystem {
       p.dirty('inv', 'coins');
       p.toast(`Bought ${n} ${ITEMS[entry.item]!.name} for ${cost}.`, 'good', stack);
       if (def.realm) gainRep(p, def.realm as RealmId, Math.max(1, Math.floor(cost / 30)), true);
+      if (def.realm) recordCiv(this.host.seed, def.realm as RealmId, 'trade', cost);
       if (p.data.quests) syncQuests(p, this.host.seed);
       return this.view(p, def);
     }
@@ -819,7 +927,10 @@ export class Village implements VillageSystem {
       this.marketDirty = true;
       p.dirty('inv', 'coins');
       p.toast(`Sold ${n} ${ITEMS[id]!.name} for ${total}.`, 'good');
+      // a realm people welcomes their enemies' tokens: standing as well as coin
+      if (def.race && isRace(def.race) && RACES[def.race].token === id) gainStanding(p, def.race, STANDING.token * n);
       if (def.realm) gainRep(p, def.realm as RealmId, Math.max(1, Math.floor(total / 40)), true);
+      if (def.realm) recordCiv(this.host.seed, def.realm as RealmId, 'trade', total);
       if (p.data.quests) {
         questEvent(p, { type: 'sell', target: id, n }, this.host.seed);
         syncQuests(p, this.host.seed);

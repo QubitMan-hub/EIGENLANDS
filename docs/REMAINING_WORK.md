@@ -2,6 +2,16 @@
 
 This is the practical remaining-work index. The full original requirements and detailed checklist remain in [master request](design/master-request.md) and [master plan](EIGENLANDS_MASTER_PLAN.md). Completed implementation and verification history: [continuation notes](CONTINUE_HERE.md).
 
+## Player and NPC overhaul — active
+
+Players use original native 32×48 art with saved-appearance support. NPCs retain their preferred original 24×32 designs with the newer directional animations. Eighteen directional action families now have eight poses, including station work, hurt, dodge and death. Variable-height physical contacts, richer combat/charge keys, occupation schedules and every bespoke prop interaction remain open. See [CHARACTER_ACTIONS.md](CHARACTER_ACTIONS.md) for exact coverage, verification and remaining items.
+
+## Adventurer paths, bestiary and boss sprites
+
+Implemented: six class families and thirty specializations, unique dual-form techniques and enforced passives, earned-resource ultimates, bounded temporary allies, party synergies, habitat-gated creatures, ecological behaviors, mythical bonds, sighting persistence and five phased ancient encounters. All fourteen bosses now have dedicated original day/night isometric sprite sheets, matching portraits, fixed anchors and real animation poses. See [mechanics and validation](ADVENTURER_PATHS_AND_BESTIARY.md) and [art sources, loader and reproduction](BOSS_ART.md).
+
+Remaining game-wide work: extended group balance sessions, physical-device GPU/thermal measurements and larger cross-network multiplayer stress. New class-exclusive armor sets/player body rigs are not part of the six-family specialization implementation; paths use real existing equipment and held animations.
+
 ## Ground texture repair
 
 Implemented: removal of filled noise-contour blobs from caves/paths and related terrain, bounded angular pixel clusters, narrow material/habitat edge blending, world-anchored detail in both quality modes, and indoor cloud-shadow exclusion. The real-shader comparison measures large color regions before/after and camera anchoring. See [root cause and proof](UNDERCROFT.md#ground-texture-repair). Physical phone GPU/thermal profiling remains separate.
@@ -48,15 +58,22 @@ Remaining cave expansion: stacked geological floors/coordinate migration, additi
 
 - Companion fixes completed in [PR #21](https://github.com/QubitMan-hub/EIGENLANDS/pull/21): bounded cached obstacle routes, smooth walking catch-up, owner-centered threat sight/leash, and safe recall to the owner tile. Support deer retain their noncombat role; neutral wildlife is not attacked automatically.
 
-- Expand the existing single paid guild-fighter contract into resident-specific recruitment with clear ownership/lease visibility, payment/dismissal, persistence and multiplayer identity. The existing contract already checks friendship and expires; wildlife bonds and extracted echoes also work.
-- Travelling merchants: actual routes/schedules, stock/economy, discovery, interaction and persistence.
-- Further weapon families and equipment progression beyond the existing sword, spear, battle axe, warhammer, crossbow and Foci; keep displayed and authoritative attack values shared.
-- More authored biome/cave/shore/mountain discoveries and occupied interior variety. Preserve existing landmark IDs, world edits, floor transitions and collision.
+- Implemented (2026-10-27): hiring residents. Guards, soldiers, archers and commanders who count you a friend sign on for a one-world-hour contract, one employer at a time, extendable an hour at a time up to three hours ahead (a level per renewal), with **Hired · N min left**, **Extend 1 h**, **End contract** and a half refund of unused time ([LIVING_WORLD.md](LIVING_WORLD.md)). Still open: gear for hirelings, and resident crafters or workers as hires.
+- Travel follow-up: a gamepad hardware review of the travel window. Mount fatigue and stables, waystones, gates, ferries with voyages, the Undercroft network, Recall Shards, horse, Stag and Griffin riding with naming and feeding, caravan trade, ambushes and escort jobs, the Wandering Peddler, railed bridges and road speed are implemented ([TRAVEL.md](TRAVEL.md)).
+- Living world (§16), implemented 2026-10-27: crypt interiors on their own underground plane with three floor plans and the braziers' riddle, NPC ties that change over seeded arcs and react to your kindness (word travels to friends and rivals), royal events, settlement growth (furnished crown cottages with a family outside the door by day), the fox's portrait, wayfarers on the roads, wild folk at work, street life in every town, an ambient soundscape and footprints/puddles. Still open: multi-floor dungeons and other puzzle types, cottage families you can talk to, changes to existing town layouts ([LIVING_WORLD.md](LIVING_WORLD.md#limits-and-what-is-not-built)).
+- Implemented (2026-10-27): dagger (fast, light) and greatsword (slow, heavy, two-handed swings) weapon families with forge recipes, Ironhand Smithy stock, held art and icons. Further families (bows, staves, maces) remain open; keep displayed and authoritative attack values shared.
+- Implemented (2026-10-27): shipwrecks with a captain's log on sandy shores and summit cairns with a climbers' register on hilltops (revision-6 worlds). More authored biome/cave discoveries and occupied interior variety remain. Preserve existing landmark IDs, world edits, floor transitions and collision.
 - Broader creature/monster diversity with coherent art and meaningful habitats; preserve current separate wildlife/hostile budgets and settlement wards.
+- Implemented (2026-10-27): starfall nights with fallen stars to break open, aurora over the taiga, the morning rainbow after rain, and daily town bounties on named beasts ([LIVING_WORLD.md](LIVING_WORLD.md#wonders-and-hunts)). Still open: recipes for star shards, unique bounty-beast art and attacks, a bounty notice board.
 - Broader shrine challenge variety, ocean discoveries, settlement identity and environmental storytelling beyond the existing playable systems.
-- Implemented: modular owned two-floor houses with eight craftable pieces, pitched roofs/cutaways, doors, paired stairs, collision, safe refunds and durable solo/server ownership. See [building guide and limits](PLAYER_BUILDING.md). Further expansion: arbitrary-height towers, shared owner permissions, house benefits and construction across horizontal shard edit boundaries.
-- Survival depth: temperature/exposure, injuries, purification, richer nutrition, bandages and Hardcore. Cozy/Adventure food and water already work.
-- Kingdoms, guild progression, realms and private friend-world hosting remain larger unfinished systems; consult the master checklist before claiming them implemented.
+- Implemented: modular owned two-floor houses with 33 craftable pieces, pitched roofs/cutaways, doors, paired stairs, collision, safe refunds and durable solo/server ownership. See [building guide and limits](PLAYER_BUILDING.md). A bed under your own roof leaves you well rested (+15% experience). Further expansion: arbitrary-height towers, shared owner permissions, further house benefits and construction across horizontal shard edit boundaries.
+- Survival depth, implemented: temperature/exposure, injuries (bleeding, poison, burns, frostbite), fractures (no running or dodging until a splint) and curses (weaker blows, no regeneration until holy water or a shrine prayer), bandages and remedies, Hardcore, death penalties by difficulty (Hardcore drops your pack in a lost satchel), murky water and boiling, balanced eating (Nourished), clothing warmth by armour material, the Travel Tent (shelter, rest and a camp to wake at) and food spoilage (raw fish and meat rot in the pack, slower in the cold; chests and cooking keep). Still open: magical conditions beyond the curse, diseases, and seasonal food shortages.
+- Implemented (2026-10-27): dungeon gates, ranked E–S, opening daily in the wilds. Each leads to a procedural
+  dungeon with a master, mana stones and dusk dungeon breaks ([GATES.md](GATES.md)). Also implemented: Shadow
+  Exchange, Monarch's Domain and named guardian shadows ([design/shadow-army.md](design/shadow-army.md)). Still open:
+  gate party tools and rank exams, gamepad bindings for the shadow powers, and new art for gate masters.
+- Implemented (2026-10-27): the three realms (Aetheria, the Umbral Abyss, Chronoria) with their neutral and hostile peoples, standing, realm metals and gear, 3 guardian bosses and realm puzzles ([REALMS.md](REALMS.md)). Still open: realm quests, sky dragons and flight, multi-phase realm bosses, visible dial/chime states.
+- Six kingdoms/frontier cities, F–SSS guild progression, daily journeys and owned resident charters are implemented; replacement guild prefabs, authored world-changing campaigns and private friend-world hosting remain larger unfinished systems. See COZY_TOWNS.md and HOMESTEADS_AND_GUILD.md for exact boundaries.
 - Cross-device atlas synchronization and private-world chart identity. Local durable IndexedDB chart history is implemented.
 
 ## Art and release constraints

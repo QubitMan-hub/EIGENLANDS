@@ -89,6 +89,8 @@ export function validDisc(v: unknown): DiscXp {
 export const RARITY_NAMES = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary', 'Mythic'] as const;
 /** UI colours (readable on the dark bronze panels). */
 export const RARITY_COLORS = ['#c3c9b9', '#7fd96b', '#5aa0d8', '#b98ad6', '#f2c230', '#ff6b4a'] as const;
+/** The same rarity ramp as ink on parchment (journal, tooltips, stations): every shade passes 4.5:1 on the page. */
+export const RARITY_INK = ['#3d2f20', '#245019', '#1a4a7a', '#5a2a7a', '#664400', '#8a2414'] as const;
 export type Rarity = 0 | 1 | 2 | 3 | 4 | 5;
 /** Price multiplier of a rarity over the same item at Common. */
 export const RARITY_VALUE = [1, 1.6, 2.6, 4.5, 9, 18] as const;

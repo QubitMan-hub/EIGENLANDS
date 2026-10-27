@@ -1,4 +1,6 @@
 import {
+  otherworldOf,
+  MOUNT_FEED,
   caveBiomeAt,
   dropAllowed,
   inRealmLand,
@@ -8,6 +10,10 @@ import {
   ITEMS,
   NODES,
   T,
+  NOURISHED_SECS,
+  balanced,
+  foodGroup,
+  recordMeal,
   chunkOf,
   isSolid,
   toolDamage,
@@ -20,6 +26,7 @@ import { tuning } from '../rooms/runtime';
 import { useCatalogItem } from './gear';
 import type { ServerPlayer } from '../rooms/player';
 import type { RoomApi } from './api';
+import { inflict } from './travel-needs';
 import { startCast } from './fishing';
 import { catchBug } from './bugs';
 import { fertilize, harvestCrop, plantSeed, uprootCrop, waterCrop, wetTile } from './farming';
@@ -63,6 +70,24 @@ export async function handleUse(room: RoomApi, p: ServerPlayer, msg: UseMsg): Pr
     room.toggleShip?.(p);
     return;
   }
+  if (def.special === 'recall') {
+    p.toolReadyAt = t0 + tuning.toolCooldownMs;
+    room.recall?.(p, msg.slot);
+    return;
+  }
+  if (def.special === 'mount') {
+    p.toolReadyAt = t0 + tuning.toolCooldownMs;
+    room.toggleMount?.(p, def.mount ?? 'horse');
+    return;
+  }
+  // feed held while riding goes to the mount
+  if (p.sim.mount && (MOUNT_FEED as readonly string[]).includes(first.id)) {
+    p.toolReadyAt = t0 + tuning.toolCooldownMs;
+    room.feedMount?.(p, msg.slot);
+    return;
+  }
+  // tools and seeds are used on foot: step down from the saddle first
+  if (p.sim.mount) p.sim.mount = 0;
   if (def.special === 'summon') {
     p.toolReadyAt = t0 + tuning.toolCooldownMs;
     if (room.summonBoss?.(p, first.id, p.sim.x + p.sim.faceX * 4, p.sim.y + p.sim.faceY * 4)) {
@@ -71,6 +96,22 @@ export async function handleUse(room: RoomApi, p: ServerPlayer, msg: UseMsg): Pr
       if (s0.n <= 0) p.data.inv[msg.slot] = null;
       p.dirty('inv');
     }
+    return;
+  }
+
+  if (first.id === 'waterskin_murky') {
+    p.toolReadyAt = t0 + tuning.toolCooldownMs;
+    if (p.data.needs.water >= 100) {
+      p.toast('You are not thirsty.');
+      return;
+    }
+    p.data.needs.water = Math.min(100, p.data.needs.water + 30);
+    p.data.inv[msg.slot] = { id: 'waterskin_empty', n: 1 };
+    p.dirty('needs', 'inv');
+    room.fx({ kind: 'water', x: p.sim.x, y: p.sim.y });
+    // unboiled water: a fair chance of a sick stomach for those who live by the survival rules
+    const mode = p.data.needs.mode;
+    if (mode !== 'cozy' && room.rand() < (mode === 'hardcore' ? 0.5 : 0.3)) inflict(room, p, 'poison');
     return;
   }
 
@@ -123,7 +164,15 @@ export async function handleUse(room: RoomApi, p: ServerPlayer, msg: UseMsg): Pr
   }
   if (stack.id === 'waterskin_empty') {
     if (obj?.sub !== 'well') {
-      p.toast('Fill an empty waterskin at a town well.');
+      const t = room.store.getTile(tx, ty);
+      if (t === T.WATER || t === T.DEEP_WATER) {
+        p.data.inv[slot] = { id: 'waterskin_murky', n: 1 };
+        p.dirty('inv');
+        room.fx({ kind: 'water', x: tx + 0.5, y: ty + 0.5 });
+        p.toast('Murky river water. Boil it in a cooking pot before you drink, or risk a sick stomach.', 'info');
+        return;
+      }
+      p.toast('Fill an empty waterskin at a town well, or at a river or lake.');
       return;
     }
     p.data.inv[slot] = { id: 'waterskin_full', n: 1 };
@@ -231,7 +280,7 @@ function hitNode(room: RoomApi, p: ServerPlayer, tool: Stack, tx: number, ty: nu
   if (st.hp > 0) return;
 
   const drops: Stack[] = [];
-  const realm = isCaveY(ty) ? null : (inRealmLand(room.seed, tx, ty) ?? null),
+  const realm = otherworldOf(ty) ?? (isCaveY(ty) ? null : (inRealmLand(room.seed, tx, ty) ?? null)),
     cave = isCaveY(ty) ? caveBiomeAt(room.seed, tx, ty, room.store.generation) : null;
   for (const d of node.drops) {
     if (d.minTier && tier < d.minTier) continue;
@@ -283,7 +332,7 @@ function gatherForage(room: RoomApi, p: ServerPlayer, tx: number, ty: number): v
   addSkillXp(p, 'foraging', 4);
   room.setTile(tx, ty, T.GRASS);
   room.scheduleRespawn(tx, ty, T.FORAGE, room.wclock.dayStart(room.wclock.day() + 1));
-  room.fx({ kind: 'harvest', x: tx + 0.5, y: ty + 0.5 });
+  room.fx({ kind: 'harvest', x: tx + 0.5, y: ty + 0.5, id: p.id });
 }
 
 /** OPEN on a forage tile reaches here too. */
@@ -314,6 +363,24 @@ function eat(room: RoomApi, p: ServerPlayer, slot: number): void {
   if (def.buff) {
     p.data.buffs[def.buff.kind] = { until: room.wclock.now() + def.buff.secs * 1000, power: def.buff.power };
     p.dirty('buffs');
+  }
+  // a balanced diet: produce, protein and something hearty within half an hour leaves you nourished
+  const group = foodGroup(stack.id, def.kind);
+  if (group) {
+    const now = room.wclock.now();
+    const meals = recordMeal(p.data.prog.meals ?? [], group, now);
+    p.data.prog.meals = meals;
+    p.dirty('stats');
+    if (balanced(meals)) {
+      p.data.prog.meals = [];
+      const cur = p.data.buffs.regen;
+      p.data.buffs.regen = {
+        until: Math.max(cur?.until ?? 0, now + NOURISHED_SECS * 1000),
+        power: Math.max(cur?.power ?? 0, 0.6),
+      };
+      p.dirty('buffs');
+      p.toast('A balanced diet: you feel nourished (slow healing for ten minutes).', 'good');
+    }
   }
   stack.n -= 1;
   if (stack.n <= 0) p.data.inv[slot] = null;
@@ -351,7 +418,7 @@ function place(room: RoomApi, p: ServerPlayer, slot: number, tx: number, ty: num
   stack.n -= 1;
   if (stack.n <= 0) p.data.inv[slot] = null;
   p.dirty('inv');
-  room.fx({ kind: 'place', x: tx + 0.5, y: ty + 0.5 });
+  room.fx({ kind: 'place', x: tx + 0.5, y: ty + 0.5, id: p.id });
   questEvent(p, { type: 'place', target: def.id, n: 1 });
   syncQuests(p);
 }
@@ -377,4 +444,6 @@ function dismantle(room: RoomApi, p: ServerPlayer, o: WorldObj): void {
     return;
   }
   room.objects.remove(o.x, o.y);
+  const camp = p.data.prog.camp;
+  if (camp && camp.x === o.x && camp.y === o.y) p.data.prog.camp = null;
 }

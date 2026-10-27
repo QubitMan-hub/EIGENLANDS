@@ -684,6 +684,18 @@ function board(face: Facing): ObjSprite {
   });
 }
 
+function guildBoardArt(face: Facing): ObjSprite {
+  return iso(38, 50, face, (p) => {
+    for (const a of [2, 12.5]) p.box(a, 3, 0, 1.6, 1.6, 25, { ramp: DARKWOOD });
+    p.box(1, 4.6, 8, 14, 1.2, 16, { ramp: LIGHTWOOD });
+    for (const a of [3, 8.5]) p.box(a, 6, 11, 4.5, 0.5, 9, { ramp: [C.e4, C.e5, C.e6, C.pale, C.white] });
+    p.box(0.5, 4.2, 24, 15, 2, 1.5, { ramp: BRASS });
+    p.box(6, 5, 25.5, 4, 1.5, 5, { ramp: BRASS });
+    p.line(8, 6.8, 26, 8, 6.8, 29.5, C.q7);
+    for (const z of [13, 16, 19]) for (const a of [3.5, 9]) p.line(a, 6.6, z, a + 3, 6.6, z, C.steel);
+  });
+}
+
 function trophy(face: Facing): ObjSprite {
   return iso(26, 34, face, (p) => {
     p.box(5, 5, 0, 6, 6, 5, { ramp: DARKWOOD });
@@ -1931,7 +1943,31 @@ export const PROPS: Record<string, Mk> = {
   alchemy: anim(2, 2, alchemy),
   loom: one(loom),
   rack: one(rack),
+  guild_desk: one((face) =>
+    iso(46, 60, face, (p) => {
+      for (const x of [2, 13]) for (const y of [5, 11]) p.box(x, y, 0, 2, 2, 10, { ramp: DARKWOOD });
+      p.box(1, 4, 10, 16, 10, 2, { ramp: LIGHTWOOD });
+      p.box(2, 5, 12, 6, 5, 1, { ramp: LINEN });
+      for (const z of [13, 14, 15]) p.line(3, 7, z, 6, 7, z, C.steel);
+      p.box(11, 6, 12, 3, 3, 2, { ramp: BRASS });
+      p.box(1, 1, 0, 1.5, 1.5, 35, { ramp: DARKWOOD });
+      p.box(2.5, 1, 21, 9, 1, 13, { ramp: [C.q0, C.q1, C.q2, C.q3, C.q4] });
+      p.line(7, 2.2, 25, 7, 2.2, 31, C.e6);
+      p.line(4, 2.2, 28, 10, 2.2, 28, C.e6);
+      p.box(0, 0, 35, 4, 4, 2, { ramp: BRASS });
+    }),
+  ),
+  guild_clue: one((face) =>
+    iso(30, 30, face, (p) => {
+      p.box(3, 5, 0, 10, 7, 3, { ramp: LIGHTWOOD });
+      p.box(4, 6, 3, 7, 5, 1, { ramp: LINEN });
+      p.line(5, 9, 4, 9, 9, 4, C.steel);
+      p.box(10, 5, 0, 2, 2, 5, { ramp: BRASS });
+    }),
+  ),
   board: one(board),
+  guild_board: one((face) => guildBoardArt(face)),
+  guild_noticeboard: one((face) => guildBoardArt(face)),
   trophy: one(trophy),
   street_lamp: anim(2, 2, streetLamp),
   candles: anim(2, 5, candles),

@@ -1,14 +1,14 @@
 import { expect, it } from 'vitest';
-import { personGrip, SHOT_FRAME, CAST_FRAME, RUN_FRAME } from '../src/art/actors';
+import { personGrip, SHOT_FRAME, CAST_FRAME, RUN_FRAME, PERSON_W, PERSON_H } from '../src/art/actors';
 
 it('keeps the held grip on the striking hand in every facing and pose', () => {
   for (let d = 0; d < 8; d++)
     for (let f = -1; f < CAST_FRAME + 4; f++) {
       const p = personGrip(d, f);
       expect(p.x).toBeGreaterThan(0);
-      expect(p.x).toBeLessThan(24);
+      expect(p.x).toBeLessThan(PERSON_W);
       expect(p.y).toBeGreaterThan(8);
-      expect(p.y).toBeLessThan(29);
+      expect(p.y).toBeLessThan(PERSON_H - 2);
       expect(Number.isFinite(p.angle)).toBe(true);
     }
   expect(personGrip(3, 11).x).toBeGreaterThan(personGrip(3, 13).x + 3);

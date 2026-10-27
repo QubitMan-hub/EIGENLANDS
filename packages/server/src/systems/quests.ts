@@ -1,3 +1,5 @@
+import { recordCiv } from '../features/civ/registry';
+import { handleGuild } from './guild';
 /**
  * Quests: story quests from villagers and the daily request board. Objective progress comes from real events reported by
  * every system (`questEvent`), deliveries track the pack, rewards are atomic. See shared/src/quests.ts for the data.
@@ -47,7 +49,8 @@ export const setQuestSeed = (s: number): void => {
 export const questSeed = (): number => SEED;
 
 const d0 = (): number => dayNumber(Date.now());
-const giverName = (id: string) => NPC_BY_ID[id]?.name.split(' ')[0] ?? 'the villager';
+const giverName = (id: string) =>
+  id === 'guild' ? 'any Adventurer Guild board' : (NPC_BY_ID[id]?.name.split(' ')[0] ?? 'the villager');
 
 /** Something quest-relevant happened. Updates progress, tells the player about finished objectives/quests. */
 export function questEvent(p: PlayerRef, ev: QuestEvent, seed = SEED): void {
@@ -182,6 +185,7 @@ export function turnInQuest(
       : null;
   if (learned) p.data.recipes.add(learned);
   if (d.realm && d.rewards.rep) gainRep(p, d.realm as RealmId, d.rewards.rep);
+  if (d.realm) recordCiv(seed, d.realm as RealmId, 'questsDone');
   p.dirty('quests', 'inv', 'coins', 'friends', ...(learned ? ['recipes' as const] : []));
   const rewardText = [
     `${d.rewards.coins} coins`,
@@ -245,10 +249,14 @@ export function handleQuestMsg(room: RoomApi, p: ServerPlayer, m: QuestMsg): voi
   if (
     !m ||
     typeof m.quest !== 'string' ||
-    (m.action !== 'accept' && m.action !== 'turnin') ||
+    (m.action !== 'accept' && m.action !== 'turnin' && !(m.npcId === 'guild' && m.action === 'abandon')) ||
     typeof m.npcId !== 'string'
   )
     return;
+  if (m.npcId === 'guild') {
+    void handleGuild(room, p, m).catch(() => p.toast('The guild could not survey that route. Please try again.'));
+    return;
+  }
   if (m.npcId === 'board') {
     const b = boardPos(room.seed);
     if (!b || Math.hypot(b.x + 0.5 - p.sim.x, b.y + 0.5 - p.sim.y) > 4) {

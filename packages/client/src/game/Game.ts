@@ -1,9 +1,16 @@
+import { actionPose, actionFrame, meleeAction, meleeFrame, type PersonAction } from '../art/person-actions';
+import { FLY_Z, SADDLE_Z } from '../art/mounts';
+import { livestockTexture } from '../art/livestock';
+import { isLivestock } from '@eigenlands/shared';
 import { FrameRateWindow } from './frame-rate';
-import { T, CAVE_BIOME_NAMES, caveRegionAt } from '@eigenlands/shared';
+import { Soundscape } from './soundscape';
+import { GroundMarks } from './groundmarks';
+import { T, CAVE_BIOME_NAMES, caveRegionAt, isFlying } from '@eigenlands/shared';
 import { ClickMining } from './click-mining';
 import { WorldPreparer } from './world-preparer';
 import { applyChunkSnapshot } from './chunk-updates';
-import { economyGraphics, pixelResolution } from './visual-budget';
+import { AdaptiveQuality, initialTier, tierResolution, type Tier } from './visual-budget';
+import { TERRAIN_PAD, TERRAIN_PAD_WIDE } from './terrain-window';
 import { constructionTexture, BUILD_AX, BUILD_AY } from '../art/construction';
 import { isBuildPiece, buildTile, simulationBudget } from '@eigenlands/shared';
 import { ConstructionViews } from './constructionviews';
@@ -16,6 +23,14 @@ import {
   CAVE_OY,
   isCaveY,
   isDiveY,
+  isCryptY,
+  otherworldOf,
+  isGateY,
+  gateSlotAt,
+  gateLayout,
+  GATE_RANKS,
+  OTHERWORLDS,
+  CRYPT_OY,
   isUpperY,
   DIVE_OY,
   UPPER_OY,
@@ -44,6 +59,8 @@ import {
   biomeWeather,
   biomeAt,
   type Ack,
+  type Biome,
+  type Weather,
   type ChunkMsg,
   type DialogueMsg,
   type FishBiteMsg,
@@ -73,6 +90,10 @@ import {
   CAST_FRAME,
   RUN_FRAME,
   RUN_FRAMES,
+  personGrip,
+  PERSON_W,
+  PERSON_H,
+  NPC_H,
   DIR_DOWN,
   DIR_LEFT,
   type Sheets,
@@ -107,6 +128,7 @@ import { Gameplay } from './gameplay';
 const CAVE_AMBIENT: [number, number, number] = [0.52, 0.49, 0.57];
 import { BuildingViews } from './buildingviews';
 import { WeatherFx } from './weatherfx';
+import { SkyFx } from './skyfx';
 import { WorldObjViews } from './worldobjviews';
 import { ObjectViews, sunFor } from './objectviews';
 import { Terrain } from './terrain';
@@ -153,6 +175,9 @@ interface Snap extends Pose {
   weapon: string;
   held: string;
   cart: boolean;
+  mount: number;
+  farm: string;
+  young: boolean;
   /** combat 2.0 (enemies) */
   st: number;
   atk: number;
@@ -166,6 +191,10 @@ interface Snap extends Pose {
 }
 
 interface ActorView {
+  personFrame?: number;
+  deathAt?: number;
+  dashAt?: number;
+  hurtAt?: number;
   id: string;
   type: 'player' | 'enemy' | 'proj' | 'npc' | 'shadow';
   npcId?: string;
@@ -181,6 +210,7 @@ interface ActorView {
   outfit: number;
   trail: number;
   held?: Sprite;
+  mountSprite?: Sprite;
   /** combat presentation (see combatview.ts) */
   fl: Sprite;
   kind: number;
@@ -260,6 +290,8 @@ export class Game {
   private worldObjs!: WorldObjViews;
   private buildings!: BuildingViews;
   private weatherFx!: WeatherFx;
+  /** shooting stars, aurora and rainbows (screen space, above the lighting) */
+  skyFx!: SkyFx;
   private construction!: ConstructionViews;
   private constructionFloor = new Container();
   private roofLayer = new Container();
@@ -283,7 +315,12 @@ export class Game {
     const h = new URLSearchParams(location.search).get('hour');
     return h !== null && !Number.isNaN(Number(h)) ? Number(h) : null;
   })();
-  private economy = false;
+  /** renderer tier; Auto follows measured frame times through `quality` */
+  private tier: Tier = 'high';
+  private quality = new AdaptiveQuality();
+  private get economy(): boolean {
+    return this.tier !== 'high';
+  }
   private graphicsMode = '';
   private frameMs = 0;
   private lastFrameAt = 0;
@@ -301,19 +338,16 @@ export class Game {
   // ───────────── boot ─────────────
   async init(canvas: HTMLCanvasElement): Promise<void> {
     this.app = new Application();
-    this.economy = economyGraphics(
-      this.settings().graphics,
-      matchMedia('(pointer: coarse)').matches,
-      navigator.hardwareConcurrency,
-      (navigator as Navigator & { deviceMemory?: number }).deviceMemory,
-    );
+    const graphics = this.settings().graphics;
+    this.graphicsMode = graphics;
+    this.tier = this.deviceTier(graphics);
     await this.app.init({
       canvas,
       resizeTo: window,
       background: 0x0b0c1a,
       antialias: false,
       roundPixels: true,
-      resolution: pixelResolution(window.devicePixelRatio || 1, this.economy),
+      resolution: tierResolution(window.devicePixelRatio || 1, this.tier === 'performance' ? 'economy' : this.tier),
       autoDensity: true,
       preference: 'webgl',
     });
@@ -326,6 +360,7 @@ export class Game {
       this.constructionFloor,
       this.shadowLayer,
       this.decalLayer,
+      this.ground.layer,
       this.entityLayer,
       this.roofLayer,
       this.buildGhost,
@@ -338,7 +373,9 @@ export class Game {
     this.app.stage.addChild(this.lighting.sprite, this.weatherLayer, this.labelLayer);
     this.gameplay = new Gameplay({
       net: () => this.net,
+      ridingMount: () => this.predictor?.sim.mount > 0,
       ridingCart: () => this.predictor?.sim.cart > 0,
+      caravanNear: () => this.ext?.travel.caravanNear() ?? null,
       clock: this.clock,
       audio: this.audio,
       input: this.input,
@@ -377,6 +414,7 @@ export class Game {
             }
           : null;
       },
+      openParty: () => this.ext.social.togglePartyWindow(true),
       openBoard: () => {
         this.ext.circuit.action('board');
       },
@@ -456,6 +494,7 @@ export class Game {
       settings: this.settings,
       store: () => this.store,
       sheets: () => this.sheets,
+      foes: () => this.foes,
       entityLayer: () => this.entityLayer,
       fxLayer: () => this.fxLayer,
       labelLayer: () => this.labelLayer,
@@ -538,6 +577,7 @@ export class Game {
       this.roofLayer,
     );
     this.buildings = new BuildingViews(seed, this.shadowLayer, this.entityLayer, this.roofLayer);
+    this.skyFx = new SkyFx(this.weatherLayer);
     this.weatherFx = new WeatherFx(this.weatherLayer);
     this.app.stage.addChildAt(this.terrain.sprite, 0);
     this.app.stage.addChildAt(this.world, 1);
@@ -572,23 +612,33 @@ export class Game {
   private layout(): void {
     const w = window.innerWidth,
       h = window.innerHeight;
-    const dpr = this.app.renderer.resolution || 1;
+    // The tier's normal backing resolution frames the scene; Performance then draws one canvas pixel per art pixel
+    // and the browser upscales the canvas (nearest neighbour), so framing and pixel grid stay the same.
+    const dpr = tierResolution(window.devicePixelRatio || 1, this.tier === 'performance' ? 'economy' : this.tier);
     // Landscape phones need phone-sized artwork too. Width alone classified
     // them as desktops and quadrupled the terrain fill cost at a tiny zoom.
     const phone = matchMedia('(pointer: coarse)').matches && Math.min(w, h) < 600;
     const base = phone ? (this.economy ? (w > h ? 8 : 6) : w > h ? 12 : 9) : w < 700 ? 9 : 18;
     const target = base * ZOOM_TILES[this.settings().zoom];
-    this.scale = Math.max(1, Math.floor((w * dpr) / (32 * target))) / dpr;
+    const artScale = Math.max(1, Math.floor((w * dpr) / (32 * target)));
+    this.scale = artScale / dpr;
+    const res = tierResolution(window.devicePixelRatio || 1, this.tier, artScale);
+    if (Math.abs(this.app.renderer.resolution - res) > 1e-6) {
+      this.app.renderer.resolution = res;
+      this.app.renderer.resize(w, h);
+    }
+    this.app.canvas.style.imageRendering = 'pixelated';
     this.world.scale.set(this.scale);
     this.lighting.sprite.scale.set(this.scale);
     const vw = Math.ceil(w / this.scale) + 2,
       vh = Math.ceil(h / this.scale) + 2;
     this.lighting.resize(vw, vh);
     if (this.terrain) {
+      this.terrain.setPad(this.tier === 'performance' ? TERRAIN_PAD_WIDE : TERRAIN_PAD);
       this.terrain.resize(vw, vh);
       this.terrain.sprite.scale.set(this.scale);
     }
-    this.fx.textRes = this.scale * dpr;
+    this.fx.textRes = this.scale * res;
   }
 
   /** Resolves when the first state containing the local player has been received and the area is drawn. */
@@ -654,6 +704,9 @@ export class Game {
         weapon: e.weapon ?? '',
         held: e.held ?? '',
         cart: !!e.cart,
+        mount: e.mount ?? 0,
+        farm: e.farm ?? '',
+        young: !!e.young,
         st: e.st ?? 0,
         atk: e.atk ?? 0,
         tx: e.tx ?? 0,
@@ -752,7 +805,16 @@ export class Game {
       rhythmResult: (m: RhythmResultMsg) => this.gameplay.onRhythmResult(m),
       fishBite: (m: FishBiteMsg) => this.gameplay.onFishBite(m),
       fishCast: (m) => this.gameplay.onFishCast(m),
-      dialogue: (m: DialogueMsg) => this.gameplay.onDialogue(m),
+      dialogue: (m: DialogueMsg) => {
+        this.gameplay.onDialogue(m);
+        const npc = this.views.get(m.npcId),
+          me = this.views.get(this.myId);
+        if (npc && me) {
+          const at = 0;
+          this.workActions.set(npc, { action: 'talk', at, x: me.lx, y: me.ly });
+          this.workActions.set(me, { action: 'talk', at, x: npc.lx, y: npc.ly });
+        }
+      },
       shopView: (m: ShopViewMsg) => this.gameplay.onShopView(m),
       forgePreview: (_m: ForgePreviewReply) => {},
       toast: (m: ToastMsg) => this.gameplay.onToast(m),
@@ -797,6 +859,23 @@ export class Game {
     }
   }
 
+  /** The starting tier for a graphics preference on this device. */
+  private deviceTier(mode: Settings['graphics']): Tier {
+    return initialTier(
+      mode,
+      matchMedia('(pointer: coarse)').matches,
+      navigator.hardwareConcurrency,
+      (navigator as Navigator & { deviceMemory?: number }).deviceMemory,
+    );
+  }
+
+  private setTier(tier: Tier, now: number): void {
+    this.quality.reset(now);
+    if (tier === this.tier) return;
+    this.tier = tier;
+    this.layout();
+  }
+
   private toast(text: string): void {
     this.caption(text);
   }
@@ -813,7 +892,29 @@ export class Game {
     }
   >();
 
+  private transportPoses = new WeakMap<ActorView, { kind: number; at: number; fromY: number }>();
+
+  private workActions = new WeakMap<ActorView, { action: PersonAction; at: number; x: number; y: number }>();
+
   private fxFromServer(f: FxMsg): void {
+    const workAction: PersonAction | undefined =
+      f.kind === 'plant' || f.kind === 'harvest'
+        ? 'gather'
+        : f.kind === 'craft'
+          ? f.station === 'forge' || f.station === 'furnace'
+            ? 'forge'
+            : f.station === 'cooking_pot'
+              ? 'cook'
+              : f.station === 'alchemy'
+                ? 'alchemy'
+                : f.station === 'carpenter'
+                  ? 'saw'
+                  : 'craft'
+          : f.kind === 'place'
+            ? 'dig'
+            : undefined;
+    const worker = f.id ? this.views.get(f.id) : undefined;
+    if (worker && workAction) this.workActions.set(worker, { action: workAction, at: 0, x: f.x, y: f.y });
     if (f.kind === 'chest') {
       this.worldObjs.animateChest(Math.floor(f.x), Math.floor(f.y));
       return;
@@ -935,6 +1036,36 @@ export class Game {
           this.fx.burst(f.x, f.y, [5, 6, 7], 8);
           break;
         }
+        if (v === 6) {
+          // Shadow Exchange: a dark swap at both ends
+          this.fx.burst(f.x, f.y, [43, 44, 7], 14);
+          this.fx.ring(f.x, f.y, 44, 1.6, 0.35, 2);
+          if (f.id === this.myId) this.sound('dash', f.x, f.y);
+          break;
+        }
+        if (v === 7) {
+          // Monarch's Domain rises
+          const r = f.w ?? 9;
+          this.fx.ring(f.x, f.y, 43, r, 0.9, 3);
+          this.fx.ring(f.x, f.y, 45, r * 0.6, 0.7, 2);
+          this.fx.burst(f.x, f.y, [43, 44, 45, 7], 30);
+          this.fx.number(f.x, f.y - 1.5, 'DOMAIN', 45, 22, 11, 1.4);
+          this.sound('levelup', f.x, f.y);
+          break;
+        }
+        if (v === 8) {
+          // the domain's edge, pulsing once a second while it holds
+          this.fx.ring(f.x, f.y, 43, f.w ?? 9, 0.8, 1);
+          break;
+        }
+        if (v === 9) {
+          // a guardian's shadow refuses to stay down (0 rebirth, 1 rewind, 2 devour)
+          const w = f.w ?? 0;
+          this.fx.burst(f.x, f.y, w === 0 ? [59, 60, 61] : w === 1 ? [47, 63, 7] : [43, 45], w === 2 ? 8 : 18);
+          this.fx.ring(f.x, f.y, w === 0 ? 60 : w === 1 ? 47 : 44, w === 2 ? 1 : 2, 0.5, 2);
+          if (w !== 2) this.fx.number(f.x, f.y - 1, w === 0 ? 'REBORN' : 'REWIND', w === 0 ? 61 : 47);
+          break;
+        }
         if (v === 5) {
           this.fx.ring(f.x, f.y, 46, 1.2, 0.25, 1);
           this.fx.burst(f.x, f.y, [46, 47, 7], 8);
@@ -965,7 +1096,7 @@ export class Game {
     let label: Text | undefined;
     if (type === 'npc') {
       label = new Text({
-        text: NPC_BY_ID[id]?.name.split(' ')[0] ?? '',
+        text: e.name || NPC_BY_ID[id]?.name.split(' ')[0] || '',
         style: {
           fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
           fontSize: 11,
@@ -1119,17 +1250,17 @@ export class Game {
     const mode = this.settings().graphics;
     if (mode !== this.graphicsMode) {
       this.graphicsMode = mode;
-      const economy = economyGraphics(
-        mode,
-        matchMedia('(pointer: coarse)').matches,
-        navigator.hardwareConcurrency,
-        (navigator as Navigator & { deviceMemory?: number }).deviceMemory,
-      );
-      if (economy !== this.economy) {
-        this.economy = economy;
-        this.app.renderer.resolution = pixelResolution(window.devicePixelRatio || 1, economy);
-        this.app.renderer.resize(window.innerWidth, window.innerHeight);
-        this.layout();
+      this.setTier(this.deviceTier(mode), now);
+    } else if (mode === 'auto') {
+      const next = this.quality.sample(now, frameInterval, this.tier);
+      if (next) {
+        this.setTier(next, now);
+        this.gameplay.toasts.add(
+          next === 'high'
+            ? 'Graphics raised back to High.'
+            : `Graphics lowered to ${next === 'economy' ? 'Economy' : 'Performance'} to keep the game smooth (Settings → Graphics).`,
+          'info',
+        );
       }
     }
     const reduced = this.settings().reducedMotion;
@@ -1138,13 +1269,22 @@ export class Game {
     const wall = this.clock.serverNow(now);
     const diving = isDiveY(this.predictor.sim.y),
       upper = isUpperY(this.predictor.sim.y);
-    const underground = isCaveY(this.predictor.sim.y) || diving || upper;
-    const weather = underground
-      ? 'clear'
-      : biomeWeather(
-          weatherForDay(this.seed, dayNumber(wall)),
-          biomeAt(this.seed, Math.floor(this.predictor.sim.x), Math.floor(this.predictor.sim.y)),
-        );
+    const realm = otherworldOf(this.predictor.sim.y);
+    const underground =
+      isCaveY(this.predictor.sim.y) ||
+      diving ||
+      upper ||
+      isCryptY(this.predictor.sim.y) ||
+      realm === 'umbra' ||
+      isGateY(this.predictor.sim.y);
+    // the sky realms keep their own fair weather
+    const weather =
+      underground || realm
+        ? 'clear'
+        : biomeWeather(
+            weatherForDay(this.seed, dayNumber(wall)),
+            biomeAt(this.seed, Math.floor(this.predictor.sim.x), Math.floor(this.predictor.sim.y)),
+          );
     this.wind.update(this.seed, wall / 1000, now / 1000, weather);
     this.setSeason(this.seasonOverride ?? (SEASONS.indexOf(season(wall)) as SeasonIdx));
 
@@ -1174,7 +1314,8 @@ export class Game {
         chunkOf(Math.floor(me.y)),
         now / 1000,
         this.seasonIdx,
-        !reduced,
+        // Performance freezes cosmetic terrain animation (as reduced motion does) so a still camera costs no paints.
+        !reduced && this.tier !== 'performance',
         this.wind.w,
         this.economy ? 0 : 1,
       );
@@ -1235,6 +1376,7 @@ export class Game {
       reduced,
       underground,
     });
+    this.listen(now, dt, me, hour, weather, underground);
     this.updateTarget34(renderT, me);
     this.syncFocus(now);
     this.drawAim(me, now);
@@ -1257,6 +1399,18 @@ export class Game {
       this.economy,
       this.settings().weatherDetail,
     );
+    this.skyFx.update({
+      dt,
+      w: W,
+      h: H,
+      seed: this.store.seed,
+      day: dayNumber(this.clock.serverNow(now)),
+      hour,
+      weather,
+      biome: biomeAt(this.store.seed, Math.floor(me.x), Math.floor(me.y)),
+      outdoors: !underground,
+      reduced,
+    });
     const wa = this.weatherFx.ambient(weather),
       amb = diving ? [0.27, 0.53, 0.61] : upper ? [0.72, 0.67, 0.59] : underground ? CAVE_AMBIENT : ambientColor(hour);
     this.lighting.render(
@@ -1290,6 +1444,74 @@ export class Game {
   /** the shadows' focus: the selected enemy (or nothing); synced at most 4 times a second */
   private focusSent: string | null = null;
   private focusAt = 0;
+  private soundscape: Soundscape | null = null;
+  private ground = new GroundMarks(() => this.store);
+  private hear = { at: 0, water: 0, town: false, biome: 'meadow' as Biome, lx: NaN, ly: NaN, speed: 0 };
+  /** the ambient soundscape: what the place sounds like right now (surroundings sampled about once a second) */
+  private listen(
+    now: number,
+    dt: number,
+    me: { x: number; y: number },
+    hour: number,
+    weather: Weather,
+    underground: boolean,
+  ) {
+    const h = this.hear;
+    if (now - h.at > 1000) {
+      const secs = h.at ? (now - h.at) / 1000 : 1;
+      h.speed = Number.isFinite(h.lx) ? Math.hypot(me.x - h.lx, me.y - h.ly) / secs : 0;
+      h.lx = me.x;
+      h.ly = me.y;
+      h.at = now;
+      const px = Math.floor(me.x),
+        py = Math.floor(me.y);
+      let wet = 0,
+        n = 0;
+      for (let j = -8; j <= 8; j += 2)
+        for (let i = -8; i <= 8; i += 2) {
+          const t = this.store.getTile(px + i, py + j);
+          n++;
+          if (t === T.WATER || t === T.DEEP_WATER) wet++;
+        }
+      h.water = Math.min(1, (wet / n) * 2.2);
+      h.town = !!sanctuaryAt(this.seed, me.x, me.y);
+      h.biome = biomeAt(this.seed, px, py);
+    }
+    // footprints for everyone walking near you (you first), puddles in the rain
+    const walkers = [{ id: 'me', x: me.x, y: me.y }];
+    for (const v of this.views.values())
+      if (
+        (v.type === 'player' || v.type === 'npc') &&
+        v.id !== this.myId &&
+        v.root.visible &&
+        Math.hypot(v.lx - me.x, v.ly - me.y) < 30
+      )
+        walkers.push({ id: v.id, x: v.lx, y: v.ly });
+    this.ground.frame({
+      dt,
+      weather,
+      season: this.seasonIdx,
+      biome: h.biome,
+      reduced: this.settings().reducedMotion,
+      walkers: underground ? [] : walkers,
+      me,
+    });
+    this.soundscape ??= new Soundscape(this.audio);
+    this.soundscape.level = this.settings().ambience;
+    this.soundscape.frame({
+      dt,
+      hour: underground ? 12 : hour,
+      season: this.seasonIdx,
+      weather,
+      wind: this.wind.w.strength,
+      biome: h.biome,
+      underground,
+      water: h.water,
+      town: h.town,
+      speed: h.speed,
+    });
+  }
+
   private syncFocus(now: number): void {
     const t = this.currentTarget();
     const want = t && t.kind === 'enemy' ? t.id : null;
@@ -1469,6 +1691,11 @@ export class Game {
       this.mining.cancel();
     const mining = this.mining.step(now, this.predictor.sim.x, this.predictor.sim.y);
     if (mining) Object.assign(r, mining);
+    // a broken bone: no running or dodging (the server drops the same inputs)
+    if (this.gameplay.profile.buffs.fracture) {
+      r.sprint = false;
+      r.dash = false;
+    }
     const viewTick = Math.max(
       0,
       Math.floor(this.clock.tickAt(this.clock.serverNow(now) - this.clock.interpDelay - this.combat.warp)),
@@ -1547,10 +1774,21 @@ export class Game {
       v.gfx.clear();
 
       if (v.type === 'player') {
+        const boat = isMe ? this.predictor.sim.boat > 0 : ((s?.flags ?? 0) & 128) !== 0;
+
+        const mount = isMe ? this.predictor.sim.mount : (s?.mount ?? 0);
         const cart = isMe ? this.predictor.sim.cart > 0 : !!s?.cart;
         const dash = isMe ? this.predictor.sim.dashT > 0 : ((s?.flags ?? 0) & 1) !== 0;
         const deadP = isMe ? this.dead : ((s?.flags ?? 0) & 4) !== 0;
-        const combatStrike = !deadP && !dash ? this.combat.attackFrame(v, now, reduced) : -1;
+        const combatStrike = !deadP && !dash ? this.combat.playerAttackFrame(v, now, reduced) : -1;
+        const charging = isMe
+          ? this.predictor.sim.hold > 0 && this.predictor.sim.charge > 0
+          : ((s?.flags ?? 0) & 8) !== 0;
+        // Work confirmations must not resume after a newer combat or transport action.
+        if (combatStrike >= 0 || charging || dash || deadP || mount || cart) {
+          this.toolSwings.delete(v);
+          this.workActions.delete(v);
+        }
         const use = this.toolSwings.get(v);
         if (use?.waitForResult) {
           if (this.gameplay.rhythm.open) use.received = now;
@@ -1564,6 +1802,7 @@ export class Game {
           now - use.at < 300 &&
           !deadP &&
           !dash &&
+          !walking &&
           combatStrike < 0;
         const strike = harvesting ? (reduced ? 2 : Math.min(3, Math.floor((now - use!.at) / 75))) : combatStrike;
         const running = dash || moved / Math.max(0.001, dtMs / 1000) > 5.6;
@@ -1574,7 +1813,7 @@ export class Game {
           : s?.weapon;
         const weapon = isWeaponId(weaponId) ? weaponId : null;
         const tool = isMe ? ITEMS[this.gameplay.selected()?.id ?? '']?.tool?.type : s?.held;
-        const heldItem = harvesting ? use!.tool : strike < 0 && isHeldId(tool) ? tool : weapon;
+        let heldItem = harvesting ? use!.tool : strike < 0 && !charging && isHeldId(tool) ? tool : weapon;
         const family = harvesting
           ? use!.tool === 'can' || use!.tool === 'rod'
             ? CAST_FRAME
@@ -1584,8 +1823,8 @@ export class Game {
             : weapon && WEAPONS[weapon].cls === 'staff'
               ? CAST_FRAME
               : ATTACK_FRAME;
-        const frame =
-          deadP || cart
+        let frame =
+          deadP || cart || mount
             ? -1
             : strike >= 0
               ? family + strike
@@ -1596,22 +1835,113 @@ export class Game {
                 : reduced
                   ? -1
                   : 0;
+        const meleeFamily = weapon ? (WEAPONS[weapon].fam ?? weapon) : 'sword';
+        if (combatStrike >= 0 && family === ATTACK_FRAME)
+          frame = meleeFrame(meleeFamily, this.combat.playerAttackProgress(v, now), reduced);
+        const transportKind = boat ? -2 : cart ? -1 : mount;
+        let transport = this.transportPoses.get(v);
+        if (!transport || transport.kind !== transportKind) {
+          transport = { kind: transportKind, at: transport ? now : now - 220, fromY: v.sprite.y };
+          this.transportPoses.set(v, transport);
+        }
+        const confirmed = this.workActions.get(v);
+        // Start confirmed gestures on their first presentation, just like tool swings.
+        if (confirmed && confirmed.at === 0) confirmed.at = now;
+        const fishing = isMe ? this.gameplay.fishing : null;
+        if (fishing && !charging && combatStrike < 0) heldItem = 'rod';
+        const channel = isMe ? this.ext.shadows.channelProgress(now) : null;
+        let unarmedWork = false;
+        let actionTarget: { x: number; y: number } | null = null;
+        if (!deadP && !dash && !charging && combatStrike < 0) {
+          if (cart || mount) frame = actionFrame('sit', (v.travel % 0.8) / 0.8, reduced);
+          else if (harvesting) {
+            const action: PersonAction =
+              use!.tool === 'pickaxe'
+                ? 'mine'
+                : use!.tool === 'axe'
+                  ? 'chop'
+                  : use!.tool === 'hoe'
+                    ? 'dig'
+                    : use!.tool === 'can'
+                      ? 'water'
+                      : use!.tool === 'rod'
+                        ? 'fish'
+                        : 'gather';
+            frame = actionFrame(action, (now - use!.at) / 300, reduced);
+          } else if (!walking && fishing) {
+            frame = actionFrame('fish', fishing.bite ? 0.5 : 0.85, reduced);
+            actionTarget = { x: fishing.tx + 0.5, y: fishing.ty + 0.5 };
+          } else if (!walking && channel !== null) {
+            frame = actionFrame('channel', channel, reduced);
+            actionTarget = this.ext.shadows.channelTarget();
+          } else if (isDiveY(y) && !this.buildings.insideBuilding(Math.floor(x), Math.floor(y)))
+            frame = actionFrame('swim', (v.travel % 0.9) / 0.9, reduced);
+          else if (!walking && transportKind === 0 && now - transport.at < 220)
+            frame = actionFrame('sit', 1 - (now - transport.at) / 220, reduced);
+          else if (!walking && confirmed && now - confirmed.at < 650) {
+            unarmedWork = true;
+            frame = actionFrame(confirmed.action, (now - confirmed.at) / 650, reduced);
+            actionTarget = confirmed;
+          }
+        }
+        if (charging && !walking && !deadP && !dash && combatStrike < 0)
+          frame = family === ATTACK_FRAME ? actionFrame(meleeAction(meleeFamily), 0.34, reduced) : family;
+        if (deadP) frame = actionFrame('death', Math.min(1, (now - (v.deathAt ??= now)) / 650), reduced);
+        else {
+          v.deathAt = undefined;
+          if (dash) frame = actionFrame('dodge', (now - (v.dashAt ??= now)) / 180, reduced);
+          else v.dashAt = undefined;
+          if (v.flash > 0.9) v.hurtAt ??= now;
+          if (!dash && !mount && !cart && !charging && !walking && combatStrike < 0 && v.hurtAt && now - v.hurtAt < 220)
+            frame = actionFrame('hit', (now - v.hurtAt) / 220, reduced);
+          if (v.hurtAt && now - v.hurtAt >= 220) v.hurtAt = undefined;
+        }
         const look = s?.look ?? (isMe ? this.gameplay.profile.equip.outfit : v.outfit);
         const sd =
-          harvesting && Math.hypot(use!.x - x, use!.y - y) > 0.05
-            ? screenDir(use!.x - x, use!.y - y)
-            : screenDir(fx, fy);
+          actionTarget && Math.hypot(actionTarget.x - x, actionTarget.y - y) > 0.05
+            ? screenDir(actionTarget.x - x, actionTarget.y - y)
+            : harvesting && Math.hypot(use!.x - x, use!.y - y) > 0.05
+              ? screenDir(use!.x - x, use!.y - y)
+              : screenDir(fx, fy);
         const lookIx = ((look % OUTFITS.length) + OUTFITS.length) % OUTFITS.length;
         v.sprite.texture = s?.app
           ? this.sheets.styled(lookIx, s.app, dirOf(sd.x, sd.y), frame)
           : this.sheets.person(lookIx, dirOf(sd.x, sd.y), frame);
-        v.sprite.alpha = deadP ? 0.35 : dash ? 0.6 : 1;
-        v.sprite.rotation = deadP ? Math.PI / 2 : 0;
+        v.personFrame = frame >= 30 ? frame : v.sprite.texture.frame.x / PERSON_W;
+        v.sprite.alpha = deadP ? 0.65 : dash ? 0.6 : 1;
+        v.sprite.rotation = 0;
         v.sprite.scale.set(1);
-        const boat = isMe ? this.predictor.sim.boat > 0 : ((s?.flags ?? 0) & 128) !== 0;
+        v.sprite.y = 1;
         this.combat.rig(v, boat, fx, fy, now / 1000);
         this.combat.minecart(v, cart, fx, fy);
-        if (heldItem && !boat && !cart && !deadP) {
+        const riding = !boat && !cart && !deadP ? (isMe ? this.predictor.sim.mount : (s?.mount ?? 0)) : 0;
+        this.combat.mount(v, riding, fx, fy, walking, v.travel, reduced);
+        if (!reduced && !dash && !deadP && transport && now - transport.at < 220) {
+          const t = Math.max(0, (now - transport.at) / 220),
+            ease = t * t * (3 - 2 * t);
+          v.sprite.y = Math.round(transport.fromY + (v.sprite.y - transport.fromY) * ease);
+        }
+        if (
+          heldItem &&
+          !unarmedWork &&
+          ![
+            'gather',
+            'craft',
+            'forge',
+            'cook',
+            'alchemy',
+            'saw',
+            'channel',
+            'swim',
+            'talk',
+            'hit',
+            'dodge',
+            'death',
+          ].includes(actionPose(0, frame)?.action ?? '') &&
+          (!boat || (fishing && heldItem === 'rod' && combatStrike < 0)) &&
+          !cart &&
+          !deadP
+        ) {
           if (!v.held) {
             v.held = new Sprite();
             v.held.anchor.set(0.5, 0.75);
@@ -1620,9 +1950,10 @@ export class Game {
           }
           const direction = dirOf(sd.x, sd.y);
           // Stable idle uses the body's resolved breath column, so the hand never drifts off the grip.
-          const pose = v.sprite.texture.frame.x / 24;
+          const pose = v.personFrame;
           v.held.texture = this.heldWeapons.texture(heldItem, direction, pose);
           v.held.visible = true;
+          v.held.y = riding ? v.sprite.y + 14 : v.sprite.y;
           v.held.alpha = v.sprite.alpha;
           v.root.setChildIndex(v.held, direction === 1 || direction >= 6 ? 1 : v.root.children.length - 1);
         } else if (v.held) v.held.visible = false;
@@ -1632,6 +1963,7 @@ export class Game {
           this.combat.decoratePlayer(v, s?.flags ?? 0, isMe ? this.predictor.sim : null, x, y, now, dtMs / 1000);
         v.flash *= Math.exp(-dtMs / 45);
         v.fl.texture = v.sprite.texture;
+        v.fl.y = v.sprite.y;
         v.fl.scale.copyFrom(v.sprite.scale);
         v.fl.rotation = v.sprite.rotation;
         v.fl.alpha = v.flash;
@@ -1640,8 +1972,10 @@ export class Game {
         }
         if (v.label) {
           if (s?.name && v.label.text !== s.name) v.label.text = s.name;
+          // riders' names float above the saddle, and a griffin's rider higher still
+          const above = PERSON_H + (riding ? SADDLE_Z + (isFlying(riding) ? FLY_Z : 0) : 0);
           v.label.x = Math.round(this.world.x + v.root.x * this.scale);
-          v.label.y = Math.round(this.world.y + (v.root.y - 30) * this.scale);
+          v.label.y = Math.round(this.world.y + (v.root.y - above) * this.scale);
         }
       } else if (v.type === 'npc') {
         const inside = ((s?.flags ?? 0) & 2) !== 0;
@@ -1649,20 +1983,37 @@ export class Game {
         const hisB = this.buildings.insideBuilding(Math.floor(x), Math.floor(y));
         const hidden = inside && (!hisB || hisB !== myB);
         v.root.visible = !hidden;
-        const frame =
+        let frame =
           walking || ((s?.flags ?? 0) & 1) !== 0
             ? 1 + (Math.floor(v.travel / 0.17) % (WALK_FRAMES - 1))
             : reduced
               ? -1
               : 0;
-        const nd = screenDir(fx, fy);
-        v.sprite.texture = this.sheets.npc(v.id, dirOf(nd.x, nd.y), frame);
+        const gesture = this.workActions.get(v);
+        if (gesture && gesture.at === 0) gesture.at = now;
+        if (!walking && gesture && now - gesture.at < 650)
+          frame = actionFrame(gesture.action, (now - gesture.at) / 650, reduced);
+        const nd = gesture && now - gesture.at < 650 ? screenDir(gesture.x - x, gesture.y - y) : screenDir(fx, fy);
+        if (isLivestock(s?.farm)) {
+          v.sprite.texture = livestockTexture(
+            s!.farm as import('@eigenlands/shared').LivestockSpecies,
+            walking && !reduced ? 2 + (Math.floor(v.travel / 0.22) % 2) : 0,
+            Math.abs(fx) >= Math.abs(fy) ? (fx < 0 ? 2 : 0) : fy < 0 ? 3 : 1,
+          );
+          v.sprite.anchor.set(24 / 48, 49 / 56);
+          v.sprite.scale.set(s?.young ? 0.62 : 0.9);
+        } else
+          v.sprite.texture = this.sheets.npc(
+            NPC_BY_ID[v.id] ? v.id : ['odo', 'orla', 'juniper', 'tobin', 'fenwick'][Math.abs(s?.look ?? 0) % 5]!,
+            dirOf(nd.x, nd.y),
+            frame,
+          );
         v.gfx.ellipse(0, 0, 7, 3).fill({ color: 0x2a1060, alpha: 0.28 });
         if (v.label) {
           const near = Math.hypot(x - me.x, y - me.y) < 4;
           v.label.visible = !hidden && near;
           v.label.x = Math.round(this.world.x + v.root.x * this.scale);
-          v.label.y = Math.round(this.world.y + (v.root.y - 30) * this.scale);
+          v.label.y = Math.round(this.world.y + (v.root.y - NPC_H) * this.scale);
         }
       } else if (v.type === 'enemy' || v.type === 'shadow') {
         this.combat.drawEnemy(v, s, x, y, fx, now, dtMs / 1000, walking);
@@ -1696,10 +2047,18 @@ export class Game {
         .fill(pc(f.bite ? 38 : 35))
         .stroke({ color: pc(7), width: 1 });
       this.bobber.ellipse(bx, by + 1, 5, 2.2).stroke({ color: pc(30), width: 1, alpha: 0.7 });
-      if (this.predictor) {
+      const fisher = this.views.get(this.myId);
+      if (this.predictor && fisher?.held?.visible) {
         const p = this.predictor.sim;
+        const sd = screenDir(f.tx + 0.5 - p.x, f.ty + 0.5 - p.y);
+        const grip = personGrip(
+          dirOf(sd.x, sd.y),
+          actionFrame('fish', f.bite ? 0.5 : 0.85, this.settings().reducedMotion),
+        );
+        const tipX = fisher.root.x + grip.x - PERSON_W / 2 + Math.cos(grip.angle) * 13;
+        const tipY = fisher.root.y + fisher.held.y + grip.y - PERSON_H + Math.sin(grip.angle) * 13;
         this.bobber
-          .moveTo(isoX(p.x, p.y), isoY(p.x, p.y) - 10)
+          .moveTo(tipX, tipY)
           .lineTo(bx, by - 2)
           .stroke({ color: pc(6), width: 0.5, alpha: 0.7 });
       }
@@ -1737,7 +2096,8 @@ export class Game {
     let best: { id: string; x: number; y: number } | null = null,
       bd = max;
     for (const v of this.views.values()) {
-      if (v.type !== 'npc' || !v.root.visible) continue;
+      if (v.type !== 'npc' || !v.root.visible || v.id.startsWith('livestock:') || v.id.startsWith('resident:'))
+        continue;
       const d = Math.hypot(v.lx - x, v.ly - y);
       if (d < bd) {
         bd = d;
@@ -1794,11 +2154,12 @@ export class Game {
     const sh = v.shadow;
     sh.visible = v.root.visible && v.type !== 'proj' && sun.alpha > 0.02;
     if (!sh.visible) return;
-    sh.texture = v.sprite.texture;
-    sh.anchor.copyFrom(v.sprite.anchor);
+    const source = v.mountSprite?.visible ? v.mountSprite : v.sprite;
+    sh.texture = source.texture;
+    sh.anchor.copyFrom(source.anchor);
     sh.position.set(v.root.x, v.root.y);
     sh.alpha = sun.alpha * v.sprite.alpha;
-    sh.scale.y = -(0.22 + 0.14 * sun.len);
+    sh.scale.set(source.scale.x, -(0.22 + 0.14 * sun.len) * source.scale.y);
     sh.skew.x = sun.dx * sun.len * 0.55;
     sh.rotation = v.sprite.rotation;
   }
@@ -1931,13 +2292,18 @@ export class Game {
       );
     }
     const me = this.predictor.sim;
-    const surfaceY = isDiveY(me.y)
-      ? me.y - DIVE_OY
-      : isUpperY(me.y)
-        ? me.y - UPPER_OY
-        : isCaveY(me.y)
-          ? me.y - CAVE_OY
-          : me.y;
+    const realmHere = otherworldOf(me.y);
+    const surfaceY = realmHere
+      ? me.y - OTHERWORLDS[realmHere].oy
+      : isCryptY(me.y)
+        ? me.y - CRYPT_OY
+        : isDiveY(me.y)
+          ? me.y - DIVE_OY
+          : isUpperY(me.y)
+            ? me.y - UPPER_OY
+            : isCaveY(me.y)
+              ? me.y - CAVE_OY
+              : me.y;
     const town = [
       ...townsFor(this.seed),
       ...frontierTownsNear(this.seed, me.x - 160, surfaceY - 160, me.x + 160, surfaceY + 160),
@@ -1947,13 +2313,17 @@ export class Game {
     const tdx = town.cx - me.x,
       tdy = town.cy - surfaceY,
       td = Math.hypot(tdx, tdy);
-    const place = isDiveY(me.y)
-      ? 'Submerged sanctuary · '
-      : isUpperY(me.y)
-        ? 'Upper floor · '
-        : isCaveY(me.y)
-          ? `${CAVE_BIOME_NAMES[caveRegionAt(this.seed, me.x, me.y).biome]} · `
-          : '';
+    const place = realmHere
+      ? `${OTHERWORLDS[realmHere].name.replace(/^the /, 'The ')} · `
+      : isCryptY(me.y)
+        ? 'Crypt · '
+        : isDiveY(me.y)
+          ? 'Submerged sanctuary · '
+          : isUpperY(me.y)
+            ? 'Upper floor · '
+            : isCaveY(me.y)
+              ? `${CAVE_BIOME_NAMES[caveRegionAt(this.seed, me.x, me.y).biome]} · `
+              : '';
     const arrow = (dx: number, dy: number) =>
       ['→', '↘', '↓', '↙', '←', '↖', '↑', '↗'][
         Math.round(((Math.atan2(isoY(dx, dy), isoX(dx, dy)) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8
@@ -1971,13 +2341,16 @@ export class Game {
       $('townhint').title =
         `${route.detail}. Tracked quest; manage it in Journal → Quests. Sanctuary wards protect towns from monsters.`;
     } else {
+      const gateSlot = isGateY(me.y) ? gateSlotAt(me.x) : null;
       $('townhint').textContent =
-        place +
-        (ward
-          ? `${ward.name} · Sanctuary`
-          : td > 30
-            ? `${town.name} ${arrow(tdx, tdy)} ${Math.round(td)} tiles`
-            : town.name);
+        gateSlot !== null
+          ? `${GATE_RANKS[gateLayout(this.seed, gateSlot).rank]}-rank gate · find its master`
+          : place +
+            (ward
+              ? `${ward.name} · Sanctuary`
+              : td > 30
+                ? `${town.name} ${arrow(tdx, tdy)} ${Math.round(td)} tiles`
+                : town.name);
       $('townhint').title = ward
         ? 'Sanctuary: monsters cannot harm you here. Combat resumes beyond the settlement wards.'
         : ($('townhint').textContent ?? '');
@@ -2004,6 +2377,7 @@ export class Game {
       rtt: this.rtt,
       chunks: this.terrain?.count,
       entities: this.views.size,
+      creatureAtlases: this.foes?.cache(),
       hp: this.self?.hp,
       stamina: this.predictor?.sim.stamina,
       sprinting: this.predictor?.sim.sprint === 1,

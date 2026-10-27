@@ -11,6 +11,10 @@ export const SPELL = {
   MIRROR: 6,
   BLINK: 7,
   RESIDUE: 8,
+  STRIKE: 9,
+  ARENA: 10,
+  /** a dungeon gate (hue = rank 0..5, r = 1 a gate in the wilds, 2 the way out of a dungeon, dx = slot) */
+  GATE: 11,
 } as const;
 
 /** A visible ability effect: bolts, rings, Echoes, tethers, shields. Interest-managed like other entities. */

@@ -3,6 +3,47 @@ import type { WorldObj } from './objects';
 
 /** Structural pieces share a cell; furnishings continue to occupy the ordinary object layer. */
 export const BUILD_PIECES = {
+  timber_window: {
+    name: 'Timber Window Wall',
+    layer: 'wall',
+    material: 'timber',
+    cost: [
+      ['wood', 5],
+      ['glass_pane', 2],
+    ],
+    station: 'carpenter',
+    lvl: 2,
+  },
+  stone_window: {
+    name: 'Stone Window Wall',
+    layer: 'wall',
+    material: 'stone',
+    cost: [
+      ['stone', 7],
+      ['wood', 1],
+      ['glass_pane', 2],
+    ],
+    station: 'masonry',
+    lvl: 3,
+  },
+  moss_roof: {
+    name: 'Living Moss Roof',
+    layer: 'roof',
+    material: 'moss',
+    cost: [
+      ['fiber', 6],
+      ['wood', 2],
+    ],
+  },
+  irrigation_channel: {
+    name: 'Irrigation Channel',
+    layer: 'floor',
+    material: 'stone',
+    cost: [
+      ['stone', 3],
+      ['wood', 1],
+    ],
+  },
   timber_floor: { name: 'Timber Floor', layer: 'floor', material: 'timber', cost: [['wood', 2]] },
   stone_floor: { name: 'Flagstone Floor', layer: 'floor', material: 'stone', cost: [['stone', 3]] },
   timber_wall: {

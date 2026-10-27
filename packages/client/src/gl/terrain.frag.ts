@@ -1,4 +1,4 @@
-import { CAVE_OY, DIVE_OY, LEVEL_PX, UPPER_OY, PALETTE } from '@eigenlands/shared';
+import { CAVE_OY, CRYPT_OY, DIVE_OY, GATE_OY, LEVEL_PX, OTHERWORLDS, UPPER_OY, PALETTE } from '@eigenlands/shared';
 
 const pal = PALETTE.map((h) => {
   const n = parseInt(h.slice(1), 16);
@@ -550,6 +550,24 @@ int caveFloorTop(ivec2 ip, float t, int bio) {
   if(uDetail>.5&&c==base)c=groundClusters(ip+ivec2(37,19),base,low,high,.12);
   return c;
 }
+// Aetheria's sea of cloud below the islands: slow rolling banks of white over pale sky, drifting with time.
+int cloudSea(ivec2 ip, vec2 tf, float t) {
+  vec2 p = tf * 0.09 + vec2(t * 0.012, t * 0.005);
+  float v = fbm(p) + (fbm(p * 2.3 + 7.1) - 0.5) * 0.25;
+  float d = (hashi(ip / 2) - 0.5) * 0.04; // a fine dither at the edges of the banks
+  v += d;
+  return v > 0.66 ? WHITE : v > 0.56 ? PALE : v > 0.47 ? W6 : v > 0.38 ? W5 : W4;
+}
+// Chronoria's fractures: a void with stars in it, and slow violet seams of time leaking through.
+int fractureVoid(ivec2 ip, vec2 tf, float t) {
+  float seam = fbm(tf * 0.25 + vec2(t * 0.03, -t * 0.02));
+  if (abs(seam - 0.5) < 0.025) return Q4;
+  if (abs(seam - 0.5) < 0.05) return Q1;
+  float star = hashi(ip);
+  if (star > 0.9985) return WHITE;
+  if (star > 0.996) return MIST;
+  return star > 0.5 ? INK : NIGHT;
+}
 // Fractured rock crown: small chisel clusters, no value-noise blobs or blocky economy fill.
 // Each cave biome tints its own rock: warm amber limestone, mossy green, violet prism, soot basalt, grey rime, teal wet stone.
 ivec3 caveRockTone(int bio, int face) {
@@ -600,7 +618,9 @@ void main() {
   int face = 0;      // 0 top, 1 left (+y) side, 2 right (+x) side
   int dPx = 0;
   bool submerged=abs(uWin.y - ${DIVE_OY}.0)<4000.0;
-  bool enclosed = uWin.y > ${CAVE_ROW}.0 || abs(uWin.y - ${UPPER_OY}.0) < 1000.0 || abs(uWin.y - ${DIVE_OY}.0) < 4000.0;
+  bool enclosed = uWin.y > ${CAVE_ROW}.0 || abs(uWin.y - ${UPPER_OY}.0) < 1000.0 || abs(uWin.y - ${DIVE_OY}.0) < 4000.0 || abs(uWin.y - ${CRYPT_OY}.0) < 12000.0 || abs(uWin.y - ${OTHERWORLDS.umbra.oy}.0) < 30000.0 || abs(uWin.y - ${GATE_OY}.0) < 30000.0;
+  bool aether = abs(uWin.y - ${OTHERWORLDS.aetheria.oy}.0) < 30000.0;
+  bool chrono = abs(uWin.y - ${OTHERWORLDS.chronoria.oy}.0) < 30000.0;
   float zTop = enclosed ? ${GROUND_Z.caveWall}.0 + uTopZ : uTopZ;
   float zStart = zTop;
   int steps = 9 + int(zTop);
@@ -655,7 +675,7 @@ void main() {
   if (face == 0) {
     float sdf = sdfAt(tfHit);
     if (cls == VOID) {
-      c = NIGHT;
+      c = aether ? cloudSea(ip, tfHit, t) : chrono ? fractureVoid(ip, tfHit, t) : NIGHT;
     } else if (isWater(cls)) {
       c = uDetail < .5 ? economyWater(ip, sdf, cls == DEEP, t, sb, bio) : waterTop(ip, tfHit, sdf, cls == DEEP, t, sb, bio);
     } else if (cls == GRASS) {

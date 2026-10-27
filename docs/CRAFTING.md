@@ -72,7 +72,7 @@ fail if any of the rules here break.
 - **Saddles, mount equipment and mounts** (nothing to ride); class-specific equipment; dagger, bow and greatsword families (each
   needs its own moves and held art; the sword, spear, axe, hammer and crossbow families have variants).
 - Armour sets other than the original five do not redraw your character (`look: -1`); they change numbers, not the sprite.
-- Animal breeding, growth and happiness (§10); sheep, goats, pigs and bees give products only.
-- Rain barrels, trellises and other garden pieces are decoration.
-- Item counts are 1,240, not thousands. The structure is there; more content is more rows, as long as each earns its place.
+- Individual bee simulation remains open; poultry and mammals now have breeding, growth and happiness (§10).
+- Decorative rain barrels/trellises remain; planted perennial grape trellises, fruit trees, irrigation channels and individual husbandry are now functional: see [HOMESTEADS_AND_GUILD.md](HOMESTEADS_AND_GUILD.md).
+- Item counts are 1,245, not thousands. The structure is there; more content is more rows, as long as each earns its place.
 - Favourites and tracked recipes live in the browser (`localStorage`), not on the server.

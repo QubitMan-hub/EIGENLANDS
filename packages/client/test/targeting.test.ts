@@ -58,3 +58,15 @@ describe('use targeting', () => {
     expect(targetTile(5.5, 5.5, 0, -1, null)).toEqual({ tx: 5, ty: 4 });
   });
 });
+
+it('offers normal interaction for guild boards and functional beds with any held item', () => {
+  for (const sub of ['guild_board', 'guild_noticeboard', 'bed', 'double_bed', 'canopy_bed', 'hammock'])
+    expect(
+      describeUse(
+        { id: 'axe', n: 1 },
+        T.FLOOR,
+        { x: 1, y: 1, kind: sub.includes('guild') ? 'deco' : 'furniture', sub },
+        0,
+      ),
+    ).toMatchObject({ kind: 'open', ok: true });
+});

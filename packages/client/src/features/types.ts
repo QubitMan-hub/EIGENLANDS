@@ -1,6 +1,7 @@
 import type { Container } from 'pixi.js';
 import type { ChunkStore } from '@eigenlands/shared';
 import type { Sheets } from '../art/actors';
+import type { FoeSheets } from '../art/foes';
 import type { Audio, Sfx } from '../audio';
 import type { Fx } from '../game/fx';
 import type { Profile } from '../game/profile';
@@ -27,6 +28,8 @@ export interface P34Deps {
   learn?: (action: 'openedMap' | 'openedCircuit' | 'orbCast') => void;
   shrineProgress?: (solved: string[]) => void;
   sheets: () => Sheets;
+  /** creature and soldier sheets (optional: labs and tests may omit them) */
+  foes?: () => FoeSheets;
   /** world-space layers (iso pixels): depth-sorted entities, effects above entities, shadows */
   entityLayer: () => Container;
   fxLayer: () => Container;

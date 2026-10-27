@@ -26,7 +26,7 @@ const watchPoses = (page, id) =>
     g.app.ticker.add(() => {
       const v = g.views.get(id);
       if (!v) return;
-      const frame = v.sprite.texture.frame.x / 24;
+      const frame = v.sprite.texture.frame.x / 32;
       if (!window.__motionFrames[id].includes(frame)) window.__motionFrames[id].push(frame);
     });
   }, id);
@@ -45,8 +45,7 @@ try {
   await page.fill('#name', 'Motion');
   await page.click('#btn-guest');
   await page.waitForFunction(() => window.__eigen?.state().ready, null, { timeout: 60000 });
-  await page.locator('.p3-lumen-skip').click();
-  await page.locator('.p3-lumen-skip').click();
+  await page.evaluate(() => window.__eigen.game.ext.circuit.send('p3_tutorial', { action: 'skip' }));
   assert.equal(await page.locator('#chat').isVisible(), false, 'Compact screens start with chat collapsed');
   assert.ok(
     (await page.locator('#toasts .toast:visible').count()) <= 2,
@@ -80,7 +79,7 @@ try {
   await page.keyboard.press('ShiftLeft');
   await page.waitForFunction(() => {
     const g = window.__eigen.game;
-    return g.views.get(g.myId).sprite.texture.frame.x >= 14 * 24;
+    return g.predictor.sim.dashT > 0 && g.views.get(g.myId).sprite.texture.source.width === 32;
   });
   await page.screenshot({ path: `${out}/run.png` });
   await page.keyboard.up('KeyD');
@@ -89,7 +88,7 @@ try {
     const g = window.__eigen.game,
       v = g.views.get(g.myId);
     const scale = g.scale * g.app.renderer.resolution;
-    return { frame: v.sprite.texture.frame.x / 24, x: v.root.x * scale, y: v.root.y * scale };
+    return { frame: v.sprite.texture.frame.x / 32, x: v.root.x * scale, y: v.root.y * scale };
   });
   assert.ok(state.frame < 10, 'Player returns to locomotion/idle after striking and dashing');
   assert.ok(
@@ -131,8 +130,7 @@ try {
     await observer.fill('#name', 'Observer');
     await observer.click('#btn-guest');
     await observer.waitForFunction(() => window.__eigen?.state().ready, null, { timeout: 60000 });
-    await observer.locator('.p3-lumen-skip').click();
-    await observer.locator('.p3-lumen-skip').click();
+    await observer.evaluate(() => window.__eigen.game.ext.circuit.send('p3_tutorial', { action: 'skip' }));
     await observer.evaluate(() => {
       window.__eigen.game.settings().reducedMotion = true;
     });

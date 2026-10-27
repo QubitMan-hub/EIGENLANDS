@@ -116,6 +116,7 @@ export type FxKind =
   | 'slam' // wall slam (id = enemy, v = bonus damage)
   | 'orb' // an enemy fired an orb (id = enemy, dx/dy direction)
   | 'reflect' // a player batted an orb back (id = player)
+  | 'warp' // waystone travel: v 0 channel begins, 2 vanishes here, 1 arrives here (id = player)
   | 'blast' // an area attack went off (v = radius)
   | 'bomb' // a volatile elite is about to burst (v = fuse s, w = radius)
   | 'crash' // a charging brute hit a wall (id = enemy)
@@ -133,6 +134,8 @@ export interface FxMsg {
   id?: string;
   /** Combat weapon or successful harvesting tool for matching remote poses; absent on older effects. */
   weapon?: string;
+  /** Successful crafting station for observer-safe occupation poses. */
+  station?: import('./crafting').StationId;
   /** hit weight: 0 light, 1 finisher, 2 heavy, 3 full heavy (hit-stop, shake, sound) */
   w?: number;
   /** 1 = critical hit */
@@ -159,6 +162,8 @@ export interface WelcomeMsg {
 
 /** Private per-player data. Every field is optional: the server sends only what changed (the first PROFILE is complete). */
 export interface ProfileMsg {
+  /** Server-recorded, line-of-sight creature discoveries. */
+  bestiary?: string[];
   needs?: TravelNeeds;
   inv?: Slot[];
   coins?: number;
@@ -338,7 +343,9 @@ export interface DialogueChoice {
 export interface QuestMsg {
   npcId: string;
   quest: string;
-  action: 'accept' | 'turnin';
+  action: 'accept' | 'turnin' | 'abandon';
+  tx?: number;
+  ty?: number;
 }
 export interface GiftMsg {
   npcId: string;
@@ -385,7 +392,7 @@ export interface DialogueMsg {
 
 export interface ShopMsg {
   npcId: string;
-  action: 'open' | 'buy' | 'sell' | 'learn';
+  action: 'open' | 'buy' | 'sell' | 'learn' | 'job';
   item?: string;
   /** buy: quantity; sell: quantity from `slot`; learn: recipe id in `item` */
   n?: number;
@@ -398,6 +405,10 @@ export interface ShopViewMsg {
   /** what the shop pays per unit for items currently in the player's pack: slot index -> price */
   sell: Record<number, number>;
   coins: number;
+  /** a caravan's escort job: ride with it to its next stop for pay (see features/caravans) */
+  job?: { text: string; pay: number; active: boolean; offer: boolean };
+  /** a kingdom settlement's local trade: what it makes, wants and is short of today (shared economy.ts) */
+  note?: string;
 }
 
 export interface ChestMsg {
@@ -410,11 +421,12 @@ export interface ChestMsg {
 export interface ShelterMsg {
   tx: number;
   ty: number;
-  action: 'add' | 'feed' | 'collect';
+  action: 'add' | 'feed' | 'collect' | 'buy' | 'care' | 'breed';
+  species?: import('./livestock').LivestockSpecies;
 }
 
 export interface PanelMsg {
-  kind: 'station' | 'chest' | 'shelter' | 'sign' | 'lore' | 'board';
+  kind: 'station' | 'chest' | 'shelter' | 'sign' | 'lore' | 'board' | 'guild' | 'journey' | 'settlement' | 'travel';
   tx: number;
   ty: number;
   sub: string;
@@ -430,10 +442,44 @@ export interface PanelMsg {
     max: number;
     fed: boolean;
     ready: number;
+    herd?: import('./livestock').FarmAnimal[];
+    stock?: Record<string, number>;
+    day?: number;
+    cared?: boolean;
   };
   sign?: string;
   /** reading the statue (and other lore objects) */
   lore?: { title: string; plaque: string; epitaph: string; pages: string[]; remark?: { npc: string; text: string } };
+  settlement?: import('./settlement').Charter & {
+    name: string;
+    homes: Array<{ x: number; y: number; valid: boolean; reason: string }>;
+  };
+  journey?: {
+    id: string;
+    title: string;
+    text: string;
+    choices: Array<{ id: string; label: string }>;
+    target?: { x: number; y: number };
+    hp: number;
+  };
+  /** a waystone, realm gate or ferry post: where it can take you */
+  travel?: import('./travel').TravelPanel;
+  guild?: {
+    day?: number;
+    hall?: string;
+    rank: import('./guild').GuildRank | null;
+    generation?: number;
+    name: string;
+    card: string;
+    owned?: boolean;
+    contracts: Array<{
+      id: string;
+      state: 'open' | 'locked' | 'active' | 'ready' | 'done';
+      progress: number[];
+      definition?: import('./quests').QuestDef;
+      journey?: import('./guild-contracts').GuildJourney;
+    }>;
+  };
   /** the daily request board */
   board?: { day: number; requests: BoardRequest[] };
 }
@@ -492,6 +538,7 @@ export const ACK_FIELDS = [
   'stamina',
   'staminaT',
   'sprint',
+  'mount',
 ] as const satisfies ReadonlyArray<keyof PlayerSim>;
 export const ACK_BYTES = 8 + ACK_FIELDS.length * 4;
 export interface Ack {
@@ -521,6 +568,7 @@ export function decodeAck(buf: Uint8Array): Ack {
   sim.hold = Math.round(sim.hold);
   sim.boat = Math.round(sim.boat);
   sim.sprint = Math.round(sim.sprint);
+  sim.mount = Math.round(sim.mount);
   return { seq: dv.getUint32(0, true), tick: dv.getUint32(4, true), sim };
 }
 

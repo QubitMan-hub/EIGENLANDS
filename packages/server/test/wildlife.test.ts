@@ -13,6 +13,7 @@ describe('wildlife', () => {
   it('registers every kind at its own index', () => {
     ENEMY_BY_KIND.forEach((d, i) => expect(d.kind).toBe(i));
     expect(Object.keys(ENEMY_DEFS)).toHaveLength(ENEMY_BY_KIND.length);
+    expect(ENEMY_BY_KIND[ENEMY_DEFS.sundered_warlord.kind]).toBe(ENEMY_DEFS.sundered_warlord);
   });
 
   it('a boar ignores a player at a distance, then charges once hurt', () => {

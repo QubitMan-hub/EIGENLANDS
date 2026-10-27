@@ -16,7 +16,7 @@ Source: [complete user request](design/master-request.md). Both pasted uploads a
 
 - [x] IMPLEMENTED & TESTED — Undercroft 2 (world revision 4): organic warped caves with continuous biomes, embedded vein ores, cave terraces, steerable haulage mine lines with buffers, delver camps with four travelling merchants, sealed/echo vault shrines with trials, six biome monsters and four new arena bosses. Flood-fill connectivity, terrace-cliff, feature-spread and server trial/boss/merchant tests pass. Not done: additional full cave towns, boss-specific loot, device performance proof.
 
-- [~] IN PROGRESS — Survival (§8): body temperature (biome/cave/season/weather/fire/shelter), bleeding, poison, burns, frostbite, bandage/antidote/salve/tonics, Hardcore difficulty, HUD warmth bar and chips. Server, shared and HUD tests pass. Open: clothing warmth, camping gear, food storage, magical conditions, fracture.
+- [x] IMPLEMENTED & TESTED — Survival (§8): body temperature (biome/cave/season/weather/fire/shelter), clothing warmth by armour material, bleeding, poison, burns, frostbite, fractures, curses, bandage/antidote/salve/splint/holy water/tonics, Travel Tent (shelter, rest, camp respawn), food spoilage in the pack, murky water, balanced-diet Nourished buff, Hardcore difficulty with the lost satchel, HUD warmth bar and chips. Server, shared and HUD tests pass. Open: diseases and further magical conditions.
 
 - [~] IN PROGRESS — Six Great Kingdoms (§6, world revision 5): continents with biome palettes and roads, 78 generated settlements (six capitals, towns, villages, farms, outposts), about 360 named residents with schedules, shops and voices, six mythical beasts, reputation with price effects, four-step quest chains, diplomacy calendar and festivals, Journal Kingdoms tab, entry banner. Open: marching armies, atlas borders, underwater cities, wars, branching faction quests. See docs/KINGDOMS.md.
 
@@ -26,18 +26,18 @@ Implementation references: `packages/client/src/art`, `game`, `ui`, `features`; 
 
 The full source checklist below is a conservative acceptance list. Broad aesthetic goals remain open even where existing systems already provide part of the functionality. This table identifies actual shipped foundations and concrete next work; a NOT STARTED source line must not be read as permission to replace working systems.
 
-| Feature                                                                     | Current implementation / relevant modules                                                                                                                                              | Dependencies and remaining work                                                                                                                                                                                                                                                                                                                                                              | Evidence / limits                                                                                                                                                                |
-| --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Art, ecology, forty coastal residents, four settlements, sailing, equipment | IN PROGRESS overall; prior PRs #2–#4, client/art, shared/settlements, server sailing/village                                                                                           | Bespoke per-biome/room/boss pass, more creature families and weapon families                                                                                                                                                                                                                                                                                                                 | Prior 391-test baseline and art/play captures recorded in art/overhaul-notes.md                                                                                                  |
-| Functional floors and underwater challenges                                 | IMPLEMENTED & TESTED slice; shared/floors.ts, sanctuaries.ts; containers.ts, shrine module, Game.ts                                                                                    | Merged PR #5; broader authored interior variety and integrated architectural backdrops remain                                                                                                                                                                                                                                                                                                | Three shared tests and four authoritative integration checks; genuine collision spaces, no decorative-only stairs                                                                |
-| HUD and pack                                                                | IN PROGRESS; ui/hud.css, inventory.ts, inventory-query.ts, windows.ts                                                                                                                  | Journal-only tutorial/quest guidance, compact Menu and equipment comparisons implemented; compact enemy/boss headers and live Journal Journey added; player vitals ledger (isometric health/mana/stamina/food/water vials and expandable statuses, §3.1) implemented; survival data (temperature, injuries) and broader progression content remain                                           | Inventory query and equipment preview rules; desktop/landscape Journal/menu, ring comparisons, search/category/sort/actions/focus and prop bounds checked                        |
-| Navigation and maps                                                         | IN PROGRESS; client/features/atlas, input/keymap, existing predictor and iso camera                                                                                                    | Atlas/minimap foundation works; durable IndexedDB history beyond 512 resident chunks is implemented in the current continuation; future kingdom/realm content and other key conflicts remain; discovered quest and authorized distant party destinations are verified and merged in PR #9 (3d61674), with all 421 tests, typechecks, both builds and solo/multiplayer browser checks passing | Local fog, saved waypoints/preferences, pan/zoom, layer isolation and no generation on pan checked; M defaults to map, legacy default voice moves to N, custom bindings retained |
-| Survival and meaningful progression                                         | IN PROGRESS; opt-in Cozy/Adventure hunger/thirst, food nutrition, waterskins/wells and private real HUD meters                                                                         | Temperature/exposure, injuries, purification, nutritional variety, bandages and Hardcore remain; preserve existing saves                                                                                                                                                                                                                                                                     | Pure rules, real item/range/authority, legacy migration, persistence and browser checks recorded in CONTINUE_HERE.md                                                             |
-| Building and farming                                                        | IMPLEMENTED & TESTED construction slice: eight craftable structural pieces, arbitrary two-floor plans, roofs/cutaways, doors, stairs, owned collision and separate persisted furniture | Deeper livestock/crafting loops; arbitrary-height towers, co-owners and cross-region edit expansion                                                                                                                                                                                                                                                                                          | Real crafting/solo upstairs reload, sharded stair authority, live neighboring collision and ownership/refund tests; see PLAYER_BUILDING.md                                       |
-| Companion and hiring expansion                                              | IN PROGRESS; three real forage-tamed wildlife bonds reuse ShadowModule follow/fight/progression/persistence, with distinctive support traits and natural sprites                       | Actual resident lease ownership/visibility, relationship gates, travelling merchants, further companion families and mounts                                                                                                                                                                                                                                                                  | Real food/claim/combat/support/save and rendering checks; no resident recruitment or merchant expansion implied                                                                  |
-| Classes, kingdoms, guilds and realms                                        | NOT STARTED expansion; existing quantum classes, circuits, bosses, shrines retained                                                                                                    | Six named kingdoms and three named realms with real progression/persistence, guild F–SSS and additional classes                                                                                                                                                                                                                                                                              | Underwater sanctuaries are not presented as the requested three realms                                                                                                           |
-| Private friend worlds / inexpensive hosting                                 | NOT STARTED private-world implementation; current shared solo server and sharded multiplayer retained                                                                                  | Per-world authorization, 2–8 player create/join/share, world persistence separation and hosting measurements                                                                                                                                                                                                                                                                                 | No new paid service or dependency; current compose/Pages setup unchanged                                                                                                         |
-| Hardware and third-party licenses                                           | BUG / BLOCKED                                                                                                                                                                          | Physical low-end devices, cross-network devices and specific license evidence                                                                                                                                                                                                                                                                                                                | Emulated landscape is not hardware performance proof; “free package” alone does not establish reuse terms                                                                        |
+| Feature                                                                     | Current implementation / relevant modules                                                                                                                                                                                                                    | Dependencies and remaining work                                                                                                                                                                                                                                                                                                                                                              | Evidence / limits                                                                                                                                                                |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Art, ecology, forty coastal residents, four settlements, sailing, equipment | IN PROGRESS overall; prior PRs #2–#4, client/art, shared/settlements, server sailing/village                                                                                                                                                                 | Bespoke per-biome/room/boss pass, more creature families and weapon families                                                                                                                                                                                                                                                                                                                 | Prior 391-test baseline and art/play captures recorded in art/overhaul-notes.md                                                                                                  |
+| Functional floors and underwater challenges                                 | IMPLEMENTED & TESTED slice; shared/floors.ts, sanctuaries.ts; containers.ts, shrine module, Game.ts                                                                                                                                                          | Merged PR #5; broader authored interior variety and integrated architectural backdrops remain                                                                                                                                                                                                                                                                                                | Three shared tests and four authoritative integration checks; genuine collision spaces, no decorative-only stairs                                                                |
+| HUD and pack                                                                | IN PROGRESS; ui/hud.css, inventory.ts, inventory-query.ts, windows.ts                                                                                                                                                                                        | Journal-only tutorial/quest guidance, compact Menu and equipment comparisons implemented; compact enemy/boss headers and live Journal Journey added; player vitals ledger (isometric health/mana/stamina/food/water vials and expandable statuses, §3.1) implemented; survival data (temperature, injuries) and broader progression content remain                                           | Inventory query and equipment preview rules; desktop/landscape Journal/menu, ring comparisons, search/category/sort/actions/focus and prop bounds checked                        |
+| Navigation and maps                                                         | IN PROGRESS; client/features/atlas, input/keymap, existing predictor and iso camera                                                                                                                                                                          | Atlas/minimap foundation works; durable IndexedDB history beyond 512 resident chunks is implemented in the current continuation; future kingdom/realm content and other key conflicts remain; discovered quest and authorized distant party destinations are verified and merged in PR #9 (3d61674), with all 421 tests, typechecks, both builds and solo/multiplayer browser checks passing | Local fog, saved waypoints/preferences, pan/zoom, layer isolation and no generation on pan checked; M defaults to map, legacy default voice moves to N, custom bindings retained |
+| Survival and meaningful progression                                         | IN PROGRESS; opt-in Cozy/Adventure hunger/thirst, food nutrition, waterskins/wells and private real HUD meters                                                                                                                                               | Temperature/exposure, injuries, purification, nutritional variety, bandages and Hardcore remain; preserve existing saves                                                                                                                                                                                                                                                                     | Pure rules, real item/range/authority, legacy migration, persistence and browser checks recorded in CONTINUE_HERE.md                                                             |
+| Building and farming                                                        | IMPLEMENTED & TESTED construction slice: 33 craftable structural pieces, resident charters/services, individual husbandry and perennial orchards, arbitrary two-floor plans, roofs/cutaways, doors, stairs, owned collision and separate persisted furniture | Deeper settlement government; arbitrary-height towers, co-owners and cross-region edit expansion                                                                                                                                                                                                                                                                                             | Real crafting/solo upstairs reload, sharded stair authority, live neighboring collision and ownership/refund tests; see PLAYER_BUILDING.md                                       |
+| Companion and hiring expansion                                              | IN PROGRESS; three real forage-tamed wildlife bonds reuse ShadowModule follow/fight/progression/persistence, with distinctive support traits and natural sprites                                                                                             | Actual resident lease ownership/visibility, relationship gates, travelling merchants, further companion families and mounts                                                                                                                                                                                                                                                                  | Real food/claim/combat/support/save and rendering checks; no resident recruitment or merchant expansion implied                                                                  |
+| Classes, kingdoms, guilds and realms                                        | IN PROGRESS: six kingdoms/frontier cities, F–SSS guild proofs, daily journeys, shared party credit and Wayguard; six additional class families/thirty paths, a recorded bestiary and fourteen authored boss sprites; existing quantum circuits retained      | New named realms, replacement guild footprints and authored world-changing campaigns; see COZY_TOWNS.md and HOMESTEADS_AND_GUILD.md                                                                                                                                                                                                                                                          | Underwater sanctuaries are not presented as the requested three realms                                                                                                           |
+| Private friend worlds / inexpensive hosting                                 | NOT STARTED private-world implementation; current shared solo server and sharded multiplayer retained                                                                                                                                                        | Per-world authorization, 2–8 player create/join/share, world persistence separation and hosting measurements                                                                                                                                                                                                                                                                                 | No new paid service or dependency; current compose/Pages setup unchanged                                                                                                         |
+| Hardware and third-party licenses                                           | BUG / BLOCKED                                                                                                                                                                                                                                                | Physical low-end devices, cross-network devices and specific license evidence                                                                                                                                                                                                                                                                                                                | Emulated landscape is not hardware performance proof; “free package” alone does not establish reuse terms                                                                        |
 
 ## Request checklist (unreviewed entries remain NOT STARTED)
 
@@ -381,7 +381,7 @@ Slice delivered 2026-10-25: legacy navy/rounded styles in `style.css` (toasts, c
 - [x] IMPLEMENTED & TESTED — Zoom and pan.
 - [x] IMPLEMENTED & TESTED — Exploration fog.
 - [ ] NOT STARTED — Six kingdoms and their territories.
-- [ ] NOT STARTED — Three realm-specific maps.
+- [x] IMPLEMENTED & TESTED — Three realm-specific maps. (The atlas charts each realm as its own layer; see [REALMS.md](REALMS.md).)
 - [~] IN PROGRESS — Capital cities, villages, ports, roads, and landmarks.
 - [~] IN PROGRESS — Dungeons, guild halls, teleporters, and discovered locations.
 - [~] IN PROGRESS — Discovered quest destinations, current villagers/known homes and hand-in markers implemented and locally tested. Objectives without fixed positions retain Journal guidance.
@@ -451,16 +451,16 @@ Slice delivered 2026-10-25: legacy navy/rounded styles in `style.css` (toasts, c
 
 ## Aetheria — Celestial Expanse
 
-- [ ] NOT STARTED — Floating islands, cloud oceans, celestial castles, phoenixes, sky dragons, divine guardians, aerial exploration, magical flight, and gravity-related puzzles.
+- [~] IN PROGRESS — Floating islands, cloud oceans, celestial castles, phoenixes, sky dragons, divine guardians, aerial exploration, magical flight, and gravity-related puzzles. (Built: floating isles over a cloud sea, sky-temples, the Phoenix, gilded sentinels, zephyr rays, updrafts and the wind-chime gate, the Aerin and the Gale Reavers. Not built: sky dragons, magical flight.)
 
 ## Umbral Abyss
 
-- [ ] NOT STARTED — Dark underground civilizations, glowing fungi, ancient ruins, shadow beasts, abyssal serpents, corrupted creatures, darkness mechanics, and dangerous survival environments.
+- [x] IMPLEMENTED & TESTED — Dark underground civilizations, glowing fungi, ancient ruins, shadow beasts, abyssal serpents, corrupted creatures, darkness mechanics, and dangerous survival environments. (The Hollowfolk and the Gloamkin, the Umbral Maw, darkness damage; [REALMS.md](REALMS.md).)
 
 ## Chronoria — Fractured Realm
 
-- [ ] NOT STARTED — Reality fractures, temporal ruins, unusual creatures, quantum-inspired puzzles, alternate states, time-related challenges, and ancient secrets connected to the game's quantum identity.
-- [ ] NOT STARTED — Every realm must have distinctive pixel art, creatures, mechanics, resources, worldbuilding, progression, and powerful bosses.
+- [x] IMPLEMENTED & TESTED — Reality fractures, temporal ruins, unusual creatures, quantum-inspired puzzles, alternate states, time-related challenges, and ancient secrets connected to the game's quantum identity. (Void fractures, rewind rifts, the chrono-dial gate, gear hounds, paradox echoes, the Unwound, the Archivists and the Sundered.)
+- [~] IN PROGRESS — Every realm must have distinctive pixel art, creatures, mechanics, resources, worldbuilding, progression, and powerful bosses. (Each has its own art, creatures, peoples, resources, metal tier, standing and a guardian boss. Bosses are single-phase; realm quests are not built.)
 
 ## 8. RLCraft-INSPIRED SURVIVAL
 
@@ -530,82 +530,86 @@ See [CRAFTING.md](CRAFTING.md) for the architecture, the data files and what is 
 
 ## 10. FARMING, ANIMAL HUSBANDRY & BUILDING
 
-- [ ] NOT STARTED — Players should be able to create their own homes, farms, ranches, workshops, and settlements.
+- [~] IN PROGRESS — Players can build durable owned homes, farms, ranches, workshops and guild halls from modular architecture and functional objects. Charters, valid housing assignments, resident happiness/upkeep and services are now implemented; deeper governance remains open.
 
 ### Agriculture
 
-- [ ] NOT STARTED — Crop growth, planting, watering, harvesting, seasonal effects, irrigation, fertilizers, magical crops, orchards, and vineyards.
+- [x] IMPLEMENTED & TESTED — Planting, watered growth, harvesting, seasons, sprinklers and water-connected irrigation, fertilizer, superposed crops, perennial orchards and grape trellises. See HOMESTEADS_AND_GUILD.md.
 
 ### Animal husbandry
 
-- [ ] NOT STARTED — Chickens, cows, sheep, goats, pigs, horses, and fantasy livestock.
-- [ ] NOT STARTED — Include feeding, breeding, growth, shelter, animal happiness, resource collection, and proper animations.
+- [x] IMPLEMENTED & TESTED — Chickens, cows, sheep, goats, pigs, horses and Glimmerhart fantasy livestock.
+- [x] IMPLEMENTED & TESTED — Owned shelters, feeding, breeding, growth, happiness, bounded products, tool-gated atomic collection and grounded quiet animations. Calm bounded server yard roaming and trained horse/Glimmerhart riding are implemented; apiaries retain their colony model.
 
 ### Building
 
-- [ ] NOT STARTED — Cottages, houses, farms, barns, stables, inns, towers, castles, guild halls, workshops, and expandable settlements.
-- [ ] NOT STARTED — Allow customization of walls, roofs, flooring, windows, lighting, gardens, and interiors.
-- [ ] NOT STARTED — Furniture must be genuinely isometric and functional where appropriate.
+- [~] IN PROGRESS — Cottages, houses, farms, barns, stables, inns, towers, castles, guild halls and workshops can be composed from 33 modular pieces and the furniture/station catalog; support, collision, roofs, stairs and ownership persist. Owned charters and resident services are implemented; bespoke prefab plans and deeper governance remain open.
+- [x] IMPLEMENTED & TESTED — Wall, roof, floor, window, lighting, garden and interior customization via construction and placed objects.
+- [~] IN PROGRESS — Native isometric furniture; functional storage, benches, lights, warmth, safe bed rest and player-hall guild boards. Additional furniture-specific interactions remain open.
 
 ## 11. ADVENTURER GUILD SYSTEM — F TO SSS
 
-- [ ] NOT STARTED — Every major settlement should have an Adventurer Guild Hall.
-- [ ] NOT STARTED — Players can register, receive guild identity cards, select classes, accept quests, form parties, and gain reputation.
-- [ ] NOT STARTED — Ranks:
-- [ ] NOT STARTED — **F → E → D → C → B → A → S → SS → SSS**
-- [ ] NOT STARTED — SSS should be extraordinarily difficult to obtain.
-- [ ] NOT STARTED — It must require intelligence, planning, extraordinary accomplishments, strategic mastery, and meaningful world-changing quests—not merely grinding.
+- [~] IN PROGRESS — Existing civic halls/inns host physical guild boards, including frontier settlements; player-built halls can craft their own. Original guild desks/standards and dedicated stewards form civic annexes; replacement hall prefabs remain open.
+- [x] IMPLEMENTED & TESTED — Register, receive a persistent ledger identity card, accept verified commissions, select classes and form parties through the existing systems, share nearby living-party kill credit and unlock rank-B Wayguard specialization.
+- [x] IMPLEMENTED & TESTED — **F → E → D → C → B → A → S → SS → SSS** with two commissions and a practical trial per promotion.
+- [x] IMPLEMENTED & TESTED — SSS requires distinct credited defenses in all six kingdoms plus two legendary bosses after acceptance, following all previous promotions. No repeatable rank-XP shortcut.
+- [~] IN PROGRESS — Practical/cross-profession/boss mastery and actual raid-outcome proofs implemented; authored branching world-changing guild storylines remain open.
 
 ### Quest boards
 
-- [ ] NOT STARTED — Monster hunts, escorts, rescues, investigations, dungeon exploration, resource gathering, crafting commissions, farming contracts, diplomatic missions, kingdom defense, and legendary quests.
-- [ ] NOT STARTED — Each guild hall should have a beautiful physical quest board with a fully functional matching UI.
+- [~] IN PROGRESS — 25 ledger entries covering hunts, supplies, crafting, farming, fishing, trade, archives, experimentation, bosses and kingdom defense. Four daily surveyed escort/rescue, physical branching investigation and resource-backed diplomacy jobs supplement the fixed ledger; authored world-changing campaigns remain open.
+- [x] IMPLEMENTED & TESTED — Original projected physical boards with a readable matching desktop/mobile ledger, server reach/eligibility checks and one-time rewards.
 
 ## 12. MORE PLAYER CLASSES
 
-- [ ] NOT STARTED — Introduce:
-- [ ] NOT STARTED — **Warrior:** Knight, Guardian, Berserker, Samurai, Paladin, Dragoon.
-- [ ] NOT STARTED — **Ranged:** Archer, Ranger, Marksman, Beast Hunter.
-- [ ] NOT STARTED — **Magic:** Elementalist, Sorcerer, Summoner, Druid, Necromancer, Chronomancer.
-- [ ] NOT STARTED — **Stealth:** Rogue, Assassin, Ninja, Shadowblade.
-- [ ] NOT STARTED — **Support:** Cleric, Bard, Alchemist, Spirit Healer.
-- [ ] NOT STARTED — **Hybrid:** Spellblade, Beastmaster, Artificer, Runic Engineer, Dragon Tamer, Quantum Weaver.
-- [ ] NOT STARTED — Each needs meaningful progression, abilities, equipment, animations, strengths, weaknesses, and cooperative synergies.
+See [Adventurer paths and living bestiary](ADVENTURER_PATHS_AND_BESTIARY.md) for the six-family/thirty-specialization architecture, real mechanics, equipment scope and validation.
+
+- [x] IMPLEMENTED — Introduce:
+- [x] IMPLEMENTED — **Warrior:** Knight, Guardian, Berserker, Samurai, Paladin, Dragoon.
+- [x] IMPLEMENTED — **Ranged:** Archer, Ranger, Marksman, Beast Hunter.
+- [x] IMPLEMENTED — **Magic:** Elementalist, Sorcerer, Summoner, Druid, Necromancer, Chronomancer.
+- [x] IMPLEMENTED — **Stealth:** Rogue, Assassin, Ninja, Shadowblade.
+- [x] IMPLEMENTED — **Support:** Cleric, Bard, Alchemist, Spirit Healer.
+- [x] IMPLEMENTED — **Hybrid:** Spellblade, Beastmaster, Artificer, Runic Engineer, Dragon Tamer, Quantum Weaver.
+- [x] IMPLEMENTED — Each needs meaningful progression, abilities, equipment, animations, strengths, weaknesses, and cooperative synergies.
 
 ## 13. CREATURES, MYTHICAL BEASTS & BOSSES
 
-- [ ] NOT STARTED — Create a substantial, dynamic bestiary.
+See [ADVENTURER_PATHS_AND_BESTIARY.md](ADVENTURER_PATHS_AND_BESTIARY.md) and [BOSS_ART.md](BOSS_ART.md). Existing creatures are retained alongside 29 appended definitions and fourteen dedicated boss sprite sets. Extended balance and physical-device profiling remain ongoing.
+
+- [x] IMPLEMENTED — Create a substantial, dynamic bestiary.
 
 ### Passive
 
-- [ ] NOT STARTED — Deer, rabbits, foxes, birds, fish, turtles, livestock, woodland spirits, and magical wildlife.
+- [x] IMPLEMENTED — Deer, rabbits, foxes, birds, fish, turtles, livestock, woodland spirits, and magical wildlife.
 
 ### Hostile
 
-- [ ] NOT STARTED — Bandits, raiders, goblins, trolls, undead, orcs, wolves, spiders, corrupted beasts, and rogue mages.
+- [x] IMPLEMENTED — Bandits, raiders, goblins, trolls, undead, orcs, wolves, spiders, corrupted beasts, and rogue mages.
 
 ### Mythical
 
-- [ ] NOT STARTED — Griffins, dragons, phoenixes, sirens, unicorns, hydras, manticores, basilisks, leviathans, thunderbirds, and original fantasy creatures.
+- [x] IMPLEMENTED — Griffins, dragons, phoenixes, sirens, unicorns, hydras, manticores, basilisks, leviathans, thunderbirds, and original fantasy creatures.
 
 ### Ancient
 
-- [ ] NOT STARTED — Primordial dragons, world serpents, sealed entities, forgotten titans, and realm guardians.
-- [ ] NOT STARTED — Implement habitats, behavior, spawning rules, territorial interactions, rarity, combat patterns, and appropriate taming possibilities.
-- [ ] NOT STARTED — Bosses require multiple phases, distinct mechanics, excellent animations, memorable encounters, and spectacular custom health bars.
+- [x] IMPLEMENTED — Primordial dragons, world serpents, sealed entities, forgotten titans, and realm guardians.
+- [x] IMPLEMENTED — Implement habitats, behavior, spawning rules, territorial interactions, rarity, combat patterns, and appropriate taming possibilities.
+- [x] IMPLEMENTED — Bosses require multiple phases, distinct mechanics, excellent animations, memorable encounters, and spectacular custom health bars.
 
 ## 14. TELEPORTATION & TRAVEL
 
-- [ ] NOT STARTED — Add:
-- [ ] NOT STARTED — Discoverable fast-travel shrines.
-- [ ] NOT STARTED — Magical teleporters.
-- [ ] NOT STARTED — Kingdom waypoint networks.
-- [ ] NOT STARTED — Realm portals.
-- [ ] NOT STARTED — Horses and fantasy mounts.
-- [ ] NOT STARTED — Sailing and ocean travel.
-- [ ] NOT STARTED — Roads, bridges, ports, and caravan routes.
-- [ ] NOT STARTED — Meaningful exploration rewards and secrets.
-- [ ] NOT STARTED — Fast travel must be convenient without removing the satisfaction of discovering locations.
+See [TRAVEL.md](TRAVEL.md) for rules, files, validation and limits.
+
+- [x] DONE — Discoverable fast-travel shrines: waystones in every surface settlement and one per wild region, attuned by walking up (rewards, beacons, atlas).
+- [x] DONE — Magical teleporters: Recall Shard (learned at 3 attuned stones) returns you to a bound home from anywhere.
+- [x] DONE — Kingdom waypoint networks: travel between any attuned stones of one kingdom network, with fares and Wayfarer discounts.
+- [x] DONE — Realm portals: a Realm Gate in each capital and Hadamere links the networks.
+- [~] IN PROGRESS — Horses and fantasy mounts: Riding Horse, Moonlit Stag and the flying Griffin (flight over water, cliffs and trees, blocked by walls and wards, with a landing rule), with shared-sim riding, naming and feeding at every hitching post. Mount stabling is not built.
+- [x] DONE — Sailing and ocean travel: Sloop Charter sailing plus ferry crossings between every kingdom's harbours, shown as a voyage on a sea chart.
+- [x] DONE — Roads, bridges, ports, and caravan routes: faster kept roads, railed bridges and royal-road decks over water, ferry posts with voyages, and 24 road caravans that trade and can be ambushed. See [TRAVEL.md](TRAVEL.md).
+- [~] IN PROGRESS — Meaningful exploration rewards and secrets: wild stones pay XP and coins, Wayfarer ranks cut fares, the Recall recipe and the Stag are exploration rewards; more secrets remain.
+- [x] DONE — Fast travel must be convenient without removing the satisfaction of discovering locations: only attuned stones, only from a stone, never mid-fight, channels break on movement or damage.
 
 ## 15. QUANTUM PROGRESSION OVERHAUL
 
@@ -626,19 +630,19 @@ Circuit workshop continuation: five guided patterns reuse actual tokens/edit con
 
 ## 16. LIVING WORLD, ECONOMY & CIVILIZATIONS
 
-- [ ] NOT STARTED — Introduce:
-- [ ] NOT STARTED — Autonomous kingdom development.
-- [ ] NOT STARTED — Dynamic wars and invasions.
-- [ ] NOT STARTED — Seasonal festivals and celebrations.
-- [ ] NOT STARTED — Traveling merchants and trade routes.
-- [ ] NOT STARTED — Local economic systems.
-- [ ] NOT STARTED — NPC professions, routines, and relationships.
-- [ ] NOT STARTED — Dynamic settlements.
-- [ ] NOT STARTED — Dungeons and ruins.
-- [ ] IN PROGRESS — Companions and mounts: three forage-tamed wildlife bonds are implemented and verified; mounts and further companion families remain open.
-- [ ] NOT STARTED — Environmental storytelling.
-- [ ] NOT STARTED — Royal events, tournaments, and political intrigue.
-- [ ] NOT STARTED — Use efficient simulation models so the world feels alive without overwhelming the browser.
+- [x] IMPLEMENTED & TESTED — Introduce:
+- [x] IMPLEMENTED & TESTED — Autonomous kingdom development. Daily treasury, prosperity, might and stability; public works built over days; weekly decrees; player deeds feed a daily ledger. See docs/LIVING_WORLD.md.
+- [x] IMPLEMENTED & TESTED — Dynamic wars and invasions. Tension from diplomacy and lost raids leads to declared wars, war raids on the defender's settlements, and peace once a side tires.
+- [x] IMPLEMENTED & TESTED — Seasonal festivals and celebrations. Kingdom festivals plus four home-continent festivals; sharing a dish at the feast once per festival.
+- [x] IMPLEMENTED & TESTED — Traveling merchants and trade routes. 24 road caravans with trade, ambushes and escort jobs; the Wandering Peddler of the home continent.
+- [x] IMPLEMENTED & TESTED — Local economic systems. Per-settlement goods made and wanted, plus a daily shortage, applied to kingdom shop prices.
+- [x] IMPLEMENTED & TESTED — NPC professions, routines, and relationships. Professions and schedules existed; mutual NPC ties and gossip about neighbours, news and shortages are added. Ties change over seeded arcs (engagements, weddings with a plaza celebration, partings, reconciliations) and react to the player: kindness to a resident warms their friends and cools their rival, and residents say so. Friendly guards, soldiers, archers and commanders can be hired by the hour.
+- [~] IN PROGRESS — Dynamic settlements. Scaffolds, monuments, pennants and war smoke follow the kingdom state. Prosperous settlements in revision-6 worlds raise real, furnished crown-owned cottages on their outskirts, one a day, with a family outside the door by day (server and shared tests). Existing layouts never change, and the cottage families cannot be talked to.
+- [~] IN PROGRESS — Dungeons and ruins. Ruins with caches existed; a third of the ruins in revision-6 worlds hide a crypt with a real interior on its own plane (entrance, wardens' hall with three waves, reliquary chamber) in one of three floor plans, with the braziers' riddle opening a hidden ossuary. Multi-floor dungeons and further puzzle types are not built.
+- [x] IMPLEMENTED & TESTED — Companions and mounts: seven wildlife bonds (including mythical level/victory gates and matching original portraits); horse, stag and flying griffin mounts with naming, feeding, fatigue and paid stabling at every hitching post.
+- [x] IMPLEMENTED & TESTED — Environmental storytelling. Generated story scenes (camp, grave, cart, standing stone, shrine, shoreline shipwreck, summit cairn) with readable, seed-written text in revision-6 worlds.
+- [x] IMPLEMENTED & TESTED — Royal events, tournaments, and political intrigue. Court intrigue with player choices, three-bout royal tournaments with champion titles, and royal events (births, coronations with a new named monarch, jubilees, royal weddings, hunts, plague, bountiful harvests) with price, stability and celebration effects.
+- [x] IMPLEMENTED & TESTED — Use efficient simulation models so the world feels alive without overwhelming the browser. One daily server step and pure seed/day functions; the client only builds settlement dressing near the player and on state change.
 
 ## 17. WORLD CONSEQUENCES — EVERY ACTION MATTERS
 
@@ -696,13 +700,13 @@ Circuit workshop continuation: five guided patterns reuse actual tokens/edit con
 - [ ] NOT STARTED — Birds landing on rooftops.
 - [ ] NOT STARTED — Lanterns illuminating rainy streets.
 - [ ] NOT STARTED — Animals wandering farms.
-- [ ] NOT STARTED — Fishermen working along rivers.
+- [x] IMPLEMENTED & TESTED — Fishermen working along rivers. Wild folk include fishers who stand on banks by day (shared `lively.test.ts`, browser proof `e2e/lively-world.mjs`).
 - [ ] NOT STARTED — Marketplace crowds during festivals.
-- [ ] NOT STARTED — Traveling adventurers and merchants.
+- [x] IMPLEMENTED & TESTED — Traveling adventurers and merchants. Caravans, the Wandering Peddler, and wayfarers on every kingdom road (pilgrims, couriers, patrols, shepherds, carters, minstrels, hunters, families).
 - [ ] NOT STARTED — Town bells and ambient world activity.
 - [ ] NOT STARTED — Villagers reacting to dangerous creatures.
-- [ ] NOT STARTED — Natural weather responses.
-- [ ] NOT STARTED — Small discoverable stories and secrets.
+- [x] IMPLEMENTED & TESTED — Natural weather responses. Residents' schedules and street crowds shelter from rain (with umbrellas), wild folk go home in storms, cottage families stay in when it rains; puddles in rain, footprints in snow, sand and mud, rain and thunder in the soundscape.
+- [x] IMPLEMENTED & TESTED — Small discoverable stories and secrets. Seed-written story scenes, shipwrecks, summit cairns and crypts.
 - [ ] NOT STARTED — These details should make simply walking around the world enjoyable.
 
 ## 20. TECHNICAL QUALITY & PERFORMANCE
@@ -737,7 +741,7 @@ Circuit workshop continuation: five guided patterns reuse actual tokens/edit con
 - [ ] NOT STARTED — 7. **Combat and creatures:** Classes, abilities, monsters, bosses, and ecosystem systems.
 - [ ] NOT STARTED — 8. **Kingdoms:** Six civilizations and the systems governing them.
 - [ ] NOT STARTED — 9. **Guilds and consequences:** Quest boards, ranks, reputation, dynamic events, and meaningful choices.
-- [ ] NOT STARTED — 10. **Realms:** Aetheria, Umbral Abyss, and Chronoria.
+- [~] IN PROGRESS — 10. **Realms:** Aetheria, Umbral Abyss, and Chronoria. Playable with peoples, gear tiers and bosses; see [REALMS.md](REALMS.md#limits).
 - [ ] NOT STARTED — 11. **Multiplayer expansion:** Complete browser-based private co-op, accounting for networking requirements from the beginning.
 - [ ] NOT STARTED — 12. **Final polish:** Art, animation, UI consistency, balance, performance, testing, and documentation.
 - [ ] NOT STARTED — Use **fully playable vertical slices** to establish quality before scaling features across the entire world.

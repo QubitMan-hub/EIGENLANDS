@@ -1,6 +1,7 @@
 import { C } from './palette';
 import { PEN_DATA } from './catalog/pen-data';
 import { PROP_LIGHT } from './catalog/home';
+import { T } from './tiles';
 
 /** Things placed on top of the tile grid. Persisted per chunk (crops, stations...) or static (town furnishing). */
 export type WorldObjKind =
@@ -23,6 +24,7 @@ export interface WorldObj {
 export function objSolid(kind: WorldObjKind, sub: string): boolean {
   if (
     [
+      'guild_clue',
       'mine_rail',
       'minecart',
       'cave_seal',
@@ -35,8 +37,72 @@ export function objSolid(kind: WorldObjKind, sub: string): boolean {
   )
     return false;
   if (kind === 'crop' || kind === 'sprinkler') return false;
-  if (sub === 'sea_cache' || sub === 'rug' || sub === 'shrine_altar' || sub === 'shrine_pillar') return false; // resonance projections leave no invisible collision after completion
+  if (sub === 'sea_cache' || sub === 'rug' || sub === 'shrine_altar' || sub === 'shrine_pillar') return false;
+  if (sub === 'crypt_bones') return false; // scattered bones underfoot // resonance projections leave no invisible collision after completion
   return true;
+}
+
+/** Which wall a prop backs onto: a wall behind (north-east) faces it south-west, one to the north-west faces it
+ * south-east. The client draws that orientation and collision lays out multi-tile footprints the same way. */
+export type PropFacing = 'sw' | 'se';
+export function propFacing(isWall: (x: number, y: number) => boolean, x: number, y: number): PropFacing {
+  if (isWall(x, y - 1)) return 'sw';
+  if (isWall(x - 1, y)) return 'se';
+  return 'sw';
+}
+
+/**
+ * Extra tiles a large prop's artwork stands on, as (along, out) offsets: `along` runs beside the wall it backs onto,
+ * `out` away from it. Their collision matches the art so nobody walks through a carousel or a market counter.
+ */
+const SQUARE = (r: number): Array<[number, number]> => {
+  const out: Array<[number, number]> = [];
+  for (let b = -r; b <= r; b++) for (let a = -r; a <= r; a++) if (a || b) out.push([a, b]);
+  return out;
+};
+const FOOTPRINTS: Record<string, Array<[number, number]>> = {
+  stall: [[1, 0]],
+  ferris_wheel: [
+    [-1, 0],
+    [1, 0],
+  ],
+  carousel: SQUARE(1),
+  circus_tent: SQUARE(1),
+  statue: SQUARE(2),
+  realm_gate: [
+    [-1, 0],
+    [1, 0],
+  ],
+};
+/** Additional solid tiles (beyond the object's own) for a prop at (x, y) with the given facing. */
+export function objFootprint(sub: string, x: number, y: number, facing: PropFacing = 'sw'): Array<[number, number]> {
+  const f = FOOTPRINTS[sub.startsWith('stall') ? 'stall' : sub];
+  if (!f) return [];
+  return f.map(([a, b]) => (facing === 'sw' ? [x + a, y + b] : [x + b, y + a]));
+}
+
+/**
+ * The footprint a prop actually claims on generated ground: facing from the walls around it, and never a tile within
+ * two steps of a doorway, so a counter or ride can't seal a front door's approach.
+ */
+export function propFootprint(
+  sub: string,
+  x: number,
+  y: number,
+  tile: (x: number, y: number) => number,
+): Array<[number, number]> {
+  const fp = objFootprint(
+    sub,
+    x,
+    y,
+    propFacing((wx, wy) => tile(wx, wy) === T.WALL || tile(wx, wy) === T.FACE, x, y),
+  );
+  if (!fp.length) return fp;
+  return fp.filter(([fx, fy]) => {
+    for (let dy = -2; dy <= 2; dy++)
+      for (let dx = -2; dx <= 2; dx++) if (tile(fx + dx, fy + dy) === T.DOOR) return false;
+    return true;
+  });
 }
 
 export interface ObjLight {
@@ -52,6 +118,18 @@ export function objLight(kind: WorldObjKind, sub: string): ObjLight | null {
   if (sub === 'lamp' || sub === 'street_lamp' || sub === 'cave_lamp') return { radius: 5.5, color: C.e6 };
   if (PROP_LIGHT[sub]) return PROP_LIGHT[sub]!;
   if (sub === 'campfire') return { radius: 7, color: C.e6 };
+  if (sub.startsWith('realm_portal_') || sub.startsWith('realm_return_'))
+    return { radius: 5, color: sub.endsWith('umbra') ? C.q5 : sub.endsWith('chronoria') ? C.mist : C.w6 };
+  if (sub === 'updraft') return { radius: 2.5, color: C.w6 };
+  if (sub === 'sky_bloom') return { radius: 2, color: C.white };
+  if (sub === 'umbral_cap') return { radius: 3.5, color: C.q5 };
+  if (sub === 'umbral_obelisk') return { radius: 2, color: C.q4 };
+  if (sub === 'hollow_lamp') return { radius: 6.5, color: C.e6 };
+  if (sub === 'chrono_rift') return { radius: 3, color: C.q6 };
+  if (sub === 'time_sand') return { radius: 2, color: C.e6 };
+  if (sub === 'chrono_gate') return { radius: 3, color: C.q4 };
+  if (sub.startsWith('realm_altar_')) return { radius: 3.5, color: sub.endsWith('umbra') ? C.q5 : C.e6 };
+  if (sub === 'fallen_star') return { radius: 7.5, color: C.w6 };
   if (sub === 'merchant_cart') return { radius: 3.5, color: C.e6 };
   if (sub === 'trial_brazier') return { radius: 5, color: C.q5 };
   if (sub === 'vault_plate') return { radius: 1.5, color: C.q4 };
@@ -65,6 +143,9 @@ export function objLight(kind: WorldObjKind, sub: string): ObjLight | null {
   if (sub === 'cave_ladder') return { radius: 6, color: C.pale }; // daylight down the shaft
   if (sub === 'ruin_monolith') return { radius: 4, color: C.q5 };
   if (sub === 'statue') return { radius: 6, color: C.q5 };
+  if (sub === 'waystone') return { radius: 4.5, color: C.w6 };
+  if (sub === 'realm_gate') return { radius: 7, color: C.q5 };
+  if (sub === 'ferry_post') return { radius: 4, color: C.e6 };
   if (sub === 'shrine_altar') return { radius: 5, color: C.q5 };
   if (sub === 'phase_lantern') return { radius: 4.5, color: C.q5 };
   if (sub === 'forge' || sub === 'furnace') return { radius: 3.5, color: C.r5 };

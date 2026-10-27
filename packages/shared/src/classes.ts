@@ -1,3 +1,10 @@
+import {
+  ADVENTURER_CLASSES,
+  ADVENTURER_ABILITIES,
+  ADVENTURER_FAMILIES,
+  type AdventurerFamily,
+  type AdventurerAbilityId,
+} from './adventurer-paths';
 /**
  * Classes, abilities and elements for the Circuit Board (Phase 3).
  * Every ability has two forms; which one fires is decided by the ability's orb (qubit) when it is cast.
@@ -27,11 +34,20 @@ export const ELEMENTS: ElementDef[] = [
 export const FLUX = 7;
 export const hueWrap = (h: number): number => ((Math.round(h) % 8) + 8) % 8;
 
-export type ClassId = 'wanderer' | 'superposer' | 'entangler';
-export const PLAYABLE_CLASSES: ClassId[] = ['superposer', 'entangler'];
+export type ClassId = 'wanderer' | 'superposer' | 'entangler' | AdventurerFamily;
+export const PLAYABLE_CLASSES: ClassId[] = ['superposer', 'entangler', ...ADVENTURER_FAMILIES];
 
 export type AbilityId =
-  'glimmer' | 'split_shot' | 'echo_step' | 'wavefront' | 'prob_ward' | 'tether' | 'pulse' | 'swap' | 'mend';
+  | 'glimmer'
+  | 'split_shot'
+  | 'echo_step'
+  | 'wavefront'
+  | 'prob_ward'
+  | 'tether'
+  | 'pulse'
+  | 'swap'
+  | 'mend'
+  | AdventurerAbilityId;
 
 export type EffectKind =
   | 'bolt'
@@ -47,9 +63,15 @@ export type EffectKind =
   | 'pull'
   | 'swap'
   | 'heal'
-  | 'ward';
+  | 'ward'
+  | 'strike'
+  | 'party_heal'
+  | 'party_ward'
+  | 'summon';
 
 export interface AbilityForm {
+  /** Server-owned enemy key for a temporary companion; never accepted from client messages. */
+  summon?: string;
   /** short player-facing name, e.g. "Frost twin-shot" */
   name: string;
   hue: number;
@@ -77,6 +99,8 @@ export interface AbilityForm {
 }
 
 export interface AbilityDef {
+  /** A named path is required to slot this technique. */
+  path?: string;
   id: AbilityId;
   cls: ClassId;
   name: string;
@@ -92,6 +116,7 @@ export interface AbilityDef {
 const A = (d: AbilityDef): AbilityDef => d;
 
 export const ABILITIES: Record<AbilityId, AbilityDef> = {
+  ...ADVENTURER_ABILITIES,
   glimmer: A({
     id: 'glimmer',
     cls: 'wanderer',
@@ -214,11 +239,15 @@ export const ABILITIES: Record<AbilityId, AbilityDef> = {
 };
 
 export interface SpecDef {
+  gear?: string[];
+  skill?: AbilityId;
   id: string;
   name: string;
   desc: string;
 }
 export interface ClassDef {
+  gear?: string[];
+  weakness?: string;
   id: ClassId;
   name: string;
   /** one-line pitch */
@@ -234,6 +263,7 @@ export interface ClassDef {
 }
 
 export const CLASSES: Record<ClassId, ClassDef> = {
+  ...ADVENTURER_CLASSES,
   wanderer: {
     id: 'wanderer',
     name: 'Wanderer',
@@ -244,7 +274,13 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     abilities: ['glimmer'],
     passive: { name: 'Curious', desc: 'Everything is new.' },
     ultimate: { name: 'None yet', desc: 'Choose a class to unlock an ultimate.', secs: 0, glyph: '·' },
-    specs: [],
+    specs: [
+      {
+        id: 'guild_warden',
+        name: 'Wayguard',
+        desc: 'Guild rank B and level 10. Guild training reduces incoming enemy damage by 6%. A permanent alternative specialization.',
+      },
+    ],
   },
   superposer: {
     id: 'superposer',
@@ -270,6 +306,11 @@ export const CLASSES: Record<ClassId, ClassDef> = {
       glyph: '✺',
     },
     specs: [
+      {
+        id: 'guild_warden',
+        name: 'Wayguard',
+        desc: 'Guild rank B and level 10. Guild training reduces incoming enemy damage by 6%. A permanent alternative specialization.',
+      },
       { id: 'phantom', name: 'Phantom', desc: 'Echoes last 2 seconds longer and take hits for you more often.' },
       { id: 'splitter', name: 'Splitter', desc: 'Split Shot fires three bolts, and the heavy bolt hits harder.' },
       { id: 'collapse', name: 'Collapse', desc: 'Locked-in lines hit much harder.' },
@@ -295,6 +336,11 @@ export const CLASSES: Record<ClassId, ClassDef> = {
       glyph: '∞',
     },
     specs: [
+      {
+        id: 'guild_warden',
+        name: 'Wayguard',
+        desc: 'Guild rank B and level 10. Guild training reduces incoming enemy damage by 6%. A permanent alternative specialization.',
+      },
       { id: 'weaver', name: 'Weaver', desc: 'Hold five links at once, and echoes are stronger.' },
       {
         id: 'bondkeeper',
@@ -320,12 +366,14 @@ export const isClassId = (v: unknown): v is ClassId => typeof v === 'string' && 
 export const isAbilityId = (v: unknown): v is AbilityId => typeof v === 'string' && Object.hasOwn(ABILITIES, v);
 
 /** Abilities a character may slot: their class's (plus the second class's from level 30). Wanderers also keep Glimmer. */
-export function allowedAbilities(cls: ClassId, second: ClassId | null): AbilityId[] {
-  const out = new Set<AbilityId>(CLASSES[cls].abilities);
-  if (second && second !== cls) for (const a of CLASSES[second].abilities) out.add(a);
+export function allowedAbilities(cls: ClassId, second: ClassId | null, spec?: string | null): AbilityId[] {
+  const out = new Set<AbilityId>(
+    CLASSES[cls].abilities.filter((id) => !ABILITIES[id].path || ABILITIES[id].path === spec),
+  );
+  if (second && second !== cls) for (const a of CLASSES[second].abilities) if (!ABILITIES[a].path) out.add(a);
   if (cls === 'wanderer') out.add('glimmer');
   return [...out];
 }
 
 /** Class index for the synced nameplate byte. */
-export const CLASS_INDEX: ClassId[] = ['wanderer', 'superposer', 'entangler'];
+export const CLASS_INDEX: ClassId[] = ['wanderer', 'superposer', 'entangler', ...ADVENTURER_FAMILIES];

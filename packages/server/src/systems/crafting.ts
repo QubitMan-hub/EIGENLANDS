@@ -44,7 +44,7 @@ function made(room: RoomApi, p: ServerPlayer, rec: Recipe, n: number, discovered
   }
   if (rec.station === 'cooking_pot') recordDeed(p, 'cook', name.toLowerCase(), day);
   if (discovered) {
-    questEvent(p, { type: 'discover', target: id, n: 1 });
+    questEvent(p, { type: 'discover', target: id, n: 1, kind: 'recipe' });
     recordDeed(p, 'discover', name, day);
   }
   syncQuests(p);
@@ -159,7 +159,13 @@ export function handleCraft(room: RoomApi, p: ServerPlayer, msg: CraftMsg): void
   p.dirty('inv');
   addSkillXp(p, 'crafting', rec.xp * msg.n);
   addDiscXp(p, rec.disc, rec.xp * msg.n);
-  room.fx({ kind: 'craft', x: p.sim.x, y: p.sim.y, id: p.id });
+  room.fx({
+    kind: 'craft',
+    station: rec.station,
+    x: rec.station !== 'hand' && msg.tx !== undefined ? msg.tx + 0.5 : p.sim.x,
+    y: rec.station !== 'hand' && msg.ty !== undefined ? msg.ty + 0.5 : p.sim.y,
+    id: p.id,
+  });
   const qt = singles[0]?.p?.qt;
   const qtext = qt !== undefined && qt !== 1 && singles.length === 1 ? `${CRAFT_QUALITY[qt]} ` : '';
   p.toast(
@@ -242,7 +248,13 @@ export function handleExperiment(room: RoomApi, p: ServerPlayer, msg: Experiment
   }
   addSkillXp(p, 'crafting', rec.xp);
   addDiscXp(p, rec.disc, rec.xp);
-  room.fx({ kind: 'craft', x: p.sim.x, y: p.sim.y, id: p.id });
+  room.fx({
+    kind: 'craft',
+    station: rec.station,
+    x: rec.station !== 'hand' && msg.tx !== undefined ? msg.tx + 0.5 : p.sim.x,
+    y: rec.station !== 'hand' && msg.ty !== undefined ? msg.ty + 0.5 : p.sim.y,
+    id: p.id,
+  });
   p.client.send(MSG.TOAST, { text: `Made ${ITEMS[out.id]?.name ?? out.id}`, kind: 'item', item: out });
   made(room, p, rec, 1, discovered);
 }

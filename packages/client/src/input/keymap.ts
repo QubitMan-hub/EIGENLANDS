@@ -22,6 +22,8 @@ export type Action =
   | 'chat'
   | 'party'
   | 'extract'
+  | 'exchange'
+  | 'domain'
   | 'shadows'
   | 'sail'
   | 'voice'
@@ -37,6 +39,8 @@ export const EXT_ACTIONS = [
   'chat',
   'party',
   'extract',
+  'exchange',
+  'domain',
   'shadows',
   'sail',
   'voice',
@@ -85,6 +89,8 @@ export const ACTION_LABELS: Record<Action, string> = {
   chat: 'Chat',
   party: 'Party',
   extract: 'Extract shadow',
+  exchange: 'Shadow Exchange (swap with a shadow)',
+  domain: "Monarch's Domain",
   shadows: 'Companions & Echoes',
   sail: 'Set sail / go ashore',
   voice: 'Proximity voice chat',
@@ -115,6 +121,8 @@ export const DEFAULT_KEYS: KeyMap = {
   chat: ['Enter'],
   party: ['KeyP'],
   extract: ['KeyT'],
+  exchange: ['KeyG'],
+  domain: ['KeyU'],
   shadows: ['KeyY'],
   sail: ['KeyH'],
   voice: ['KeyN'],

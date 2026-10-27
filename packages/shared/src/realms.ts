@@ -227,6 +227,20 @@ export function roadDistance(seed: number, g: RealmGeo, x: number, y: number): n
   return best;
 }
 
+/**
+ * The perpendicular coordinate of a kingdom road's centre line at `t`: for the north/south roads (axis 'ns') the x of
+ * the road at y = t, for east/west roads the y at x = t. Matches `roadDistance` (whose weave is sampled on the line).
+ */
+export function roadCentre(seed: number, g: RealmGeo, axis: 'ns' | 'ew', t: number): number {
+  const l = F(seed);
+  if (axis === 'ns') {
+    const w = smooth(siteDistance(g, g.cx, t), 8, 40);
+    return g.cx + Math.round(l.warp.noise(t / 55 + 3, 1.5) * 5 * w);
+  }
+  const w = smooth(siteDistance(g, t, g.cy), 8, 40);
+  return g.cy + Math.round(l.warp2.noise(t / 55 - 3, 2.5) * 5 * w);
+}
+
 /** Land height of the realm: >0 inland, about -0.2 at the beach; the coast is warped and ragged. */
 export function realmHeight(seed: number, g: RealmGeo, x: number, y: number): number {
   const l = F(seed);
@@ -495,8 +509,11 @@ export function realmTileAt(seed: number, x: number, y: number): number | null {
   const g = r.geo,
     h = r.height,
     l = F(seed);
-  if (h < -0.42) return T.DEEP_WATER;
-  if (h < -0.28) return T.WATER;
+  if (h < -0.28) {
+    // the royal roads bridge rivers and lakes on a plank deck, and run out as a short pier past the seaward outposts
+    if (roadDistance(seed, g, x, y) < 1.6) return T.FLOOR;
+    return h < -0.42 ? T.DEEP_WATER : T.WATER;
+  }
   const biome = realmBiome(seed, g, x, y);
   const sd = siteDistance(g, x, y),
     rd = roadDistance(seed, g, x, y);

@@ -886,10 +886,10 @@ body:has(#settings:not([hidden])) #voice-chip {
   /* the wanderer stands on the lawn in front of the shrine: tile (-3, 6) in the island's art */
   .ts-hero {
     position: absolute;
-    left: 228px;
-    top: 255px;
-    width: 72px;
-    height: 96px;
+    left: 216px;
+    top: 207px;
+    width: 96px;
+    height: 144px;
     image-rendering: pixelated;
   }
   .ts-mote {

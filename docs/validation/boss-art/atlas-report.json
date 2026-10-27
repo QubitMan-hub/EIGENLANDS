@@ -1,0 +1,286 @@
+{
+  "sourceHash": "1d4dd76efd30acde818d55a4efcc68a71e229064f8e29e5cd754cbf0ba10d731",
+  "models": [
+    {
+      "id": "primordial_dragon",
+      "night": false,
+      "frames": 40,
+      "w": 240,
+      "h": 208,
+      "atlas": [1200, 1664],
+      "minOpaque": 9157,
+      "clipped": 0
+    },
+    {
+      "id": "primordial_dragon",
+      "night": true,
+      "frames": 40,
+      "w": 240,
+      "h": 208,
+      "atlas": [1200, 1664],
+      "minOpaque": 9157,
+      "clipped": 0
+    },
+    {
+      "id": "world_serpent",
+      "night": false,
+      "frames": 40,
+      "w": 224,
+      "h": 208,
+      "atlas": [1120, 1664],
+      "minOpaque": 11615,
+      "clipped": 0
+    },
+    {
+      "id": "world_serpent",
+      "night": true,
+      "frames": 40,
+      "w": 224,
+      "h": 208,
+      "atlas": [1120, 1664],
+      "minOpaque": 11615,
+      "clipped": 0
+    },
+    {
+      "id": "sealed_entity",
+      "night": false,
+      "frames": 40,
+      "w": 208,
+      "h": 208,
+      "atlas": [1040, 1664],
+      "minOpaque": 8226,
+      "clipped": 0
+    },
+    {
+      "id": "sealed_entity",
+      "night": true,
+      "frames": 40,
+      "w": 208,
+      "h": 208,
+      "atlas": [1040, 1664],
+      "minOpaque": 8226,
+      "clipped": 0
+    },
+    {
+      "id": "forgotten_titan",
+      "night": false,
+      "frames": 40,
+      "w": 208,
+      "h": 208,
+      "atlas": [1040, 1664],
+      "minOpaque": 8570,
+      "clipped": 0
+    },
+    {
+      "id": "forgotten_titan",
+      "night": true,
+      "frames": 40,
+      "w": 208,
+      "h": 208,
+      "atlas": [1040, 1664],
+      "minOpaque": 8570,
+      "clipped": 0
+    },
+    {
+      "id": "realm_guardian",
+      "night": false,
+      "frames": 40,
+      "w": 240,
+      "h": 208,
+      "atlas": [1200, 1664],
+      "minOpaque": 12594,
+      "clipped": 0
+    },
+    {
+      "id": "realm_guardian",
+      "night": true,
+      "frames": 40,
+      "w": 240,
+      "h": 208,
+      "atlas": [1200, 1664],
+      "minOpaque": 12594,
+      "clipped": 0
+    },
+    {
+      "id": "slime_king",
+      "night": false,
+      "frames": 40,
+      "w": 160,
+      "h": 144,
+      "atlas": [800, 1152],
+      "minOpaque": 3666,
+      "clipped": 0
+    },
+    {
+      "id": "slime_king",
+      "night": true,
+      "frames": 40,
+      "w": 160,
+      "h": 144,
+      "atlas": [800, 1152],
+      "minOpaque": 3666,
+      "clipped": 0
+    },
+    {
+      "id": "warden",
+      "night": false,
+      "frames": 40,
+      "w": 192,
+      "h": 160,
+      "atlas": [960, 1280],
+      "minOpaque": 7398,
+      "clipped": 0
+    },
+    {
+      "id": "warden",
+      "night": true,
+      "frames": 40,
+      "w": 192,
+      "h": 160,
+      "atlas": [960, 1280],
+      "minOpaque": 7398,
+      "clipped": 0
+    },
+    {
+      "id": "colossus",
+      "night": false,
+      "frames": 40,
+      "w": 176,
+      "h": 176,
+      "atlas": [880, 1408],
+      "minOpaque": 5551,
+      "clipped": 0
+    },
+    {
+      "id": "colossus",
+      "night": true,
+      "frames": 40,
+      "w": 176,
+      "h": 176,
+      "atlas": [880, 1408],
+      "minOpaque": 5551,
+      "clipped": 0
+    },
+    {
+      "id": "bellkeeper",
+      "night": false,
+      "frames": 40,
+      "w": 176,
+      "h": 184,
+      "atlas": [880, 1472],
+      "minOpaque": 5676,
+      "clipped": 0
+    },
+    {
+      "id": "bellkeeper",
+      "night": true,
+      "frames": 40,
+      "w": 176,
+      "h": 184,
+      "atlas": [880, 1472],
+      "minOpaque": 5676,
+      "clipped": 0
+    },
+    {
+      "id": "geode_tyrant",
+      "night": false,
+      "frames": 40,
+      "w": 192,
+      "h": 160,
+      "atlas": [960, 1280],
+      "minOpaque": 7678,
+      "clipped": 0
+    },
+    {
+      "id": "geode_tyrant",
+      "night": true,
+      "frames": 40,
+      "w": 192,
+      "h": 160,
+      "atlas": [960, 1280],
+      "minOpaque": 7678,
+      "clipped": 0
+    },
+    {
+      "id": "cinder_wyrm",
+      "night": false,
+      "frames": 40,
+      "w": 192,
+      "h": 176,
+      "atlas": [960, 1408],
+      "minOpaque": 7475,
+      "clipped": 0
+    },
+    {
+      "id": "cinder_wyrm",
+      "night": true,
+      "frames": 40,
+      "w": 192,
+      "h": 176,
+      "atlas": [960, 1408],
+      "minOpaque": 7475,
+      "clipped": 0
+    },
+    {
+      "id": "rime_sovereign",
+      "night": false,
+      "frames": 40,
+      "w": 176,
+      "h": 184,
+      "atlas": [880, 1472],
+      "minOpaque": 4446,
+      "clipped": 0
+    },
+    {
+      "id": "rime_sovereign",
+      "night": true,
+      "frames": 40,
+      "w": 176,
+      "h": 184,
+      "atlas": [880, 1472],
+      "minOpaque": 4446,
+      "clipped": 0
+    },
+    {
+      "id": "tide_leviathan",
+      "night": false,
+      "frames": 40,
+      "w": 208,
+      "h": 176,
+      "atlas": [1040, 1408],
+      "minOpaque": 7551,
+      "clipped": 0
+    },
+    {
+      "id": "tide_leviathan",
+      "night": true,
+      "frames": 40,
+      "w": 208,
+      "h": 176,
+      "atlas": [1040, 1408],
+      "minOpaque": 7551,
+      "clipped": 0
+    },
+    {
+      "id": "veyr",
+      "night": false,
+      "frames": 40,
+      "w": 192,
+      "h": 184,
+      "atlas": [960, 1472],
+      "minOpaque": 6158,
+      "clipped": 0
+    },
+    {
+      "id": "veyr",
+      "night": true,
+      "frames": 40,
+      "w": 192,
+      "h": 184,
+      "atlas": [960, 1472],
+      "minOpaque": 6158,
+      "clipped": 0
+    }
+  ],
+  "blockedAtlasFallback": true
+}

@@ -16,6 +16,8 @@ export interface Settings {
   muted: boolean;
   captions: boolean;
   volume: number;
+  /** the ambient soundscape (wind, rain, birds, towns), 0..1 of the master volume */
+  ambience: number;
   highContrastHud: boolean;
   /** camera distance: how many tiles fit across the view */
   zoom: ZoomLevel;
@@ -40,6 +42,7 @@ export function loadSettings(): Settings {
     muted: false,
     captions: false,
     volume: 0.5,
+    ambience: 0.7,
     highContrastHud: false,
     zoom: 'normal',
   };
@@ -51,6 +54,7 @@ export function loadSettings(): Settings {
       graphics: validGraphics(s.graphics),
       weatherDetail: validWeather(s.weatherDetail),
       zoom: validZoom(s.zoom),
+      ambience: typeof s.ambience === 'number' && s.ambience >= 0 && s.ambience <= 1 ? s.ambience : d.ambience,
     };
   } catch {
     return d;
@@ -188,7 +192,7 @@ export const HTML = `
         <p class="small dim">Left click attacks or shoots at the cursor. Select an axe or pickaxe and click a tree or rock to approach and gather until it breaks. Click ripe crops or forage to harvest; hoes and watering cans can also act on clicked ground. Movement, Dodge, another click or changing tools cancels. Select a fishing rod near water and press Space (or your interaction key) to cast. Directional orbs: press their key, aim, then left click to cast. Escape or the same key cancels. Self abilities cast immediately.</p>
         <div id="keys"></div><p class="small dim">Click a control below, then press the new key. Your custom bindings are kept when changing movement controls.</p></section>
       <section><h3>Visuals &amp; accessibility</h3>
-        <label for="s-graphics">Graphics</label><select id="s-graphics"><option value="auto">Auto · lighter on phones</option><option value="economy">Economy · faster, quieter terrain</option><option value="high">High · full terrain detail</option></select>
+        <label for="s-graphics">Graphics</label><select id="s-graphics"><option value="auto">Auto · adapts to this computer</option><option value="high">High · full terrain detail</option><option value="economy">Economy · faster, quieter terrain</option><option value="performance">Performance · for slow graphics chips</option></select>
         <p class="small dim">Economy reduces canvas resolution and background detail while keeping crisp sprites, collision and combat warnings.</p>
         <label for="s-weather">Weather effects</label><select id="s-weather"><option value="gentle">Gentle</option><option value="full">Full</option><option value="off">Off</option></select>
         <label for="s-zoom">Camera distance</label><select id="s-zoom"><option value="close">Close · bigger sprites</option><option value="normal">Normal</option><option value="far">Far · see more of the world</option></select>
@@ -200,6 +204,7 @@ export const HTML = `
         <label class="tog"><input type="checkbox" id="s-cap"> Sound captions</label>
         <label class="tog"><input type="checkbox" id="s-mute"> Mute sound</label>
         <label>Volume <input type="range" id="s-vol" min="0" max="100"></label>
+        <label>World sounds <input type="range" id="s-amb" min="0" max="100"></label>
       </section>
       <section><h3>Your wanderer</h3><div id="look-settings"></div></section>
       <section><h3>Account</h3><p id="acct-info" class="small"></p>
@@ -259,6 +264,7 @@ export class SettingsUI {
     $<HTMLInputElement>('s-cap').checked = s.captions;
     $<HTMLInputElement>('s-mute').checked = s.muted;
     $<HTMLInputElement>('s-vol').value = String(Math.round(s.volume * 100));
+    $<HTMLInputElement>('s-amb').value = String(Math.round(s.ambience * 100));
     const upd = () => {
       s.graphics = validGraphics($<HTMLSelectElement>('s-graphics').value);
       s.weatherDetail = validWeather($<HTMLSelectElement>('s-weather').value);
@@ -271,6 +277,7 @@ export class SettingsUI {
       s.captions = $<HTMLInputElement>('s-cap').checked;
       s.muted = $<HTMLInputElement>('s-mute').checked;
       s.volume = Number($<HTMLInputElement>('s-vol').value) / 100;
+      s.ambience = Number($<HTMLInputElement>('s-amb').value) / 100;
       saveSettings(s);
       this.apply();
     };
@@ -286,6 +293,7 @@ export class SettingsUI {
       's-cap',
       's-mute',
       's-vol',
+      's-amb',
     ])
       $(id).addEventListener('input', upd);
     $('btn-signout').addEventListener('click', handlers.signOut);

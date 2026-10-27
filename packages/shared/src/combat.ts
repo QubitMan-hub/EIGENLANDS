@@ -1,3 +1,4 @@
+import { BESTIARY_DEFS, BESTIARY_KEYS, rareSpawnEntries, type BestiaryKey, type CreatureTrait } from './bestiary';
 import type { CaveBiome } from './undercroft';
 import type { Biome } from './worldgen';
 import { WEAPONS } from './equipment';
@@ -49,7 +50,7 @@ export function heavyHit(level: number): ComboHit {
   };
 }
 
-export const MELEE_FAMILIES = ['sword', 'spear', 'battle_axe', 'warhammer'] as const;
+export const MELEE_FAMILIES = ['sword', 'spear', 'battle_axe', 'warhammer', 'dagger', 'greatsword'] as const;
 export type MeleeFamily = (typeof MELEE_FAMILIES)[number];
 export const meleeFamily = (id: unknown): MeleeFamily => {
   if (MELEE_FAMILIES.includes(id as MeleeFamily)) return id as MeleeFamily;
@@ -74,6 +75,18 @@ export const MELEE_COMBOS: Record<MeleeFamily, readonly ComboHit[]> = {
     { damage: 12, range: 1.25, arc: cosDeg(45), knockback: 4, poise: 10, weight: 1, lunge: 0.08, recovery: 0.5 },
     { damage: 13, range: 1.25, arc: cosDeg(45), knockback: 4, poise: 10, weight: 1, lunge: 0.08, recovery: 0.5 },
     { damage: 22, range: 1.55, arc: cosDeg(60), knockback: 10, poise: 30, weight: 2, lunge: 0.2, recovery: 0.8 },
+  ],
+  // twin daggers: very quick, very short, weak alone; the third cut lunges in
+  dagger: [
+    { damage: 5, range: 1.15, arc: cosDeg(50), knockback: 1, poise: 2, weight: 0, lunge: 0.15, recovery: 0.18 },
+    { damage: 5, range: 1.15, arc: cosDeg(50), knockback: 1, poise: 2, weight: 0, lunge: 0.15, recovery: 0.18 },
+    { damage: 9, range: 1.3, arc: cosDeg(40), knockback: 2, poise: 6, weight: 0, lunge: 0.45, recovery: 0.3 },
+  ],
+  // a greatsword: long, wide, slow; the finisher is a full overhead sweep
+  greatsword: [
+    { damage: 11, range: 1.9, arc: cosDeg(70), knockback: 5, poise: 9, weight: 1, lunge: 0.15, recovery: 0.52 },
+    { damage: 12, range: 1.9, arc: cosDeg(70), knockback: 5, poise: 9, weight: 1, lunge: 0.15, recovery: 0.52 },
+    { damage: 20, range: 2.2, arc: cosDeg(95), knockback: 9, poise: 22, weight: 2, lunge: 0.35, recovery: 0.75 },
   ],
 };
 export function meleeTap(id: unknown, combo: number): ComboHit {
@@ -114,6 +127,30 @@ export function meleeHeavy(id: unknown, level: number): ComboHit {
         weight: l >= 1 ? 3 : 2,
         lunge: 0.15 + 0.15 * l,
         recovery: 0.85,
+      };
+    case 'dagger':
+      // a darting stab: you cover ground fast and slip past the guard
+      return {
+        damage: Math.round(14 + 10 * l),
+        range: 1.6,
+        arc: cosDeg(35),
+        knockback: 3,
+        poise: Math.round(10 + 8 * l),
+        weight: l >= 1 ? 2 : 1,
+        lunge: 0.6 + 0.35 * l,
+        recovery: 0.35,
+      };
+    case 'greatsword':
+      // a full spinning sweep that clears everything around you
+      return {
+        damage: Math.round(34 + 18 * l),
+        range: 2.4 + 0.3 * l,
+        arc: cosDeg(140),
+        knockback: 12,
+        poise: Math.round(40 + 20 * l),
+        weight: 3,
+        lunge: 0.2,
+        recovery: 0.95,
       };
     default:
       return heavyHit(l);
@@ -292,6 +329,10 @@ export interface DropDef {
 }
 export type EnemyAi = 'melee' | 'leap' | 'caster' | 'brute' | 'swarm' | 'passive' | 'boar' | 'ambusher' | 'harrier';
 export interface EnemyDef {
+  trait?: CreatureTrait;
+  territory?: number;
+  predator?: boolean;
+  mythical?: boolean;
   kind: number;
   /** passive fauna flees instead of fighting */
   passive?: boolean;
@@ -351,6 +392,9 @@ export const REFLECT_SPEED_MULT = 1.7;
 export const REFLECT_DAMAGE = 18;
 
 const melee = { ai: 'melee' as const };
+/** The realm creatures and peoples (otherworlds.ts, realmfolk.ts) follow the living bestiary's kinds. */
+export const REALM_KIND_BASE = 74 + BESTIARY_KEYS.length;
+
 const BASE_ENEMY_DEFS: Record<
   | 'slime'
   | 'hopper'
@@ -401,7 +445,25 @@ const BASE_ENEMY_DEFS: Record<
   | 'iron_golem'
   | 'raiju'
   | 'reef_naga'
-  | 'hellhound',
+  | 'hellhound'
+  | 'zephyr_ray'
+  | 'gilded_sentinel'
+  | 'eyrie_phoenix'
+  | 'shade_stalker'
+  | 'abyss_serpent'
+  | 'umbral_maw'
+  | 'gear_hound'
+  | 'paradox_echo'
+  | 'the_unwound'
+  | 'gale_reaver'
+  | 'gale_gunner'
+  | 'gale_captain'
+  | 'gloam_zealot'
+  | 'gloam_hexer'
+  | 'gloam_hierophant'
+  | 'sundered_blade'
+  | 'sundered_seer'
+  | 'sundered_warlord',
   EnemyDef
 > = {
   slime: {
@@ -1496,10 +1558,395 @@ const BASE_ENEMY_DEFS: Record<
       { item: 'raw_meat', min: 1, max: 2, chance: 0.6 },
     ],
   },
+  // ───────── the three realms (otherworlds.ts) ─────────
+  /** Aetheria: a manta of the cloud sea that skims in and out, trailing static */
+  zephyr_ray: {
+    kind: REALM_KIND_BASE + 0,
+    name: 'Zephyr Ray',
+    hp: 70,
+    speed: 3.6,
+    radius: 0.5,
+    damage: 11,
+    sight: 11,
+    windup: 0.7,
+    strikeRange: 3,
+    xp: 60,
+    ai: 'harrier',
+    poise: 14,
+    staggerTime: 1,
+    cooldown: 2,
+    budget: 2,
+    drops: [
+      { item: 'cloud_silk', min: 1, max: 2, chance: 0.7 },
+      { item: 'feather', min: 1, max: 3, chance: 0.6 },
+    ],
+  },
+  /** Aetheria: a gilded guardian of the old sky-temples; slow, armoured, fires bolts of light */
+  gilded_sentinel: {
+    kind: REALM_KIND_BASE + 1,
+    name: 'Gilded Sentinel',
+    hp: 130,
+    speed: 1.6,
+    radius: 0.55,
+    damage: 14,
+    sight: 11,
+    windup: 1,
+    strikeRange: 7,
+    xp: 85,
+    ai: 'caster',
+    armor: true,
+    poise: 40,
+    staggerTime: 1.2,
+    cooldown: 1.8,
+    budget: 3,
+    drops: [
+      { item: 'gold_ore', min: 1, max: 3, chance: 0.8 },
+      { item: 'cloud_silk', min: 1, max: 1, chance: 0.4 },
+    ],
+  },
+  /** Aetheria's guardian: the Phoenix, burning and reborn in its eyrie */
+  eyrie_phoenix: {
+    kind: REALM_KIND_BASE + 2,
+    name: 'The Phoenix of the Eyrie',
+    boss: true,
+    hp: 1500,
+    speed: 2.2,
+    radius: 1.2,
+    damage: 20,
+    sight: 18,
+    windup: 1.1,
+    strikeRange: 7,
+    xp: 1000,
+    ai: 'brute',
+    poise: 150,
+    staggerTime: 1.8,
+    resist: 0.1,
+    cooldown: 1.9,
+    aoe: 1.7,
+    budget: 99,
+    drops: [
+      { item: 'phoenix_plume', min: 1, max: 1, chance: 1 },
+      { item: 'heart_crystal', min: 1, max: 1, chance: 1 },
+      { item: 'cloud_silk', min: 4, max: 6, chance: 1 },
+    ],
+  },
+  /** the Abyss: a beast of living shadow that waits in the dark and pounces */
+  shade_stalker: {
+    kind: REALM_KIND_BASE + 3,
+    name: 'Shade Stalker',
+    hp: 95,
+    speed: 3.2,
+    radius: 0.45,
+    damage: 15,
+    sight: 10,
+    windup: 0.8,
+    strikeRange: 3.5,
+    xp: 80,
+    ai: 'ambusher',
+    poise: 18,
+    staggerTime: 1,
+    cooldown: 2.2,
+    budget: 2,
+    drops: [
+      { item: 'umbral_spore', min: 1, max: 2, chance: 0.7 },
+      { item: 'leather', min: 1, max: 2, chance: 0.5 },
+    ],
+  },
+  /** the Abyss: a long pale serpent of the deep pools that spits from range */
+  abyss_serpent: {
+    kind: REALM_KIND_BASE + 4,
+    name: 'Abyssal Serpent',
+    hp: 150,
+    speed: 2.4,
+    radius: 0.55,
+    damage: 16,
+    sight: 10,
+    windup: 1,
+    strikeRange: 6,
+    xp: 100,
+    ai: 'caster',
+    poise: 30,
+    staggerTime: 1.1,
+    cooldown: 2,
+    budget: 3,
+    drops: [
+      { item: 'umbral_spore', min: 1, max: 3, chance: 0.8 },
+      { item: 'qubit_crystal', min: 1, max: 1, chance: 0.15 },
+    ],
+  },
+  /** the Abyss's guardian: a maw in the dark that eats the light */
+  umbral_maw: {
+    kind: REALM_KIND_BASE + 5,
+    name: 'The Umbral Maw',
+    boss: true,
+    hp: 1800,
+    speed: 1.7,
+    radius: 1.4,
+    damage: 23,
+    sight: 18,
+    windup: 1.25,
+    strikeRange: 7,
+    xp: 1200,
+    ai: 'brute',
+    armor: true,
+    poise: 180,
+    staggerTime: 1.9,
+    resist: 0.12,
+    cooldown: 2,
+    aoe: 1.8,
+    budget: 99,
+    drops: [
+      { item: 'abyss_heart', min: 1, max: 1, chance: 1 },
+      { item: 'heart_crystal', min: 1, max: 1, chance: 1 },
+      { item: 'umbral_spore', min: 4, max: 6, chance: 1 },
+    ],
+  },
+  /** Chronoria: a clockwork hound that leaps in bursts, as if skipping frames */
+  gear_hound: {
+    kind: REALM_KIND_BASE + 6,
+    name: 'Gear Hound',
+    hp: 120,
+    speed: 3.4,
+    radius: 0.45,
+    damage: 17,
+    sight: 11,
+    windup: 0.75,
+    strikeRange: 4,
+    xp: 110,
+    ai: 'leap',
+    armor: true,
+    poise: 26,
+    staggerTime: 1,
+    cooldown: 2,
+    budget: 2,
+    drops: [
+      { item: 'chrono_sand', min: 1, max: 2, chance: 0.7 },
+      { item: 'iron_ore', min: 1, max: 3, chance: 0.6 },
+    ],
+  },
+  /** Chronoria: a knight's echo out of another moment; casts bolts that hang in time */
+  paradox_echo: {
+    kind: REALM_KIND_BASE + 7,
+    name: 'Paradox Echo',
+    hp: 140,
+    speed: 2.2,
+    radius: 0.45,
+    damage: 18,
+    sight: 12,
+    windup: 0.9,
+    strikeRange: 7,
+    xp: 130,
+    ai: 'caster',
+    poise: 24,
+    staggerTime: 1.1,
+    cooldown: 1.7,
+    budget: 3,
+    drops: [
+      { item: 'chrono_sand', min: 1, max: 3, chance: 0.8 },
+      { item: 'qubit_crystal', min: 1, max: 2, chance: 0.25 },
+    ],
+  },
+  /** Chronoria's guardian: a titan of clockwork and broken hours */
+  the_unwound: {
+    kind: REALM_KIND_BASE + 8,
+    name: 'The Unwound',
+    boss: true,
+    hp: 2100,
+    speed: 1.8,
+    radius: 1.4,
+    damage: 26,
+    sight: 18,
+    windup: 1.2,
+    strikeRange: 7,
+    xp: 1500,
+    ai: 'brute',
+    armor: true,
+    poise: 200,
+    staggerTime: 1.8,
+    resist: 0.15,
+    cooldown: 1.9,
+    aoe: 1.9,
+    budget: 99,
+    drops: [
+      { item: 'unwound_gear', min: 1, max: 1, chance: 1 },
+      { item: 'heart_crystal', min: 1, max: 1, chance: 1 },
+      { item: 'chrono_sand', min: 4, max: 6, chance: 1 },
+    ],
+  }, // ───────── the realms' hostile peoples (realmfolk.ts) ─────────
+  gale_reaver: {
+    kind: REALM_KIND_BASE + 9,
+    name: 'Gale Reaver',
+    hp: 90,
+    speed: 3.2,
+    radius: 0.42,
+    damage: 13,
+    sight: 11,
+    windup: 0.75,
+    strikeRange: 3,
+    xp: 70,
+    ai: 'melee',
+    poise: 16,
+    staggerTime: 1,
+    cooldown: 1.9,
+    budget: 2,
+    drops: [
+      { item: 'feather', min: 1, max: 2, chance: 0.6 },
+      { item: 'gold_ore', min: 1, max: 1, chance: 0.25 },
+    ],
+  },
+  gale_gunner: {
+    kind: REALM_KIND_BASE + 10,
+    name: 'Gale Gunner',
+    hp: 70,
+    speed: 2.6,
+    radius: 0.42,
+    damage: 12,
+    sight: 12,
+    windup: 0.9,
+    strikeRange: 7,
+    xp: 65,
+    ai: 'caster',
+    poise: 12,
+    staggerTime: 1,
+    cooldown: 1.7,
+    budget: 2,
+    drops: [{ item: 'feather', min: 1, max: 2, chance: 0.5 }],
+  },
+  gale_captain: {
+    kind: REALM_KIND_BASE + 11,
+    name: 'Reaver Captain',
+    hp: 380,
+    speed: 3,
+    radius: 0.42,
+    damage: 18,
+    sight: 13,
+    windup: 0.85,
+    strikeRange: 3.5,
+    xp: 260,
+    ai: 'brute',
+    armor: true,
+    poise: 80,
+    staggerTime: 1,
+    cooldown: 2,
+    budget: 4,
+    drops: [{ item: 'gold_ore', min: 2, max: 4, chance: 0.9 }],
+  },
+  gloam_zealot: {
+    kind: REALM_KIND_BASE + 12,
+    name: 'Gloam Zealot',
+    hp: 120,
+    speed: 2.9,
+    radius: 0.42,
+    damage: 16,
+    sight: 10,
+    windup: 0.8,
+    strikeRange: 3,
+    xp: 95,
+    ai: 'melee',
+    poise: 22,
+    staggerTime: 1,
+    cooldown: 2,
+    budget: 2,
+    drops: [{ item: 'raw_meat', min: 1, max: 1, chance: 0.2 }],
+  },
+  gloam_hexer: {
+    kind: REALM_KIND_BASE + 13,
+    name: 'Gloam Hexer',
+    hp: 95,
+    speed: 2.3,
+    radius: 0.42,
+    damage: 16,
+    sight: 11,
+    windup: 1,
+    strikeRange: 7,
+    xp: 95,
+    ai: 'caster',
+    poise: 16,
+    staggerTime: 1,
+    cooldown: 1.8,
+    budget: 2,
+    drops: [{ item: 'slime_gel', min: 1, max: 2, chance: 0.4 }],
+  },
+  gloam_hierophant: {
+    kind: REALM_KIND_BASE + 14,
+    name: 'Gloam Hierophant',
+    hp: 520,
+    speed: 2.2,
+    radius: 0.42,
+    damage: 22,
+    sight: 13,
+    windup: 1.1,
+    strikeRange: 6,
+    xp: 360,
+    ai: 'brute',
+    resist: 0.08,
+    poise: 110,
+    staggerTime: 1,
+    cooldown: 2.1,
+    budget: 4,
+    drops: [{ item: 'qubit_crystal', min: 1, max: 2, chance: 0.6 }],
+  },
+  sundered_blade: {
+    kind: REALM_KIND_BASE + 15,
+    name: 'Sundered Blade',
+    hp: 150,
+    speed: 3,
+    radius: 0.42,
+    damage: 19,
+    sight: 11,
+    windup: 0.8,
+    strikeRange: 3.5,
+    xp: 130,
+    ai: 'melee',
+    armor: true,
+    poise: 30,
+    staggerTime: 1,
+    cooldown: 2,
+    budget: 2,
+    drops: [{ item: 'iron_ore', min: 1, max: 3, chance: 0.5 }],
+  },
+  sundered_seer: {
+    kind: REALM_KIND_BASE + 16,
+    name: 'Sundered Seer',
+    hp: 120,
+    speed: 2.4,
+    radius: 0.42,
+    damage: 19,
+    sight: 12,
+    windup: 0.95,
+    strikeRange: 7,
+    xp: 125,
+    ai: 'caster',
+    poise: 20,
+    staggerTime: 1,
+    cooldown: 1.7,
+    budget: 2,
+    drops: [{ item: 'qubit_crystal', min: 1, max: 1, chance: 0.2 }],
+  },
+  sundered_warlord: {
+    kind: REALM_KIND_BASE + 17,
+    name: 'Sundered Warlord',
+    hp: 700,
+    speed: 2.6,
+    radius: 0.42,
+    damage: 26,
+    sight: 13,
+    windup: 1.05,
+    strikeRange: 4,
+    xp: 480,
+    ai: 'brute',
+    armor: true,
+    resist: 0.1,
+    poise: 140,
+    staggerTime: 1,
+    cooldown: 2,
+    budget: 4,
+    drops: [{ item: 'gold_ore', min: 2, max: 4, chance: 0.9 }],
+  },
 };
 import { ARMY_DEFS, type ArmyKey } from './army';
-export const ENEMY_DEFS = { ...BASE_ENEMY_DEFS, ...ARMY_DEFS } as Record<
-  keyof typeof BASE_ENEMY_DEFS | ArmyKey,
+export const ENEMY_DEFS = { ...BASE_ENEMY_DEFS, ...ARMY_DEFS, ...BESTIARY_DEFS } as Record<
+  keyof typeof BASE_ENEMY_DEFS | ArmyKey | BestiaryKey,
   EnemyDef
 >;
 export const ENEMY_BY_KIND: EnemyDef[] = [
@@ -1554,6 +2001,10 @@ export const ENEMY_BY_KIND: EnemyDef[] = [
   ENEMY_DEFS.reef_naga,
   ENEMY_DEFS.hellhound,
   ...Object.values(ARMY_DEFS),
+  ...BESTIARY_KEYS.map((id) => BESTIARY_DEFS[id]),
+  ...Object.values(BASE_ENEMY_DEFS)
+    .filter((d) => d.kind >= REALM_KIND_BASE)
+    .sort((a, b) => a.kind - b.kind),
 ];
 export type EnemyKindName = keyof typeof ENEMY_DEFS;
 /** ENEMY_DEFS key by numeric kind, for rules that are written by species name. */
@@ -1690,15 +2141,18 @@ export function spawnTable(
                     ['hopper', 3],
                     ['wisp', night ? 2 : 0],
                   ];
-  return table
-    .filter(
-      ([kind, w]) =>
-        w > 0 &&
-        (kind !== 'reed_stalker' || level >= 4) &&
-        (kind !== 'cinder_moth' || level >= 5) &&
-        (!['brute', 'wolf', 'thornling', 'glasscrawler'].includes(kind) || level >= (kind === 'brute' ? 4 : 3)),
-    )
-    .map(([kind, w]) => ({ kind, w }));
+  return [
+    ...(modern ? rareSpawnEntries(level, night, biome) : []),
+    ...table
+      .filter(
+        ([kind, w]) =>
+          w > 0 &&
+          (kind !== 'reed_stalker' || level >= 4) &&
+          (kind !== 'cinder_moth' || level >= 5) &&
+          (!['brute', 'wolf', 'thornling', 'glasscrawler'].includes(kind) || level >= (kind === 'brute' ? 4 : 3)),
+      )
+      .map(([kind, w]) => ({ kind, w })),
+  ];
 }
 
 export function pickSpawn(

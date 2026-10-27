@@ -1,7 +1,13 @@
 import { Rectangle, Texture } from 'pixi.js';
 import { HUE_PALETTE, WEAPONS, isWeaponId, type WeaponId, type ToolSpec } from '@eigenlands/shared';
-import { ATTACK_FRAME, RUN_FRAME, SHOT_FRAME, CAST_FRAME, personGrip } from './actors';
+import { ATTACK_FRAME, RUN_FRAME, SHOT_FRAME, CAST_FRAME, personGrip, PERSON_W, PERSON_H } from './actors';
+import { actionPose } from './person-actions';
 import { C, line, makeCanvas, outline, poly, put, undithered } from './shade';
+
+export const HELD_W = 64,
+  HELD_H = 80,
+  HELD_AX = 32,
+  HELD_AY = 60;
 
 export type HeldId = WeaponId | ToolSpec['type'];
 export const isHeldId = (id: unknown): id is HeldId =>
@@ -9,7 +15,7 @@ export const isHeldId = (id: unknown): id is HeldId =>
 
 /** Held geometry is rasterized at each facing, never rotated as a finished frontal sprite. */
 export class HeldWeapons {
-  private sheets = new Map<HeldId, Texture>();
+  private sheets = new Map<string, Texture>();
   private frames = new Map<string, Texture>();
 
   texture(id: HeldId, dir: number, frame: number): Texture {
@@ -17,34 +23,44 @@ export class HeldWeapons {
       key = `${id}:${dir}:${f}`;
     const old = this.frames.get(key);
     if (old) return old;
-    let sheet = this.sheets.get(id);
+    const extra = f >= 30,
+      cols = extra ? 1 : 30,
+      sheetKey = extra ? `${id}:${f}` : id;
+    let sheet = this.sheets.get(sheetKey);
     if (!sheet) {
-      const { canvas, ctx } = makeCanvas(56 * 30, 64 * 8);
+      const { canvas, ctx } = makeCanvas(HELD_W * cols, HELD_H * 8);
       for (let d = 0; d < 8; d++)
-        for (let n = 0; n < 30; n++) {
-          const b = makeCanvas(56, 64),
+        for (let column = 0; column < cols; column++) {
+          const n = extra ? f : column;
+          const b = makeCanvas(HELD_W, HELD_H),
             g = personGrip(d, n),
-            x = g.x + 16,
-            y = g.y + 16;
+            x = g.x + HELD_AX - PERSON_W / 2,
+            y = g.y + HELD_AY - PERSON_H;
           const w = isWeaponId(id) ? WEAPONS[id] : null,
             fam: string = w?.fam ?? id,
             [metal, shine] = w?.tint ?? [C.steel, C.pale],
             bow = w?.cls === 'crossbow',
             staff = w?.cls === 'staff',
             tool = !w;
-          const aimedTool = (id === 'can' || id === 'rod') && n >= CAST_FRAME;
+          const work = actionPose(d, n);
+          const aimedTool = !work && (id === 'can' || id === 'rod') && n >= CAST_FRAME;
           const thrust = fam === 'spear' && n >= ATTACK_FRAME && n < ATTACK_FRAME + 4;
           // Broad heads rest outside the face; grip/arm anchors remain unchanged.
           const resting =
-            (fam === 'spear' || fam === 'battle_axe' || fam === 'warhammer' || (tool && id !== 'can')) &&
+            (fam === 'spear' ||
+              fam === 'battle_axe' ||
+              fam === 'warhammer' ||
+              fam === 'greatsword' ||
+              (tool && id !== 'can')) &&
             (n < ATTACK_FRAME || (n >= RUN_FRAME && n < SHOT_FRAME));
-          const angle =
-            id === 'can' && !aimedTool
+          const angle = work
+            ? work.angle
+            : id === 'can' && !aimedTool
               ? 0
               : thrust || aimedTool
                 ? personGrip(d, SHOT_FRAME).angle
                 : resting
-                  ? personGrip(d, 0).x < 12.5
+                  ? personGrip(d, 0).x < PERSON_W / 2
                     ? -2.05
                     : -1.1
                   : bow && n < 22
@@ -89,7 +105,7 @@ export class HeldWeapons {
                   q = pt(9, -3);
                 line(b.ctx, ...a, ...q, C.w4);
                 stroke(0, 4, C.w6, -5);
-              } else if (id === 'rod') {
+              } else if (id === 'rod' && work?.action !== 'fish') {
                 const a = pt(13),
                   q = pt(8, 7);
                 line(b.ctx, ...a, ...q, C.fog);
@@ -125,6 +141,31 @@ export class HeldWeapons {
               const a = pt(8, -2),
                 q = pt(10, 2);
               line(b.ctx, ...a, ...q, C.e6);
+            } else if (fam === 'dagger') {
+              // a short leaf blade with a crossguard; its twin rides in the other hand
+              stroke(-3, 1, C.e2);
+              {
+                const g0 = pt(0.5, -2),
+                  g1 = pt(0.5, 2);
+                line(b.ctx, ...g0, ...g1, C.e6);
+              }
+              poly(b.ctx, [pt(1, -1.2), pt(7, -0.6), pt(8.5, 0), pt(7, 0.6), pt(1, 1.2)], metal);
+              poly(b.ctx, [pt(1, -1.2), pt(7, -0.6), pt(8.5, 0)], shine);
+              const twin = [pt(-1, 5), pt(4, 6.5), pt(5, 7), pt(4, 7.5), pt(-1, 6)] as Array<[number, number]>;
+              poly(b.ctx, twin, metal);
+            } else if (fam === 'greatsword') {
+              // a long two-handed blade: a wide guard, a long grip and a fuller down the middle
+              stroke(-6, 0, C.e2);
+              {
+                const g0 = pt(0.5, -3.5),
+                  g1 = pt(0.5, 3.5);
+                line(b.ctx, ...g0, ...g1, C.e6);
+              }
+              poly(b.ctx, [pt(1, -1.6), pt(17, -1), pt(19, 0), pt(17, 1), pt(1, 1.6)], metal);
+              poly(b.ctx, [pt(1, -1.6), pt(17, -1), pt(19, 0)], shine);
+              const a = pt(2, 0),
+                q = pt(15, 0);
+              line(b.ctx, ...a, ...q, C.slate);
             } else if (fam === 'warhammer') {
               stroke(-5, 9, C.e1, 0.8);
               stroke(-5, 9, C.e4);
@@ -177,16 +218,19 @@ export class HeldWeapons {
               put(b.ctx, Math.round(pommel[0]), Math.round(pommel[1]), C.e6);
             }
           });
-          outline(b.ctx, 56, 64, C.night);
+          outline(b.ctx, HELD_W, HELD_H, C.night);
           // Let the body hand cover the handle instead of painting a shaft across its fingers.
           b.ctx.clearRect(Math.round(x) - 1, Math.round(y) - 1, 3, 2);
-          ctx.drawImage(b.canvas, n * 56, d * 64);
+          ctx.drawImage(b.canvas, column * HELD_W, d * HELD_H);
         }
       sheet = Texture.from(canvas);
       sheet.source.scaleMode = 'nearest';
-      this.sheets.set(id, sheet);
+      this.sheets.set(sheetKey, sheet);
     }
-    const t = new Texture({ source: sheet.source, frame: new Rectangle(f * 56, dir * 64, 56, 64) });
+    const t = new Texture({
+      source: sheet.source,
+      frame: new Rectangle((extra ? 0 : f) * HELD_W, dir * HELD_H, HELD_W, HELD_H),
+    });
     this.frames.set(key, t);
     return t;
   }

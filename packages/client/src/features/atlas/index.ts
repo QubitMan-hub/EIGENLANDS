@@ -1,5 +1,8 @@
 import './atlas.css';
 import {
+  OTHERWORLDS,
+  caravanAt,
+  caravanRoutes,
   ENEMY_BY_KIND,
   NPC_BY_ID,
   caveExitRoutes,
@@ -20,7 +23,7 @@ import { iconSvg } from '../../ui/icons';
 import type { ClientModule, P34Deps } from '../types';
 import { Exploration, chartY, planeOf, type ChartChunk } from './model';
 import { ChartArchive } from './archive';
-import { partyDestinations, questDestinations, type Destination } from './destinations';
+import { guildDestinations, partyDestinations, questDestinations, type Destination } from './destinations';
 interface Point {
   x: number;
   y: number;
@@ -40,6 +43,8 @@ const known = new Map<string, string>([
   ['stairs_up', 'Upper floor'],
   ['stairs_down', 'Downstairs'],
   ['board', 'Town board'],
+  ['guild_board', 'Adventurer Guild'],
+  ['guild_noticeboard', 'Chartered Guild Hall'],
 ]);
 const colors = [
   '#224555',
@@ -82,6 +87,9 @@ export class AtlasClient implements ClientModule {
   private warned = false;
   private state: any;
   private solved = new Set<string>();
+  /** attuned waystones, gates and ferries (from the travel module), always charted */
+  private waystones: Array<{ id: string; name: string; kind: string; x: number; y: number }> = [];
+  private homeStone: string | null = null;
   private landmarks = new Map<string, Landmark>();
   private waypoints: Point[] = [];
   private cache = new Map<
@@ -100,8 +108,13 @@ export class AtlasClient implements ClientModule {
   private showMini = true;
   private size = 144;
   private filters = { locations: true, players: true, npcs: true, enemies: false, quests: true, party: true };
-  private destinations: Record<'quests' | 'party', Destination[]> = { quests: [], party: [] };
-  private directories: { key: 'quests' | 'party'; summary: HTMLElement; list: HTMLElement; signature: string }[] = [];
+  private destinations: Record<'quests' | 'party' | 'guilds', Destination[]> = { quests: [], party: [], guilds: [] };
+  private directories: {
+    key: 'quests' | 'party' | 'guilds';
+    summary: HTMLElement;
+    list: HTMLElement;
+    signature: string;
+  }[] = [];
   private centres = new Map<string, Point>();
   private centre: Point = { x: 0, y: 0, name: '' };
   private plane = 'Overworld';
@@ -253,6 +266,18 @@ export class AtlasClient implements ClientModule {
       };
     }
     if (!this.tracked) return null;
+    const journey = this.d.profile.quests[this.tracked]?.journey;
+    if (journey && !this.d.profile.quests[this.tracked]?.progress[0] && !journey.failed) {
+      const point =
+        journey.kind === 'rescue' && journey.released ? journey.home : journey.points[Math.min(2, journey.stage)]!;
+      return {
+        id: this.tracked,
+        questId: this.tracked,
+        title: 'Guild rendezvous',
+        detail: 'Stay close to your traveller. Inspect evidence or talk with Space.',
+        point,
+      };
+    }
     return (
       questDestinations(
         this.d.store().seed,
@@ -261,6 +286,7 @@ export class AtlasClient implements ClientModule {
         this.state?.npcs ?? new Map(),
         (x, y) => this.seen(x, y),
         true,
+        this.guildPoints(),
       ).find((p) => p.questId === this.tracked) ?? null
     );
   }
@@ -285,6 +311,15 @@ export class AtlasClient implements ClientModule {
     this.plane = planeOf(route.point.y);
     const layer = document.querySelector<HTMLSelectElement>('[aria-label="Map layer"]');
     if (layer) layer.value = this.plane;
+  }
+  /** The travel module's attuned stones: drawn as diamonds wherever the chart reaches. */
+  setWaystones(
+    list: Array<{ id: string; name: string; kind: string; x: number; y: number }>,
+    home: string | null,
+  ): void {
+    this.waystones = list;
+    this.homeStone = home;
+    this.changed = true;
   }
   setSolved(ids: string[]): void {
     this.solved = new Set(ids);
@@ -418,12 +453,28 @@ export class AtlasClient implements ClientModule {
       nav = h('div', { class: 'atlas-nav' });
     const layer = h('select');
     layer.setAttribute('aria-label', 'Map layer');
-    for (const name of ['Overworld', 'Undercroft', 'Upper rooms', 'Submerged sanctuaries'])
+    for (const name of [
+      'Overworld',
+      'Undercroft',
+      'Upper rooms',
+      'Submerged sanctuaries',
+      'Crypts',
+      'Aetheria',
+      'The Umbral Abyss',
+      'Chronoria',
+      'Gate dungeons',
+    ])
       layer.append(h('option', { value: name, text: name }));
     layer.value = this.plane;
     layer.onchange = () => {
       this.plane = layer.value;
-      this.centre = this.centres.get(this.plane) ?? { x: 0, y: 0, name: '' };
+      // a layer you have not visited opens on its arrival point
+      const origin: Record<string, number> = {
+        Aetheria: OTHERWORLDS.aetheria.oy,
+        'The Umbral Abyss': OTHERWORLDS.umbra.oy,
+        Chronoria: OTHERWORLDS.chronoria.oy,
+      };
+      this.centre = this.centres.get(this.plane) ?? { x: 0, y: origin[this.plane] ?? 0, name: '' };
     };
     const act = (text: string, fn: () => void) => h('button', { type: 'button', text, on: { click: fn } });
     tools.append(
@@ -583,6 +634,7 @@ export class AtlasClient implements ClientModule {
     for (const [key, title] of [
       ['quests', 'Quest destinations'],
       ['party', 'Party destinations'],
+      ['guilds', 'Guild halls'],
     ] as const) {
       const summary = h('summary', { text: title });
       const list = h('div', { class: 'atlas-destinations' });
@@ -622,10 +674,18 @@ export class AtlasClient implements ClientModule {
       onClose: () => {
         this.chart = null;
         this.directories = [];
-        this.destinations = { quests: [], party: [] };
+        this.destinations = { quests: [], party: [], guilds: [] };
         this.save();
       },
     });
+  }
+  private guildPoints(): Array<{ x: number; y: number }> {
+    const self = this.state?.players?.get(this.d.myId());
+    const boards = [...this.d.store().objects.values()].filter(
+      (o) => o.sub === 'guild_board' || o.sub === 'guild_noticeboard',
+    );
+    if (self) boards.sort((a, b) => Math.hypot(a.x - self.x, a.y - self.y) - Math.hypot(b.x - self.x, b.y - self.y));
+    return boards;
   }
   private refreshDestinations(): void {
     this.destinations.quests = questDestinations(
@@ -633,6 +693,13 @@ export class AtlasClient implements ClientModule {
       this.d.profile.quests,
       (id) => this.d.profile.count(id),
       this.state?.npcs ?? new Map(),
+      (x, y) => this.seen(x, y),
+      false,
+      this.guildPoints(),
+    );
+    this.destinations.guilds = guildDestinations(
+      this.d.store().seed,
+      [...this.d.store().objects.values()].filter((o) => o.sub === 'guild_board' || o.sub === 'guild_noticeboard'),
       (x, y) => this.seen(x, y),
     );
     this.destinations.party = partyDestinations(this.party(), this.d.identity?.() ?? '', this.d.myId());
@@ -644,16 +711,18 @@ export class AtlasClient implements ClientModule {
       );
       if (signature === directory.signature) continue;
       directory.signature = signature;
-      directory.summary.textContent = `${directory.key === 'quests' ? 'Quest' : 'Party'} destinations (${routes.length})`;
+      directory.summary.textContent = `${directory.key === 'guilds' ? 'Guild halls' : directory.key === 'quests' ? 'Quest destinations' : 'Party destinations'} (${routes.length})`;
       directory.list.replaceChildren();
       if (!routes.length)
         directory.list.append(
           h('p', {
             class: 'atlas-note',
             text:
-              directory.key === 'quests'
-                ? 'No active quests. Visit the Journal for your quest history.'
-                : 'No party companions. Invite a traveller through the party window.',
+              directory.key === 'guilds'
+                ? 'No charted guild halls. Visit a settlement reception to add it here.'
+                : directory.key === 'quests'
+                  ? 'No active quests. Visit the Journal for your quest history.'
+                  : 'No party companions. Invite a traveller through the party window.',
           }),
         );
       for (const route of routes) {
@@ -823,6 +892,15 @@ export class AtlasClient implements ClientModule {
         ctx.arc(at.x, at.y, 4, 0, Math.PI * 2);
         ctx.stroke();
         ctx.fill();
+      } else if (shape === 'diamond') {
+        ctx.beginPath();
+        ctx.moveTo(at.x, at.y - 5);
+        ctx.lineTo(at.x + 4, at.y);
+        ctx.lineTo(at.x, at.y + 5);
+        ctx.lineTo(at.x - 4, at.y);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fill();
       } else if (shape === 'triangle') {
         ctx.beginPath();
         ctx.moveTo(at.x, at.y - 5);
@@ -846,6 +924,28 @@ export class AtlasClient implements ClientModule {
       for (const t of townsFor(this.d.store().seed)) mark({ x: t.cx, y: t.cy, name: t.name }, '#eed093', true);
       for (const p of this.landmarks.values())
         if (!p.shrine || !this.solved.has(p.shrine)) mark(p, '#b7d6c6', true, 'ring');
+      // road caravans where you have charted the road (their schedule is shared, so this is where they truly are)
+      if (this.d.store().generation >= 5) {
+        const now = this.d.clock.serverNow(performance.now());
+        for (const r of caravanRoutes(this.d.store().seed)) {
+          const c = caravanAt(this.d.store().seed, r, now);
+          if (!c.hidden && !r.peddler)
+            mark(
+              { x: c.x, y: c.y, name: r.name.replace(' Road Caravan', ' caravan') },
+              '#e3a35a',
+              canvas !== this.small,
+              'square',
+            );
+        }
+      }
+      for (const st of this.waystones)
+        mark(
+          { x: st.x + 0.5, y: st.y + 0.5, name: st.id === this.homeStone ? `⌂ ${st.name}` : st.name },
+          st.kind === 'gate' ? '#c9a8e6' : st.kind === 'harbor' ? '#7cc8ff' : '#6fd0bd',
+          true,
+          'diamond',
+          false,
+        );
     }
     for (const p of this.waypoints) mark(p, '#df84a5', true, 'square', false);
     for (const [group, on, color] of [

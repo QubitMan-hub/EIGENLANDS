@@ -4,6 +4,12 @@ import {
   REALM_SITE_BY_ID,
   armyKind,
   festivalOn,
+  festivalToday,
+  weddingsOn,
+  royalCelebration,
+  isCaveY,
+  nearestRealm,
+  townFor,
   hash2,
   mulberry32,
   packAppearance,
@@ -16,6 +22,7 @@ import {
   type Weather,
 } from '@eigenlands/shared';
 import type { AmbientArt } from '../art/ambient';
+import { civState } from './civ-store';
 import type { Sheets } from '../art/actors';
 import { ATTACK_FRAME, COSMETIC_OUTFITS, WALK_FRAMES, dirOf } from '../art/actors';
 import type { FoeSheets } from '../art/foes';
@@ -210,12 +217,19 @@ export class WorldLife {
   frame(f: LifeFrame): void {
     this.clock += f.dt;
     this.budget = f.dt > 0.12 ? 3 : 1;
-    const town = f.underground ? null : this.townNear(f.me.x, f.me.y);
+    if (Number.isNaN(HADAMERE.cx)) Object.assign(HADAMERE, townFor(this.d.seed()));
+    const near = this.townNear(f.me.x, f.me.y);
+    // underground only the lived-in Undercroft towns have street life
+    const town = f.underground && !(near && isCaveY(near.cy)) ? null : near;
     if (town !== this.town) this.enter(town, f);
     if (!this.town || !this.site || !this.realm) return;
     const h = f.hour;
     const wet = f.weather === 'rain' || f.weather === 'storm' || f.weather === 'snow';
-    this.festival = !!festivalOn(this.realm, f.day);
+    // festivals, and a resident's wedding day, fill the square with revellers under bunting
+    this.festival =
+      (homeTowns.has(this.town) ? !!festivalToday('home', f.day) : !!festivalOn(this.realm, f.day)) ||
+      weddingsOn(this.site.id, f.day).length > 0 ||
+      (!homeTowns.has(this.town) && !!royalCelebration(civState()?.kingdoms[this.realm], f.day));
     this.director(f);
     const hostiles = this.d.hostiles();
     for (const a of this.cast) this.step(a, f, h, wet, hostiles);
@@ -390,6 +404,20 @@ export class WorldLife {
         const a = this.person('crowd', look(n + i), cx + (hs(i, 8) - 0.5) * r * 2, cy + (hs(i, 9) - 0.5) * r * 2, {
           hours: i < 4 ? [7, 21.5] : [8, 18],
           home: { x: cx, y: cy, r },
+        });
+        a.slot = i;
+        a.st = 'idle';
+        a.t = rnd(0, 3);
+      }
+    } else {
+      // a town without a laid-out square: townsfolk mill about the street before the inn (or the town's heart)
+      const inn = t.buildings.find((b) => b.kind === 'inn');
+      const c = inn ? { x: inn.doorX + 0.5, y: inn.doorY + 3.5 } : { x: t.cx + 0.5, y: t.cy + 0.5 };
+      const total = Math.round((6 + hs(n, 6) * 4) * big);
+      for (let i = 0; i < total; i++) {
+        const a = this.person('crowd', look(n + i), c.x + (hs(i, 8) - 0.5) * 8, c.y + (hs(i, 9) - 0.5) * 6, {
+          hours: i < 3 ? [7, 21.5] : [8, 18.5],
+          home: { x: c.x, y: c.y, r: 6 },
         });
         a.slot = i;
         a.st = 'idle';
@@ -1358,6 +1386,8 @@ export class WorldLife {
 }
 
 const siteCache = new WeakMap<Town, RealmSite | null>();
+/** home towns, frontier towns and the lived-in Undercroft towns stand in for a kingdom site */
+const homeTowns = new WeakSet<Town>();
 function siteOf(t: Town): RealmSite | null {
   if (t.site) return t.site;
   const hit = siteCache.get(t);
@@ -1371,6 +1401,24 @@ function siteOf(t: Town): RealmSite | null {
       break;
     }
   }
+  // any other lived-in town (not Hadamere itself, which has its own street life): a stand-in village-sized site whose
+  // id is the town's own spot prefix, so its inn, smithy and fishing bank fill up like a kingdom town's do
+  if (!site && !t.abandoned && t.buildings.length && !(t.cx === HADAMERE.cx && t.cy === HADAMERE.cy)) {
+    const id = Object.keys(t.spots)[0]?.split('.')[0] ?? t.name.toLowerCase();
+    site = {
+      id,
+      name: t.name,
+      realm: nearestRealm(t.cx, t.cy)?.id ?? 'aurelion',
+      kind: 'town',
+      cx: t.cx,
+      cy: t.cy,
+      w: t.x1 - t.x0,
+      h: t.y1 - t.y0,
+      ring: 'c',
+    };
+    homeTowns.add(t);
+  }
   siteCache.set(t, site);
   return site;
 }
+const HADAMERE = { cx: NaN, cy: NaN };

@@ -113,6 +113,23 @@ export function parseArmorId(id: string): { set: ArmorSet; slot: ArmorSlot } | n
   return m && set ? { set, slot: m[2] as ArmorSlot } : null;
 }
 
+/**
+ * What a piece of armour does against the weather, by what it is made of: furs and wool keep the cold out, linen and
+ * silk breathe in the heat, leather is a little warm, and metal plate is warm in the snow but bakes in the sun.
+ * In GearBonus units (each point is 6% resistance; see travel-needs).
+ */
+export function armorClimate(set: ArmorSet): { warm: number; cool: number } {
+  const mat = set.mat ?? { leather: 'leather', hunter: 'leather', iron: 'iron', silk: 'silk_cloth' }[set.id] ?? '';
+  if (mat === 'pelt') return { warm: 2, cool: 0 };
+  if (mat === 'wool_cloth') return { warm: 1, cool: 0 };
+  if (mat === 'linen_cloth' || mat === 'silk_cloth') return { warm: 0, cool: 1 };
+  if (mat === 'tidesilver') return { warm: 0, cool: 1 };
+  if (mat === 'hellsteel') return { warm: 2, cool: -1 };
+  if (mat === 'leather' || mat === 'wyrm_scale' || mat === 'dragon_bone') return { warm: 1, cool: 0 };
+  if (!mat || mat === 'voidglass') return { warm: 0, cool: 0 };
+  return { warm: 1, cool: -1 };
+}
+
 export interface WornArmor {
   head: string | null;
   chest: string | null;
@@ -168,6 +185,8 @@ export type BaseWeaponId =
   | 'spear'
   | 'battle_axe'
   | 'warhammer'
+  | 'dagger'
+  | 'greatsword'
   | 'crossbow'
   | 'ember_staff'
   | 'rime_staff'
@@ -257,6 +276,32 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     bonus: {},
     blurb: 'Short, deliberate blows. The finisher bypasses light-hit armour; a full heavy crushes 60 poise.',
     quantum: 'Phase Slip counters turn patient positioning into a guaranteed critical smash.',
+  },
+  dagger: {
+    id: 'dagger',
+    name: 'Twin Daggers',
+    cls: 'blade',
+    hue: -1,
+    level: 4,
+    cd: 0,
+    basic: null,
+    charged: null,
+    bonus: { haste: 1 },
+    blurb: 'Quick, short cuts that keep a foe off balance; charge for a darting stab that closes the gap.',
+    quantum: 'Phase Slip counters land before the foe has finished turning.',
+  },
+  greatsword: {
+    id: 'greatsword',
+    name: 'Iron Greatsword',
+    cls: 'blade',
+    hue: -1,
+    level: 12,
+    cd: 0,
+    basic: null,
+    charged: null,
+    bonus: {},
+    blurb: 'Long, wide two-handed strokes; a full charge spins a sweep that clears everything around you.',
+    quantum: 'The blade is heavy in this world and light in the next.',
   },
   sword: {
     id: 'sword',

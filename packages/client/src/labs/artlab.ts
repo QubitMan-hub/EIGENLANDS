@@ -35,6 +35,10 @@ import { buildObjectArt, buildTrees, FRAMES_PER_VARIANT, type SeasonIdx } from '
 import {
   buildActorSheets,
   OUTFITS,
+  PERSON_W,
+  PERSON_H,
+  NPC_W,
+  NPC_H,
   WALK_FRAMES,
   DIR_LEFT,
   DIR_RIGHT,
@@ -46,7 +50,7 @@ import {
 import { itemIconUrl } from '../art/icons';
 import { Ships, HEADINGS, SHIP_AX, SHIP_AY } from '../art/ships';
 import { GALLERY_OBJECTS, worldObjDef } from '../art/worldobjs';
-import { HeldWeapons } from '../art/weapons';
+import { HeldWeapons, HELD_AX, HELD_AY } from '../art/weapons';
 import { buildSceneryArt } from '../art/scenery';
 import { WEAPONS } from '@eigenlands/shared';
 import { PROPS } from '../art/props';
@@ -206,7 +210,7 @@ if (mode === 'construction') {
     NPCS.filter((n) => n.settlement).forEach((n, i) => {
       const x = 28 + (i % 8) * 56,
         y = 42 + Math.floor(i / 8) * 60;
-      place(sheets.npc(n.id, 0, -1), 12, 32, x, y);
+      place(sheets.npc(n.id, 0, -1), NPC_W / 2, NPC_H, x, y);
       label(n.name.split(' ')[0]!, x - 20, y + 3);
       label(n.settlement!, x - 20, y + 14);
     });
@@ -366,9 +370,9 @@ if (mode === 'construction') {
           const f = num('frame', w.cls === 'crossbow' ? 23 : w.cls === 'staff' ? 27 : 11);
           const x = 140 + d * 40,
             y = 45 + row * 56;
-          if (d === 1 || d >= 6) place(weapons.texture(w.id, d, f), 28, 48, x, y);
-          place(sheets.person(num('outfit', 0), d, f), 12, 32, x, y);
-          if (d !== 1 && d < 6) place(weapons.texture(w.id, d, f), 28, 48, x, y);
+          if (d === 1 || d >= 6) place(weapons.texture(w.id, d, f), HELD_AX, HELD_AY, x, y);
+          place(sheets.person(num('outfit', 0), d, f), PERSON_W / 2, PERSON_H, x, y);
+          if (d !== 1 && d < 6) place(weapons.texture(w.id, d, f), HELD_AX, HELD_AY, x, y);
         }
       });
   } else if (mode === 'actions') {
@@ -376,10 +380,10 @@ if (mode === 'construction') {
       outfit = Math.max(0, Math.min(OUTFITS.length - 1, num('outfit', 0)));
     label('four strike/recovery poses | eight running poses; eight directions', 4, 4);
     for (let d = 0; d < 8; d++) {
-      label(String(d), 4, 32 + d * 36);
+      label(String(d), 4, 48 + d * 52);
       for (let f = 0; f < ATTACK_FRAMES + RUN_FRAMES; f++) {
         const frame = f < ATTACK_FRAMES ? ATTACK_FRAME + f : RUN_FRAME + f - ATTACK_FRAMES;
-        place(sheets.person(outfit, d, frame), 12, 32, 26 + f * 29, 46 + d * 36);
+        place(sheets.person(outfit, d, frame), PERSON_W / 2, PERSON_H, 26 + f * 29, 60 + d * 52);
       }
     }
   } else if (q.has('props')) {

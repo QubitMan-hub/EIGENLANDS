@@ -1,4 +1,5 @@
 import { CAVE_RESIDENTS, CAVE_TOWNS } from './undercroft';
+import { REALMFOLK } from './realmfolk';
 import { PORT_RESIDENTS, PORTS } from './settlements';
 import type { Weather } from './weather';
 import { ITEMS, type ItemKind } from './items';
@@ -15,6 +16,8 @@ export interface ShopStock {
   item: string;
   markup: number;
   seasons?: number[];
+  /** standing needed with the seller's people before they will sell it (realm residents) */
+  standing?: number;
 }
 export interface NpcDef {
   id: string;
@@ -29,6 +32,8 @@ export interface NpcDef {
   loves: string[];
   likes: string[];
   hates: string[];
+  /** the people of a realm resident (realmfolk.ts) */
+  race?: string;
   /** world revision 5: the kingdom, role and settlement plot of a kingdom resident */
   realm?: string;
   role?: string;
@@ -210,6 +215,8 @@ export const NPCS: NpcDef[] = [
         { item: 'spear', markup: 1.3 },
         { item: 'battle_axe', markup: 1.3 },
         { item: 'warhammer', markup: 1.3 },
+        { item: 'dagger', markup: 1.3 },
+        { item: 'greatsword', markup: 1.3 },
         { item: 'coal', markup: 1.1 },
         { item: 'copper_ingot', markup: 1.1 },
         { item: 'iron_ingot', markup: 1.15 },
@@ -335,6 +342,7 @@ export const NPCS: NpcDef[] = [
       stock: [
         { item: 'chicken', markup: 1 },
         { item: 'cow', markup: 1 },
+        { item: 'horse_whistle', markup: 1 },
         { item: 'hay', markup: 1.1 },
         { item: 'fertilizer', markup: 1.1 },
         { item: 'coop', markup: 1.1 },
@@ -720,6 +728,7 @@ NPCS.push(
                 { item: 'healing_potion', markup: 1.4 },
                 { item: 'plank', markup: 1.2 },
                 { item: n.local % 2 ? 'rod' : 'hay', markup: 1.1 },
+                { item: 'recall_shard', markup: 1.5 },
               ],
             },
           }
@@ -967,6 +976,7 @@ export const DELVER_MERCHANTS: NpcDef[] = (
 });
 for (const m of DELVER_MERCHANTS) NPC_BY_ID[m.id] = m;
 for (const m of realmNpcs()) NPC_BY_ID[m.id] = m;
+for (const m of REALMFOLK) NPC_BY_ID[m.id] = m;
 
 // ── friendship
 export const POINTS_PER_HEART = 40;

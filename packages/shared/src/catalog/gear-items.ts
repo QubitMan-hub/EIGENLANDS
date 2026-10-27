@@ -1,4 +1,4 @@
-import { COL as C, item, rec } from './kit';
+import { COL as C, item, rec, src } from './kit';
 import type { GearBonus, GearSlot } from './types';
 import type { Rarity } from '../crafting';
 import type { StationId, Discipline } from '../crafting';
@@ -986,5 +986,298 @@ rec(
   ],
   ['whetstone', 2],
   { lvl: 2, disc: 'masonry', xp: 4, hint: 'Grind flint on granite.', tool: 'chisel' },
+);
+// ── the three realms (otherworlds.ts): each realm's gear is woven from what grows there and what its guardian guards
+item('cloud_silk', 'Cloud-Silk', 'reagent', {
+  v: 60,
+  g: 'spool',
+  a: C.white,
+  b: C.w5,
+  d: 'Threads spun from Aetherian cloud. Weighs nothing; holds anything.',
+  src: [src.mob('zephyr_ray', 0.7, 1, 2, { realm: 'aetheria' }), src.mob('gilded_sentinel', 0.4)],
+});
+item('umbral_spore', 'Umbral Spore', 'reagent', {
+  v: 70,
+  g: 'dust',
+  a: C.q4,
+  b: C.w6,
+  d: 'Spores that glow in the dark of the Abyss and hold it back a little.',
+  src: [src.mob('shade_stalker', 0.7, 1, 2, { realm: 'umbra' }), src.mob('abyss_serpent', 0.8, 1, 3)],
+});
+item('chrono_sand', 'Chrono-Sand', 'reagent', {
+  v: 80,
+  g: 'dust',
+  a: C.e6,
+  b: C.mist,
+  d: 'Sand from Chronoria that falls upward when nobody is watching.',
+  src: [src.mob('gear_hound', 0.7, 1, 2, { realm: 'chronoria' }), src.mob('paradox_echo', 0.8, 1, 3)],
+});
+item('phoenix_plume', 'Phoenix Plume', 'reagent', {
+  v: 600,
+  g: 'wing',
+  a: C.r5,
+  b: C.e7,
+  d: 'A feather of the Phoenix of the Eyrie, still burning without heat.',
+  src: [src.boss('eyrie_phoenix')],
+});
+item('abyss_heart', 'Heart of the Maw', 'monster', {
+  v: 650,
+  g: 'heart',
+  a: C.q3,
+  b: C.w6,
+  d: 'It never stops beating, and gives off a light the dark cannot touch.',
+  src: [src.boss('umbral_maw')],
+});
+item('unwound_gear', 'Unwound Gear', 'reagent', {
+  v: 700,
+  g: 'cog',
+  a: C.e6,
+  b: C.white,
+  d: 'A cog from the Unwound. It turns both ways at once.',
+  src: [src.boss('the_unwound')],
+});
+gear('aether_wings', 'Aether Wings', 'accessory', 'back', 10, { haste: 2, phase: 0.05, cool: 1 }, 260, {
+  g: 'wing',
+  a: C.white,
+  b: C.r5,
+  d: 'Cloud-silk wings with a phoenix plume at the heart: you move as if the wind were behind you.',
+  v: 900,
+  rarity: 3,
+});
+R(
+  'aether_wings',
+  'loom',
+  [
+    ['cloud_silk', 6],
+    ['phoenix_plume', 1],
+  ],
+  10,
+  'tailoring',
+  'Weave cloud-silk around a living plume.',
+);
+gear('umbral_lantern', 'Umbral Lantern', 'light', 'light', 12, { light: 9 }, 400, {
+  g: 'lantern',
+  a: C.q4,
+  b: C.w6,
+  d: 'Lit by the Heart of the Maw. Its light is wide, and the dark of the Abyss will not touch whoever carries it.',
+  v: 950,
+  rarity: 3,
+});
+R(
+  'umbral_lantern',
+  'engineering',
+  [
+    ['umbral_spore', 6],
+    ['abyss_heart', 1],
+    ['aetherium_plate', 1],
+  ],
+  12,
+  'engineering',
+  'Cage the Heart in glass and spore.',
+);
+gear('chrono_charm', 'Chrono Charm', 'accessory', 'charm', 14, { haste: 2.5, luck: 3, stamina: 15 }, 300, {
+  g: 'charm',
+  a: C.e6,
+  b: C.mist,
+  d: 'An Unwound gear set in sand that falls upward: every moment lasts a little longer for you.',
+  v: 1000,
+  rarity: 3,
+});
+R(
+  'chrono_charm',
+  'jeweler',
+  [
+    ['chrono_sand', 6],
+    ['unwound_gear', 1],
+    ['umbrite_rod', 1],
+  ],
+  14,
+  'enchanting',
+  'Set the gear in a cage of moving sand.',
+);
+// ── realm accessories: each realm's people teach them, from that realm's metal, beasts and its champions' trophies
+gear('storm_buckler', 'Storm Buckler', 'shield', 'shield', 11, { def: 0.06, haste: 1 }, 220, {
+  g: 'buckler',
+  a: C.pale,
+  b: C.w5,
+  d: 'An Aerin skyguard’s buckler, edged with storm feathers. It turns blows like wind turns a leaf.',
+  v: 420,
+  rarity: 2,
+});
+R(
+  'storm_buckler',
+  'forge',
+  [
+    ['aetherium_plate', 2],
+    ['storm_feather', 3],
+  ],
+  11,
+  'smithing',
+  'Aetherium rim, feathered edge.',
+  { tool: 'tongs', learn: 'realm:aerin', realm: 'aerin' },
+);
+gear('aerin_circlet', 'Aerin Circlet', 'accessory', 'neck', 12, { luck: 1.5, haste: 1, cool: 1 }, 200, {
+  g: 'amulet',
+  a: C.e7,
+  b: C.w6,
+  d: 'A band of aetherium set with sky amber, worn by the Aerin who ride the high winds.',
+  v: 460,
+  rarity: 2,
+});
+R(
+  'aerin_circlet',
+  'jeweler',
+  [
+    ['aetherium_rod', 1],
+    ['sky_amber', 2],
+    ['sentinel_gilding', 1],
+  ],
+  12,
+  'enchanting',
+  'Bend the rod; seat the amber.',
+  { learn: 'realm:aerin', realm: 'aerin' },
+);
+gear('windcaller_mantle', 'Windcaller Mantle', 'accessory', 'back', 13, { haste: 2, phase: 0.04, luck: 1 }, 240, {
+  g: 'cloak',
+  a: C.w4,
+  b: C.white,
+  d: 'Sewn from cloud-silk around a reaver captain’s compass: the wind finds you before you find it.',
+  v: 700,
+  rarity: 3,
+});
+R(
+  'windcaller_mantle',
+  'loom',
+  [
+    ['cloud_silk', 4],
+    ['captains_compass', 1],
+  ],
+  13,
+  'tailoring',
+  'Stitch the compass into the collar.',
+  { learn: 'realm:aerin', realm: 'aerin' },
+);
+gear('hollow_cloak', 'Hollow Cloak', 'accessory', 'back', 14, { warm: 3, def: 0.04, hp: 10 }, 260, {
+  g: 'cloak',
+  a: C.night,
+  b: C.q4,
+  d: 'A Hollowfolk cloak of shade pelt. Warm in the deep cold, and the dark does not see you so easily.',
+  v: 600,
+  rarity: 2,
+});
+R(
+  'hollow_cloak',
+  'tannery',
+  [
+    ['shade_pelt', 4],
+    ['umbrite_rod', 1],
+  ],
+  14,
+  'leatherworking',
+  'Cure the pelt; clasp it with umbrite.',
+  { tool: 'needle_kit', learn: 'realm:hollowfolk', realm: 'hollowfolk' },
+);
+gear('serpentscale_buckler', 'Serpentscale Buckler', 'shield', 'shield', 15, { def: 0.08, hp: 8 }, 280, {
+  g: 'shield',
+  a: C.fog,
+  b: C.q4,
+  d: 'Abyssal scales laid over umbrite. Cold to hold, colder to strike.',
+  v: 640,
+  rarity: 2,
+});
+R(
+  'serpentscale_buckler',
+  'tannery',
+  [
+    ['serpent_scale', 4],
+    ['umbrite_plate', 1],
+  ],
+  15,
+  'leatherworking',
+  'Overlap the scales like the serpent wore them.',
+  { tool: 'needle_kit', learn: 'realm:hollowfolk', realm: 'hollowfolk' },
+);
+gear('gloamward_charm', 'Gloamward Charm', 'accessory', 'charm', 15, { def: 0.05, hp: 12, warm: 1 }, 260, {
+  g: 'charm',
+  a: C.q2,
+  b: C.q6,
+  d: 'A void pearl set in the Hierophant’s broken mask. Curses and blows alike find less of you.',
+  v: 760,
+  rarity: 3,
+});
+R(
+  'gloamward_charm',
+  'jeweler',
+  [
+    ['void_pearl', 2],
+    ['hierophant_mask', 1],
+    ['gloam_sigil', 3],
+  ],
+  15,
+  'enchanting',
+  'Break the mask; keep the part that was looking.',
+  { learn: 'realm:hollowfolk', realm: 'hollowfolk' },
+);
+gear('archivist_lenses', 'Archivist’s Lenses', 'accessory', 'neck', 17, { craft: 12, luck: 2 }, 220, {
+  g: 'amulet',
+  a: C.e7,
+  b: C.mist,
+  d: 'Temporal crystal ground into lenses: you see how a thing was made, and how it might be made with less.',
+  v: 720,
+  rarity: 3,
+});
+R(
+  'archivist_lenses',
+  'jeweler',
+  [
+    ['temporal_crystal', 2],
+    ['chronium_rod', 1],
+  ],
+  17,
+  'enchanting',
+  'Grind the crystal against its own grain.',
+  { learn: 'realm:archivists', realm: 'archivists' },
+);
+gear('clockwork_belt', 'Clockwork Belt', 'accessory', 'belt', 17, { stamina: 20, haste: 1 }, 260, {
+  g: 'belt',
+  a: C.e5,
+  b: C.steel,
+  d: 'Gear-hound springs wound into a belt: every step stores a little for the next sprint.',
+  v: 680,
+  rarity: 2,
+});
+R(
+  'clockwork_belt',
+  'engineering',
+  [
+    ['clockwork_spring', 4],
+    ['chronium_rod', 1],
+  ],
+  17,
+  'engineering',
+  'Wind the springs against each other.',
+  { learn: 'realm:archivists', realm: 'archivists' },
+);
+gear('paradox_aegis', 'Paradox Aegis', 'shield', 'shield', 18, { def: 0.07, phase: 0.08, hp: 10 }, 320, {
+  g: 'shield',
+  a: C.e7,
+  b: C.q5,
+  d: 'A chronium shield set with the Warlord’s sigil. Half the blows meant for you strike it a moment too late.',
+  v: 900,
+  rarity: 3,
+});
+R(
+  'paradox_aegis',
+  'forge',
+  [
+    ['chronium_plate', 2],
+    ['echo_shard', 3],
+    ['warlord_sigil', 1],
+    ['sundered_seal', 3],
+  ],
+  18,
+  'smithing',
+  'Forge it twice; keep the second.',
+  { tool: 'tongs', learn: 'realm:archivists', realm: 'archivists' },
 );
 void GEARS;

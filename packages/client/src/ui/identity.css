@@ -537,3 +537,258 @@ h1 {
 .win-body .atlas-legend {
   color: var(--ink-soft);
 }
+
+/*
+ * Legibility pass. Older sheets were written for dark slate panels; on the parchment page their pale greens, greys
+ * and golds vanish. Everything below re-inks them for the page (WCAG AA: 4.5:1 body text, 3:1 large), and keeps
+ * dark components (the circuit board, dialogue choices, item cells) light-on-dark.
+ */
+:root {
+  --ink-soft: #574530;
+  --ink-good: #1f4d1b;
+  --ink-bad: #7f2412;
+  --ink-teal: #175a52;
+  --ink-head: #6a4519;
+}
+.win-body .good,
+.win-body .ing.ok span,
+.win-body .jq .o.done,
+.win-body .dlg-hours.open,
+.win-body .first-steps li.done {
+  color: var(--ink-good);
+}
+.win-body .bad,
+.win-body .ing.no span,
+.win-body .dlg-hours.shut {
+  color: var(--ink-bad);
+}
+.first-steps li.done::marker {
+  content: '✓ ';
+}
+.win-body .jq b,
+.win-body .journey h3,
+.win-body .journey-encounters h4,
+.win-body .jhelp h4 {
+  color: var(--ink-head);
+}
+.win-body .jq.ready b,
+.win-body .dlg-doing {
+  color: var(--ink-teal);
+}
+.win-body .jhelp p,
+.win-body .journey-milestones dd,
+.win-body .sh-empty,
+.win-body .atlas-note {
+  color: var(--ink-dark);
+}
+.win-body .journey-milestones dt {
+  color: var(--ink-head);
+  font-family: var(--pix);
+  font-weight: 600;
+}
+.journey-encounters section {
+  border-top-color: #b79a5c;
+}
+.win-body .dlg-event {
+  color: #8a2a6e;
+}
+.hearts .he {
+  color: #7d6640;
+}
+.win-body .recipe .star {
+  color: #5e4418;
+}
+.win-body .recipe .star.on {
+  color: #8a6200;
+}
+/* primary buttons keep their dark ink inside the page (the generic page-button rule made it pale on verdigris) */
+.win-body button.primary,
+button.primary {
+  color: #04201c;
+}
+/* craft tabs and filter chips read as the journal's leather bookmarks */
+.win-body .cb-tabs .tab,
+.win-body .chip {
+  background: linear-gradient(180deg, var(--leather-hi), var(--leather));
+  color: var(--parch-hi);
+}
+.win-body .cb-tabs .tab.on,
+.win-body .chip.on {
+  background: linear-gradient(180deg, var(--brass-hi), var(--brass));
+  color: var(--ink-dark);
+}
+/* stack counts sit on item art of any colour: pale numerals with a dark outline read on both */
+.cnt,
+.win-body .cnt {
+  color: var(--parch-hi);
+  text-shadow:
+    1px 0 0 #000,
+    -1px 0 0 #000,
+    0 1px 0 #000,
+    0 -1px 0 #000;
+}
+/* dialogue choice buttons are dark plates: their key hints need a light ink */
+.win-body .dlg-choices button .k {
+  color: #c4b48e;
+}
+/* the statue's legend is read on the page, not in a dark recess */
+.win-body .lore-page {
+  background: var(--parch-hi);
+  color: var(--ink-dark);
+  font-family: var(--prose);
+  font-size: 18px;
+  border: 0;
+  box-shadow:
+    inset 0 0 0 1px #8a7143,
+    inset 0 0 22px #7a5a2244;
+}
+.win-body .lore-plaque .ep {
+  color: #f1e4c7;
+}
+/* the circuit board is a dark instrument inside the window: bold labels keep its own light ink */
+.win-body .cb-root b,
+.win-body .cb-root strong {
+  color: inherit;
+}
+.cb-medal {
+  text-shadow: 0 1px 0 #0009;
+}
+.p3-slot.empty.locked .p3-glyph {
+  color: #9a9fc8;
+}
+
+/* every other dark-panel accent that can land on the page or in the parchment tooltip */
+.win-body .q-perfect,
+#tooltip .q-perfect,
+#tooltip .tip-val,
+.win-body .row .coinsm,
+.win-body .coin-row,
+.win-body .pf-crown {
+  color: #7a4d0a;
+}
+.win-body .q-fine,
+#tooltip .q-fine {
+  color: #1a4a7a;
+}
+#tooltip .tip-desc,
+.win-body .tip-desc {
+  color: var(--ink-dark);
+}
+.win-body .weapon-guide caption,
+.win-body .weapon-guide th,
+.win-body .weapon-guide summary,
+.win-body .forge-workshop > details > summary,
+.win-body .journal-guidance h3,
+.win-body .inv-comparison caption,
+.win-body .first-steps summary,
+.win-body .atlas-directory summary,
+.win-body .sh-guide summary {
+  color: var(--ink-head);
+}
+.win-body .equip-lock {
+  color: #7a4d0a;
+}
+.win-body .inv-comparison .gain,
+.win-body .trade-status.ready,
+.win-body .conf.on {
+  color: var(--ink-good);
+}
+.win-body .inv-comparison .loss,
+.win-body .trade-status.warn {
+  color: var(--ink-bad);
+}
+.win-body .atlas-legend,
+.win-body .sh-rank,
+.win-body .sh-meta {
+  color: var(--ink-soft);
+}
+
+/* scrollbars: a thin brass rail on the page instead of the platform's thick grey bar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--brass-lo) transparent;
+}
+.win-body,
+.win-body * {
+  scrollbar-color: #9a7a44 #cdb98566;
+}
+.cb-root,
+.cb-root * {
+  scrollbar-color: #8a7959 #10191d;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--brass-lo);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* living kingdoms (§16) in the Journal */
+.civ-state {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0;
+  padding: 8px 10px;
+  background: var(--parch-hi);
+  box-shadow: inset 0 0 0 1px #8a7143;
+}
+.civ-meter {
+  display: grid;
+  grid-template-columns: 92px 1fr 34px;
+  gap: 8px;
+  align-items: center;
+  font-family: var(--pix);
+  font-size: 14px;
+  color: var(--ink-head);
+}
+.civ-meter i {
+  display: block;
+  height: 8px;
+  background: var(--parch-lo);
+  box-shadow: inset 0 0 0 1px #8a7143;
+}
+.civ-meter i b {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--verdigris), var(--verdigris-hi));
+}
+.civ-intrigue {
+  display: grid;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 8px 10px;
+  box-shadow: inset 0 0 0 2px #b79a5c;
+}
+.civ-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.civ-news {
+  display: grid;
+  gap: 2px;
+  margin: 6px 0 12px;
+  padding: 8px 10px;
+  background: var(--parch-hi);
+  box-shadow: inset 0 0 0 1px #8a7143;
+}
+.win-body .small.bad {
+  color: var(--ink-bad);
+}
+/* Quantities overlap both parchment and item pixels: a small opaque ink badge preserves readable numerals. */
+.win-body .cell .cnt {
+  background: var(--walnut);
+  color: var(--parch-hi);
+  padding: 1px 2px;
+  line-height: 1;
+}
+/* Element colour remains on the rim; the small glyph always sits on a dark instrument face. */
+.win-body .cb-root .cb-medal {
+  background: var(--walnut);
+  color: var(--parch-hi);
+  border-color: var(--ca, var(--brass));
+}

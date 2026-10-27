@@ -10,7 +10,7 @@
  */
 import { CRAFT_QUALITY, QUALITY_POWER, type Discipline } from './crafting';
 import { ENCHANT_BY_KEY, type EnchantDef, type GearBonus } from './catalog';
-import { SET_BY_ID, WEAPONS, armorTotals } from './equipment';
+import { SET_BY_ID, WEAPONS, armorClimate, armorTotals, parseArmorId } from './equipment';
 import { GEAR_SLOTS } from './catalog';
 import type { EquipState } from './protocol';
 import { ITEMS, type Props, type Stack } from './items';
@@ -190,6 +190,11 @@ export function equipmentStats(e: EquipState): StatBlock {
   const present = worn.filter((x): x is Stack => !!x);
   const ak = present.length ? present.reduce((t, x) => t + gearPower(x.p), 0) / present.length : 1;
   add(a.bonus, ak);
+  // what the armour is made of keeps out the cold or the heat (unscaled: a worn fur coat is warm whatever its grade)
+  for (const st of present) {
+    const set = parseArmorId(st.id)?.set;
+    if (set) add(armorClimate(set));
+  }
   const weapon = live(e.weapon);
   const w = weapon ? ITEMS[weapon.id]?.weapon : undefined;
   if (weapon && w) add(WEAPONS[w]?.bonus, gearPower(weapon.p));

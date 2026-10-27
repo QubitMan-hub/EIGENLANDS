@@ -1,5 +1,9 @@
+import { RACE_IDS } from '@eigenlands/shared';
+import { guildContract, validGuildJourney, contractKind } from '@eigenlands/shared';
 import {
   REALM_IDS,
+  ENEMY_DEFS,
+  validMountName,
   REP_MIN,
   REP_MAX,
   validTravelNeeds,
@@ -50,7 +54,8 @@ export interface DerivedStats {
   stamina: number;
 }
 
-const BUFF_KINDS = new Set<string>(BUFF_KIND_LIST);
+// Rest is a persisted cooldown, not a consumable item effect.
+const BUFF_KINDS = new Set<string>([...BUFF_KIND_LIST, 'bed_rest']);
 
 export function startRecipes(): string[] {
   return RECIPES.filter((r) => r.learn === 'start').map((r) => r.id);
@@ -92,7 +97,7 @@ export function newPlayerData(season: number): PlayerData {
     deeds: {},
     events: [],
     appearance: 0,
-    prog: { hearts: 0, bosses: [], shrines: [], ruins: [] },
+    prog: { hearts: 0, bosses: [], shrines: [], ruins: [], bestiary: [] },
   };
 }
 
@@ -101,13 +106,16 @@ export function validQuests(v: unknown, today: number): QuestLog {
   const out: QuestLog = {};
   if (!v || typeof v !== 'object') return out;
   for (const [id, raw] of Object.entries(v as Record<string, unknown>)) {
-    const s = raw as { state?: unknown; progress?: unknown };
+    const s = raw as { state?: unknown; progress?: unknown; journey?: unknown };
     if (!s || (s.state !== 'active' && s.state !== 'done') || !Array.isArray(s.progress) || s.progress.length > 8)
       continue;
-    if (!QUEST_BY_ID[id] && !/^req:-?\d+:\d$/.test(id)) continue;
-    const n = QUEST_BY_ID[id]?.objectives.length ?? s.progress.length;
+    if (!QUEST_BY_ID[id] && !guildContract(0, id) && !/^req:-?\d+:\d$/.test(id)) continue;
+    const journey = validGuildJourney(s.journey);
+    if (guildContract(0, id) && s.state === 'active' && (!journey || journey.kind !== contractKind(id))) continue;
+    const n = (QUEST_BY_ID[id] ?? guildContract(0, id))?.objectives.length ?? s.progress.length;
     out[id] = {
       state: s.state,
+      ...(journey ? { journey } : {}),
       progress: Array.from({ length: n }, (_, i) => {
         const x = (s.progress as unknown[])[i];
         return typeof x === 'number' && Number.isFinite(x) ? Math.max(0, Math.min(999, Math.floor(x))) : 0;
@@ -171,7 +179,7 @@ export function loadPlayerData(raw: unknown, season: number, nowMs: number): Pla
   }
   const rep: PlayerData['rep'] = {};
   if (r.rep && typeof r.rep === 'object')
-    for (const id of REALM_IDS) {
+    for (const id of [...REALM_IDS, ...RACE_IDS]) {
       const v = (r.rep as Record<string, unknown>)[id];
       if (typeof v === 'number' && Number.isFinite(v) && v !== 0)
         rep[id] = Math.max(REP_MIN, Math.min(REP_MAX, Math.round(v)));
@@ -231,6 +239,30 @@ export function loadPlayerData(raw: unknown, season: number, nowMs: number): Pla
   };
 }
 
+function mountRecord<T>(
+  raw: unknown,
+  ok: (v: unknown) => T | undefined,
+): Partial<Record<'horse' | 'stag' | 'griffin', T>> {
+  const out: Partial<Record<'horse' | 'stag' | 'griffin', T>> = {};
+  if (!raw || typeof raw !== 'object') return out;
+  for (const k of ['horse', 'stag', 'griffin'] as const) {
+    const v = ok((raw as Record<string, unknown>)[k]);
+    if (v !== undefined) out[k] = v;
+  }
+  return out;
+}
+
+const validCamp = (v: unknown): { x: number; y: number } | null => {
+  const c = v as { x?: unknown; y?: unknown } | null;
+  return c &&
+    Number.isInteger(c.x) &&
+    Number.isInteger(c.y) &&
+    Math.abs(c.x as number) < 1e6 &&
+    Math.abs(c.y as number) < 1e6
+    ? { x: c.x as number, y: c.y as number }
+    : null;
+};
+
 export function validProg(raw: unknown): PlayerData['prog'] {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const ids = (v: unknown): string[] =>
@@ -240,9 +272,31 @@ export function validProg(raw: unknown): PlayerData['prog'] {
   return {
     hearts:
       typeof r.hearts === 'number' && Number.isFinite(r.hearts) ? Math.max(0, Math.min(40, Math.floor(r.hearts))) : 0,
+    bestiary: ids(r.bestiary).filter((id) => Object.hasOwn(ENEMY_DEFS, id)),
     bosses: ids(r.bosses),
     shrines: ids(r.shrines),
     ruins: ids(r.ruins),
+    ways: ids(r.ways),
+    home: typeof r.home === 'string' && r.home.length <= 40 ? r.home : null,
+    camp: validCamp(r.camp),
+    mounts: ids(r.mounts).filter((m) => m === 'horse' || m === 'stag'),
+    caravans: ids(r.caravans),
+    fest: ids(r.fest).slice(-40),
+    titles: ids(r.titles).slice(0, 40),
+    lore: ids(r.lore),
+    mountNames: mountRecord(r.mountNames, (v) => validMountName(v) ?? undefined),
+    mountFed: mountRecord(r.mountFed, (v) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined)),
+    meals: Array.isArray(r.meals)
+      ? (r.meals as unknown[])
+          .filter(
+            (m): m is ['produce' | 'protein' | 'hearty', number] =>
+              Array.isArray(m) && ['produce', 'protein', 'hearty'].includes(m[0] as string) && typeof m[1] === 'number',
+          )
+          .slice(-3)
+      : [],
+    mountWorn: mountRecord(r.mountWorn, (v) =>
+      typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.min(100, v) : undefined,
+    ),
   };
 }
 
@@ -289,6 +343,7 @@ export function profileMsg(d: PlayerData, stats: DerivedStats, parts: Iterable<D
   const set =
     parts === 'all'
       ? new Set<DirtyPart>([
+          'bestiary',
           'inv',
           'coins',
           'skills',
@@ -304,6 +359,7 @@ export function profileMsg(d: PlayerData, stats: DerivedStats, parts: Iterable<D
         ])
       : new Set(parts);
   const m: ProfileMsg = {};
+  if (set.has('bestiary')) m.bestiary = d.prog.bestiary ?? [];
   if (set.has('needs')) m.needs = d.needs;
   if (set.has('inv')) m.inv = d.inv as Inventory;
   if (set.has('coins')) m.coins = d.coins;

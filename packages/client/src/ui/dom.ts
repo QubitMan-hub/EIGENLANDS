@@ -3,7 +3,7 @@ import {
   CROPS,
   ITEMS,
   PALETTE,
-  RARITY_COLORS,
+  RARITY_INK,
   RARITY_NAMES,
   TIER_NAMES,
   conditionLines,
@@ -109,7 +109,7 @@ export function tooltipFor(s: Stack): HTMLElement {
   const q = s.p?.qname ? ` q-${s.p.qname.toLowerCase()}` : '';
   const rarity = d.rarity ?? 0;
   root.append(
-    h('div', { class: `tip-name${q}`, text: itemName(s), style: rarity ? `color:${RARITY_COLORS[rarity]}` : '' }),
+    h('div', { class: `tip-name${q}`, text: itemName(s), style: rarity ? `color:${RARITY_INK[rarity]}` : '' }),
   );
   const group = d.cat ? CAT_GROUPS.find((g) => g.cats.includes(d.cat!))?.name : undefined;
   root.append(

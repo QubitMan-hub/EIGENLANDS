@@ -91,7 +91,11 @@ function weaponGuide(w: WeaponDef, stats: Profile['stats']): WeaponGuide {
           ? 'Sweeping combo'
           : (w.fam ?? w.id) === 'warhammer'
             ? 'Crushing combo'
-            : 'Three-hit combo'),
+            : (w.fam ?? w.id) === 'dagger'
+              ? 'Twin cuts'
+              : (w.fam ?? w.id) === 'greatsword'
+                ? 'Two-handed strokes'
+                : 'Three-hit combo'),
     damage: hits.map((h) => attackDamage(form ? Math.round(h.damage * form.dmg) : h.damage, stats.atkBonus)),
     healing: [],
     reach: hits.map((h) => h.range),
@@ -108,7 +112,11 @@ function weaponGuide(w: WeaponDef, stats: Profile['stats']): WeaponGuide {
               ? 'Broad sweeps trade reach and speed for side coverage.'
               : (w.fam ?? w.id) === 'warhammer'
                 ? 'Slow blows; the finisher bypasses light-hit armour.'
-                : 'Two slashes, then a lunging finisher.',
+                : (w.fam ?? w.id) === 'dagger'
+                  ? 'Very quick, very short cuts; the third darts in.'
+                  : (w.fam ?? w.id) === 'greatsword'
+                    ? 'Long, wide strokes that recover slowly.'
+                    : 'Two slashes, then a lunging finisher.',
           `Tap poise: ${hits.map((h) => h.poise).join(' / ')}; arc: ${hits.map((h) => Math.round((Math.acos(h.arc) * 360) / Math.PI)).join(' / ')} degrees.`,
         ],
   });
@@ -146,7 +154,11 @@ function weaponGuide(w: WeaponDef, stats: Profile['stats']): WeaponGuide {
                 ? 'Whirling cleave'
                 : (w.fam ?? w.id) === 'warhammer'
                   ? 'Crushing blow'
-                  : 'Phase cleave',
+                  : (w.fam ?? w.id) === 'dagger'
+                    ? 'Darting stab'
+                    : (w.fam ?? w.id) === 'greatsword'
+                      ? 'Spinning sweep'
+                      : 'Phase cleave',
           damage: [attackDamage(low.damage, stats.atkBonus), attackDamage(high.damage, stats.atkBonus)],
           healing: [],
           reach: [low.range, high.range],

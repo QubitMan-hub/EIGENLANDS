@@ -1,3 +1,4 @@
+import { ANCIENT_RITES } from './bestiary';
 import { BUILD_PIECES } from './construction';
 import { ITEMS } from './items';
 import { ARMOR_SLOTS, armorId } from './equipment';
@@ -98,6 +99,15 @@ r(
   'Hide stitched with fiber. Fill at a town well.',
 );
 r(
+  'boil_water',
+  'cooking_pot',
+  [['waterskin_murky', 1]],
+  ['waterskin_full', 1],
+  1,
+  'start',
+  'River water boiled clean over the fire.',
+);
+r(
   'workbench',
   'hand',
   [
@@ -136,6 +146,8 @@ r(
   'discover',
   'Fiber and something gooey.',
 );
+
+r('compost_spoiled', 'hand', [['spoiled_food', 2]], ['compost', 1], 1, 'start', 'Rot, turned into something useful.');
 
 // Workbench
 r('plank', 'workbench', [['wood', 2]], ['plank', 1], 1, 'start', 'Wood, sawn.');
@@ -717,6 +729,30 @@ r(
   'Clean cloth and a herb poultice.',
 );
 r(
+  'splint',
+  'alchemy',
+  [
+    ['wood', 2],
+    ['cloth', 1],
+  ],
+  ['splint', 1],
+  4,
+  'start',
+  'Two straight sticks and a strip of cloth.',
+);
+r(
+  'holy_water',
+  'alchemy',
+  [
+    ['healing_herb', 1],
+    ['silver_ore', 1],
+  ],
+  ['holy_water', 1],
+  8,
+  'start',
+  'Herb steeped over silver, which no curse abides.',
+);
+r(
   'antidote',
   'alchemy',
   [
@@ -1114,6 +1150,31 @@ r(
   'A tempered iron head on resilient heartwood. Level 10 to wield.',
 );
 r(
+  'dagger',
+  'forge',
+  [
+    ['iron_ingot', 2],
+    ['hide', 2],
+  ],
+  ['dagger', 1],
+  10,
+  'start',
+  'Two short iron blades with wrapped grips. Level 4 to wield.',
+);
+r(
+  'greatsword',
+  'forge',
+  [
+    ['iron_ingot', 8],
+    ['plank', 1],
+    ['hide', 2],
+  ],
+  ['greatsword', 1],
+  26,
+  'start',
+  'A long two-handed blade, folded and tempered. Level 12 to wield.',
+);
+r(
   'crossbow',
   'carpenter',
   [
@@ -1208,6 +1269,31 @@ r(
   'start',
   'Planks, sailcloth and iron fittings: a hull that rides the swell.',
 );
+r(
+  'recall_shard',
+  'workbench',
+  [
+    ['stone', 4],
+    ['qubit_crystal', 1],
+  ],
+  ['recall_shard', 2],
+  14,
+  'discover',
+  'Chip a waystone splinter around a crystal heart. Learned by attuning three waystones.',
+);
+r(
+  'griffin_whistle',
+  'jeweler',
+  [
+    ['griffin_plume', 3],
+    ['gold_ingot', 2],
+    ['hide', 6],
+  ],
+  ['griffin_whistle', 1],
+  40,
+  'discover',
+  'Three plumes from a Gilded Griffin, a gold-bound whistle and a light saddle. Learned at Wayfarer rank 3.',
+);
 r('heart_crystal', 'hand', [['shrine_shard', 4]], ['heart_crystal', 1], 20, 'start', 'Four solved shrines, fused.');
 r(
   'slime_crown',
@@ -1247,6 +1333,34 @@ r(
   30,
   'discover',
   "A warden's heart wrapped in crystal and iron.",
+);
+
+for (const rite of ANCIENT_RITES)
+  r(
+    rite.item,
+    'workbench',
+    [
+      [rite.ingredient, 1],
+      ['wild_essence', 6],
+      ['qubit_crystal', 5],
+      ['gold_ingot', 3],
+    ],
+    [rite.item, 1],
+    45,
+    'discover',
+    `Prepare ${rite.name}'s rite after obtaining ${rite.ingredient}. Bring a party and clear ground in the required habitat.`,
+  );
+r(
+  'sixfold_crystals',
+  'jeweler',
+  [
+    ['sixfold_crown', 1],
+    ['wild_essence', 8],
+  ],
+  ['qubit_crystal', 32],
+  100,
+  'discover',
+  'The guardian’s crown releases enough crystals for a lasting Circuit upgrade.',
 );
 
 export const RECIPES: ReadonlyArray<Recipe> = R;
@@ -1375,11 +1489,17 @@ export function recipeKnown(rec: Recipe, who: CraftProfile): boolean {
     return discLevel(who.disc[rec.disc]) >= rec.lvl && repTier(who.rep[rec.learn.slice(6)] ?? 0) >= 1;
   return false;
 }
+/** the realm peoples' names (realmfolk.ts), kept here to avoid an import cycle */
+const PEOPLE_NAMES: Record<string, string> = {
+  aerin: 'the Aerin',
+  hollowfolk: 'the Hollowfolk',
+  archivists: 'the Archivists',
+};
 /** Why a known recipe cannot be made yet, or null. */
 export function recipeBlock(rec: Recipe, who: CraftProfile): string | null {
   const lv = discLevel(who.disc[rec.disc]);
   if (lv < rec.lvl) return `Needs ${rec.disc} level ${rec.lvl}`;
   if (rec.realm && rec.realm !== 'any' && repTier(who.rep[rec.realm] ?? 0) < 1)
-    return `Needs standing with ${rec.realm}`;
+    return `Needs standing with ${PEOPLE_NAMES[rec.realm] ?? rec.realm}`;
   return null;
 }

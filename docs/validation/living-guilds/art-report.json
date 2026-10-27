@@ -1,0 +1,41 @@
+{
+  "panels": [
+    {
+      "panel": "guild",
+      "width": 1280,
+      "height": 720
+    },
+    {
+      "panel": "guild",
+      "width": 844,
+      "height": 390
+    },
+    {
+      "panel": "husbandry",
+      "width": 1280,
+      "height": 720
+    },
+    {
+      "panel": "husbandry",
+      "width": 844,
+      "height": 390
+    },
+    {
+      "panel": "settlement",
+      "width": 1280,
+      "height": 720
+    },
+    {
+      "panel": "settlement",
+      "width": 844,
+      "height": 390
+    }
+  ],
+  "art": {
+    "icons": 1248,
+    "species": 7,
+    "structures": 33,
+    "catalog": 110,
+    "shapes": 46
+  }
+}

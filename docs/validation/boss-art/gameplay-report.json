@@ -1,0 +1,261 @@
+{
+  "bosses": [
+    {
+      "id": "primordial_dragon",
+      "kind": 98,
+      "anchor": 0.9423076923076923,
+      "expected": 0.9423076923076923,
+      "scale": [1, 1],
+      "shadowAnchor": 0.9423076923076923,
+      "shadowAt": [0, 0],
+      "atlas": {
+        "loaded": 2,
+        "pending": 0,
+        "failed": 0,
+        "pixels": 2323400
+      },
+      "states": [2, 4, 0, 1],
+      "attackDrawn": true
+    },
+    {
+      "id": "world_serpent",
+      "kind": 99,
+      "anchor": 0.9423076923076923,
+      "expected": 0.9423076923076923,
+      "scale": [1, 1],
+      "shadowAnchor": 0.9423076923076923,
+      "shadowAt": [0, 0],
+      "atlas": {
+        "loaded": 4,
+        "pending": 0,
+        "failed": 0,
+        "pixels": 4509080
+      },
+      "states": [2, 4, 0, 1],
+      "attackDrawn": true
+    },
+    {
+      "id": "sealed_entity",
+      "kind": 100,
+      "anchor": 0.9423076923076923,
+      "expected": 0.9423076923076923,
+      "scale": [1, 1],
+      "shadowAnchor": 0.9423076923076923,
+      "shadowAt": [0, 0],
+      "atlas": {
+        "loaded": 5,
+        "pending": 0,
+        "failed": 0,
+        "pixels": 6239640
+      },
+      "states": [2, 4, 1],
+      "attackDrawn": true
+    },
+    {
+      "id": "forgotten_titan",
+      "kind": 101,
+      "anchor": 0.9423076923076923,
+      "expected": 0.9423076923076923,
+      "scale": [1, 1],
+      "shadowAnchor": 0.9423076923076923,
+      "shadowAt": [0, 0],
+      "atlas": {
+        "loaded": 6,
+        "pending": 0,
+        "failed": 0,
+        "pixels": 7970200
+      },
+      "states": [1],
+      "attackDrawn": false
+    },
+    {
+      "id": "realm_guardian",
+      "kind": 102,
+      "anchor": 0.9423076923076923,
+      "expected": 0.9423076923076923,
+      "scale": [1, 1],
+      "shadowAnchor": 0.9423076923076923,
+      "shadowAt": [0, 0],
+      "atlas": {
+        "loaded": 7,
+        "pending": 0,
+        "failed": 0,
+        "pixels": 9967000
+      },
+      "states": [1, 2, 4],
+      "attackDrawn": false
+    },
+    {
+      "id": "slime_king",
+      "kind": 10,
+      "anchor": 0.9166666666666666,
+      "expected": 0.9166666666666666,
+      "scale": [1, 1],
+      "shadowAnchor": 0.9166666666666666,
+      "shadowAt": [0, 0],
+      "atlas": {
+        "loaded": 8,
+        "pending": 0,
+        "failed": 0,
+        "pixels": 10888600
+      },
+      "states": [1, 2, 3, 4],
+      "attackDrawn": true
+    },
+    {
+      "id": "warden",
+      "kind": 11,
+      "anchor": 0.925,
+      "expected": 0.925,
+      "scale": [1, 1],
+      "shadowAnchor": 0.925,
+      "shadowAt": [0, 0],
+      "atlas": {
+        "loaded": 9,
+        "pending": 0,
+        "failed": 0,
+        "pixels": 12117400
+      },
+      "states": [2, 3, 4, 0, 1],
+      "attackDrawn": true
+    },
+    {
+      "id": "colossus",
+      "kind": 12,
+      "anchor": 0.9318181818181818,
+      "expected": 0.9318181818181818,
+      "scale": [1, 1],
+      "shadowAnchor": 0.9318181818181818,
+      "shadowAt": [0, 0],
+      "atlas": {
+        "loaded": 8,
+        "pending": 0,
+        "failed": 0,
+        "pixels": 11033040
+      },
+      "states": [2, 3, 4],
+      "attackDrawn": true
+    },
+    {
+      "id": "bellkeeper",
+      "kind": 32,
+      "anchor": 0.9347826086956522,
+      "expected": 0.9347826086956522,
+      "scale": [1, 1],
+      "shadowAnchor": 0.9347826086956522,
+      "shadowAt": [0, 0],
+      "atlas": {
+        "loaded": 9,
+        "pending": 0,
+        "failed": 0,
+        "pixels": 12328400
+      },
+      "states": [1, 2, 3, 4, 0],
+      "attackDrawn": true
+    },
+    {
+      "id": "geode_tyrant",
+      "kind": 40,
+      "anchor": 0.925,
+      "expected": 0.925,
+      "scale": [1, 1],
+      "shadowAnchor": 0.925,
+      "shadowAt": [0, 0],
+      "atlas": {
+        "loaded": 10,
+        "pending": 0,
+        "failed": 0,
+        "pixels": 12020120
+      },
+      "states": [1, 2, 3, 4, 0],
+      "attackDrawn": true
+    },
+    {
+      "id": "cinder_wyrm",
+      "kind": 41,
+      "anchor": 0.9318181818181818,
+      "expected": 0.9318181818181818,
+      "scale": [1, 1],
+      "shadowAnchor": 0.9318181818181818,
+      "shadowAt": [0, 0],
+      "atlas": {
+        "loaded": 10,
+        "pending": 0,
+        "failed": 0,
+        "pixels": 11641240
+      },
+      "states": [1, 2, 3, 4, 0],
+      "attackDrawn": true
+    },
+    {
+      "id": "rime_sovereign",
+      "kind": 42,
+      "anchor": 0.9347826086956522,
+      "expected": 0.9347826086956522,
+      "scale": [1, 1],
+      "shadowAnchor": 0.9347826086956522,
+      "shadowAt": [0, 0],
+      "atlas": {
+        "loaded": 10,
+        "pending": 0,
+        "failed": 0,
+        "pixels": 11206040
+      },
+      "states": [1, 2, 3, 4],
+      "attackDrawn": true
+    },
+    {
+      "id": "tide_leviathan",
+      "kind": 43,
+      "anchor": 0.9318181818181818,
+      "expected": 0.9318181818181818,
+      "scale": [1, 1],
+      "shadowAnchor": 0.9318181818181818,
+      "shadowAt": [0, 0],
+      "atlas": {
+        "loaded": 10,
+        "pending": 0,
+        "failed": 0,
+        "pixels": 10673560
+      },
+      "states": [1, 2, 3, 4, 0],
+      "attackDrawn": true
+    },
+    {
+      "id": "veyr",
+      "kind": 33,
+      "anchor": 0.9347826086956522,
+      "expected": 0.9347826086956522,
+      "scale": [1, 1],
+      "shadowAnchor": 0.9347826086956522,
+      "shadowAt": [0, 0],
+      "atlas": {
+        "loaded": 11,
+        "pending": 0,
+        "failed": 0,
+        "pixels": 12086680
+      },
+      "states": [1, 2],
+      "attackDrawn": false
+    }
+  ],
+  "errors": [],
+  "assets": [
+    "http://127.0.0.1:5244/art/bestiary/unicorn-day.png",
+    "http://127.0.0.1:5244/art/bestiary/primordial_dragon-day.png",
+    "http://127.0.0.1:5244/art/bestiary/woodland_spirit-day.png",
+    "http://127.0.0.1:5244/art/bestiary/world_serpent-day.png",
+    "http://127.0.0.1:5244/art/bestiary/sealed_entity-day.png",
+    "http://127.0.0.1:5244/art/bestiary/forgotten_titan-day.png",
+    "http://127.0.0.1:5244/art/bestiary/realm_guardian-day.png",
+    "http://127.0.0.1:5244/art/bestiary/slime_king-day.png",
+    "http://127.0.0.1:5244/art/bestiary/warden-day.png",
+    "http://127.0.0.1:5244/art/bestiary/colossus-day.png",
+    "http://127.0.0.1:5244/art/bestiary/bellkeeper-day.png",
+    "http://127.0.0.1:5244/art/bestiary/geode_tyrant-day.png",
+    "http://127.0.0.1:5244/art/bestiary/cinder_wyrm-day.png",
+    "http://127.0.0.1:5244/art/bestiary/rime_sovereign-day.png",
+    "http://127.0.0.1:5244/art/bestiary/tide_leviathan-day.png",
+    "http://127.0.0.1:5244/art/bestiary/veyr-day.png"
+  ]
+}

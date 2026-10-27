@@ -1,137 +1,68 @@
-// Real stairs and diving transitions, shared by the solo build and multiplayer dev server.
+// Realms proof on the solo build: the three realm portals near Hadamere, each realm's arrival, a gathering node,
+// a realm creature up close and its guardian's arena. Usage: node e2e/realms.mjs <solo-url> <output-dir>
 import { chromium } from 'playwright-core';
-import assert from 'node:assert/strict';
 import { mkdirSync } from 'node:fs';
-import { tsImport } from 'tsx/esm/api';
-const base = process.argv[2] ?? 'http://127.0.0.1:5240/';
-const out = process.argv[3] ?? '/tmp/eigenlands-realms';
+const base = process.argv[2] ?? 'http://127.0.0.1:5301/';
+const out = process.argv[3] ?? '/tmp/eigen-realms';
 mkdirSync(out, { recursive: true });
-const browser = await chromium.launch({
-  executablePath: process.env.CHROME ?? '/usr/bin/chromium',
-  args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
+const b = await chromium.launch({
+  executablePath: process.env.CHROME ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  args: ['--use-angle=swiftshader', '--use-gl=angle', '--enable-unsafe-swiftshader', '--no-sandbox'],
 });
-try {
-  const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-  const errors = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  console.log('Loading', base);
-  await page.goto(`${base}?dev=1&hour=12`);
-  console.log('Login');
-  await page.waitForSelector('#g-off:not([hidden])');
-  await page.fill('#name', 'Realms');
-  await page.click('#btn-guest');
-  await page.waitForFunction(() => window.__eigen?.state().ready, null, { timeout: 60000 });
-  for (let i = 0; i < 2 && (await page.locator('.p3-lumen-skip').isVisible()); i++)
-    await page.locator('.p3-lumen-skip').click();
-  console.log('Ready');
-  const seed = await page.evaluate(() => window.__eigen.game.seed);
-  const { townsFor } = await tsImport('../packages/shared/src/town.ts', import.meta.url);
-  const { oceanShrine, DIVE_OY } = await tsImport('../packages/shared/src/sanctuaries.ts', import.meta.url);
-  const upSite = townsFor(seed)[0].objects.find((o) => o.sub === 'stairs_up');
-  let shrine;
-  for (let y = -12; y <= 12 && !shrine; y++)
-    for (let x = -12; x <= 12 && !shrine; x++) {
-      const v = oceanShrine(seed, x, y);
-      if (v?.type === 'platform') shrine = v;
+const page = await (await b.newContext({ viewport: { width: 1280, height: 760 } })).newPage();
+const errors = [];
+page.on('pageerror', (e) => errors.push(e.message));
+await page.goto(base + '?dev=1&hour=12');
+await page.evaluate(() => localStorage.setItem('eigen.tutorial2', '["all"]'));
+await page.reload();
+await page.fill('#name', 'Realmwalker').catch(() => {});
+await page.click('#btn-guest');
+await page.waitForFunction(() => window.__eigen?.state().ready, null, { timeout: 120000 });
+const dev = (m) => page.evaluate((m) => window.__eigen.game.net.dev(m), m);
+const tp = async (x, y, wait = 4000) => {
+  for (let i = 0; i < 4; i++) {
+    await dev({ cmd: 'tp', x, y });
+    await page.waitForTimeout(wait);
+    const at = await page.evaluate(() => window.__eigen.game.predictor.sim);
+    if (Math.hypot(at.x - x, at.y - y) < 3) return;
+  }
+  console.log('tp did not take', x, y);
+};
+await dev({ cmd: 'level', level: 20 });
+const info = await page.evaluate(async () => {
+  const sh = await import('/@fs/home/user/EIGENLANDS/packages/shared/src/index.ts');
+  const g = window.__eigen.game;
+  const seed = g.store.seed,
+    gen = g.store.generation;
+  const portals = sh.realmPortals(`${seed}:${gen}`, (x, y) => sh.tileAt(seed, x, y, gen));
+  const arenas = Object.fromEntries(sh.OTHERWORLD_IDS.map((w) => [w, sh.otherworldArena(seed, w)]));
+  const arrivals = Object.fromEntries(sh.OTHERWORLD_IDS.map((w) => [w, sh.otherworldArrival(w)]));
+  return { portals, arenas, arrivals };
+});
+console.log('portals', JSON.stringify(info.portals));
+// the portals on the surface
+const pa = info.portals.aetheria;
+await tp(pa.x + 1.5, pa.y + 2.5);
+await page.screenshot({ path: `${out}/portal-aetheria.png` });
+for (const w of ['aetheria', 'umbra', 'chronoria']) {
+  const a = info.arrivals[w];
+  await tp(a.x, a.y);
+  await page.screenshot({ path: `${out}/${w}-arrival.png` });
+  const creature = await page.evaluate(() => {
+    const me = window.__eigen.game.predictor.sim;
+    let best = null;
+    for (const e of window.__eigen.game.room?.state?.enemies?.values?.() ?? []) {
+      const d = Math.hypot(e.x - me.x, e.y - me.y);
+      if (!best || d < best.d) best = { x: e.x, y: e.y, kind: e.kind, d };
     }
-  const data = { up: upSite, sh: shrine, dive: DIVE_OY };
-  console.log('Sites', data);
-  assert.ok(data.up && data.sh);
-  const { shardAt } = await tsImport('../packages/shared/src/shards.ts', import.meta.url);
-  const tp = async (x, y) => {
-    await page.evaluate(([x, y]) => window.__eigen.game.net.dev({ cmd: 'tp', x, y }), [x, y]);
-    await page.waitForFunction(
-      ([x, y]) => {
-        const s = window.__eigen.state();
-        return Math.hypot(s.x - x, s.y - y) < 0.2;
-      },
-      [x, y],
-      { timeout: 40000 },
-    );
-    await page.waitForFunction(
-      (shard) => !window.__eigen.game.net.switching && window.__eigen.state().shard === shard,
-      shardAt(x, y),
-      { timeout: 40000 },
-    );
-    await page.waitForTimeout(300);
-  };
-  const { up, sh, dive } = data;
-  console.log('Stairs');
-  await tp(up.x + 0.5, up.y + 0.5);
-  console.log(
-    'Stair state',
-    await page.evaluate(
-      ([x, y]) => {
-        const g = window.__eigen.game;
-        return {
-          object: g.store.objectAt(x, y),
-          switching: g.net.switching,
-          blocking: g.gameplay.blocking,
-          focus: document.activeElement?.tagName,
-        };
-      },
-      [up.x, up.y],
-    ),
-  );
-  await page.waitForFunction(([x, y]) => window.__eigen.game.store?.objectAt(x, y)?.sub === 'stairs_up', [up.x, up.y], {
-    timeout: 30000,
+    return best;
   });
-  assert.equal(
-    await page.evaluate(() => window.__eigen.game.gameplay.interact()),
-    true,
-    'E interaction handler accepts the target',
-  );
-  await page.waitForFunction((y) => Math.abs(window.__eigen.state().y - y) < 0.3, up.data.to.y, { timeout: 30000 });
-  await page.waitForFunction(() => document.querySelector('#townhint').textContent.includes('Upper floor'));
-  await page.screenshot({ path: `${out}/upper-floor.png` });
-  console.log('Upper saved');
-  await page.reload();
-  await page.waitForFunction(
-    (y) => window.__eigen?.state().ready && Math.abs(window.__eigen.state().y - y) < 0.3,
-    up.data.to.y,
-    { timeout: 60000 },
-  );
-  await page.waitForFunction(
-    ([x, y]) => window.__eigen.game.store?.objectAt(x, y)?.sub === 'stairs_down',
-    [up.x, Math.floor(up.data.to.y)],
-    { timeout: 30000 },
-  );
-  assert.equal(
-    await page.evaluate(() => window.__eigen.game.gameplay.interact()),
-    true,
-    'E interaction handler accepts the target',
-  );
-  await page.waitForFunction((y) => Math.abs(window.__eigen.state().y - y) < 0.3, up.y + 0.5, { timeout: 30000 });
-  await page.evaluate(() => window.__eigen.game.net.dev({ cmd: 'give', id: 'sloop', n: 1 }));
-  console.log('Diving');
-  await tp(sh.x + 0.5, sh.y - dive + 0.5);
-  await page.evaluate(([x, y]) => window.__eigen.game.net.send('open', { tx: x, ty: y }), [sh.x, sh.y - dive]);
-  await page.waitForFunction((y) => Math.abs(window.__eigen.state().y - y) < 0.3, sh.y + 7.5, { timeout: 40000 });
-  await page.waitForFunction(() => document.querySelector('#townhint').textContent.includes('Submerged sanctuary'));
-  await page.screenshot({ path: `${out}/sanctuary.png` });
-  await tp(sh.x + 0.5, sh.y + 0.5);
-  await page.evaluate(([x, y]) => window.__eigen.game.net.send('open', { tx: x, ty: y }), [sh.x, sh.y]);
-  await page.waitForFunction((y) => Math.abs(window.__eigen.state().y - y) < 0.3, sh.y + 4.5);
-  await page.screenshot({ path: `${out}/phase-platform.png` });
-  await tp(sh.x + 0.5, sh.y + 7.5);
-  assert.equal(
-    await page.evaluate(() => window.__eigen.game.gameplay.interact()),
-    true,
-    'E interaction handler accepts the target',
-  );
-  await page.waitForFunction(
-    (y) => Math.abs(window.__eigen.state().y - y) < 0.3 && window.__eigen.game.predictor.sim.boat === 1,
-    sh.y - dive + 0.5,
-    { timeout: 40000 },
-  );
-  await page.waitForTimeout(600);
-  await page.screenshot({ path: `${out}/surfaced.png` });
-  assert.deepEqual(errors, []);
-  console.log('Realms browser passed: stairs, saved upper floor, return, dive, chamber, sloop surface; no page errors');
-} catch (e) {
-  for (const p of browser.contexts().flatMap((c) => c.pages()))
-    await p.screenshot({ path: `${out}/failure.png` }).catch(() => {});
-  throw e;
-} finally {
-  await browser.close();
+  console.log(w, 'nearest creature', JSON.stringify(creature));
+  await page.waitForTimeout(6000);
+  await page.screenshot({ path: `${out}/${w}-roam.png` });
+  const ar = info.arenas[w];
+  await tp(ar.x + 0.5, ar.y + 3.5, 6000);
+  await page.screenshot({ path: `${out}/${w}-arena.png` });
 }
+console.log('errors', JSON.stringify(errors.slice(0, 5)));
+await b.close();

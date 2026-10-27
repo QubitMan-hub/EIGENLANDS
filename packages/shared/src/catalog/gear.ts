@@ -145,6 +145,15 @@ const HEAD: Record<string, (m: string) => Array<[string, number]>> = {
     [`${m}_rod`, 1],
     ['handle', 1],
   ],
+  dagger: (m) => [
+    [`${m}_rod`, 2],
+    ['handle', 2],
+  ],
+  greatsword: (m) => [
+    [`${m}_rod`, 4],
+    [`${m}_plate`, 2],
+    ['handle', 1],
+  ],
   crossbow: (m) => [
     [`${m}_rod`, 2],
     [`${m}_plate`, 1],
@@ -159,6 +168,9 @@ const REALM_OF: Record<string, string> = {
   tidesilver: 'thalassara',
   hellsteel: 'nethrakar',
   moonsilver: 'sylvaris',
+  aetherium: 'aerin',
+  umbrite: 'hollowfolk',
+  chronium: 'archivists',
 };
 for (const f of FAMILIES) {
   for (const t of WEAPON_TIERS) {

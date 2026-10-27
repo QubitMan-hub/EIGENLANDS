@@ -20,6 +20,9 @@ import {
   biomeAt,
   chunkKey,
   isCaveY,
+  isCryptY,
+  otherworldOf,
+  isGateY,
   sampleClimate,
   LEVEL_PX,
   townFor,
@@ -118,6 +121,15 @@ export class Terrain {
     return shader;
   }
 
+  private pad = TERRAIN_PAD;
+  private view: [number, number] = [0, 0];
+  /** Overscan in art pixels: wider means fewer shader paints while the camera travels, at a larger texture. */
+  setPad(pad: number): void {
+    if (pad === this.pad) return;
+    this.pad = pad;
+    if (this.view[0] > 0) this.resize(this.view[0], this.view[1]);
+  }
+
   get originX(): number {
     return this.painted?.x ?? 0;
   }
@@ -133,8 +145,9 @@ export class Terrain {
 
   /** Visible region in art pixels (1 texel = 1 art pixel). */
   resize(wPx: number, hPx: number): void {
-    wPx = Math.ceil(wPx) + TERRAIN_PAD * 2;
-    hPx = Math.ceil(hPx) + TERRAIN_PAD * 2;
+    this.view = [wPx, hPx];
+    wPx = Math.ceil(wPx) + this.pad * 2;
+    hPx = Math.ceil(hPx) + this.pad * 2;
     if (wPx === this.w && hPx === this.h) return;
     this.w = wPx;
     this.h = hPx;
@@ -162,25 +175,31 @@ export class Terrain {
     const out = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE * 4);
     const levels = this.store.get(cx, cy).levels;
     const seed = this.store.seed;
-    const cave = isCaveY(cy * CHUNK_SIZE);
+    // crypt interiors and the Umbral Abyss are hewn from the same rock as the Undercroft
+    const realm = otherworldOf(cy * CHUNK_SIZE);
+    const cave = isCaveY(cy * CHUNK_SIZE) || isCryptY(cy * CHUNK_SIZE) || realm === 'umbra' || isGateY(cy * CHUNK_SIZE);
+    // each realm keeps one palette: Aetheria's spring meadow, the Abyss's violet fungus, Chronoria's strange shimmer
+    const realmBiome = realm === 'aetheria' ? 'meadow' : realm ? 'enchanted' : null;
     for (let y = 0; y < CHUNK_SIZE; y++) {
       for (let x = 0; x < CHUNK_SIZE; x++) {
         const o = (y * CHUNK_SIZE + x) * 4;
         const tx = cx * CHUNK_SIZE + x,
           ty = cy * CHUNK_SIZE + y;
         const tile = this.store.getTile(tx, ty);
-        const biome = cave
-          ? (
-              {
-                limestone: 'desert',
-                glowmoss: 'forest',
-                crystal: 'enchanted',
-                basalt: 'corrupted',
-                frost: 'taiga',
-                drowned: 'swamp',
-              } as const
-            )[caveBiomeAt(seed, tx, ty)]
-          : biomeAt(seed, tx, ty);
+        const biome = realmBiome
+          ? realmBiome
+          : cave
+            ? (
+                {
+                  limestone: 'desert',
+                  glowmoss: 'forest',
+                  crystal: 'enchanted',
+                  basalt: 'corrupted',
+                  frost: 'taiga',
+                  drowned: 'swamp',
+                } as const
+              )[caveBiomeAt(seed, tx, ty)]
+            : biomeAt(seed, tx, ty);
         let ground = TILE_DEFS[tile]?.ground ?? 3;
         if (biome === 'desert' && ground === G.GRASS) ground = G.SAND; // scrub and cacti stand on the dunes
         if (cave && ground === G.GRASS) ground = G.CAVE; // ore, crystals and glowcaps rest on the cave floor
@@ -309,7 +328,7 @@ export class Terrain {
     wind?: { dx: number; dy: number; strength: number },
     detail = 1,
   ): void {
-    const window = terrainWindow(isoX, isoY, time, motion, detail);
+    const window = terrainWindow(isoX, isoY, time, motion, detail, this.pad);
     isoX = window.x;
     isoY = window.y;
     const changed = this.winDirty || pcx !== this.winCx || pcy !== this.winCy;

@@ -47,7 +47,7 @@ export interface PlayerData {
   equip: EquipState;
   friends: Record<string, FriendRec>;
   /** standing with each kingdom (world revision 5) */
-  rep: Partial<Record<import('@eigenlands/shared').RealmId, number>>;
+  rep: Partial<Record<import('@eigenlands/shared').RealmId | import('@eigenlands/shared').RaceId, number>>;
   buffs: Record<string, Buff>;
   /** quest log (story quests + request-board jobs) */
   quests: QuestLog;
@@ -58,10 +58,40 @@ export interface PlayerData {
   /** heart events already seen ("npc:index") */
   events: string[];
   /** adventure progress: Heart Crystals used, bosses defeated, shrines solved */
-  prog: { hearts: number; bosses: string[]; shrines: string[]; ruins: string[] };
+  prog: {
+    bestiary?: string[];
+    hearts: number;
+    bosses: string[];
+    shrines: string[];
+    ruins: string[];
+    /** attuned waystones, realm gates and ferry posts (travel.ts ids) */
+    ways?: string[];
+    /** the stone a Recall Shard returns to */
+    home?: string | null;
+    /** the tent you last rested in: where you wake if you fall */
+    camp?: { x: number; y: number } | null;
+    /** mounts owned ('horse', 'stag') */
+    mounts?: string[];
+    /** road caravans met (caravans.ts route ids) */
+    caravans?: string[];
+    /** festival feasts shared and tournaments won ("f:host:day", "t:realm:day"; the last 40) */
+    fest?: string[];
+    /** titles won (tournament champion titles) */
+    titles?: string[];
+    /** story scenes read (stories.ts ids) */
+    lore?: string[];
+    /** mount names and well-fed-until times (world clock ms) */
+    mountNames?: Partial<Record<'horse' | 'stag' | 'griffin', string>>;
+    mountFed?: Partial<Record<'horse' | 'stag' | 'griffin', number>>;
+    /** food groups eaten lately (balanced-diet bonus) */
+    meals?: Array<['produce' | 'protein' | 'hearty', number]>;
+    /** how worn out each mount is, 0..100 */
+    mountWorn?: Partial<Record<'horse' | 'stag' | 'griffin', number>>;
+  };
 }
 
 export type DirtyPart =
+  | 'bestiary'
   | 'inv'
   | 'coins'
   | 'skills'
@@ -102,6 +132,8 @@ export interface WorldClock {
 
 export interface VillageHost {
   hire?: (player: PlayerRef, npcId: string) => string;
+  /** a resident out on a hired contract (they keep to their home until it ends) */
+  away?: (npcId: string) => boolean;
   seed: number;
   store: ChunkStore;
   state: WorldState;

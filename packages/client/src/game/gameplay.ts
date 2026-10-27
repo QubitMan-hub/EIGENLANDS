@@ -1,3 +1,5 @@
+import { buildSettlement } from '../ui/settlement';
+import { buildGuild } from '../ui/guild';
 import type { EquipMsg } from '@eigenlands/shared';
 import {
   BUILD_PIECES,
@@ -27,7 +29,7 @@ import type { Audio, Sfx } from '../audio';
 import type { Input } from '../input/input';
 import type { ServerClock } from '../net/interp';
 import type { Net } from '../net/session';
-import { sanctuaryAt } from '@eigenlands/shared';
+import { MSG_TRAVEL, sanctuaryAt } from '@eigenlands/shared';
 import { FIRST_STEPS, buildFirstSteps, controlText, binding } from '../ui/first-steps';
 import { TUTORIAL, freshActs, type Acts } from '../ui/ui';
 import { buildChest, buildShelter, buildSign } from '../ui/containers';
@@ -42,6 +44,7 @@ import { RhythmOverlay } from '../ui/rhythm';
 import { buildShop } from '../ui/shop';
 import { VillageOverlay, type NpcScreen } from '../ui/overlay';
 import { buildBoard, buildLore } from '../ui/village';
+import { buildTravel } from '../ui/travel';
 import { buildStation } from '../ui/station';
 import { Toasts } from '../ui/toast';
 import { Moments } from '../ui/moments';
@@ -51,7 +54,10 @@ import { describeUse, fishingTarget, targetTile, type UseInfo } from './targetin
 
 export interface GameplayDeps {
   net: () => Net;
+  ridingMount?: () => boolean;
   ridingCart?: () => boolean;
+  /** a road caravan in trading reach */
+  caravanNear?: () => { id: string; name: string } | null;
   clock: ServerClock;
   audio: Audio;
   input: Input;
@@ -68,6 +74,7 @@ export interface GameplayDeps {
   guidance?: () => string | null;
   journey?: () => JourneyInfo | null;
   openBoard?: () => void;
+  openParty?: () => void;
   trackQuest?: (id: string | null, map?: boolean) => void;
   trackedQuest?: () => string | null;
   seed?: () => number;
@@ -89,7 +96,7 @@ export class Gameplay {
   readonly rhythm: RhythmOverlay;
   readonly village: VillageOverlay;
   acts: Acts = freshActs();
-  fishing: { id: string; tx: number; ty: number; bite: boolean; until: number } | null = null;
+  fishing: { id: string; tx: number; ty: number; ended?: boolean; bite: boolean; until: number } | null = null;
   private done = new Set<string>();
   private lastUse = 0;
   private dialogueMsg: DialogueMsg | null = null;
@@ -362,12 +369,34 @@ export class Gameplay {
     } else if (m.kind === 'shelter') {
       const render = () =>
         buildShelter(m, this.profile, {
+          ranch: (action, id) => net.send('ranch', { action, id, tx: m.tx, ty: m.ty }),
           add: () => net.shelter({ tx: m.tx, ty: m.ty, action: 'add' }),
           feed: () => net.shelter({ tx: m.tx, ty: m.ty, action: 'feed' }),
           collect: () => net.shelter({ tx: m.tx, ty: m.ty, action: 'collect' }),
+          buy: (species) => net.shelter({ tx: m.tx, ty: m.ty, action: 'buy', species }),
+          care: () => net.shelter({ tx: m.tx, ty: m.ty, action: 'care' }),
+          breed: (species) => net.shelter({ tx: m.tx, ty: m.ty, action: 'breed', species }),
         });
       if (this.wins.name === 'shelter') this.wins.update('shelter', render());
       else this.wins.show('shelter', m.shelter?.name ?? 'Shelter', render());
+    } else if (m.kind === 'travel' && m.travel) {
+      const here = m.travel.here.id;
+      const body = buildTravel(m.travel, {
+        go: (to) => {
+          net.send(MSG_TRAVEL.GO, { from: here, to });
+          this.wins.close();
+        },
+        bind: () => net.send(MSG_TRAVEL.GO, { from: here, bind: true }),
+        rename: (kind, name) => net.send(MSG_TRAVEL.GO, { from: here, rename: { kind, name } }),
+        feed: (kind) => net.send(MSG_TRAVEL.GO, { from: here, feed: kind }),
+        stable: (kind) => net.send(MSG_TRAVEL.GO, { from: here, stable: kind }),
+      });
+      if (this.wins.name === 'travel') this.wins.update('travel', body);
+      else {
+        this.wins.show('travel', 'Waystone', body);
+        // gamepads and keyboards land on the first journey they can take
+        body.querySelector<HTMLButtonElement>('.travel-row button.primary')?.focus();
+      }
     } else if (m.kind === 'lore' && m.lore) {
       this.acts.statue = true;
       this.wins.show('lore', m.lore.title, buildLore(m, this.d.portrait));
@@ -379,6 +408,42 @@ export class Gameplay {
       });
       if (this.wins.name === 'board') this.wins.update('board', el);
       else this.wins.show('board', 'Hadamere Request Board', el, { wide: true });
+    } else if (m.kind === 'settlement' && m.settlement) {
+      const body = buildSettlement(m, (action, extra = {}) =>
+        net.send('settlement', { tx: m.tx, ty: m.ty, action, ...extra }),
+      );
+      if (this.wins.name === 'settlement') this.wins.update('settlement', body);
+      else this.wins.show('settlement', 'Settlement charter', body, { wide: true });
+    } else if (m.kind === 'journey' && m.journey) {
+      const j = m.journey,
+        body = h('div', { class: 'guild-ledger' }, h('p', { text: j.text }));
+      for (const c of j.choices)
+        body.append(
+          h('button', {
+            text: c.label,
+            on: { click: () => net.send('guild_journey', { id: j.id, action: 'choose', choice: c.id }) },
+          }),
+        );
+      this.wins.show('journey', j.title, body);
+    } else if (m.kind === 'guild' && m.guild) {
+      const el = buildGuild(
+        m,
+        (quest, action) => net.send(MSG.QUEST, { npcId: 'guild', quest, action, tx: m.tx, ty: m.ty }),
+        {
+          track: (id, map) => this.d.trackQuest?.(id, map),
+          settlement: () => net.send('settlement', { tx: m.tx, ty: m.ty, action: 'inspect' }),
+          classes: () => {
+            this.wins.close();
+            this.d.openBoard?.();
+          },
+          party: () => {
+            this.wins.close();
+            this.d.openParty?.();
+          },
+        },
+      );
+      if (this.wins.name === 'guild') this.wins.update('guild', el);
+      else this.wins.show('guild', 'Adventurer Guild', el, { wide: true });
     } else if (m.kind === 'sign') this.wins.show('sign', 'Sign', buildSign(m));
   }
 
@@ -415,6 +480,7 @@ export class Gameplay {
     const el = buildShop(v, this.profile, this.tip, {
       buy: (item, n) => net.shop({ npcId: v.npcId, action: 'buy', item, n }),
       sell: (slot, n) => net.shop({ npcId: v.npcId, action: 'sell', slot, n }),
+      job: () => net.shop({ npcId: v.npcId, action: 'job' }),
     });
     if (this.wins.name === 'shop') this.wins.update('shop', el);
     else this.wins.show('shop', v.name, el, { wide: true });
@@ -432,13 +498,20 @@ export class Gameplay {
     if (m.kind === 'fish' && m.ok) this.acts.fished = true;
   }
 
-  onFishCast(m: { id: string; tx: number; ty: number }): void {
+  onFishCast(m: { id: string; tx: number; ty: number; ended?: boolean }): void {
+    if (m.ended) {
+      if (this.fishing?.id === m.id) {
+        this.fishing = null;
+        this.clearBang();
+      }
+      return;
+    }
     this.fishing = { id: m.id, tx: m.tx, ty: m.ty, bite: false, until: performance.now() + 30000 };
     this.d.sfx('splash');
     this.toasts.add(`Line cast… wait for a bite, then press ${binding(this.d.input.keys, 'interact')}!`, 'info');
   }
   onFishBite(m: FishBiteMsg): void {
-    if (!this.fishing || this.fishing.id !== m.id) this.fishing = { id: m.id, tx: 0, ty: 0, bite: true, until: 0 };
+    if (!this.fishing || this.fishing.id !== m.id) return;
     this.fishing.bite = true;
     this.fishing.until = performance.now() + m.windowMs;
     this.d.sfx('bite');
@@ -470,8 +543,17 @@ export class Gameplay {
       return true;
     }
     const store = this.d.store();
+    if (this.d.ridingMount?.()) {
+      net.send('ranch', { action: 'dismount' });
+      return true;
+    }
     if (this.d.ridingCart?.()) {
       net.open(Math.floor(p.x), Math.floor(p.y));
+      return true;
+    }
+    const caravan = this.d.caravanNear?.();
+    if (caravan) {
+      net.shop({ npcId: `caravan:${caravan.id}`, action: 'open' });
       return true;
     }
     const selection = this.selected();
@@ -538,7 +620,9 @@ export class Gameplay {
             o.kind === 'chest' ||
             o.kind === 'shelter' ||
             o.kind === 'sign' ||
-            o.sub === 'statue')
+            ['statue', 'guild_board', 'guild_noticeboard', 'bed', 'double_bed', 'canopy_bed', 'hammock'].includes(
+              o.sub,
+            ))
         ) {
           net.open(tx, ty);
           return true;
@@ -574,12 +658,27 @@ export class Gameplay {
   prompt(): { info: UseInfo | null; tx: number; ty: number; label: string | null } {
     const p = this.d.player();
     const store = this.d.store();
+    if (this.d.ridingMount?.())
+      return {
+        info: null,
+        tx: Math.floor(p.x),
+        ty: Math.floor(p.y),
+        label: `${binding(this.d.input.keys, 'interact')}: Dismount`,
+      };
     if (this.d.ridingCart?.())
       return {
         info: { kind: 'open', label: 'Step off the minecart', ok: true },
         tx: Math.floor(p.x),
         ty: Math.floor(p.y),
         label: `${binding(this.d.input.keys, 'interact')}: Step off · hold movement to ride`,
+      };
+    const wagon = this.d.caravanNear?.();
+    if (wagon)
+      return {
+        info: { kind: 'talk', label: `Trade at the ${wagon.name}`, ok: true },
+        tx: Math.floor(p.x),
+        ty: Math.floor(p.y),
+        label: `${binding(this.d.input.keys, 'interact')}: Trade at the ${wagon.name}`,
       };
     const npc = this.d.npcNear(p.x + p.fx * 0.8, p.y + p.fy * 0.8, 1.9) ?? this.d.npcNear(p.x, p.y, 1.3);
     const mouse = this.d.input.mouseActive ? this.d.input.mouseTile : null;

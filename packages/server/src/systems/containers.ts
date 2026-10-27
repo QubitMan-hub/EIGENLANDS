@@ -1,3 +1,18 @@
+import { ENEMY_DEFS, ENEMY_KEY_BY_KIND, WAY_SUBS } from '@eigenlands/shared';
+import { guildPanel } from './guild';
+import {
+  isCryptY,
+  realmPropKind,
+  RESTED_SECS,
+  RESTED_XP_MULT,
+  readHerd,
+  advanceHerd,
+  breedHerd,
+  isLivestock,
+  LIVESTOCK,
+  HERD_CAPACITY,
+  shelterAccepts,
+} from '@eigenlands/shared';
 import {
   catalogVaultDrops,
   isMineLine,
@@ -14,6 +29,12 @@ import {
   MSG,
   QUBITMAN,
   RUIN_LORE,
+  STORY_READ,
+  STORY_READABLE,
+  STORY_XP,
+  storySiteById,
+  storyText,
+  type StoryKind,
   RUIN_NAMES,
   ruinLoot,
   type Biome,
@@ -71,9 +92,9 @@ function panelFor(o: WorldObj, p: ServerPlayer): PanelMsg | null {
   const base = { tx: o.x, ty: o.y, sub: o.sub };
   if (o.kind === 'station') return { kind: 'station', ...base, station: STATION_SUBS[o.sub] };
   if (o.kind === 'chest') return { kind: 'chest', ...base, chest: chestSlots(o) };
-  if (o.kind === 'shelter') {
-    const d = o.data as { animals: number; fed: boolean; ready: number };
-    const f = FARM_ANIMALS[o.sub]!;
+  if (o.kind === 'shelter' && o.sub === 'apiary') {
+    const d = o.data as { animals: number; fed: boolean; ready: number },
+      f = FARM_ANIMALS.apiary!;
     return {
       kind: 'shelter',
       ...base,
@@ -86,6 +107,25 @@ function panelFor(o: WorldObj, p: ServerPlayer): PanelMsg | null {
         max: f.max,
         fed: d.fed,
         ready: d.ready,
+      },
+    };
+  }
+  if (o.kind === 'shelter') {
+    const d = readHerd(o.data, o.sub, Number(o.data?.lastDay ?? 0));
+    return {
+      kind: 'shelter',
+      ...base,
+      shelter: {
+        type: o.sub,
+        name: FARM_ANIMALS[o.sub]?.name,
+        animals: d.animals,
+        max: HERD_CAPACITY,
+        fed: d.fed,
+        ready: d.ready,
+        herd: d.herd,
+        stock: d.stock,
+        day: d.lastDay,
+        cared: d.cared === d.lastDay,
       },
     };
   }
@@ -187,6 +227,54 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
     p.toast('Minecart: push along the rails to roll, against them to reverse; the buffers stop you. Use steps off.');
     return;
   }
+  if (o.static && realmPropKind(o.sub) && (await room.otherworldInteract?.(p, o))) return;
+  if (o.sub === 'fallen_star') {
+    room.openStar?.(p, o);
+    return;
+  }
+  if (['bed', 'double_bed', 'canopy_bed', 'hammock', 'camp_tent'].includes(o.sub)) {
+    if (o.owner && o.owner !== p.accountId) {
+      p.toast('Ask the owner before using their bed.');
+      return;
+    }
+    if (
+      [...room.state.enemies.values()].some(
+        (e) =>
+          !e.ally &&
+          !ENEMY_DEFS[ENEMY_KEY_BY_KIND[e.kind] as keyof typeof ENEMY_DEFS]?.passive &&
+          Math.hypot(e.x - p.sim.x, e.y - p.sim.y) < 12,
+      )
+    ) {
+      p.toast('It is not safe to rest with enemies nearby.');
+      return;
+    }
+    const now = room.wclock.now();
+    if ((p.data.buffs.bed_rest?.until ?? 0) > now) {
+      p.toast('You are already rested. Food and medicine help between rests.');
+      return;
+    }
+    p.hp = Math.min(p.maxHp, p.hp + Math.ceil(p.maxHp * 0.3));
+    p.sim.stamina = 100;
+    p.data.buffs.bed_rest = { until: now + 24 * 60 * 1000, power: 1 };
+    p.dirty('buffs');
+    room.fx({ kind: 'heal', x: p.sim.x, y: p.sim.y, id: p.id });
+    if (o.sub === 'camp_tent') {
+      p.data.prog.camp = { x: o.x, y: o.y };
+      p.dirty('stats');
+      p.toast('You rest in your tent. If you fall, you will wake here.', 'good');
+      return;
+    }
+    // your own bed under your own roof: you wake well rested
+    const home = room.store.structureAt(o.x, o.y);
+    if (o.owner === p.accountId && home?.owner === p.accountId && home.data.roof) {
+      p.data.buffs.rested = { until: now + RESTED_SECS * 1000, power: RESTED_XP_MULT };
+      p.toast('You sleep soundly in your own bed, under your own roof, and wake well rested.', 'good');
+      return;
+    }
+    p.toast('You rest and recover health and stamina. The shared world clock keeps running.', 'good');
+    return;
+  }
+  if (room.guildInteract?.(p, o)) return;
   if (o.kind === 'crop') {
     const d = cropOf(o);
     if (!d.dead && isRipe(d)) harvestCrop(room, p, o);
@@ -195,6 +283,10 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
   }
   if ((o.kind === 'chest' || o.kind === 'shelter') && o.owner !== p.accountId) {
     p.toast("That isn't yours.");
+    return;
+  }
+  if (o.static && WAY_SUBS.has(o.sub)) {
+    room.travelInteract?.(p, o);
     return;
   }
   if (o.static && (o.sub === 'shrine_altar' || o.sub === 'shrine_pillar')) {
@@ -226,6 +318,18 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
     await climb(room, p, o);
     return;
   }
+  if (
+    o.static &&
+    ['ruin_crypt', 'crypt_exit', 'crypt_reliquary', 'crypt_plaque', 'trial_brazier'].includes(o.sub) &&
+    (o.sub !== 'trial_brazier' || isCryptY(o.y))
+  ) {
+    await room.cryptInteract?.(p, o);
+    return;
+  }
+  if (o.static && STORY_READABLE.has(o.sub)) {
+    readStory(room, p, o);
+    return;
+  }
   if (o.static && RUIN_LORE[o.sub]) {
     const l = RUIN_LORE[o.sub]!;
     p.client.send(MSG.PANEL, {
@@ -235,6 +339,10 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
       sub: o.sub,
       lore: { title: RUIN_NAMES[o.sub] ?? 'Ruin', plaque: l.plaque, epitaph: l.epitaph, pages: [...l.pages] },
     });
+    return;
+  }
+  if ((o.static && o.sub === 'guild_board') || o.sub === 'guild_noticeboard') {
+    p.client.send(MSG.PANEL, guildPanel(room, p, o));
     return;
   }
   if (o.static && o.sub === 'board') {
@@ -282,64 +390,131 @@ export function handleChest(room: RoomApi, p: ServerPlayer, msg: ChestMsg): void
   s.n -= moved;
   if (s.n <= 0) from[msg.slot] = null;
   o.data = { ...(o.data ?? {}), slots: slots.slice(0, 30) };
-  room.objects.update(o);
   p.dirty('inv');
+  // a recovered satchel, once emptied, is simply gone
+  if (o.sub === 'lost_satchel' && !slots.some(Boolean)) {
+    room.objects.remove(o.x, o.y);
+    p.toast('You have recovered everything from your satchel.', 'good');
+    return;
+  }
+  room.objects.update(o);
   sendPanel(p, o);
 }
 
 /** What a keeper carries to collect from a pen: shears for wool, a pail for goat milk. */
-const SHELTER_TOOL: Record<string, string> = { sheepfold: 'shears', goat_shed: 'milk_pail' };
 
 export function handleShelter(room: RoomApi, p: ServerPlayer, msg: ShelterMsg): void {
-  if (!msg || (msg.action !== 'add' && msg.action !== 'feed' && msg.action !== 'collect')) return;
+  if (!msg || !['add', 'feed', 'collect', 'buy', 'care', 'breed'].includes(msg.action) || p.deadT > 0) return;
   const o = ownedAt(room, p, msg.tx, msg.ty, 'shelter');
   if (!o) return;
-  const d = o.data as { animals: number; fed: boolean; ready: number };
-  const f = FARM_ANIMALS[o.sub]!;
-  if (msg.action === 'add') {
-    if (d.animals >= f.max) {
-      p.toast('It is full.');
+  if (o.sub === 'apiary') {
+    handleApiary(room, p, o, msg);
+    return;
+  }
+  const day = room.wclock.day();
+  let d = advanceHerd(readHerd(o.data, o.sub, day), day);
+  const base = FARM_ANIMALS[o.sub];
+  if (!base) return;
+  if (msg.action === 'add' || msg.action === 'buy') {
+    const species = msg.action === 'add' ? base.animal : msg.species;
+    if (!isLivestock(species) || !shelterAccepts(species, o.sub)) return;
+    if (d.herd.length >= HERD_CAPACITY) {
+      p.toast('This shelter is full. Build another for a larger ranch.');
       return;
     }
-    if (!removeItem(p.data.inv, f.animal, 1)) {
-      p.toast(`You need a ${ITEMS[f.animal]?.name.toLowerCase()}.`);
-      return;
+    if (msg.action === 'add') {
+      if (!removeItem(p.data.inv, species, 1)) {
+        p.toast(`Bring a ${species} from the farmer, or adopt one here.`);
+        return;
+      }
+      p.dirty('inv');
+    } else {
+      if (p.data.coins < LIVESTOCK[species].price) {
+        p.toast('Not enough coins.', 'bad');
+        return;
+      }
+      p.data.coins -= LIVESTOCK[species].price;
+      p.dirty('coins');
     }
-    d.animals += 1;
-    p.dirty('inv');
+    d.herd.push({ id: d.serial++, species, born: day - (msg.action === 'add' ? 8 : 0), happy: 60, bred: -1e9 });
+    d.animals = d.herd.length;
   } else if (msg.action === 'feed') {
-    if (d.animals <= 0) {
-      p.toast('There is nobody to feed.');
+    if (d.fed || !d.herd.length) {
+      p.toast(d.fed ? 'Already fed today.' : 'There is nobody to feed.');
       return;
     }
-    if (d.fed) {
-      p.toast('They are already fed today.');
+    if (!removeItem(p.data.inv, 'hay', d.herd.length)) {
+      p.toast(`You need ${d.herd.length} hay.`, 'bad');
       return;
     }
-    if (countItem(p.data.inv, 'hay') < d.animals) {
-      p.toast(`You need ${d.animals} hay.`, 'bad');
-      return;
-    }
-    removeItem(p.data.inv, 'hay', d.animals);
     d.fed = true;
     p.dirty('inv');
+  } else if (msg.action === 'care') {
+    if (d.cared === day || !d.herd.length) {
+      p.toast('Care for them again tomorrow.');
+      return;
+    }
+    d.cared = day;
+    d.herd.forEach((a) => (a.happy = Math.min(100, a.happy + 6)));
+  } else if (msg.action === 'breed') {
+    if (!isLivestock(msg.species)) return;
+    const next = breedHerd(d, msg.species, day);
+    if (!next) {
+      p.toast('Need two fed, happy adults of the same species, a free stall, and four days between births.');
+      return;
+    }
+    if (!removeItem(p.data.inv, 'hay', 2)) {
+      p.toast('Breeding needs 2 extra hay.');
+      return;
+    }
+    d = next;
+    p.dirty('inv');
+    p.toast('A new arrival! Young animals grow over several days.', 'good');
   } else {
-    if (d.ready <= 0) {
-      p.toast(`No ${f.product} yet.`);
+    const products = Object.entries(d.stock)
+      .filter(([, n]) => n > 0)
+      .map(([id, n]) => ({ id, n }));
+    if (!products.length) {
+      p.toast('No products ready yet. Feed and care for your adults.');
       return;
     }
-    const tool = SHELTER_TOOL[o.sub];
-    if (tool && countItem(p.data.inv, tool) < 1) {
-      p.toast(`You need ${ITEMS[tool]?.name.toLowerCase() ?? tool} in your pack to collect ${f.productName}.`, 'bad');
+    for (const [product, tool] of [
+      ['wool', 'shears'],
+      ['goat_milk', 'milk_pail'],
+    ])
+      if ((d.stock[product!] ?? 0) > 0 && countItem(p.data.inv, tool!) < 1) {
+        p.toast(`Bring ${ITEMS[tool!]?.name ?? tool} to collect ${ITEMS[product!]?.name ?? product}.`, 'bad');
+        return;
+      }
+    if (!giveStacks(p, products)) {
+      p.toast('Make room for the whole collection.', 'bad');
       return;
     }
-    if (!giveStacks(p, [{ id: f.product, n: d.ready }])) {
-      p.toast('Your pack is full.', 'bad');
-      return;
-    }
+    d.stock = {};
     d.ready = 0;
     addSkillXp(p, 'farming', 3);
   }
+  o.data = d;
+  room.objects.update(o);
+  sendPanel(p, o);
+}
+
+/** Apiaries keep the catalog's colony model; mammals and poultry use individuals. */
+function handleApiary(room: RoomApi, p: ServerPlayer, o: WorldObj, msg: ShelterMsg): void {
+  const d = o.data as { animals: number; fed: boolean; ready: number },
+    f = FARM_ANIMALS.apiary!;
+  if (msg.action === 'add') {
+    if (d.animals >= f.max || !removeItem(p.data.inv, f.animal, 1)) return;
+    d.animals++;
+    p.dirty('inv');
+  } else if (msg.action === 'feed') {
+    if (d.fed || d.animals < 1 || !removeItem(p.data.inv, 'hay', d.animals)) return;
+    d.fed = true;
+    p.dirty('inv');
+  } else if (msg.action === 'collect') {
+    if (d.ready < 1 || !giveStacks(p, [{ id: f.product, n: d.ready }])) return;
+    d.ready = 0;
+  } else return;
   room.objects.update(o);
   sendPanel(p, o);
 }
@@ -386,6 +561,37 @@ function vaultLoot(theme: string, depth: number, rand: () => number): Array<{ id
     if (rand() < d.weight * (0.7 + 0.15 * depth)) out.push({ id: d.item, n: 1 });
   if (rand() < 0.05) out.push({ id: 'heart_crystal', n: 1 });
   return out;
+}
+
+/** Read a story scene's journal, grave, bill of lading, carving or shrine notes; the first reading pays a little XP. */
+function readStory(room: RoomApi, p: ServerPlayer, o: WorldObj): void {
+  const d = (o.data ?? {}) as { story?: string; biome?: string };
+  const id = typeof d.story === 'string' ? d.story : `${o.x},${o.y}`;
+  const kind = (Object.keys(STORY_READ) as StoryKind[]).find((k) => STORY_READ[k] === o.sub);
+  if (!kind) return;
+  const biome = (BIOMES as readonly string[]).includes(d.biome ?? '') ? (d.biome as Biome) : 'meadow';
+  // the scene's anchor is the story site, whichever of its props is read
+  const site = storyText(room.seed, id, kind, biome, ...storyAnchor(room.seed, id, o));
+  p.client.send(MSG.PANEL, {
+    kind: 'lore',
+    tx: o.x,
+    ty: o.y,
+    sub: o.sub,
+    lore: { title: site.title, plaque: site.plaque, epitaph: site.epitaph, pages: site.pages },
+  });
+  const read = (p.data.prog.lore ??= []);
+  if (!read.includes(id)) {
+    read.push(id);
+    p.dirty('stats');
+    room.grantXp?.(p, STORY_XP);
+    p.toast(`A story found: ${site.title}. (${read.length} so far)`, 'good');
+  }
+}
+
+/** a story's site coordinates, from its id */
+function storyAnchor(seed: number, id: string, o: WorldObj): [number, number] {
+  const s = storySiteById(seed, id);
+  return s ? [s.x, s.y] : [o.x, o.y];
 }
 
 function openRuinCache(room: RoomApi, p: ServerPlayer, o: WorldObj): void {

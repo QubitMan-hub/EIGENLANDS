@@ -1,3 +1,7 @@
+import { buildSettlement } from '../ui/settlement';
+import { rotatingGuildContracts } from '@eigenlands/shared';
+import { buildGuild } from '../ui/guild';
+import { GUILD_QUESTS, readHerd } from '@eigenlands/shared';
 // Dev-only UI lab: renders each panel with mock data (?panel=inventory|station|forge|dialogue|shop|journal|chest|shelter|rhythm).
 import '../style.css';
 import '../ui/fonts';
@@ -216,8 +220,100 @@ switch (panel) {
   case 'chest':
     wins.show('c', 'Chest', buildChest(chestPanel, profile, tip, { put: noop, take: noop }).el, { wide: true });
     break;
+  case 'settlement': {
+    wins.show(
+      'settlement',
+      'Settlement charter',
+      buildSettlement(
+        {
+          kind: 'settlement',
+          tx: 0,
+          ty: 0,
+          sub: 'guild_noticeboard',
+          settlement: {
+            tier: 1,
+            bank: 480,
+            day: 4,
+            serial: 2,
+            name: 'Hamlet',
+            residents: [
+              { id: 0, name: 'Rowan', role: 'gardener', x: 12, y: 5, happy: 85 },
+              { id: 1, name: 'Sable', role: 'warden', x: 15, y: 8, happy: 60 },
+            ],
+            homes: [
+              { x: 12, y: 5, valid: true, reason: 'Enclosed, roofed and furnished' },
+              { x: 20, y: 5, valid: false, reason: 'Every interior cell needs your floor and a roof.' },
+            ],
+          },
+        },
+        noop,
+      ),
+      { wide: true },
+    );
+    break;
+  }
+  case 'guild': {
+    const g: PanelMsg = {
+      kind: 'guild',
+      tx: 0,
+      ty: 0,
+      sub: 'guild_board',
+      guild: {
+        name: 'Mira of Hadamere',
+        card: 'WAY-00418726',
+        rank: 'F',
+        contracts: [...GUILD_QUESTS, ...rotatingGuildContracts(42, 4, 'F')].map((d) => ({
+          id: d.id,
+          definition: d,
+          state:
+            d.id === 'guild:rank:F'
+              ? 'done'
+              : d.id.startsWith('guild:F:') || d.id.startsWith('guild:job:')
+                ? 'open'
+                : 'locked',
+          progress: d.objectives.map(() => 0),
+        })),
+      },
+    };
+    wins.show('guild', 'Adventurer Guild', buildGuild(g, noop, { classes: noop, party: noop }), { wide: true });
+    break;
+  }
+  case 'husbandry': {
+    const data = readHerd(
+      {
+        herd: [
+          { id: 0, species: 'cow', born: 0, happy: 82 },
+          { id: 1, species: 'sheep', born: 0, happy: 70 },
+          { id: 2, species: 'goat', born: 8, happy: 64 },
+          { id: 3, species: 'phasehart', born: 0, happy: 88 },
+        ],
+        stock: { milk: 2, fiber: 1, qubit_crystal: 1 },
+        lastDay: 10,
+      },
+      'barn',
+      10,
+    );
+    const m: PanelMsg = {
+      kind: 'shelter',
+      tx: 0,
+      ty: 0,
+      sub: 'barn',
+      shelter: { ...data, type: 'barn', max: 4, day: 10, cared: false },
+    };
+    wins.show(
+      'herd',
+      'Livestock shelter',
+      buildShelter(m, profile, { add: noop, feed: noop, collect: noop, buy: noop, care: noop, breed: noop }),
+      { wide: true },
+    );
+    break;
+  }
   case 'shelter':
-    wins.show('c', 'Coop', buildShelter(shelterPanel, profile, { add: noop, feed: noop, collect: noop }));
+    wins.show(
+      'c',
+      'Coop',
+      buildShelter(shelterPanel, profile, { add: noop, feed: noop, collect: noop, buy: noop, care: noop, breed: noop }),
+    );
     break;
   case 'vitals': {
     // ?panel=vitals&reduced=1&scale=1 — five HUD states side by side, each driven by the real model and painter

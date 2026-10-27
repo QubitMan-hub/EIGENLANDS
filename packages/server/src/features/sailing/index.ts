@@ -127,7 +127,12 @@ export class SailingModule implements Module {
           for (let ox = -1; ox <= 1; ox++) if (this.isWater(x + ox + 0.5, y + oy + 0.5)) open++;
         if (open < 9) continue;
         const deep = this.room.store.getTile(x, y) === T.DEEP_WATER;
-        const kind = deep && p.level >= 8 && this.room.rand() < 0.3 ? 'serpent' : 'pirate';
+        const kind =
+          deep && p.level >= 12 && this.room.rand() < 0.12
+            ? 'siren'
+            : deep && p.level >= 8 && this.room.rand() < 0.3
+              ? 'serpent'
+              : 'pirate';
         this.room.spawnEnemy(kind, x + 0.5, y + 0.5, false, { level: Math.max(2, p.level) });
         break;
       }

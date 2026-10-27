@@ -1,10 +1,19 @@
 import {
+  NPC_BY_ID,
+  recruitFee,
   BOND_RANGE,
   COMPANION_BONDS,
   companionBond,
   ITEMS,
   ENEMY_BY_KIND,
   EXTRACT_RANGE,
+  DOMAIN_LEVEL,
+  DOMAIN_MIN_SHADOWS,
+  DOMAIN_POWER,
+  DOMAIN_RADIUS,
+  DOMAIN_SECS,
+  EXCHANGE_LEVEL,
+  TRAIT_INFO,
   MSG34,
   RANK_LEVEL,
   SHADOW_RANKS,
@@ -45,8 +54,8 @@ const CSS = `
 .sh-crest{width:44px;height:44px;display:grid;place-items:center;color:var(--c);background:#111916}
 .sh-crest svg{width:22px;height:auto}
 .sh-crest img{object-fit:none;object-position:left top;image-rendering:pixelated}
-.sh-name{font-weight:700;display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;overflow-wrap:anywhere}
-.sh-name>button{padding:0;border:0;background:transparent;color:inherit;font:inherit;text-align:left}
+.sh-name{font-weight:700;display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;overflow-wrap:anywhere;color:var(--c)}
+.sh-win .sh-name>button{padding:0;min-height:0;border:0;box-shadow:none;background:transparent;color:inherit;font:inherit;text-align:left}
 .sh-rank,.sh-meta{font-size:12px;color:#b9bfaa;line-height:1.5}
 .sh-xp{height:4px;margin-top:6px;background:#111916;overflow:hidden}
 .sh-xp i{display:block;height:100%;background:#b6a275}
@@ -56,6 +65,8 @@ const CSS = `
 .sh-guide p{margin:6px 0;line-height:1.5}
 .sh-guide ul{padding-left:20px;margin:8px 0}
 .sh-nearby h3{margin:0;font-size:14px}
+.sh-powers{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+.sh-trait{font-size:12px;color:#d9b8ff;margin:2px 0}
 @media(max-width:620px){.sh-card,.sh-wild{grid-template-columns:44px minmax(0,1fr);gap:8px}.sh-btns,.sh-wild>button{grid-column:2;justify-self:start}.sh-btns{justify-content:flex-start}.sh-top{align-items:flex-start}}
 `;
 
@@ -71,6 +82,8 @@ export class ShadowClient implements ClientModule {
   private wildlife: Array<{ id: string; kind: number; x: number; y: number; hp: number; maxHp: number; st: number }> =
     [];
   private windowKey = '';
+  /** when the last roster arrived (its cooldowns count down from here) */
+  private rosterAt = 0;
   private nextRefresh = 0;
 
   constructor(private d: P34Deps) {
@@ -108,6 +121,7 @@ export class ShadowClient implements ClientModule {
     return {
       [MSG34.SHADOW_ROSTER]: (m: ShadowRosterMsg) => {
         this.roster = m;
+        this.rosterAt = performance.now();
         if (this.d.wins.name === 'shadows') this.refreshWindow();
       },
       [MSG34.SHADOW_EV]: (m: ShadowEvent) => this.onEvent(m),
@@ -155,6 +169,29 @@ export class ShadowClient implements ClientModule {
         break;
       case 'reformed':
         t.add(`${this.nameOf(m.id)} re-formed.`, 'info');
+        break;
+      case 'exchanged':
+        t.add(`Shadow Exchange: you and ${m.name} trade places.`, 'good');
+        break;
+      case 'domain':
+        t.add(
+          `Monarch's Domain! For ${m.secs} s this ground is your army's: they strike harder, your foes slow.`,
+          'good',
+        );
+        this.d.sfx('levelup');
+        break;
+      case 'trait':
+        t.add(
+          m.trait === 'rebirth'
+            ? `${m.name} bursts back into flame!`
+            : m.trait === 'rewind'
+              ? `${m.name} unwinds to a moment ago, whole again.`
+              : `${m.name}: ${TRAIT_INFO[m.trait].name}.`,
+          'good',
+        );
+        break;
+      case 'refused':
+        t.add(m.text, 'info');
         break;
     }
   }
@@ -229,12 +266,38 @@ export class ShadowClient implements ClientModule {
       }
       return true;
     }
+    if (a === 'exchange' || a === 'domain') {
+      if (!this.d.wins.open && !this.d.dead()) this.send(a === 'exchange' ? { act: 'exchange' } : { act: 'domain' });
+      return true;
+    }
     if (a === 'shadows') {
       if (this.d.wins.name === 'shadows') this.d.wins.close();
       else this.openWindow(false);
       return true;
     }
     return false;
+  }
+
+  /** Confirmed channel state drives the local body pose, never a speculative key press. */
+  channelTarget(): { x: number; y: number } | null {
+    const me = this.d.me();
+    if (!this.channel || !me) return null;
+    let target: { x: number; y: number } | null = null,
+      distance = EXTRACT_RANGE;
+    for (const residue of this.residues) {
+      const d = Math.hypot(residue.x - me.x, residue.y - me.y);
+      if (d < distance) {
+        target = residue;
+        distance = d;
+      }
+    }
+    return target;
+  }
+
+  channelProgress(now: number): number | null {
+    return this.channel && now < this.channel.until
+      ? Math.max(0, Math.min(1, (now - this.channel.start) / (this.channel.until - this.channel.start)))
+      : null;
   }
 
   debug(): Record<string, unknown> {
@@ -299,6 +362,20 @@ export class ShadowClient implements ClientModule {
     const p = companionPortrait(kind),
       crest = h('div', { class: 'sh-crest' });
     if (p) crest.append(h('img', { src: p.url, alt: '', style: `width:${p.width}px;height:${p.height}px` }));
+    else {
+      // no painted portrait (the fox and other later bonds): crop the creature's own idle frame from its sheet
+      const tex = this.d.foes?.().frame(kind, false, 0, 'idle', 0);
+      const src = tex?.source.resource as CanvasImageSource | undefined;
+      if (tex && src) {
+        const f = tex.frame;
+        const c = document.createElement('canvas');
+        c.width = f.width;
+        c.height = f.height;
+        c.style.cssText = `width:${f.width}px;height:${f.height}px;image-rendering:pixelated`;
+        c.getContext('2d')?.drawImage(src, f.x, f.y, f.width, f.height, 0, 0, f.width, f.height);
+        crest.append(c);
+      }
+    }
     return crest;
   }
   private wildlifeSection(): HTMLElement {
@@ -316,7 +393,7 @@ export class ShadowClient implements ClientModule {
         {},
         ...COMPANION_BONDS.map((b) =>
           h('li', {
-            text: `${b.name} (${ENEMY_BY_KIND[b.kind]?.name}): ${b.count} × ${ITEMS[b.food]?.name}. ${b.trait}: ${b.detail}`,
+            text: `${b.name} (${ENEMY_BY_KIND[b.kind]?.name}): ${b.count} × ${ITEMS[b.food]?.name}. ${b.trait}: ${b.detail}${b.level ? ` Requires level ${b.level}` : ''}${b.boss ? ` and victory over ${b.boss.replace(/_/g, ' ')}` : ''}.`,
           }),
         ),
       ),
@@ -405,6 +482,7 @@ export class ShadowClient implements ClientModule {
       stances,
     );
     const list = h('div', { class: 'sh-list' });
+    const powers = this.powers(R);
     if (!R.roster.length) {
       list.append(
         h('div', {
@@ -421,6 +499,7 @@ export class ShadowClient implements ClientModule {
       'div',
       { class: 'sh-win' },
       top,
+      powers,
       list,
       this.wildlifeSection(),
       h('div', { class: 'small dim', text: STANCE_INFO[R.stance] }),
@@ -429,6 +508,46 @@ export class ShadowClient implements ClientModule {
         data: { shControl: 'dismiss-all' },
         on: { click: () => this.send({ act: 'dismiss_all' }) },
       }),
+    );
+  }
+
+  /** seconds left on a cooldown the server reported, counted down since the roster arrived */
+  private left(secs: number | undefined): number {
+    return Math.max(0, Math.ceil((secs ?? 0) - (performance.now() - this.rosterAt) / 1000));
+  }
+
+  /** Shadow Exchange and Monarch's Domain, once awakened */
+  private powers(R: ShadowRosterMsg): HTMLElement | null {
+    const lv = this.d.level();
+    if (lv < EXCHANGE_LEVEL) return null;
+    const ex = this.left(R.exchangeIn),
+      dom = this.left(R.domainIn),
+      domLeft = this.left(R.domainLeft);
+    const standing = R.active.length;
+    return h(
+      'div',
+      { class: 'sh-powers' },
+      h('button', {
+        text: ex ? `Shadow Exchange · ${ex} s` : `Shadow Exchange (${this.key('exchange')})`,
+        title: 'Trade places with your farthest summoned shadow (or use the button on a shadow’s card).',
+        disabled: !!ex || !standing,
+        data: { shControl: 'exchange' },
+        on: { click: () => this.send({ act: 'exchange' }) },
+      }),
+      lv >= DOMAIN_LEVEL
+        ? h('button', {
+            class: 'primary',
+            text: domLeft
+              ? `Domain holds · ${domLeft} s`
+              : dom
+                ? `Monarch's Domain · ${dom} s`
+                : `Monarch's Domain (${this.key('domain')})`,
+            title: `With ${DOMAIN_MIN_SHADOWS}+ shadows out: heal them, ×${DOMAIN_POWER} damage within ${DOMAIN_RADIUS} tiles and slow every foe there, for ${DOMAIN_SECS} s.`,
+            disabled: !!dom || standing < DOMAIN_MIN_SHADOWS,
+            data: { shControl: 'domain' },
+            on: { click: () => this.send({ act: 'domain' }) },
+          })
+        : h('span', { class: 'small dim', text: `Monarch's Domain awakens at level ${DOMAIN_LEVEL}.` }),
     );
   }
 
@@ -470,7 +589,7 @@ export class ShadowClient implements ClientModule {
           h('span', {
             class: 'sh-rank',
             text: rec.contractUntil
-              ? `Guild contract · ${Math.max(0, Math.ceil((rec.contractUntil - Date.now()) / 60000))} min`
+              ? `${rec.npc ? 'Hired' : 'Guild contract'} · ${Math.max(0, Math.ceil((rec.contractUntil - Date.now()) / 60000))} min left`
               : `${SHADOW_RANKS[rank]} · Lv ${rec.level}`,
           }),
         ),
@@ -480,11 +599,26 @@ export class ShadowClient implements ClientModule {
             ? `${bond.trait}: ${bond.detail}`
             : `${def?.name ?? 'Creature'}${next ? ` · evolves at Lv ${next}` : ' · fully evolved'}`,
         }),
+        rec.trait
+          ? h('div', {
+              class: 'sh-trait',
+              text: `${TRAIT_INFO[rec.trait].name}: ${TRAIT_INFO[rec.trait].text}`,
+            })
+          : null,
         xp,
       ),
       h(
         'div',
         { class: 'sh-btns' },
+        active && this.d.level() >= EXCHANGE_LEVEL
+          ? h('button', {
+              text: 'Exchange',
+              title: 'Trade places with this shadow',
+              disabled: this.left(R.exchangeIn) > 0,
+              data: { shControl: `exchange-${rec.id}` },
+              on: { click: () => this.send({ act: 'exchange', id: rec.id }) },
+            })
+          : null,
         active
           ? h('button', {
               text: 'Dismiss',
@@ -498,13 +632,24 @@ export class ShadowClient implements ClientModule {
               disabled: R.active.length >= R.slots,
               on: { click: () => this.send({ act: 'summon', id: rec.id }) },
             }),
+        rec.npc
+          ? h('button', {
+              text: `Extend 1 h · ${recruitFee(NPC_BY_ID[rec.npc]?.role, this.d.level())}`,
+              title: 'Pay for another hour (up to three ahead). Each renewal seasons them a level.',
+              data: { shControl: `extend-${rec.id}` },
+              on: { click: () => this.send({ act: 'extend', id: rec.id }) },
+            })
+          : null,
         h('button', {
           class: 'danger',
-          text: 'Release',
+          text: rec.npc ? 'End contract' : 'Release',
           data: { shControl: `release-${rec.id}` },
           on: {
             click: () => {
-              if (window.confirm(`Release ${rec.name} forever?`)) this.send({ act: 'release', id: rec.id });
+              const ask = rec.npc
+                ? `End ${rec.name}'s contract now? Half of the unused time is refunded.`
+                : `Release ${rec.name} forever?`;
+              if (window.confirm(ask)) this.send({ act: 'release', id: rec.id });
             },
           },
         }),

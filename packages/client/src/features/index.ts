@@ -5,6 +5,8 @@ import { ShadowClient } from './shadows';
 import { ShardClient } from './shard';
 import { SocialClient } from './social';
 import { VoiceClient } from './voice';
+import { TravelClient } from './travel';
+import { GatesClient } from './gates';
 import type { ClientModule, P34Deps } from './types';
 
 /** Phase 3/4 client: the Circuit Board, abilities and tutorial; parties, chat and trading; shard handoff and ghosts. */
@@ -16,6 +18,8 @@ export class P34Client {
   readonly adventure: AdventureClient;
   readonly voice: VoiceClient;
   readonly atlas: AtlasClient;
+  readonly travel: TravelClient;
+  readonly gates: GatesClient;
   private mods: ClientModule[];
 
   constructor(readonly d: P34Deps) {
@@ -26,7 +30,20 @@ export class P34Client {
     this.adventure = new AdventureClient(d);
     this.voice = new VoiceClient(d);
     this.atlas = new AtlasClient(d, () => this.social.partyState);
-    this.mods = [this.shard, this.circuit, this.social, this.shadows, this.adventure, this.voice, this.atlas];
+    this.travel = new TravelClient(d);
+    this.gates = new GatesClient(d);
+    this.travel.onChange = (list) => this.atlas.setWaystones(list, this.travel.homeId());
+    this.mods = [
+      this.shard,
+      this.circuit,
+      this.social,
+      this.shadows,
+      this.adventure,
+      this.travel,
+      this.gates,
+      this.voice,
+      this.atlas,
+    ];
     d.input.onAction = (a, direct) => {
       for (const m of this.mods) if (m.action?.(a, direct)) return;
     };

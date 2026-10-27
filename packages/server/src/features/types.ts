@@ -18,6 +18,13 @@ export interface Carry {
   /** ability id -> ms of cooldown left */
   cd?: Record<string, number>;
   res?: number;
+  /** a hunter crossing between the wilds and a gate's dungeon (features/gates) */
+  gate?: {
+    trip?: import('@eigenlands/shared').Gate;
+    back?: { x: number; y: number };
+    /** a gate this hunter just closed, for the room that shows it in the wilds */
+    cleared?: string;
+  };
 }
 
 export type BucketName = 'cast' | 'board' | 'party' | 'chat' | 'voice' | 'trade' | 'emote';
@@ -40,6 +47,8 @@ export interface Module {
   /** every server tick (20 Hz), before interest management */
   tick?(now: number, dt: number): void;
   /** an enemy strike is about to hurt `p` by `dmg`; return the damage to apply (0 = none) */
+  outgoingDamage?(p: ServerPlayer, e: Enemy, damage: number): number;
+  dealtDamage?(p: ServerPlayer, e: Enemy, damage: number): void;
   incomingDamage?(p: ServerPlayer, dmg: number, e: Enemy): number;
   killed?(e: Enemy, killer: ServerPlayer | undefined): void;
   viewEntities?(push: (id: string, x: number, y: number, st: Schema) => void): void;

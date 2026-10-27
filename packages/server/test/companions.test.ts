@@ -243,3 +243,33 @@ it('refuses taming when active slots or the permanent roster are full', async ()
   expect(p.room.enemies.has(badger.id)).toBe(true);
   await p.r.leave();
 });
+
+it('gates mythical bonds by level and actual boss progress before spending food, then persists the living bond', async () => {
+  const p = await setup('Dragon keeper', 900);
+  p.sp.level = 23;
+  p.sp.data.inv.fill(null);
+  p.sp.data.inv[0] = { id: 'grilled_meat', n: 21 };
+  const e = p.room.spawnEnemy('dragon', p.sp.sim.x + 3, p.sp.sim.y, false, { level: 18 });
+  // A calm window is required; a player cannot tame through an attack windup.
+  e.mode = 'recover';
+  e.t = 99;
+  for (const level of [23, 24]) {
+    p.sp.level = level;
+    const n = p.toasts.length;
+    offer(p, e.id);
+    await until(() => p.toasts.length > n);
+    expect(total(p, 'grilled_meat')).toBe(21);
+    expect(p.room.shadows.stateOf(p.sid)!.data.roster).toHaveLength(0);
+  }
+  p.sp.data.prog.bosses.push('primordial_dragon');
+  offer(p, e.id);
+  await until(() => p.room.shadows.stateOf(p.sid)!.data.roster.length === 1);
+  expect(total(p, 'grilled_meat')).toBe(1);
+  expect(p.room.shadows.stateOf(p.sid)!.data.roster[0]).toMatchObject({ bonded: true, name: 'Cinderbond' });
+  const creds = { token: p.token, accountId: p.accountId };
+  await p.r.leave();
+  await sleep(250);
+  const q = await spawn3(app, 'Dragon keeper', creds);
+  expect(q.room.shadows.stateOf(q.sid)!.data.roster[0]).toMatchObject({ bonded: true, name: 'Cinderbond' });
+  await q.r.leave();
+}, 15000);

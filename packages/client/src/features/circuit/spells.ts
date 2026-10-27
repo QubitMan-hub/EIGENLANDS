@@ -11,6 +11,19 @@ import { Interpolator, type Pose } from '../../net/interp';
 import type { P34Deps } from '../types';
 import { elCol } from './art';
 
+/** gate ranks E, D, C, B, A, S: grey-blue, green, blue, violet, amber, red */
+const GATE_COLORS = [0x9fb8c8, 0x5fd06a, 0x4aa3ff, 0xb06bff, 0xffb347, 0xff4a5a];
+const GATE_LETTERS = ['E', 'D', 'C', 'B', 'A', 'S'];
+/** 3 x 5 pixel letters for the gate ranks */
+const GLYPHS: Record<string, string[]> = {
+  E: ['###', '#..', '##.', '#..', '###'],
+  D: ['##.', '#.#', '#.#', '#.#', '##.'],
+  C: ['.##', '#..', '#..', '#..', '.##'],
+  B: ['##.', '#.#', '##.', '#.#', '##.'],
+  A: ['.#.', '#.#', '###', '#.#', '#.#'],
+  S: ['.##', '#..', '.#.', '..#', '##.'],
+};
+
 export interface SpellLike {
   id: string;
   kind: number;
@@ -81,7 +94,7 @@ export class SpellRenderer {
     const root = new Container();
     const g = new Graphics();
     root.addChild(g);
-    const world = s.kind === SPELL.ECHO || s.kind === SPELL.BOLT;
+    const world = s.kind === SPELL.ECHO || s.kind === SPELL.BOLT || s.kind === SPELL.GATE;
     (world ? this.d.entityLayer() : this.d.fxLayer()).addChild(root);
     const v: View = { id: s.id, kind: s.kind, s, root, g, born: now, dead: 0, trail: [] };
     if (s.kind === SPELL.ECHO) {
@@ -126,6 +139,12 @@ export class SpellRenderer {
         case SPELL.BOLT:
           this.bolt(v, x, y, col, age, reduced);
           break;
+        case SPELL.ARENA:
+          this.arena(v, x, y);
+          break;
+        case SPELL.STRIKE:
+          this.strike(v, x, y, col, age, reduced);
+          break;
         case SPELL.RING:
           this.ring(v, x, y, col, age, reduced);
           break;
@@ -145,6 +164,9 @@ export class SpellRenderer {
           break;
         case SPELL.RESIDUE:
           this.residue(v, x, y, age, reduced);
+          break;
+        case SPELL.GATE:
+          this.gate(v, x, y, age, reduced);
           break;
       }
     }
@@ -170,6 +192,73 @@ export class SpellRenderer {
     g.circle(0, -8, 6 * pulse).fill({ color: col, alpha: 0.18 });
     g.circle(0, -8, 3.5).fill({ color: col, alpha: 0.85 });
     g.rect(-1, -9, 2, 2).fill(0xffffff);
+  }
+
+  /** Quiet runework is fixed to the encounter's ground, below actors and warnings. */
+  private arena(v: View, x: number, y: number): void {
+    v.root.x = Math.round(isoX(x, y));
+    v.root.y = Math.round(isoY(x, y));
+    v.root.zIndex = depth(x, y) - 10000;
+    const g = v.g,
+      r = v.s.r || 9,
+      pattern = v.s.hue,
+      phase = v.s.dx || 0,
+      color = elCol([0, 5, 6, 1, 3][pattern] ?? 6);
+    const at = (x: number, y: number) => [Math.round(isoX(x, y)), Math.round(isoY(x, y))];
+    const diamond = (x: number, y: number, size: number) => {
+      const pts = [at(x - size, y), at(x, y - size), at(x + size, y), at(x, y + size)].flat();
+      g.poly(pts).stroke({ color, width: 1, alpha: 0.34 });
+    };
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      diamond(Math.cos(a) * r, Math.sin(a) * r, 0.24);
+    }
+    if (pattern === 2) {
+      for (const [dx, dy] of [
+        [-4, -4],
+        [4, -4],
+        [-4, 4],
+        [4, 4],
+      ])
+        diamond(dx!, dy!, 1.1);
+      g.poly([at(-4, -4), at(4, -4), at(4, 4), at(-4, 4)].flat()).stroke({ color, width: 1, alpha: 0.13 });
+    } else if (pattern === 3) {
+      for (const d of [-4, 0, 4])
+        g.moveTo(...(at(-6, d) as [number, number]))
+          .lineTo(...(at(6, d) as [number, number]))
+          .stroke({ color, width: 1, alpha: 0.18 });
+      diamond(0, 0, 2);
+    } else {
+      const n = pattern === 4 ? 6 : pattern === 1 ? 8 : 5;
+      for (let i = 0; i < n; i++) {
+        const a = ((i + (pattern === 4 ? phase * 0.5 : 0)) / n) * Math.PI * 2,
+          dx = Math.cos(a),
+          dy = Math.sin(a);
+        g.moveTo(...(at(dx * 5.5, dy * 5.5) as [number, number]))
+          .lineTo(...(at(dx * 7.5, dy * 7.5) as [number, number]))
+          .stroke({ color, width: 1, alpha: 0.25 });
+        diamond(dx * 6.5, dy * 6.5, pattern === 1 ? 0.55 : 0.75);
+      }
+    }
+  }
+
+  /** A short world-space fan agrees with the server's forward strike cone. */
+  private strike(v: View, x: number, y: number, col: number, age: number, reduced: boolean): void {
+    v.root.x = Math.round(isoX(x, y));
+    v.root.y = Math.round(isoY(x, y)) - 8;
+    v.root.zIndex = depth(x, y) + 1;
+    const r = Math.max(0.5, v.s.r),
+      base = Math.atan2(v.s.dy, v.s.dx),
+      sweep = reduced ? 1 : Math.min(1, age / 0.16);
+    const points: number[] = [0, 0];
+    for (let i = 0; i <= 14; i++) {
+      const a = base - 1.2 + (i / 14) * 2.4 * sweep;
+      points.push(
+        Math.round(isoX(Math.cos(a) * r, Math.sin(a) * r)),
+        Math.round(isoY(Math.cos(a) * r, Math.sin(a) * r)),
+      );
+    }
+    v.g.poly(points).fill({ color: col, alpha: 0.16 }).stroke({ color: col, width: 2, alpha: 0.9 });
   }
 
   private ring(v: View, x: number, y: number, col: number, age: number, reduced: boolean): void {
@@ -312,6 +401,48 @@ export class SpellRenderer {
           alpha: (1 - k) * 0.9 * a,
         });
       }
+  }
+
+  /**
+   * A dungeon gate: a standing oval rift in its rank's colour (E grey-blue through D, C, B, A to S red), swirling,
+   * with its rank lettered beneath. The way out of a dungeon (r = 2) is a smaller, pale rift.
+   */
+  private gate(v: View, x: number, y: number, age: number, reduced: boolean): void {
+    v.root.x = Math.round(isoX(x, y));
+    v.root.y = Math.round(isoY(x, y));
+    v.root.zIndex = depth(x, y);
+    const g = v.g;
+    const exit = v.s.r === 2;
+    const rank = Math.max(0, Math.min(5, v.s.hue));
+    const col = exit ? 0xd8f4ff : GATE_COLORS[rank]!;
+    const w = exit ? 9 : 10 + rank,
+      h = exit ? 15 : 17 + rank * 1.5;
+    const cy = -h - 2;
+    const pulse = reduced ? 1 : 1 + 0.05 * Math.sin(age * 3);
+    g.ellipse(0, 0, w + 4, (w + 4) / 2).fill({ color: 0x0b0c1a, alpha: 0.3 });
+    g.ellipse(0, 0, w + 2, (w + 2) / 2).stroke({ color: col, width: 1, alpha: 0.5 });
+    // outer glow, the rift's dark heart, its rim
+    g.ellipse(0, cy, (w + 4) * pulse, (h + 4) * pulse).fill({ color: col, alpha: 0.16 });
+    g.ellipse(0, cy, w, h).fill({ color: 0x0b0c1a, alpha: 0.9 });
+    g.ellipse(0, cy, w * 0.72, h * 0.8).fill({ color: col, alpha: 0.22 });
+    g.ellipse(0, cy, w, h).stroke({ color: col, width: 2, alpha: 0.95 });
+    // the swirl: motes winding inward
+    const n = reduced ? 6 : 14;
+    for (let i = 0; i < n; i++) {
+      const k = ((reduced ? 0 : age * 0.45) + i / n) % 1,
+        a = i * 2.39996 + (reduced ? 0 : age * 2.2);
+      const rr = 1 - k;
+      g.rect(Math.round(Math.cos(a) * w * 0.9 * rr) - 1, Math.round(cy + Math.sin(a) * h * 0.9 * rr) - 1, 2, 2).fill({
+        color: i % 3 ? col : 0xffffff,
+        alpha: 0.35 + 0.6 * rr,
+      });
+    }
+    if (exit) return;
+    // its rank, in a pixel glyph beneath
+    const glyph = GLYPHS[GATE_LETTERS[rank]!]!;
+    for (let r = 0; r < 5; r++)
+      for (let c = 0; c < 3; c++)
+        if (glyph[r]![c] === '#') g.rect(-3 + c * 2, 4 + r * 2, 2, 2).fill({ color: col, alpha: 0.95 });
   }
 
   private flash(v: View, x: number, y: number, col: number, age: number): void {

@@ -1,6 +1,10 @@
 import { portElevation, portChannel } from './settlements';
 import { isUpperY } from './floors';
 import { sanctuaryTileAt } from './sanctuaries';
+import { cryptTileAt } from './crypts';
+import { isCryptY } from './cryptplane';
+import { isOtherworldY, otherworldLevels, otherworldTileAt } from './otherworlds';
+import { gateTileAt } from './gates';
 import { spacedTree } from './distribution';
 import { CHUNK_SIZE } from './constants';
 import { hash2 } from './rng';
@@ -247,6 +251,11 @@ function surfaceTileAt(seed: number, x: number, y: number, legacy: boolean, gene
   const gen = legacy ? 1 : generation;
   const sanctuary = sanctuaryTileAt(seed, x, y);
   if (sanctuary !== null) return sanctuary;
+  // the three realms (revision 6)
+  if (isOtherworldY(y))
+    return gen >= 6 ? (otherworldTileAt(seed, x, y) ?? gateTileAt(seed, x, y) ?? T.UPPER_VOID) : T.UPPER_VOID;
+  // crypt interiors exist only in worlds that have crypts (revision 6)
+  if (isCryptY(y)) return gen >= 6 ? (cryptTileAt(seed, x, y) ?? T.CAVE_WALL) : T.CAVE_WALL;
   if (isCaveY(y))
     return (
       townTileAt(seed, x, y, gen) ?? (!legacy && gen >= 4 ? caveTileAt2(seed, x, y) : caveTileAt(seed, x, y, legacy))
@@ -477,6 +486,12 @@ function realmAwareLevels(seed: number, cx: number, cy: number, generation: Worl
 
 /** Elevation level of every tile of a chunk (all zero before revision 3). */
 const generatedLevels = new Map<string, Uint8Array>();
+/** Crypt rooms are hewn down into the rock: every wall stands a full cliff above the floors. */
+/** Crypt interiors are carved at one height, like the Undercroft: the renderer shows their rock as an enclosing roof. */
+function cryptLevels(): Uint8Array {
+  return new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
+}
+
 export function generateLevels(
   seed: number,
   cx: number,
@@ -485,6 +500,8 @@ export function generateLevels(
 ): Uint8Array {
   if (generation < 3) return new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
   if (generation >= 4 && isCaveY(cy * CHUNK_SIZE)) return caveLevels(seed, cx, cy);
+  if (isCryptY(cy * CHUNK_SIZE)) return cryptLevels();
+  if (isOtherworldY(cy * CHUNK_SIZE)) return generation >= 6 ? otherworldLevels(seed, cx, cy) : cryptLevels();
   if (generation >= 5) return realmAwareLevels(seed, cx, cy, generation);
   const key = `${generation}:${seed}:${cx},${cy}`,
     cached = generatedLevels.get(key);

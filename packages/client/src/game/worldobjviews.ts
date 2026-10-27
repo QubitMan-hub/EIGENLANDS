@@ -1,3 +1,4 @@
+import { diningSurface } from '@eigenlands/shared';
 import { Sprite, type Container } from 'pixi.js';
 import {
   C,
@@ -7,6 +8,7 @@ import {
   chunkKey,
   hash2,
   objLight,
+  propFacing,
   sampleClimate,
   type ChunkStore,
   type WorldObj,
@@ -61,7 +63,9 @@ interface View {
 
 const sigOf = (o: WorldObj): string => {
   const d = o.data as Record<string, unknown> | undefined;
-  if (o.kind === 'crop') return `${o.sub}|${d?.growth}|${d?.dead ? 1 : 0}|${d?.alt ?? ''}`;
+  if (o.kind === 'crop')
+    return `${o.sub}|${d?.growth}|${d?.dead ? 1 : 0}|${d?.alt ?? ''}:${d?.dormant}:${d?.established}`;
+  if (o.kind === 'shelter') return `${o.sub}:${JSON.stringify(d?.herd ?? d?.animals)}:${d?.lastDay}`;
   if (o.kind === 'sprinkler') return `${o.sub}|${d?.watering ? 1 : 0}`;
   return `${o.kind}|${o.sub}`;
 };
@@ -104,17 +108,21 @@ export class WorldObjViews {
 
   /** Props stand with their back to a wall: a wall behind (north-east) faces them south-west, one to the north-west faces them south-east. */
   private facing(o: WorldObj): Facing {
-    const wall = (x: number, y: number) => {
-      const t = this.store.getTile(x, y);
-      return t === T.WALL || t === T.FACE;
-    };
-    if (wall(o.x, o.y - 1)) return 'sw';
-    if (wall(o.x - 1, o.y)) return 'se';
-    return 'sw';
+    if (o.data?.facing === 'sw' || o.data?.facing === 'se') return o.data.facing;
+    return propFacing(
+      (x, y) => {
+        const t = this.store.getTile(x, y);
+        return t === T.WALL || t === T.FACE;
+      },
+      o.x,
+      o.y,
+    );
   }
 
   private seatTurn(o: WorldObj): number | undefined {
     if (o.sub !== 'chair') return undefined;
+    if (Number.isInteger(o.data?.seatTurn) && Number(o.data?.seatTurn) >= 0 && Number(o.data?.seatTurn) < 4)
+      return Number(o.data?.seatTurn);
     const dirs = [
       [0, 1],
       [-1, 0],
@@ -124,7 +132,7 @@ export class WorldObjViews {
     for (let i = 0; i < dirs.length; i++) {
       const [dx, dy] = dirs[i]!,
         near = this.store.objectAt(o.x + dx!, o.y + dy!);
-      if (near && ['table', 'desk', 'counter'].includes(near.sub)) return i;
+      if (near && diningSurface(near.sub)) return i;
     }
     return undefined;
   }
@@ -132,7 +140,7 @@ export class WorldObjViews {
     return o.sub === 'chair' ? `${sigOf(o)}:${this.seatTurn(o)}` : sigOf(o);
   }
   private refreshSeats(o: WorldObj): void {
-    if (!['table', 'desk', 'counter'].includes(o.sub)) return;
+    if (!diningSurface(o.sub)) return;
     for (const [dx, dy] of [
       [0, 1],
       [-1, 0],
@@ -296,6 +304,7 @@ export class WorldObjViews {
       for (const v of this.views.values()) {
         const show = v.obj.x >= minX && v.obj.x <= maxX && v.obj.y >= minY && v.obj.y <= maxY && !this.hidden(v);
         v.root.visible = show;
+
         if (v.echo) v.echo.visible = show;
         if (!show) v.shadow.visible = false;
       }
@@ -309,6 +318,7 @@ export class WorldObjViews {
         v.shadow.visible = false;
         return;
       }
+
       const d = v.def;
       if (d.frames.length > 1) {
         const age = v.opened === undefined ? Infinity : (now - v.opened) / 1000;

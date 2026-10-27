@@ -8,3 +8,7 @@ it('derives directional previews from actual bolt/link/blink forms, keeping self
   expect(abilityTargeting('prob_ward').skill).toBe(false);
   expect(abilityTargeting('mend').skill).toBe(false);
 });
+it('aims new directional melee skills while keeping party wards instant', () => {
+  expect(abilityTargeting('warrior_0')).toMatchObject({ skill: true, enemy: true, range: 2.3 });
+  expect(abilityTargeting('support_2').skill).toBe(false);
+});

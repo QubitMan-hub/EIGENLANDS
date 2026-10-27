@@ -1,3 +1,4 @@
+import { cozyTown } from './cozy-town';
 import { T } from './tiles';
 import { furnish, type Building, type Town } from './town';
 
@@ -192,7 +193,7 @@ export function extraTowns(seed: number): Town[] {
       spot(`${n.id}.quay`, p.cx - 9 + (i % 10) * 2, quayY + 1);
       if (i % 4 === 0) obj(wx - 2, wy - 1, 'deco', 'stall');
     });
-    return t;
+    return cozyTown(t);
   });
   if (cache.size > 8) cache.clear();
   cache.set(seed, towns);

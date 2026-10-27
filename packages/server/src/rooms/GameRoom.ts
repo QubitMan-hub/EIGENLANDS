@@ -1,7 +1,12 @@
+import { Ranch } from '../features/ranch';
+import { Settlements } from '../features/settlements';
+import { GuildJourneys } from '../features/guild-journeys';
 import { CaveModule } from '../features/caves';
 import { matchMaker, type Client } from 'colyseus';
 import type { Schema } from '@colyseus/schema';
 import {
+  REALMFOLK,
+  realmfolkSpots,
   CLASS_INDEX,
   MSG,
   MSG34,
@@ -28,6 +33,9 @@ import {
   type StrikeShape,
   type WeaponShot,
   type WorldObj,
+  mountKindOf,
+  type ShopMsg,
+  type ShopViewMsg,
 } from '@eigenlands/shared';
 import type { Enemy } from '../game/enemies';
 import { TokenBucket } from '../rate';
@@ -42,6 +50,14 @@ import { SailingModule } from '../features/sailing';
 import { ArmyModule } from '../features/armies';
 import { VoiceModule } from '../features/voice';
 import { ShrineModule } from '../features/shrines';
+import { TravelModule } from '../features/travel';
+import { CaravanModule } from '../features/caravans';
+import { CivModule } from '../features/civ';
+import { FestivalModule } from '../features/festivals';
+import { CryptModule } from '../features/crypts';
+import { WondersModule } from '../features/wonders';
+import { OtherworldModule } from '../features/otherworlds';
+import { GateModule } from '../features/gates';
 import { SocialModule } from '../features/social';
 import type { BucketName, Carry, JoinOpts, Module, Registrar } from '../features/types';
 import type { VillageHost, VillageSystem } from '../systems/types';
@@ -74,6 +90,9 @@ export class GameRoom extends WorldRoom {
   unsharded = false;
   /** set when another room already owns this shard: every join is redirected there */
   private redirectTo: string | null = null;
+  journeys!: GuildJourneys;
+  ranch!: Ranch;
+  settlements!: Settlements;
   circuit!: CircuitModule;
   social!: SocialModule;
   shadows!: ShadowModule;
@@ -83,6 +102,14 @@ export class GameRoom extends WorldRoom {
   bosses!: BossModule;
   caves!: CaveModule;
   shrines!: ShrineModule;
+  travel!: TravelModule;
+  caravans!: CaravanModule;
+  civ!: CivModule;
+  festivals!: FestivalModule;
+  crypts!: CryptModule;
+  wonders!: WondersModule;
+  otherworlds!: OtherworldModule;
+  gates!: GateModule;
   shardMod!: ShardModule;
   private modules: Module[] = [];
   private buckets = new Map<string, Map<BucketName, TokenBucket>>();
@@ -114,6 +141,13 @@ export class GameRoom extends WorldRoom {
     await super.onCreate();
     if (this.redirectTo) return;
 
+    this.journeys = new GuildJourneys(this);
+    this.ranch = new Ranch(this);
+    this.settlements = new Settlements(this);
+    this.guildClear = (p, id) => this.journeys.clear(p, id);
+    this.guildStart = (p, id, b) => this.journeys.start(p, id, b);
+    this.guildInteract = (p, o) => this.journeys.interact(p, o);
+    this.guildTalk = (p, id) => this.journeys.talk(p, id) || this.settlements.talk(p, id);
     this.shardMod = new ShardModule(this);
     this.circuit = new CircuitModule(this);
     this.social = new SocialModule(this);
@@ -124,8 +158,19 @@ export class GameRoom extends WorldRoom {
     this.bosses = new BossModule(this);
     this.shrines = new ShrineModule(this);
     this.caves = new CaveModule(this);
+    this.travel = new TravelModule(this);
+    this.caravans = new CaravanModule(this);
+    this.civ = new CivModule(this);
+    this.festivals = new FestivalModule(this);
+    this.crypts = new CryptModule(this);
+    this.wonders = new WondersModule(this);
+    this.otherworlds = new OtherworldModule(this);
+    this.gates = new GateModule(this);
     this.modules = [
       this.shardMod,
+      this.journeys,
+      this.ranch,
+      this.settlements,
       this.circuit,
       this.social,
       this.shadows,
@@ -133,6 +178,14 @@ export class GameRoom extends WorldRoom {
       this.caves,
       this.shrines,
       this.sailing,
+      this.travel,
+      this.caravans,
+      this.civ,
+      this.festivals,
+      this.crypts,
+      this.wonders,
+      this.otherworlds,
+      this.gates,
       this.army,
       this.voice,
     ];
@@ -267,6 +320,14 @@ export class GameRoom extends WorldRoom {
         const site = REALM_SITE_BY_ID[n.site!];
         if (site && (this.unsharded || shardAt(site.cx, site.cy) === this.shard)) ids.push(n.id);
       }
+    // the realm peoples belong to the shard their settlement stands in (revision 6)
+    if (this.store.generation >= 6) {
+      const spots = realmfolkSpots(this.seed);
+      for (const n of REALMFOLK) {
+        const s = spots[n.home];
+        if (s && (this.unsharded || shardAt(s.x, s.y) === this.shard)) ids.push(n.id);
+      }
+    }
     if (!ids.length) return nullVillage();
     const prefix = this.unsharded || shardAt(t.cx, t.cy) === this.shard ? '' : `${this.shard}:`;
     return createVillage(
@@ -276,6 +337,7 @@ export class GameRoom extends WorldRoom {
           const p = this.players.get(player.id);
           return p ? this.shadows.hire(p, id) : 'The guild is unavailable.';
         },
+        away: (id) => !!this.shadows?.employerOf(id),
         loadBlob: (key) => host.loadBlob(prefix + key),
         saveBlob: (key, value) => host.saveBlob(prefix + key, value),
       },
@@ -414,6 +476,17 @@ export class GameRoom extends WorldRoom {
   summonBoss(p: ServerPlayer, itemId: string, x: number, y: number): boolean {
     return this.bosses?.summon(p, itemId, x, y) ?? false;
   }
+  otherworldInteract(p: ServerPlayer, o: WorldObj): Promise<boolean> {
+    return this.otherworlds.interact(p, o);
+  }
+
+  openStar(p: ServerPlayer, o: WorldObj): void {
+    this.wonders.openStar(p, o);
+  }
+
+  async cryptInteract(p: ServerPlayer, o: WorldObj): Promise<void> {
+    await this.crypts?.interact(p, o);
+  }
   vaultGuard(p: ServerPlayer, o: WorldObj): boolean {
     return this.caves?.guard(p, o) ?? false;
   }
@@ -422,6 +495,22 @@ export class GameRoom extends WorldRoom {
   }
   shrineInteract(p: ServerPlayer, o: WorldObj): void {
     this.shrines?.interact(p, o);
+  }
+  caravanShop(p: ServerPlayer, m: ShopMsg): ShopViewMsg | null {
+    return this.caravans?.shop(p, m) ?? null;
+  }
+  travelInteract(p: ServerPlayer, o: WorldObj): void {
+    this.travel?.interact(p, o);
+  }
+  recall(p: ServerPlayer, slot: number): void {
+    this.travel?.recall(p, slot);
+  }
+  toggleMount(p: ServerPlayer, kind: string): void {
+    this.travel?.toggleMount(p, kind);
+  }
+  feedMount(p: ServerPlayer, slot: number): void {
+    const kind = mountKindOf(p.sim.mount);
+    if (kind) this.travel?.feedMount(p, kind, slot);
   }
 
   protected hookTargets(): Array<{ id: string; x: number; y: number; alive: boolean }> {
@@ -433,7 +522,7 @@ export class GameRoom extends WorldRoom {
   }
 
   protected hookWarZone(x: number, y: number): boolean {
-    return this.army?.warZone(x, y) ?? false;
+    return (this.army?.warZone(x, y) ?? false) || (this.festivals?.warZone(x, y) ?? false);
   }
   protected hookFire(e: Enemy, dx: number, dy: number): void {
     this.army?.shot(e, dx, dy);
@@ -441,6 +530,15 @@ export class GameRoom extends WorldRoom {
 
   protected hookKilled(e: Enemy, killer: ServerPlayer | undefined): void {
     for (const m of this.modules) m.killed?.(e, killer);
+  }
+
+  protected hookOutgoingDamage(p: ServerPlayer, e: Enemy, damage: number): number {
+    let d = damage;
+    for (const m of this.modules) if (m.outgoingDamage) d = m.outgoingDamage(p, e, d);
+    return d;
+  }
+  protected hookDealtDamage(p: ServerPlayer, e: Enemy, damage: number): void {
+    for (const m of this.modules) m.dealtDamage?.(p, e, damage);
   }
 
   protected hookIncomingDamage(p: ServerPlayer, dmg: number, e: Enemy): number {

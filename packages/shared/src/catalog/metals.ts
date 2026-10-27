@@ -301,6 +301,58 @@ export const METALS: Metal[] = [
     wire: true,
     blurb: 'Sylvaris silver that drinks moonlight and gives a little back.',
   },
+  // ── the three realms' metals (otherworlds.ts): found only there, worked only with their people's blessing
+  {
+    id: 'aetherium',
+    name: 'Aetherium',
+    tier: 4,
+    rarity: 3,
+    ore: [C.white, C.w6],
+    ing: [C.pale, C.e7],
+    phase: 6,
+    lvl: 9,
+    realm: 'aerin',
+    smelt: [2, 2],
+    find: [
+      src.node(T.ORE_SILVER, 1, 2, 0.5, 2, { realm: 'aetheria' }),
+      src.node(T.ROCK, 1, 1, 0.12, 1, { realm: 'aetheria' }),
+    ],
+    blurb: 'Cloud-light metal from the floating isles. A blade of it seems to want to fly.',
+  },
+  {
+    id: 'umbrite',
+    name: 'Umbrite',
+    tier: 5,
+    rarity: 3,
+    ore: [C.night, C.q4],
+    ing: [C.slate, C.q5],
+    phase: 3,
+    lvl: 13,
+    realm: 'hollowfolk',
+    smelt: [3, 3],
+    find: [
+      src.node(T.CAVE_SILVER, 1, 2, 0.5, 3, { realm: 'umbra' }),
+      src.node(T.CAVE_CRYSTAL, 1, 1, 0.25, 3, { realm: 'umbra' }),
+    ],
+    blurb: 'Black metal of the Abyss with a violet sheen, heavy and patient as the dark.',
+  },
+  {
+    id: 'chronium',
+    name: 'Chronium',
+    tier: 6,
+    rarity: 4,
+    ore: [C.e6, C.mist],
+    ing: [C.e7, C.white],
+    phase: 4,
+    lvl: 16,
+    realm: 'archivists',
+    smelt: [3, 3],
+    find: [
+      src.node(T.ORE_GOLD, 1, 2, 0.5, 3, { realm: 'chronoria' }),
+      src.node(T.CRYSTAL, 1, 1, 0.3, 3, { realm: 'chronoria' }),
+    ],
+    blurb: 'Brass-bright metal from Chronoria that is never quite the same temperature twice.',
+  },
 ];
 export const METAL_BY_ID: Record<string, Metal> = Object.fromEntries(METALS.map((m) => [m.id, m]));
 

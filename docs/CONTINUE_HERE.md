@@ -1,3 +1,200 @@
+# Current continuation: realm generation, shadow powers and dungeon gates (2026-10-27)
+
+- **Realm generation:** `otherworlds.ts` `realmGraph` (holes, spanning tree plus loops, forced rooms), `ROOM_THEMES`
+  / `roomTheme`, `nearUpdraft`, Chronoria's gate court and road. See [REALMS.md](REALMS.md#how-a-realm-is-generated).
+- **Shadow powers:** `shadows.ts` (exchange, domain, `LEGEND_SHADOWS`, `TRAIT_INFO`, boss shadow scaling), server
+  `features/shadows` (`exchange`, `domain`, `power`, `defy`), client keys G and U. See
+  [design/shadow-army.md](design/shadow-army.md).
+- **Dungeon gates:** `gates.ts` and `gate-plane.ts`, server `features/gates` (handoff via `Carry.gate`, validated in
+  `shard/ticket.ts`), client `features/gates`, `SPELL.GATE` drawn in `features/circuit/spells.ts`, items in
+  `catalog/gate-items.ts`. See [GATES.md](GATES.md).
+- **Validation:** shared `gates.test.ts` and `otherworlds.test.ts`; server `gates.test.ts`,
+  `shadow-powers.test.ts` and `realms.test.ts`; browser `e2e/gates.mjs`, `e2e/shadow-powers.mjs` and
+  `e2e/realm-themes.mjs`.
+
+---
+
+# Current continuation: the three realms and their peoples (2026-10-27)
+
+Read [REALMS.md](REALMS.md).
+
+- **Realms:** `shared/src/otherworlds.ts` (planes at y -300000/-400000/-500000, room-graph layouts, puzzles); server
+  `features/otherworlds` (portals, updrafts and chimes, dials and gate, rewind rifts, darkness, roaming, guardians);
+  client `art/realms.ts`, `gl/terrain.frag.ts` (`cloudSea`, `fractureVoid`), `art/foes.ts` `otherworldBeast`.
+- **Peoples:** `shared/src/realmfolk.ts` (races, `STANDING`, `realmfolkSpots`, `REALMFOLK`); standing in `p.data.rep`
+  via server `systems/reputation.ts` `gainStanding`; stock gating in `systems/village`; looks in client
+  `art/actors.ts` and `art/army-units.ts` (rows 6–8). Realm enemy kinds start at `REALM_KIND_BASE` (after the living
+  bestiary's kinds, 74 + `BESTIARY_KEYS.length`); Aetheria's boss is `eyrie_phoenix`, distinct from the bestiary's
+  `phoenix`.
+- **Items:** `catalog/realm-items.ts`, realm metals aetherium/umbrite/chronium (`metals.ts`, `weapons-data.ts`,
+  `armor.ts`), accessories in `gear-items.ts`; recipes gated by `learn: realm:<people>`.
+- **Validation:** shared `otherworlds.test.ts`, server `realms.test.ts`, `realmfolk.test.ts`, browser `e2e/realms.mjs`,
+  `e2e/realmfolk.mjs`.
+
+---
+
+---
+
+# NPC appearance preference (2026-10-27)
+
+The user prefers the previous NPC designs. Residents now use the restored original 24×32 painter, with the newer eight-direction action/conversation animation rig retained. Player 32×48 art stays unchanged. Preserve this split; do not apply the player redesign to NPCs again.
+
+# Latest continuation: gameplay QA and native character replacement (2026-10-27)
+
+Farming repetition/zero-damage spell exploits and enemy cover/navigation fixes are pushed to main. See [QA findings](qa/2026-10-27-findings.md). The person painter is replaced with native 32×48 original art, eight facings and saved-appearance compatibility; eighteen supplemental action families have eight poses, including station work, hurt, dodge and death. [Character coverage and remaining limits](CHARACTER_ACTIONS.md) supersedes the older foundation-only status below. Preserve current art, keep integrating main, work without subagents and ship confirmed fixes after focused checks; the user does not want a large CI/testing wait between batches. Render remains the user's work.
+
+---
+
+# Latest continuation: directional character actions (2026-10-27)
+
+Read [CHARACTER_ACTIONS.md](CHARACTER_ACTIONS.md) for the implemented animation rig, art changes, proof commands and explicit remaining work. Current main through `d37f5c0` is integrated, including the deeper-world, crypt-roof, wonders and hunts updates. Eleven appended directional action families preserve legacy combat/walk/run indices and appearance saves; full higher-resolution authored player/NPC replacement and every bespoke interaction remain open. Keep the existing boss art and the no-subagent workflow.
+
+---
+
+# Latest batch: adventurer paths, living bestiary and authored boss sprites (2026-10-27)
+
+Read [ADVENTURER_PATHS_AND_BESTIARY.md](ADVENTURER_PATHS_AND_BESTIARY.md), [BOSS_ART.md](BOSS_ART.md), [GUILD_HALLS.md](GUILD_HALLS.md), [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), the [master plan](EIGENLANDS_MASTER_PLAN.md) and [remaining work](REMAINING_WORK.md).
+
+Six families/thirty specializations, ecology, mythical bonds, visible-sighting records and five ancient encounters are implemented. The user's subsequent art critique superseded the rounded procedural ancient designs: **all fourteen bosses now use original authored sprite sheets**, not the rejected geometry prototype. Source art stays under `art-source/bosses`; normalized day/night atlases, portraits and manifests ship under `client/public/art/bestiary`. Keep the normalization/atlas checks when changing any sheet; never reintroduce ordinary-monster aliases or elastic boss squash. Detailed scope and test commands are in the linked documents. Local integration and final-head CI are recorded with the batch PR.
+
+Main's living-world, festivals, stories, travel and fox changes were integrated through `c4ad6e2` (including road life, crypt interiors, stables and settlement growth). Continue integrating incoming main changes. Work remains inline without subagents. Render deployment remains the user's work.
+
+---
+
+# Active continuation: regional guild halls, then classes and bestiary (2026-10-27)
+
+Read [GUILD_HALLS.md](GUILD_HALLS.md), the [hall plan](superpowers/plans/2026-10-26-guild-halls.md), [HOMESTEADS_AND_GUILD.md](HOMESTEADS_AND_GUILD.md), [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) and the [master plan](EIGENLANDS_MASTER_PLAN.md). Current work follows merged PR #43. Regional guild designation/furnishing, projected identity, expedition tracking and a discovered-hall atlas directory are implemented with focused art/gameplay proof. Rest persistence was genuinely broken and fixed at the buff allowlist. Full integration checks remain pending.
+
+The user expanded the task to complete master-plan §§12–13: thirty named class paths across six families, meaningful progression/skills/passives/equipment and cooperative mechanics; audit/expand the bestiary, habitats, taming and phased bosses. Preserve Superposer/Entangler, authored art, controls and saves; no placeholder completion claims. Continue inline without subagents, integrate incoming main, and require tested final-head CI before merging. Render remains the user's work.
+
+# Current continuation: wonders and hunts (2026-10-27)
+
+- **Fix:** crypt rock rendered as a field of zigzag triangles because the terrain shader did not treat the crypt plane
+  as enclosed (`gl/terrain.frag.ts` `enclosed`); crypt levels are now flat like the Undercroft's
+  (`worldgen.ts` `cryptLevels`).
+- **New:** `shared/src/wonders.ts` (starfall nights, rainbow, aurora, well rested, bounties, `compassWord`); server
+  `features/wonders` (fallen stars, bounty hunts; `openStar` via `systems/containers.ts`; rested XP in
+  `WorldRoom.giveXp`); client `game/skyfx.ts` (shooting stars, aurora, rainbow; `Game.skyFx`), fallen-star art in
+  `art/stories.ts`. `seasonOfDay` now wraps negative days.
+- **Validation:** shared `wonders.test.ts`, server `wonders.test.ts`, browser `e2e/wonders.mjs`.
+
+---
+
+# Current continuation: deeper world, second pass (2026-10-27)
+
+Builds on the section below. New this pass (see [LIVING_WORLD.md](LIVING_WORLD.md) and [TRAVEL.md](TRAVEL.md)):
+
+- **Survival:** fractures and curses (`shared/src/survival.ts` `graveInjuryOnHit`, `CURSE_ATTACK_MULT`; server
+  `WorldRoom` drops dash/sprint and weakens `outgoing`, client `Game.fixedStep` drops the same inputs), splint and
+  holy water, armour warmth by material (`equipment.ts` `armorClimate`, added in `gear-state.ts`), the Travel Tent
+  (`catalog/legendary.ts`, rest in `systems/containers.ts`, `prog.camp`, respawn in `WorldRoom.respawn`, shelter in
+  `travel-needs.ts`), food spoilage (`perishable`, `rotEvery`, `ServerPlayer.rotT`).
+- **Crypts:** three plans (`CRYPT_PLANS`, `cryptPlan`) and the braziers' riddle (`cryptOrder`, `brazierName`,
+  `cryptPlaqueText`; server `features/crypts` `lightBrazier`, prog key `cryptcache:<ruin>`).
+- **People:** word travels (`npc-ties.ts` `tieSpill`, `standingLine`; village `spill`), contract extension
+  (`shadows.ts` `RECRUIT_MAX_MS`; server `extend`), furnished crown cottages and their families (`growth.ts`
+  `cottageFurniture`, `plotsNear`, `cottagerOf`, drawn by `roadlife.ts`), wild folk home in storms.
+- **Validation:** shared `deeper-world.test.ts`, server `deeper.test.ts` and `village.ties.test.ts`, browser
+  `e2e/deeper-world.mjs`. Full results are in the commit and the final report of this pass.
+
+---
+
+# Current continuation: a livelier, more realistic world (2026-10-27)
+
+Read [LIVING_WORLD.md](LIVING_WORLD.md) and [TRAVEL.md](TRAVEL.md) for the player-facing detail and limits.
+
+- **On the roads and in the wilds:** wayfarers on every kingdom road (`shared/src/wayfarers.ts`), wild folk at work
+  (`shared/src/wildfolk.ts`), both drawn by `client/src/features/travel/roadlife.ts`; street crowds in every home,
+  frontier and cave town (`client/src/game/life.ts`).
+- **Senses:** ambient soundscape (`client/src/game/soundscape.ts`, Ambience slider) and footprints and puddles
+  (`client/src/game/groundmarks.ts`).
+- **Civilization:** evolving NPC ties and weddings (`shared/src/npc-ties.ts`), royal events and named monarchs
+  (`shared/src/civ.ts`), settlement growth with crown-owned cottages (`shared/src/growth.ts`, server
+  `features/civ`). Crown cottages are stored against a fixed per-realm UUID (`civOwner`) because building cells need
+  a UUID owner in Postgres.
+- **Dungeons and discoveries:** crypt interiors on their own plane at `CRYPT_OY` (`shared/src/crypts.ts`,
+  `cryptplane.ts`, server `features/crypts`); shipwrecks and summit cairns (`shared/src/stories.ts`).
+- **Survival and travel:** mount fatigue and stables, death penalties by difficulty with the Hardcore lost satchel,
+  murky water and boiling, balanced-diet Nourished buff, hiring residents, dagger and greatsword.
+- **Validation (2026-10-27):** shared 313/313, client 187/187, server 338/338 (Postgres and Redis running), lint,
+  prettier and build clean; `e2e/lively-world.mjs` and `e2e/living-world.mjs` pass with no page errors.
+
+Not possible from this environment: physical phone GPU/thermal profiling, a physical gamepad review, the live Render
+deploy, licence verification of the external art packs, and private friend-world hosting or new realms (large
+separate systems). See [REMAINING_WORK.md](REMAINING_WORK.md).
+
+---
+
+# Current continuation: living world, economy and civilizations (2026-10-26)
+
+Read [LIVING_WORLD.md](LIVING_WORLD.md) (§16) and [TRAVEL.md](TRAVEL.md).
+
+- **Kingdoms:** they develop daily, building works, issuing decrees, going to war and making peace. Court intrigues
+  wait for a player's choice. All of it shows in the Journal.
+- **Festivals and tournaments:** Hadamere's four seasonal festivals and the kingdom feasts; three-bout royal
+  tournaments with champion titles.
+- **Trade:** local settlement economies with daily shortages; the Wandering Peddler; caravan escort jobs.
+- **Mounts and companions:** the flying Griffin mount; Emberbrush the fox, the fourth wildlife bond.
+- **Settlements and NPCs:** settlements dress for their kingdom's state, and residents gossip about their neighbours.
+- **The wild:** seed-written story scenes, and crypt trials under ruins (revision-6 worlds).
+- **Fix:** server-side festival and diplomacy days now follow the world calendar the client uses.
+- **Validation:** shared, client and server tests, plus the `e2e/living-world.mjs` browser proof.
+
+Next: the follow-ups listed under "Limits and what is not built" in LIVING_WORLD.md, and
+[REMAINING_WORK.md](REMAINING_WORK.md).
+
+---
+
+# Current continuation: cozy settlements and integrated travel/guilds (2026-10-26)
+
+Read [COZY_TOWNS.md](COZY_TOWNS.md) first, then [HOMESTEADS_AND_GUILD.md](HOMESTEADS_AND_GUILD.md), [TRAVEL.md](TRAVEL.md) and the [master plan](EIGENLANDS_MASTER_PLAN.md). Integrated incoming main through `4d0c9ac`, including caravans, bridges, ferry voyages, underground waystones and named/fed travel mounts; retained adaptive graphics, legibility and travel while preserving our authored horse/Glimmerhart sprites. One mount state/renderer now supports ranch and whistle/bell riding; spell RPCs dismount correctly. Generated town furniture follows contextual seating/road-edge/doorway rules across all settlement families. Roofs use calmer courses, regional color families, wood eaves and fixed porch lighting. Player-owned layouts and world revisions are preserved.
+
+The focused doc lists checks and real remaining limits, including observed capital-entry spikes under software rendering. No hardware FPS or lag-free network claim. Continue inline: no subagents, preserve this art on overlap, and keep broader unchecked master-plan ambitions honest.
+
+---
+
+# Current continuation: travel, legibility, performance and collision (2026-10-26)
+
+**Travel (§14).** Read [TRAVEL.md](TRAVEL.md).
+
+- Waystones are discovered by walking up to them; Realm Gates and Ferries link the kingdoms.
+- The Recall Shard returns you to your bound home; Wayfarer ranks cut fares.
+- Riding Horse and Moonlit Stag mounts, and faster kept roads.
+- Shared and server tests, plus the `e2e/travel.mjs` browser proof.
+
+**Legibility.** The parchment page no longer inherits dark-panel colours. `e2e/ui-contrast.mjs` audits:
+
+- every window and journal tab;
+- the statue, villager talk and shops.
+
+Text now passes WCAG AA; only outlined glyphs are left. Scrollbars are thin brass rails.
+
+**Performance.** See [performance/2026-10-26-low-end.md](performance/2026-10-26-low-end.md).
+
+- New Performance tier: one canvas pixel per art pixel.
+- Auto mode adapts at runtime.
+- The lighting pass is skipped in daylight, and terrain gets a wide overscan.
+
+**Collision.** Stalls, rides, the statue and Realm Gates block every tile their art stands on, but never within two tiles
+of a door. Cave mouth and shaft art now fits its single tile.
+
+Next:
+
+- caravans on the kingdom roads;
+- mount stabling and care;
+- more exploration secrets;
+- the remaining items in [REMAINING_WORK.md](REMAINING_WORK.md).
+
+---
+
+# Current continuation: homesteads, guilds and crafting integration (2026-10-26)
+
+# Current continuation: living guilds, settlement residents and riding (2026-10-26)
+
+Read [HOMESTEADS_AND_GUILD.md](HOMESTEADS_AND_GUILD.md) for the implemented rules and boundaries, then [plans/2026-10-26-living-guilds.md](plans/2026-10-26-living-guilds.md) and [EIGENLANDS_MASTER_PLAN.md](EIGENLANDS_MASTER_PLAN.md) for broader scope. This batch adds surveyed escort/rescue routes, ordered physical investigation evidence with decisions, resource-backed diplomacy, four daily jobs, nearby party kill quest credit, original guild desks/standards/stewards, rank-B Wayguard specialization, owned housing/charters/resident services, calm authoritative livestock roaming and trained horse/Glimmerhart riding. Saved layouts, catalogs and prior authored art remain.
+
+Remaining **broader** ambitions: purpose-built guild-building prefabs rather than the civic annex, authored world-changing campaigns, deeper resident schedules/government, unrestricted pasture migration, individual bees, and real hardware/network play measurements. They are not marked complete by the focused implementation. No Render deployment changes in this batch.
+
 # Current continuation: crafting and food expansion (§9, 2026-10-26)
 
 A data-driven catalog (`packages/shared/src/catalog/`) now adds 860 items, 750 recipes, 17 stations, 70 crops, 27 armour sets, 63 weapons, 34 enchants, 156 dishes and 51 drinks, with discipline XP, craft quality, gear durability/repair/upgrade/enchant (`MSG.GEAR`), recipe discovery, a searchable crafting book (favorites, tracker, recipe tree) and rich item tooltips. Read [CRAFTING.md](CRAFTING.md) for architecture, how to add content and the explicit "Not built" list (saddles/mounts are not built; counts are 1,240 items, not thousands). Tests: `catalog.test.ts`, `catalog-systems.test.ts`, server `crafting2.test.ts`.

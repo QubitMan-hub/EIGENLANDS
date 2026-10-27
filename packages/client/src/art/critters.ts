@@ -1,4 +1,6 @@
 import { Assets, Rectangle, Texture } from 'pixi.js';
+import { ENEMY_KEY_BY_KIND } from '@eigenlands/shared';
+import { bestiaryPortrait } from './bestiary-atlases';
 import { critterLayout, normalizeBody } from './creature-pixels';
 import { loadStormbound, type StormboundArt } from './stormbound';
 
@@ -74,7 +76,10 @@ const portraits = new Map<CritterId, { url: string; width: number; height: numbe
 /** The same normalized first idle frame used in the world, without duplicate image assets. */
 export function companionPortrait(kind: number): { url: string; width: number; height: number } | null {
   const id = kind === 7 ? 'boar' : kind === 9 ? 'badger' : kind === 3 ? 'stag' : null;
-  return id ? (portraits.get(id) ?? { url: urlOf(`${id}_SE_idle`), width: SPECS[id].fw, height: SPECS[id].fh }) : null;
+  if (id) return portraits.get(id) ?? { url: urlOf(`${id}_SE_idle`), width: SPECS[id].fw, height: SPECS[id].fh };
+  const key = ENEMY_KEY_BY_KIND[kind];
+  const url = key && bestiaryPortrait(key);
+  return url ? { url, width: 64, height: 64 } : null;
 }
 
 export class Critters {

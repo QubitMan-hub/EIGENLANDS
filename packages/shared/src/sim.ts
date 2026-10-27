@@ -9,6 +9,9 @@ import {
   DASH_SPEED,
   DASH_TIME,
   BOAT_SPEED_MULT,
+  MOUNT_SPEED_MULT,
+  ROAD_MULT,
+  ROAD_MULT_MOUNTED,
   EXHAUST_DELAY,
   SPRINT_DRAIN,
   SPRINT_MIN,
@@ -24,6 +27,7 @@ import {
   SWING_MOVE_MULT,
   TICK_DT,
 } from './constants';
+import { isFlying } from './mounts';
 import { mineStep, type MineTrack } from './mines';
 import { meleeFamily, meleeTap, meleeHeavy, type MeleeFamily } from './combat';
 
@@ -79,6 +83,11 @@ export interface PlayerSim {
   staminaT: number;
   /** 1 while sprinting */
   sprint: number;
+  /**
+   * 0 on foot; otherwise a mount code (mounts.ts): horse, Moonlit Stag or griffin, fed or not, or a trained ranch
+   * Glimmerhart. Attacking, skills or dodging step a rider down first; a griffin rider cannot fight from the air.
+   */
+  mount: number;
 }
 
 export interface InputCmd {
@@ -124,6 +133,10 @@ export type SolidQuery = ((tx: number, ty: number) => boolean) & {
   mine?: (x: number, y: number) => MineTrack | null;
   /** terrain elevation level of a tile; steps of CLIFF levels or more are impassable (revision 3) */
   level?: (tx: number, ty: number) => number;
+  /** a kept road or path tile: walking and riding on it is a little faster */
+  road?: (tx: number, ty: number) => boolean;
+  /** collision for a flying mount: walls, doors and settlement wards only */
+  fly?: (tx: number, ty: number) => boolean;
 };
 
 /** Switching families cannot carry a finisher/charge across weapons or erase recovery. */
@@ -172,6 +185,7 @@ export function newPlayerSim(x: number, y: number): PlayerSim {
     atkBuf: 0,
     slipT: 0,
     boat: 0,
+    mount: 0,
     cart: 0,
     stamina: STAMINA_MAX,
     staminaT: 0,
@@ -229,7 +243,7 @@ export function sanitizeCmd(raw: Partial<InputCmd>): InputCmd {
 
 const EPS = 1e-4;
 
-function overlapsSolid(x: number, y: number, r: number, solid: SolidQuery): boolean {
+export function overlapsSolid(x: number, y: number, r: number, solid: SolidQuery): boolean {
   const x0 = Math.floor(x - r);
   const x1 = Math.floor(x + r - EPS);
   const y0 = Math.floor(y - r);
@@ -288,7 +302,12 @@ export function chargeLevel(charge: number): number {
  */
 export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepEvents {
   const sailing = p.boat > 0 && !!land.sea;
-  const solid: SolidQuery = sailing ? land.sea! : land;
+  const flying = !sailing && isFlying(p.mount) && !!land.fly;
+  // nobody fights or dashes from a griffin's back: those inputs simply do nothing in the air;
+  // on the ground, attacking, casting or dodging steps a rider down first
+  if (flying) cmd = { ...cmd, attack: false, hold: false, skill: false, dash: false };
+  else if (p.mount && (cmd.attack || cmd.skill || cmd.dash || cmd.hold)) p.mount = 0;
+  const solid: SolidQuery = sailing ? land.sea! : flying ? land.fly! : land;
   const ev: StepEvents = {
     dashed: false,
     attacked: false,
@@ -363,8 +382,12 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepE
     }
   };
 
+  // a rider who attacks, charges or casts steps down from the saddle first (then the blow lands on foot)
+  if (p.mount > 0 && (sailing || cmd.attack || cmd.hold || cmd.skill)) p.mount = 0;
+  const riding = p.mount > 0;
+
   // dash (always available while a charge remains: cancels swing recovery and a held charge)
-  if (cmd.dash && p.dashT <= 0 && p.dashN >= 1 && !sailing) {
+  if (cmd.dash && p.dashT <= 0 && p.dashN >= 1 && !sailing && !riding) {
     p.dashN -= 1;
     if (p.dashCd <= 0) p.dashCd = DASH_COOLDOWN;
     p.dashT = DASH_TIME;
@@ -442,11 +465,14 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepE
   } else {
     // committed swing slows you; so does holding a charge
     const k = p.atkCd > 0.15 ? SWING_MOVE_MULT : p.charge > 0 ? CHARGE_MOVE_MULT : 1;
-    const sp = sailing ? PLAYER_SPEED * BOAT_SPEED_MULT : PLAYER_SPEED;
-    // sprint only while moving freely: not mid-swing, charging or sailing; it needs a little stamina to begin
+    const onRoad = !sailing && !flying && !!land.road?.(Math.floor(p.x), Math.floor(p.y));
+    const sp = sailing
+      ? PLAYER_SPEED * BOAT_SPEED_MULT
+      : PLAYER_SPEED * (MOUNT_SPEED_MULT[p.mount] ?? 1) * (onRoad ? (riding ? ROAD_MULT_MOUNTED : ROAD_MULT) : 1);
+    // sprint only while moving freely: not mid-swing, charging, sailing or riding; it needs a little stamina to begin
     const moving = cmd.dx !== 0 || cmd.dy !== 0;
     const sprinting =
-      cmd.sprint && moving && !sailing && k === 1 && p.stamina >= (p.sprint ? 0.01 : SPRINT_MIN) ? 1 : 0;
+      cmd.sprint && moving && !sailing && !riding && k === 1 && p.stamina >= (p.sprint ? 0.01 : SPRINT_MIN) ? 1 : 0;
     p.sprint = sprinting;
     vx = cmd.dx * sp * k * (sprinting ? SPRINT_MULT : 1);
     vy = cmd.dy * sp * k * (sprinting ? SPRINT_MULT : 1);

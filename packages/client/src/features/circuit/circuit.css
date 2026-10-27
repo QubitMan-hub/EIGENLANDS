@@ -2209,3 +2209,14 @@ svg.cb-links {
   outline: 2px solid #d8edd2;
   outline-offset: 2px;
 }
+
+.cb-family-filter {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+  color: var(--ink, #e4d7ac);
+}
+.cb-family-filter select {
+  min-height: 44px;
+  max-width: 100%;
+}

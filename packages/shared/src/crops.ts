@@ -12,7 +12,8 @@ export interface CropDef {
   xp: number;
   /** art hints */
   color: number; // palette index of the fruit
-  shape: 'root' | 'leafy' | 'vine' | 'stalk' | 'bush';
+  shape: 'root' | 'leafy' | 'vine' | 'stalk' | 'bush' | 'tree' | 'trellis';
+  perennial?: boolean;
 }
 
 const c = (
@@ -48,7 +49,14 @@ export const CROPS: Record<string, CropDef> = Object.fromEntries(
 );
 
 // Catalog crops (grains, vegetables, orchards, spices ...) are data in catalog/crop-data.ts.
-for (const row of CROP_ROWS) CROPS[row.def.id] = row.def;
+for (const row of CROP_ROWS) {
+  if (row.orchard)
+    Object.assign(row.def, {
+      perennial: true,
+      shape: row.def.shape === 'vine' ? 'trellis' : row.def.shape === 'stalk' ? 'tree' : row.def.shape,
+    });
+  CROPS[row.def.id] = row.def;
+}
 
 export const STAGES = 4; // 0 seed, 1 sprout, 2 growing, 3 ripe
 
@@ -70,6 +78,8 @@ export interface CropData {
   yb?: number;
   dead?: boolean;
   owner: string;
+  dormant?: boolean;
+  established?: boolean;
 }
 
 export const cropSeasonOk = (crop: string, season: number, greenhouse = false): boolean =>
@@ -79,7 +89,7 @@ export const cropSeasonOk = (crop: string, season: number, greenhouse = false): 
 export function daysToRipe(d: CropData): number {
   const a = CROPS[d.crop]!.days,
     b = d.alt ? CROPS[d.alt]!.days : 0;
-  return Math.max(a, b) - (d.fert === true ? 1 : Number(d.fert) || 0);
+  return Math.max(1, Math.max(a, b) - (d.fert === true ? 1 : Number(d.fert) || 0));
 }
 
 export function cropStage(d: CropData): number {
@@ -88,7 +98,7 @@ export function cropStage(d: CropData): number {
   return f < 0.34 ? 0 : f < 0.7 ? 1 : 2;
 }
 
-export const isRipe = (d: CropData): boolean => !d.dead && cropStage(d) === 3;
+export const isRipe = (d: CropData): boolean => !d.dead && !d.dormant && cropStage(d) === 3;
 
 export interface DayContext {
   rain: boolean;
@@ -101,9 +111,16 @@ export function advanceDay(d: CropData, day: number, ctx: DayContext): CropData 
   if (d.dead || d.lastDay >= day) return d;
   const n = { ...d, lastDay: day };
   const wateredToday = d.watered === day || ctx.sprinkler || (ctx.rain && !ctx.greenhouse);
-  if (wateredToday && !isRipe(d)) n.growth = d.growth + 1;
+  const perennial = !!CROPS[d.crop]?.perennial;
+  if (wateredToday && !isRipe(d) && (!perennial || ctx.greenhouse || seasonOfDay(day) !== 3))
+    n.growth = perennial ? Math.min(daysToRipe(d), d.growth + 1) : d.growth + 1;
   const nextSeason = seasonOfDay(day + 1);
-  if (!cropSeasonOk(d.crop, nextSeason, ctx.greenhouse) && !isRipe(n)) n.dead = true;
+  if (perennial) {
+    n.dormant =
+      !cropSeasonOk(d.crop, nextSeason, ctx.greenhouse) ||
+      !!(d.alt && !cropSeasonOk(d.alt, nextSeason, ctx.greenhouse));
+    n.established = d.established || n.growth >= daysToRipe(n);
+  } else if (!cropSeasonOk(d.crop, nextSeason, ctx.greenhouse) && !isRipe(n)) n.dead = true;
   return n;
 }
 

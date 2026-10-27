@@ -1,3 +1,4 @@
+import { ANCIENT_RITES } from './bestiary';
 /**
  * Item catalog and pure inventory operations. Shared by server (authority) and client (UI, tooltips).
  * Unique crafted items (forged weapons, rings, superposed seeds) carry per-stack `p` properties.
@@ -94,6 +95,8 @@ export type Glyph =
   | 'spear'
   | 'battle_axe'
   | 'warhammer'
+  | 'dagger'
+  | 'greatsword'
   | 'helm'
   | 'cuirass'
   | 'greaves'
@@ -128,6 +131,9 @@ export type BuffKind =
   | 'poison'
   | 'burn'
   | 'frostbite'
+  | 'fracture'
+  | 'curse'
+  | 'rested'
   | 'warmth'
   | 'coolness'
   | 'vigor'
@@ -146,6 +152,9 @@ export const BUFF_KIND_LIST: readonly BuffKind[] = [
   'poison',
   'burn',
   'frostbite',
+  'fracture',
+  'curse',
+  'rested',
   'warmth',
   'coolness',
   'vigor',
@@ -174,7 +183,7 @@ export interface ItemDef {
   nourishment?: number;
   buff?: { kind: BuffKind; secs: number; power: number };
   /** medicine: injuries this item cures */
-  cure?: Array<'bleed' | 'poison' | 'burn' | 'frostbite'>;
+  cure?: Array<'bleed' | 'poison' | 'burn' | 'frostbite' | 'fracture' | 'curse'>;
   /** placeable: world object subtype created */
   place?: {
     kind: 'station' | 'sprinkler' | 'shelter' | 'chest' | 'furniture' | 'sign' | 'fence' | 'structure';
@@ -189,7 +198,9 @@ export interface ItemDef {
   /** Main-hand weapon id; the forged sword remains a plain quick-bar weapon. */
   weapon?: WeaponId;
   /** consumed on use for a special effect: a Heart Crystal (+10 max health) or a boss summon */
-  special?: 'heart' | 'summon' | 'ship';
+  special?: 'heart' | 'summon' | 'ship' | 'recall' | 'mount';
+  /** special 'mount': which mount it calls */
+  mount?: 'horse' | 'stag' | 'griffin';
   tags?: string[];
   /** catalog fields: rarity 0..5, material tier, UI category, the kingdom it belongs to */
   rarity?: Rarity;
@@ -316,7 +327,7 @@ def(
   'waterskin',
   C.e3,
   C.e5,
-  'Select in the quick-bar, face a town well, then Use to fill with clean water.',
+  'Select in the quick-bar, then Use it facing a town well (clean water) or any river or lake (murky water).',
   { stack: 1, tags: ['supplies'] },
 );
 def(
@@ -328,6 +339,17 @@ def(
   C.e3,
   C.w5,
   'Drink to restore 35 water. Keeps the empty skin; refill it at a reachable town well.',
+  { stack: 1, tags: ['supplies'] },
+);
+def(
+  'waterskin_murky',
+  'Murky Waterskin',
+  'misc',
+  6,
+  'waterskin',
+  C.e3,
+  C.g3,
+  'River water. Drinking it may make you sick (Adventure and Hardcore); boil it in a cooking pot first.',
   { stack: 1, tags: ['supplies'] },
 );
 
@@ -564,6 +586,16 @@ def('lantern_potion', 'Night-Sight Potion', 'potion', 100, 'bottle', C.q4, C.q7,
 });
 
 // ── survival medicine and tonics (master plan §8)
+def(
+  'spoiled_food',
+  'Spoiled Food',
+  'resource',
+  0,
+  'meat',
+  C.g2,
+  C.e2,
+  'Rotten. Good for nothing but the compost heap.',
+);
 def('bandage', 'Bandage', 'potion', 25, 'bottle', C.pale, C.e6, 'Stops bleeding. Heals a little.', {
   heal: 10,
   cure: ['bleed'],
@@ -571,6 +603,14 @@ def('bandage', 'Bandage', 'potion', 25, 'bottle', C.pale, C.e6, 'Stops bleeding.
 def('antidote', 'Antidote', 'potion', 60, 'bottle', C.g4, C.g7, 'Clears poison.', { cure: ['poison'] });
 def('burn_salve', 'Burn Salve', 'potion', 70, 'bottle', C.w3, C.e6, 'Soothes burns and frostbite.', {
   cure: ['burn', 'frostbite'],
+});
+def('star_shard', 'Star Shard', 'material', 140, 'gem', C.w6, C.q6, 'A splinter of a fallen star, still faintly warm.');
+def('splint', 'Splint', 'potion', 40, 'bottle', C.e3, C.pale, 'Sets a broken bone so you can run again.', {
+  heal: 6,
+  cure: ['fracture'],
+});
+def('holy_water', 'Holy Water', 'potion', 80, 'bottle', C.w5, C.q4, 'Blessed water that lifts a curse.', {
+  cure: ['curse'],
 });
 def('warming_tonic', 'Warming Tonic', 'potion', 90, 'bottle', C.r4, C.e7, 'Resist the cold for a long while.', {
   buff: { kind: 'warmth', secs: 420, power: 0.7 },
@@ -906,6 +946,51 @@ def(
   "Use it at the water's edge to board your sloop; use it again at a shore to step off. Fire cannons with attack.",
   { special: 'ship', stack: 1 },
 );
+// ── travel (§14): a waystone splinter that carries you home, and the mounts you ride
+def(
+  'recall_shard',
+  'Recall Shard',
+  'misc',
+  60,
+  'gem',
+  C.q5,
+  C.e6,
+  'A splinter of waystone. Use it to return to your bound Recall home after five quiet seconds. Bind a home at any attuned waystone.',
+  { special: 'recall', stack: 10 },
+);
+def(
+  'horse_whistle',
+  'Riding Horse',
+  'misc',
+  900,
+  'tooth',
+  C.e4,
+  C.e6,
+  'A carved whistle your horse answers. Use it to mount or dismount: much faster on roads and open ground, but no fighting or tools from the saddle.',
+  { special: 'mount', mount: 'horse', stack: 1 },
+);
+def(
+  'stag_bell',
+  'Moonlit Stag Bell',
+  'misc',
+  0,
+  'ring',
+  C.q6,
+  C.w7,
+  'A silver bell from the waystones. The Moonlit Stag, swifter than any horse, comes when it rings. A reward for twelve attuned stones.',
+  { special: 'mount', mount: 'stag', stack: 1 },
+);
+def(
+  'griffin_whistle',
+  'Griffin Whistle',
+  'misc',
+  1600,
+  'tooth',
+  C.e6,
+  C.w6,
+  'A carved plume-whistle and a light saddle. Your griffin flies over forest, water and cliff alike, but will not soar over walls or into a town: land outside and walk in. No fighting from the air.',
+  { special: 'mount', mount: 'griffin', stack: 1 },
+);
 def('doubloon', 'Doubloon', 'misc', 55, 'gem', C.e6, C.e4, "A pirate's gold coin. Merchants pay well for them.");
 def(
   'colossus_core',
@@ -957,6 +1042,8 @@ const WEAPON_COLORS: Record<string, [number, number]> = {
   spear: [C.steel, C.e4],
   battle_axe: [C.steel, C.r3],
   warhammer: [C.steel, C.e3],
+  dagger: [C.steel, C.r2],
+  greatsword: [C.steel, C.e5],
   crossbow: [C.e4, C.steel],
   ember_staff: [C.r4, C.e6],
   rime_staff: [C.w4, C.pale],
@@ -982,9 +1069,13 @@ for (const w of Object.values(WEAPONS)) {
           ? 'battle_axe'
           : fam === 'warhammer'
             ? 'warhammer'
-            : w.cls === 'crossbow'
-              ? 'crossbow'
-              : 'staff',
+            : fam === 'dagger'
+              ? 'dagger'
+              : fam === 'greatsword'
+                ? 'greatsword'
+                : w.cls === 'crossbow'
+                  ? 'crossbow'
+                  : 'staff',
     a,
     b,
     `${w.blurb} ${w.quantum} Level ${w.level}.`,
@@ -1163,4 +1254,34 @@ def(
 for (const d of catalogItems()) {
   if (I[d.id]) throw new Error(`catalog item ${d.id} duplicates a built-in item`);
   I[d.id] = d;
+}
+
+// Legendary rites share real crafting and inventory rules; no new currency/save system.
+def(
+  'wild_essence',
+  'Wild Essence',
+  'misc',
+  90,
+  'orb',
+  C.g3,
+  C.q6,
+  'Rare creature essence used to prepare ancient rites.',
+  { stack: 99, rarity: 3 },
+);
+for (const [i, r] of ANCIENT_RITES.entries()) {
+  def(
+    r.item,
+    `${r.name.split(',')[0]} Rite`,
+    'misc',
+    800 + i * 200,
+    'orb',
+    C.q2,
+    C.e6,
+    `Calls ${r.name} in ${r.where === 'sea' ? 'deep open water from a boat' : r.where === 'cave' ? 'a surveyed Undercroft arena' : `the ${r.where} wilds`}. Level ${r.level}; bring a party.`,
+    { special: 'summon', stack: 5, rarity: 4 },
+  );
+  def(r.trophy, `${r.name.split(',')[0]} Relic`, 'misc', 1200 + i * 300, 'orb', C.e3, C.e7, r.loot, {
+    stack: 20,
+    rarity: 5,
+  });
 }

@@ -6,6 +6,10 @@
  */
 import {
   ABILITIES,
+  pathFor,
+  isAdventurerFamily,
+  ENEMY_DEFS,
+  type EnemyKindName,
   FLUX,
   PLAYER_RADIUS,
   SPELL,
@@ -72,6 +76,7 @@ export interface Kit {
 export interface EngineHost {
   kit(sid: string): Kit | null;
   /** an ability of `caster` hurt an enemy (resource, combat timer) */
+  onSupport?(caster: ServerPlayer, amount: number): void;
   onHit(caster: ServerPlayer, dmg: number): void;
   /** damage or healing echoed along `owner`'s threads (Bond) */
   onEchoed(owner: ServerPlayer, amount: number): void;
@@ -130,6 +135,7 @@ interface Echo {
   oy: number;
 }
 interface Aura {
+  source?: string;
   id: string;
   st: SpellState;
   owner: string;
@@ -334,7 +340,19 @@ export class AbilityEngine {
     const f = ABILITIES[ability].forms[bit];
     if (ability === 'split_shot' && this.spec(sid, 'superposer') === 'splitter')
       return bit ? { ...f, count: 3 } : { ...f, dmg: 24 };
-    return f;
+    const kit = this.host.kit(sid),
+      traits = kit ? pathFor(kit.cls, kit.spec)?.traits : undefined;
+    return {
+      ...f,
+      ...(f.heal ? { heal: f.heal * (kit?.cls === 'support' ? 1.2 : 1) * (traits?.healing ?? 1) } : {}),
+      ...(f.kind === 'shield' ? { amount: (f.amount ?? 30) * (traits?.shielding ?? 1) } : {}),
+      ...(f.kind === 'summon'
+        ? {
+            secs: (f.secs ?? 15) * (traits?.summonDuration ?? 1),
+            amount: (f.amount ?? 1) * (traits?.summonDamage ?? 1),
+          }
+        : {}),
+    };
   }
 
   private run(c: CastCtx, f: AbilityForm, ox: number, oy: number, repeat: boolean): void {
@@ -349,6 +367,28 @@ export class AbilityEngine {
       case 'link_ally':
         this.fireBolts(c, f, ox, oy, 'link_ally');
         break;
+      case 'strike':
+        this.ring(c, f, ox, oy, true);
+        break;
+      case 'party_heal':
+        this.healAround(p, f.radius ?? 5, (f.heal ?? 20) * c.power, c.hue);
+        break;
+      case 'party_ward':
+        for (const q of this.allies(p))
+          if (
+            this.alive(q) &&
+            Math.hypot(q.sim.x - p.sim.x, q.sim.y - p.sim.y) <= (f.radius ?? 4) &&
+            this.clearRay(p.sim.x, p.sim.y, q.sim.x, q.sim.y)
+          )
+            this.aura(q, 'ward', Math.min(WARD_CAP, (f.amount ?? 0.2) * c.power), f.secs ?? 5, c.hue, SPELL.WARD, p.id);
+        break;
+      case 'summon': {
+        const kind = f.summon as EnemyKindName;
+        if (!ENEMY_DEFS[kind] || !this.room.shadows?.summonTemporary(p, kind, f.secs ?? 15, (f.amount ?? 1) * c.power))
+          p.toast('Your conjuration slots are full or unavailable.');
+        else this.flash(SPELL.ECHO, p.sim.x, p.sim.y, c.hue, p.id, { r: 1 });
+        break;
+      }
       case 'ring':
         this.ring(c, f, ox, oy);
         break;
@@ -420,7 +460,9 @@ export class AbilityEngine {
   private healAround(p: ServerPlayer, r: number, amt: number, hue: number): void {
     for (const q of this.allies(p)) {
       if (!this.alive(q) || Math.hypot(q.sim.x - p.sim.x, q.sim.y - p.sim.y) > r) continue;
-      this.heal(q, amt);
+      if (!this.clearRay(p.sim.x, p.sim.y, q.sim.x, q.sim.y)) continue;
+      const healed = this.heal(q, amt);
+      if (q !== p && healed > 0) this.host.onSupport?.(p, healed);
       this.flash(SPELL.WARD, q.sim.x, q.sim.y, hue, p.id, { target: q.id, r: 0.5 });
     }
   }
@@ -531,12 +573,21 @@ export class AbilityEngine {
     }
   }
 
-  private ring(c: CastCtx, f: AbilityForm, ox: number, oy: number): void {
+  private clearRay(x: number, y: number, tx: number, ty: number): boolean {
+    const n = Math.max(1, Math.ceil(Math.hypot(tx - x, ty - y) * 4));
+    for (let i = 1; i < n; i++)
+      if (this.room.store.shotBlockedAt(Math.floor(x + ((tx - x) * i) / n), Math.floor(y + ((ty - y) * i) / n)))
+        return false;
+    return true;
+  }
+
+  private ring(c: CastCtx, f: AbilityForm, ox: number, oy: number, directional = false): void {
     const r = f.radius ?? 2.5;
-    this.flash(SPELL.RING, ox, oy, c.hue, c.caster.id, { r });
+    this.flash(directional ? SPELL.STRIKE : SPELL.RING, ox, oy, c.hue, c.caster.id, { r, dx: c.aimX, dy: c.aimY });
     for (const e of [...this.room.enemies.values()]) {
       const d = Math.hypot(e.x - ox, e.y - oy);
-      if (d > r + e.def.radius) continue;
+      if (d > r + e.def.radius || !this.clearRay(ox, oy, e.x, e.y)) continue;
+      if (directional && d > 0.01 && ((e.x - ox) * c.aimX + (e.y - oy) * c.aimY) / d < 0.35) continue;
       const [dx, dy] = norm(e.x - ox, e.y - oy);
       this.hit(c.caster, e, (f.dmg ?? 0) * c.power, {
         dx,
@@ -617,6 +668,7 @@ export class AbilityEngine {
     secs: number,
     hue: number,
     spellKind: number,
+    source?: string,
   ): void {
     for (const a of this.aurasOf(p.id))
       if (a.kind === kind) {
@@ -624,7 +676,7 @@ export class AbilityEngine {
         this.unspell(a.id);
       }
     const sp = this.spell(spellKind, p.sim.x, p.sim.y, hue, p.id, { target: p.id, r: 0.7 });
-    this.auras.set(sp.id, { ...sp, owner: p.id, kind, until: this.t + secs, amount });
+    this.auras.set(sp.id, { ...sp, owner: p.id, source, kind, until: this.t + secs, amount });
   }
 
   private flash(kind: number, x: number, y: number, hue: number, owner: string, extra: Partial<SpellState>): void {
@@ -776,7 +828,8 @@ export class AbilityEngine {
     // a selected party mate in reach receives the heal instead of the caster
     const sel = c.target ? this.allies(p).find((q) => q.id === c.target && q !== p) : undefined;
     if (sel && this.alive(sel) && Math.hypot(sel.sim.x - p.sim.x, sel.sim.y - p.sim.y) <= MEND_TARGET_RANGE) {
-      this.heal(sel, amt);
+      const healed = this.heal(sel, amt);
+      if (healed > 0) this.host.onSupport?.(p, healed);
       this.flash(SPELL.WARD, sel.sim.x, sel.sim.y, c.hue, p.id, { target: sel.id, r: 0.5 });
       return;
     }
@@ -850,7 +903,10 @@ export class AbilityEngine {
     } finally {
       this.inHit--;
     }
-    const real = Math.min(dealt, Math.max(0, hpBefore));
+    // Armour, wards and protected targets can reject or reduce a hit. Riders need actual HP lost.
+    const real = Math.min(hpBefore, Math.max(0, hpBefore - e.hp));
+    if (real <= 0) return 0;
+    if (e.def.trait === 'regrow' && o.hue === 0) e.regenBlockT = 8;
     const dead = !this.room.enemies.has(e.id);
     if (this.hpSeen.has(e.id)) this.hpSeen.set(e.id, e.hp);
     if (!dead) {
@@ -1004,6 +1060,38 @@ export class AbilityEngine {
 
   // ───────────────────────── ultimates ─────────────────────────
 
+  disciplineUltimate(p: ServerPlayer, cls: ClassId, aimX: number, aimY: number): void {
+    if (!isAdventurerFamily(cls)) return;
+    const c: CastCtx = { caster: p, ability: `${cls}_0`, bit: 0, hue: 2, power: 1, aimX, aimY };
+    const forms: Partial<Record<ClassId, AbilityForm[]>> = {
+      warrior: [{ name: 'Last bastion', kind: 'party_ward', hue: 2, amount: 0.4, secs: 8, radius: 6 }],
+      ranged: [{ name: 'Horizon barrage', kind: 'bolt', hue: 3, dmg: 19, count: 8, spread: 8, range: 14, speed: 22 }],
+      mage: [{ name: 'Convergence', kind: 'ring', hue: 6, dmg: 61, radius: 6, slow: 0.45, secs: 4 }],
+      stealth: [
+        { name: 'Nightfall', kind: 'strike', hue: 6, dmg: 67, radius: 3.5 },
+        { name: 'Night veil', kind: 'ward', hue: 6, amount: 0.3, secs: 5 },
+      ],
+      support: [
+        { name: 'Dawn chorus', kind: 'party_heal', hue: 2, heal: 70, radius: 7 },
+        { name: 'Dawn shelter', kind: 'party_ward', hue: 2, amount: 0.22, secs: 6, radius: 7 },
+      ],
+      hybrid: [
+        { name: 'Grand design', kind: 'summon', hue: 1, summon: 'prism_beetle', amount: 1.6, secs: 28 },
+        { name: 'Grand shelter', kind: 'shield', hue: 1, amount: 55, secs: 7 },
+      ],
+    };
+    const k = this.host.kit(p.id),
+      traits = k ? pathFor(k.cls, k.spec)?.traits : undefined;
+    for (const f of forms[cls] ?? [])
+      this.run(
+        { ...c, hue: f.hue },
+        { ...f, ...(f.heal ? { heal: f.heal * (cls === 'support' ? 1.2 : 1) * (traits?.healing ?? 1) } : {}) },
+        p.sim.x,
+        p.sim.y,
+        false,
+      );
+  }
+
   /** Many Worlds: three Echoes surround the caster and repeat their offensive casts. */
   manyWorlds(p: ServerPlayer, secs: number, aimX: number, aimY: number): void {
     for (const e of this.echoesOf(p.id)) if (e.ult) this.removeEcho(e.id);
@@ -1081,7 +1169,13 @@ export class AbilityEngine {
       this.hit(p, e, dmg * a.amount, { dx, dy, kb: 4, hue: -1 });
       return 0;
     }
-    for (const a of this.aurasOf(p.id)) if (a.kind === 'ward') d = d * (1 - a.amount);
+    for (const a of this.aurasOf(p.id))
+      if (a.kind === 'ward') {
+        const blocked = d * a.amount;
+        d -= blocked;
+        const source = a.source ? this.player(a.source) : undefined;
+        if (source && source !== p && blocked > 0) this.host.onSupport?.(source, blocked);
+      }
     for (const a of this.aurasOf(p.id)) {
       if (a.kind !== 'shield' || d <= 0) continue;
       const absorbed = Math.min(a.amount, d);

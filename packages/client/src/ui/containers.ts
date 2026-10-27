@@ -1,3 +1,4 @@
+import { buildHusbandry, type HerdActions } from './husbandry';
 import { FARM_ANIMALS, type PanelMsg, type Slot } from '@eigenlands/shared';
 import type { Profile } from '../game/profile';
 import { clear, h, iconCell, tooltipFor, type Tooltip } from './dom';
@@ -70,45 +71,29 @@ export function buildChest(
   };
 }
 
-export function buildShelter(
-  p: PanelMsg,
-  profile: Profile,
-  act: { add(): void; feed(): void; collect(): void },
-): HTMLElement {
-  const s = p.shelter!;
-  const animal = s.animal ?? (s.type === 'coop' ? 'chicken' : 'cow');
-  const product = s.product ?? (s.type === 'coop' ? 'eggs' : 'milk');
-  const animalId = FARM_ANIMALS[s.type]?.animal ?? animal;
-  const root = h('div', { class: 'shelter' });
-  root.append(
-    h('div', { class: 'side-title', text: s.name ?? (s.type === 'coop' ? 'Chicken coop' : 'Barn') }),
-    h('div', { text: `${s.animals} / ${s.max} ${animal}s housed` }),
-    h('div', {
-      class: s.fed ? 'good' : 'bad',
-      text: s.fed ? 'Fed today: they will produce at dawn.' : 'Hungry. Feed them hay to get products tomorrow.',
-    }),
-    h('div', { text: `${s.ready} ${product} ready to collect` }),
-    h(
+export function buildShelter(p: PanelMsg, profile: Profile, act: HerdActions): HTMLElement {
+  if (p.shelter?.type === 'apiary') {
+    const d = p.shelter,
+      f = FARM_ANIMALS.apiary!;
+    return h(
       'div',
-      { class: 'dbtns' },
+      { class: 'herd-panel' },
+      h('h2', { text: f.name }),
+      h('p', { text: `${d.animals}/${d.max} colonies · ${d.ready} honey ready` }),
       h('button', {
-        text: `Add a ${animal}`,
-        disabled: s.animals >= s.max || profile.count(animalId) < 1,
+        text: 'House a bee colony',
+        disabled: d.animals >= d.max || profile.count(f.animal) < 1,
         on: { click: act.add },
       }),
       h('button', {
-        text: `Feed hay (${profile.count('hay')})`,
-        disabled: s.fed || s.animals < 1 || profile.count('hay') < 1,
+        text: `Feed (${d.animals} hay)`,
+        disabled: d.fed || !d.animals || profile.count('hay') < d.animals,
         on: { click: act.feed },
       }),
-      h('button', { class: 'primary', text: `Collect ${product}`, disabled: s.ready < 1, on: { click: act.collect } }),
-    ),
-    h('div', {
-      class: 'small dim',
-      text: `Buy ${animal}s from the farmer; hay comes from fiber (field crafting) or the store.`,
-    }),
-  );
-  return root;
+      h('button', { text: 'Collect honey', disabled: d.ready < 1, on: { click: act.collect } }),
+    );
+  }
+  return buildHusbandry(p, profile, act);
 }
 
 export function buildSign(p: PanelMsg): HTMLElement {

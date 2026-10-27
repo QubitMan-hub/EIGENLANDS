@@ -1,3 +1,4 @@
+import { cozyTown } from './cozy-town';
 import { frontierTownAt, frontierTownsNear } from './frontier';
 import type { RealmSite } from './realms';
 import { caveTowns } from './cavetowns';
@@ -12,6 +13,8 @@ import { LEGACY_GENERATION } from './world-version';
 
 export type BuildingKind = 'smithy' | 'hall' | 'inn' | 'store' | 'house' | 'farmhouse' | 'tower' | 'church';
 export interface Building {
+  /** A guild reception uses this existing civic footprint. */
+  guild?: boolean;
   id: string;
   kind: BuildingKind;
   x: number;
@@ -302,6 +305,7 @@ export function townFor(seed: number): Town {
         }
       if (clear) set(x, y, T.TREE);
     }
+  cozyTown(t);
   cache.set(seed, t);
   return t;
 }

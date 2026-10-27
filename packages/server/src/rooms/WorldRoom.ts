@@ -6,6 +6,8 @@ import {
   caveRegionAt,
   highGroundRange,
   injuryOnHit,
+  graveInjuryOnHit,
+  CURSE_ATTACK_MULT,
 } from '@eigenlands/shared';
 import { Client, Room, ServerError } from 'colyseus';
 import { StateView } from '@colyseus/schema';
@@ -99,6 +101,7 @@ import {
   type TalkMsg,
   type GiftMsg,
   type ShopMsg,
+  type ShopViewMsg,
   type DialogueChatMsg,
   type DevMsg,
   type UseMsg,
@@ -121,6 +124,10 @@ import {
   isCaveY,
   isUpperY,
   isDiveY,
+  arrivalOf,
+  waystoneById,
+  isCryptY,
+  isOtherworldY,
   sanctuaryAt,
   CANNON,
   ITEMS,
@@ -131,7 +138,15 @@ import {
   type WeaponShot,
 } from '@eigenlands/shared';
 import { verifyToken } from '../auth/token';
-import { createEnemy, enemyDamage, stepEnemies, type Enemy, type EnemyKind, type SpawnOpts } from '../game/enemies';
+import {
+  createEnemy,
+  enemyDamage,
+  lineOfSight,
+  stepEnemies,
+  type Enemy,
+  type EnemyKind,
+  type SpawnOpts,
+} from '../game/enemies';
 import { TokenBucket } from '../rate';
 import type { RoomApi } from '../systems/api';
 import type { ServerClock } from '../systems/clock';
@@ -338,6 +353,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     on<ChestMsg>(MSG.CHEST, 'openBucket', (p, m) => handleChest(this, p, m));
     on<ShelterMsg>(MSG.SHELTER, 'openBucket', (p, m) => handleShelter(this, p, m));
     on<TalkMsg>(MSG.TALK, 'socialBucket', (p, m) => {
+      if (this.guildTalk?.(p, m?.npcId)) return;
       if (!this.npcNear(p, m?.npcId)) return;
       const d = this.village.talk(p, m.npcId, typeof m.topic === 'string' ? m.topic : undefined);
       if (d) p.client.send(MSG.DIALOGUE, d);
@@ -348,6 +364,11 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       if (d) p.client.send(MSG.DIALOGUE, d);
     });
     on<ShopMsg>(MSG.SHOP, 'socialBucket', (p, m) => {
+      if (typeof m?.npcId === 'string' && m.npcId.startsWith('caravan:')) {
+        const v = this.caravanShop(p, m);
+        if (v) p.client.send(MSG.SHOP_VIEW, v);
+        return;
+      }
       if (!this.npcNear(p, m?.npcId)) return;
       const v = this.village.shop(p, m);
       if (v) p.client.send(MSG.SHOP_VIEW, v);
@@ -806,6 +827,43 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
         this.fx({ kind: 'stagger', x: en.x, y: en.y, id: en.id });
       },
     });
+    if (tick % 20 === 0)
+      for (const p of this.players.values()) {
+        if (p.deadT > 0) continue;
+        const known = new Set(p.data.prog.bestiary ?? []);
+        let changed = false;
+        for (const e of this.enemies.values()) {
+          const key = ENEMY_KEY_BY_KIND[e.def.kind];
+          if (
+            !key ||
+            known.has(key) ||
+            e.hp <= 0 ||
+            Math.hypot(e.x - p.sim.x, e.y - p.sim.y) > 18 ||
+            !lineOfSight(this.store.shotBlockedAt, p.sim.x, p.sim.y, e.x, e.y)
+          )
+            continue;
+          known.add(key);
+          changed = true;
+        }
+        // Ranch livestock are synchronized NPC actors rather than hostile Enemy instances.
+        for (const n of this.state.npcs.values()) {
+          const key = n.farm === 'phasehart' ? 'deer' : n.farm;
+          if (
+            !key ||
+            !Object.hasOwn(ENEMY_DEFS, key) ||
+            known.has(key) ||
+            Math.hypot(n.x - p.sim.x, n.y - p.sim.y) > 18 ||
+            !lineOfSight(this.store.shotBlockedAt, p.sim.x, p.sim.y, n.x, n.y)
+          )
+            continue;
+          known.add(key);
+          changed = true;
+        }
+        if (changed) {
+          p.data.prog.bestiary = [...known].slice(0, 256);
+          p.dirty('bestiary');
+        }
+      }
     this.stepBombs();
     this.stepProjectiles(tick);
 
@@ -880,7 +938,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
         }
       if (changed) p.dirty('buffs');
       const regen = p.data.buffs.regen;
-      if (regen && p.deadT <= 0 && p.hp < p.maxHp) {
+      if (regen && p.deadT <= 0 && p.hp < p.maxHp && !this.cursed(p)) {
         p.regenT += 1;
         if (p.regenT >= 5) {
           p.regenT = 0;
@@ -912,6 +970,11 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       const weapon = this.weaponOf(p);
       p.sim.ranged = isRangedWeapon(weapon);
       setMeleeWeapon(p.sim, weapon?.id);
+      // a broken bone: no running and no dodging (the client drops the same inputs, so prediction agrees)
+      if (p.data.buffs.fracture) {
+        cmd.sprint = false;
+        cmd.dash = false;
+      }
       const ev = stepPlayer(p.sim, cmd, solid);
       if (cmd.dx || cmd.dy || ev.attacked || ev.skill || ev.dashed) p.travelExerted = true;
       if (ev.dashed) {
@@ -940,6 +1003,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     s.look = lookOf(p);
     s.app = p.data.appearance ?? 0;
     s.cart = p.sim.cart > 0;
+    s.mount = p.sim.mount;
     s.weapon = this.weaponOf(p)?.id ?? '';
     s.held = ITEMS[p.data.inv[p.heldSlot]?.id ?? '']?.tool?.type ?? '';
     p.client.send(MSG.ACK, encodeAck({ seq: p.lastSeq, tick, sim: p.sim }));
@@ -1063,7 +1127,12 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   /** weapon/ring attack bonus and the Might buff */
   private outgoing(p: ServerPlayer, base: number): number {
     const might = p.data.buffs.might;
-    return attackDamage(base, p.stats.atkBonus, might && might.until > this.wclock.now() ? might.power : 0);
+    const dmg = attackDamage(base, p.stats.atkBonus, might && might.until > this.wclock.now() ? might.power : 0);
+    return this.cursed(p) ? Math.max(1, Math.round(dmg * CURSE_ATTACK_MULT)) : dmg;
+  }
+  private cursed(p: ServerPlayer): boolean {
+    const c = p.data.buffs.curse;
+    return !!c && c.until > this.wclock.now();
   }
 
   private addProjectile(
@@ -1115,7 +1184,16 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
 
   /** Phase Wisp attack: one slow orb (a fan of three at night). */
   fireOrbs(e: Enemy, dx: number, dy: number): void {
-    const angles = e.night ? [-ORB_SPREAD, 0, ORB_SPREAD] : [0];
+    const angles =
+      e.def.trait === 'breath'
+        ? [-0.28, -0.14, 0, 0.14, 0.28]
+        : e.def.trait === 'many_heads'
+          ? [-0.2, 0, 0.2]
+          : e.def.trait === 'storm'
+            ? [-0.15, 0.15]
+            : e.night
+              ? [-ORB_SPREAD, 0, ORB_SPREAD]
+              : [0];
     for (const a of angles) {
       const c = Math.cos(a),
         s = Math.sin(a);
@@ -1220,7 +1298,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
           continue;
         }
         if (p.invuln > 0) continue;
-        if (pr.src) this.hurtPlayer(p, pr.dmg, pr.src, 1, pr.dx, pr.dy);
+        if (pr.src) this.hurtPlayer(p, pr.dmg, pr.src, 1, pr.dx, pr.dy, true);
         this.removeProjectile(pr);
         break;
       }
@@ -1243,6 +1321,9 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       (by && this.warded(by.sim.x, by.sim.y))
     )
       return;
+    if (by) dmg = this.hookOutgoingDamage(by, e, dmg);
+    if (dmg <= 0) return;
+    e.regenBlockT = Math.max(e.regenBlockT ?? 0, 3);
     const weight = o.weight ?? 0;
     const crit = !!o.crit;
     const staggered = e.mode === 'stagger';
@@ -1253,7 +1334,9 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
           { damage: dmg, poise: o.poise ?? Math.round(dmg * 0.4), knockback: kb, weight },
           { crit, staggered, counter: o.counter },
         );
+    const actual = Math.min(e.hp, r.damage);
     e.hp -= r.damage;
+    if (by && actual > 0) this.hookDealtDamage(by, e, actual);
     if (by) wearWeapon(by);
     e.state.hp = Math.max(0, e.hp);
     const res = staggered ? Math.min(1, e.resist * 2.5) : e.resist;
@@ -1284,7 +1367,14 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       dx,
       dy,
     });
-    if (e.hp <= 0) this.killEnemy(e, weight);
+    if (e.hp <= 0 && e.def.trait === 'rebirth' && !e.reborn) {
+      e.reborn = true;
+      e.hp = Math.ceil(e.maxHp * 0.45);
+      e.state.hp = e.hp;
+      e.mode = 'recover';
+      e.t = 1.5;
+      this.fx({ kind: 'levelup', x: e.x, y: e.y, id: e.id });
+    } else if (e.hp <= 0) this.killEnemy(e, weight);
   }
 
   /** Poise broken: interrupts any windup/charge; the enemy takes extra damage for a moment. */
@@ -1312,7 +1402,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     this.state.enemies.delete(e.id);
     this.fx({ kind: 'die', x: e.x, y: e.y, id: e.id, v: e.def.kind, w: weight });
     const killer = e.lastHitBy ? this.players.get(e.lastHitBy) : undefined;
-    if (killer) {
+    if (killer && !e.noRewards) {
       const xp = e.def.xp * (e.night ? 1.5 : 1) * (e.elite ? ELITE_XP_MULT : 1) * enemyScale(e.level).xp;
       this.giveXp(killer, Math.round(xp));
       const rolls = e.elite ? 2 : 1;
@@ -1347,7 +1437,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       this.bombs.push({ e, x: e.x, y: e.y, t: BOMB_FUSE });
       this.fx({ kind: 'bomb', x: e.x, y: e.y, v: BOMB_FUSE, w: BOMB_RADIUS, id: e.id });
     }
-    this.hookKilled(e, killer);
+    if (!e.noRewards) this.hookKilled(e, killer);
   }
 
   private stepBombs(): void {
@@ -1363,6 +1453,8 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   }
 
   protected giveXp(p: ServerPlayer, xp: number): void {
+    const rested = p.data.buffs.rested;
+    if (rested && rested.until > this.wclock.now()) xp = Math.round(xp * rested.power);
     p.xp += xp;
     while (p.xp >= xpForLevel(p.level)) {
       p.xp -= xpForLevel(p.level);
@@ -1386,6 +1478,22 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
    */
   private queueStrike(e: Enemy, shape: StrikeShape, dmg: number, weight: number, dedupe: Set<string> | null): void {
     this.hookStrike(e, shape, dmg);
+    if (e.def.predator)
+      for (const prey of [...this.enemies.values()]) {
+        if (
+          !prey.def.passive ||
+          !shapeHits(shape, { x: prey.x, y: prey.y, r: prey.def.radius }) ||
+          this.warded(prey.x, prey.y)
+        )
+          continue;
+        if (prey.hp <= dmg) prey.noRewards = true; // A predator consumes its prey, without generating player loot or XP.
+        const dx = prey.x - e.x,
+          dy = prey.y - e.y,
+          d = Math.hypot(dx, dy) || 1;
+        this.damageEnemy(prey, dmg, null, dx / d, dy / d, 1);
+        e.hp = Math.min(e.maxHp, e.hp + dmg * 0.2);
+        e.state.hp = Math.round(e.hp);
+      }
     const st: PendingStrike = { e, shape, dmg, weight, tick: this.state.tick, waiting: new Set(), dedupe };
     const cx = shape.kind === 'circle' ? shape.x : (shape.ax + shape.bx) / 2,
       cy = shape.kind === 'circle' ? shape.y : (shape.ay + shape.by) / 2;
@@ -1420,6 +1528,8 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   private applyStrike(st: PendingStrike, p: ServerPlayer): void {
     if (p.deadT > 0 || st.dedupe?.has(p.id)) return;
     if (!shapeHits(st.shape, { x: p.sim.x, y: p.sim.y, r: PLAYER_RADIUS })) return;
+    const origin = st.shape.kind === 'circle' ? { x: st.shape.x, y: st.shape.y } : { x: st.shape.ax, y: st.shape.ay };
+    if (!lineOfSight(this.store.solidAt, origin.x, origin.y, p.sim.x, p.sim.y)) return;
     if (hasIframes(p.sim)) {
       // dodged
       if (isPerfectDodge(p.sim)) this.perfectDodge(p);
@@ -1446,8 +1556,22 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   }
 
   /** Apply an enemy hit to a player (ward buff, Phase 3 hook, shove, death). Returns whether damage was dealt. */
-  private hurtPlayer(p: ServerPlayer, raw: number, e: Enemy, weight: number, dirX: number, dirY: number): boolean {
+  private hurtPlayer(
+    p: ServerPlayer,
+    raw: number,
+    e: Enemy,
+    weight: number,
+    dirX: number,
+    dirY: number,
+    projectile = false,
+  ): boolean {
     if (this.warded(p.sim.x, p.sim.y)) return false;
+    if (projectile && e.def.trait === 'gaze') {
+      const dx = e.x - p.sim.x,
+        dy = e.y - p.sim.y,
+        d = Math.hypot(dx, dy) || 1;
+      if ((p.sim.faceX * dx + p.sim.faceY * dy) / d < 0.3) return false;
+    }
     // armour: a hit may pass straight through (phase), otherwise worn defence trims it
     if (p.stats.phase > 0 && this.rand() < p.stats.phase) {
       this.fx({ kind: 'shadow', x: p.sim.x, y: p.sim.y, v: 5, id: p.id });
@@ -1465,20 +1589,42 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     if (dmg <= 0) return false; // dodged or absorbed by a Phase 3 ability
     p.hp = Math.max(0, p.hp - (p.data.needs.mode === 'hardcore' ? Math.round(dmg * 1.25) : dmg));
     p.invuln = 0.5;
+    if (e.def.trait === 'web' || e.def.trait === 'storm') {
+      p.sim.stamina = Math.max(0, p.sim.stamina - (e.def.trait === 'web' ? 20 : 30));
+      p.sim.staminaT = 2;
+      p.sim.sprint = 0;
+    }
+    if (e.def.trait === 'siphon') {
+      e.hp = Math.min(e.maxHp, e.hp + dmg * 0.35);
+      e.state.hp = Math.round(e.hp);
+    }
     wearOnHit(p, () => this.rand());
     // wounds: some creatures leave an injury behind (Adventure and Hardcore only)
-    const hit = injuryOnHit(ENEMY_KEY_BY_KIND[e.def.kind] ?? '');
+    const hit =
+      e.def.trait === 'venom'
+        ? { cond: 'poison' as const, chance: 0.35 }
+        : injuryOnHit(ENEMY_KEY_BY_KIND[e.def.kind] ?? '');
     if (hit && this.rand() < Math.min(0.9, hit.chance * DIFFICULTY_RULES[p.data.needs.mode].injury))
       inflict(this, p, hit.cond);
+    const grave = graveInjuryOnHit(ENEMY_KEY_BY_KIND[e.def.kind] ?? '');
+    if (grave && this.rand() < Math.min(0.6, grave.chance * DIFFICULTY_RULES[p.data.needs.mode].injury))
+      inflict(this, p, grave.cond);
     const l = Math.hypot(dirX, dirY) || 1;
-    const shove = weight >= 2 ? 0.6 : 0.3;
-    moveBody(p.sim, (dirX / l) * shove, (dirY / l) * shove, PLAYER_RADIUS, this.store.solidAt); // server authoritative; the client reconciles
+    const shove = e.def.trait === 'song' ? -0.8 : weight >= 2 ? 0.6 : 0.3;
+    moveBody(
+      p.sim,
+      (dirX / l) * shove,
+      (dirY / l) * shove,
+      PLAYER_RADIUS,
+      p.sim.boat ? (this.store.solidAt.sea ?? this.store.solidAt) : this.store.solidAt,
+    ); // server authoritative; the client reconciles
     p.sim.charge = 0;
     this.fx({ kind: 'hurt', x: p.sim.x, y: p.sim.y, v: dmg, id: p.client.sessionId, w: weight });
     if (p.hp <= 0) {
       p.deadT = RESPAWN_TIME;
       p.queue.length = 0;
       this.fx({ kind: 'die', x: p.sim.x, y: p.sim.y, id: p.client.sessionId, by: String(e.def.kind) });
+      this.deathPenalty(p);
     }
     return true;
   }
@@ -1496,8 +1642,62 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     this.fx({ kind: 'perfect', x: p.sim.x, y: p.sim.y, id: p.id });
   }
 
+  /**
+   * What a fall costs, by difficulty. Cozy: nothing. Adventure: a tenth of the coins you carry. Hardcore: a quarter
+   * of your coins, and your whole pack is left in a satchel where you fell, for you (and only you) to go back for.
+   */
+  private deathPenalty(p: ServerPlayer): void {
+    const mode = p.data.needs.mode;
+    if (mode === 'cozy') return;
+    const lost = Math.floor(p.data.coins * (mode === 'hardcore' ? 0.25 : 0.1));
+    if (lost) {
+      p.data.coins -= lost;
+      p.dirty('coins');
+    }
+    let satchel = '';
+    if (mode === 'hardcore' && p.data.inv.some(Boolean)) {
+      const fx = Math.floor(p.sim.x),
+        fy = Math.floor(p.sim.y);
+      let spot: { x: number; y: number } | null = null;
+      for (let r = 0; r <= 3 && !spot; r++)
+        for (let dy = -r; dy <= r && !spot; dy++)
+          for (let dx = -r; dx <= r && !spot; dx++) {
+            const x = fx + dx,
+              y = fy + dy;
+            if (!this.store.solidAt(x, y) && !this.store.objectAt(x, y) && !this.store.structureAt(x, y))
+              spot = { x, y };
+          }
+      if (spot) {
+        const slots = p.data.inv.map((s) => (s ? { ...s } : null));
+        p.data.inv.fill(null);
+        p.dirty('inv');
+        this.objects.put({
+          x: spot.x,
+          y: spot.y,
+          kind: 'chest',
+          sub: 'lost_satchel',
+          owner: p.accountId,
+          data: { slots },
+        });
+        satchel = ` Your pack lies where you fell (${spot.x}, ${spot.y}).`;
+      }
+    }
+    p.toast(`You fell${lost ? ` and lost ${lost} coins` : ''}.${satchel}`, 'bad');
+  }
+
   private respawn(p: ServerPlayer): void {
-    p.sim = newPlayerSim(SPAWN.x, SPAWN.y);
+    // back at your bound home stone, or the spawn shrine if you have none
+    const home = p.data.prog.home ? waystoneById(this.seed, p.data.prog.home) : null;
+    let at = home ? arrivalOf(home) : SPAWN;
+    // a pitched tent you rested in beats the stone, while it still stands (and is yours)
+    const camp = p.data.prog.camp;
+    if (camp) {
+      const t = this.store.objectAt(camp.x, camp.y);
+      const loaded = this.store.has(Math.floor(camp.x / CHUNK_SIZE), Math.floor(camp.y / CHUNK_SIZE));
+      if (t?.sub === 'camp_tent' && t.owner === p.accountId) at = { x: camp.x + 0.5, y: camp.y + 1.5 };
+      else if (loaded) p.data.prog.camp = null;
+    }
+    p.sim = newPlayerSim(at.x, at.y);
     p.hp = p.maxHp;
     p.invuln = 2;
     p.dashTick = -1;
@@ -1544,7 +1744,15 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     let total = [...this.enemies.values()].filter((e) => !e.def.passive && !e.def.neutral).length;
     for (const id of this.encounterAt.keys()) if (!this.players.has(id)) this.encounterAt.delete(id);
     for (const p of this.players.values()) {
-      if (p.deadT > 0 || isUpperY(p.sim.y) || isDiveY(p.sim.y) || total >= MAX_ENEMIES) continue;
+      if (
+        p.deadT > 0 ||
+        isUpperY(p.sim.y) ||
+        isDiveY(p.sim.y) ||
+        isCryptY(p.sim.y) ||
+        isOtherworldY(p.sim.y) ||
+        total >= MAX_ENEMIES
+      )
+        continue;
       if (sanctuaryAt(this.seed, p.sim.x, p.sim.y)) {
         this.encounterAt.set(p.id, now + 12000);
         continue;
@@ -1589,6 +1797,13 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
             def = ENEMY_DEFS[kind];
           }
         }
+        if (
+          def.territory &&
+          [...this.enemies.values()].some(
+            (e) => e.def.kind === def.kind && Math.hypot(e.x - x, e.y - y) < def.territory! * 2,
+          )
+        )
+          continue;
         const cost = def.budget ?? 1;
         if (
           used + cost > budget ||
@@ -1640,7 +1855,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     if (total >= MAX_FAUNA) return;
     for (const p of this.players.values()) {
       if (total >= MAX_FAUNA) break;
-      if (p.deadT > 0 || isUpperY(p.sim.y) || isDiveY(p.sim.y)) continue;
+      if (p.deadT > 0 || isUpperY(p.sim.y) || isDiveY(p.sim.y) || isCryptY(p.sim.y) || isOtherworldY(p.sim.y)) continue;
       let near = 0;
       for (const e of this.enemies.values())
         if ((e.def.passive || e.def.neutral) && Math.hypot(e.x - p.sim.x, e.y - p.sim.y) < 40) near++;
@@ -1660,6 +1875,11 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
         const t = this.store.getTile(x, y);
         const biome = biomeAt(this.seed, x, y);
         if (biome === 'corrupted' || isCaveY(y)) continue; // nothing gentle lives in the wastes or underground
+        if (t === T.WATER && this.store.generation >= 4 && this.rand() < 0.35 && !this.store.solidAt.sea?.(x, y)) {
+          this.spawnEnemy('river_fish', x + 0.5, y + 0.5, false);
+          total++;
+          break;
+        }
         if (t !== T.GRASS && t !== T.GRASS_TALL && t !== T.FLOWERS && !(biome === 'desert' && t === T.SAND)) continue;
         let trees = 0;
         for (let dy = -5; dy <= 5; dy++)
@@ -1676,7 +1896,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
           const t = this.store.getTile(x + dx!, y + dy!);
           return t === T.WATER;
         });
-        const kind: EnemyKind = night
+        let kind: EnemyKind = night
           ? waterBank && r < 0.5
             ? 'otter'
             : biome === 'desert'
@@ -1721,6 +1941,11 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
                           : r < 0.2
                             ? 'badger'
                             : 'rabbit';
+        if (this.store.generation >= 4) {
+          if (biome === 'enchanted' && p.level >= 12 && r < 0.04) kind = 'unicorn';
+          else if (biome === 'enchanted' && r < 0.18) kind = 'woodland_spirit';
+          else if (!night && trees >= 3 && r > 0.7) kind = 'songbird';
+        }
         const n = Math.min(MAX_FAUNA - total, localMax - near, kind === 'deer' || kind === 'boar' ? 2 : 1);
         let added = 0;
         for (let i = 0; i < n; i++) {
@@ -1770,6 +1995,9 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   protected hookViewEntities(_push: (id: string, x: number, y: number, st: SpellState) => void): void {}
   /** an adventure object (shrine altar/pillar) was opened */
   shrineInteract(_p: ServerPlayer, _o: WorldObj): void {}
+  caravanShop(_p: ServerPlayer, _m: ShopMsg): ShopViewMsg | null {
+    return null;
+  }
 
   /** boss summoning (the Phase 3/4 room provides the boss module) */
   summonBoss(_p: ServerPlayer, _itemId: string, _x: number, _y: number): boolean {
@@ -1799,7 +2027,20 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     return false;
   }
   protected hookFire(_e: Enemy, _dx: number, _dy: number): void {}
+  guildClear?: (p: ServerPlayer, id: string) => void;
+  guildStart?: (
+    p: ServerPlayer,
+    id: string,
+    board: WorldObj,
+  ) => Promise<import('@eigenlands/shared').GuildJourney | null>;
+  guildInteract?: (p: ServerPlayer, o: WorldObj) => boolean;
+  guildTalk?: (p: ServerPlayer, id: string) => boolean;
   protected hookKilled(_e: Enemy, _killer: ServerPlayer | undefined): void {}
+  protected hookOutgoingDamage(_p: ServerPlayer, _e: Enemy, damage: number): number {
+    return damage;
+  }
+  protected hookDealtDamage(_p: ServerPlayer, _e: Enemy, _damage: number): void {}
+
   protected hookIncomingDamage(_p: ServerPlayer, dmg: number, _e: Enemy): number {
     return dmg;
   }

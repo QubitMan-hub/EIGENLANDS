@@ -1,3 +1,4 @@
+import { guildBoard, guildFurnishings } from './guild';
 import { frontierTownAt, frontierTownsNear } from './frontier';
 import { mineLineAt, mineLoopAt } from './mines';
 import { buildTile, type BuildCell } from './construction';
@@ -8,11 +9,16 @@ import { generateChunk, generateLevels, setActiveGeneration, tileAt } from './wo
 import { LEGACY_GENERATION, type WorldGeneration } from './world-version';
 import { T, isSolid } from './tiles';
 import type { SolidQuery } from './sim';
-import { objSolid, type WorldObj } from './objects';
+import { objSolid, propFootprint, type WorldObj } from './objects';
 import { townsFor } from './town';
 import { ruinObjectsIn } from './ruins';
+import { storyObjectsIn } from './stories';
+import { cryptObjectsIn, isCryptY } from './crypts';
+import { isOtherworldY, otherworldObjectsIn, realmPortalsIn } from './otherworlds';
+import { waystoneObjectsIn } from './travel';
 import { caveObjectsIn, isCaveY } from './caves';
 import { shrineObjectsIn } from './shrines';
+import { sanctuaryAt } from './sanctuary';
 
 export type ChunkDiff = Map<number, number>;
 
@@ -59,6 +65,8 @@ export class ChunkStore {
   private chunks = new Map<string, Chunk>();
   /** solid world objects (stations, chests, furniture...) keyed by "x,y" */
   private solidObjs = new Set<string>();
+  /** extra tiles covered by large static props (stalls, rides, the statue's plinth), keyed by "x,y" */
+  private footprints = new Set<string>();
   /** all dynamic + static objects by "x,y" (server/client keep this in sync with OBJ messages) */
   readonly objects = new Map<string, WorldObj>();
   readonly structures = new Map<string, BuildCell>();
@@ -162,7 +170,10 @@ export class ChunkStore {
   townObjectsIn(cx: number, cy: number): WorldObj[] {
     if (!this.townByChunk) {
       this.townByChunk = new Map();
-      for (const o of townsFor(this.seed).flatMap((t) => t.objects)) {
+      for (const o of townsFor(this.seed).flatMap((t) => {
+        const board = guildBoard(t);
+        return board ? [...t.objects, board, ...guildFurnishings(t)] : t.objects;
+      })) {
         const k = chunkKey(chunkOf(o.x), chunkOf(o.y));
         const list = this.townByChunk.get(k) ?? [];
         list.push({ x: o.x, y: o.y, kind: o.kind, sub: o.sub, static: true, ...(o.data ? { data: o.data } : {}) });
@@ -172,21 +183,43 @@ export class ChunkStore {
     const town = [
       ...(this.townByChunk.get(chunkKey(cx, cy)) ?? []),
       ...frontierTownsNear(this.seed, cx * 32, cy * 32, cx * 32 + 31, cy * 32 + 31, this.generation)
-        .flatMap((t) => t.objects)
+        .flatMap((t) => {
+          const board = guildBoard(t);
+          return board ? [...t.objects, board, ...guildFurnishings(t)] : t.objects;
+        })
         .filter((o) => chunkOf(o.x) === cx && chunkOf(o.y) === cy)
         .map((o) => ({ ...o, static: true })),
+      // waystones, realm gates and ferry posts (settlement and wild); they stand on surface ground only
+      ...waystoneObjectsIn(this.seed, cx, cy, this.generation),
     ];
     const wild = isCaveY(cy * CHUNK_SIZE)
       ? [...caveObjectsIn(this.seed, cx, cy, this.generation), ...shrineObjectsIn(this.seed, cx, cy)]
-      : isDiveY(cy * CHUNK_SIZE)
-        ? sanctuaryObjectsIn(this.seed, cx, cy)
-        : [
-            ...sanctuaryObjectsIn(this.seed, cx, cy),
-            ...oceanObjectsIn(this.seed, cx, cy),
-            ...shrineObjectsIn(this.seed, cx, cy),
-            ...ruinObjectsIn(this.seed, cx, cy),
-            ...caveObjectsIn(this.seed, cx, cy, this.generation),
-          ];
+      : isCryptY(cy * CHUNK_SIZE)
+        ? this.generation >= 6
+          ? cryptObjectsIn(this.seed, cx, cy)
+          : []
+        : isOtherworldY(cy * CHUNK_SIZE)
+          ? this.generation >= 6
+            ? otherworldObjectsIn(this.seed, cx, cy)
+            : []
+          : isDiveY(cy * CHUNK_SIZE)
+            ? sanctuaryObjectsIn(this.seed, cx, cy)
+            : [
+                ...sanctuaryObjectsIn(this.seed, cx, cy),
+                ...oceanObjectsIn(this.seed, cx, cy),
+                ...shrineObjectsIn(this.seed, cx, cy),
+                ...ruinObjectsIn(this.seed, cx, cy),
+                ...storyObjectsIn(this.seed, cx, cy, this.generation),
+                ...(this.generation >= 6
+                  ? realmPortalsIn(
+                      `${this.seed}:${this.generation}`,
+                      (x, y) => tileAt(this.seed, x, y, this.generation),
+                      cx,
+                      cy,
+                    )
+                  : []),
+                ...caveObjectsIn(this.seed, cx, cy, this.generation),
+              ];
     const placed = (this.generation >= 3 ? wild.filter((o) => this.seaSiteStillAtSea(o)) : wild).filter(
       (o) => this.generation < 6 || !frontierTownAt(this.seed, o.x, o.y, this.generation),
     );
@@ -210,8 +243,13 @@ export class ChunkStore {
       return;
     }
     this.objects.set(k, o);
-    if (objSolid(o.kind, o.sub)) this.solidObjs.add(k);
-    else this.solidObjs.delete(k);
+    if (objSolid(o.kind, o.sub)) {
+      this.solidObjs.add(k);
+      // Facing comes from generated walls (never loads chunks), the same rule the client uses to draw the prop.
+      if (o.static)
+        for (const [fx, fy] of propFootprint(o.sub, o.x, o.y, (x, y) => tileAt(this.seed, x, y, this.generation)))
+          this.footprints.add(`${fx},${fy}`);
+    } else this.solidObjs.delete(k);
   }
   removeObject(x: number, y: number): void {
     const k = `${x},${y}`;
@@ -232,13 +270,36 @@ export class ChunkStore {
   /** a ship's collision: only open water is passable */
   private seaSolidAt = (x: number, y: number): boolean => {
     const t = this.getTile(x, y);
-    return (t !== T.WATER && t !== T.DEEP_WATER) || this.solidObjs.has(`${x},${y}`);
+    return (t !== T.WATER && t !== T.DEEP_WATER) || this.objSolidAt(x, y);
   };
+  /** A griffin's collision: it soars over terrain, but not over walls or doors, nor into a settlement's ward. */
+  private flySolidAt(x: number, y: number): boolean {
+    const t = this.getTile(x, y);
+    if (t === T.WALL || t === T.FACE || t === T.DOOR || t === T.UPPER_VOID || t === T.CAVE_WALL) return true;
+    const k = `${x},${y}`;
+    if (this.structures.has(k)) return true;
+    // wards are coarse and static: remember each tile's answer
+    let w = this.wardCache.get(k);
+    if (w === undefined) {
+      if (this.wardCache.size > 20000) this.wardCache.clear();
+      w = !!sanctuaryAt(this.seed, x + 0.5, y + 0.5);
+      this.wardCache.set(k, w);
+    }
+    return w;
+  }
+  private wardCache = new Map<string, boolean>();
+  /** a solid object, or the footprint of a large one, covers (x, y) */
+  objSolidAt(x: number, y: number): boolean {
+    const k = `${x},${y}`;
+    return this.solidObjs.has(k) || (this.footprints.size > 0 && this.footprints.has(k));
+  }
   solidAt: SolidQuery = Object.assign(
-    (x: number, y: number): boolean => isSolid(this.getTile(x, y)) || this.solidObjs.has(`${x},${y}`),
+    (x: number, y: number): boolean => isSolid(this.getTile(x, y)) || this.objSolidAt(x, y),
     {
       sea: (x: number, y: number): boolean => this.seaSolidAt(x, y),
       level: (x: number, y: number): number => this.levelAt(x, y),
+      road: (x: number, y: number): boolean => this.getTile(x, y) === T.PATH,
+      fly: (x: number, y: number): boolean => this.flySolidAt(x, y),
       mine: (x: number, y: number) =>
         this.generation >= 4 ? mineLineAt(this.seed, x, y) : mineLoopAt(this.seed, x, y),
     },
@@ -248,6 +309,6 @@ export class ChunkStore {
     const t = this.getTile(x, y);
     // high ground also blocks: a shot fired from a lower level cannot cross a cliff face
     if (fromLevel !== undefined && this.levelAt(x, y) - fromLevel >= CLIFF) return true;
-    return (t !== T.WATER && t !== T.DEEP_WATER && isSolid(t)) || this.solidObjs.has(`${x},${y}`);
+    return (t !== T.WATER && t !== T.DEEP_WATER && isSolid(t)) || this.objSolidAt(x, y);
   };
 }

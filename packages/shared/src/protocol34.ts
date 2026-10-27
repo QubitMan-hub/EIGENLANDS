@@ -272,7 +272,11 @@ export type ShadowCmd =
   | { act: 'stance'; stance: Stance }
   | { act: 'focus'; target: string | null }
   | { act: 'rename'; id: string; name: string }
-  | { act: 'release'; id: string };
+  | { act: 'release'; id: string }
+  | { act: 'extend'; id: string }
+  /** trade places with a summoned shadow (the farthest one when no id is given) */
+  | { act: 'exchange'; id?: string }
+  | { act: 'domain' };
 
 /** Seafaring notices to the sailor (the ship itself is PlayerSim.boat). */
 export type SeaEvent = { kind: 'board' } | { kind: 'land' };
