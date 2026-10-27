@@ -112,6 +112,31 @@ they now:
 - mention today's shortage;
 - answer a new question, **Who are your neighbours?**
 
+**Ties change over time.** Every pair of neighbours follows its own arc, about 18 world days per step, worked out from
+the seed and the day: some friends fall in love, get engaged and marry; sweethearts either wed or part; rivals make
+their peace and become friends; apprentices and their mentors become peers. Residents talk about a recent change in
+their own life as fresh news and pass on gossip about their neighbours'. On a wedding day the couple's settlement holds a celebration in the plaza
+and the street crowd turns festive.
+
+**Hiring residents.** A guard, soldier, archer or commander who counts you a friend (three hearts) offers **Hire me**
+in conversation. A contract runs for one world hour for a fee that scales with the role and your level (from 220
+coins; commanders from 420). The hired resident follows and fights beside you, and only one player can employ them at
+a time. While hired they are missing from their post, and their neighbours say so. Ending a contract early refunds
+half of the unused time. The companion window shows **Hired · N min left** and an **End contract** button.
+
+### Royal events
+
+Each kingdom's crown now has a life of its own. On some days a royal event is under way, chosen from the seed, the
+day and the kingdom's state: a **royal birth**, a **coronation** (the crown passes to a new monarch, who is named in
+the Journal from then on), a **jubilee**, a **royal wedding** (sometimes arranged as part of a peace between two
+kingdoms), a **royal hunt**, a **plague** or a **bountiful harvest**. They have real effects:
+
+- Births, coronations, jubilees and weddings are celebrations: stability rises, the capital's plaza hosts a feast and
+  the street crowds turn festive.
+- A plague raises prices and lowers stability; a bountiful harvest lowers food prices.
+- The Journal shows the reigning monarch and the current royal event for each kingdom, and the event enters the
+  chronicle.
+
 ### Dynamic settlements
 
 The kingdom state shows on the ground, in each settlement's open squares and lawns near its waystone:
@@ -121,28 +146,55 @@ The kingdom state shows on the ground, in each settlement's open squares and law
   stub, sacks, an obelisk, an anchor, an arch or a book.
 - **Celebration:** a prosperous or feasting realm strings pennants.
 - **War:** settlements raided in today's war, and outposts of a kingdom at war, send up smoke.
+- **Growth (revision-6 worlds):** prosperous settlements grow. Each settlement earns cottages from its kingdom's
+  prosperity (one per ten points above 55) and from the works finished there, up to four. One goes up per world day,
+  on the first clear, level, off-road plot of a seeded list around the settlement's edge. The cottages are real
+  building cells, the same floors, walls, door, windows and roof that players build with, in the realm's own
+  materials: plaster and tile in Aurelion, logs and moss in Sylvaris, granite and slate in Khar-Dum, timber and tile
+  in Raijin, sandstone and reed in Thalassara, brick and slate in Nethrakar. They have real collision and are owned by
+  the crown, so anyone may open their doors but nobody can take them apart. Nothing is pulled down when times turn
+  hard. The chronicle records each new cottage.
+
+### Life on the roads and in the wilds
+
+- **Wayfarers:** seven travellers per kingdom road at a time: pilgrims, couriers, patrols, shepherds with their flock,
+  carters with a handcart, minstrels, hunters and families. They keep to the right-hand verge, step aside in towns
+  and mostly go home at night; couriers and patrols ride on after dark with lanterns. They greet you as you pass.
+- **Wild folk:** woodcutters, foragers, herbalists, hunters, fishers, prospectors and the odd hermit work out in the
+  wilds by day, in nearly four of every ten 40×40-tile cells, wandering round their spot and talking to passers-by.
+- **Every town is lived in:** home, frontier and cave towns that had no street crowd now have one, with stand-in
+  sites when a town has no square.
+- **Soundscape:** wind, birdsong, crickets and owls at night, rain and thunder, surf near the shore, the murmur of
+  a town and the clang of its forge, and passing voices. A separate **Ambience** volume slider is in Settings.
+- **Ground marks:** footprints in snow, sand and wet earth behind you and everyone near you, fading over a minute or
+  so; puddles gather on paths and bare earth in rain and dry out afterwards.
 
 ### Dungeons and ruins
 
-Ruins with a treasure cache already existed. In new worlds (revision 6), a third of the ruins also hide a **crypt**:
+Ruins with a treasure cache already existed. In new worlds (revision 6), a third of the ruins also hide a **crypt**
+with a real interior on its own underground plane:
 
-- **Waking the wardens:** touching the sealed door (level 5 or higher) wakes three waves of wardens around it:
-  wisps, then a vault guardian with wisps, then two guardians and a brute.
-- **Reward:** clearing all three waves opens the reliquary, which holds two ruin loot rolls, coins, XP and a chance
-  of a rare find. Each player can open each reliquary once.
-- **Failure:** walking more than 22 tiles away, dying or taking more than five minutes lets the wardens sink back,
-  and the seal can be tried again.
-
-A crypt is an encounter on the surface around the ruin. There is no separate dungeon map.
+- **Going down:** the sealed door opens at level 5 or higher and takes you down the stairs to the entrance. Stairs
+  in the entrance lead back up to the ruin.
+- **Layout:** entrance, a passage, the wardens' hall (pillars, braziers, bones and rubble that differ under every
+  ruin), another passage, and the reliquary chamber with its sarcophagi. Torches light the walls.
+- **The wardens:** the first time someone walks into the hall, the wardens rise there in three waves (wisps, then a
+  vault guardian with wisps, then two guardians and a brute). Everyone in the hall fights them together.
+- **Reward:** clearing the hall unseals the reliquary for everyone who fought in it: two ruin loot rolls, coins, XP
+  and a chance of a rare find, once per player per crypt.
+- **Failure:** if everyone leaves the crypt or dies, or five minutes pass, the wardens sink back and the hall can be
+  tried again.
 
 ### Companions and mounts
 
 - **Mounts:** the Riding Horse, the Moonlit Stag and the flying Griffin. Mounts can be named and fed at
   every waystone's hitching post. See [TRAVEL.md](TRAVEL.md).
+- **Mount stamina and stables:** see [TRAVEL.md](TRAVEL.md).
 - **Companions:** the wildlife bonds now have a fourth member, **Emberbrush the fox**. Feed it two eggs to bond it.
   - It does not fight.
   - Its trait, **Keen nose**: every two minutes, while you are ashore and out of combat, it digs up something from
     the land around it, such as hazelnuts in the forest or snow yams in the taiga.
+  - Its portrait in the companion window is drawn from its own sprite sheet.
 
 ### Environmental storytelling
 
@@ -154,6 +206,12 @@ away from settlements, roads and ruins:
 - **Overturned cart:** broken crates and a bill of lading.
 - **Carved standing stone.**
 - **Wayside shrine:** stuffed with notes.
+
+Revision-6 worlds also have:
+
+- **Shipwrecks** on sandy shores (about one per 88×88-tile cell with a beach): a broken hull with the captain's log.
+- **Summit cairns** on the local high point of hills (about one per 96×96-tile cell): a stone cairn with the climbers'
+  register.
 
 Each scene's words are generated from the seed: names, the nearest kingdom, its capital and the land. Reading one
 opens the lore panel. The first reading pays 40 XP and counts toward your stories found.
@@ -211,12 +269,28 @@ opens the lore panel. The first reading pays 40 XP and counts toward your storie
 - **Settlement dressing:** checked in the browser at Harrowgate (Aurelion) with an injected kingdom state. A scaffold
   stood in the market square, a monument on the lawn and pennants nearby.
 
+- **Settlement growth:** server test (`realism.test.ts`): a prosperous kingdom raises whole cottages one step at a
+  time, never more than earned, and none come down when prosperity falls. Crypt interiors, evolving ties, royal
+  events, wayfarers and wild folk have shared tests (`crypts.test.ts`, `lively.test.ts`, `pageantry.test.ts`,
+  `civ.test.ts`); the full crypt flow (down, trial, reliquary, back up) is in `living-wild.test.ts`.
+- **Browser proof** (`e2e/lively-world.mjs` and `e2e/living-world.mjs`, solo dev build, 2026-10-27): a shepherd
+  and flock on a Khar-Dum road, a wild hunter, street life in a home town, a story scene read, the festivals card and
+  the inside of a crypt; no page errors.
+
 ## Limits and what is not built
 
-- Crypts are surface encounters; there are no separate dungeon interiors or multi-floor dungeons.
+- Crypts are a single fixed floor plan (five rooms), the same under every ruin apart from the scattered bones. There
+  are no multi-floor dungeons, puzzles or bosses in them.
 - Tournaments are fought against ordinary soldier AI; there is no mounted jousting minigame. The jousting knights
   in Goldspire are cosmetic.
-- NPC relationships are fixed by the roster. They do not change over time or react to the player.
-- Settlement dressing is decoration only. It does not change buildings, layouts or collision.
-- Story scenes and crypts exist only in revision-6 worlds, so older worlds' ground is untouched.
-- The fox has no portrait art in the companion window yet: its crest is shown empty.
+- NPC ties follow seeded arcs. They do not react to what the player does, apart from hiring.
+- Settlement growth adds cottages on the outskirts only. Existing town layouts never change, and the cottages are
+  empty shells (no furniture or residents of their own). A cottage is only raised in the room that holds its
+  settlement, and plots on slopes, roads or occupied ground are skipped, so a settlement can have fewer cottages than
+  it has earned.
+- Hired residents are a one-hour contract with the existing companion AI; they do not level, equip or persist past
+  the contract.
+- Wayfarers and wild folk are drawn on each client from the seed and the clock. They cannot be fought, traded with
+  or followed home, and other players see the same people only because they compute the same thing.
+- Story scenes, crypts, wrecks, cairns and settlement growth exist only in revision-6 worlds, so older worlds' ground
+  is untouched.

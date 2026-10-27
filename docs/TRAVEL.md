@@ -133,10 +133,29 @@ when they walk across a border.
   - the horse covered 10 tiles in 1.5 s;
   - no page errors.
 
+## Mount stamina and stables
+
+- **Fatigue:** riding tires a mount by the distance covered (horse 0.32, Stag 0.26, griffin 0.4 points per tile, out
+  of 100). A mount that is not being ridden rests about 0.04 points a second, roughly forty minutes from exhausted to
+  fresh. Fatigue is saved with your character.
+- **Warnings:** at 75 you are told the mount is tiring. At 90 it refuses the saddle. At 100 it sets you down; a griffin
+  first carries on until there is ground to land on (not water, lava or rock).
+- **Feeding** takes 20 points of fatigue off.
+- **Stables:** every waystone's hitching post, in the travel window, lists each of your mounts with its fatigue and a
+  **Stable** button. For 8 coins the stable hand rubs it down, waters and feeds it: fatigue goes to zero and the mount
+  gets its fed form.
+
+## Death and respawn
+
+- You wake at your **home waystone** (the one your Recall Shard is bound to) when you have one, otherwise at the
+  world spawn.
+- **Cozy:** nothing is lost.
+- **Adventure:** you lose 10% of your coins.
+- **Hardcore:** you lose 25% of your coins, and your whole pack is left in a **lost satchel** where you fell. Only you
+  can open it; it disappears once emptied.
+
 ## Not built yet
 
-- **Mount stabling:** mounts are not boarded at a stable or needed between uses. The hitching post covers naming and
-  feeding.
 - **Gamepad hardware review:** focus order in the travel window works with the keyboard but has not been checked on a
   physical gamepad.
 

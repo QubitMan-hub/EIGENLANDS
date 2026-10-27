@@ -100,7 +100,10 @@ describe('weapon families', () => {
     for (const id of ['dagger', 'greatsword', 'dagger_steel', 'greatsword_mithril']) {
       expect(WEAPONS[id], id).toBeTruthy();
       expect(ITEMS[id]?.kind).toBe('weapon');
-      expect(RECIPES.some((r) => r.out.id === id), id).toBe(true);
+      expect(
+        RECIPES.some((r) => r.out.id === id),
+        id,
+      ).toBe(true);
     }
     expect(meleeHeavy('dagger_steel', 0)).toEqual(meleeHeavy('dagger', 0));
   });
