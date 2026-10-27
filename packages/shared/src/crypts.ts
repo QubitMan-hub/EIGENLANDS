@@ -14,8 +14,8 @@ import type { WorldObj } from './objects';
 import { ruinOfCell, type RuinSite } from './ruins';
 import { ruinCrypt } from './stories';
 
-import { CRYPT_OY, isCryptY } from './cryptplane';
-export { CRYPT_OY, isCryptY };
+import { CRYPT_DEEP_OY, CRYPT_OY, isCryptDeepY, isCryptY } from './cryptplane';
+export { CRYPT_DEEP_OY, CRYPT_OY, isCryptDeepY, isCryptY };
 
 type Rect = [x0: number, y0: number, x1: number, y1: number];
 type Pt = readonly [number, number];
@@ -173,7 +173,7 @@ export const cryptPlan = (c: CryptSite): CryptPlan =>
 
 /** The crypt (if any) whose rooms could contain the crypt-plane tile (x, y). */
 export function cryptAt(seed: number, x: number, y: number): CryptSite | null {
-  if (!isCryptY(y)) return null;
+  if (!isCryptY(y) || isCryptDeepY(y)) return null;
   const sy = y - CRYPT_OY;
   // rooms reach 8 tiles across and 36 down from the anchor: look in this cell and the ones above and beside it
   for (let gy = Math.floor((sy - 36) / 96); gy <= Math.floor((sy + 3) / 96); gy++)
@@ -188,6 +188,7 @@ export function cryptAt(seed: number, x: number, y: number): CryptSite | null {
 /** Tiles of the crypt plane: stone everywhere, carved rooms under each crypted ruin. */
 export function cryptTileAt(seed: number, x: number, y: number): number | null {
   if (!isCryptY(y)) return null;
+  if (isCryptDeepY(y)) return deepTileAt(seed, x, y);
   const c = cryptAt(seed, x, y);
   if (!c) return T.CAVE_WALL;
   const dx = x - c.x,
@@ -249,6 +250,7 @@ export function cryptObjectsIn(seed: number, cx: number, cy: number): WorldObj[]
   const x0 = cx * 32,
     y0 = cy * 32;
   if (!isCryptY(y0)) return out;
+  if (isCryptDeepY(y0)) return deepObjectsIn(seed, cx, cy);
   const seen = new Set<string>();
   for (let y = y0 - 36; y <= y0 + 36; y += 16)
     for (let x = x0 - 8; x <= x0 + 40; x += 16) {
@@ -266,6 +268,7 @@ export function cryptObjectsIn(seed: number, cx: number, cy: number): WorldObj[]
       add(-2, -1, 'crypt_plaque');
       for (const [nx, ny] of plan.niches) add(nx, ny, 'crypt_bones');
       add(0, 34, 'crypt_reliquary');
+      add(-2, 30, 'crypt_stairs_down', { to: deepArrival(c) });
       add(-3, 32, 'crypt_sarcophagus');
       add(3, 32, 'crypt_sarcophagus');
       // bones and rubble scattered about the hall, a little different under every ruin
@@ -278,4 +281,168 @@ export function cryptObjectsIn(seed: number, cx: number, cy: number): WorldObj[]
       }
     }
   return out;
+}
+
+// ───────────────────────── the second floor: the Sunken Vault ─────────────────────────
+//
+//   landing (stairs up)  →  the hall of levers (three seals)  →  the gate  →  the crypt lord's chamber
+//                                                                             (three statues, the riddle, the vault)
+//
+// A stair behind the reliquary leads down once the reliquary is open. Pull the levers until all three seals burn and
+// the gate opens; the crypt lord rises in the chamber beyond; when it falls, answer the inscription's riddle by
+// touching the right statue, and the vault opens.
+
+/** the deep floor's rooms, relative to its anchor (inclusive tile rects) */
+export const DEEP_ROOMS: Record<'landing' | 'passage' | 'levers' | 'gate' | 'chamber', Rect> = {
+  landing: [-3, -3, 3, 3],
+  passage: [-1, 4, 1, 5],
+  levers: [-6, 6, 6, 12],
+  gate: [0, 13, 0, 16],
+  chamber: [-7, 17, 7, 29],
+};
+const DEEP_PILLARS: Pt[] = [
+  [-4, 20],
+  [4, 20],
+  [-4, 25],
+  [4, 25],
+];
+const DEEP_TORCHES: Pt[] = [
+  [-3, -3],
+  [3, -3],
+  [-6, 6],
+  [6, 6],
+  [-7, 17],
+  [7, 17],
+  [-7, 29],
+  [7, 29],
+];
+export const DEEP_LEVERS: Pt[] = [
+  [-5, 8],
+  [0, 7],
+  [5, 8],
+];
+export const DEEP_GATE: Pt = [0, 13];
+export const DEEP_STATUES: Pt[] = [
+  [-4, 28],
+  [0, 28],
+  [4, 28],
+];
+export const DEEP_VAULT: Pt = [0, 23];
+export const DEEP_LORD: Pt = [0, 21];
+
+/** the deep floor's anchor for crypt `c` */
+export const deepAnchor = (c: CryptSite) => ({ x: c.x, y: c.y - CRYPT_OY + CRYPT_DEEP_OY });
+export const deepArrival = (c: CryptSite) => ({ x: c.x + 0.5, y: deepAnchor(c).y + 1.5 });
+/** back up to the reliquary chamber, beside the stair */
+export const deepReturn = (c: CryptSite) => ({ x: c.x - 1.5, y: c.y + 31.5 });
+
+/** The crypt (if any) whose deep floor could contain tile (x, y) of the deep plane. */
+export function cryptDeepAt(seed: number, x: number, y: number): CryptSite | null {
+  if (!isCryptDeepY(y)) return null;
+  const sy = y - CRYPT_DEEP_OY;
+  for (let gy = Math.floor((sy - 30) / 96); gy <= Math.floor((sy + 3) / 96); gy++)
+    for (let gx = Math.floor((x - 8) / 96); gx <= Math.floor((x + 8) / 96); gx++) {
+      const r = ruinOfCell(seed, gx, gy);
+      const c = r && cryptOf(seed, r);
+      if (!c) continue;
+      const a = deepAnchor(c);
+      if (Math.abs(x - a.x) <= 8 && y - a.y >= -4 && y - a.y <= 30) return c;
+    }
+  return null;
+}
+/** Is (x, y) in the room `room` of crypt `c`'s deep floor? */
+export function inDeepRoom(c: CryptSite, room: keyof typeof DEEP_ROOMS, x: number, y: number): boolean {
+  const a = deepAnchor(c);
+  return inRect(Math.floor(x) - a.x, Math.floor(y) - a.y, DEEP_ROOMS[room]);
+}
+
+function deepTileAt(seed: number, x: number, y: number): number {
+  const c = cryptDeepAt(seed, x, y);
+  if (!c) return T.CAVE_WALL;
+  const a = deepAnchor(c);
+  const dx = x - a.x,
+    dy = y - a.y;
+  if (DEEP_TORCHES.some(([tx, ty]) => tx === dx && ty === dy)) return T.TORCH;
+  if (DEEP_PILLARS.some(([px, py]) => px === dx && py === dy)) return T.CAVE_WALL;
+  for (const r of Object.values(DEEP_ROOMS)) if (inRect(dx, dy, r)) return T.VAULT_FLOOR;
+  return T.CAVE_WALL;
+}
+
+function deepObjectsIn(seed: number, cx: number, cy: number): WorldObj[] {
+  const out: WorldObj[] = [];
+  const x0 = cx * 32,
+    y0 = cy * 32;
+  const seen = new Set<string>();
+  for (let y = y0 - 30; y <= y0 + 36; y += 16)
+    for (let x = x0 - 8; x <= x0 + 40; x += 16) {
+      const c = cryptDeepAt(seed, x, y);
+      if (!c || seen.has(c.ruin.id)) continue;
+      seen.add(c.ruin.id);
+      const a = deepAnchor(c);
+      const data = { ruin: c.ruin.id, biome: c.ruin.biome, deep: true };
+      const add = (dx: number, dy: number, sub: string, extra: Record<string, unknown> = {}) => {
+        const o: WorldObj = { x: a.x + dx, y: a.y + dy, kind: 'deco', sub, static: true, data: { ...data, ...extra } };
+        if (Math.floor(o.x / 32) === cx && Math.floor(o.y / 32) === cy) out.push(o);
+      };
+      add(0, -2, 'crypt_stairs_up', { to: deepReturn(c) });
+      add(-2, -1, 'crypt_plaque');
+      DEEP_LEVERS.forEach(([lx, ly], i) => add(lx, ly, 'crypt_lever', { idx: i }));
+      add(DEEP_GATE[0], DEEP_GATE[1], 'crypt_gate');
+      DEEP_STATUES.forEach(([sx, sy], i) => add(sx, sy, 'crypt_statue', { idx: i }));
+      add(-5, 18, 'crypt_inscription');
+      add(DEEP_VAULT[0], DEEP_VAULT[1], 'crypt_vault');
+      add(-6, 27, 'crypt_bones');
+      add(6, 19, 'crypt_bones');
+    }
+  return out;
+}
+
+// ── the levers' seals
+
+/** Which seals (bits 0–2) each lever turns over: its own and one neighbour, crypt by crypt. */
+export function leverMasks(seed: number, c: CryptSite): number[] {
+  return [0, 1, 2].map((i) => {
+    const other = (i + 1 + Math.floor(hash2(seed, c.x, c.y - CRYPT_OY, 1600 + i) * 2)) % 3;
+    return (1 << i) | (1 << other);
+  });
+}
+/** The seals burning when the hall is first found (never all three; always solvable, since every pull undoes itself). */
+export function leverStart(seed: number, c: CryptSite): number {
+  const masks = leverMasks(seed, c);
+  let s = 7;
+  for (let k = 0; k < 3; k++) if (hash2(seed, c.x, c.y - CRYPT_OY, 1610 + k) < 0.6) s ^= masks[k]!;
+  return s === 7 ? s ^ masks[0]! : s;
+}
+export const SEALS_LIT = 7;
+export const sealWords = (s: number): string =>
+  [0, 1, 2].map((i) => `${['left', 'middle', 'right'][i]} ${s & (1 << i) ? 'burns' : 'is dark'}`).join(', ');
+
+// ── the statues' riddle
+
+export const DEEP_STATUE_NAMES = ['the King', 'the Thief', 'the Saint', 'the Smith', 'the Bard', 'the Hunter'] as const;
+const RIDDLES: Record<(typeof DEEP_STATUE_NAMES)[number], string> = {
+  'the King': 'I sat high and spoke, and others went where I pointed. My crown was heavy and my bed was cold.',
+  'the Thief': 'I came by night and took only what was not watched. I never once used the door.',
+  'the Saint': 'I wore no crown, yet the poor called me lord. I gave away all I had and was richer for it.',
+  'the Smith': "I beat the iron and the iron beat back. I made the king's sword and never swung it.",
+  'the Bard': 'I owned no land, yet every hall was mine for a night, and I paid for my supper with songs.',
+  'the Hunter': 'I walked the woods before the sun and never came home with empty hands. The deer knew my step.',
+};
+/** The three statues' names (left to right), which one the inscription speaks of, and the inscription. */
+export function cryptRiddle(seed: number, c: CryptSite): { names: string[]; answer: number; text: string } {
+  const h = (k: number) => hash2(seed, c.x, c.y - CRYPT_OY, 1700 + k);
+  const pool = [...DEEP_STATUE_NAMES];
+  const pick = (k: number) => pool.splice(Math.floor(h(k) * pool.length), 1)[0]!;
+  const truth = pick(0);
+  const names = [truth, pick(1), pick(2)];
+  // shuffle the three into place
+  for (let i = 2; i > 0; i--) {
+    const j = Math.floor(h(10 + i) * (i + 1));
+    [names[i], names[j]] = [names[j]!, names[i]!];
+  }
+  return {
+    names,
+    answer: names.indexOf(truth),
+    text: `Carved over the vault: "${RIDDLES[truth]} Touch me, and what I kept is yours. Touch another, and the dead will answer."`,
+  };
 }

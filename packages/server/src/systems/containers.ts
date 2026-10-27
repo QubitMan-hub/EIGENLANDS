@@ -324,7 +324,20 @@ export async function handleOpen(room: RoomApi, p: ServerPlayer, msg: OpenMsg): 
   }
   if (
     o.static &&
-    ['ruin_crypt', 'crypt_exit', 'crypt_reliquary', 'crypt_plaque', 'trial_brazier'].includes(o.sub) &&
+    [
+      'ruin_crypt',
+      'crypt_exit',
+      'crypt_reliquary',
+      'crypt_plaque',
+      'trial_brazier',
+      'crypt_stairs_down',
+      'crypt_stairs_up',
+      'crypt_lever',
+      'crypt_gate',
+      'crypt_statue',
+      'crypt_inscription',
+      'crypt_vault',
+    ].includes(o.sub) &&
     (o.sub !== 'trial_brazier' || isCryptY(o.y))
   ) {
     await room.cryptInteract?.(p, o);

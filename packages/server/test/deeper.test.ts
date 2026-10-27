@@ -6,6 +6,16 @@ import {
   RECRUIT_TERM_MS,
   brazierName,
   cryptOf,
+  cryptRiddle,
+  deepAnchor,
+  isCryptDeepY,
+  leverMasks,
+  leverStart,
+  DEEP_GATE,
+  DEEP_LEVERS,
+  DEEP_STATUES,
+  DEEP_VAULT,
+  SEALS_LIT,
   cryptOrder,
   cryptPlan,
   realmNpcs,
@@ -16,7 +26,7 @@ import {
 } from '@eigenlands/shared';
 import type { App } from '../src/app';
 import { tickTravelNeeds } from '../src/systems/travel-needs';
-import { boot3, clearEnemies, flatten, setLevel, sleep, spawn3, tp, until, type P3 } from './p3helpers';
+import { boot3, clearEnemies, dev, flatten, setLevel, sleep, spawn3, tp, until, type P3 } from './p3helpers';
 
 let app: App;
 beforeAll(async () => {
@@ -208,6 +218,87 @@ describe('the braziers’ riddle', () => {
     expect(await light(order[0]!)).toMatch(/shared what they kept/);
     await p.r.leave();
   }, 60_000);
+});
+
+describe('the Sunken Vault', () => {
+  it('down the stair behind an opened reliquary: levers open the gate, the crypt lord falls, the right statue opens the vault', async () => {
+    const p = await spawn3(app, 'Delver');
+    await setLevel(p, 9);
+    clearEnemies(p.room);
+    let crypt: CryptSite | null = null;
+    for (let r = 1; r < 12 && !crypt; r++)
+      for (let gy = -r; gy <= r && !crypt; gy++)
+        for (let gx = -r; gx <= r && !crypt; gx++) {
+          const c = ruinOfCell(p.room.seed, gx, gy);
+          const cs = c && ruinCrypt(p.room.seed, c) ? cryptOf(p.room.seed, c) : null;
+          if (cs && p.room.owns(cs.x, cs.y) && p.room.owns(deepAnchor(cs).x, deepAnchor(cs).y)) crypt = cs;
+        }
+    expect(crypt).toBeTruthy();
+    const c = crypt!,
+      id = c.ruin.id,
+      a = deepAnchor(c);
+    const use = async (x: number, y: number, standX: number, standY: number) => {
+      await p.room.ensureChunk(Math.floor(x / 32), Math.floor(y / 32));
+      await tp(p, standX, standY);
+      await until(() => !!p.room.store.objectAt(x, y), 4000);
+      const n = p.toasts.length;
+      p.r.send(MSG.OPEN, { tx: x, ty: y });
+      await until(() => p.toasts.length > n, 3000);
+      return p.toasts[p.toasts.length - 1]!.text;
+    };
+    // the stair is barred until the reliquary is open
+    expect(await use(c.x - 2, c.y + 30, c.x - 1.5, c.y + 31.5)).toMatch(/barred/);
+    p.sp.data.prog.ruins.push(`cryptclear:${id}`, `crypt:${id}`);
+    await use(c.x - 2, c.y + 30, c.x - 1.5, c.y + 31.5);
+    await until(() => isCryptDeepY(p.sp.sim.y), 3000);
+    // the gate is shut; the levers turn the seals over until all three burn
+    expect(await use(a.x + DEEP_GATE[0], a.y + DEEP_GATE[1], a.x + 0.5, a.y + 12.5)).toMatch(/shut fast/);
+    const masks = leverMasks(p.room.seed, c),
+      start = leverStart(p.room.seed, c);
+    let pulls: number[] = [];
+    for (let pick = 0; pick < 8; pick++) {
+      let s = start;
+      const ls = [0, 1, 2].filter((i) => pick & (1 << i));
+      for (const i of ls) s ^= masks[i]!;
+      if (s === SEALS_LIT) {
+        pulls = ls;
+        break;
+      }
+    }
+    for (const i of pulls) {
+      const [lx, ly] = DEEP_LEVERS[i]!;
+      await use(a.x + lx, a.y + ly, a.x + lx + 0.5, a.y + ly + 1.5);
+    }
+    await until(() => p.sp.data.prog.ruins.includes(`cryptgate:${id}`), 3000);
+    await use(a.x + DEEP_GATE[0], a.y + DEEP_GATE[1], a.x + 0.5, a.y + 12.5);
+    await until(() => p.sp.sim.y > a.y + DEEP_GATE[1] + 1, 3000);
+    // the statues are cold until the crypt lord falls
+    const rd = cryptRiddle(p.room.seed, c);
+    const statue = (i: number) =>
+      use(a.x + DEEP_STATUES[i]![0], a.y + DEEP_STATUES[i]![1], a.x + DEEP_STATUES[i]![0] + 0.5, a.y + 26.5);
+    await tp(p, a.x + 0.5, a.y + 19.5);
+    p.room.crypts.tick(0, 0.1);
+    await until(() => !!p.room.crypts.lordOf(id), 3000);
+    expect(await statue(rd.answer)).toMatch(/stands cold/);
+    for (let i = 0; i < 30 && !p.sp.data.prog.ruins.includes(`cryptlord:${id}`); i++) {
+      p.sp.hp = p.sp.maxHp;
+      dev(p, { cmd: 'kill', d: 30 });
+      await sleep(200);
+    }
+    expect(p.sp.data.prog.ruins).toContain(`cryptlord:${id}`);
+    clearEnemies(p.room);
+    // the wrong statue wakes the dead; the right one unseals the vault
+    expect(await statue((rd.answer + 1) % 3)).toMatch(/dead answer/);
+    clearEnemies(p.room);
+    expect(await statue(rd.answer)).toMatch(/unseals/);
+    const coins = p.sp.data.coins;
+    expect(await use(a.x + DEEP_VAULT[0], a.y + DEEP_VAULT[1], a.x + 0.5, a.y + 22.5)).toMatch(
+      /vault of the Sunken Crypt opens/,
+    );
+    expect(p.sp.data.coins).toBeGreaterThan(coins);
+    expect(await use(a.x + DEEP_VAULT[0], a.y + DEEP_VAULT[1], a.x + 0.5, a.y + 22.5)).toMatch(/open and empty/);
+    await p.r.leave();
+  }, 90_000);
 });
 
 describe('food storage', () => {

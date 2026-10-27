@@ -119,3 +119,73 @@ describe('shores and summits', () => {
     }
   });
 });
+
+describe('the Sunken Vault (a crypt’s second floor)', () => {
+  it('lies on its own plane: a sealed run from the stairs through the levers and the gate to the chamber', async () => {
+    const { cryptDeepAt, deepAnchor, deepArrival, isCryptDeepY, DEEP_ROOMS } = await import('../src/index');
+    const c = someCrypt();
+    const a = deepAnchor(c);
+    expect(isCryptDeepY(a.y)).toBe(true);
+    expect(isCryptY(a.y)).toBe(true);
+    expect(cryptAt(SEED, a.x, a.y + 10)).toBeNull();
+    expect(cryptDeepAt(SEED, a.x, a.y + 20)?.ruin.id).toBe(c.ruin.id);
+    const start = deepArrival(c);
+    const seen = new Set<string>([`${Math.floor(start.x)},${Math.floor(start.y)}`]);
+    const q: Array<[number, number]> = [[Math.floor(start.x), Math.floor(start.y)]];
+    while (q.length) {
+      const [x, y] = q.shift()!;
+      for (const [dx, dy] of [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ] as const) {
+        const k = `${x + dx},${y + dy}`;
+        if (seen.has(k) || isSolid(tileAt(SEED, x + dx, y + dy, 6))) continue;
+        seen.add(k);
+        q.push([x + dx, y + dy]);
+        expect(seen.size).toBeLessThan(2000);
+      }
+    }
+    // the chamber is reached through the gate corridor (the gate itself is a prop that bars it)
+    const [, , , cy1] = DEEP_ROOMS.chamber;
+    expect(seen.has(`${a.x},${a.y + cy1}`)).toBe(true);
+  });
+
+  it('levers can always bring all three seals to flame, and the riddle names one of the three statues', async () => {
+    const { leverMasks, leverStart, cryptRiddle, SEALS_LIT, DEEP_STATUE_NAMES } = await import('../src/index');
+    for (let r = 1; r < 8; r++)
+      for (let gx = -r; gx <= r; gx++) {
+        const ru = ruinOfCell(SEED, gx, r);
+        const c = ru && cryptOf(SEED, ru);
+        if (!c) continue;
+        const m = leverMasks(SEED, c),
+          s0 = leverStart(SEED, c);
+        expect(s0).not.toBe(SEALS_LIT);
+        let solvable = false;
+        for (let pick = 0; pick < 8; pick++) {
+          let s = s0;
+          for (let i = 0; i < 3; i++) if (pick & (1 << i)) s ^= m[i]!;
+          if (s === SEALS_LIT) solvable = true;
+        }
+        expect(solvable).toBe(true);
+        const rd = cryptRiddle(SEED, c);
+        expect(new Set(rd.names).size).toBe(3);
+        for (const n of rd.names) expect(DEEP_STATUE_NAMES).toContain(n);
+        expect(rd.answer).toBeGreaterThanOrEqual(0);
+        expect(rd.text.length).toBeGreaterThan(40);
+      }
+  });
+
+  it('the stair, levers, gate, statues, inscription and vault are placed', async () => {
+    const { deepAnchor } = await import('../src/index');
+    const c = someCrypt();
+    const a = deepAnchor(c);
+    const subs = new Set<string>();
+    for (let cy = Math.floor((a.y - 4) / 32); cy <= Math.floor((a.y + 30) / 32); cy++)
+      for (let cx = Math.floor((a.x - 8) / 32); cx <= Math.floor((a.x + 8) / 32); cx++)
+        for (const o of cryptObjectsIn(SEED, cx, cy)) if ((o.data as { ruin?: string }).ruin === c.ruin.id) subs.add(o.sub);
+    for (const s of ['crypt_stairs_up', 'crypt_lever', 'crypt_gate', 'crypt_statue', 'crypt_inscription', 'crypt_vault'])
+      expect(subs).toContain(s);
+  });
+});

@@ -483,7 +483,72 @@ function bountyBoard(face: Facing): ObjSprite {
   );
 }
 
+/** a lever in an iron bracket on a stone block, a seal-lamp glowing above it */
+function cryptLever(face: Facing): ObjSprite {
+  return iso(
+    32,
+    44,
+    face,
+    (p) => {
+      p.box(3, 3, 0, 10, 8, 6, { ramp: STONEM });
+      p.box(6, 5, 6, 4, 4, 1.2, { ramp: IRON });
+      // the handle, thrown back, with a worn wooden grip
+      p.line(8, 7, 7, 4, 7, 14, C.slate);
+      p.line(8.5, 7, 7, 4.5, 7, 14, C.steel);
+      p.box(3, 6, 13, 2, 2, 2.5, { ramp: DARKWOOD });
+      // the seal-lamp above
+      p.box(7, 3, 16, 2, 1, 2, { ramp: [C.r3, C.r4, C.r5, C.r6, C.r7] });
+    },
+    { margin: 6 },
+  );
+}
+
+/** a portcullis of black iron between two stone posts, three seal-lamps over the lintel */
+function cryptGate(face: Facing): ObjSprite {
+  return iso(
+    44,
+    64,
+    face,
+    (p) => {
+      for (const a of [0, 14]) p.box(a, 5, 0, 2, 6, 20, { ramp: STONEM });
+      p.box(0, 5, 20, 16, 6, 3, { ramp: STONEM });
+      for (let k = 0; k < 6; k++) p.box(2.3 + k * 2.2, 7.5, 0, 0.8, 0.8, 20, { ramp: IRON });
+      for (const z of [5, 12, 18]) p.box(2, 7.6, z, 12, 0.6, 0.8, { ramp: IRON });
+      for (const a of [3, 7.5, 12]) p.box(a, 4.6, 21, 1.4, 0.6, 1.4, { ramp: [C.r3, C.r4, C.r5, C.r6] });
+    },
+    { margin: 8 },
+  );
+}
+
+/** a hooded stone figure on a plinth, worn by the ages */
+function cryptStatue(face: Facing): ObjSprite {
+  return iso(
+    36,
+    64,
+    face,
+    (p) => {
+      p.box(2, 2, 0, 12, 12, 3, { ramp: STONEM });
+      p.box(4, 4, 3, 8, 8, 12, {
+        ramp: [C.slate, C.steel, C.mist, C.fog, C.pale],
+        front: (s, t) => (Math.abs(s - 0.5) < 0.06 && t < 0.8 ? C.steel : null), // the fold of the robe
+      });
+      p.box(5, 5, 15, 6, 6, 5, { ramp: [C.slate, C.steel, C.mist, C.fog, C.pale] }); // the hooded head
+      p.box(6, 4.6, 16.5, 4, 0.6, 2, { ramp: [C.ink, C.night, C.slate] }); // the shadow under the hood
+      p.dot(7, 4.4, 17.5, C.q5);
+      p.dot(9, 4.4, 17.5, C.q5);
+    },
+    { margin: 8 },
+  );
+}
+
 export const STORY_ART: Record<string, (face: Facing) => ObjSprite> = {
+  crypt_lever: cryptLever,
+  crypt_gate: cryptGate,
+  crypt_statue: cryptStatue,
+  crypt_stairs_down: (face) => cryptExit(face),
+  crypt_stairs_up: (face) => cryptExit(face),
+  crypt_inscription: (face) => plaque(face),
+  crypt_vault: (face) => reliquary(face),
   bounty_board: bountyBoard,
   fallen_star: fallenStar,
   camp_tent: campTent,
