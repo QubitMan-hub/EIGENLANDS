@@ -50,6 +50,11 @@ export class Audio {
   muted = false;
   volume = 0.5;
 
+  /** the live audio context once the first gesture has unlocked it (the ambient soundscape shares it) */
+  context(): AudioContext | null {
+    return this.ctx;
+  }
+
   unlock(): void {
     try {
       this.ctx ??= new AudioContext();

@@ -2,6 +2,7 @@ import { FLY_Z, SADDLE_Z } from '../art/mounts';
 import { livestockTexture } from '../art/livestock';
 import { isLivestock } from '@eigenlands/shared';
 import { FrameRateWindow } from './frame-rate';
+import { Soundscape } from './soundscape';
 import { T, CAVE_BIOME_NAMES, caveRegionAt, isFlying } from '@eigenlands/shared';
 import { ClickMining } from './click-mining';
 import { WorldPreparer } from './world-preparer';
@@ -48,6 +49,8 @@ import {
   biomeWeather,
   biomeAt,
   type Ack,
+  type Biome,
+  type Weather,
   type ChunkMsg,
   type DialogueMsg,
   type FishBiteMsg,
@@ -1280,6 +1283,7 @@ export class Game {
       reduced,
       underground,
     });
+    this.listen(now, dt, me, hour, weather, underground);
     this.updateTarget34(renderT, me);
     this.syncFocus(now);
     this.drawAim(me, now);
@@ -1335,6 +1339,54 @@ export class Game {
   /** the shadows' focus: the selected enemy (or nothing); synced at most 4 times a second */
   private focusSent: string | null = null;
   private focusAt = 0;
+  private soundscape: Soundscape | null = null;
+  private hear = { at: 0, water: 0, town: false, biome: 'meadow' as Biome, lx: NaN, ly: NaN, speed: 0 };
+  /** the ambient soundscape: what the place sounds like right now (surroundings sampled about once a second) */
+  private listen(
+    now: number,
+    dt: number,
+    me: { x: number; y: number },
+    hour: number,
+    weather: Weather,
+    underground: boolean,
+  ) {
+    const h = this.hear;
+    if (now - h.at > 1000) {
+      const secs = h.at ? (now - h.at) / 1000 : 1;
+      h.speed = Number.isFinite(h.lx) ? Math.hypot(me.x - h.lx, me.y - h.ly) / secs : 0;
+      h.lx = me.x;
+      h.ly = me.y;
+      h.at = now;
+      const px = Math.floor(me.x),
+        py = Math.floor(me.y);
+      let wet = 0,
+        n = 0;
+      for (let j = -8; j <= 8; j += 2)
+        for (let i = -8; i <= 8; i += 2) {
+          const t = this.store.getTile(px + i, py + j);
+          n++;
+          if (t === T.WATER || t === T.DEEP_WATER) wet++;
+        }
+      h.water = Math.min(1, (wet / n) * 2.2);
+      h.town = !!sanctuaryAt(this.seed, me.x, me.y);
+      h.biome = biomeAt(this.seed, px, py);
+    }
+    this.soundscape ??= new Soundscape(this.audio);
+    this.soundscape.level = this.settings().ambience;
+    this.soundscape.frame({
+      dt,
+      hour: underground ? 12 : hour,
+      season: this.seasonIdx,
+      weather,
+      wind: this.wind.w.strength,
+      biome: h.biome,
+      underground,
+      water: h.water,
+      town: h.town,
+      speed: h.speed,
+    });
+  }
+
   private syncFocus(now: number): void {
     const t = this.currentTarget();
     const want = t && t.kind === 'enemy' ? t.id : null;
