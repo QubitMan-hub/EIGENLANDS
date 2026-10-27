@@ -80,6 +80,8 @@ export interface PlayerData {
     /** mount names and well-fed-until times (world clock ms) */
     mountNames?: Partial<Record<'horse' | 'stag' | 'griffin', string>>;
     mountFed?: Partial<Record<'horse' | 'stag' | 'griffin', number>>;
+    /** food groups eaten lately (balanced-diet bonus) */
+    meals?: Array<['produce' | 'protein' | 'hearty', number]>;
     /** how worn out each mount is, 0..100 */
     mountWorn?: Partial<Record<'horse' | 'stag' | 'griffin', number>>;
   };

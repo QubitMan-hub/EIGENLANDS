@@ -9,6 +9,10 @@ import {
   ITEMS,
   NODES,
   T,
+  NOURISHED_SECS,
+  balanced,
+  foodGroup,
+  recordMeal,
   chunkOf,
   isSolid,
   toolDamage,
@@ -358,6 +362,24 @@ function eat(room: RoomApi, p: ServerPlayer, slot: number): void {
   if (def.buff) {
     p.data.buffs[def.buff.kind] = { until: room.wclock.now() + def.buff.secs * 1000, power: def.buff.power };
     p.dirty('buffs');
+  }
+  // a balanced diet: produce, protein and something hearty within half an hour leaves you nourished
+  const group = foodGroup(stack.id, def.kind);
+  if (group) {
+    const now = room.wclock.now();
+    const meals = recordMeal(p.data.prog.meals ?? [], group, now);
+    p.data.prog.meals = meals;
+    p.dirty('stats');
+    if (balanced(meals)) {
+      p.data.prog.meals = [];
+      const cur = p.data.buffs.regen;
+      p.data.buffs.regen = {
+        until: Math.max(cur?.until ?? 0, now + NOURISHED_SECS * 1000),
+        power: Math.max(cur?.power ?? 0, 0.6),
+      };
+      p.dirty('buffs');
+      p.toast('A balanced diet: you feel nourished (slow healing for ten minutes).', 'good');
+    }
   }
   stack.n -= 1;
   if (stack.n <= 0) p.data.inv[slot] = null;

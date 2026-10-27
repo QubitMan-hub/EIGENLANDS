@@ -144,4 +144,22 @@ describe('water and mounts', () => {
     await until(() => p.sp.sim.mount !== 0, 3000);
     await p.r.leave();
   }, 40_000);
+
+  it('produce, protein and something hearty within half an hour leave you nourished', async () => {
+    const p = await spawn3(app, 'Gourmet');
+    p.sp.data.inv.fill(null);
+    p.sp.data.inv[0] = { id: 'berry_jam', n: 1 };
+    p.sp.data.inv[1] = { id: 'fish_fry', n: 1 };
+    p.sp.data.inv[2] = { id: 'veggie_stew', n: 1 };
+    p.sp.hp = Math.max(1, p.sp.maxHp - 20);
+    p.sp.data.needs.food = 10;
+    for (const slot of [0, 1, 2]) {
+      p.r.send(MSG.USE, { slot, tx: 0, ty: 0 });
+      await until(() => !p.sp.data.inv[slot], 3000);
+      await sleep(450);
+    }
+    await until(() => p.toasts.some((t) => /balanced diet/.test(t.text)), 3000);
+    expect(p.sp.data.buffs.regen?.until ?? 0).toBeGreaterThan(p.room.wclock.now() + 500_000);
+    await p.r.leave();
+  });
 });

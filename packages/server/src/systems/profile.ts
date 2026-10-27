@@ -270,6 +270,14 @@ export function validProg(raw: unknown): PlayerData['prog'] {
     lore: ids(r.lore),
     mountNames: mountRecord(r.mountNames, (v) => validMountName(v) ?? undefined),
     mountFed: mountRecord(r.mountFed, (v) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined)),
+    meals: Array.isArray(r.meals)
+      ? (r.meals as unknown[])
+          .filter(
+            (m): m is ['produce' | 'protein' | 'hearty', number] =>
+              Array.isArray(m) && ['produce', 'protein', 'hearty'].includes(m[0] as string) && typeof m[1] === 'number',
+          )
+          .slice(-3)
+      : [],
     mountWorn: mountRecord(r.mountWorn, (v) =>
       typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.min(100, v) : undefined,
     ),

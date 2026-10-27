@@ -67,3 +67,21 @@ describe('wild folk', () => {
     expect(wildFolkNear(SEED, 0, 0, 400)).toEqual(folk);
   });
 });
+
+describe('nutrition', () => {
+  it('sorts dishes into produce, protein and hearty, and three groups make a balanced diet', async () => {
+    const { foodGroup, recordMeal, balanced } = await import('../src/index');
+    expect(foodGroup('veggie_stew', 'food')).toBe('hearty');
+    expect(foodGroup('fish_fry', 'food')).toBe('protein');
+    expect(foodGroup('omelet', 'food')).toBe('protein');
+    expect(foodGroup('berry_jam', 'food')).toBe('produce');
+    expect(foodGroup('carp', 'fish')).toBe('protein');
+    expect(foodGroup('pickaxe', 'tool')).toBeNull();
+    let m = recordMeal([], 'produce', 0);
+    m = recordMeal(m, 'protein', 1000);
+    expect(balanced(m)).toBe(false);
+    expect(balanced(recordMeal(m, 'hearty', 2000))).toBe(true);
+    // too long ago does not count
+    expect(balanced(recordMeal(m, 'hearty', 3_600_000))).toBe(false);
+  });
+});
