@@ -14,12 +14,15 @@ try {
   await page.goto(`${process.argv[2] ?? 'http://127.0.0.1:5174/'}labs/artlab.html?lab=actors&motion=0`);
   await page.waitForFunction(() => window.__lab?.ready, null, { timeout: 120000 });
   const report = await page.evaluate(async () => {
-    const [{ buildActorSheets, renderPersonCanvas, OUTFITS }, { ACTION_START, actionKeys }, { HeldWeapons }] =
-      await Promise.all([
-        import('/src/art/actors.ts'),
-        import('/src/art/person-actions.ts'),
-        import('/src/art/weapons.ts'),
-      ]);
+    const [
+      { buildActorSheets, renderPersonCanvas, OUTFITS, PERSON_W, PERSON_H },
+      { ACTION_START, actionKeys },
+      { HeldWeapons },
+    ] = await Promise.all([
+      import('/src/art/actors.ts'),
+      import('/src/art/person-actions.ts'),
+      import('/src/art/weapons.ts'),
+    ]);
     const sheets = buildActorSheets(),
       held = new HeldWeapons();
     const tool = {
@@ -58,13 +61,13 @@ try {
           let count = 0,
             partial = 0,
             edge = 0;
-          for (let y = 0; y < 48; y++)
-            for (let x = 0; x < 32; x++) {
-              const a = data[(y * 32 + x) * 4 + 3];
+          for (let y = 0; y < PERSON_H; y++)
+            for (let x = 0; x < PERSON_W; x++) {
+              const a = data[(y * PERSON_W + x) * 4 + 3];
               if (a) {
                 count++;
                 if (a !== 255) partial++;
-                if (!x || x === 31 || !y) edge++;
+                if (!x || x === PERSON_W - 1 || !y) edge++;
               }
             }
           if (count < 90 || partial || edge) failures.push({ action, d, k, count, partial, edge });
@@ -73,7 +76,17 @@ try {
         }
         const key = actionKeys(action)[4],
           t = sheets.person(d % OUTFITS.length, d, key);
-        ctx.drawImage(t.source.resource, t.frame.x, t.frame.y, 32, 48, d * 192 + 48, 36, 96, 144);
+        ctx.drawImage(
+          t.source.resource,
+          t.frame.x,
+          t.frame.y,
+          PERSON_W,
+          PERSON_H,
+          d * 192 + (192 - PERSON_W * 3) / 2,
+          36,
+          PERSON_W * 3,
+          PERSON_H * 3,
+        );
         if (tool[action]) {
           const w = held.texture(tool[action], d, key),
             f = w.frame;
@@ -101,14 +114,14 @@ try {
       for (let d = 0; d < 8; d++)
         for (let f = 0; f < 30; f++) {
           const canvas = renderPersonCanvas(OUTFITS[look], d, f);
-          const data = canvas.getContext('2d').getImageData(0, 0, 32, 48).data;
+          const data = canvas.getContext('2d').getImageData(0, 0, PERSON_W, PERSON_H).data;
           let partial = 0,
             edge = 0;
-          for (let y = 0; y < 48; y++)
-            for (let x = 0; x < 32; x++) {
-              const a = data[(y * 32 + x) * 4 + 3];
+          for (let y = 0; y < PERSON_H; y++)
+            for (let x = 0; x < PERSON_W; x++) {
+              const a = data[(y * PERSON_W + x) * 4 + 3];
               if (a && a !== 255) partial++;
-              if (a && (!x || x === 31 || !y)) edge++;
+              if (a && (!x || x === PERSON_W - 1 || !y)) edge++;
             }
           if (partial || edge) failures.push({ look, d, f, partial, edge });
           appearanceFrames++;
@@ -117,7 +130,7 @@ try {
     heading.textContent = 'Original player and resident garments — eight facings';
     document.body.append(heading);
     const preview = document.createElement('canvas');
-    preview.width = 8 * 32 * 4;
+    preview.width = 8 * PERSON_W * 4;
     preview.height = OUTFITS.length * 48 * 4;
     const p = preview.getContext('2d');
     p.imageSmoothingEnabled = false;

@@ -38,11 +38,11 @@ export const DIR_DOWN_LEFT = 4,
   DIR_UP_RIGHT = 7;
 /** frame 0 = idle, 1..8 = walk cycle */
 export const WALK_FRAMES = 9;
-export const PERSON_W = 32;
+export const PERSON_W = 48;
 export const PERSON_H = 48;
 /** a name label's height above the sprite's base: just over an adult's head (the 1.78 m man is 29 px from the feet at
  * cell row 45, see art/body/skeleton.ts) */
-export const PERSON_TOP = 36;
+export const PERSON_TOP = 44;
 /** residents share the players' bodies and cell (the modular character system, art/body) */
 export const NPC_W = PERSON_W,
   NPC_H = PERSON_H;
@@ -135,22 +135,30 @@ const BOOTS = cloth([C.ink, C.e0, C.e1, C.e2]);
 /** Player appearance presets (chosen from the session id) and NPC outfits. */
 export const OUTFITS: Outfit[] = [
   {
-    shirt: cloth([C.w1, C.w2, C.w3, C.w4, C.w5]),
-    pants: PANTS.brown,
+    // Supplied male hero: steel over navy, leather harness and a burgundy sash.
+    body: 'male',
+    cut: 'messy',
+    shirt: cloth([C.night, C.slate, C.steel, C.mist]),
+    pants: PANTS.navy,
     hair: HAIR.brown,
     skin: SKIN_LIGHT,
     boots: BOOTS,
-    glow: C.q7,
-    cape: cloth([C.q0, C.q1, C.q2, C.q3]),
+    plate: cloth([C.slate, C.steel, C.mist, C.fog, C.pale]),
+    sash: cloth([C.r0, C.r1, C.r2, C.r3]),
+    vest: cloth([C.e0, C.e1, C.e2, C.e3]),
+    trim: C.e6,
   },
   {
-    shirt: cloth([C.r1, C.r2, C.r3, C.r4, C.r5]),
-    pants: PANTS.slate,
-    hair: HAIR.black,
-    skin: SKIN_MID,
-    boots: BOOTS,
-    longHair: true,
-    glow: C.q6,
+    // Supplied female hero: red high ponytail, pale bodice and teal/gold waist panel.
+    body: 'female',
+    cut: 'high_pony',
+    shirt: cloth([C.steel, C.mist, C.fog, C.pale, C.white]),
+    pants: cloth([C.r0, C.r1, C.r2, C.r3]),
+    hair: HAIR.red,
+    skin: SKIN_LIGHT,
+    boots: cloth([C.r0, C.r1, C.r2, C.steel]),
+    sash: cloth([C.t0, C.t1, C.t2, C.q7]),
+    trim: C.e6,
   },
   {
     shirt: cloth([C.q1, C.q2, C.q3, C.q4, C.q6]),

@@ -7,7 +7,7 @@ import { DIMS, frameOf, project, solve, type Joints, type V3 } from './skeleton'
 export type { BodyLook } from './paint';
 export { CUTS, type CutId, type HatId, type BeardId } from './headwear';
 
-/** paint one frame of a person (game DIR_*, frame id) into a 32×48 cell; returns the solved joints */
+/** paint one frame of a person (game DIR_*, frame id) into a 48×48 cell; returns the solved joints */
 export function paintPersonFrame(ctx: Ctx, dir: number, frame: number, look: BodyLook): Joints {
   const d = dimsOf(look.body, look.scale ?? 1);
   return paintBody(ctx, dir, poseOf(d, frame, dir), look);
@@ -19,8 +19,8 @@ export function polishPerson(buf: PixBuf): void {
 }
 
 export function bodyCanvas(look: BodyLook, dir: number, frame: number): HTMLCanvasElement {
-  const { canvas, ctx } = makeCanvas(32, 48);
-  const buf = new PixBuf(32, 48);
+  const { canvas, ctx } = makeCanvas(48, 48);
+  const buf = new PixBuf(48, 48);
   undithered(() => paintPersonFrame(buf.ctx, dir, frame, look));
   polishPerson(buf);
   buf.blit(ctx, 0, 0);
@@ -29,7 +29,7 @@ export function bodyCanvas(look: BodyLook, dir: number, frame: number): HTMLCanv
 
 const gripCache = new Map<number, { x: number; y: number; angle: number }>();
 /**
- * The holding (right) hand in the 32×48 cell and the screen angle a held tool or weapon points along, for a frame —
+ * The holding (right) hand in the 48×48 cell and the screen angle a held tool or weapon points along, for a frame —
  * solved from the reference man's skeleton (the women's differs by under a pixel at the hand).
  */
 export function personGripOf(dir: number, frame: number): { x: number; y: number; angle: number } {

@@ -30,7 +30,9 @@ import {
   type Ramp,
 } from './shade';
 
-export const WALL_H = 44;
+export const WALL_H = 60;
+/** Keep entrances larger than the reference-bodied adults, including hair and boots. */
+export const DOOR_H = 50;
 const CUT_H = 8;
 const T = 0.5; // wall thickness in tiles (outer half of the perimeter tiles)
 
@@ -611,7 +613,7 @@ function wallMat(b: Building, st: Style, seed: number, interior: boolean, capC: 
     const ix = Math.floor(upx),
       iz = Math.floor(z);
     // Dark timber jambs make the open entrance readable against pale plaster.
-    if (face === 'south' && Math.floor(x) === b.doorX && z > 1.5 && z < 34 && (fu < 0.15 || fu > 0.85))
+    if (face === 'south' && Math.floor(x) === b.doorX && z > 1.5 && z < DOOR_H && (fu < 0.15 || fu > 0.85))
       return fu < 0.15 ? C.e3 : C.e1;
     const lampTile = b.doorX + 1 < b.x + b.w - 1 ? b.doorX + 1 : b.doorX - 1;
     if (
@@ -1598,18 +1600,18 @@ function buildBuildingArtInner(b: Building): BuildingArt {
         if (door) {
           out.push({ x0: tx, x1: tx + 0.12, y0: ty + 1 - T, y1: ty + 1, z0: 0, z1: zTop, mat });
           out.push({ x0: tx + 0.88, x1: tx + 1, y0: ty + 1 - T, y1: ty + 1, z0: 0, z1: zTop, mat });
-          if (zTop > 34)
+          if (zTop > DOOR_H)
             out.push({
               x0: tx,
               x1: tx + 1,
               y0: ty + 1 - T,
               y1: ty + 1,
-              z0: 34,
+              z0: DOOR_H,
               z1: zTop,
               mat: (f, x, y, z) =>
                 f === 'top'
                   ? mat(f, x, y, z)
-                  : z < 36
+                  : z < DOOR_H + 2
                     ? C.e1
                     : z > zTop - 2
                       ? C.e2

@@ -1,3 +1,4 @@
+import { referenceForest, referenceTree } from './reference-trees';
 import { drawOutcrop } from './geology';
 import { hash2, mulberry32, type Biome } from '@eigenlands/shared';
 import {
@@ -245,29 +246,9 @@ function mushroomsOf(cap: Ramp, stem: number, spots: number, seed: number): ObjS
 export function buildBiomeArt(season: SeasonIdx): BiomeArt {
   const snowS: SeasonIdx = 3,
     autS: SeasonIdx = 2;
-  const taigaTrees = list(
-    5,
-    (ctx, v) => {
-      if (v < 4) drawPine(ctx, 200 + v, snowS);
-      else drawBroadleaf(ctx, 230, snowS);
-    },
-    48,
-    64,
-    24,
-    60,
-  );
-  const autumnTrees = list(5, (ctx, v) => drawBroadleaf(ctx, 300 + v * 23, autS), 48, 64, 24, 60);
-  const forestTrees = list(
-    6,
-    (ctx, v) => {
-      if (v % 3 === 2) drawPine(ctx, 400 + v, season);
-      else drawBroadleaf(ctx, 410 + v * 19, season);
-    },
-    48,
-    64,
-    24,
-    60,
-  );
+  const taigaTrees = referenceForest(3);
+  const autumnTrees = referenceForest(2);
+  const forestTrees = referenceForest(season);
   return {
     forest: { tree: forestTrees, flowers: mushroomsOf([C.e1, C.r2, C.r3, C.r4], C.pale, C.white, 50) },
     autumn: {
@@ -284,7 +265,7 @@ export function buildBiomeArt(season: SeasonIdx): BiomeArt {
       stump: buildStump(snowS),
     },
     swamp: {
-      tree: list(4, (ctx, v) => (v < 2 ? drawWillow(ctx, 500 + v) : drawSnag(ctx, 520 + v, BARK_DARK, C.r6))),
+      tree: [referenceTree('willow'), referenceTree('willow'), referenceTree('bare'), referenceTree('bare')],
       tallgrass: bladesOf([C.g0, C.g1, C.g2, C.g3, C.e3], 60, { tall: 16, heads: C.e1 }),
       flowers: mushroomsOf([C.e2, C.e3, C.e4, C.e5], C.fog, C.e7, 70),
     },

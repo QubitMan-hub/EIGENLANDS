@@ -1,3 +1,4 @@
+import { referenceForest, referenceTree } from './reference-trees';
 import { drawOutcrop, MINERALS } from './geology';
 import { Rectangle, Texture } from 'pixi.js';
 import { Iso } from './isokit';
@@ -275,14 +276,7 @@ export function drawPine(ctx: Ctx, seed: number, season: SeasonIdx): void {
 }
 
 export function buildTrees(season: SeasonIdx): ObjSprite[] {
-  const out: ObjSprite[] = [];
-  for (let v = 0; v < 6; v++) {
-    const { canvas, ctx } = makeCanvas(48, 64);
-    if (v >= 4) drawPine(ctx, 100 + v, season);
-    else drawBroadleaf(ctx, 10 + v * 17, season);
-    out.push(toSprite(canvas, 24, 60));
-  }
-  return out;
+  return referenceForest(season);
 }
 
 /**
@@ -504,87 +498,8 @@ export function buildTorch(): ObjSprite[] {
 }
 
 /** Stumps and fallen logs: warm tan wood, ring-cut tops, moss and grass at the foot. Three variants. */
-export function buildStump(season: SeasonIdx): ObjSprite[] {
-  const out: ObjSprite[] = [];
-  const snow = season === 3;
-  for (let v = 0; v < 3; v++) {
-    const { canvas, ctx } = makeCanvas(26, 20);
-    const rng = mulberry32(700 + v * 31);
-    if (v < 2) {
-      // stump: a short cylinder with roots, cut top with growth rings
-      const cx = 13,
-        top = 9,
-        h = 6,
-        rx = 5.5;
-      for (let x = Math.floor(cx - rx); x < Math.ceil(cx + rx); x++) {
-        const u = (x + 0.5 - (cx - rx)) / (2 * rx);
-        for (let y = top; y < top + h + 2; y++) {
-          let c = u < 0.25 ? C.e4 : u < 0.6 ? C.e3 : u < 0.85 ? C.e2 : C.e1;
-          if ((x * 3 + (y >> 1)) % 5 === 0 && u > 0.15) c = C.e2;
-          put(ctx, x, y, c);
-        }
-      }
-      for (const [x, dir] of [
-        [cx - rx - 1, -1],
-        [cx + rx, 1],
-      ] as const) {
-        put(ctx, x, top + h, dir < 0 ? C.e3 : C.e1, 1, 2);
-        put(ctx, x + dir, top + h + 1, dir < 0 ? C.e2 : C.e0);
-      }
-      lump(ctx, cx, top, rx, 2.4, [C.e4, C.e5, C.e6, C.e6], { seed: v, edge: 0.1, flat: 0.9 });
-      for (let a = 0; a < 20; a++) {
-        const t = (a / 20) * 6.283;
-        put(ctx, Math.round(cx + Math.cos(t) * 2.6), Math.round(top + Math.sin(t) * 1.1), C.e4);
-      }
-      put(ctx, cx, top, C.e3);
-      if (v === 1) lump(ctx, cx + 3, top + 4, 3, 2.5, MOSS, { seed: 7, leafy: 0.6, bright: 0.05, edge: 0 });
-      if (snow) lump(ctx, cx, top - 0.5, rx - 0.5, 1.8, SNOW, { seed: 2, edge: 0, flat: 1 });
-    } else {
-      // fallen log lying along the iso x axis, cut end facing the camera
-      poly(
-        ctx,
-        [
-          [3, 9],
-          [17, 3],
-          [22, 7],
-          [8, 14],
-        ],
-        (x, y) => {
-          const d = (x - 3) * 0.37 + (y - 9);
-          return d < -1.4 ? C.e4 : d < 1 ? C.e3 : d < 2.6 ? C.e2 : C.e1;
-        },
-      );
-      for (let i = 0; i < 4; i++) {
-        const x = 6 + i * 3;
-        line(ctx, x, 10 - Math.round(i * 1.2), x + 3, 9 - Math.round(i * 1.2), C.e2);
-      }
-      lump(ctx, 6, 11.5, 2.6, 2.8, [C.e3, C.e4, C.e5, C.e6], { seed: 3, edge: 0.2 });
-      put(ctx, 6, 11, C.e3);
-      put(ctx, 6, 12, C.e4);
-      lump(ctx, 15, 5.5, 3, 1.6, MOSS, { seed: 5, leafy: 0.7, edge: 0 });
-      if (snow)
-        poly(
-          ctx,
-          [
-            [5, 8],
-            [17, 3],
-            [20, 4],
-            [8, 9],
-          ],
-          C.white,
-        );
-    }
-    if (!snow)
-      for (let i = 0; i < 5; i++) {
-        const x = 3 + Math.floor(rng() * 20),
-          y = 14 + Math.floor(rng() * 3);
-        put(ctx, x, y, C.g3);
-        put(ctx, x, y - 1, C.g4);
-        if (i % 2) put(ctx, x + 1, y - 2, C.g5);
-      }
-    out.push(toSprite(canvas, 13, 16));
-  }
-  return out;
+export function buildStump(_season: SeasonIdx): ObjSprite[] {
+  return [referenceTree('stump')];
 }
 
 // ───────── mineral seams embedded in projected rock faces ─────────

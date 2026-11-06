@@ -1,0 +1,17 @@
+{
+  "results": [
+    {
+      "id": "smithy",
+      "entered": true
+    },
+    {
+      "id": "hall",
+      "entered": true
+    },
+    {
+      "id": "inn",
+      "entered": true
+    }
+  ],
+  "errors": []
+}

@@ -2,8 +2,8 @@
  * The skeleton every person shares: two body types measured from the reference sheets, posed in the body's own 3D
  * space and projected with the game's camera.
  *
- * Scale (docs/CHARACTERS.md): a door opening is 34 px tall and a tile edge 1.2 m, so one vertical metre is about
- * 16.3 px. A man of 1.78 m stands 29 px, a woman of 1.68 m 28 px, crown to sole.
+ * Scale: preserve the user's recorded 34 px visible height floor. The reference pack calls for long legs and
+ * about five heads per adult; bodies now stand 36/35 px with seven-pixel skulls. Houses provide 50 px clearance.
  *
  * Body space: a = forward, b = toward the body's right hand, z = up, in art pixels, origin on the ground between the
  * feet. The camera is the game's 2:1 projection: a body facing ground direction f (8 headings, 45° apart on the
@@ -38,22 +38,22 @@ export interface Dims {
 
 export const DIMS: Record<BodyType, Dims> = {
   male: {
-    height: 29,
-    hipZ: 11,
+    height: 36,
+    hipZ: 18,
     hipHalf: 1.6,
-    thigh: 5.1,
-    shin: 4.8,
+    thigh: 8.6,
+    shin: 8.3,
     ankleZ: 1.2,
     foot: 2.2,
-    shoulderZ: 19,
-    shoulderHalf: 4.1,
-    neckZ: 21,
-    upperArm: 4.5,
-    forearm: 4.1,
+    shoulderZ: 27,
+    shoulderHalf: 4.8,
+    neckZ: 29,
+    upperArm: 5.2,
+    forearm: 4.8,
     hand: 1.05,
-    rThigh: [1.75, 1.35],
+    rThigh: [2.0, 1.4],
     rShin: [1.35, 1.0],
-    rUpper: [1.15, 1.05],
+    rUpper: [1.35, 1.15],
     rFore: [1.05, 0.9],
     torso: [
       [-1.4, 3.0, 1.9],
@@ -61,25 +61,25 @@ export const DIMS: Record<BodyType, Dims> = {
       [1.6, 3.15, 2.0],
       [2.6, 3.1, 2.0],
       [4.6, 3.45, 2.3],
-      [6.4, 3.9, 2.4],
-      [7.4, 3.8, 2.2],
+      [6.4, 4.5, 2.4],
+      [7.4, 4.3, 2.2],
       [8.2, 2.8, 1.8],
       [9.0, 1.4, 1.2],
     ],
   },
   female: {
-    height: 28,
-    hipZ: 10.6,
+    height: 35,
+    hipZ: 17.5,
     hipHalf: 1.75,
-    thigh: 4.9,
-    shin: 4.6,
+    thigh: 8.4,
+    shin: 8.0,
     ankleZ: 1.1,
     foot: 1.9,
-    shoulderZ: 18.2,
-    shoulderHalf: 3.7,
-    neckZ: 20,
-    upperArm: 4.3,
-    forearm: 3.9,
+    shoulderZ: 26,
+    shoulderHalf: 4.3,
+    neckZ: 28,
+    upperArm: 5.0,
+    forearm: 4.6,
     hand: 0.95,
     rThigh: [1.75, 1.25],
     rShin: [1.25, 0.9],
@@ -127,7 +127,7 @@ export function frameOf(dir: number, twist = 0): Frame {
   const f: [number, number] = [Math.cos(h), Math.sin(h)];
   return { f, r: [-f[1], f[0]] };
 }
-export const AX = 16,
+export const AX = 24,
   AY = 45;
 /** body space to screen (cell pixels), and nearness to the camera */
 export function project(p: V3, fr: Frame): { x: number; y: number; depth: number } {

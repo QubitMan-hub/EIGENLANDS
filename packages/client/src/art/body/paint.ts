@@ -402,18 +402,18 @@ export function paintBody(ctx: Ctx, dir: number, pose: Pose, look: BodyLook, opt
   // ── head: the reference's pixel map with the chin on the neck, then hair, hat and beard ───────────────────────────
   const hm = HEADS[look.body][REF_DIR[dir]!]!;
   const chin = add(j.neck, mul(spineUp, 0.6));
-  const centre = add(chin, mul(spineUp, 4));
+  const centre = add(chin, mul(spineUp, 3.5));
   const hc = P(centre);
   const headPart = g.part();
-  const x0 = Math.round(hc.x - hm.cx - 0.5),
-    y0 = Math.round(hc.y) - 4;
+  const x0 = Math.round(hc.x - hm.cx * 0.875 - 0.5),
+    y0 = Math.round(hc.y) - 3;
   const toneOf: Record<string, number> = { '1': 0, '2': 1, '3': 2, '4': 3 };
   if (opts.sculpt || K !== 1) {
     // a carved head: skull, nose and eye sockets modelled at the figure's scale, with its hair or hat
     const ox = Math.round(hc.x - 0.5),
       oy = Math.round(hc.y);
     const parts: Record<number, number> = {};
-    for (const px of headStamp(dir, look.gear, K, true)) {
+    for (const px of headStamp(dir, look.gear, K * 0.875, true)) {
       const ramp =
         px.mat === M_SKIN || px.mat === M_EYE
           ? skin
@@ -437,7 +437,7 @@ export function paintBody(ctx: Ctx, dir: number, pose: Pose, look: BodyLook, opt
     const ux = b.x - a.x,
       uy = b.y - a.y;
     const haired = !!look.gear.cut && look.gear.cut !== 'bald';
-    sphere(g, P, centre, 3.6, headPart, (n) =>
+    sphere(g, P, centre, 3.15, headPart, (n) =>
       haired && n[0] * ux - n[2] * uy > -0.1 ? { ramp: look.hair } : { ramp: skin },
     );
     g.render(ctx);
@@ -452,14 +452,24 @@ export function paintBody(ctx: Ctx, dir: number, pose: Pose, look: BodyLook, opt
       const depth = hc.depth + 3.2;
       // spectacles: glinting lenses joined by a dark bridge
       if (look.glasses && e0 >= 0 && x >= e0 && x <= e1)
-        g.zset(x0 + x, y0 + y, depth, headPart, skin, -1, ch === 'e' ? C.fog : C.night);
-      else if (ch === 'e') g.zset(x0 + x, y0 + y, depth, headPart, skin, -1, look.eyes);
-      else if (ch === 'b') g.zset(x0 + x, y0 + y, depth, headPart, look.hair, 0);
-      else if (ch === 'm') g.zset(x0 + x, y0 + y, depth, headPart, skin, 1);
-      else g.zset(x0 + x, y0 + y, depth, headPart, skin, toneOf[ch] ?? 2);
+        g.zset(
+          x0 + Math.floor(x * 0.875),
+          y0 + Math.floor(y * 0.875),
+          depth,
+          headPart,
+          skin,
+          -1,
+          ch === 'e' ? C.fog : C.night,
+        );
+      else if (ch === 'e')
+        g.zset(x0 + Math.floor(x * 0.875), y0 + Math.floor(y * 0.875), depth, headPart, skin, -1, look.eyes);
+      else if (ch === 'b')
+        g.zset(x0 + Math.floor(x * 0.875), y0 + Math.floor(y * 0.875), depth, headPart, look.hair, 0);
+      else if (ch === 'm') g.zset(x0 + Math.floor(x * 0.875), y0 + Math.floor(y * 0.875), depth, headPart, skin, 1);
+      else g.zset(x0 + Math.floor(x * 0.875), y0 + Math.floor(y * 0.875), depth, headPart, skin, toneOf[ch] ?? 2);
     }
   });
-  const stamp = headStamp(dir, look.gear);
+  const stamp = headStamp(dir, look.gear, 0.875);
   if (stamp.length) {
     const hairPart = g.part(),
       hatPart = g.part(),

@@ -2,9 +2,27 @@
 
 User specification: [complete request](design/art-overhaul-request.md). This supersedes earlier scale guidance that reduced characters to fit doors. Preserve identities and gameplay, use the supplied art designs, keep the elevated 2:1 camera, and fit world architecture to people.
 
-## Asset availability — blocked
+## Asset availability — received
 
-The requested `complete-isometric-game-art-pack.zip` could not be transferred: the attachment download tool reports that it exceeds its 32 MiB executor transfer limit. It is not present in the workspace. The request text was downloaded and preserved. The pack notes and assets have **not** been read, sliced, cleaned or integrated. Obtain category archives or split parts below 32 MiB each before making reference-specific production art; do not substitute invented designs and claim the pack is integrated.
+Both split archives are extracted under `art-source/reference-pack`. All 20 PNGs and the category notes are preserved; checksums and dimensions are recorded in [inventory](validation/reference-pack-inventory.json). The earlier transfer block is resolved. Catalogs remain reference drafts, not validated atlases.
+
+## Integrated foundation and vegetation stage
+
+- Long-legged male/female foundations, 36/35 nominal skeletal height and seven-pixel heads, shared by players, NPCs and humanoid statues. Measured player silhouette is now **42 visible pixels at unchanged 1× zoom**, above the recorded 34 px baseline. [Current capture](validation/art-overhaul-current/before.png), [measurements](validation/art-overhaul-current/baseline.json).
+- Sprite cells widened from 32×48 to 48×48 to prevent lateral dodge/death clipping; pixels and render scale remain unchanged, and the pivot remains bottom-centre. No character is downscaled to fit a building.
+- Two reference hero presets: male steel/navy/leather/burgundy; female red high ponytail, pale bodice, teal/gold sash and burgundy legwear. Preset identifiers and packed appearance saves remain compatible; individual appearance choices still override presets.
+- Walls raised to 60 px and actual entrance geometry to 50 px (roughly 1.19× the measured 42 px adult). Footprints, collision, paths and entrances retain their existing world coordinates. No blanket footprint expansion is claimed.
+- QubitMan's internal sculpt canvas expanded with a compensating offset so taller anatomy and the hat fit while boots remain on the original pedestal anchor.
+- Sixteen named tree/sapling/stump/log assets prepared with measured nonuniform catalog bounds, alpha cleanup, disconnected-dust removal, fixed density, explicit ground anchors and a deterministic palette/RLE manifest. Ordinary forest, autumn, taiga and swamp trees and ordinary/seasonal stumps use the prepared art. Fruit trees, saplings and log are exported but not yet hooked into all orchard/young-tree/log gameplay states. Magical/desert flora retain their established specialised art.
+- [Tree review](validation/reference-tree-review.png). Source images remain recoverable. The pipeline is `tools/art/prepare_reference_trees.py` (Pillow, NumPy, SciPy); runtime decodes prepared data when seasonal object art is built, with nearest filtering and the existing shadow/occlusion systems.
+
+## Verification for this stage
+
+- 15 focused client tests passed: catalog integrity, minimum scale/door clearance, directional actions, grips, appearance and building visibility.
+- Browser asset checks: 1,408 directional action frames plus 3,120 outfit frames; zero clipping/alpha failures. This revealed lateral dodge/death clipping, fixed by adding cell padding rather than reducing the character.
+- Production build and targeted ESLint passed. Built-game scale capture confirms unchanged zoom and increased standing silhouette.
+- Real right-mouse movement entered smithy, guild hall and inn, with roof occlusion and zero page errors. [Door/interior screenshots and report](validation/reference-world/report.json).
+- Existing packed-appearance compatibility checks passed. Gameplay data, rewards and quest definitions are unchanged by this stage.
 
 ## Recorded before any art edits
 
@@ -33,4 +51,13 @@ Recoverable code point: `9fdc05d` (includes completed guard/parry work; no art-p
 4. Adapt buildings/interiors/collision/navigation; replace crops, vegetation/resources, animals and mounted poses using supplied designs.
 5. Validate actual gameplay and capture matched-camera comparisons, actions, crop/resource events, save compatibility and mounted scale.
 
-Only the request preservation, implementation survey and first measured scale baseline are complete. The requested visual overhaul remains unfinished.
+The foundation/scale, hero-palette and tree stage is integrated. The following requested work remains incomplete:
+
+- Every one of the 50-option customization catalogs (pants 55) individually fitted, selectable and saved across all actions/directions; current customization remains the existing body/outfit system.
+- House catalog background removal, faithful roof/material/design adaptation and any necessary per-building footprint/interior/furniture enlargement.
+- Farmland tile cleanup, seam normalization and all crop-stage mappings; rock/ore/depletion catalog cleanup and replacement.
+- Individual farm/wildlife anatomy replacement, species-specific gait libraries, separated mounted layers, rein/stirrup contact and mount/dismount clips.
+- Separate fishing reel/landing, carrying, richer facial expressions and remaining bespoke contact/event refinements.
+- Comprehensive same-camera comparisons beside animals/on mounts, every crop/resource/save route, every settlement and performance under multiplayer load.
+
+Do not treat the first integrated stage as completion of the entire request.

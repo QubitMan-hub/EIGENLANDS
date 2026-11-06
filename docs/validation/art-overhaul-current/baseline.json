@@ -1,0 +1,20 @@
+{
+  "viewport": {
+    "width": 1000,
+    "height": 760
+  },
+  "projection": "sx=(x-y)*16; sy=(x+y)*8",
+  "zoom": 1,
+  "spriteScale": 1,
+  "cellWidth": 48,
+  "cellHeight": 48,
+  "visibleTop": 6,
+  "visibleBottom": 47,
+  "visibleStandingHeightWorldPixels": 42,
+  "visibleStandingHeightScreenPixels": 42,
+  "position": {
+    "x": 0.5,
+    "y": 4.5
+  },
+  "frame": 9
+}

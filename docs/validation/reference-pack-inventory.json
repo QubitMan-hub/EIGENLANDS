@@ -1,0 +1,185 @@
+{
+  "imageCount": 20,
+  "assets": [
+    {
+      "file": "animals/farm-animals.png",
+      "size": [
+        1448,
+        1086
+      ],
+      "mode": "RGBA",
+      "sha256": "d4cdb00b553100e96f275e929523a3f504cf8ccb85241e574d346470ce5fab7e"
+    },
+    {
+      "file": "animals/mounted-riders.png",
+      "size": [
+        1236,
+        1272
+      ],
+      "mode": "RGBA",
+      "sha256": "609c5575fdd89ee510e54c3c563fc20d5ea736b584830fe97713113e99a54519"
+    },
+    {
+      "file": "animals/woodland-animals.png",
+      "size": [
+        1448,
+        1086
+      ],
+      "mode": "RGBA",
+      "sha256": "90d0e8d2e70c582aa727936fb96f133494cd8e3b1001ca9b2c36b384b1cc5dec"
+    },
+    {
+      "file": "characters/female-base-walk-draft.png",
+      "size": [
+        1263,
+        1246
+      ],
+      "mode": "RGBA",
+      "sha256": "d41e486e69b176d47698decb2c4f8af49c3edd8bf50f9d88040fea390dd724af"
+    },
+    {
+      "file": "characters/female-isometric-draft.png",
+      "size": [
+        1536,
+        1024
+      ],
+      "mode": "RGBA",
+      "sha256": "e64307a0da0b5bc731b424ce69fb9b001c6b57898e4d8d8011f1b67caa23b304"
+    },
+    {
+      "file": "characters/female-single-view-actions.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "c25298c5c6bf93ae14502ef4bc000a0620e82f05d30e84b78ef2dd193133881b"
+    },
+    {
+      "file": "characters/male-base-walk-draft.png",
+      "size": [
+        1263,
+        1245
+      ],
+      "mode": "RGBA",
+      "sha256": "510c089b84637a4accf87705527c6838fe135b0b9a67d164462b2d393e6fa34e"
+    },
+    {
+      "file": "characters/male-isometric-draft.png",
+      "size": [
+        1536,
+        1024
+      ],
+      "mode": "RGBA",
+      "sha256": "bdae36fda02485e0b473b3d7426cf6937137d3fc36ff838bfcf0505b767610fb"
+    },
+    {
+      "file": "characters/male-single-view-actions.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "sha256": "42750e90642fd9c0f1208f6dfc5ca138d26b673e82ce2e4be910ac1b8ec9c557"
+    },
+    {
+      "file": "customization/boots.png",
+      "size": [
+        1774,
+        887
+      ],
+      "mode": "RGBA",
+      "sha256": "43a2ac7493f3e823b662647d8f311c24b1ee9eb5d9f78dc1b81451e4604f8c02"
+    },
+    {
+      "file": "customization/eyes.png",
+      "size": [
+        1774,
+        887
+      ],
+      "mode": "RGBA",
+      "sha256": "3b0d4c657f041f16f7d7d73d91c3c749ae845443eef18c5babac35af8fad5955"
+    },
+    {
+      "file": "customization/hair.png",
+      "size": [
+        1774,
+        887
+      ],
+      "mode": "RGBA",
+      "sha256": "e177e082dbeadc2b5c3845727b7159c12c5acdfedda59f55d762c06af98f7755"
+    },
+    {
+      "file": "customization/mouths.png",
+      "size": [
+        1774,
+        887
+      ],
+      "mode": "RGBA",
+      "sha256": "87b5854248ba39af81c0762eea51a51ddfcc50d78f03f65732e5e9dabbd424e5"
+    },
+    {
+      "file": "customization/pants.png",
+      "size": [
+        1774,
+        887
+      ],
+      "mode": "RGBA",
+      "sha256": "514bdaa057f1a8c0064ab446ad68217a472ea46035a85d3292d3cb5fbe173f29"
+    },
+    {
+      "file": "customization/shorts.png",
+      "size": [
+        1774,
+        887
+      ],
+      "mode": "RGBA",
+      "sha256": "c0a115a12b98941bd50c3c3e4e8b302c95ba7a06af934e8aabecddd033b2a79a"
+    },
+    {
+      "file": "customization/tops.png",
+      "size": [
+        1774,
+        887
+      ],
+      "mode": "RGBA",
+      "sha256": "276b94bb9b6f2c8d48cc9d026023bcc0d81406ad9a0a1eeaa9fe2802e4fa23e0"
+    },
+    {
+      "file": "environment/farmland.png",
+      "size": [
+        1536,
+        1024
+      ],
+      "mode": "RGBA",
+      "sha256": "f0c6afe6eb2fa0069f8d74ff0ffe4f0b5f4cfea74571194e43cc6e7713baee62"
+    },
+    {
+      "file": "environment/houses.png",
+      "size": [
+        1536,
+        1024
+      ],
+      "mode": "RGBA",
+      "sha256": "fd4c140ceaaa122b3cc2d6a742f353232ab30cfcd0fe09673d7617a042a64ad4"
+    },
+    {
+      "file": "environment/rocks.png",
+      "size": [
+        1536,
+        1024
+      ],
+      "mode": "RGBA",
+      "sha256": "55322656150a3a86205281e7eb80b003f58f43bae027e8343f6d4a49013239cb"
+    },
+    {
+      "file": "environment/trees.png",
+      "size": [
+        1233,
+        1275
+      ],
+      "mode": "RGBA",
+      "sha256": "2bdc60a2f39947365cb4315f40bfa2a347dd41ba11be218f613e977f606de4dd"
+    }
+  ]
+}

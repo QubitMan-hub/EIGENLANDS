@@ -61,10 +61,10 @@ let stoneGuardian: HTMLCanvasElement | null = null;
 function drawStoneGuardian(ctx: Ctx): void {
   if (!stoneGuardian) {
     const W = 108,
-      H = 128;
+      H = 160;
     const { canvas, ctx: c } = makeCanvas(W, H);
     const buf = new PixBuf(W, H);
-    undithered(() => paintStatue(buf.ctx, 'qubitman', DIR_DOWN_RIGHT, { w: W, h: H, ax: 52, ay: 112, k: 3.2 }));
+    undithered(() => paintStatue(buf.ctx, 'qubitman', DIR_DOWN_RIGHT, { w: W, h: H, ax: 52, ay: 144, k: 3.2 }));
     outline(buf.ctx, W, H, C.night);
     polish(buf.ctx, W, H, { rim: true });
     buf.blit(c, 0, 0);
@@ -81,7 +81,7 @@ function statueFrame(f: number): ObjSprite {
     AX = 78,
     AY = 202; // retain ground anchor, leave room under the lowest plinth edge
   const FX = AX - 52,
-    FY = AY - PLINTH.top - 112; // figure offset (feet at y≈112 in its own frame)
+    FY = AY - PLINTH.top - 144; // figure offset (feet at y≈112 in its own frame)
   const brazier = (ctx: Ctx, u: number, v: number) => {
     const I = new Iso(ctx, AX, AY - 8);
     I.cyl(u, v, PLINTH.z2, 2.6, 1.2, BRONZE, BRONZE);
