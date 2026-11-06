@@ -360,7 +360,7 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepE
   p.ifrT = down(p.ifrT);
   p.slipT = down(p.slipT);
   p.atkBuf = down(p.atkBuf);
-  if (p.comboT > 0) {
+  if (p.comboT > 0 && p.atkCd <= 0) {
     p.comboT = down(p.comboT);
     if (p.comboT <= 0) {
       p.comboT = 0;
@@ -369,7 +369,7 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepE
   }
 
   const moving = cmd.dx !== 0 || cmd.dy !== 0;
-  if (moving) {
+  if (moving && (p.atkCd <= 0 || cmd.dash)) {
     const l = Math.hypot(cmd.dx, cmd.dy);
     p.faceX = cmd.dx / l;
     p.faceY = cmd.dy / l;
@@ -388,6 +388,8 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepE
 
   // dash (always available while a charge remains: cancels swing recovery and a held charge)
   if (cmd.dash && p.dashT <= 0 && p.dashN >= 1 && !sailing && !riding) {
+    if (!moving) aim();
+    p.atkBuf = 0;
     p.dashN -= 1;
     if (p.dashCd <= 0) p.dashCd = DASH_COOLDOWN;
     p.dashT = DASH_TIME;
@@ -464,7 +466,10 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepE
     p.dashT = down(p.dashT);
   } else {
     // committed swing slows you; so does holding a charge
-    const k = p.atkCd > 0.15 ? SWING_MOVE_MULT : p.charge > 0 ? CHARGE_MOVE_MULT : 1;
+    // Ease out of commitment over the last 300 ms, rather than snapping from 40% to full speed.
+    const recovery = Math.max(0, Math.min(1, p.atkCd / 0.3));
+    const ease = recovery * recovery * (3 - 2 * recovery);
+    const k = p.atkCd > 0 ? 1 - (1 - SWING_MOVE_MULT) * ease : p.charge > 0 ? CHARGE_MOVE_MULT : 1;
     const onRoad = !sailing && !flying && !!land.road?.(Math.floor(p.x), Math.floor(p.y));
     const sp = sailing
       ? PLAYER_SPEED * BOAT_SPEED_MULT
