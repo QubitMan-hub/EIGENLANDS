@@ -890,6 +890,7 @@ export class Game {
       at: number;
       received: number;
       waitForResult?: boolean;
+      landing?: boolean;
       tool: 'axe' | 'pickaxe' | 'hoe' | 'can' | 'rod' | 'net';
       x: number;
       y: number;
@@ -902,21 +903,23 @@ export class Game {
 
   private fxFromServer(f: FxMsg): void {
     const workAction: PersonAction | undefined =
-      f.kind === 'plant' || f.kind === 'harvest'
-        ? 'gather'
-        : f.kind === 'craft'
-          ? f.station === 'forge' || f.station === 'furnace'
-            ? 'forge'
-            : f.station === 'cooking_pot'
-              ? 'cook'
-              : f.station === 'alchemy'
-                ? 'alchemy'
-                : f.station === 'carpenter'
-                  ? 'saw'
-                  : 'craft'
-          : f.kind === 'place'
-            ? 'dig'
-            : undefined;
+      f.kind === 'plant'
+        ? 'plant'
+        : f.kind === 'harvest'
+          ? 'gather'
+          : f.kind === 'craft'
+            ? f.station === 'forge' || f.station === 'furnace'
+              ? 'forge'
+              : f.station === 'cooking_pot'
+                ? 'cook'
+                : f.station === 'alchemy'
+                  ? 'alchemy'
+                  : f.station === 'carpenter'
+                    ? 'saw'
+                    : 'craft'
+            : f.kind === 'place'
+              ? 'dig'
+              : undefined;
     const worker = f.id ? this.views.get(f.id) : undefined;
     if (worker && workAction) this.workActions.set(worker, { action: workAction, at: 0, x: f.x, y: f.y });
     if (f.kind === 'chest') {
@@ -941,6 +944,7 @@ export class Game {
           at: 0,
           received: performance.now(),
           waitForResult: f.kind === 'catch' && f.id === this.myId,
+          landing: f.kind === 'catch',
           tool: f.weapon,
           x: target.x,
           y: target.y,
@@ -1870,11 +1874,15 @@ export class Game {
                     : use!.tool === 'can'
                       ? 'water'
                       : use!.tool === 'rod'
-                        ? 'fish'
+                        ? use!.landing
+                          ? 'fish_land'
+                          : 'fish'
                         : 'gather';
             frame = actionFrame(action, (now - use!.at) / 300, reduced);
           } else if (!walking && fishing) {
-            frame = actionFrame('fish', fishing.bite ? 0.5 : 0.85, reduced);
+            frame = fishing.reeling
+              ? actionFrame('fish_reel', (now % 800) / 800, reduced)
+              : actionFrame('fish', fishing.bite ? 0.5 : 0.85, reduced);
             actionTarget = { x: fishing.tx + 0.5, y: fishing.ty + 0.5 };
           } else if (!walking && channel !== null) {
             frame = actionFrame('channel', channel, reduced);
@@ -2062,7 +2070,7 @@ export class Game {
         const sd = screenDir(f.tx + 0.5 - p.x, f.ty + 0.5 - p.y);
         const grip = personGrip(
           dirOf(sd.x, sd.y),
-          actionFrame('fish', f.bite ? 0.5 : 0.85, this.settings().reducedMotion),
+          fisher.personFrame ?? actionFrame('fish', f.bite ? 0.5 : 0.85, this.settings().reducedMotion),
         );
         const tipX = fisher.root.x + grip.x - PERSON_W / 2 + Math.cos(grip.angle) * 13;
         const tipY = fisher.root.y + fisher.held.y + grip.y - PERSON_H + Math.sin(grip.angle) * 13;

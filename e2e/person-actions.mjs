@@ -31,6 +31,8 @@ try {
       dig: 'hoe',
       water: 'can',
       fish: 'rod',
+      fish_reel: 'rod',
+      fish_land: 'rod',
       slash: 'sword',
       thrust: 'spear',
       cleave: 'greatsword',

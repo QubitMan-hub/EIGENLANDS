@@ -14,15 +14,21 @@ Both split archives are extracted under `art-source/reference-pack`. All 20 PNGs
 - Walls raised to 60 px and actual entrance geometry to 50 px (roughly 1.19× the measured 42 px adult). Footprints, collision, paths and entrances retain their existing world coordinates. No blanket footprint expansion is claimed.
 - QubitMan's internal sculpt canvas expanded with a compensating offset so taller anatomy and the hat fit while boots remain on the original pedestal anchor.
 - Sixteen named tree/sapling/stump/log assets prepared with measured nonuniform catalog bounds, alpha cleanup, disconnected-dust removal, fixed density, explicit ground anchors and a deterministic palette/RLE manifest. Ordinary forest, autumn, taiga and swamp trees and ordinary/seasonal stumps use the prepared art. Fruit trees, saplings and log are exported but not yet hooked into all orchard/young-tree/log gameplay states. Magical/desert flora retain their established specialised art.
-- [Tree review](validation/reference-tree-review.png). Source images remain recoverable. The pipeline is `tools/art/prepare_reference_trees.py` (Pillow, NumPy, SciPy); runtime decodes prepared data when seasonal object art is built, with nearest filtering and the existing shadow/occlusion systems.
+- [Tree review on light](validation/reference-tree-review.png) and [dark](validation/reference-tree-review-dark.png). Source images remain recoverable. The pipeline is `tools/art/prepare_reference_trees.py` (Pillow, NumPy, SciPy); runtime decodes prepared data when seasonal object art is built, with nearest filtering and the existing shadow/occlusion systems.
 
 ## Verification for this stage
 
-- 15 focused client tests passed: catalog integrity, minimum scale/door clearance, directional actions, grips, appearance and building visibility.
-- Browser asset checks: 1,408 directional action frames plus 3,120 outfit frames; zero clipping/alpha failures. This revealed lateral dodge/death clipping, fixed by adding cell padding rather than reducing the character.
+- Initial foundation checks: 15 focused client tests passed: catalog integrity, minimum scale/door clearance, directional actions, grips, appearance and building visibility.
+- Latest browser asset checks: 1,600 directional action frames plus 3,120 outfit frames; zero clipping/alpha failures. This revealed lateral dodge/death clipping, fixed by adding cell padding rather than reducing the character.
 - Production build and targeted ESLint passed. Built-game scale capture confirms unchanged zoom and increased standing silhouette.
 - Real right-mouse movement entered smithy, guild hall and inn, with roof occlusion and zero page errors. [Door/interior screenshots and report](validation/reference-world/report.json).
 - Existing packed-appearance compatibility checks passed. Gameplay data, rewards and quest definitions are unchanged by this stage.
+
+## Follow-up animation integration
+
+Three append-only clips are integrated: `fish_reel` (206–213), `fish_land` (214–221) and `plant` (222–229). Reeling retains the water coordinates and rod state through the rhythm stage, ends on a matching result, and drives the line from the actual animated grip. The landing gesture waits for result dismissal; planting uses a grounded crouch with hands toward the soil. Existing frame IDs and authoritative resource/reward behavior are preserved.
+
+Nine focused client checks passed for these changes. `e2e/reference-fishing.mjs` passed against the production browser build: retained rod/reel, landing and kneeling planting frames, zero page errors. [Presentation report](validation/reference-fishing/report.json); these are injected authoritative-event fixtures, not a new end-to-end rewarded catch. The existing real attack/charge/release browser check also passed after the body/cell changes. Full directional asset check now covers 1,600 action frames plus 3,120 outfit frames.
 
 ## Recorded before any art edits
 
@@ -57,7 +63,7 @@ The foundation/scale, hero-palette and tree stage is integrated. The following r
 - House catalog background removal, faithful roof/material/design adaptation and any necessary per-building footprint/interior/furniture enlargement.
 - Farmland tile cleanup, seam normalization and all crop-stage mappings; rock/ore/depletion catalog cleanup and replacement.
 - Individual farm/wildlife anatomy replacement, species-specific gait libraries, separated mounted layers, rein/stirrup contact and mount/dismount clips.
-- Separate fishing reel/landing, carrying, richer facial expressions and remaining bespoke contact/event refinements.
+- Carrying, richer facial expressions and remaining bespoke contact/event refinements. Fishing reel/landing and planting now have distinct clips; broader natural-timing and object-contact polish remains.
 - Comprehensive same-camera comparisons beside animals/on mounts, every crop/resource/save route, every settlement and performance under multiplayer load.
 
 Do not treat the first integrated stage as completion of the entire request.

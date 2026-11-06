@@ -1,3 +1,9 @@
+# Reference-pack art overhaul — current continuation (2026-11-07)
+
+Read [ART_OVERHAUL_STATUS.md](ART_OVERHAUL_STATUS.md) and the [complete user request](design/art-overhaul-request.md) first. Both split packs are preserved under `art-source/reference-pack`; the former transfer block is resolved. Character size must not be reduced. Scale/hero/tree integration is shipped, with expanded body cells, taller long-legged foundations, 50 px doors, prepared seasonal tree assets and documented gameplay proof. Distinct fishing reel/landing and planting clips are the subsequent integrated stage. The status document explicitly lists the remaining catalogs, environment, animals, mounted layers, customization and animation work. Preserve saves, gameplay, camera zoom and pivots; keep integrating main and working without subagents.
+
+---
+
 # Current continuation: realm generation, shadow powers and dungeon gates (2026-10-27)
 
 - **Realm generation:** `otherworlds.ts` `realmGraph` (holes, spanning tree plus loops, forced rooms), `ROOM_THEMES`

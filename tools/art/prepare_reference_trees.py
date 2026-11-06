@@ -14,6 +14,7 @@ names = ['oak','birch','spruce','pine','apple','pear','cherry','willow','maple',
 heights = [96,104,100,98,82,84,88,92,94,94,96,100,45,46,18,30]
 frames = {}
 review = Image.new('RGBA', (640, 480), (202,207,198,255))
+dark_review = Image.new('RGBA', (640, 480), (28,38,48,255))
 for i, name in enumerate(names):
     col, row = i % 4, i // 4
     box = (xs[col], ys[row], xs[col+1], ys[row+1])
@@ -59,6 +60,8 @@ for i, name in enumerate(names):
     clean.putalpha(Image.fromarray(arr[:,:,3]))
     clean.save(ROOT / f'packages/client/public/art/reference/{name}.png')
     review.alpha_composite(clean, (col*160+(160-W)//2,row*120+115-H))
+    dark_review.alpha_composite(clean, (col*160+(160-W)//2,row*120+115-H))
 manifest={'source':'environment/trees.png','sha256':hashlib.sha256(source.read_bytes()).hexdigest(),'frames':frames}
 (ROOT/'packages/client/src/art/reference-trees.json').write_text(json.dumps(manifest,separators=(',',':'))+'\n')
 review.save(ROOT/'docs/validation/reference-tree-review.png')
+dark_review.save(ROOT/'docs/validation/reference-tree-review-dark.png')

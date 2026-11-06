@@ -106,7 +106,7 @@ export class HeldWeapons {
                   q = pt(9, -3);
                 line(b.ctx, ...a, ...q, C.w4);
                 stroke(0, 4, C.w6, -5);
-              } else if (id === 'rod' && work?.action !== 'fish') {
+              } else if (id === 'rod' && work?.action !== 'fish' && work?.action !== 'fish_reel') {
                 const a = pt(13),
                   q = pt(8, 7);
                 line(b.ctx, ...a, ...q, C.fog);

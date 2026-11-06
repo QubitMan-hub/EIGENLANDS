@@ -9,22 +9,14 @@ animation is a pose of one shared skeleton. Code: `packages/client/src/art/body/
 
 ## Scale calibration
 
-The world fixes the scale; buildings were not resized.
+The supplied reference-pack overhaul supersedes the older door-first calibration. See [current status and proof](ART_OVERHAUL_STATUS.md).
 
-- **Camera:** the 2:1 dimetric view (`sx = (x − y)·16`, `sy = (x + y)·8`) is a 30° look-down. Heights map 1:1 to screen
-  pixels.
-- **Units:** a tile edge stands for about 1.2 m, and a door opening is 34 px tall (`buildings.ts`, `z < 34`). That makes
-  one vertical metre about 16.3 px, so the door is about 2.1 m and a 44 px wall about 2.7 m.
-- **Adults:** a man of 1.78 m is **29 px** from sole to crown, and a woman of 1.68 m is **28 px**. Both clear a doorway
-  with about a third of a metre of headroom.
-- **Old people were too tall:** they stood about 38 px, roughly 30 % over this scale, and taller than the doors.
-- **Check:** downscaling the reference sheets to 29/28 px keeps their head-to-body ratio. A head is 8 px, about 3.6
-  heads to the body, as in the references.
-- **Other figures:** children use `Outfit.shorten`, which shrinks the limbs and torso but keeps the head size. Statues
-  are drawn with a magnification: QubitMan's monument is ×3.2, the crypt figure ×1, and the garden statue ×0.75 on its
-  plinth.
-- **Cell:** people share one 32×48 cell, NPCs included. Feet sit at row 45 and the sprite is anchored bottom-centre.
-  Name labels sit 36 px above the base (`PERSON_TOP`), just over the head.
+- Camera remains the established 2:1 view, `sx=(x−y)·16`, `sy=(x+y)·8`. Camera zoom and character rendering scale are unchanged.
+- The recorded pre-overhaul player silhouette was 34 visible world/screen pixels at 1× zoom. The current capture measures 42; characters were not reduced to fit buildings.
+- Nominal male/female skeleton heights are now 36/35 px, with seven-pixel heads and long legs (hips at 18/17.5). This is about five heads per adult rather than the previous compressed proportions.
+- Actual doorway clearance is 50 px, walls 60 px. The measured capture has about 1.19× doorway headroom. Footprints, door coordinates and collision remain unchanged in this stage.
+- Cells are **48×48**, expanded sideways for dodge/death poses, with the skeleton ground origin at (24,45) and the sprite bottom-centred. Name labels use `PERSON_TOP=44`.
+- Children retain their intentional shorter stature. Statues share the new proportions at their established magnification; QubitMan's internal canvas was enlarged with a compensating offset to retain pedestal contact.
 
 ## How a frame is made
 
@@ -129,8 +121,7 @@ every silhouette, matching the people and the reference animals. The bestiary at
   every layer listed above. Their per-item details (patches, pouches, quilting, fur trims) are not modelled.
 - **Mouths:** the eyes come from the reference heads. The mouths sheet's ten expressions are not wired; there is one
   neutral mouth.
-- **Missing poses:** there is no carry pose and no separate reel and land fishing poses, because the game has no state
-  that shows them yet.
+- **Missing poses:** carry and mounted straddle poses remain open. Distinct fishing reel/landing and kneeling planting clips are now integrated; see `ART_OVERHAUL_STATUS.md`.
 - **Animal models:** the creature style pass is the shared outline only. The animals are not yet remodelled one by one
   against the wildlife and farm reference sheets (proportions, faces, fur patterns).
 - **World art:** houses, crop tiles, trees and rocks are not yet restyled to their reference sheets.

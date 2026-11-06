@@ -48,6 +48,24 @@ const H = 11,
 const REST = S - 4.5 - 4.1 + 0.5;
 
 const KEYS: Partial<Record<PersonAction, [Key, Key, Key, Key]>> = {
+  fish_reel: [
+    { drop: 0.8, lean: -0.06, hR: [3.8, 1.1, H + 3], grip: 2.2, pitch: 0.35, stance: 1.4 },
+    { drop: 1.1, lean: -0.15, hR: [2.8, 1.0, H + 4], grip: 2.0, pitch: 0.6, stance: 1.4 },
+    { drop: 1.0, lean: 0.04, hR: [4.0, 1.0, H + 2.8], grip: 2.2, pitch: 0.3, stance: 1.4 },
+    { drop: 0.9, lean: -0.08, hR: [3.2, 1.0, H + 3.5], grip: 2.1, pitch: 0.5, stance: 1.4 },
+  ],
+  fish_land: [
+    { drop: 1.0, lean: 0.1, hR: [3.8, 1.0, H + 3], grip: 2.2, pitch: 0.4, stance: 1.5 },
+    { drop: 0.6, lean: -0.12, hR: [2.6, 1.0, S - 1], grip: 2.2, pitch: 1.0, stance: 1.5 },
+    { drop: 0.2, lean: -0.15, hR: [1.8, 1.0, S + 1.2], hL: [4.5, -1.2, H + 4], pitch: 1.3, stance: 1.5 },
+    { drop: 0.5, hR: [2.6, 1.0, H + 4], hL: [3.2, -1.2, H + 2], pitch: 0.6, stance: 1.5 },
+  ],
+  plant: [
+    { drop: 1.0, lean: 0.2, hR: [3, 1, H], hL: [1, -2, H + 1], stance: 1.4 },
+    { drop: 6, lean: 0.35, hR: [4, 0.7, 4], hL: [2, -2, 6], stance: 2 },
+    { drop: 7, lean: 0.4, hR: [4.5, 0.5, 2.4], hL: [2, -2, 5], stance: 2 },
+    { drop: 2, lean: 0.15, hR: [2.8, 1, H - 1], hL: [1, -2, H], stance: 1.4 },
+  ],
   guard: [
     { drop: 0.5, hR: [2.6, 1.2, H + 3], hL: [2.4, -2.1, H + 3], pitch: 1.1, stance: 1.4 },
     { drop: 1.2, lean: 0.08, hR: [3.3, 0.7, H + 4], hL: [3.1, -1.5, H + 4], pitch: 1.2, stance: 2.2, wide: 0.3 },

@@ -96,7 +96,15 @@ export class Gameplay {
   readonly rhythm: RhythmOverlay;
   readonly village: VillageOverlay;
   acts: Acts = freshActs();
-  fishing: { id: string; tx: number; ty: number; ended?: boolean; bite: boolean; until: number } | null = null;
+  fishing: {
+    id: string;
+    tx: number;
+    ty: number;
+    ended?: boolean;
+    reeling?: boolean;
+    bite: boolean;
+    until: number;
+  } | null = null;
   private done = new Set<string>();
   private lastUse = 0;
   private dialogueMsg: DialogueMsg | null = null;
@@ -496,11 +504,16 @@ export class Gameplay {
 
   onRhythmStart(m: RhythmStartMsg): void {
     this.wins.close();
-    this.fishing = null;
+    if (m.kind === 'fish' && this.fishing?.id === m.id) {
+      this.fishing.reeling = true;
+      this.fishing.bite = false;
+      this.fishing.until = performance.now() + 20000;
+    } else this.fishing = null;
     this.clearBang();
     this.rhythm.start(m);
   }
   onRhythmResult(m: RhythmResultMsg): void {
+    if (m.kind === 'fish' && this.fishing?.id === m.id) this.fishing = null;
     this.rhythm.result(m);
     if (m.kind === 'forge' && m.ok) this.acts.forged = true;
     if (m.kind === 'fish' && m.ok) this.acts.fished = true;
