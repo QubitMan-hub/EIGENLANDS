@@ -32,20 +32,26 @@ const gripCache = new Map<number, { x: number; y: number; angle: number }>();
  * The holding (right) hand in the 48×48 cell and the screen angle a held tool or weapon points along, for a frame —
  * solved from the reference man's skeleton (the women's differs by under a pixel at the hand).
  */
-export function personGripOf(dir: number, frame: number): { x: number; y: number; angle: number } {
-  const key = ((dir & 7) << 10) | (frame & 1023);
+export function personGripOf(
+  dir: number,
+  frame: number,
+  handSide: 'R' | 'L' = 'R',
+): { x: number; y: number; angle: number } {
+  const key = ((dir & 7) << 10) | (frame & 1023) | (handSide === 'L' ? 1 << 14 : 0);
   let g = gripCache.get(key);
   if (!g) {
     const d = DIMS.male;
     const pose = poseOf(d, frame, dir);
     const j = solve(d, pose);
     const fr = frameOf(dir);
-    const fore = sub(j.wristR, j.elbowR);
+    const wrist = handSide === 'R' ? j.wristR : j.wristL;
+    const elbow = handSide === 'R' ? j.elbowR : j.elbowL;
+    const fore = sub(wrist, elbow);
     const fl = Math.hypot(fore[0], fore[1], fore[2]) || 1;
     const hand: V3 = [
-      j.wristR[0] + (fore[0] / fl) * d.hand * 0.6,
-      j.wristR[1] + (fore[1] / fl) * d.hand * 0.6,
-      j.wristR[2] + (fore[2] / fl) * d.hand * 0.6,
+      wrist[0] + (fore[0] / fl) * d.hand * 0.6,
+      wrist[1] + (fore[1] / fl) * d.hand * 0.6,
+      wrist[2] + (fore[2] / fl) * d.hand * 0.6,
     ];
     const h = project(hand, fr);
     let angle: number;

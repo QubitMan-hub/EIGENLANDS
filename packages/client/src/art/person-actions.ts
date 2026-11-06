@@ -25,9 +25,10 @@ export const ACTION_START = {
   fish_reel: 206,
   fish_land: 214,
   plant: 222,
+  ride: 230,
 } as const;
 export type PersonAction = keyof typeof ACTION_START;
-export const PERSON_ACTION_END = 230;
+export const PERSON_ACTION_END = 238;
 const ACTIONS = Object.keys(ACTION_START) as PersonAction[];
 /** Preserve legacy four keys; append in-between poses instead of renumbering saved presentation IDs. */
 const KEYS = Object.fromEntries(
@@ -102,6 +103,12 @@ export function actionPose(dir: number, frame: number) {
     crouch = 0,
     angle = aim;
   switch (action) {
+    case 'ride':
+      reach = 4;
+      height = 19;
+      crouch = 3;
+      angle = aim - 0.4;
+      break;
     case 'fish_reel':
       reach = sample([4, 3, 4, 3]);
       height = sample([17, 15, 17, 16]);

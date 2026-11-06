@@ -30,9 +30,9 @@ import {
   type Ramp,
 } from './shade';
 
-export const WALL_H = 60;
+export const WALL_H = 50;
 /** Keep entrances larger than the reference-bodied adults, including hair and boots. */
-export const DOOR_H = 50;
+export const DOOR_H = 44;
 const CUT_H = 8;
 const T = 0.5; // wall thickness in tiles (outer half of the perimeter tiles)
 

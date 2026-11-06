@@ -199,6 +199,10 @@ function model(species: FarmLook, frame: number, tack: boolean): Prim[] {
           );
         }
       if (tack) {
+        for (const side of [-1, 1]) {
+          prims.push(capsule([0.7, side * 3.9, 19.2], [0.7, side * 3.9, 10.6], 0.22, SADDLE, 0.22));
+          prims.push(capsule([0, side * 3.9, 10.6], [2.2, side * 3.9, 10.6], 0.25, HOOF, 0.25));
+        }
         prims.push(rbox([-0.6, 0, 19.2], [3.4, 4.2, 0.7], 0.4, BLANKET)); // saddle cloth
         prims.push(rbox([-0.6, 0, 20.2], [2.4, 3, 0.8], 0.6, SADDLE)); // seat
         prims.push(rbox([1.6, 0, 21.2], [0.6, 1.4, 0.8], 0.4, SADDLE)); // pommel
@@ -302,13 +306,17 @@ export function saddledTexture(
   species: 'horse' | 'phasehart',
   frame: number,
   facing: number,
-): { body: Texture; front: Texture | null; seat: { x: number; y: number } } {
+): { body: Texture; front: Texture | null; seat: { x: number; y: number }; reins: Array<{ x: number; y: number }> } {
   const r = render(species, frame, facing, true);
   const [u, v] = turn((facing & 3) as Heading, SADDLE_POINT[0], SADDLE_POINT[1]);
   return {
     body: texOf(`s:${species}:${frame}:${facing}`, r.body),
     front: r.front ? texOf(`sf:${species}:${frame}:${facing}`, r.front) : null,
     seat: { x: u - v, y: (u + v) / 2 - SADDLE_POINT[2] },
+    reins: [-1, 1].map((side) => {
+      const [a, b] = turn((facing & 3) as Heading, 7.6, side * 1.8);
+      return { x: a - b, y: (a + b) / 2 - 19 };
+    }),
   };
 }
 

@@ -1,10 +1,12 @@
+import { personGripOf } from '../art/body';
+import { RIDER_SEAT_OFFSET } from '../art/body/poses';
 import { LIVESTOCK_AX, LIVESTOCK_AY, LIVESTOCK_H, LIVESTOCK_W, saddledTexture } from '../art/livestock';
 import { minecartSprite } from '../art/mining';
 import { FLY_Z, MOUNT_FRAMES, SADDLE_Z, mountDir, mountSprite } from '../art/mounts';
-import { Rectangle, Texture } from 'pixi.js';
+import { Texture } from 'pixi.js';
 import { isHeldId, type HeldWeapons } from '../art/weapons';
 import { type Critters, type CritterId } from '../art/critters';
-import { Sprite, type Container, type Graphics } from 'pixi.js';
+import { Sprite, type Container, Graphics } from 'pixi.js';
 import { SHIP_AX, SHIP_AY, headingOf, type Ships } from '../art/ships';
 import {
   HUE_PALETTE,
@@ -46,7 +48,7 @@ import { STORM_FOOT, STORM_SIZE } from '../art/stormbound';
 /** tiles of travel per walk frame for each drawn model (0 = animate by time) */
 const MOVE_STRIDE: number[] = [0, 0.25, 0.18, 0, 0, 0.42, 0];
 import type { Sheets } from '../art/actors';
-import { DIR_LEFT, dirOf, ATTACK_FRAME, WALK_FRAMES } from '../art/actors';
+import { DIR_LEFT, dirOf, ATTACK_FRAME, WALK_FRAMES, PERSON_W, PERSON_H } from '../art/actors';
 import type { Fx } from './fx';
 import { drawWorldBar } from './worldbar';
 import { eliteMods, factionOf } from '../ui/enemy-model';
@@ -82,6 +84,8 @@ export interface CombatActor {
   mountSprite?: Sprite;
   /** the horse's neck and head when they come toward the camera: drawn over the rider */
   mountFront?: Sprite;
+  riderReins?: Graphics;
+  personFrame?: number;
 }
 
 /** Synced fields combat reads from interpolated snapshots. */
@@ -737,6 +741,7 @@ export class CombatView {
         v.sprite.x = 0;
       }
       if (v.mountFront) v.mountFront.visible = false;
+      if (v.riderReins) v.riderReins.visible = false;
       return;
     }
     if (!v.mountSprite) {
@@ -767,14 +772,32 @@ export class CombatView {
     v.mountSprite.texture = art.tex;
     v.mountSprite.anchor.set(art.ax / art.tex.width, art.ay / art.tex.height);
     v.mountSprite.visible = true;
-    v.sprite.texture = riderCrop(v.sprite.texture);
     const lift = flying ? FLY_Z + (reduced ? 0 : Math.round(Math.sin(now * 2.4) * 1.5)) : 0;
     v.mountSprite.y = -lift;
     const bob = !flying && moving && !reduced ? [0, 1, 0, 0][frame - 1]! : 0;
     // a horse rider sits in the saddle itself (which moves with the horse's heading); the Stag and griffin keep theirs
     v.sprite.x = saddled ? Math.round(saddled.seat.x) : 0;
-    v.sprite.y = (saddled ? Math.round(saddled.seat.y) : -SADDLE_Z) - bob - lift;
+    v.sprite.y =
+      (saddled ? Math.round(saddled.seat.y) + RIDER_SEAT_OFFSET : -SADDLE_Z + RIDER_SEAT_OFFSET) - bob - lift;
     v.fl.y = v.sprite.y;
+    if (saddled) {
+      if (!v.riderReins) {
+        v.riderReins = new Graphics();
+        v.root.addChild(v.riderReins);
+      }
+      v.riderReins.visible = true;
+      v.riderReins.clear();
+      const sd = screenDir(fx, fy),
+        dir = dirOf(sd.x, sd.y);
+      for (let i = 0; i < 2; i++) {
+        const hand = personGripOf(dir, v.personFrame ?? 234, i ? 'R' : 'L');
+        const end = saddled.reins[i]!;
+        v.riderReins
+          .moveTo(hand.x - PERSON_W / 2 + v.sprite.x, hand.y - PERSON_H + v.sprite.y)
+          .lineTo(end.x, end.y - lift)
+          .stroke({ color: pc(17), width: 1, alpha: 0.9 });
+      }
+    } else if (v.riderReins) v.riderReins.visible = false;
     if (saddled?.front) {
       if (!v.mountFront) v.mountFront = new Sprite();
       if (v.mountFront.parent !== v.root || v.root.getChildIndex(v.mountFront) < v.root.getChildIndex(v.sprite))
@@ -1149,17 +1172,4 @@ export class CombatView {
   noticeEnemies(nearest: number): void {
     if (nearest < 9) this.showTip('combo');
   }
-}
-
-/** Rider frames from the hips up: the bottom of a person frame (legs) is hidden by the mount's flanks. */
-const RIDER_LEGS = 14;
-const riderCrops = new WeakMap<Texture, Texture>();
-function riderCrop(t: Texture): Texture {
-  let c = riderCrops.get(t);
-  if (!c) {
-    const f = t.frame;
-    c = new Texture({ source: t.source, frame: new Rectangle(f.x, f.y, f.width, Math.max(1, f.height - RIDER_LEGS)) });
-    riderCrops.set(t, c);
-  }
-  return c;
 }

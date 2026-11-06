@@ -1,11 +1,10 @@
 import { actionPose, actionFrame, meleeAction, meleeFrame, type PersonAction } from '../art/person-actions';
-import { FLY_Z, SADDLE_Z } from '../art/mounts';
 import { LIVESTOCK_AX, LIVESTOCK_AY, LIVESTOCK_H, LIVESTOCK_W, livestockTexture } from '../art/livestock';
 import { isLivestock } from '@eigenlands/shared';
 import { FrameRateWindow } from './frame-rate';
 import { Soundscape } from './soundscape';
 import { GroundMarks } from './groundmarks';
-import { T, CAVE_BIOME_NAMES, caveRegionAt, isFlying } from '@eigenlands/shared';
+import { T, CAVE_BIOME_NAMES, caveRegionAt } from '@eigenlands/shared';
 import { ClickMining } from './click-mining';
 import { WorldPreparer } from './world-preparer';
 import { applyChunkSnapshot } from './chunk-updates';
@@ -108,7 +107,7 @@ import { P34Client } from '../features';
 import type { KeyMap } from '../input/keymap';
 import type { Net, NetHandlers } from '../net/session';
 import { Predictor } from '../net/prediction';
-import { ZOOM_TILES, type Settings } from '../ui/ui';
+import { ZOOM_TILES, cameraPixelScale, type Settings } from '../ui/ui';
 import {
   depth,
   isoX,
@@ -624,7 +623,7 @@ export class Game {
     const phone = matchMedia('(pointer: coarse)').matches && Math.min(w, h) < 600;
     const base = phone ? (this.economy ? (w > h ? 8 : 6) : w > h ? 12 : 9) : w < 700 ? 9 : 18;
     const target = base * ZOOM_TILES[this.settings().zoom];
-    const artScale = Math.max(1, Math.floor((w * dpr) / (32 * target)));
+    const artScale = cameraPixelScale(w, dpr, target, this.settings().zoom);
     this.scale = artScale / dpr;
     const res = tierResolution(window.devicePixelRatio || 1, this.tier, artScale);
     if (Math.abs(this.app.renderer.resolution - res) > 1e-6) {
@@ -1862,7 +1861,7 @@ export class Game {
         let unarmedWork = false;
         let actionTarget: { x: number; y: number } | null = null;
         if (!deadP && !dash && !charging && combatStrike < 0) {
-          if (cart || mount) frame = actionFrame('sit', (v.travel % 0.8) / 0.8, reduced);
+          if (cart || mount) frame = actionFrame(mount ? 'ride' : 'sit', (v.travel % 0.8) / 0.8, reduced);
           else if (harvesting) {
             const action: PersonAction =
               use!.tool === 'pickaxe'
@@ -1957,6 +1956,7 @@ export class Game {
           ].includes(actionPose(0, frame)?.action ?? '') &&
           (!boat || (fishing && heldItem === 'rod' && combatStrike < 0)) &&
           !cart &&
+          !riding &&
           !deadP
         ) {
           if (!v.held) {
@@ -1970,7 +1970,7 @@ export class Game {
           const pose = v.personFrame;
           v.held.texture = this.heldWeapons.texture(heldItem, direction, pose);
           v.held.visible = true;
-          v.held.y = riding ? v.sprite.y + 14 : v.sprite.y;
+          v.held.y = v.sprite.y;
           v.held.alpha = v.sprite.alpha;
           v.root.setChildIndex(v.held, direction === 1 || direction >= 6 ? 1 : v.root.children.length - 1);
         } else if (v.held) v.held.visible = false;
@@ -1990,7 +1990,7 @@ export class Game {
         if (v.label) {
           if (s?.name && v.label.text !== s.name) v.label.text = s.name;
           // riders' names float above the saddle, and a griffin's rider higher still
-          const above = PERSON_TOP + (riding ? SADDLE_Z + (isFlying(riding) ? FLY_Z : 0) : 0);
+          const above = PERSON_TOP + (riding ? -8 - v.sprite.y : 0);
           v.label.x = Math.round(this.world.x + v.root.x * this.scale);
           v.label.y = Math.round(this.world.y + (v.root.y - above) * this.scale);
         }

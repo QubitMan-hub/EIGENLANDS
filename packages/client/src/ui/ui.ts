@@ -29,6 +29,10 @@ export const validZoom = (v: unknown): ZoomLevel =>
   (ZOOM_LEVELS as readonly unknown[]).includes(v) ? (v as ZoomLevel) : 'normal';
 /** multiplier on the tiles-across target; the pixel scale is still a whole number */
 export const ZOOM_TILES: Record<ZoomLevel, number> = { close: 0.75, normal: 1, far: 1.4 };
+/** Bring normal/close framing one crisp art-pixel step nearer at every viewport size; Far stays available. */
+export function cameraPixelScale(width: number, dpr: number, targetTiles: number, zoom: ZoomLevel): number {
+  return Math.max(1, Math.floor((width * dpr) / (32 * targetTiles))) + (zoom === 'far' ? 0 : 1);
+}
 
 const KEY = 'eigen.settings';
 export function loadSettings(): Settings {

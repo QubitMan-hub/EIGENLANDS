@@ -11,10 +11,10 @@ animation is a pose of one shared skeleton. Code: `packages/client/src/art/body/
 
 The supplied reference-pack overhaul supersedes the older door-first calibration. See [current status and proof](ART_OVERHAUL_STATUS.md).
 
-- Camera remains the established 2:1 view, `sx=(x−y)·16`, `sy=(x+y)·8`. Camera zoom and character rendering scale are unchanged.
+- Camera remains the established 2:1 view, `sx=(x−y)·16`, `sy=(x+y)·8`. Character rendering scale is unchanged. The latest user request brings Normal/Close camera framing one integer scale step nearer; Far remains available.
 - The recorded pre-overhaul player silhouette was 34 visible world/screen pixels at 1× zoom. The current capture measures 42; characters were not reduced to fit buildings.
 - Nominal male/female skeleton heights are now 36/35 px, with seven-pixel heads and long legs (hips at 18/17.5). This is about five heads per adult rather than the previous compressed proportions.
-- Actual doorway clearance is 50 px, walls 60 px. The measured capture has about 1.19× doorway headroom. Footprints, door coordinates and collision remain unchanged in this stage.
+- Latest user correction: doorway clearance is 44 px, walls 50 px. This lowers the initial 50/60 px geometry while retaining adult world height. Footprints, door coordinates and collision remain unchanged in this stage.
 - Cells are **48×48**, expanded sideways for dodge/death poses, with the skeleton ground origin at (24,45) and the sprite bottom-centred. Name labels use `PERSON_TOP=44`.
 - Children retain their intentional shorter stature. Statues share the new proportions at their established magnification; QubitMan's internal canvas was enlarged with a compensating offset to retain pedestal contact.
 
@@ -119,11 +119,10 @@ every silhouette, matching the people and the reference animals. The bestiary at
   volumes so that they work in all 8 facings.
 - **Clothing references:** the attached shirt, trouser and boot sheets set the layer vocabulary and colours, which is
   every layer listed above. Their per-item details (patches, pouches, quilting, fur trims) are not modelled.
-- **Mouths:** the eyes come from the reference heads. The mouths sheet's ten expressions are not wired; there is one
+- **Mouths:** the eyes come from the reference heads. The 50-option mouth catalog is not wired; there is one
   neutral mouth.
-- **Missing poses:** carry and mounted straddle poses remain open. Distinct fishing reel/landing and kneeling planting clips are now integrated; see `ART_OVERHAUL_STATUS.md`.
+- **Missing poses:** carry poses remain open; a full mounted straddle is now integrated. Distinct fishing reel/landing and kneeling planting clips are now integrated; see `ART_OVERHAUL_STATUS.md`.
 - **Animal models:** the creature style pass is the shared outline only. The animals are not yet remodelled one by one
   against the wildlife and farm reference sheets (proportions, faces, fur patterns).
-- **World art:** houses, crop tiles, trees and rocks are not yet restyled to their reference sheets.
-- **Riders:** mounts keep their rider offsets, but the reference mounted-rider sheet (legs straddling the saddle) is not
-  yet a pose.
+- **World art:** ordinary/seasonal tree and stump reference assets are integrated. Houses, crop tiles and rocks still need their full reference-sheet overhaul.
+- **Riders:** full straddling poses, saddle/hip alignment, player rein connections and stirrups are integrated. Couriers use the shared full pose. More horse directions/gait frames, richer boarding clips and NPC mounted-layer refinements remain.

@@ -11,7 +11,7 @@ Both split archives are extracted under `art-source/reference-pack`. All 20 PNGs
 - Long-legged male/female foundations, 36/35 nominal skeletal height and seven-pixel heads, shared by players, NPCs and humanoid statues. Measured player silhouette is now **42 visible pixels at unchanged 1× zoom**, above the recorded 34 px baseline. [Current capture](validation/art-overhaul-current/before.png), [measurements](validation/art-overhaul-current/baseline.json).
 - Sprite cells widened from 32×48 to 48×48 to prevent lateral dodge/death clipping; pixels and render scale remain unchanged, and the pivot remains bottom-centre. No character is downscaled to fit a building.
 - Two reference hero presets: male steel/navy/leather/burgundy; female red high ponytail, pale bodice, teal/gold sash and burgundy legwear. Preset identifiers and packed appearance saves remain compatible; individual appearance choices still override presets.
-- Walls raised to 60 px and actual entrance geometry to 50 px (roughly 1.19× the measured 42 px adult). Footprints, collision, paths and entrances retain their existing world coordinates. No blanket footprint expansion is claimed.
+- Latest user correction: walls are now **50 px**, door clearance **44 px**, lowered from the initial 60/50 px pass. This deliberately supersedes the earlier 1.15–1.3× clearance target; character world height stays intact. Footprints, collision, paths and entrances retain their existing world coordinates. No blanket footprint expansion is claimed.
 - QubitMan's internal sculpt canvas expanded with a compensating offset so taller anatomy and the hat fit while boots remain on the original pedestal anchor.
 - Sixteen named tree/sapling/stump/log assets prepared with measured nonuniform catalog bounds, alpha cleanup, disconnected-dust removal, fixed density, explicit ground anchors and a deterministic palette/RLE manifest. Ordinary forest, autumn, taiga and swamp trees and ordinary/seasonal stumps use the prepared art. Fruit trees, saplings and log are exported but not yet hooked into all orchard/young-tree/log gameplay states. Magical/desert flora retain their established specialised art.
 - [Tree review on light](validation/reference-tree-review.png) and [dark](validation/reference-tree-review-dark.png). Source images remain recoverable. The pipeline is `tools/art/prepare_reference_trees.py` (Pillow, NumPy, SciPy); runtime decodes prepared data when seasonal object art is built, with nearest filtering and the existing shadow/occlusion systems.
@@ -23,6 +23,14 @@ Both split archives are extracted under `art-source/reference-pack`. All 20 PNGs
 - Production build and targeted ESLint passed. Built-game scale capture confirms unchanged zoom and increased standing silhouette.
 - Real right-mouse movement entered smithy, guild hall and inn, with roof occlusion and zero page errors. [Door/interior screenshots and report](validation/reference-world/report.json).
 - Existing packed-appearance compatibility checks passed. Gameplay data, rewards and quest definitions are unchanged by this stage.
+
+## Closer exploration camera and mounted follow-up
+
+The user requested a closer view and shorter architecture after the initial pass. Normal and Close framing now add one integer backing-pixel scale step across viewport sizes; Far retains its existing framing. At 1000×760 / DPR 1, Normal is 2× instead of 1×. The character remains the same world size; the camera intentionally makes it larger on screen. Existing saved zoom choices remain valid. Roofs and door jambs use the revised 50 px wall / 44 px doorway geometry.
+
+Mounted bodies now use an append-only `ride` clip (230–237): bent knees, straddling feet and hands at the reins. The renderer places the solved hips on the saddle; it no longer crops away the lower 14 pixels of the character. Reins are drawn to both solved hand grips, stirrups are part of the saddle, and held items are hidden while riding to avoid overlapping the reins. Space dismount and attack-to-dismount mechanics remain. Road couriers also use the full ride pose, replacing their separate cropped-body workaround.
+
+Verification: 18 focused client checks; 1,664 directional action frames and 3,120 outfit frames without clipping/alpha failures; built-game mounting, movement and Space dismount; three lower-door approaches and entry. [Camera/rider evidence](validation/cozy-camera-mount/report.json), [doorway evidence](validation/cozy-doorways/report.json). Production build, client typecheck and targeted lint passed. Horse art still has four directional headings and two gait frames; complete reference animal/gait replacement and richer boarding/dismount clips remain unfinished.
 
 ## Follow-up animation integration
 
@@ -62,7 +70,7 @@ The foundation/scale, hero-palette and tree stage is integrated. The following r
 - Every one of the 50-option customization catalogs (pants 55) individually fitted, selectable and saved across all actions/directions; current customization remains the existing body/outfit system.
 - House catalog background removal, faithful roof/material/design adaptation and any necessary per-building footprint/interior/furniture enlargement.
 - Farmland tile cleanup, seam normalization and all crop-stage mappings; rock/ore/depletion catalog cleanup and replacement.
-- Individual farm/wildlife anatomy replacement, species-specific gait libraries, separated mounted layers, rein/stirrup contact and mount/dismount clips.
+- Individual farm/wildlife anatomy replacement, species-specific gait libraries, remaining mounted-layer refinements and richer mount/dismount clips. Full straddling rider bodies, hip anchoring, reins and stirrups are now integrated, but the animal art/gait overhaul is not complete.
 - Carrying, richer facial expressions and remaining bespoke contact/event refinements. Fishing reel/landing and planting now have distinct clips; broader natural-timing and object-contact polish remains.
 - Comprehensive same-camera comparisons beside animals/on mounts, every crop/resource/save route, every settlement and performance under multiplayer load.
 

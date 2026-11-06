@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ACTIONS, DEFAULT_KEYS } from '../src/input/keymap';
-import { ZOOM_LEVELS, ZOOM_TILES, validZoom } from '../src/ui/ui';
+import { ZOOM_LEVELS, ZOOM_TILES, cameraPixelScale, validZoom } from '../src/ui/ui';
 
 describe('camera distance', () => {
   it('only accepts known steps and defaults to normal', () => {
@@ -12,6 +12,11 @@ describe('camera distance', () => {
   it('shows more tiles the further out it is', () => {
     expect(ZOOM_TILES.close).toBeLessThan(ZOOM_TILES.normal);
     expect(ZOOM_TILES.normal).toBe(1);
+    for (const width of [800, 1000, 1200, 1280, 1366, 1600, 1920]) {
+      const old = Math.max(1, Math.floor(width / (32 * 18)));
+      expect(cameraPixelScale(width, 1, 18, 'normal')).toBe(old + 1);
+      expect(cameraPixelScale(width, 1, 18 * 1.4, 'far')).toBe(Math.max(1, Math.floor(width / (32 * 18 * 1.4))));
+    }
     expect(ZOOM_TILES.far).toBeGreaterThan(ZOOM_TILES.normal);
   });
 });

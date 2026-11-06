@@ -1,0 +1,18 @@
+{
+  "before": {
+    "zoom": "normal",
+    "scale": 2,
+    "bodyCell": [
+      48,
+      48
+    ]
+  },
+  "rider": {
+    "frame": 230,
+    "fullCell": 48,
+    "reins": true,
+    "held": false,
+    "mounted": 1
+  },
+  "errors": []
+}

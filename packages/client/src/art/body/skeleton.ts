@@ -3,7 +3,7 @@
  * space and projected with the game's camera.
  *
  * Scale: preserve the user's recorded 34 px visible height floor. The reference pack calls for long legs and
- * about five heads per adult; bodies now stand 36/35 px with seven-pixel skulls. Houses provide 50 px clearance.
+ * about five heads per adult; bodies now stand 36/35 px with seven-pixel skulls. Houses now provide 44 px clearance, per the user’s shorter-door correction.
  *
  * Body space: a = forward, b = toward the body's right hand, z = up, in art pixels, origin on the ground between the
  * feet. The camera is the game's 2:1 projection: a body facing ground direction f (8 headings, 45° apart on the

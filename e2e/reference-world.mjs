@@ -1,7 +1,7 @@
 import { chromium } from 'playwright-core';
 import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync } from 'node:fs';
-const out = 'docs/validation/reference-world';
+const out = process.argv[3] ?? 'docs/validation/reference-world';
 mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({
   executablePath: process.env.CHROME ?? '/usr/bin/chromium',

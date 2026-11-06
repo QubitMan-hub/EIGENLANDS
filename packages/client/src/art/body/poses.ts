@@ -330,6 +330,23 @@ function sitPose(d: Dims, k: number): Pose {
   return p;
 }
 
+/** A bent-knee straddle, with both hands at the reins, rather than a cropped standing figure. */
+export const RIDER_HIP_Z = 10;
+export const RIDER_SEAT_OFFSET = 13; // 48 px cell - 45 px ground origin + 10 px hip height
+function ridePose(d: Dims, k: number): Pose {
+  const p = restPose(d);
+  const sway = Math.sin((k / 3) * Math.PI * 2);
+  p.pelvis = [0, 0, RIDER_HIP_Z];
+  p.lean = 0.08;
+  p.footL = [1.8, -5.5, 0.3];
+  p.footR = [1.8, 5.5, 0.3];
+  p.handR = [4.8, 1.6, 17.8 + sway * 0.2];
+  p.handL = [4.8, -1.6, 17.8 + sway * 0.2];
+  p.toeL = [1, 0, 0];
+  p.toeR = [1, 0, 0];
+  return p;
+}
+
 /** Treading water: a slow breast stroke, legs kicking below the surface. */
 function swimPose(d: Dims, k: number): Pose {
   const s = d.shoulderZ / S;
@@ -382,6 +399,7 @@ export function poseOf(d: Dims, frame: number, dir = 0): Pose {
   const { action, k } = clip;
   if (action === 'dodge') return dodgePose(d, k);
   if (action === 'death') return deathPose(d, k, dir);
+  if (action === 'ride') return ridePose(d, k);
   if (action === 'sit') return sitPose(d, k);
   if (action === 'swim') return swimPose(d, k);
   const keys = KEYS[action];

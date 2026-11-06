@@ -1,4 +1,6 @@
-import { Container, Rectangle, Sprite, Text, Texture } from 'pixi.js';
+import { RIDER_SEAT_OFFSET } from '../../art/body/poses';
+import { actionFrame } from '../../art/person-actions';
+import { Container, Sprite, Text, Texture } from 'pixi.js';
 import {
   WAYFARER_BARKS,
   WILD_BARKS,
@@ -64,17 +66,6 @@ interface Wander {
   fy: number;
 }
 
-const crops = new WeakMap<Texture, Texture>();
-/** the courier sits on the horse: drawn from the hips up */
-function seated(t: Texture): Texture {
-  let c = crops.get(t);
-  if (!c) {
-    const f = t.frame;
-    c = new Texture({ source: t.source, frame: new Rectangle(f.x, f.y, f.width, f.height - 9) });
-    crops.set(t, c);
-  }
-  return c;
-}
 const facing4 = (fx: number, fy: number) => (Math.abs(fx) >= Math.abs(fy) ? (fx < 0 ? 2 : 0) : fy < 0 ? 3 : 1);
 
 /**
@@ -301,9 +292,9 @@ export class RoadLife {
           break;
         case 'rider': {
           const seat = saddledTexture('horse', 0, facing4(p.fx, p.fy)).seat;
-          m.sp.texture = seated(sheets.person(look, dir, 0));
+          m.sp.texture = sheets.person(look, dir, actionFrame('ride', (v.travel % 0.8) / 0.8, reduced));
           m.sp.x += Math.round(seat.x);
-          m.sp.y += Math.round(seat.y);
+          m.sp.y += Math.round(seat.y) + RIDER_SEAT_OFFSET;
           m.sp.zIndex += 1;
           break;
         }
