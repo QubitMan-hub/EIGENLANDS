@@ -142,6 +142,7 @@ export const HTML = `
   <div id="tbtns">
     <button data-a="attack" aria-label="Attack">${iconSvg('sword', 26)}</button>
     <button data-a="skill" aria-label="Skill shot">${iconSvg('bolt', 24)}</button>
+    <button data-a="guard" aria-label="Hold guard, time a parry">Guard</button>
     <button data-a="dash" aria-label="Dash">${iconSvg('dash', 24)}</button>
     <button data-a="interact" aria-label="Use">${iconSvg('hand', 22)}</button>
   </div>

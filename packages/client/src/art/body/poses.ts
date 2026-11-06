@@ -48,6 +48,12 @@ const H = 11,
 const REST = S - 4.5 - 4.1 + 0.5;
 
 const KEYS: Partial<Record<PersonAction, [Key, Key, Key, Key]>> = {
+  guard: [
+    { drop: 0.5, hR: [2.6, 1.2, H + 3], hL: [2.4, -2.1, H + 3], pitch: 1.1, stance: 1.4 },
+    { drop: 1.2, lean: 0.08, hR: [3.3, 0.7, H + 4], hL: [3.1, -1.5, H + 4], pitch: 1.2, stance: 2.2, wide: 0.3 },
+    { drop: 1.5, lean: -0.08, hR: [2.8, 0.6, H + 4.5], hL: [2.6, -1.4, H + 4], pitch: 1.3, stance: 2.2, wide: 0.3 },
+    { drop: 1.0, hR: [3.0, 0.8, H + 4], hL: [2.8, -1.5, H + 3.8], pitch: 1.15, stance: 2 },
+  ],
   mine: [
     { drop: 0.4, hR: [2.4, 1.4, H + 1.5], grip: 2.6, pitch: 0.7, stance: 1.6 },
     { drop: 0, lean: -0.18, twist: -0.25, hR: [-0.4, 1.2, S + 3.6], grip: 2.6, pitch: 2.4, stance: 1.6 },

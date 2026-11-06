@@ -16,6 +16,7 @@ export interface LocalInput {
   dash: boolean;
   /** sprint held; older callers may omit it */
   sprint?: boolean;
+  guard?: boolean;
   attack: boolean;
   skill: boolean;
   aimX: number;

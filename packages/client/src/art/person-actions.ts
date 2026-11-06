@@ -21,9 +21,10 @@ export const ACTION_START = {
   slash: 174,
   thrust: 182,
   cleave: 190,
+  guard: 198,
 } as const;
 export type PersonAction = keyof typeof ACTION_START;
-export const PERSON_ACTION_END = 198;
+export const PERSON_ACTION_END = 206;
 const ACTIONS = Object.keys(ACTION_START) as PersonAction[];
 /** Preserve legacy four keys; append in-between poses instead of renumbering saved presentation IDs. */
 const KEYS = Object.fromEntries(
@@ -98,6 +99,12 @@ export function actionPose(dir: number, frame: number) {
     crouch = 0,
     angle = aim;
   switch (action) {
+    case 'guard':
+      reach = 3;
+      height = 16;
+      crouch = 1;
+      angle = aim - 0.7;
+      break;
     case 'slash':
       reach = sample([1, 3, 6, 2]);
       height = sample([14, 16, 18, 19]);

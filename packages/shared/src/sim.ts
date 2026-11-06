@@ -57,6 +57,11 @@ export interface PlayerSim {
   ranged?: boolean;
   /** Derived from equipped gear, not client input or packed ACK fields. */
   melee?: MeleeFamily;
+  /** 1 guarding, 0 lowered, -1 guard-broken until guardCd expires. */
+  guard: number;
+  /** Remaining timed-parry window; raising guard again cannot refresh it during guardCd. */
+  parryT: number;
+  guardCd: number;
   atkCd: number;
   combo: number; // index of the NEXT hit in the 3-hit combo
   comboT: number;
@@ -102,6 +107,7 @@ export interface InputCmd {
   attack: boolean;
   /** attack button is held: charges a heavy strike that fires on release */
   hold: boolean;
+  guard?: boolean;
   skill: boolean;
   /** aim direction (unit-ish vector from the player) */
   aimX: number;
@@ -174,6 +180,9 @@ export function newPlayerSim(x: number, y: number): PlayerSim {
     dashCd: 0,
     dashDx: 0,
     dashDy: 0,
+    guard: 0,
+    parryT: 0,
+    guardCd: 0,
     atkCd: 0,
     combo: 0,
     comboT: 0,
@@ -234,6 +243,7 @@ export function sanitizeCmd(raw: Partial<InputCmd>): InputCmd {
     sprint: raw.sprint === true,
     attack: raw.attack === true,
     hold: raw.hold === true,
+    guard: raw.guard === true,
     skill: raw.skill === true,
     aimX: ax,
     aimY: ay,
@@ -301,12 +311,15 @@ export function chargeLevel(charge: number): number {
  * - phase slip (set by the server on a perfect dodge): the next attack is a critical counter.
  */
 export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepEvents {
+  p.parryT = down(p.parryT);
+  p.guardCd = down(p.guardCd);
   const sailing = p.boat > 0 && !!land.sea;
   const flying = !sailing && isFlying(p.mount) && !!land.fly;
   // nobody fights or dashes from a griffin's back: those inputs simply do nothing in the air;
   // on the ground, attacking, casting or dodging steps a rider down first
   if (flying) cmd = { ...cmd, attack: false, hold: false, skill: false, dash: false };
   else if (p.mount && (cmd.attack || cmd.skill || cmd.dash || cmd.hold)) p.mount = 0;
+  if (sailing || flying || p.mount > 0 || p.cart > 0) p.guard = p.parryT = 0;
   const solid: SolidQuery = sailing ? land.sea! : flying ? land.fly! : land;
   const ev: StepEvents = {
     dashed: false,
@@ -386,6 +399,33 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepE
   if (p.mount > 0 && (sailing || cmd.attack || cmd.hold || cmd.skill)) p.mount = 0;
   const riding = p.mount > 0;
 
+  const guarding =
+    !(p.guard < 0 && p.guardCd > 0) &&
+    cmd.guard &&
+    !cmd.dash &&
+    !sailing &&
+    !riding &&
+    !flying &&
+    !p.cart &&
+    p.dashT <= 0 &&
+    p.atkCd <= 0 &&
+    p.stamina > 0;
+  if (guarding) {
+    if (!p.guard && p.guardCd <= 0) {
+      p.parryT = 0.18;
+      p.guardCd = 0.7;
+    }
+    p.guard = 1;
+    p.charge = 0;
+    p.hold = 0;
+    p.atkBuf = 0;
+    aim();
+    cmd = { ...cmd, attack: false, hold: false, skill: false, sprint: false };
+  } else {
+    if (!(p.guard < 0 && p.guardCd > 0)) p.guard = 0;
+    p.parryT = 0;
+  }
+
   // dash (always available while a charge remains: cancels swing recovery and a held charge)
   if (cmd.dash && p.dashT <= 0 && p.dashN >= 1 && !sailing && !riding) {
     if (!moving) aim();
@@ -403,7 +443,7 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepE
   }
 
   const counter = () => {
-    if (p.slipT > 0) {
+    if (p.slipT > 0 && !p.ranged) {
       ev.counter = true;
       p.slipT = 0;
     }
@@ -469,7 +509,7 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepE
     // Ease out of commitment over the last 300 ms, rather than snapping from 40% to full speed.
     const recovery = Math.max(0, Math.min(1, p.atkCd / 0.3));
     const ease = recovery * recovery * (3 - 2 * recovery);
-    const k = p.atkCd > 0 ? 1 - (1 - SWING_MOVE_MULT) * ease : p.charge > 0 ? CHARGE_MOVE_MULT : 1;
+    const k = p.guard > 0 ? 0.45 : p.atkCd > 0 ? 1 - (1 - SWING_MOVE_MULT) * ease : p.charge > 0 ? CHARGE_MOVE_MULT : 1;
     const onRoad = !sailing && !flying && !!land.road?.(Math.floor(p.x), Math.floor(p.y));
     const sp = sailing
       ? PLAYER_SPEED * BOAT_SPEED_MULT
@@ -481,6 +521,11 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepE
     p.sprint = sprinting;
     vx = cmd.dx * sp * k * (sprinting ? SPRINT_MULT : 1);
     vy = cmd.dy * sp * k * (sprinting ? SPRINT_MULT : 1);
+  }
+  if (p.guard > 0) {
+    p.stamina = qs(Math.max(0, p.stamina - 8 * TICK_DT));
+    p.staminaT = STAMINA_DELAY;
+    if (p.stamina <= 0) p.guard = p.parryT = 0;
   }
   stepStamina(p);
   moveBody(p, vx * TICK_DT, vy * TICK_DT, PLAYER_RADIUS, solid);

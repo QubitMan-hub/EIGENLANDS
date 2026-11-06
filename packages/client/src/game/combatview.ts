@@ -311,6 +311,20 @@ export class CombatView {
       return !m || Math.hypot(m.x - f.x, m.y - f.y) < r;
     };
     switch (f.kind) {
+      case 'defend': {
+        const parry = f.v === 2,
+          broken = f.v === 0;
+        fx.ring(f.x, f.y, parry ? 47 : broken ? 36 : 22, parry ? 1.1 : 0.7, 0.25, 2);
+        fx.number(
+          f.x,
+          f.y - 1,
+          parry ? 'PARRY · RIPOSTE!' : broken ? 'GUARD BROKEN' : 'BLOCK',
+          parry ? 47 : broken ? 36 : 22,
+        );
+        this.d.sound(parry ? 'counter' : 'hit');
+        return true;
+      }
+
       case 'shot':
         if (f.id && !mine) this.strike(view(f.id), 260);
         return false; // ordinary shot particles/audio remain in Game

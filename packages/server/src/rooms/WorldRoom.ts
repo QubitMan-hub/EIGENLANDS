@@ -1,3 +1,4 @@
+import { defend } from '@eigenlands/shared';
 import { cottageDialogue } from '../systems/cottages';
 import { generationMeta, tileAt, isSolid, validAppearance, catalogMobDrops } from '@eigenlands/shared';
 import {
@@ -1023,7 +1024,8 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       (sim.hold && sim.charge >= CHARGE_MIN ? 16 : 0) |
       (sim.slipT > 0 ? 32 : 0) |
       (sim.ifrT > 0 ? 64 : 0) |
-      (sim.boat > 0 ? 128 : 0);
+      (sim.boat > 0 ? 128 : 0) |
+      (sim.guard > 0 ? 256 : 0);
   }
 
   private weaponOf(p: ServerPlayer): WeaponDef | null {
@@ -1587,6 +1589,26 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
         dy = e.y - p.sim.y,
         d = Math.hypot(dx, dy) || 1;
       if ((p.sim.faceX * dx + p.sim.faceY * dy) / d < 0.3) return false;
+    }
+    const defence = defend(p.sim, weight, dirX, dirY);
+    if (defence !== 'hit') {
+      this.fx({
+        kind: 'defend',
+        x: p.sim.x,
+        y: p.sim.y,
+        id: p.id,
+        v: defence === 'parry' ? 2 : defence === 'block' ? 1 : 0,
+      });
+      if (defence === 'parry') {
+        if (!projectile) {
+          e.flinchT = Math.max(e.flinchT, e.def.boss ? 0.15 : 0.8);
+        }
+        return true;
+      }
+      if (defence === 'block') {
+        raw *= 0.25;
+        weight = 0;
+      }
     }
     // armour: a hit may pass straight through (phase), otherwise worn defence trims it
     if (p.stats.phase > 0 && this.rand() < p.stats.phase) {

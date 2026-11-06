@@ -86,6 +86,7 @@ export interface TileMsg {
 }
 
 export type FxKind =
+  | 'defend'
   | 'hit'
   | 'swing'
   | 'shot'
@@ -530,6 +531,9 @@ export const ACK_FIELDS = [
   'dashCd',
   'dashDx',
   'dashDy',
+  'guard',
+  'parryT',
+  'guardCd',
   'atkCd',
   'combo',
   'comboT',

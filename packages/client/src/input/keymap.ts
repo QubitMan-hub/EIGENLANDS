@@ -3,6 +3,7 @@ export type Action =
   | 'down'
   | 'left'
   | 'right'
+  | 'guard'
   | 'attack'
   | 'skill'
   | 'dash'
@@ -49,6 +50,7 @@ export const EXT_ACTIONS = [
 export type KeyMap = Record<Action, string[]>;
 
 export const ACTIONS: Action[] = [
+  'guard',
   'up',
   'down',
   'left',
@@ -70,6 +72,7 @@ export const ACTION_LABELS: Record<Action, string> = {
   down: 'Move down',
   left: 'Move left',
   right: 'Move right',
+  guard: 'Guard / timed parry (hold)',
   attack: 'Attack',
   skill: 'Skill shot',
   dash: 'Dash (dodge)',
@@ -102,6 +105,7 @@ export const DEFAULT_KEYS: KeyMap = {
   down: ['KeyS', 'ArrowDown'],
   left: ['KeyA', 'ArrowLeft'],
   right: ['KeyD', 'ArrowRight'],
+  guard: ['ControlLeft', 'ControlRight'],
   attack: ['KeyJ', 'KeyZ'],
   skill: ['KeyK'],
   dash: ['ShiftLeft', 'ShiftRight'],

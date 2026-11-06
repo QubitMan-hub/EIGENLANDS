@@ -107,3 +107,5 @@ export * from './wonders';
 export * from './otherworlds';
 export * from './realmfolk';
 export * from './gates';
+
+export * from './defense';

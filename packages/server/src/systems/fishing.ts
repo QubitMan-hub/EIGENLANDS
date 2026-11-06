@@ -78,6 +78,7 @@ function interrupted(p: ServerPlayer): boolean {
     p.sim.cart > 0 ||
     p.sim.mount > 0 ||
     p.sim.dashT > 0 ||
+    p.sim.guard > 0 ||
     p.sim.atkCd > 0 ||
     p.sim.hold > 0 ||
     p.sim.charge > 0

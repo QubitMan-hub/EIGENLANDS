@@ -1891,3 +1891,18 @@ body:has(#boss-bar:not([hidden])) #moment {
   border: 1px solid #655f4b;
   max-width: 150px;
 }
+
+#tbtns [data-a='guard'] {
+  right: 176px;
+  bottom: 40px;
+  width: 52px;
+  height: 52px;
+}
+@media (pointer: coarse) and (max-height: 600px) {
+  html #tbtns [data-a='guard'] {
+    right: 134px;
+    bottom: 28px;
+    width: 44px;
+    height: 44px;
+  }
+}

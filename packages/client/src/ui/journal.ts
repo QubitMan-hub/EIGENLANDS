@@ -437,6 +437,10 @@ export function buildJournal(
           'Press an orb key, aim the direction preview, then left click to cast. Escape or the same key cancels. Selected enemies do not bypass aiming. Touch/gamepad cast directly; self abilities remain instant.',
         ],
         ['Combo', 'tap Attack: slash, slash, lunging finisher (presses are buffered; dash cancels recovery)'],
+        [
+          'Guard and parry',
+          'hold Guard to block frontal hits (stamina cost); time a fresh press to parry. Release and attack within 0.9 s to riposte. Rear hits and crushing attacks bypass guard.',
+        ],
         ['Heavy strike', 'hold Attack to charge (ring fills), release to cleave — breaks armour'],
         ['Phase Slip', 'dash through a red warning just before it fills: slow-mo + guaranteed critical counter'],
         ['Dash charges', '2 charges (pips under your feet), refill one at a time'],
@@ -455,6 +459,7 @@ export function buildJournal(
         right: 'left stick / touch stick',
         attack: 'left click · gamepad A / RT',
         skill: 'gamepad X / LT',
+        guard: 'Guard button · gamepad R3 · time the press to parry; release and attack to riposte',
         dash: 'Dodge button · gamepad B',
         interact: 'Use button · gamepad Y',
         prev: 'mouse wheel',

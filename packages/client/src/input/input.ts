@@ -294,6 +294,7 @@ export class Input {
       padAttackEdge = false,
       padSkill = false,
       padDash = false,
+      padGuard = false,
       padSprint = false,
       padInteract = false;
     let padAim: { x: number; y: number } | null = null;
@@ -316,6 +317,7 @@ export class Input {
       padAttackEdge = edge(0) || edge(7);
       padSkill = b(2) || b(6);
       padDash = edge(1);
+      padGuard = b(11);
       padInteract = edge(3);
       if (edge(4)) this.onCycle?.(-1);
       if (edge(5)) this.onCycle?.(1);
@@ -328,7 +330,6 @@ export class Input {
           [13, 'ability3'],
           [14, 'ability4'],
           [10, 'ultimate'],
-          [11, 'ultimate'],
           [8, 'board'],
         ] as const
       ).forEach(([i, a]) => {
@@ -371,6 +372,7 @@ export class Input {
     const skillHeld = this.isDown('skill') || this.touchHeld.has('skill') || padSkill;
     // attack = a press (tap: 3-hit combo, buffered by the sim); hold = still held (charges a heavy, released to strike)
     r.attack = this.consume('attack') || padAttackEdge;
+    r.guard = this.isDown('guard') || this.touchHeld.has('guard') || padGuard;
     r.hold = attackHeld;
     r.skill = skillHeld || this.consume('skill');
     r.dash = this.consume('dash') || padDash;

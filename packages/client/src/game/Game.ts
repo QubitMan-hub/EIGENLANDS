@@ -1784,12 +1784,13 @@ export class Game {
         const cart = isMe ? this.predictor.sim.cart > 0 : !!s?.cart;
         const dash = isMe ? this.predictor.sim.dashT > 0 : ((s?.flags ?? 0) & 1) !== 0;
         const deadP = isMe ? this.dead : ((s?.flags ?? 0) & 4) !== 0;
+        const guarding = isMe ? this.predictor.sim.guard > 0 : ((s?.flags ?? 0) & 256) !== 0;
         const combatStrike = !deadP && !dash ? this.combat.playerAttackFrame(v, now, reduced) : -1;
         const charging = isMe
           ? this.predictor.sim.hold > 0 && this.predictor.sim.charge > 0
           : ((s?.flags ?? 0) & 8) !== 0;
         // Work confirmations must not resume after a newer combat or transport action.
-        if (combatStrike >= 0 || charging || dash || deadP || mount || cart) {
+        if (combatStrike >= 0 || guarding || charging || dash || deadP || mount || cart) {
           this.toolSwings.delete(v);
           this.workActions.delete(v);
         }
@@ -1817,7 +1818,7 @@ export class Game {
           : s?.weapon;
         const weapon = isWeaponId(weaponId) ? weaponId : null;
         const tool = isMe ? ITEMS[this.gameplay.selected()?.id ?? '']?.tool?.type : s?.held;
-        let heldItem = harvesting ? use!.tool : strike < 0 && !charging && isHeldId(tool) ? tool : weapon;
+        let heldItem = harvesting ? use!.tool : strike < 0 && !guarding && !charging && isHeldId(tool) ? tool : weapon;
         const family = harvesting
           ? use!.tool === 'can' || use!.tool === 'rod'
             ? CAST_FRAME
@@ -1890,6 +1891,7 @@ export class Game {
         }
         if (charging && !walking && !deadP && !dash && combatStrike < 0)
           frame = family === ATTACK_FRAME ? actionFrame(meleeAction(meleeFamily), 0.34, reduced) : family;
+        if (guarding && !deadP && !dash) frame = actionFrame('guard', 0.5, reduced);
         if (deadP) frame = actionFrame('death', Math.min(1, (now - (v.deathAt ??= now)) / 650), reduced);
         else {
           v.deathAt = undefined;

@@ -14,8 +14,8 @@ export class PlayerState extends Schema {
   @type('uint32') xp = 0;
   /** outfit index (wardrobe) */
   @type('uint8') look = 0;
-  /** bit0 dashing, bit1 swinging, bit2 dead, bit3 charging, bit4 heavy ready, bit5 phase slip, bit6 i-frames */
-  @type('uint8') flags = 0;
+  /** bit0 dashing, bit1 swinging, bit2 dead, bit3 charging, bit4 heavy ready, bit5 phase slip, bit6 i-frames, bit7 boat, bit8 guarding */
+  @type('uint16') flags = 0;
   /** last processed input sequence, for reconciliation */
   @type('uint32') ack = 0;
   /** Phase 3: class index (CLASS_INDEX) for nameplates */
