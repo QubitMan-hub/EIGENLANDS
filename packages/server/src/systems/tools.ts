@@ -154,13 +154,16 @@ export async function handleUse(room: RoomApi, p: ServerPlayer, msg: UseMsg): Pr
   await room.ensureChunk(chunkOf(tx), chunkOf(ty));
   // the world may have moved on while the chunk loaded
   const stack = p.data.inv[msg.slot];
-  if (p.deadT > 0 || !stack || stack.id !== first.id) return;
+  if (p.deadT > 0 || !stack || stack.id !== first.id || Date.now() < p.toolReadyAt || distToTile(p, tx, ty) > reach)
+    return;
   p.toolReadyAt = Date.now() + tuning.toolCooldownMs;
 
   const slot = msg.slot;
   const obj = room.store.objectAt(tx, ty);
   const tool = def.tool?.type;
   if (await useConstruction(room, p, msg, stack.id, tool === 'pickaxe')) return;
+  // Construction can also yield; ordinary tool effects still require a live, nearby owner of this item.
+  if (p.deadT > 0 || p.data.inv[msg.slot] !== stack || distToTile(p, tx, ty) > reach) return;
   const built = room.store.structureAt(tx, ty);
   if (built && (built.owner !== p.accountId || built.data.stairs)) {
     p.toast(built.data.stairs ? 'Keep the stair landing clear.' : 'This building belongs to another player.');

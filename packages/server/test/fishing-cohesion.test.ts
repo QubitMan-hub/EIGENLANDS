@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vitest';
 import { MSG } from '@eigenlands/shared';
-import { tickFishing, handleHook } from '../src/systems/fishing';
+import { tickFishing, handleHook, finishFish } from '../src/systems/fishing';
 import type { RoomApi } from '../src/systems/api';
 import type { ServerPlayer } from '../src/rooms/player';
 function fixture(extra = {}) {
@@ -35,4 +35,36 @@ it('revalidates an interrupted cast when a hook arrives before the next tick', (
   handleHook(room, p, { id: 'cast' });
   expect(p.cast).toBeNull();
   expect(p.client.send).toHaveBeenCalledWith(MSG.FISH_CAST, expect.objectContaining({ ended: true }));
+});
+
+for (const condition of ['distant', 'combat', 'expired'])
+  it(`rejects a hooked catch completed after ${condition}`, () => {
+    const { p, room } = fixture(condition === 'combat' ? { atkCd: 0.2 } : {});
+    p.cast = null;
+    p.rhythm = {
+      id: 'hooked',
+      kind: 'fish',
+      expires: condition === 'expired' ? 0 : Date.now() + 20000,
+      plan: { startAt: 0, intervalMs: 100, count: 3, windowMs: 100 },
+      fish: { id: 'trout', difficulty: 0.5, tx: 1, ty: 0 },
+    };
+    if (condition === 'distant') p.sim.x = 100;
+    finishFish(room, p, { id: 'hooked', hits: [100, 200, 300] });
+    expect(p.rhythm).toBeNull();
+    expect(p.client.send).toHaveBeenCalledWith(MSG.RHYTHM_RESULT, expect.objectContaining({ ok: false, kind: 'fish' }));
+  });
+
+it('cancels a hooked session on the tick so waiting out combat cannot recover it', () => {
+  const { p, room } = fixture({ atkCd: 0.2 });
+  p.cast = null;
+  p.rhythm = {
+    id: 'hooked',
+    kind: 'fish',
+    expires: Date.now() + 20000,
+    plan: { startAt: 0, intervalMs: 100, count: 3, windowMs: 100 },
+    fish: { id: 'trout', difficulty: 0.5, tx: 1, ty: 0 },
+  };
+  tickFishing(room, Date.now());
+  expect(p.rhythm).toBeNull();
+  expect(p.client.send).toHaveBeenCalledWith(MSG.RHYTHM_RESULT, expect.objectContaining({ id: 'hooked', ok: false }));
 });

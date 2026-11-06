@@ -23,7 +23,7 @@ export interface RhythmSession {
   template?: Template;
   /** forge: material ids (one entry per consumed unit) */
   ids?: string[];
-  fish?: { id: string; difficulty: number };
+  fish?: { id: string; difficulty: number; tx?: number; ty?: number };
 }
 
 export interface CastSession {

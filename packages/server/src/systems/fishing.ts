@@ -84,6 +84,16 @@ function interrupted(p: ServerPlayer): boolean {
   );
 }
 
+function catchInterrupted(p: ServerPlayer): boolean {
+  const f = p.rhythm?.fish;
+  return interrupted(p) || (f?.tx !== undefined && f.ty !== undefined && distToTile(p, f.tx, f.ty) > MAX_CAST_RANGE);
+}
+function endCatch(p: ServerPlayer): void {
+  const s = p.rhythm!;
+  p.rhythm = null;
+  p.client.send(MSG.RHYTHM_RESULT, { id: s.id, kind: 'fish', accuracy: 0, ok: false, text: 'The line went slack.' });
+}
+
 /** Per-tick bookkeeping: cancel stale casts, ring the bite, drop expired sessions. */
 export function tickFishing(room: RoomApi, now: number): void {
   for (const p of room.players.values()) {
@@ -104,6 +114,7 @@ export function tickFishing(room: RoomApi, now: number): void {
         p.toast('It got away…', 'bad');
       }
     }
+    if (p.rhythm?.kind === 'fish' && (catchInterrupted(p) || now > p.rhythm.expires)) endCatch(p);
     if (p.rhythm && now > p.rhythm.expires) {
       const kind = p.rhythm.kind;
       p.rhythm = null;
@@ -146,7 +157,7 @@ export function handleHook(room: RoomApi, p: ServerPlayer, msg: FishHookMsg): vo
     kind: 'fish',
     plan,
     expires: Date.now() + 20_000,
-    fish: { id: fish.id, difficulty: fish.difficulty },
+    fish: { id: fish.id, difficulty: fish.difficulty, tx: c.tx, ty: c.ty },
   };
   p.client.send(MSG.RHYTHM_START, {
     id: c.id,
@@ -158,6 +169,10 @@ export function handleHook(room: RoomApi, p: ServerPlayer, msg: FishHookMsg): vo
 
 export function finishFish(room: RoomApi, p: ServerPlayer, msg: RhythmDoneMsg): void {
   const s = p.rhythm!;
+  if (catchInterrupted(p) || Date.now() > s.expires) {
+    endCatch(p);
+    return;
+  }
   const hits = sanitizeHits(msg.hits, s.plan, s.plan.count * 2 + 2);
   const accuracy = scoreHits(
     Array.from({ length: s.plan.count }, (_, i) => s.plan.startAt + (i + 1) * s.plan.intervalMs),

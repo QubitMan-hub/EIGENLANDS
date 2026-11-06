@@ -43,6 +43,12 @@ export function contour(data: Uint8ClampedArray, w: number, h: number, eligible?
     for (let x = 0; x < w; x++)
       if ((x === 0 || y === 0 || x === w - 1 || y === h - 1) && ok(x, y)) marks.push((y * w + x) * 4);
   for (const i of marks) {
+    // At a clipped frame edge, retain ink that is already darker than the outline.
+    if (
+      data[i + 3]! >= 128 &&
+      2 * data[i]! + 4 * data[i + 1]! + data[i + 2]! <= 2 * ((ink >> 16) & 255) + 4 * ((ink >> 8) & 255) + (ink & 255)
+    )
+      continue;
     data[i] = (ink >> 16) & 255;
     data[i + 1] = (ink >> 8) & 255;
     data[i + 2] = ink & 255;

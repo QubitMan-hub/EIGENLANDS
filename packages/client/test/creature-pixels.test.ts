@@ -20,10 +20,11 @@ it('maps imported body pixels into the palette with crisp coverage and no dither
     expect(palette.has((data[i]! << 16) | (data[i + 1]! << 8) | data[i + 2]!)).toBe(true);
     expect(data[i + 3]).toBe(255);
   }
-  expect(Array.from(data.slice(8))).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
+  expect(Array.from(data.slice(8, 12))).toEqual(rgba(ART_RGB.night));
+  expect(Array.from(data.slice(12))).toEqual([0, 0, 0, 0]);
 });
 
-it('contours shaded edges inside the silhouette without swelling legs, filling gaps or dimming protected glow', () => {
+it('outlines the silhouette without repainting body pixels or protected glow', () => {
   const data = new Uint8ClampedArray(5 * 5 * 4);
   for (const [x, y] of [
     [1, 1],
@@ -35,12 +36,15 @@ it('contours shaded edges inside the silhouette without swelling legs, filling g
     [3, 3],
   ])
     data.set(rgba(ART_RGB.e5), (y * 5 + x) * 4);
-  const alpha = data.filter((_, i) => i % 4 === 3);
+  const before = data.slice();
   contour(data, 5, 5, (i) => i !== 18);
   expect(Array.from(data.slice((1 * 5 + 1) * 4, (1 * 5 + 1) * 4 + 4))).toEqual(rgba(ART_RGB.e5));
-  expect(Array.from(data.slice((3 * 5 + 1) * 4, (3 * 5 + 1) * 4 + 4))).toEqual(rgba(ART_RGB.night));
+  expect(Array.from(data.slice((3 * 5 + 1) * 4, (3 * 5 + 1) * 4 + 4))).toEqual(rgba(ART_RGB.e5));
   expect(Array.from(data.slice(18 * 4, 18 * 4 + 4))).toEqual(rgba(ART_RGB.e5));
-  expect(data.filter((_, i) => i % 4 === 3)).toEqual(alpha);
+  for (let i = 0; i < 25; i++)
+    if (before[i * 4 + 3]) expect(data.slice(i * 4, i * 4 + 4)).toEqual(before.slice(i * 4, i * 4 + 4));
+  expect(Array.from(data.slice(0 * 4 + 4, 0 * 4 + 8))).toEqual(rgba(ART_RGB.night));
+  expect(data[24 * 4 + 3]).toBe(0);
 });
 
 it('never brightens existing ink into an inverted outline', () => {
