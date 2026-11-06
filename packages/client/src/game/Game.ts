@@ -1,3 +1,4 @@
+import { contactShadow, castProjection } from './grounding';
 import { actionPose, actionFrame, meleeAction, meleeFrame, type PersonAction } from '../art/person-actions';
 import { LIVESTOCK_AX, LIVESTOCK_AY, LIVESTOCK_H, LIVESTOCK_W, livestockTexture } from '../art/livestock';
 import { isLivestock } from '@eigenlands/shared';
@@ -202,6 +203,7 @@ interface ActorView {
   sprite: Sprite;
   gfx: Graphics;
   shadow: Sprite;
+  contact: Sprite | null;
   label?: Text;
   lx: number;
   ly: number;
@@ -1097,8 +1099,9 @@ export class Game {
     root.addChild(gfx, sprite);
     const shadow = new Sprite();
     shadow.anchor.set(0.5, 1);
-    shadow.tint = 0x2a1060;
+    shadow.tint = type === 'shadow' ? 0x2a1060 : 0x1c2630;
     this.shadowLayer.addChild(shadow);
+    const contact = type === 'proj' ? null : contactShadow(this.shadowLayer, 3);
     let outfit = 0;
     let label: Text | undefined;
     if (type === 'npc') {
@@ -1163,6 +1166,7 @@ export class Game {
       sprite,
       gfx,
       shadow,
+      contact,
       label,
       lx: e.x,
       ly: e.y,
@@ -1184,6 +1188,7 @@ export class Game {
     if (!v) return;
     v.label?.destroy();
     v.shadow.destroy();
+    v.contact?.destroy();
     v.root.destroy({ children: true });
     this.views.delete(id);
     this.interp.remove(id);
@@ -2174,6 +2179,15 @@ export class Game {
   /** Cast the sprite's silhouette along the sun direction (same flat shadow model as world objects). */
   private castShadow(v: ActorView, sun: { dx: number; len: number; alpha: number }): void {
     const sh = v.shadow;
+    if (v.contact) {
+      v.contact.visible = v.root.visible;
+      v.contact.position.set(v.root.x, v.root.y);
+      v.contact.alpha = 0.2;
+      const radius = v.mountSprite?.visible
+        ? 6
+        : Math.min(8, Math.max(2, v.sprite.texture.width * v.sprite.scale.x * 0.1));
+      v.contact.scale.set(radius / 16);
+    }
     sh.visible = v.root.visible && v.type !== 'proj' && sun.alpha > 0.02;
     if (!sh.visible) return;
     const source = v.mountSprite?.visible ? v.mountSprite : v.sprite;
@@ -2181,8 +2195,9 @@ export class Game {
     sh.anchor.copyFrom(source.anchor);
     sh.position.set(v.root.x, v.root.y);
     sh.alpha = sun.alpha * v.sprite.alpha;
-    sh.scale.set(source.scale.x, -(0.22 + 0.14 * sun.len) * source.scale.y);
-    sh.skew.x = sun.dx * sun.len * 0.55;
+    const projection = castProjection(sun.dx, sun.len);
+    sh.scale.set(source.scale.x, projection.scaleY * source.scale.y);
+    sh.skew.x = projection.skewX;
     sh.rotation = v.sprite.rotation;
   }
 

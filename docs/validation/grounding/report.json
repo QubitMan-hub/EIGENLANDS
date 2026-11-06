@@ -1,0 +1,2045 @@
+{
+  "phases": [
+    {
+      "hour": 7,
+      "objects": [
+        {
+          "kind": "tree",
+          "x": -1,
+          "y": -295,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.138616091909614,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "tree",
+          "x": 145,
+          "y": -225,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1387569301851341,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "tree",
+          "x": 259,
+          "y": -168,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1382255156934022,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "tree",
+          "x": 178,
+          "y": -161,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1363288467961548,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "tree",
+          "x": 146,
+          "y": -144,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.136649559797758,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "rock",
+          "x": 33,
+          "y": -103,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "torch",
+          "x": 0,
+          "y": -40,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "tree",
+          "x": 481,
+          "y": 71,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1363431352180444,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "rock",
+          "x": 175,
+          "y": -63,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "ore_copper",
+          "x": 367,
+          "y": 97,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "torch",
+          "x": 96,
+          "y": 8,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "torch",
+          "x": -96,
+          "y": 8,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "tree",
+          "x": -272,
+          "y": -15,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1393719650697356,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "ore_copper",
+          "x": -240,
+          "y": 16,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "tree",
+          "x": -464,
+          "y": -66,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1384323051031795,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "tree",
+          "x": -337,
+          "y": 31,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1406677487933394,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "rock",
+          "x": -671,
+          "y": 42,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "tree",
+          "x": -657,
+          "y": 176,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1345469266112467,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "torch",
+          "x": 0,
+          "y": 56,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "tree",
+          "x": 304,
+          "y": 225,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1382646956372637,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "rock",
+          "x": 96,
+          "y": 279,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "rock",
+          "x": -271,
+          "y": 144,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "tree",
+          "x": -1,
+          "y": 313,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1388106120404173,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "tree",
+          "x": -208,
+          "y": 225,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1346914868921345,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "tree",
+          "x": -288,
+          "y": 218,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1331298906736966,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "tree",
+          "x": -160,
+          "y": 281,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1345411394000808,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "tree",
+          "x": -273,
+          "y": 240,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1350241200308446,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "tree",
+          "x": -241,
+          "y": 255,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1388740324786677,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "rock",
+          "x": -369,
+          "y": 208,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "tree",
+          "x": -355,
+          "y": 265,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.133727807294768,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "tree",
+          "x": -318,
+          "y": 279,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1344232883084584,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "tree",
+          "x": -445,
+          "y": 232,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.137324933165979,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "tree",
+          "x": -303,
+          "y": 305,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1402318948099344,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "tree",
+          "x": -96,
+          "y": 408,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1363977209578566,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "tree",
+          "x": 15,
+          "y": 464,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1397841092530867,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "tree",
+          "x": -47,
+          "y": 448,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1332088382034113,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "tree",
+          "x": -129,
+          "y": 423,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1384889386946553,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "tree",
+          "x": -383,
+          "y": 312,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1402156030842618,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "tree",
+          "x": -350,
+          "y": 329,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1399036909264004,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "bed",
+          "x": 640,
+          "y": 88,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "hearth",
+          "x": 672,
+          "y": 104,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "shelf",
+          "x": 656,
+          "y": 96,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "bed",
+          "x": 512,
+          "y": 152,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "hearth",
+          "x": 544,
+          "y": 168,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "shelf",
+          "x": 528,
+          "y": 160,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "mailbox",
+          "x": 624,
+          "y": 144,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "planter",
+          "x": 656,
+          "y": 144,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409875877215214,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "hedge",
+          "x": 672,
+          "y": 136,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "mailbox",
+          "x": 496,
+          "y": 208,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "flower_bed",
+          "x": 528,
+          "y": 208,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1395049561241122,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "flower_bed",
+          "x": 544,
+          "y": 200,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1379776846449123,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "hedge",
+          "x": 496,
+          "y": 224,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "bed",
+          "x": 336,
+          "y": 240,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "hearth",
+          "x": 368,
+          "y": 256,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "shelf",
+          "x": 352,
+          "y": 248,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "bed",
+          "x": 160,
+          "y": 328,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "hearth",
+          "x": 192,
+          "y": 344,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "wardrobe",
+          "x": 208,
+          "y": 352,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "plant",
+          "x": 176,
+          "y": 368,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1387937234435075,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "lamp",
+          "x": 176,
+          "y": 336,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "mailbox",
+          "x": 320,
+          "y": 296,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "woodpile",
+          "x": 304,
+          "y": 304,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "hedge",
+          "x": 320,
+          "y": 312,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "mailbox",
+          "x": 144,
+          "y": 384,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "planter",
+          "x": 80,
+          "y": 336,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1393979336722808,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "hedge",
+          "x": 48,
+          "y": 352,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "hedge",
+          "x": 144,
+          "y": 400,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "player",
+          "x": -64,
+          "y": 40,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "enemy",
+          "x": -99,
+          "y": -126,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "npc",
+          "x": 1024,
+          "y": 808,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "npc",
+          "x": 496,
+          "y": 624,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "enemy",
+          "x": 51,
+          "y": 209.5,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        },
+        {
+          "kind": "enemy",
+          "x": 211,
+          "y": -110.5,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -1.1409814465811525,
+          "scaleY": -1.241905484234367
+        }
+      ]
+    },
+    {
+      "hour": 12,
+      "objects": [
+        {
+          "kind": "tree",
+          "x": -1,
+          "y": -295,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.0051696129060585135,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "tree",
+          "x": 145,
+          "y": -225,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.004844970048310511,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "tree",
+          "x": 259,
+          "y": -168,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.005617170289321124,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "tree",
+          "x": 178,
+          "y": -161,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.008220048137197247,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "tree",
+          "x": 146,
+          "y": -144,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.008069945877220066,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "rock",
+          "x": 33,
+          "y": -103,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "torch",
+          "x": 0,
+          "y": -40,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "tree",
+          "x": 481,
+          "y": 71,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.0027916500944008484,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "rock",
+          "x": 175,
+          "y": -63,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "ore_copper",
+          "x": 367,
+          "y": 97,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "torch",
+          "x": 96,
+          "y": 8,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "torch",
+          "x": -96,
+          "y": 8,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "tree",
+          "x": -272,
+          "y": -15,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.002460998922374961,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "ore_copper",
+          "x": -240,
+          "y": 16,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "tree",
+          "x": -464,
+          "y": -66,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.004307863816760046,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "tree",
+          "x": -337,
+          "y": 31,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -0.00014220355783881017,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "rock",
+          "x": -671,
+          "y": 42,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "tree",
+          "x": -657,
+          "y": 176,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.0037110430050964704,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "torch",
+          "x": 0,
+          "y": 56,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "tree",
+          "x": 304,
+          "y": 225,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.004658668588850745,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "rock",
+          "x": 96,
+          "y": 279,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "rock",
+          "x": -271,
+          "y": 144,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "tree",
+          "x": -1,
+          "y": 313,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.0038666335355463065,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "tree",
+          "x": -208,
+          "y": 225,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.006896174185243399,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "tree",
+          "x": -288,
+          "y": 218,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.003464937826386224,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "tree",
+          "x": -160,
+          "y": 281,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.002656639936490748,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "tree",
+          "x": -273,
+          "y": 240,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.007385559758740808,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "tree",
+          "x": -241,
+          "y": 255,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.004435025850330931,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "rock",
+          "x": -369,
+          "y": 208,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "tree",
+          "x": -355,
+          "y": 265,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.003719059867339604,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "tree",
+          "x": -318,
+          "y": 279,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.0077520812524651235,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "tree",
+          "x": -445,
+          "y": 232,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.00803608853348872,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "tree",
+          "x": -303,
+          "y": 305,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -0.00005279288178289909,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "tree",
+          "x": -96,
+          "y": 408,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.0028871358272980997,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "tree",
+          "x": 15,
+          "y": 464,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.000582172906677558,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "tree",
+          "x": -47,
+          "y": 448,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.005255393645322415,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "tree",
+          "x": -129,
+          "y": 423,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.005367712567074991,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "tree",
+          "x": -383,
+          "y": 312,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.001242798471741616,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "tree",
+          "x": -350,
+          "y": 329,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.001276014974808028,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "bed",
+          "x": 640,
+          "y": 88,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "hearth",
+          "x": 672,
+          "y": 104,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "shelf",
+          "x": 656,
+          "y": 96,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "bed",
+          "x": 512,
+          "y": 152,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "hearth",
+          "x": 544,
+          "y": 168,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "shelf",
+          "x": 528,
+          "y": 160,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "mailbox",
+          "x": 624,
+          "y": 144,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "planter",
+          "x": 656,
+          "y": 144,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.0008863821038250468,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "hedge",
+          "x": 672,
+          "y": 136,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "mailbox",
+          "x": 496,
+          "y": 208,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "flower_bed",
+          "x": 528,
+          "y": 208,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.0013204365142153172,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "flower_bed",
+          "x": 544,
+          "y": 200,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.0033031718639585346,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "hedge",
+          "x": 496,
+          "y": 224,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "bed",
+          "x": 336,
+          "y": 240,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "hearth",
+          "x": 368,
+          "y": 256,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "shelf",
+          "x": 352,
+          "y": 248,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "bed",
+          "x": 160,
+          "y": 328,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "hearth",
+          "x": 192,
+          "y": 344,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "wardrobe",
+          "x": 208,
+          "y": 352,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "plant",
+          "x": 176,
+          "y": 368,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.005471529283460577,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "lamp",
+          "x": 176,
+          "y": 336,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "mailbox",
+          "x": 320,
+          "y": 296,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "woodpile",
+          "x": 304,
+          "y": 304,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "hedge",
+          "x": 320,
+          "y": 312,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "mailbox",
+          "x": 144,
+          "y": 384,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "planter",
+          "x": 80,
+          "y": 336,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 0.0012896500967838006,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "hedge",
+          "x": 48,
+          "y": 352,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "hedge",
+          "x": 144,
+          "y": 400,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "player",
+          "x": -64,
+          "y": 40,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "enemy",
+          "x": -101.5,
+          "y": -129.5,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "npc",
+          "x": 1024,
+          "y": 808,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "npc",
+          "x": 496,
+          "y": 624,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "enemy",
+          "x": 70.5,
+          "y": 217,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "enemy",
+          "x": 227,
+          "y": -107,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "enemy",
+          "x": -464,
+          "y": 78.5,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "enemy",
+          "x": -333,
+          "y": 179,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        },
+        {
+          "kind": "enemy",
+          "x": 115,
+          "y": 193.5,
+          "contactError": 0,
+          "castError": 0,
+          "skew": -6.23662721788004e-17,
+          "scaleY": -0.29700000000000004
+        }
+      ]
+    },
+    {
+      "hour": 17,
+      "objects": [
+        {
+          "kind": "tree",
+          "x": -1,
+          "y": -295,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1411978790254407,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "tree",
+          "x": 145,
+          "y": -225,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1415075930419745,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "tree",
+          "x": 259,
+          "y": -168,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1478084534749893,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "tree",
+          "x": 178,
+          "y": -161,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1432835902452314,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "tree",
+          "x": 146,
+          "y": -144,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.143097477640412,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "rock",
+          "x": 33,
+          "y": -103,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "torch",
+          "x": 0,
+          "y": -40,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "tree",
+          "x": 481,
+          "y": 71,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1457936431856746,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "rock",
+          "x": 175,
+          "y": -63,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "ore_copper",
+          "x": 367,
+          "y": 97,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "torch",
+          "x": 96,
+          "y": 8,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "torch",
+          "x": -96,
+          "y": 8,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "tree",
+          "x": -272,
+          "y": -15,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1492867737336059,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "ore_copper",
+          "x": -240,
+          "y": 16,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "tree",
+          "x": -464,
+          "y": -66,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1411692784159118,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "tree",
+          "x": -337,
+          "y": 31,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1437076373065844,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "rock",
+          "x": -671,
+          "y": 42,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "tree",
+          "x": -657,
+          "y": 176,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1434487588957494,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "torch",
+          "x": 0,
+          "y": 56,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "tree",
+          "x": 304,
+          "y": 225,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1412321349278887,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "rock",
+          "x": 96,
+          "y": 279,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "rock",
+          "x": -271,
+          "y": 144,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "tree",
+          "x": -1,
+          "y": 313,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1410959941455587,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "tree",
+          "x": -208,
+          "y": 225,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1440736524822015,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "tree",
+          "x": -288,
+          "y": 218,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1433764885119981,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "tree",
+          "x": -160,
+          "y": 281,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1442564625365765,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "tree",
+          "x": -273,
+          "y": 240,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1425932430632846,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "tree",
+          "x": -241,
+          "y": 255,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409649186998667,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "rock",
+          "x": -369,
+          "y": 208,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "tree",
+          "x": -355,
+          "y": 265,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.143423070202838,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "tree",
+          "x": -318,
+          "y": 279,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.143621573852,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "tree",
+          "x": -445,
+          "y": 232,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1457690417062067,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "tree",
+          "x": -303,
+          "y": 305,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1449785968967665,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "tree",
+          "x": -96,
+          "y": 408,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.145861298249504,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "tree",
+          "x": 15,
+          "y": 464,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1427351163245305,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "tree",
+          "x": -47,
+          "y": 448,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1431604061280858,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "tree",
+          "x": -129,
+          "y": 423,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.147426895849916,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "tree",
+          "x": -383,
+          "y": 312,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.144745324967924,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "tree",
+          "x": -350,
+          "y": 329,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1433383478932193,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "bed",
+          "x": 640,
+          "y": 88,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "hearth",
+          "x": 672,
+          "y": 104,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "shelf",
+          "x": 656,
+          "y": 96,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "bed",
+          "x": 512,
+          "y": 152,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "hearth",
+          "x": 544,
+          "y": 168,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "shelf",
+          "x": 528,
+          "y": 160,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "mailbox",
+          "x": 624,
+          "y": 144,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "planter",
+          "x": 656,
+          "y": 144,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1427530021232415,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "hedge",
+          "x": 672,
+          "y": 136,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "mailbox",
+          "x": 496,
+          "y": 208,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "flower_bed",
+          "x": 528,
+          "y": 208,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1414780815033359,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "flower_bed",
+          "x": 544,
+          "y": 200,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1459954325963222,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "hedge",
+          "x": 496,
+          "y": 224,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "bed",
+          "x": 336,
+          "y": 240,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "hearth",
+          "x": 368,
+          "y": 256,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "shelf",
+          "x": 352,
+          "y": 248,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "bed",
+          "x": 160,
+          "y": 328,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "hearth",
+          "x": 192,
+          "y": 344,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "wardrobe",
+          "x": 208,
+          "y": 352,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "plant",
+          "x": 176,
+          "y": 368,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1427396757166437,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "lamp",
+          "x": 176,
+          "y": 336,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "mailbox",
+          "x": 320,
+          "y": 296,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "woodpile",
+          "x": 304,
+          "y": 304,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "hedge",
+          "x": 320,
+          "y": 312,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "mailbox",
+          "x": 144,
+          "y": 384,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "planter",
+          "x": 80,
+          "y": 336,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1420267392289905,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "hedge",
+          "x": 48,
+          "y": 352,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "hedge",
+          "x": 144,
+          "y": 400,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "player",
+          "x": -64,
+          "y": 40,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "enemy",
+          "x": -101.5,
+          "y": -129.5,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "npc",
+          "x": 1024,
+          "y": 808,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "npc",
+          "x": 496,
+          "y": 624,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "enemy",
+          "x": 70.5,
+          "y": 217,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "enemy",
+          "x": 227,
+          "y": -107,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "enemy",
+          "x": -464.5,
+          "y": 71.5,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "enemy",
+          "x": -333.5,
+          "y": 188.5,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        },
+        {
+          "kind": "enemy",
+          "x": 118.5,
+          "y": 185.5,
+          "contactError": 0,
+          "castError": 0,
+          "skew": 1.1409814465811523,
+          "scaleY": -1.2419054842343653
+        }
+      ]
+    }
+  ],
+  "errors": []
+}

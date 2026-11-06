@@ -1,3 +1,4 @@
+import { referenceRock } from './reference-rocks';
 import { referenceForest, referenceTree } from './reference-trees';
 import { drawOutcrop } from './geology';
 import { hash2, mulberry32, type Biome } from '@eigenlands/shared';
@@ -271,7 +272,7 @@ export function buildBiomeArt(season: SeasonIdx): BiomeArt {
     },
     desert: {
       tree: list(3, (ctx, v) => drawCactus(ctx, 600 + v, v < 2)),
-      rock: rocksOf(SANDSTONE, false),
+      rock: [referenceRock('sandstone'), referenceRock('red_strata'), referenceRock('sandstone')],
       tallgrass: bladesOf([C.e2, C.e3, C.e4, C.e5, C.e6], 80, { tall: 9 }),
     },
     enchanted: {

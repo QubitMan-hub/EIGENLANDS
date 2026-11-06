@@ -24,6 +24,18 @@ Both split archives are extracted under `art-source/reference-pack`. All 20 PNGs
 - Real right-mouse movement entered smithy, guild hall and inn, with roof occlusion and zero page errors. [Door/interior screenshots and report](validation/reference-world/report.json).
 - Existing packed-appearance compatibility checks passed. Gameplay data, rewards and quest definitions are unchanged by this stage.
 
+## Resource art and grounding follow-up
+
+Twenty-four source rock designs are prepared, plus one derived silver-vein material variant. Source alpha is thresholded, disconnected export noise and hidden backdrop RGB are cleared, and named PNGs plus a palette/RLE manifest ship under `client/public/art/reference` and `client/src/art/reference-rocks.json`. Natural surface boulders, desert sandstone/red strata, and copper/iron/silver/gold resource nodes use the new art. Glint-frame slot ordering is retained with stable repeated frames. Special corrupted rock and cave ore blocks retain their established art. Other catalog designs are exported for later mappings; do not claim all 24 are separate new mineable resources.
+
+Visible surface rocks/ore leave local, nonblocking rubble after depletion. Rubble has no node, collision or loot, and is replaced when the tile changes again. It clears on chunk rebuild/unload or seasonal art rebuild; it is intentionally not a new persistent world object. Mining tiers, HP, drops, respawn and saves are unchanged. `tools/art/prepare_reference_rocks.py` rebuilds the assets with Pillow/NumPy/SciPy. [Light review](validation/reference-rocks-light.png), [dark review](validation/reference-rocks-dark.png), [actual mining proof](validation/reference-mining/report.json).
+
+The detached-shadow follow-up adds a shared small contact footprint to trees, rocks, props and actors, excluding grass/flat clutter. Cast silhouettes use a common projection with independently controlled horizontal length and flattening; ordinary actor shadows use the same navy as scenery. Magical shadow companions retain their tint. Visible static objects refresh their lifted ground position each frame, so terrain arriving later cannot leave a sprite and shadow at an old elevation. Contact/cast positions follow that ground point, preserve crop/water offsets, and are culled/destroyed with their owners.
+
+Verification: 8 focused tests passed, including changed terrain lift without a camera-boundary change, projection geometry, catalog integrity and depleted-node replacement. All 25 exported rock PNGs have binary alpha and zero RGB in transparent pixels. Built-game mining via opaque-pixel click awards stone once, presents rubble and does not continue awarding loot. Browser checks at 07:00, 12:00 and 17:00 sampled 73–76 visible trees, rocks, furniture, lights, players, NPCs and enemies: contact/cast anchor error below 0.01 px, changing cast direction, no page errors. [Grounding screenshots/report](validation/grounding/report.json). Client typecheck, production build and targeted lint passed.
+
+Remaining limits: continuous streaming/performance under multiplayer load and every mountainous prop placement need wider playtesting. Rubble is local feedback; not a durable depletion marker. Building roof shadows retain their existing renderer. New art is not a completion claim for all environment catalogs.
+
 ## Closer exploration camera and mounted follow-up
 
 The user requested a closer view and shorter architecture after the initial pass. Normal and Close framing now add one integer backing-pixel scale step across viewport sizes; Far retains its existing framing. At 1000×760 / DPR 1, Normal is 2× instead of 1×. The character remains the same world size; the camera intentionally makes it larger on screen. Existing saved zoom choices remain valid. Roofs and door jambs use the revised 50 px wall / 44 px doorway geometry.
@@ -69,7 +81,7 @@ The foundation/scale, hero-palette and tree stage is integrated. The following r
 
 - Every one of the 50-option customization catalogs (pants 55) individually fitted, selectable and saved across all actions/directions; current customization remains the existing body/outfit system.
 - House catalog background removal, faithful roof/material/design adaptation and any necessary per-building footprint/interior/furniture enlargement.
-- Farmland tile cleanup, seam normalization and all crop-stage mappings; rock/ore/depletion catalog cleanup and replacement.
+- Farmland tile cleanup, seam normalization and all crop-stage mappings; additional mappings/seasonal treatments for the now-prepared rock catalog. Core surface rocks, ores and local depleted rubble are integrated.
 - Individual farm/wildlife anatomy replacement, species-specific gait libraries, remaining mounted-layer refinements and richer mount/dismount clips. Full straddling rider bodies, hip anchoring, reins and stirrups are now integrated, but the animal art/gait overhaul is not complete.
 - Carrying, richer facial expressions and remaining bespoke contact/event refinements. Fishing reel/landing and planting now have distinct clips; broader natural-timing and object-contact polish remains.
 - Comprehensive same-camera comparisons beside animals/on mounts, every crop/resource/save route, every settlement and performance under multiplayer load.

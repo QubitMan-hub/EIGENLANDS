@@ -1,3 +1,4 @@
+import { contactShadow, castProjection } from './grounding';
 import { diningSurface } from '@eigenlands/shared';
 import { Sprite, type Container } from 'pixi.js';
 import {
@@ -53,6 +54,8 @@ interface View {
   def: ObjSpriteDef;
   root: Sprite;
   shadow: Sprite;
+  contact: Sprite | null;
+  groundOffset: number;
   echo: Sprite | null;
   phase: number;
   ck: string;
@@ -184,6 +187,8 @@ export class WorldObjViews {
     shadow.position.copyFrom(root);
     this.layer.addChild(root);
     this.shadowLayer.addChild(shadow);
+    const contact = def.noShadow ? null : contactShadow(this.shadowLayer, Math.max(2, Math.min(12, f.tex.width * 0.2)));
+    if (contact) contact.position.copyFrom(root);
     // quantum echo: superposed crops and anything qubit-flavoured carry a faint offset ghost
     let echo: Sprite | null = null;
     const sup = o.kind === 'crop' && !!(o.data as { alt?: string } | undefined)?.alt;
@@ -203,6 +208,8 @@ export class WorldObjViews {
       def,
       root,
       shadow,
+      contact,
+      groundOffset: Math.round(isoY(o.x + 0.5, o.y + 0.5)) - root.y,
       echo,
       phase: hash2(this.store.seed, o.x, o.y, 77) * 6.28,
       ck,
@@ -233,6 +240,7 @@ export class WorldObjViews {
   private drop(key: string, v: View): void {
     v.root.destroy();
     v.shadow.destroy();
+    v.contact?.destroy();
     v.echo?.destroy();
     this.views.delete(key);
     this.byChunk.get(v.ck)?.delete(key);
@@ -307,6 +315,7 @@ export class WorldObjViews {
 
         if (v.echo) v.echo.visible = show;
         if (!show) v.shadow.visible = false;
+        if (v.contact) v.contact.visible = show;
       }
     }
     const t = now / 1000;
@@ -316,9 +325,18 @@ export class WorldObjViews {
       if (v.echo) v.echo.visible = !hidden;
       if (hidden) {
         v.shadow.visible = false;
+        if (v.contact) v.contact.visible = false;
         return;
       }
 
+      v.root.y = Math.round(isoY(v.obj.x + 0.5, v.obj.y + 0.5)) - v.groundOffset;
+      v.shadow.position.copyFrom(v.root);
+      if (v.contact) {
+        v.contact.visible = true;
+        v.contact.position.copyFrom(v.root);
+        v.contact.alpha = 0.2;
+      }
+      if (v.echo) v.echo.position.set(v.root.x + 2, v.root.y - 1);
       const d = v.def;
       if (d.frames.length > 1) {
         const age = v.opened === undefined ? Infinity : (now - v.opened) / 1000;
@@ -356,8 +374,9 @@ export class WorldObjViews {
       v.shadow.visible = show;
       if (show) {
         v.shadow.alpha = sun.alpha * 0.9;
-        v.shadow.scale.y = -(0.22 + 0.14 * sun.len);
-        v.shadow.skew.x = sun.dx * sun.len * 0.55 + sway;
+        const projection = castProjection(sun.dx, sun.len);
+        v.shadow.scale.y = projection.scaleY;
+        v.shadow.skew.x = projection.skewX + sway;
       }
     });
   }

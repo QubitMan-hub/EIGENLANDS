@@ -1,3 +1,4 @@
+import { referenceRock } from './reference-rocks';
 import { referenceForest, referenceTree } from './reference-trees';
 import { drawOutcrop, MINERALS } from './geology';
 import { Rectangle, Texture } from 'pixi.js';
@@ -349,12 +350,10 @@ export function facetRock(ctx: Ctx, cx: number, cy: number, rx: number, ry: numb
     lump(ctx, cx - rx * 0.32, cy - ry * 0.62, rx * 0.36, ry * 0.24, MOSS, { seed, leafy: 0.5, bright: 0.1, edge: 0 });
 }
 
-export function buildRocks(season: SeasonIdx): ObjSprite[] {
-  return Array.from({ length: 6 }, (_, v) => {
-    const { canvas, ctx } = makeCanvas(40, 40);
-    drawOutcrop(ctx, v, undefined, season === 3);
-    return toSprite(canvas, 20, 29, { rim: false });
-  });
+export function buildRocks(_season: SeasonIdx): ObjSprite[] {
+  return ['stone', 'cluster', 'low_boulder', 'tall_boulder', 'granite', 'slate'].map((name) =>
+    referenceRock(name as import('./reference-rocks').ReferenceRock),
+  );
 }
 
 const PETALS: Array<[number, number]> = [
@@ -503,17 +502,10 @@ export function buildStump(_season: SeasonIdx): ObjSprite[] {
 }
 
 // ───────── mineral seams embedded in projected rock faces ─────────
-export function buildOre(kind: string, season: SeasonIdx): ObjSprite[] {
-  if (!MINERALS[kind]) return [];
-  const out: ObjSprite[] = [];
-  const frames = kind === 'ore_silver' || kind === 'ore_gold' ? 2 : 1;
-  for (let v = 0; v < 3; v++)
-    for (let f = 0; f < frames; f++) {
-      const { canvas, ctx } = makeCanvas(40, 40);
-      drawOutcrop(ctx, v, kind, season === 3, f);
-      out.push(toSprite(canvas, 20, 29, { rim: false }));
-    }
-  return out;
+export function buildOre(kind: string, _season: SeasonIdx): ObjSprite[] {
+  const name = kind.replace('ore_', '') as import('./reference-rocks').ReferenceRock;
+  if (!['copper', 'iron', 'silver', 'gold'].includes(name)) return [];
+  return Array.from({ length: kind === 'ore_silver' || kind === 'ore_gold' ? 2 : 1 }, () => referenceRock(name));
 }
 
 /** Excavatable bedrock, matching the 32x16 diamond and the cave wall's 13px crown. */
@@ -714,6 +706,7 @@ export function buildFence(): ObjSprite[] {
 export interface ObjectArt {
   tree: ObjSprite[];
   rock: ObjSprite[];
+  rock_depleted: ObjSprite[];
   flowers: ObjSprite[];
   tallgrass: ObjSprite[];
   bloom: ObjSprite[];
@@ -753,6 +746,9 @@ export function buildObjectArt(season: SeasonIdx): ObjectArt {
   return {
     tree: buildTrees(season),
     rock: buildRocks(season),
+    rock_depleted: ['gravel', 'rubble', 'depleted'].map((name) =>
+      referenceRock(name as import('./reference-rocks').ReferenceRock),
+    ),
     flowers: buildFlowers(season),
     tallgrass: buildTallGrass(season),
     bloom: buildBloom(),

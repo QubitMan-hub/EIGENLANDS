@@ -124,5 +124,5 @@ every silhouette, matching the people and the reference animals. The bestiary at
 - **Missing poses:** carry poses remain open; a full mounted straddle is now integrated. Distinct fishing reel/landing and kneeling planting clips are now integrated; see `ART_OVERHAUL_STATUS.md`.
 - **Animal models:** the creature style pass is the shared outline only. The animals are not yet remodelled one by one
   against the wildlife and farm reference sheets (proportions, faces, fur patterns).
-- **World art:** ordinary/seasonal tree and stump reference assets are integrated. Houses, crop tiles and rocks still need their full reference-sheet overhaul.
+- **World art:** ordinary/seasonal tree and stump reference assets are integrated. Core surface rock/ore/depleted sprites are also integrated; houses, crop tiles and remaining environment mappings still need work.
 - **Riders:** full straddling poses, saddle/hip alignment, player rein connections and stirrups are integrated. Couriers use the shared full pose. More horse directions/gait frames, richer boarding clips and NPC mounted-layer refinements remain.

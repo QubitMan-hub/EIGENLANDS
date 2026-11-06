@@ -1,3 +1,9 @@
+# Resource art and shadow grounding follow-up
+
+Core surface rock/ore art and local depleted rubble now use the supplied reference catalog. Shared contact shadows, consistent cast projection and live terrain-height refresh fix detached-footing cases across objects, props and actors. See [ART_OVERHAUL_STATUS.md](ART_OVERHAUL_STATUS.md) for exact scope, proof, limits and remaining catalogs; do not mark the entire art request complete. Sources and reproducible preparation tools remain in the repo.
+
+---
+
 # Reference-pack art overhaul — current continuation (2026-11-07)
 
 Read [ART_OVERHAUL_STATUS.md](ART_OVERHAUL_STATUS.md) and the [complete user request](design/art-overhaul-request.md) first. Both split packs are preserved under `art-source/reference-pack`; the former transfer block is resolved. Character size must not be reduced. Scale/hero/tree integration is shipped, with expanded body cells, taller long-legged foundations, 44 px doors (latest user correction), a closer default camera, full saddle-aligned rider poses and prepared seasonal tree assets and documented gameplay proof. Distinct fishing reel/landing and planting clips are the subsequent integrated stage. The status document explicitly lists the remaining catalogs, environment, animals, mounted layers, customization and animation work. Preserve saves, gameplay, camera zoom and pivots; keep integrating main and working without subagents.

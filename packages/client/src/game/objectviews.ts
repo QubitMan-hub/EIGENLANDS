@@ -1,3 +1,4 @@
+import { contactShadow, castProjection } from './grounding';
 import { sceneryAt, type SceneryKind } from './scenery';
 import { Container, Sprite, type Texture } from 'pixi.js';
 import {
@@ -71,6 +72,9 @@ export interface Sun {
 interface Obj {
   root: Sprite;
   shadow: Sprite;
+  contact: Sprite | null;
+  groundX: number;
+  groundY: number;
   /** quantum echo: faint offset ghost double (flux-rich ground, qubit things) */
   echo: Sprite | null;
   kind: string;
@@ -216,7 +220,12 @@ export class ObjectViews {
     const jy = organic ? (hash2(this.store.seed, tx, ty, 1601) - 0.5) * 0.26 : 0;
     root.x = Math.round(isoX(tx + 0.5 + jx, ty + 0.5 + jy));
     root.y = Math.round(isoY(tx + 0.5 + jx, ty + 0.5 + jy));
-    const flat = kind.startsWith('wild_') || kind === 'flowers' || kind === 'forage' || kind === 'stump';
+    const flat =
+      kind.startsWith('wild_') ||
+      kind === 'flowers' ||
+      kind === 'forage' ||
+      kind === 'stump' ||
+      kind === 'rock_depleted';
     root.zIndex = depth(tx + 0.5, ty + 0.5) - (flat ? 200 : 0);
     const shadow = new Sprite(p.s.tex);
     shadow.anchor.copyFrom(root.anchor);
@@ -224,6 +233,14 @@ export class ObjectViews {
     shadow.position.copyFrom(root);
     this.layer.addChild(root);
     this.shadowLayer.addChild(shadow);
+    const contact =
+      flat || kind === 'tallgrass' || kind === 'bloom'
+        ? null
+        : contactShadow(
+            this.shadowLayer,
+            kind === 'tree' || kind === 'qtree' ? 5 : Math.max(2, Math.min(10, p.s.tex.width * 0.23)),
+          );
+    if (contact) contact.position.copyFrom(root);
     let echo: Sprite | null = null;
     const flux = ECHO_KINDS.has(kind) ? sampleClimate(this.store.seed, tx, ty).flux : -1;
     if (
@@ -243,6 +260,9 @@ export class ObjectViews {
     return {
       root,
       shadow,
+      contact,
+      groundX: tx + 0.5 + jx,
+      groundY: ty + 0.5 + jy,
       echo,
       kind,
       tx,
@@ -285,6 +305,7 @@ export class ObjectViews {
     if (old) {
       old.root.destroy();
       old.shadow.destroy();
+      old.contact?.destroy();
       old.echo?.destroy();
       m.delete(idx);
     }
@@ -292,6 +313,27 @@ export class ObjectViews {
     if (kind) {
       const o = this.makeObj(tx, ty, kind);
       if (o) m.set(idx, o);
+    }
+    // Local, nonblocking debris after a visible surface node is depleted. It carries no node or loot.
+    if (
+      old &&
+      !isCaveY(ty) &&
+      !isCryptY(ty) &&
+      !otherworldOf(ty) &&
+      !isGateY(ty) &&
+      ['rock', 'ore_copper', 'ore_iron', 'ore_silver', 'ore_gold'].includes(old.kind) &&
+      !NODES[this.store.getTile(tx, ty)] &&
+      !isSolid(this.store.getTile(tx, ty))
+    ) {
+      const replacement = m.get(idx);
+      if (replacement) {
+        replacement.root.destroy();
+        replacement.shadow.destroy();
+        replacement.contact?.destroy();
+        replacement.echo?.destroy();
+      }
+      const rubble = this.makeObj(tx, ty, 'rock_depleted');
+      if (rubble) m.set(idx, rubble);
     }
     // a changed fence tile changes how its neighbours connect
     // a mined tile exposes the faces of the cave veins around it
@@ -322,6 +364,7 @@ export class ObjectViews {
     for (const o of m.values()) {
       o.root.destroy();
       o.shadow.destroy();
+      o.contact?.destroy();
       o.echo?.destroy();
     }
     this.chunks.delete(k);
@@ -355,6 +398,7 @@ export class ObjectViews {
           o.root.visible = visible;
           if (o.echo) o.echo.visible = visible;
           if (!visible) o.shadow.visible = false;
+          if (o.contact) o.contact.visible = visible;
         }
     }
     const t = now / 1000;
@@ -368,6 +412,14 @@ export class ObjectViews {
         if (!m) continue;
         for (const o of m.values()) {
           if (!o.root.visible) continue;
+          // Neighbouring terrain can finish streaming after a sprite was built; refresh its actual lifted ground.
+          o.root.y = Math.round(isoY(o.groundX, o.groundY));
+          o.shadow.position.copyFrom(o.root);
+          if (o.contact) {
+            o.contact.position.copyFrom(o.root);
+            o.contact.alpha = 0.22;
+          }
+          if (o.echo) o.echo.position.set(o.root.x + 2, o.root.y - 1);
           const amp = SWAY[o.kind] ?? 0;
           const sway = reduced || !amp ? 0 : wind.sway(o.tx, o.ty, o.phase, amp);
           o.root.skew.x = sway;
@@ -409,12 +461,14 @@ export class ObjectViews {
             o.kind === 'tallgrass' ||
             o.kind === 'flowers' ||
             o.kind === 'bloom' ||
-            o.kind === 'forage';
+            o.kind === 'forage' ||
+            o.kind === 'rock_depleted';
           o.shadow.visible = !flat && sun.alpha > 0.02;
           if (o.shadow.visible) {
             o.shadow.alpha = sun.alpha;
-            o.shadow.scale.y = -(0.22 + 0.14 * sun.len);
-            o.shadow.skew.x = sun.dx * sun.len * 0.55 + sway;
+            const projection = castProjection(sun.dx, sun.len);
+            o.shadow.scale.y = projection.scaleY;
+            o.shadow.skew.x = projection.skewX + sway;
           }
         }
       }
