@@ -9,6 +9,8 @@
  * and fighting in its own way (BOUNTY_STYLE). Everyone near when it falls is paid, once per bounty.
  */
 import {
+  localFindAt,
+  hash2,
   BOUNTY_STYLE,
   CHUNK_SIZE,
   BOUNTY_SIGNATURE,
@@ -50,6 +52,7 @@ const LANDING = new Set<number>([T.GRASS, T.GRASS_TALL, T.FLOWERS, T.SAND, T.PAT
 const FALL_CHANCE = 0.05;
 const BOUNTY_SPAWN_RANGE = 60;
 const BOUNTY_PAY_RANGE = 25;
+const FIND_GROUND = new Set<number>([T.GRASS, T.SAND, T.FLOWERS, T.STUMP, T.CAVE_FLOOR, T.VAULT_FLOOR]);
 
 const outdoors = (y: number) => !isCaveY(y) && !isUpperY(y) && !isDiveY(y) && !isCryptY(y) && !isOtherworldY(y);
 
@@ -81,6 +84,9 @@ export class WondersModule implements Module {
   private slain = new Set<string>();
   /** account -> bounty ids they have heard of */
   private heard = new Map<string, Set<string>>();
+  /** Active glimmers, capped across the room; claims themselves live in character progress. */
+  private finds = new Map<string, { x: number; y: number; day: number }>();
+  private findSweep: IterableIterator<WorldObj> | null = null;
 
   constructor(private room: GameRoom) {}
 
@@ -103,6 +109,7 @@ export class WondersModule implements Module {
     this.starfall();
     this.expireStars();
     this.bounties();
+    this.localFinds();
   }
 
   // ───────────────────────── starfall ─────────────────────────
@@ -160,6 +167,10 @@ export class WondersModule implements Module {
 
   /** Break a fallen star open: star shards (and now and then a qubit crystal), and some experience. */
   openStar(p: ServerPlayer, o: WorldObj): void {
+    if (o.data?.localFind) {
+      this.openLocalFind(p, o);
+      return;
+    }
     const [lo, hi] = FALLEN_STAR_SHARDS;
     const loot = [{ id: 'star_shard', n: lo + Math.floor(this.room.rand() * (hi - lo + 1)) }];
     if (this.room.rand() < 0.3) loot.push({ id: 'qubit_crystal', n: 1 });
@@ -173,6 +184,105 @@ export class WondersModule implements Module {
     this.room.grantXp(p, 60 + p.level * 6);
     this.room.fx({ kind: 'craft', x: o.x + 0.5, y: o.y + 0.5 });
     p.toast(`You break the fallen star open: ${loot[0]!.n} star shards, still warm.`, 'good');
+  }
+
+  /** Small nonblocking opportunities reuse the glimmer's renderer and OPEN interaction. */
+  private localFinds(): void {
+    const day = this.room.wclock.day();
+    const accounts = new Map([...this.room.players.values()].map((p) => [p.accountId, p]));
+    // Rehydrate persisted props and clear old ones incrementally, including after a restart.
+    this.findSweep ??= this.room.objects.all();
+    for (let i = 0; i < 64; i++) {
+      const next = this.findSweep.next();
+      if (next.done) {
+        this.findSweep = null;
+        break;
+      }
+      const o = next.value;
+      if (!o.data?.localFind) continue;
+      const p = o.owner ? accounts.get(o.owner) : undefined;
+      const prior = o.owner ? this.finds.get(o.owner) : undefined;
+      if (
+        o.data.day !== day ||
+        !p ||
+        (p.data.prog.localFindDay ?? -Infinity) >= day ||
+        (prior && (prior.x !== o.x || prior.y !== o.y)) ||
+        (!prior && this.finds.size >= 32)
+      ) {
+        this.room.objects.remove(o.x, o.y);
+      } else this.finds.set(p.accountId, { x: o.x, y: o.y, day });
+    }
+    for (const [account, f] of this.finds) {
+      if (f.day === day && accounts.has(account)) continue;
+      const o = this.room.store.objectAt(f.x, f.y);
+      if (o?.data?.localFind && o.owner === account) this.room.objects.remove(f.x, f.y);
+      this.finds.delete(account);
+    }
+    if (this.room.store.generation < 7) return;
+    for (const p of this.room.players.values()) {
+      if (this.finds.size >= 32) break;
+      if (p.deadT > 0 || (p.data.prog.localFindDay ?? -Infinity) >= day || this.finds.has(p.accountId)) continue;
+      // Twelve loaded, owned candidates, with a bounded straight walkability check.
+      for (let k = 0; k < 12; k++) {
+        const a = hash2(this.room.seed, day, k, 6820) * Math.PI * 2;
+        const x = Math.floor(p.sim.x + Math.cos(a) * 7),
+          y = Math.floor(p.sim.y + Math.sin(a) * 7);
+        if (!this.room.owns(x, y) || !this.room.store.has(Math.floor(x / CHUNK_SIZE), Math.floor(y / CHUNK_SIZE)))
+          continue;
+        if (
+          !FIND_GROUND.has(this.room.store.getTile(x, y)) ||
+          this.room.store.objectAt(x, y) ||
+          this.room.store.structureAt(x, y)
+        )
+          continue;
+        if (sanctuaryAt(this.room.seed, x, y)) continue;
+        let clear = true;
+        for (let step = 1; step <= 8; step++) {
+          const tx = Math.floor(p.sim.x + ((x + 0.5 - p.sim.x) * step) / 8);
+          const ty = Math.floor(p.sim.y + ((y + 0.5 - p.sim.y) * step) / 8);
+          if (this.room.store.solidAt(tx, ty)) {
+            clear = false;
+            break;
+          }
+        }
+        if (!clear) continue;
+        const f = localFindAt(this.room.seed, day, x, y, this.room.store.generation);
+        if (!f) continue;
+        this.room.objects.put({
+          x,
+          y,
+          kind: 'deco',
+          sub: 'fallen_star',
+          owner: p.accountId,
+          data: { localFind: f.id, day },
+        });
+        this.finds.set(p.accountId, { x, y, day });
+        p.toast(
+          `${f.title}: ${f.reason} A glimmer to the ${compassWord(x - p.sim.x, y - p.sim.y)} marks it. Walk up and interact to gather it before tomorrow.`,
+          'good',
+        );
+        break;
+      }
+    }
+  }
+
+  private openLocalFind(p: ServerPlayer, o: WorldObj): void {
+    const day = this.room.wclock.day();
+    if (o.owner !== p.accountId || o.data?.day !== day || (p.data.prog.localFindDay ?? -Infinity) >= day) return;
+    if (Math.hypot(o.x + 0.5 - p.sim.x, o.y + 0.5 - p.sim.y) > 4) return;
+    if (!this.room.owns(o.x, o.y) || this.room.store.objectAt(o.x, o.y)?.data?.localFind !== o.data.localFind) return;
+    const f = localFindAt(this.room.seed, day, o.x, o.y, this.room.store.generation);
+    if (!f || f.id !== o.data.localFind) return;
+    if (!giveStacks(p, f.items)) {
+      p.toast('Make room in your pack; the glimmer will wait until tomorrow.', 'bad');
+      return;
+    }
+    p.data.prog.localFindDay = day;
+    p.dirty('stats');
+    this.room.objects.remove(o.x, o.y);
+    this.finds.delete(p.accountId);
+    this.room.grantXp(p, 40);
+    p.toast(`${f.title} gathered. Another local discovery may await tomorrow.`, 'good');
   }
 
   // ───────────────────────── bounties ─────────────────────────

@@ -9,6 +9,11 @@ import {
 import { Container, Graphics, Sprite, Text } from 'pixi.js';
 import {
   T,
+  findPath,
+  biomeAt,
+  animalRoutine,
+  insectHabitat,
+  type AnimalRoutine,
   hash2,
   townFor,
   windScreenX,
@@ -22,6 +27,7 @@ import type { Sheets } from '../art/actors';
 import { dirOf, COSMETIC_OUTFITS, WALK_FRAMES } from '../art/actors';
 import { depth, isoX, isoY, screenDir } from './iso';
 import type { Fx } from './fx';
+import { Wildlife } from './wildlife';
 
 /**
  * The living-world layer: everything that moves around purely for atmosphere. Butterflies in sunny flowers, fireflies
@@ -51,6 +57,10 @@ interface Crit {
   ty: number;
   home: { x: number; y: number; r: number } | null;
   variant: number;
+  route?: Array<[number, number]>;
+  routeTarget?: [number, number];
+  routine?: AnimalRoutine;
+  shelter?: { x: number; y: number };
   // walkers: road graph position
   node?: [number, number];
   bark?: { text: string; until: number };
@@ -99,6 +109,7 @@ const BARKS: Record<string, string[]> = {
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 
 export class Ambient {
+  private wildlife: Wildlife;
   private art: AmbientArt | null = null;
   private crits: Crit[] = [];
   private bubbles: Text[] = [];
@@ -109,16 +120,18 @@ export class Ambient {
   private spawnedVillage = false;
   private clock = 0;
 
-  constructor(private d: AmbientDeps) {}
+  constructor(private d: AmbientDeps) {
+    this.wildlife = new Wildlife(d);
+  }
 
   artOf(): AmbientArt | null {
     return this.art;
   }
   count(): number {
-    return this.crits.length;
+    return this.crits.length + this.wildlife.count();
   }
   kinds(): Record<string, number> {
-    const o: Record<string, number> = {};
+    const o: Record<string, number> = { ...this.wildlife.kinds() };
     for (const c of this.crits) o[c.kind] = (o[c.kind] ?? 0) + 1;
     return o;
   }
@@ -126,10 +139,11 @@ export class Ambient {
   // ───────────────────────── frame ─────────────────────────
 
   frame(f: AmbientFrame): void {
+    this.wildlife.frame(f);
     if (!this.art) this.art = buildAmbientArt();
     this.clock += f.dt;
     const day = f.hour >= 6.5 && f.hour < 19;
-    const fair = f.weather === 'clear' || f.weather === 'cloudy';
+    const fair = f.weather === 'clear' || f.weather === 'cloudy' || f.weather === 'fog';
     this.spawnWild(f, day, fair);
     this.villageLife(f, day);
     for (const c of this.crits) this.step(c, f, day);
@@ -176,9 +190,16 @@ export class Ambient {
       const p = rpos(),
         tile = store.getTile(Math.floor(p.x), Math.floor(p.y));
       if (
-        tile === T.FLOWERS ||
-        (tile === T.GRASS_TALL && Math.random() < 0.5) ||
-        (tile === T.GRASS && Math.random() < 0.12)
+        insectHabitat(
+          'butterfly',
+          biomeAt(store.seed, Math.floor(p.x), Math.floor(p.y), store.generation),
+          f.season,
+          f.hour,
+          f.weather,
+        ) &&
+        (tile === T.FLOWERS ||
+          (tile === T.GRASS_TALL && Math.random() < 0.5) ||
+          (tile === T.GRASS && Math.random() < 0.12))
       )
         this.add('butterfly', p.x, p.y, { z: 10, variant: Math.floor(Math.random() * 4), ttl: rnd(20, 50) });
     }
@@ -187,7 +208,16 @@ export class Ambient {
     if (night && f.season !== 3 && fair && !f.reduced && this.count0('firefly') < 26 && Math.random() < 0.12) {
       const p = rpos(),
         tile = store.getTile(Math.floor(p.x), Math.floor(p.y));
-      if (tile === T.GRASS || tile === T.GRASS_TALL || tile === T.FLOWERS || tile === T.TREE)
+      if (
+        insectHabitat(
+          'firefly',
+          biomeAt(store.seed, Math.floor(p.x), Math.floor(p.y), store.generation),
+          f.season,
+          f.hour,
+          f.weather,
+        ) &&
+        (tile === T.GRASS || tile === T.GRASS_TALL || tile === T.FLOWERS || tile === T.TREE)
+      )
         this.add('firefly', p.x, p.y, { z: rnd(6, 18), ttl: rnd(14, 30) });
     }
     // birds: a flock crosses the sky now and then, riding the wind
@@ -211,7 +241,7 @@ export class Ambient {
     }
     // fish jump in ponds and rivers
     this.nextFish -= f.dt;
-    if (this.nextFish <= 0 && !f.reduced) {
+    if (this.nextFish <= 0 && !f.reduced && f.season !== 3 && f.weather !== 'storm') {
       this.nextFish = rnd(5, 12);
       for (let i = 0; i < 10; i++) {
         const p = rpos(),
@@ -251,17 +281,27 @@ export class Ambient {
       for (let i = 0; i < 5; i++)
         this.add('chicken', farm.x + farm.w + 1 + Math.random() * 3, farm.y + 2 + Math.random() * 4, {
           home: { x: farm.x + farm.w + 3, y: farm.y + 4, r: 4.5 },
+          shelter: { x: farm.doorX + 0.5, y: farm.doorY + 0.5 },
           variant: i,
         });
-      this.add('cat', inn.x - 2, inn.y + inn.h + 1, { home: { x: inn.x + 4, y: inn.y + inn.h + 2, r: 7 } });
+      this.add('cat', inn.x - 2, inn.y + inn.h + 1, {
+        home: { x: inn.x + 4, y: inn.y + inn.h + 2, r: 7 },
+        shelter: { x: inn.doorX + 0.5, y: inn.doorY + 0.5 },
+      });
       this.add('cat', store.x + store.w + 1, store.y + store.h, {
         home: { x: store.x + store.w + 3, y: store.y + store.h + 1, r: 6 },
         variant: 1,
+        shelter: { x: store.doorX + 0.5, y: store.doorY + 0.5 },
       });
-      this.add('dog', t.cx - 10, t.cy + 5, { home: { x: t.cx, y: t.cy + 6, r: 11 } });
+      this.add('dog', t.cx - 10, t.cy + 5, {
+        home: { x: t.cx, y: t.cy + 6, r: 11 },
+        shelter: { x: inn.doorX + 0.5, y: inn.doorY + 0.5 },
+      });
       for (let i = 0; i < 7; i++)
         this.add('pigeon', t.cx + Math.cos(i) * 4, t.cy + 4 + Math.sin(i) * 3.4, {
           home: { x: t.cx, y: t.cy + 4, r: 5.5 },
+          // The flock's wander centre is the statue; its roost must be on open ground beside it.
+          shelter: { x: t.spots.plaza_b!.x + 0.5, y: t.spots.plaza_b!.y + 0.5 },
           variant: i,
         });
       for (let i = 0; i < 12; i++) this.spawnWalker(t, i);
@@ -304,7 +344,7 @@ export class Ambient {
     kind: Crit['kind'],
     x: number,
     y: number,
-    o: Partial<Pick<Crit, 'z' | 'vx' | 'vy' | 'variant' | 'ttl' | 'home'>> = {},
+    o: Partial<Pick<Crit, 'z' | 'vx' | 'vy' | 'variant' | 'ttl' | 'home' | 'shelter'>> = {},
   ): Crit {
     const art = this.art!;
     const root = new Container();
@@ -337,6 +377,7 @@ export class Ambient {
       ty: y,
       home: o.home ?? null,
       variant: o.variant ?? 0,
+      shelter: o.shelter,
     };
     if (kind === 'butterfly') sp.tint = [0xffd36a, 0xff9ac8, 0x9ad0ff, 0xc8a0ff][c.variant % 4]!;
     if (kind === 'chicken') sp.tint = [0xffffff, 0xffe0b0, 0xe8c090, 0xffffff, 0xd0d0e0][c.variant % 5]!;
@@ -402,14 +443,44 @@ export class Ambient {
   }
 
   private moveTo(c: Crit, dt: number, speed: number): boolean {
-    const dx = c.tx - c.x,
-      dy = c.ty - c.y,
+    if (c.st !== 'fly' && (!c.routeTarget || c.routeTarget[0] !== c.tx || c.routeTarget[1] !== c.ty)) {
+      const store = this.d.store();
+      c.routeTarget = [c.tx, c.ty];
+      c.route =
+        findPath(
+          Math.floor(c.x),
+          Math.floor(c.y),
+          Math.floor(c.tx),
+          Math.floor(c.ty),
+          store.solidAt,
+          1200,
+          c.kind === 'walker' ? (x, y) => (store.getTile(x, y) === T.PATH ? 1 : 1.6) : undefined,
+        ) ?? undefined;
+      if (!c.route) {
+        c.routeTarget = undefined;
+        return true;
+      }
+    }
+    const waypoint = c.st !== 'fly' ? c.route?.[0] : undefined;
+    const tx = waypoint ? waypoint[0] + 0.5 : c.tx,
+      ty = waypoint ? waypoint[1] + 0.5 : c.ty;
+    const dx = tx - c.x,
+      dy = ty - c.y,
       d = Math.hypot(dx, dy);
-    if (d < 0.08) return true;
-    const s = Math.min(d, speed * dt),
+    if (d < 0.08) {
+      if (waypoint) {
+        c.route!.shift();
+        return false;
+      }
+      return true;
+    }
+    const s = Math.min(d, speed * Math.min(dt, 0.1)),
       nx = c.x + (dx / d) * s,
       ny = c.y + (dy / d) * s;
-    if (this.blocked(nx, ny)) return true; // give up; the caller picks a new goal
+    if (c.st !== 'fly' && this.blocked(nx, ny)) {
+      c.routeTarget = undefined;
+      return true;
+    }
     c.x = nx;
     c.y = ny;
     if (Math.abs(dx - dy) > 0.01) c.face = dx - dy >= 0 ? 1 : -1; // screen-x of the heading
@@ -516,14 +587,25 @@ export class Ambient {
   private animal(c: Crit, f: AmbientFrame, day: boolean, pd: number, now: number): void {
     const art = this.art!,
       dt = f.dt;
-    const asleep = !day && (c.kind === 'cat' || c.kind === 'dog');
-    // chickens roost at night; everyone else sleeps or sits
-    c.root.visible =
-      !(c.kind === 'chicken' && (f.hour >= 20 || f.hour < 5.5)) &&
-      !(c.kind === 'pigeon' && (f.hour >= 21.5 || f.hour < 5));
+    const routine = animalRoutine(c.kind as 'chicken' | 'cat' | 'dog' | 'pigeon', f.hour, f.weather);
+    const resting = routine !== 'wander';
+    const asleep = routine === 'sleep';
+    if (routine !== c.routine) {
+      c.routine = routine;
+      c.t = 0;
+      if (resting && c.home) {
+        const shelter = c.shelter ?? c.home;
+        c.tx = shelter.x;
+        c.ty = shelter.y;
+        c.routeTarget = undefined;
+        c.st = 'walk';
+      }
+    }
+    const sheltered = c.st === 'idle' && Math.hypot(c.x - c.tx, c.y - c.ty) < 0.15;
+    c.root.visible = !(routine === 'roost' && sheltered);
     if (!c.root.visible) return;
     const scare = c.kind === 'pigeon' ? 3.2 : c.kind === 'chicken' ? 2.2 : c.kind === 'cat' ? 1.6 : 0;
-    if (pd < scare && c.st !== 'fly') {
+    if (!resting && pd < scare && c.st !== 'fly' && (c.st !== 'walk' || c.t > 0.8)) {
       c.st = c.kind === 'pigeon' ? 'fly' : 'walk';
       const a = Math.atan2(c.y - f.me.y, c.x - f.me.x) + (Math.random() - 0.5);
       const dist = c.kind === 'pigeon' ? 5 + Math.random() * 3 : 3.5;
@@ -579,12 +661,22 @@ export class Ambient {
             : c.kind === 'dog'
               ? art.dog[asleep ? 3 : pd < 3 ? 0 : 3]!
               : art.pigeon[Math.floor(now * 1.5 + c.phase) % 4 === 0 ? 1 : 0]!;
-      if (c.t > pause * (0.5 + hash2(Math.floor(c.phase * 100), Math.floor(now / 3), 1, 5)) && !asleep && c.home) {
+      if (resting && !sheltered && c.t > 4) {
+        // A door may have been blocked temporarily; retry without snapping to safety.
+        c.routeTarget = undefined;
+        c.st = 'walk';
+        c.t = 0;
+      } else if (
+        c.t > pause * (0.5 + hash2(Math.floor(c.phase * 100), Math.floor(now / 3), 1, 5)) &&
+        !resting &&
+        c.home
+      ) {
         this.wander(c, c.home.r);
         c.st = 'walk';
         c.t = 0;
       }
     }
+    void day;
   }
 
   private walker(c: Crit, f: AmbientFrame, day: boolean, pd: number): void {

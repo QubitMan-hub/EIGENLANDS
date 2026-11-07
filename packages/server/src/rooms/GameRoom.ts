@@ -316,7 +316,7 @@ export class GameRoom extends WorldRoom {
         if (r.camps.length && (this.unsharded || r.shard === this.shard)) ids.push(r.id);
     // kingdom residents belong to the shard their settlement plot stands in (revision 5)
     if (this.store.generation >= 5)
-      for (const n of realmNpcs()) {
+      for (const n of realmNpcs(this.store.generation)) {
         const site = REALM_SITE_BY_ID[n.site!];
         if (site && (this.unsharded || shardAt(site.cx, site.cy) === this.shard)) ids.push(n.id);
       }
@@ -328,7 +328,7 @@ export class GameRoom extends WorldRoom {
         if (s && (this.unsharded || shardAt(s.x, s.y) === this.shard)) ids.push(n.id);
       }
     }
-    if (!ids.length) return nullVillage();
+    if (!ids.length && this.store.generation < 7) return nullVillage();
     const prefix = this.unsharded || shardAt(t.cx, t.cy) === this.shard ? '' : `${this.shard}:`;
     return createVillage(
       {
@@ -341,7 +341,11 @@ export class GameRoom extends WorldRoom {
         loadBlob: (key) => host.loadBlob(prefix + key),
         saveBlob: (key, value) => host.saveBlob(prefix + key, value),
       },
-      { npcIds: ids },
+      {
+        npcIds: ids,
+        frontier: this.store.generation >= 7,
+        ownsFrontier: (x, y) => this.unsharded || shardAt(x, y) === this.shard,
+      },
     );
   }
 

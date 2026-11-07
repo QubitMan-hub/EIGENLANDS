@@ -10,11 +10,12 @@
  *  5 — revision 4 plus the Six Great Kingdoms: six continents across the sea (realms.ts), each with its own
  *      biomes, capital, towns, villages, outposts, ruler, court, army, economy, festivals and quests.
  *  6 — lazy deterministic frontier cities on dry land; saved revisions 1–5 remain pinned.
+ *  7 — five settlement tiers, coherent otherworld habitats and locally connected world life.
  * Landmark and town placement always uses the revision-1 layout, so their ids never move between revisions.
  */
-export const WORLD_GENERATION = 6;
+export const WORLD_GENERATION = 7;
 /** Newest revision a world may be created with; also the default for new, empty worlds. */
-export type WorldGeneration = 1 | 2 | 3 | 4 | 5 | 6;
+export type WorldGeneration = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 /** Revision of worlds that predate versioned metadata or were pinned to the hydrology revision. */
 export const LEGACY_GENERATION = 2;
 export interface WorldGenerationMeta {
@@ -22,7 +23,7 @@ export interface WorldGenerationMeta {
   migratedFrom?: 1;
 }
 export const isWorldGeneration = (v: unknown): v is WorldGeneration =>
-  v === 1 || v === 2 || v === 3 || v === 4 || v === 5 || v === 6;
+  v === 1 || v === 2 || v === 3 || v === 4 || v === 5 || v === 6 || v === 7;
 
 /**
  * Decide a world's revision from its saved metadata.
@@ -45,7 +46,6 @@ export function generationMeta(
   const value = saved as Partial<WorldGenerationMeta>;
   if (!isWorldGeneration(value.version))
     throw new Error('Unsupported saved world generation; restore a compatible server');
-  if (value.version === 3 || value.version === 4 || value.version === 5 || value.version === 6)
-    return { version: value.version };
+  if (value.version >= 3) return { version: value.version };
   return value.version === 1 || value.migratedFrom === 1 ? { version: 2, migratedFrom: 1 } : { version: 2 };
 }

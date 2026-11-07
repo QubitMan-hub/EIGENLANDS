@@ -1,0 +1,115 @@
+{
+  "generation": 7,
+  "seed": 20260101,
+  "town": {
+    "count": 44,
+    "tier": "medium_town",
+    "scenes": {
+      "laundry": 1,
+      "garden": 2,
+      "sweep": 4,
+      "cat": 1,
+      "dog": 2,
+      "woodchop": 2,
+      "board": 1,
+      "kids": 2,
+      "busker": 1,
+      "porter": 1,
+      "stablehand": 1
+    },
+    "residents": 28
+  },
+  "samples": [
+    {
+      "x": 416,
+      "y": 672,
+      "biome": "autumn",
+      "actual": {
+        "x": 416.5,
+        "y": 672.5
+      },
+      "count": 8,
+      "kinds": {
+        "stoat": 3,
+        "vole": 1,
+        "robin": 4
+      },
+      "animals": [
+        {
+          "id": "stoat",
+          "x": 441.54761000002634,
+          "y": 649.5,
+          "heading": 2,
+          "scale": 1,
+          "anchor": 0.8,
+          "moving": false
+        },
+        {
+          "id": "vole",
+          "x": 404.35309149514745,
+          "y": 666.3530914951475,
+          "heading": 3,
+          "scale": 1,
+          "anchor": 0.8,
+          "moving": true
+        },
+        {
+          "id": "robin",
+          "x": 424.0348673598486,
+          "y": 668.9941219800793,
+          "heading": 2,
+          "scale": 1,
+          "anchor": 0.8,
+          "moving": true
+        },
+        {
+          "id": "robin",
+          "x": 443.3425742983209,
+          "y": 668.342574298321,
+          "heading": 0,
+          "scale": 1,
+          "anchor": 0.8,
+          "moving": true
+        },
+        {
+          "id": "stoat",
+          "x": 439.23348186412477,
+          "y": 682.2334818641248,
+          "heading": 2,
+          "scale": 1,
+          "anchor": 0.8,
+          "moving": true
+        },
+        {
+          "id": "stoat",
+          "x": 403.90313999997375,
+          "y": 691.5,
+          "heading": 2,
+          "scale": 1,
+          "anchor": 0.8,
+          "moving": true
+        },
+        {
+          "id": "robin",
+          "x": 423.71437000000776,
+          "y": 698.5,
+          "heading": 0,
+          "scale": 1,
+          "anchor": 0.8,
+          "moving": true
+        },
+        {
+          "id": "robin",
+          "x": 444.97520050568386,
+          "y": 693.0247994943162,
+          "heading": 3,
+          "scale": 1,
+          "anchor": 0.8,
+          "moving": true
+        }
+      ]
+    }
+  ],
+  "maxNewRasters": 2,
+  "errors": []
+}

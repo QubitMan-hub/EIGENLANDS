@@ -1000,8 +1000,10 @@ export const TALK_POINTS = 8;
 
 // ── schedule
 const OUTDOOR = /^(plaza|pond|field)/;
-export function scheduleAt(npc: NpcDef, hour: number, weather: Weather): ScheduleBlock {
+export function scheduleAt(npc: NpcDef, hour: number, weather: Weather, season?: number): ScheduleBlock {
   const b = npc.schedule.find((s) => hour >= s.h0 && hour < s.h1) ?? npc.schedule[0]!;
+  if (npc.id === 'fenwick' && b.spot === 'field' && season === 3)
+    return { ...b, spot: 'farmhouse.work', doing: 'sorting seeds and mending tools for spring' };
   const bad = weather === 'rain' || weather === 'storm' || weather === 'snow';
   if (bad && OUTDOOR.test(b.spot)) {
     const shelter = b.spot.startsWith('field')
@@ -1013,6 +1015,16 @@ export function scheduleAt(npc: NpcDef, hour: number, weather: Weather): Schedul
           : 'inn.table';
     return { ...b, spot: shelter, doing: 'sheltering from the weather' };
   }
+  if (npc.id === 'fenwick' && b.spot === 'field' && season !== undefined)
+    return {
+      ...b,
+      doing:
+        season === 0
+          ? 'sowing and tending the spring fields'
+          : season === 2
+            ? 'bringing in the autumn harvest'
+            : b.doing,
+    };
   return b;
 }
 

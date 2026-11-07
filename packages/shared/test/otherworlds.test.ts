@@ -20,6 +20,7 @@ import {
   tileAt,
   updraftsOf,
   type OtherworldId,
+  type WorldGeneration,
 } from '../src/index';
 
 const SEED = 20260101;
@@ -27,10 +28,17 @@ setActiveGeneration(SEED, 6);
 const tile = (x: number, y: number) => tileAt(SEED, x, y, 6);
 
 /** flood fill over walkable tiles from (x, y), optionally riding updrafts, within the realm's bounds */
-function reach(w: OtherworldId, x0: number, y0: number, eyrie = false, seed = SEED): Set<string> {
+function reach(
+  w: OtherworldId,
+  x0: number,
+  y0: number,
+  eyrie = false,
+  seed = SEED,
+  generation: WorldGeneration = 6,
+): Set<string> {
   const def = OTHERWORLDS[w];
   const lim = def.cell * (def.span + 1);
-  const tile = (x: number, y: number) => tileAt(seed, x, y, 6);
+  const tile = (x: number, y: number) => tileAt(seed, x, y, generation);
   const ups = w === 'aetheria' ? updraftsOf(seed).filter((u) => eyrie || !u.eyrie) : [];
   const upAt = new Map(ups.map((u) => [`${u.x},${u.y}`, u]));
   const seen = new Set<string>([`${x0},${y0}`]);
@@ -163,6 +171,37 @@ describe('the three realms', () => {
       }
       expect(counts.aetheria).toBeGreaterThan(80);
     }
+  });
+
+  it('generation7 habitat patches preserve every useful room, transport landing and puzzle approach over three seeds', () => {
+    for (const seed of [7, 42, 1337])
+      for (const w of OTHERWORLD_IDS) {
+        const a = otherworldArrival(w),
+          def = OTHERWORLDS[w];
+        const seen = reach(w, Math.floor(a.x), Math.floor(a.y), false, seed, 7);
+        const adjacent = (x: number, y: number) =>
+          [
+            [1, 0],
+            [-1, 0],
+            [0, 1],
+            [0, -1],
+          ].some(([dx, dy]) => seen.has(`${x + dx!},${y + dy!}`));
+        for (let gy = -def.span; gy <= def.span; gy++)
+          for (let gx = -def.span; gx <= def.span; gx++) {
+            const r = roomOf(seed, w, gx, gy);
+            if (!r || (w !== 'umbra' && gx === ARENA_CELL[w][0] && gy === ARENA_CELL[w][1])) continue;
+            expect(seen.has(`${r.x},${r.y + def.oy}`), `${seed} ${w} ${gx},${gy}`).toBe(true);
+            for (const o of otherworldObjectsIn(seed, Math.floor(r.x / 32), Math.floor((r.y + def.oy) / 32), 7)) {
+              if (o.kind === 'sign') expect(adjacent(o.x, o.y), `${seed} ${w} sign`).toBe(true);
+            }
+          }
+        if (w === 'chronoria') {
+          const g = chronoGate(seed);
+          expect(adjacent(g.gate.x, g.gate.y)).toBe(true);
+          for (const dial of g.dials) expect(adjacent(dial.x, dial.y)).toBe(true);
+          expect(seen.has(`${otherworldArena(seed, w).x},${otherworldArena(seed, w).y}`)).toBe(false);
+        }
+      }
   });
 
   it('props stand on open ground, and each realm has its portal home, lore and gathering', () => {

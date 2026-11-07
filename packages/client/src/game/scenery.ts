@@ -7,8 +7,10 @@ import {
   vegetationCover,
   townFor,
   townAt,
+  floraPatchAt,
   type ChunkStore,
 } from '@eigenlands/shared';
+import { natureContextAt } from './nature-context';
 
 export type SceneryKind =
   | 'wild_ferns'
@@ -19,7 +21,8 @@ export type SceneryKind =
   | 'wild_driftwood'
   | 'wild_scree'
   | 'wild_stalagmite'
-  | 'wild_glowcap';
+  | 'wild_glowcap'
+  | `wild_${string}`;
 
 /** Cosmetic only: one candidate per 8×8 cell. Never changes terrain, collision, loot or persisted objects. */
 export function sceneryAt(store: ChunkStore, x: number, y: number): SceneryKind | null {
@@ -32,13 +35,24 @@ export function sceneryAt(store: ChunkStore, x: number, y: number): SceneryKind 
   )
     return null;
   if (hash2(seed, gx, gy, 1203) > 0.3 + 0.45 * vegetationCover(seed, x, y) || Math.hypot(x, y) < 12) return null;
-  if (townAt(seed, x, y)) return null;
+  if (townAt(seed, x, y, store.generation)) return null;
   const t = townFor(seed);
   if (x >= t.x0 - 2 && x <= t.x1 + 2 && y >= t.y0 - 2 && y <= t.y1 + 2) return null;
   const c = store.get(chunkOf(x), chunkOf(y));
-  if (c.diff.has((y - c.cy * CHUNK_SIZE) * CHUNK_SIZE + x - c.cx * CHUNK_SIZE) || store.objectAt(x, y)) return null;
+  if (
+    c.diff.has((y - c.cy * CHUNK_SIZE) * CHUNK_SIZE + x - c.cx * CHUNK_SIZE) ||
+    store.objectAt(x, y) ||
+    store.structureAt(x, y) ||
+    store.solidAt(x, y)
+  )
+    return null;
   const tile = store.getTile(x, y),
-    b = biomeAt(seed, x, y);
+    b = biomeAt(seed, x, y, store.generation);
+  if (tile === T.GRASS || tile === T.SAND || tile === T.CAVE_FLOOR) {
+    const context = natureContextAt(store, x, y);
+    const species = context && floraPatchAt(seed, x, y, context);
+    if (species && hash2(seed, gx, gy, 17202) < 0.86) return `wild_${species.id}`;
+  }
   if (tile === T.CAVE_FLOOR) return hash2(seed, x, y, 1204) < 0.3 ? 'wild_glowcap' : 'wild_stalagmite';
   if (tile === T.SAND) {
     const nearWater = [

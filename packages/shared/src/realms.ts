@@ -1,3 +1,4 @@
+import type { SettlementTier } from './settlement-tiers';
 import { CHUNK_SIZE, MAX_LEVEL } from './constants';
 import { hash2 } from './rng';
 import { Simplex2D } from './simplex';
@@ -34,6 +35,10 @@ export const REALM_GEO: Record<RealmId, RealmGeo> = {
 
 export type SiteKind = 'capital' | 'town' | 'village' | 'farm' | 'outpost';
 export interface RealmSite {
+  /** Explicit physical stage for generation 7 procedural settlements. */
+  tier?: SettlementTier;
+  /** Provincial capital that owns this lazily derived satellite. */
+  parentId?: string;
   id: string;
   /** Optional authored name for lazily generated frontier settlements. */
   name?: string;

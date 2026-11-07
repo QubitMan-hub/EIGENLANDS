@@ -15,6 +15,7 @@ import {
   DEED_KINDS,
   ITEMS,
   NPC_BY_ID,
+  isProceduralResidentId,
   QUEST_BY_ID,
   RECIPES,
   WEAPONS,
@@ -167,11 +168,20 @@ export function loadPlayerData(raw: unknown, season: number, nowMs: number): Pla
   const outfit =
     typeof eq.outfit === 'number' && Number.isInteger(eq.outfit) && eq.outfit >= 0 && eq.outfit < 8 ? eq.outfit : 0;
   const friends: Record<string, FriendRec> = {};
+  let proceduralFriends = 0;
   if (r.friends && typeof r.friends === 'object') {
     for (const [id, v] of Object.entries(r.friends as Record<string, unknown>)) {
       const f = v as Partial<FriendRec>;
-      if (!NPC_BY_ID[id] || !f || !Number.isFinite(f.pts) || !Number.isFinite(f.talked) || !Number.isFinite(f.gifted))
+      const procedural = !NPC_BY_ID[id] && isProceduralResidentId(id);
+      if (
+        (!NPC_BY_ID[id] && (!procedural || proceduralFriends >= 256)) ||
+        !f ||
+        !Number.isFinite(f.pts) ||
+        !Number.isFinite(f.talked) ||
+        !Number.isFinite(f.gifted)
+      )
         continue;
+      if (!NPC_BY_ID[id] && procedural) proceduralFriends++;
       friends[id] = { pts: Math.max(0, Math.min(400, f.pts!)), talked: f.talked!, gifted: f.gifted! };
       if (typeof f.lastGift === 'string' && ITEMS[f.lastGift]) friends[id]!.lastGift = f.lastGift;
       if (Array.isArray(f.noted))
@@ -274,6 +284,8 @@ export function validProg(raw: unknown): PlayerData['prog'] {
   return {
     hearts:
       typeof r.hearts === 'number' && Number.isFinite(r.hearts) ? Math.max(0, Math.min(40, Math.floor(r.hearts))) : 0,
+    localFindDay:
+      typeof r.localFindDay === 'number' && Number.isSafeInteger(r.localFindDay) ? r.localFindDay : undefined,
     bestiary: ids(r.bestiary).filter((id) => Object.hasOwn(ENEMY_DEFS, id)),
     bosses: ids(r.bosses),
     shrines: ids(r.shrines),

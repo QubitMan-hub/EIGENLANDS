@@ -14,6 +14,7 @@ import {
   TILE_DEFS,
   townsFor,
   frontierTownsNear,
+  SETTLEMENT_TIER_NAMES,
   townFor,
   type PartyStateMsg,
 } from '@eigenlands/shared';
@@ -428,7 +429,12 @@ export class AtlasClient implements ClientModule {
     for (const t of frontierTownsNear(this.d.store().seed, me.x - 100, me.y - 100, me.x + 100, me.y + 100)) {
       const key = `${t.cx},${t.cy}`;
       if (this.seen(t.cx, t.cy) && !this.landmarks.has(key)) {
-        this.landmarks.set(key, { x: t.cx, y: t.cy, name: t.name, sub: 'frontier_city' });
+        this.landmarks.set(key, {
+          x: t.cx,
+          y: t.cy,
+          name: t.site?.tier ? `${t.name} · ${SETTLEMENT_TIER_NAMES[t.site.tier]}` : t.name,
+          sub: 'frontier_city',
+        });
         this.changed = true;
       }
     }

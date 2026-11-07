@@ -2,8 +2,10 @@ import {
   CAVE_TOWNS,
   ELITE,
   caveBiomeAt,
+  caveDistrictHabitat,
   caveRegionAt,
   caveTownAt,
+  findPath,
   hasIframes,
   isCaveY,
   isDiveY,
@@ -58,7 +60,7 @@ export class CaveModule implements Module {
   }
   /** One ambush: the biome's own monsters, spawned on open vault floor away from the player. */
   private ambush(v: Vault, p: ServerPlayer, t: Trial, wave: number, guardian = false): void {
-    const biome = caveBiomeAt(this.room.seed, (v.x0 + v.x1) / 2, (v.y0 + v.y1) / 2),
+    const biome = caveBiomeAt(this.room.seed, (v.x0 + v.x1) / 2, (v.y0 + v.y1) / 2, this.room.store.generation),
       set = VAULT_FOES[biome];
     const kinds: EnemyKindName[] = guardian
       ? [set.sig, set.support[0], set.support[1]]
@@ -149,7 +151,7 @@ export class CaveModule implements Module {
     const nearby = new Set<string>();
     for (const p of this.room.players.values()) {
       if (p.deadT > 0 || !isCaveY(p.sim.y) || isDiveY(p.sim.y)) continue;
-      const r = caveRegionAt(this.room.seed, p.sim.x, p.sim.y);
+      const r = caveRegionAt(this.room.seed, p.sim.x, p.sim.y, this.room.store.generation);
       const town = CAVE_TOWNS.find((t) => t.abandoned && Math.hypot(t.cx - p.sim.x, t.cy - p.sim.y) < 25);
       const id = town ? town.id : r.id,
         x = town ? town.cx : r.x + 7,
@@ -163,31 +165,67 @@ export class CaveModule implements Module {
         site = { x, y, next: this.time + 1 };
         this.sites.set(id, site);
       }
-      if (!town && r.feature === 'vents') {
+      const habitat = caveDistrictHabitat(this.room.seed, r.gx, r.gy, this.room.store.generation);
+      const local = this.room.store.generation >= 7;
+      if (!town && r.feature === 'vents' && (!local || habitat.hazard)) {
         if (site.warn !== undefined && this.time >= site.warn) {
           for (const q of this.room.players.values())
             if (q.deadT <= 0 && !hasIframes(q.sim) && Math.hypot(q.sim.x - x, q.sim.y - y) < 1.8) {
               q.hp = Math.max(1, q.hp - Math.max(3, Math.round(q.maxHp * 0.08)));
               this.room.fx({ kind: 'hurt', id: q.id, x: q.sim.x, y: q.sim.y });
-              q.toast('Steam vent! Leave the marked grate before it erupts.', 'bad');
+              q.toast(
+                local && habitat.hazard === 'spores'
+                  ? 'Spore burst! Leave the marked vent before it swells again.'
+                  : local && habitat.hazard === 'rime'
+                    ? 'Rime pulse! Leave the marked vent before the cold gathers again.'
+                    : 'Steam vent! Leave the marked grate before it erupts.',
+                'bad',
+              );
             }
           site.warn = undefined;
           site.next = this.time + 4;
         } else if (site.warn === undefined && this.time >= site.next) {
           site.warn = this.time + 1.5;
+          if (local)
+            for (const q of this.room.players.values())
+              if (q.deadT <= 0 && Math.hypot(q.sim.x - x, q.sim.y - y) < 8)
+                q.toast(
+                  habitat.hazard === 'rime'
+                    ? 'Rime pressure! Leave the marked vent before the cold pulse.'
+                    : habitat.hazard === 'spores'
+                      ? 'Spore pressure! Leave the marked vent before it bursts.'
+                      : 'Steam pressure! Leave the marked vent before it erupts.',
+                  'bad',
+                );
           this.room.fx({ kind: 'bomb', x, y, v: 1.5, w: 1.8, id: `vent:${id}` });
         }
-      } else if (
-        p.level >= 4 &&
-        this.time >= site.next &&
-        (!site.enemy || !this.room.enemies.has(site.enemy)) &&
-        !this.room.store.solidAt(x, y)
-      ) {
+      } else if (p.level >= 4 && this.time >= site.next && (!site.enemy || !this.room.enemies.has(site.enemy))) {
+        let ground = !this.room.store.solidAt(x, y) ? { x, y } : null;
+        if (!ground && local) {
+          // A vent is a solid landmark. Its guardian stands on reachable floor beside it.
+          for (let radius = 1; radius <= 4 && !ground; radius++)
+            for (let dy = -radius; dy <= radius && !ground; dy++)
+              for (let dx = -radius; dx <= radius && !ground; dx++) {
+                if (Math.max(Math.abs(dx), Math.abs(dy)) !== radius) continue;
+                const gx = x + dx,
+                  gy = y + dy;
+                if (
+                  !this.room.owns(gx, gy) ||
+                  this.room.store.solidAt(gx, gy) ||
+                  sanctuaryAt(this.room.seed, gx, gy) ||
+                  caveTownAt(gx, gy)
+                )
+                  continue;
+                if (findPath(Math.floor(p.sim.x), Math.floor(p.sim.y), gx, gy, this.room.store.solidAt, 512))
+                  ground = { x: gx, y: gy };
+              }
+        }
+        if (!ground) continue;
         // Approach announces an encounter; warded settlements never receive guardians.
         const e = this.room.spawnEnemy(
-          r.feature === 'grove' && !town ? 'spore_matriarch' : 'vault_guardian',
-          x + 0.5,
-          y + 0.5,
+          !town && local ? habitat.guardian : r.feature === 'grove' && !town ? 'spore_matriarch' : 'vault_guardian',
+          ground.x + 0.5,
+          ground.y + 0.5,
           false,
           { level: Math.max(4, Math.min(12, p.level)) },
         );

@@ -13,10 +13,24 @@ const NAMES: Weather[] = ['clear', 'cloudy', 'rain', 'storm', 'snow', 'fog'];
 
 export const seasonOfDay = (day: number): number => ((Math.floor(day / DAYS_PER_SEASON) % 4) + 4) % 4;
 
+/** Seasonal weather blends around each boundary, including the end of the year. */
+export function weatherWeights(day: number): number[] {
+  const year = DAYS_PER_SEASON * 4;
+  const position = (((day % year) + year) % year) / DAYS_PER_SEASON;
+  // The centre of each season has its characteristic weather; its edges share both neighbours.
+  const shifted = position - 0.5;
+  const previous = Math.floor(shifted);
+  const t = shifted - previous;
+  const blend = t * t * (3 - 2 * t);
+  const a = TABLE[((previous % 4) + 4) % 4]!;
+  const b = TABLE[(((previous + 1) % 4) + 4) % 4]!;
+  return a.map((v, i) => v + (b[i]! - v) * blend);
+}
+
 /** Deterministic weather for a world day (same on every server/client). */
 export function weatherForDay(seed: number, day: number): Weather {
   const r = hash2(seed, day, 7, 401);
-  const row = TABLE[seasonOfDay(day)]!;
+  const row = weatherWeights(day);
   let acc = 0;
   for (let i = 0; i < row.length; i++) {
     acc += row[i]!;

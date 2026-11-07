@@ -1,6 +1,10 @@
+# Latest: connected-world integration
+
+`codex/connected-world-biodiversity` (`afff999`, matching the previously unavailable ecology work) is integrated with current main. Read [connected-world verification](validation/connected-world/README.md), [biodiversity art](validation/biodiversity/README.md) and [art overhaul status](ART_OVERHAUL_STATUS.md). New worlds use generation 7; saved revisions remain pinned. Preserve reference bodies, wardrobe persistence, closer camera, shorter walls, saddle poses and grounded shadows. Flora/wildlife now use native isometric geometry; ambient discovery/routes do not generate unloaded chunks. Town budgets remove whole optional scenes and keep the notice board. The broader art overhaul's remaining work is still documented; do not mark it all complete.
+
 # Latest integration: wardrobe and directional village animals
 
-Read [ART_OVERHAUL_STATUS.md](ART_OVERHAUL_STATUS.md) for completed work and exact limits. Available road/town scene changes are integrated with current art. Catalog selection/save/sync and isometric village pets are added; faithful individual catalog silhouettes and the broader environment/animal overhaul remain open. Commit `3f5076a` was not exposed by origin or GitHub at review time and still needs to be fetched and audited once pushed.
+Read [ART_OVERHAUL_STATUS.md](ART_OVERHAUL_STATUS.md) for completed work and exact limits. Available road/town scene changes are integrated with current art. Catalog selection/save/sync and isometric village pets are added; faithful individual catalog silhouettes and the broader environment/animal overhaul remain open. The later connected-world integration above resolves the previously unavailable ecology branch.
 
 # Resource art and shadow grounding follow-up
 

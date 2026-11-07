@@ -512,7 +512,7 @@ function cluster(seed: number, x: number, y: number, cell: number, p: number, r0
 }
 
 /** The revision-3 surface (everything below the settlement/cave/spawn prelude shared with older revisions). */
-export function surfaceTile3(seed: number, x: number, y: number, r0: number, generation: 3 | 6 = 3): number {
+export function surfaceTile3(seed: number, x: number, y: number, r0: number, generation: 3 | 6 | 7 = 3): number {
   const c = sampleClimate(seed, x, y, generation);
   if (c.height < -0.42) return T.DEEP_WATER;
   if (c.height < -0.28) return T.WATER;

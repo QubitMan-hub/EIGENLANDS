@@ -12,6 +12,7 @@ import {
 export { CAVE_OY } from './undercroft';
 import { mineLoopAt, mineRailAt, mineRailMask } from './mines';
 import { caveFeatureObjects2 } from './caves2';
+import type { WorldGeneration } from './world-version';
 import { mineralDeposit } from './distribution';
 import { CHUNK_SIZE } from './constants';
 import type { WorldObj } from './objects';
@@ -116,7 +117,7 @@ function cascadeAt(seed: number, r: ReturnType<typeof caveRegion>) {
 }
 
 /** Static objects of chunk (cx, cy): cave mouths on the surface; ladders and forgotten caches below. */
-export function caveObjectsIn(seed: number, cx: number, cy: number, generation = 2): WorldObj[] {
+export function caveObjectsIn(seed: number, cx: number, cy: number, generation: WorldGeneration = 2): WorldObj[] {
   const out: WorldObj[] = [];
   const x0 = cx * CHUNK_SIZE,
     y0 = cy * CHUNK_SIZE;
@@ -139,7 +140,7 @@ export function caveObjectsIn(seed: number, cx: number, cy: number, generation =
     if (inChunk(m.x, m.y + CAVE_OY))
       out.push({ x: m.x, y: m.y + CAVE_OY, kind: 'deco', sub: 'cave_ladder', static: true, data: { cave: m.id } });
   }
-  if (below && generation >= 4) out.push(...caveFeatureObjects2(seed, cx, cy));
+  if (below && generation >= 4) out.push(...caveFeatureObjects2(seed, cx, cy, generation));
   else if (below) {
     for (let gy = Math.floor(sy / 72); gy <= Math.floor((sy + 31) / 72); gy++)
       for (let gx = Math.floor(x0 / 72); gx <= Math.floor((x0 + 31) / 72); gx++) {

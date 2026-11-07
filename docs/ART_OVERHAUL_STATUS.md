@@ -60,7 +60,7 @@ Integrated the available `ccr-3d7267f2-lb0y4u` town/road scene branch while reta
 
 Verification: 64 distinct village-animal directional frames, no edge clipping; [contact sheet](validation/village-animals/directions.png). Focused scene/heading/grounding, bounty, appearance and profile checks passed. Browser wardrobe selection, trousers/shorts switching, synchronized state and reload/rejoin passed ([report](validation/reference-wardrobe/report.json)). Production solo build passed with the existing bundle-size advisory. Built-game town visits captured the cat, dog, stable horse and bench/pigeons with no page errors ([scene report](validation/village-animals/scenes.txt)). This selected town had no hen scene; hens were checked in the directional asset review.
 
-The user-specified ecology commit `3f5076a` was unavailable from all advertised remote branches and GitHub's commit endpoint at this pass. It has **not** been integrated; obtain the pushed commit before marking its biodiversity/settlement work reviewed.
+The matching connected-world work is now available as `afff999` on `codex/connected-world-biodiversity` and integrated. Its 42 plants and 31 wildlife species were corrected to the shared isometric projection and palette, with directional anatomy, ground pivots and bounded raster work. Generation-7 tiers, local discoveries and ecology retain their gameplay integration; saved revisions remain pinned. See [integration verification](validation/connected-world/README.md) and [art review](validation/biodiversity/README.md).
 
 ## Recorded before any art edits
 

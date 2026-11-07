@@ -13,7 +13,7 @@ import {
   weatherForDay,
   type Weather,
 } from '@eigenlands/shared';
-import type { DirtyPart, PlayerData, PlayerRef, VillageHost } from '../src/systems/types';
+import type { DirtyPart, PlayerData, PlayerRef, VillageHost, VillageSystem } from '../src/systems/types';
 import { emptyEquip } from '../src/systems/profile';
 import { createVillage, type Village, type VillageOptions } from '../src/systems/village';
 
@@ -99,7 +99,7 @@ export async function makeVillage(opts?: VillageOptions, clock = new FakeClock()
 }
 
 /** Run `ticks` server ticks, advancing the clock 50 ms each. */
-export function run(village: Village, clock: FakeClock, ticks: number, startTick = 0): number {
+export function run(village: VillageSystem, clock: FakeClock, ticks: number, startTick = 0): number {
   for (let i = 0; i < ticks; i++) {
     clock.advanceMs(50);
     village.tick(startTick + i + 1);
@@ -108,7 +108,7 @@ export function run(village: Village, clock: FakeClock, ticks: number, startTick
 }
 
 /** Stand a player right next to an NPC. */
-export function nextTo(p: FakePlayer, village: Village, id: string): void {
+export function nextTo(p: FakePlayer, village: VillageSystem, id: string): void {
   const n = village.npc(id)!;
   p.x = n.x + 1;
   p.y = n.y;

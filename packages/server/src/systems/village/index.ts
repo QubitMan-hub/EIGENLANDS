@@ -31,9 +31,13 @@ import {
   REALM_IDS,
   type RealmId,
   festivalOn,
+  festivalToday,
   repPriceMultiplier,
   tradeModifier,
   realmNpcs,
+  frontierTownsNear,
+  npcsOfSite,
+  type Town,
   NPCS,
   delverSpots,
   NpcState,
@@ -48,6 +52,7 @@ import {
   decaySupply,
   fill,
   findPath,
+  T,
   giftTaste,
   hearts,
   isWorking,
@@ -84,6 +89,11 @@ const TALK_FREEZE_MS = 8000;
 const EAR_RANGE = 4; // rumor exchange distance
 const HOUR_MS = DAY_MS / 24;
 const SAVE_EVERY_MS = 3000;
+const FRONTIER_DISCOVER_MS = 2000;
+const FRONTIER_RANGE = 96;
+const FRONTIER_RETAIN_RANGE = 160;
+const FRONTIER_MAX_TOWNS = 4;
+const FRONTIER_MAX_RESIDENTS = 192;
 
 interface Runner {
   def: NpcDef;
@@ -101,11 +111,18 @@ interface Runner {
 
 export interface VillageOptions extends AiOptions {
   npcIds?: string[];
+  /** Production shards filter named residents but still discover their own procedural settlements. */
+  frontier?: boolean;
+  ownsFrontier?: (x: number, y: number) => boolean;
 }
 
 export class Village implements VillageSystem {
   private runners = new Map<string, Runner>();
   private market: Supply = {};
+  private frontier = new Map<string, { town: Town; ids: string[] }>();
+  private lastFrontierDiscovery = -Infinity;
+  private frontierEnabled: boolean;
+  private ownsFrontier: (x: number, y: number) => boolean;
   private rumors = new RumorBook();
   private ai: AiDialogue;
   private lastHour = -1;
@@ -121,6 +138,8 @@ export class Village implements VillageSystem {
   ) {
     this.ai = new AiDialogue(opts);
     const gen = host.store.generation;
+    this.frontierEnabled = gen >= 7 && (opts.frontier ?? opts.npcIds === undefined);
+    this.ownsFrontier = opts.ownsFrontier ?? (() => true);
     this.spots = Object.assign({}, ...townsFor(host.seed, gen).map((t) => t.spots));
     // revision 4 adds the travelling merchants and the delver camps they trade from
     const modern = host.store.generation >= 4;
@@ -129,9 +148,9 @@ export class Village implements VillageSystem {
     if (gen >= 6) Object.assign(this.spots, realmfolkSpots(host.seed));
     const all =
       gen >= 6
-        ? [...NPCS, ...DELVER_MERCHANTS, ...realmNpcs(), ...REALMFOLK]
+        ? [...NPCS, ...DELVER_MERCHANTS, ...realmNpcs(gen), ...REALMFOLK]
         : gen >= 5
-          ? [...NPCS, ...DELVER_MERCHANTS, ...realmNpcs()]
+          ? [...NPCS, ...DELVER_MERCHANTS, ...realmNpcs(gen)]
           : modern
             ? [...NPCS, ...DELVER_MERCHANTS]
             : NPCS;
@@ -141,7 +160,28 @@ export class Village implements VillageSystem {
   /** the schedule block for now; on a kingdom's festival day its folk gather in the plaza from noon until night */
   private blockAt(def: NpcDef, hour: number, weather: ReturnType<VillageHost['clock']['weather']>): ScheduleBlock {
     if (this.host.away?.(def.id)) return { h0: 0, h1: 24, spot: def.home, doing: 'away on a hired contract' };
-    const block = scheduleAt(def, hour, weather);
+    const block = scheduleAt(def, hour, weather, this.host.clock.season());
+    // The home festivals already have a calendar and feast rewards; residents now attend them too.
+    const homeIndex = NPCS.indexOf(def);
+    if (
+      !def.realm &&
+      !def.settlement &&
+      homeIndex >= 0 &&
+      hour >= 18 &&
+      hour < 21 &&
+      (!def.shop || !shopOpen(def, hour))
+    ) {
+      const festival = festivalToday('home', this.host.clock.day());
+      if (festival) {
+        const indoors = weather === 'rain' || weather === 'storm' || weather === 'snow';
+        return {
+          h0: 18,
+          h1: 21,
+          spot: indoors ? 'inn.table' : `plaza_${['a', 'b', 'c', 'd'][homeIndex % 4]}`,
+          doing: `sharing the ${festival.name} feast${indoors ? ' out of the weather' : ''}`,
+        };
+      }
+    }
     if (def.realm && hour >= 12 && hour < 22 && def.role !== 'guard' && def.role !== 'archer' && def.role !== 'ruler') {
       const day = this.host.clock.day();
       if (festivalOn(def.realm as RealmId, day))
@@ -175,38 +215,84 @@ export class Village implements VillageSystem {
     if (m && typeof m === 'object')
       this.market = Object.fromEntries(Object.entries(m).filter(([, v]) => typeof v === 'number' && v > 0)) as Supply;
     this.rumors.load(await this.host.loadBlob<unknown>('rumors'));
-    const hour = this.host.clock.hour(),
-      weather = this.host.clock.weather();
-    for (const def of this.defs) {
-      const block = this.blockAt(def, hour, weather);
-      const sp = this.spots[block.spot] ?? this.spots[def.home]!;
-      const st = new NpcState();
-      st.id = def.id;
-      st.look = def.look;
-      st.x = sp.x + 0.5;
-      st.y = sp.y + 0.5;
-      st.faceX = 0;
-      st.faceY = 1;
-      st.flags = 0;
-      this.host.state.npcs.set(def.id, st);
-      const r: Runner = {
-        def,
-        st,
-        x: st.x,
-        y: st.y,
-        spot: block.spot,
-        path: [],
-        pi: 0,
-        fails: 0,
-        talkUntil: 0,
-        face: { x: 0, y: 1 },
-        flags: 0,
-      };
-      this.runners.set(def.id, r);
-      this.setFlags(r);
-    }
+    for (const def of this.defs) this.addRunner(def);
     this.lastHour = Math.floor(this.host.clock.now() / HOUR_MS);
     this.lastSave = this.host.clock.now();
+  }
+
+  /** Named and nearby frontier residents share the same movement and interaction runtime. */
+  private addRunner(def: NpcDef): void {
+    const block = this.blockAt(def, this.host.clock.hour(), this.host.clock.weather());
+    const sp = this.spots[block.spot] ?? this.spots[def.home]!;
+    const st = new NpcState();
+    st.id = def.id;
+    st.look = def.look;
+    st.x = sp.x + 0.5;
+    st.y = sp.y + 0.5;
+    st.faceX = 0;
+    st.faceY = 1;
+    st.flags = 0;
+    this.host.state.npcs.set(def.id, st);
+    const r: Runner = {
+      def,
+      st,
+      x: st.x,
+      y: st.y,
+      spot: block.spot,
+      path: [],
+      pi: 0,
+      fails: 0,
+      talkUntil: 0,
+      face: { x: 0, y: 1 },
+      flags: 0,
+    };
+    this.runners.set(def.id, r);
+    this.setFlags(r);
+  }
+
+  private discoverFrontier(now: number): void {
+    if (!this.frontierEnabled || now - this.lastFrontierDiscovery < FRONTIER_DISCOVER_MS) return;
+    this.lastFrontierDiscovery = now;
+    const players = [...this.host.players()].filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+    const nearby = (town: Town, range: number): boolean => {
+      const s = town.site!;
+      return players.some((p) => Math.abs(p.x - s.cx) <= s.w / 2 + range && Math.abs(p.y - s.cy) <= s.h / 2 + range);
+    };
+    // Hysteresis keeps a village stable at the edge of view and while another player remains nearby.
+    for (const [id, entry] of this.frontier) {
+      if (nearby(entry.town, FRONTIER_RETAIN_RANGE)) continue;
+      for (const npcId of entry.ids) {
+        this.runners.delete(npcId);
+        this.host.state.npcs.delete(npcId);
+      }
+      for (const spot of Object.keys(entry.town.spots)) delete this.spots[spot];
+      this.frontier.delete(id);
+    }
+    let population = [...this.frontier.values()].reduce((n, entry) => n + entry.ids.length, 0);
+    for (const p of players) {
+      if (this.frontier.size >= FRONTIER_MAX_TOWNS) break;
+      const towns = frontierTownsNear(
+        this.host.seed,
+        p.x - FRONTIER_RANGE,
+        p.y - FRONTIER_RANGE,
+        p.x + FRONTIER_RANGE,
+        p.y + FRONTIER_RANGE,
+        this.host.store.generation,
+      );
+      for (const town of towns) {
+        if (this.frontier.size >= FRONTIER_MAX_TOWNS) break;
+        const site = town.site!;
+        if (!this.ownsFrontier(site.cx, site.cy)) continue;
+        if (this.frontier.has(site.id)) continue;
+        const defs = npcsOfSite(site);
+        // Keep each settlement's roster whole; larger towns must not crowd out essential services.
+        if (population + defs.length > FRONTIER_MAX_RESIDENTS) continue;
+        Object.assign(this.spots, town.spots);
+        for (const def of defs) this.addRunner(def);
+        this.frontier.set(site.id, { town, ids: defs.map((def) => def.id) });
+        population += defs.length;
+      }
+    }
   }
 
   async dispose(): Promise<void> {
@@ -231,6 +317,7 @@ export class Village implements VillageSystem {
 
   tick(tick: number): void {
     const now = this.host.clock.now();
+    this.discoverFrontier(now);
     let i = 0;
     for (const r of this.runners.values()) {
       // re-evaluate the schedule once a second, staggered per NPC
@@ -265,7 +352,11 @@ export class Village implements VillageSystem {
 
   private teleport(r: Runner): void {
     const sp = this.spots[r.spot];
-    if (!sp) return;
+    if (!sp || this.host.store.solidAt(sp.x, sp.y)) return;
+    // Recovery after downtime is safe only outside every player's view, at both ends.
+    for (const p of this.host.players()) {
+      if (Math.hypot(p.x - r.x, p.y - r.y) < 52 || Math.hypot(p.x - sp.x, p.y - sp.y) < 52) return;
+    }
     r.x = sp.x + 0.5;
     r.y = sp.y + 0.5;
     r.path = [];
@@ -276,20 +367,35 @@ export class Village implements VillageSystem {
   private plan(r: Runner): void {
     const sp = this.spots[r.spot];
     if (!sp) return;
+    r.path = [];
+    r.pi = 0;
     const sx = Math.floor(r.x),
       sy = Math.floor(r.y);
+    // Revision 7 has larger rosters: unseen residents need no route through unloaded streets.
+    if (
+      this.host.store.generation >= 7 &&
+      [...this.host.players()].every(
+        (p) => Math.hypot(p.x - r.x, p.y - r.y) > 120 && Math.hypot(p.x - sp.x, p.y - sp.y) > 120,
+      )
+    ) {
+      this.teleport(r);
+      if (this.arrived(r)) return;
+    }
     if (Math.hypot(sp.x + 0.5 - r.x, sp.y + 0.5 - r.y) > 40) {
       this.teleport(r);
-      return;
+      if (this.arrived(r)) return;
     }
     if (sx === sp.x && sy === sp.y) {
       r.path = [[sp.x, sp.y]];
       r.pi = 0;
       return;
     }
-    const path = findPath(sx, sy, sp.x, sp.y, this.host.store.solidAt, 6000);
+    const path = findPath(sx, sy, sp.x, sp.y, this.host.store.solidAt, 6000, (x, y) => {
+      const tile = this.host.store.getTile(x, y);
+      return tile === T.PATH || tile === T.FLOOR || tile === T.DOOR ? 1 : tile === T.GRASS_TALL ? 2 : 1.6;
+    });
     if (!path) {
-      // boxed in (e.g. a player built something): after a few failures just appear at the spot
+      // Retry a changed route; recovery must never make someone pop in front of a player.
       if (++r.fails >= 3) this.teleport(r);
       return;
     }
@@ -433,6 +539,15 @@ export class Village implements VillageSystem {
     return ch;
   }
 
+  private activity(r: Runner): string {
+    const block = this.blockAt(r.def, this.host.clock.hour(), this.host.clock.weather());
+    return this.arrived(r)
+      ? block.doing
+      : r.path.length > r.pi
+        ? `on the way to ${block.doing}`
+        : 'waiting for a clear path';
+  }
+
   private message(
     p: PlayerRef,
     r: Runner,
@@ -450,7 +565,7 @@ export class Village implements VillageSystem {
       text,
       hearts: hearts(rec.pts),
       pts: rec.pts,
-      doing: this.blockAt(def, hour, this.host.clock.weather()).doing,
+      doing: this.activity(r),
       canShop: !!def.shop && open,
       canGift: rec.gifted !== this.host.clock.day(),
       canChat: this.ai.enabled,
@@ -492,7 +607,7 @@ export class Village implements VillageSystem {
       season: c.season(),
       weather: c.weather(),
       first,
-      atWork: isWorking(doing),
+      atWork: this.arrived(r) && isWorking(doing),
       rand: this.host.rand,
       deed,
       lastGift: rec.lastGift ? (ITEMS[rec.lastGift]?.name.toLowerCase() ?? null) : null,
@@ -779,7 +894,7 @@ export class Village implements VillageSystem {
       weather: c.weather(),
       hour: c.hour(),
       hearts: hearts(rec.pts),
-      doing: this.blockAt(r.def, c.hour(), c.weather()).doing,
+      doing: this.activity(r),
     });
     // any failure (disabled, rate limited, timeout, bad output) falls back to the scripted line
     return this.message(p, r, rec, ai ?? this.scriptedLine(p, r, rec, false));

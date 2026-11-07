@@ -10,7 +10,7 @@
  * Projection (shared with isokit): screen x = u − v, screen y = (u + v) / 2 − z; the camera looks down (−1, −1, −1),
  * so depth (nearer the camera) is u + v + z.
  */
-import { C, makeCanvas, outline, put } from './shade';
+import { C, makeCanvas, outline, put, type Ctx } from './shade';
 
 export type Ramp = readonly number[];
 type V3 = [number, number, number];
@@ -102,7 +102,7 @@ export interface Rendered {
  * Render a model for a heading into a w × h canvas with the model origin at (ax, ay). With `frontDepth`, also render
  * the parts marked `front` that lie nearer the camera than that depth, for drawing over a rider.
  */
-export function renderModel(
+function rasterModel(
   prims: Prim[],
   heading: Heading,
   w: number,
@@ -110,7 +110,7 @@ export function renderModel(
   ax: number,
   ay: number,
   frontDepth?: number,
-): Rendered {
+): { color: Int16Array; isFront: Uint8Array } {
   // sample bounds
   let a0 = Infinity,
     b0 = Infinity,
@@ -208,14 +208,42 @@ export function renderModel(
         }
       }
     }
-  const { canvas, ctx } = makeCanvas(w, h);
-  for (let i = 0; i < w * h; i++) if (color[i]! >= 0) put(ctx, i % w, Math.floor(i / w), color[i]!);
+  return { color, isFront };
+}
+
+/** Render into either a CPU pixel buffer or a browser canvas with the same projection and lighting. */
+export function paintModel(
+  ctx: Ctx,
+  prims: Prim[],
+  heading: Heading,
+  w: number,
+  h: number,
+  ax: number,
+  ay: number,
+): void {
+  paintPixels(ctx, rasterModel(prims, heading, w, h, ax, ay).color, w, h);
+}
+function paintPixels(ctx: Ctx, color: Int16Array, w: number, h: number, mask?: Uint8Array): void {
+  for (let i = 0; i < w * h; i++)
+    if (color[i]! >= 0 && (!mask || mask[i])) put(ctx, i % w, Math.floor(i / w), color[i]!);
   outline(ctx, w, h, C.ink);
+}
+export function renderModel(
+  prims: Prim[],
+  heading: Heading,
+  w: number,
+  h: number,
+  ax: number,
+  ay: number,
+  frontDepth?: number,
+): Rendered {
+  const { color, isFront } = rasterModel(prims, heading, w, h, ax, ay, frontDepth);
+  const { canvas, ctx } = makeCanvas(w, h);
+  paintPixels(ctx, color, w, h);
   let front: HTMLCanvasElement | null = null;
   if (frontDepth !== undefined && isFront.some((f) => f)) {
     const f = makeCanvas(w, h);
-    for (let i = 0; i < w * h; i++) if (isFront[i]) put(f.ctx, i % w, Math.floor(i / w), color[i]!);
-    outline(f.ctx, w, h, C.ink);
+    paintPixels(f.ctx, color, w, h, isFront);
     front = f.canvas;
   }
   return { canvas, front };
