@@ -1,3 +1,7 @@
+# Latest: flat cozy boss source redraw
+
+All 14 source sheets, day/night exports, portraits and fallbacks now use simplified broad material shapes. Read [current boss redraw and verification](validation/cozy-boss-redraw/README.md). A shared per-sheet material palette also fixes grey/tan/pink speckling during conversion to the master palette. This supersedes the previous sampling-only art adjustment; existing smooth movement/combat and all other pending catalogs remain as documented below.
+
 # Latest integrated stage: directional people and cozy bosses
 
 The user-approved human designs now have eight elevated-camera views and use the shared action rig. QubitMan's source sculpture has a sword and shield. See [people, physical items and discoveries](validation/directional-people/README.md) and [boss presentation/combat](validation/cozy-bosses/README.md) for exact scope, evidence and remaining work. People use 64×64 cells with ground origin (32,61); older measurements below are historical. This stage does not complete the full wardrobe, faces, remaining icon families, building/environment/animal catalogs or every bespoke painted action.

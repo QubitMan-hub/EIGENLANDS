@@ -1,0 +1,104 @@
+{
+  "previousCommit": "b009d7b",
+  "style": "Broad flat shapes, 2\u20133 tones per material, no microtexture. Four facings; complete 8-column action sheet per boss. Veyr retains four walk columns.",
+  "bosses": [
+    {
+      "id": "primordial_dragon",
+      "source": "art-source/bosses/primordial_dragon.png",
+      "sha256": "b7a709c965b7fca6928fd42ff556c06b3fb45c8bf86e05a4ffe60a0a5e24f7f3",
+      "previousSha256": "46f4dbeaeb462f26ef9181e0d563abc16e433390728db4afd8d4bf4455d33e4d",
+      "generatedSource": "exec-a6866eb8-78e2-42f0-a2d1-82248c13cdcc.png"
+    },
+    {
+      "id": "world_serpent",
+      "source": "art-source/bosses/world_serpent.png",
+      "sha256": "c86dd4b0a7a34c0a4f6de0c1818671ce156c198a3e75b319faf8ea5e67c1ab63",
+      "previousSha256": "45daee94c82b7bbf6e33378a429d1978e265859e13ebe652ae5812192c6cf083",
+      "generatedSource": "exec-a939f743-735a-47f5-8757-ff7d8ef4a000.png"
+    },
+    {
+      "id": "sealed_entity",
+      "source": "art-source/bosses/sealed_entity.png",
+      "sha256": "f1c8222cd7cff2f5c9c8b2f3444d72aa2f7bce13bac2a99282663fbe2df036d7",
+      "previousSha256": "28f362526bb5b4eeabcdc20fa18e56864d51f7cddd0d4be11c804252ec9cb330",
+      "generatedSource": "exec-5b15a395-6aed-466a-9339-dd7c389f71d5.png"
+    },
+    {
+      "id": "forgotten_titan",
+      "source": "art-source/bosses/forgotten_titan.png",
+      "sha256": "37a842a5472ae00043e915d8c0348af5b1c9be0652259fb667d0517fa383e4c8",
+      "previousSha256": "29815437175b87a6b6931696a5d80b9f627470536aff188a8d3317cd1ecad0f3",
+      "generatedSource": "exec-eec125a1-7e5a-44ef-8f77-64d7864d69ce.png"
+    },
+    {
+      "id": "realm_guardian",
+      "source": "art-source/bosses/realm_guardian.png",
+      "sha256": "5576dc1f404a562cf628181910ae0ef22e6f1d689964a6c1949e2f583b0e81f4",
+      "previousSha256": "d11d5cd9973d8988926f1b87ae6cfd982dcfb1b5377a7d228576196e9d75f4a1",
+      "generatedSource": "exec-bcb6d467-d28a-4c58-9f14-7cb4cb733874.png"
+    },
+    {
+      "id": "slime_king",
+      "source": "art-source/bosses/slime_king.png",
+      "sha256": "b44b639707726d812c31bb11a6f49b5c9ba108b1240fbec0eb4ca13c1a294458",
+      "previousSha256": "7dd4fe453b7b9273bd20281ff6d0b38a719871a8d47540a4cce6762e0e65cf12",
+      "generatedSource": "exec-24ce1b7f-9320-4bde-a2d2-c298bf965fdb.png"
+    },
+    {
+      "id": "warden",
+      "source": "art-source/bosses/warden.png",
+      "sha256": "307ed8170e5fe7a251b97d59a63a8489244efdddeebc1fdd0c2ef4e021100f42",
+      "previousSha256": "d1f1ca7f789b166a104d9893ffb30ad7269324f4ce72ff172f6bb074b8d27ecc",
+      "generatedSource": "exec-bb80a742-4bef-4536-bef5-626e66f8e7dd.png"
+    },
+    {
+      "id": "colossus",
+      "source": "art-source/bosses/colossus.png",
+      "sha256": "179e917c56a319a81f7e646624b5fd412c70bcdd46ee074c3a7d6d65b066bfdb",
+      "previousSha256": "12966dc0b9934306a4d21e83cfa636a40fdfa3e3dd79c3f7e12b19027753d0e7",
+      "generatedSource": "exec-3d129ad1-8c5b-4ae8-a5de-5b6dc429676f.png"
+    },
+    {
+      "id": "bellkeeper",
+      "source": "art-source/bosses/bellkeeper.png",
+      "sha256": "d742e140d18f80bf11e502b61181227227e96efc7f3330747977f5834e343ef8",
+      "previousSha256": "dbb637adbcbb8ef3824b4562ca5decc53f6fafdab790724b3a8a24dd067040ff",
+      "generatedSource": "exec-613d5015-2b0f-4144-a435-cfe2a8c5d57a.png"
+    },
+    {
+      "id": "geode_tyrant",
+      "source": "art-source/bosses/geode_tyrant.png",
+      "sha256": "8f086f55c475d663a4f52b80f9d824db03b327b3e278a06f31ce9e0716c9db30",
+      "previousSha256": "1749eea3cb3e6de96d6b37df71192fc2e15d4bfe4178b6b7185f4f841f8c678e",
+      "generatedSource": "exec-c43a86cc-4da4-47d9-a013-eca836a82cf0.png"
+    },
+    {
+      "id": "cinder_wyrm",
+      "source": "art-source/bosses/cinder_wyrm.png",
+      "sha256": "550801a442a73c599be882133e3675122be50b603f26486790fe9f823e609113",
+      "previousSha256": "1d97674d220a2124872b804c61b25fa1b3308efff8108d783e50a8191b4a9317",
+      "generatedSource": "exec-80c8937e-d594-4bda-92bf-b918d87d0e26.png"
+    },
+    {
+      "id": "rime_sovereign",
+      "source": "art-source/bosses/rime_sovereign.png",
+      "sha256": "f61016769a8cc5dbd5f374a3003877efaaf9d6c327b3f5e144e9c2a601e65b67",
+      "previousSha256": "c66a5e016b55313242305dd3617814b11ea309637669d050099753a9381a542c",
+      "generatedSource": "exec-e8d78241-14c6-4be4-8819-77bf7a8ed264.png"
+    },
+    {
+      "id": "tide_leviathan",
+      "source": "art-source/bosses/tide_leviathan.png",
+      "sha256": "c3d1706b05e5dab2726a09b49fdadb91f51c40aac064a5968e70b1a367f0858e",
+      "previousSha256": "b20fd62f81fa5ce1767a36da35f47b37d4c6fcfbad290b59d8e25fea04d18f37",
+      "generatedSource": "exec-8046af1d-3366-4d41-ab11-703e3e47a742.png"
+    },
+    {
+      "id": "veyr",
+      "source": "art-source/bosses/veyr.png",
+      "sha256": "94554b4709c9086094ff5f3de2f58bde1d7d9207a83e138fd10ea9a2e5f9894d",
+      "previousSha256": "348a63e8ac93f88d8e61d9e28d18157ea97e81d82d04b0a0d8a8b0a741702d4f",
+      "generatedSource": "exec-a54e8f2b-1e30-4622-a0c5-f9aa795bb23a.png"
+    }
+  ]
+}

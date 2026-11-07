@@ -1,0 +1,202 @@
+{
+  "baseline": "b009d7b",
+  "metric": "Fraction of opaque interior pixels with a neighboring two-pixel-grid color change >40 RGB Manhattan units. Excludes silhouette edges. Lower means quieter surfaces; it does not measure animation quality.",
+  "bosses": [
+    {
+      "boss": "primordial_dragon",
+      "before": {
+        "interiorTransitionFraction": 0.8463,
+        "colors": 36,
+        "encodedBytes": 324592
+      },
+      "after": {
+        "interiorTransitionFraction": 0.3481,
+        "colors": 10,
+        "encodedBytes": 183529
+      },
+      "textureTransitionReductionPercent": 58.9
+    },
+    {
+      "boss": "world_serpent",
+      "before": {
+        "interiorTransitionFraction": 0.8825,
+        "colors": 51,
+        "encodedBytes": 404753
+      },
+      "after": {
+        "interiorTransitionFraction": 0.3658,
+        "colors": 9,
+        "encodedBytes": 168480
+      },
+      "textureTransitionReductionPercent": 58.5
+    },
+    {
+      "boss": "sealed_entity",
+      "before": {
+        "interiorTransitionFraction": 0.8088,
+        "colors": 33,
+        "encodedBytes": 293024
+      },
+      "after": {
+        "interiorTransitionFraction": 0.2302,
+        "colors": 8,
+        "encodedBytes": 147532
+      },
+      "textureTransitionReductionPercent": 71.5
+    },
+    {
+      "boss": "forgotten_titan",
+      "before": {
+        "interiorTransitionFraction": 0.8967,
+        "colors": 39,
+        "encodedBytes": 264742
+      },
+      "after": {
+        "interiorTransitionFraction": 0.35,
+        "colors": 5,
+        "encodedBytes": 127357
+      },
+      "textureTransitionReductionPercent": 61.0
+    },
+    {
+      "boss": "realm_guardian",
+      "before": {
+        "interiorTransitionFraction": 0.9147,
+        "colors": 53,
+        "encodedBytes": 391382
+      },
+      "after": {
+        "interiorTransitionFraction": 0.5773,
+        "colors": 11,
+        "encodedBytes": 215497
+      },
+      "textureTransitionReductionPercent": 36.9
+    },
+    {
+      "boss": "slime_king",
+      "before": {
+        "interiorTransitionFraction": 0.8985,
+        "colors": 54,
+        "encodedBytes": 185661
+      },
+      "after": {
+        "interiorTransitionFraction": 0.4084,
+        "colors": 8,
+        "encodedBytes": 78992
+      },
+      "textureTransitionReductionPercent": 54.5
+    },
+    {
+      "boss": "warden",
+      "before": {
+        "interiorTransitionFraction": 0.8897,
+        "colors": 38,
+        "encodedBytes": 221617
+      },
+      "after": {
+        "interiorTransitionFraction": 0.4055,
+        "colors": 6,
+        "encodedBytes": 116325
+      },
+      "textureTransitionReductionPercent": 54.4
+    },
+    {
+      "boss": "colossus",
+      "before": {
+        "interiorTransitionFraction": 0.9015,
+        "colors": 37,
+        "encodedBytes": 200335
+      },
+      "after": {
+        "interiorTransitionFraction": 0.4389,
+        "colors": 6,
+        "encodedBytes": 109308
+      },
+      "textureTransitionReductionPercent": 51.3
+    },
+    {
+      "boss": "bellkeeper",
+      "before": {
+        "interiorTransitionFraction": 0.9054,
+        "colors": 40,
+        "encodedBytes": 195271
+      },
+      "after": {
+        "interiorTransitionFraction": 0.3688,
+        "colors": 7,
+        "encodedBytes": 100316
+      },
+      "textureTransitionReductionPercent": 59.3
+    },
+    {
+      "boss": "geode_tyrant",
+      "before": {
+        "interiorTransitionFraction": 0.9201,
+        "colors": 45,
+        "encodedBytes": 255255
+      },
+      "after": {
+        "interiorTransitionFraction": 0.4398,
+        "colors": 8,
+        "encodedBytes": 112982
+      },
+      "textureTransitionReductionPercent": 52.2
+    },
+    {
+      "boss": "cinder_wyrm",
+      "before": {
+        "interiorTransitionFraction": 0.9282,
+        "colors": 34,
+        "encodedBytes": 227745
+      },
+      "after": {
+        "interiorTransitionFraction": 0.268,
+        "colors": 8,
+        "encodedBytes": 99912
+      },
+      "textureTransitionReductionPercent": 71.1
+    },
+    {
+      "boss": "rime_sovereign",
+      "before": {
+        "interiorTransitionFraction": 0.9317,
+        "colors": 45,
+        "encodedBytes": 230461
+      },
+      "after": {
+        "interiorTransitionFraction": 0.4229,
+        "colors": 9,
+        "encodedBytes": 107115
+      },
+      "textureTransitionReductionPercent": 54.6
+    },
+    {
+      "boss": "tide_leviathan",
+      "before": {
+        "interiorTransitionFraction": 0.9015,
+        "colors": 50,
+        "encodedBytes": 289494
+      },
+      "after": {
+        "interiorTransitionFraction": 0.3361,
+        "colors": 9,
+        "encodedBytes": 133639
+      },
+      "textureTransitionReductionPercent": 62.7
+    },
+    {
+      "boss": "veyr",
+      "before": {
+        "interiorTransitionFraction": 0.8933,
+        "colors": 55,
+        "encodedBytes": 234833
+      },
+      "after": {
+        "interiorTransitionFraction": 0.3915,
+        "colors": 9,
+        "encodedBytes": 116474
+      },
+      "textureTransitionReductionPercent": 56.2
+    }
+  ]
+}

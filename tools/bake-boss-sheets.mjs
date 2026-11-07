@@ -27,8 +27,12 @@ const browser = await chromium.launch({
   executablePath: process.env.CHROME ?? '/usr/bin/chromium',
   args: ['--no-sandbox'],
 });
+const paletteFile = 'art-source/bosses/material-palettes.json';
+const materials = JSON.parse(readFileSync(paletteFile, 'utf8'));
 const manifest = { sourceHash: '', atlases: {}, portraits: [] };
-const hash = createHash('sha256').update(readFileSync(import.meta.filename));
+const hash = createHash('sha256')
+  .update(readFileSync(import.meta.filename))
+  .update(readFileSync(paletteFile));
 try {
   const page = await browser.newPage();
   await page.goto(base + 'labs/uilab.html?panel=none');
@@ -37,8 +41,10 @@ try {
     if (!existsSync(file)) continue;
     const raw = readFileSync(file);
     hash.update(id).update(raw);
+    if (materials[id]?.sourceHash !== createHash('sha256').update(raw).digest('hex'))
+      throw Error(`Stale material palette for ${id}; run python3 tools/art/prepare_boss_palettes.py`);
     const result = await page.evaluate(
-      async ({ id, w, h, columns, frames, data }) => {
+      async ({ id, w, h, columns, frames, data, materialColors }) => {
         const { paletteColor } = await import('/src/art/creature-pixels.ts');
         const img = new Image();
         img.src = data;
@@ -202,11 +208,25 @@ try {
             const rgb = (data.data[i] << 16) | (data.data[i + 1] << 8) | data.data[i + 2];
             let col = colors.get(rgb);
             if (col === undefined) {
+              // Quantize materials first, across the WHOLE sheet. Per-pixel nearest master colors
+              // turn small source RGB variance into unrelated grey/tan/pink speckles.
+              let distance = Infinity,
+                material = materialColors[0];
+              for (const candidate of materialColors) {
+                const dr = data.data[i] - candidate[0],
+                  dg = data.data[i + 1] - candidate[1],
+                  db = data.data[i + 2] - candidate[2];
+                const d = 2 * dr * dr + 4 * dg * dg + db * db;
+                if (d < distance) {
+                  distance = d;
+                  material = candidate;
+                }
+              }
               const k = night ? 0.86 : 1;
               col = paletteColor(
-                (Math.min(255, Math.round((data.data[i] + 5) * k)) << 16) |
-                  (Math.min(255, Math.round((data.data[i + 1] + 5) * k)) << 8) |
-                  Math.min(255, Math.round((data.data[i + 2] + 5) * k)),
+                (Math.min(255, Math.round((material[0] + 5) * k)) << 16) |
+                  (Math.min(255, Math.round((material[1] + 5) * k)) << 8) |
+                  Math.min(255, Math.round((material[2] + 5) * k)),
               );
               colors.set(rgb, col);
             }
@@ -221,6 +241,9 @@ try {
           target.getContext('2d').putImageData(data, 0, 0);
           urls[night ? 'night' : 'day'] = target.toDataURL();
         }
+        const day = new Image();
+        day.src = urls.day;
+        await day.decode();
         const portrait = document.createElement('canvas');
         portrait.width = 64;
         portrait.height = 64;
@@ -228,7 +251,7 @@ try {
         pc.imageSmoothingEnabled = false;
         const k = Math.min(60 / w, 60 / h);
         pc.drawImage(
-          canvas,
+          day,
           0,
           0,
           w,
@@ -238,9 +261,6 @@ try {
           Math.round(w * k),
           Math.round(h * k),
         );
-        const day = new Image();
-        day.src = urls.day;
-        await day.decode();
         const thumbnail = document.createElement('canvas');
         thumbnail.width = Math.ceil(w / 4);
         thumbnail.height = Math.ceil(h / 4);
@@ -261,6 +281,7 @@ try {
         h,
         columns: id === 'veyr' ? [0, 1, 2, 3, 4, 5, 6, 6, 5, 7] : columns,
         frames,
+        materialColors: materials[id].colors,
         data: 'data:image/png;base64,' + raw.toString('base64'),
       },
     );

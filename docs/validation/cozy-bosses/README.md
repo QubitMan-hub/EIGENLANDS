@@ -1,3 +1,7 @@
+# Historical first stage — superseded art
+
+The [flat source redraw](../cozy-boss-redraw/README.md) is the current boss art. The notes and captures below record the earlier sampling-only adjustment and combat changes. The combat improvements remain; the source art, gallery and export sizes have since changed.
+
 # Cozy boss presentation and combat
 
 All 14 existing boss identities remain. The importer now samples them on a shared two-pixel cluster grid at the same world size. This reduces fine texture density without runtime blur, new collisions, anatomy changes or another generic recolor. Original sources remain intact. The 28 production day/night PNGs are 50.7% smaller in total (14,694,307 → 7,237,790 bytes); decoded texture dimensions and GPU memory budget are unchanged. See [export sizes](export-size.json). Four authored facings, frame ordering, ground pivots, binary alpha, portraits and day/night variants remain compatible.

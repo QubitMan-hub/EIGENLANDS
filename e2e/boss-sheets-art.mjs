@@ -7,7 +7,9 @@ const base = process.argv[2] ?? 'http://127.0.0.1:5187/',
 mkdirSync(out, { recursive: true });
 const root = 'packages/client/public/art/bestiary';
 const manifest = JSON.parse(readFileSync(root + '/boss-manifest.json', 'utf8'));
-const hash = createHash('sha256').update(readFileSync('tools/bake-boss-sheets.mjs'));
+const hash = createHash('sha256')
+  .update(readFileSync('tools/bake-boss-sheets.mjs'))
+  .update(readFileSync('art-source/bosses/material-palettes.json'));
 for (const id of Object.keys(manifest.atlases)) hash.update(id).update(readFileSync(`art-source/bosses/${id}.png`));
 assert.equal(hash.digest('hex'), manifest.sourceHash, 'Authored source changed; normalize boss sheets again');
 const b = await chromium.launch({ executablePath: process.env.CHROME ?? '/usr/bin/chromium', args: ['--no-sandbox'] });
@@ -39,7 +41,8 @@ try {
           const ctx = all.getContext('2d', { willReadFrequently: true });
           ctx.drawImage(img, 0, 0);
           const fingerprints = [],
-            counts = [];
+            counts = [],
+            materialColors = new Set();
           for (let dir = 0; dir < 4; dir++)
             for (let pose = 0; pose < poses; pose++) {
               const x = (pose % d.cols) * d.w,
@@ -51,6 +54,8 @@ try {
                   const alpha = a.data[(yy * d.w + xx) * 4 + 3];
                   if (alpha !== 0 && alpha !== 255) throw Error('Soft alpha ' + id);
                   if (alpha) {
+                    const i = (yy * d.w + xx) * 4;
+                    materialColors.add((a.data[i] << 16) | (a.data[i + 1] << 8) | a.data[i + 2]);
                     count++;
                     if (xx === 0 || yy === 0 || xx === d.w - 1 || yy === d.h - 1)
                       throw Error('Clipped frame ' + id + '/' + dir + '/' + pose);
@@ -60,6 +65,7 @@ try {
               counts.push(count);
               if (pose === 0) fingerprints.push(a.data.join(','));
             }
+          if (materialColors.size > 16) throw Error(`Noisy material palette ${id}: ${materialColors.size} colors`);
           if (new Set(fingerprints).size !== 4) throw Error('Repeated boss facing ' + id);
           const row = document.createElement('canvas');
           row.width = d.w * 4;

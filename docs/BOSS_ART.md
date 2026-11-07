@@ -1,33 +1,18 @@
-# Authored boss sprites
+# Cozy boss sprites
 
-Latest presentation and combat follow-up: [cozy bosses](validation/cozy-bosses/README.md). Production imports use a consistent two-pixel cluster grid, retain the original designs and anchors, and reduce fine detail. Boss pursuit accelerates smoothly; attack poses survive ordinary hits, windup shake is removed and simultaneous impact sounds/shakes are coalesced. The original source/animation contract below remains; dense new bespoke animation sequences are not claimed.
+All 14 bosses use the **flat cozy source redraw**. Read [current validation and rebuild guide](validation/cozy-boss-redraw/README.md) and view the [complete gallery](validation/current-bosses/gallery.png). Broad material shapes, few large shade clusters, muted colors and readable silhouettes are the current standard. Avoid individual scales, fur hairs, armor etching, chipped surfaces, bone/chain clutter, sparkling facets and texture stippling.
 
-The five ancient bosses establish the new art standard: **Azhur, First Flame** has a muscular charcoal body, substantial torn rust wings, articulated claws and a heavy armored tail; **Orrun** has thick overlapping coils, a defined horned head and pale ventral scales; **the Unwritten King** is an empty, ragged funerary mantle with a fractured mask and chained tablets; **Morrowforge** has massive weathered stone-and-iron plates, recessed furnace and a grounded maul; **Asterion** has a tall ivory cathedral silhouette, six gate shields and a ceremonial spear. These are separate designs rather than recolored variants of one rig.
+The five ancient silhouettes remain distinct: Azhur has substantial russet wings and pale horns; Orrun has heavy teal coils and a cream belly; the Unwritten King has a plum hood, ivory mask and floating seal tablets; Morrowforge has broad stone plates, moss patches and a heavy hammer; Asterion has ivory armor, a teal cape, spear and a fan of gate shields. Veyr preserves the user's cyan reactor, blue crystals and orange attack core. The other bosses keep their own bell, jelly crown, tusks, crystal claws, flippers or ice crown/blade identities.
 
-The same pass replaces the Slime Sovereign, Briar Warden, Decoherent Colossus, Bellkeeper, Geode Tyrant, Cinder Wyrm, Rime Sovereign, Tide Leviathan and Veyr. Veyr preserves the player's original blue runes, reactor and crystal crown; the original source file remains intact. All fourteen bosses have their own portraits matching the world sprites. The Slime Sovereign and Colossus no longer enlarge/recolor normal enemy art, and the Warden no longer enlarges a normal boar.
+## Asset contract
 
-## Assets and animation contract
+- Sources: `art-source/bosses/*.png`; provenance in `cozy-redraw.json`. Previous detailed sources are recoverable at Git commit `b009d7b`. The original user Veyr reference remains under `client/src/assets/bosses/veyr.png`. Source masters do not ship in the browser bundle.
+- Each sheet has 8 columns and 4 facing rows: SE, SW, NE, NW. Standard columns are idle, left stride, passing, right stride, windup, release, recovery, defeated. Veyr retains four walk columns, then windup, release and defeated.
+- Runtime order stays **idle → move → windup → attack → hurt → death**. Movement is stride/passing/stride/passing, with separate anticipation and release/recovery poses. Hurt reuses the braced pose; Veyr holds its release pose. Source sheet changes do not imply a new interpolation/animation system.
+- One common scale per boss and fixed ground anchors. Cells remain 160–240 px wide / 144–208 high, packed five columns / two rows per facing. Atlas dimensions stay within 2048px. World size and collision are unchanged.
+- `tools/art/prepare_boss_palettes.py` prepares one small material palette for all poses/facings, merging near-identical colors before mapping to the game palette. `tools/bake-boss-sheets.mjs` validates that preparation, strips export coverage, aligns contacts, applies the two-pixel art grid and produces the day/night atlases, portraits, fallbacks and manifest. This avoids random material-color speckles without runtime filtering.
+- Production files: `client/public/art/bestiary/<boss>-day.png`, `-night.png`, `portraits/`, and mirrored manifest in `client/src/art/boss-manifest.json`.
 
-- Original authored sheets: `art-source/bosses/*.png`. These were generated specifically for this game from the original design brief and the player's Veyr sheet; outside game references informed style, not copied artwork. Source sheets are authoring inputs and are **not shipped in the browser bundle**.
-- Production: `packages/client/public/art/bestiary/<boss>-day.png`, `-night.png`, matching `portraits/`, and `boss-manifest.json` mirrored in `client/src/art/`.
-- Four row groups remain SE, SW, NE, NW. Source columns are idle; left stride; passing; right stride; windup; strike; recovery; defeated. Veyr retains its original idle/four walk/windup/attack/death column contract.
-- Production logical order remains **idle → move → windup → attack → hurt → death**. Walking uses stride A/passing/stride B/passing, not a constant whole-body translation. Anticipation and strike/recovery remain separate poses. Hurt reuses the braced pose. Veyr's single strike pose holds through its attack interval. These are deliberately restrained keyframe animations, not interpolated meshes.
-- One common scale covers every pose and facing of a boss. Normalization finds ground contact, removes detached sheet flecks, clips soft alpha, maps to the existing palette and uses nearest sampling. It does not independently resize poses to fill cells.
-- Boss cells are 160–240 pixels wide and 144–208 high. The packed ten-pose layout uses five columns and two rows **per facing**; no texture exceeds 2048 pixels on either axis. Empty space does not alter the pivot. `poseRows` keeps the logical frame order independent from packing.
+`bestiary-atlases.ts` loads the shipped PNGs, caches frame textures under the existing soft budgets and retains matching embedded thumbnails for failed downloads. `foes.ts` maps every boss to its own atlas. `combatview.ts` uses real authored facings, distance-based walking, committed cast poses, restrained flashes and no elastic boss squash or windup vibration. The silhouette shadow copies the live pivot, pose and scale. The [previous combat follow-up](validation/cozy-bosses/README.md) documents smooth pursuit, alternating patterns and interrupted casts; those mechanics remain in place.
 
-`bestiary-atlases.ts` decodes shipped PNGs and caches frame textures. It avoids runtime boss-model rasterization, uses a 24-atlas/12-megapixel soft cache budget, retains recently visible kinds and unloads older textures. If a boss atlas fails to download, an embedded matching thumbnail preserves its size/ground anchor instead of leaving an invisible enemy. Debug state reports loaded/pending/failed atlases and decoded pixels. Night assets use the same coverage and anchors as day assets.
-
-`foes.ts` maps each boss kind to its own art. `combatview.ts` retains four real facings, removes the old ordinary-enemy aliases/tints/giant scaling, slows the heavy walk cadence, holds strike/recovery poses, and disables elastic hit squash on bosses. Grounded corpse poses use the same anchor. Contact shadows use the boss footprint; the moving-sun silhouette shadow copies the live sprite's pivot, position and scale.
-
-## Rebuild and verification
-
-```sh
-node tools/bake-boss-sheets.mjs http://127.0.0.1:5174/
-node --import tsx e2e/bestiary-art.mjs http://127.0.0.1:5174/ /tmp/bestiary --bake
-node e2e/boss-sheets-art.mjs http://127.0.0.1:5174/ /tmp/boss-sheets
-node --import tsx e2e/bestiary-art.mjs http://127.0.0.1:5174/ /tmp/bestiary
-npm run build:pages
-node --import tsx e2e/boss-gameplay.mjs http://127.0.0.1:5240/ /tmp/boss-gameplay
-```
-
-The source hash rejects stale exports. Static checks inspect every logical pose in all four facings, day/night bounds, hard transparency, distinct facings, nonempty coverage and the texture budget. Gameplay checks use real synchronized enemies and AI, including the five ancient designs on desktop and a 390px mobile viewport. They verify actual shipped image loads, fixed proportions, foot anchors, shadow registration, animation states and mobile header separation. A blocked-download check verifies the authored fallback. Physical-device thermal/GPU measurements and extended multiplayer balance play remain separate from browser correctness checks.
+Verification and reproducible commands are in the current validation guide. Shader/lighting, creature stats, loot, progression and saves were not modified by the source redraw. Extended cooperative balance and physical-device performance remain separate work.
