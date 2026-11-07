@@ -1,4 +1,5 @@
-import { Container, Graphics, Sprite, Text, type Texture } from 'pixi.js';
+import { Container, Graphics, Sprite, type Texture } from 'pixi.js';
+import { PixelLabel } from '../art/pixel-label';
 import { meleeTap, meleeHeavy, PALETTE, type ComboHit } from '@eigenlands/shared';
 import { ISO_HH, ISO_HW, isoX, isoY } from './iso';
 
@@ -15,7 +16,6 @@ const ARC_PAD = 0.38;
 export class Fx {
   private items: Item[] = [];
   shake = 0;
-  textRes = 2;
 
   constructor(
     readonly layer: Container,
@@ -176,22 +176,16 @@ export class Fx {
     });
   }
 
-  /** Floating text above a world point (lift in art pixels). */
+  /** Floating text above a world point (lift in art pixels), in the pixel font on the art grid: big hits draw at
+   * twice the size, and the pop is a whole extra step for its first frames, never a fractional scale. */
   number(x: number, y: number, text: string, color: number, lift = 16, size = 8, pop = 1): void {
-    const t = new Text({
-      text,
-      style: {
-        fontFamily: 'monospace',
-        fontSize: size,
-        fontWeight: 'bold',
-        fill: pc(color),
-        stroke: { color: pc(0), width: 2 },
-      },
-    });
-    t.resolution = this.textRes;
+    const t = new PixelLabel(text, color);
     t.anchor.set(0.5);
-    t.x = isoX(x, y) + (Math.random() - 0.5) * 6;
-    t.y = isoY(x, y) - lift;
+    const base = size >= 10 ? 2 : 1;
+    const x0 = Math.round(isoX(x, y) + (Math.random() - 0.5) * 6);
+    let y0 = isoY(x, y) - lift;
+    t.position.set(x0, Math.round(y0));
+    t.scale.set(base);
     this.layer.addChild(t);
     let life = 0;
     const reduced = this.reduced();
@@ -199,9 +193,9 @@ export class Fx {
       alive: true,
       update(dt) {
         life += dt;
-        t.y -= 14 * dt;
-        const s = reduced ? 1 : 1 + (pop - 1) * Math.max(0, 1 - life / 0.12);
-        t.scale.set(s);
+        y0 -= 14 * dt;
+        t.y = Math.round(y0);
+        t.scale.set(!reduced && pop >= 1.3 && life < 0.12 ? base + 1 : base);
         t.alpha = Math.min(1, 2 - life * 2);
         if (life > 0.9) {
           t.destroy();

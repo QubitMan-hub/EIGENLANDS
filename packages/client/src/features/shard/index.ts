@@ -1,15 +1,15 @@
-import { Container, Sprite, Text } from 'pixi.js';
-import { MSG34, PALETTE, type Ghost, type GhostsMsg, type ShardInfoMsg } from '@eigenlands/shared';
+import { Container, Sprite } from 'pixi.js';
+import { PixelLabel } from '../../art/pixel-label';
+import { MSG34, type Ghost, type GhostsMsg, type ShardInfoMsg } from '@eigenlands/shared';
 import { OUTFITS, WALK_FRAMES, dirOf } from '../../art/actors';
 import { depth, isoX, isoY, screenDir } from '../../game/iso';
 import { Interpolator, type Pose } from '../../net/interp';
 import type { ClientModule, P34Deps } from '../types';
 
-const pc = (i: number) => parseInt(PALETTE[i]!.slice(1), 16);
 interface GhostView {
   root: Container;
   sprite: Sprite;
-  label: Text;
+  label: PixelLabel;
   lx: number;
   ly: number;
   travel: number;
@@ -73,16 +73,7 @@ export class ShardClient implements ClientModule {
         sprite.alpha = 0.92;
         root.addChild(sprite);
         this.d.entityLayer().addChild(root);
-        const label = new Text({
-          text: g.name,
-          style: {
-            fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
-            fontSize: 12,
-            fontWeight: 'bold',
-            fill: pc(6),
-            stroke: { color: pc(0), width: 3 },
-          },
-        });
+        const label = new PixelLabel(g.name, 6);
         label.anchor.set(0.5, 1);
         this.d.labelLayer().addChild(label);
         v = { root, sprite, label, lx: smp.x, ly: smp.y, travel: 0, seen: 0 };
@@ -102,8 +93,11 @@ export class ShardClient implements ClientModule {
       v.root.y = Math.round(isoY(smp.x, smp.y));
       v.root.zIndex = depth(smp.x, smp.y);
       const s = this.d.toScreen(smp.x, smp.y);
+      // one art pixel on screen: a tile's half height is 8 art pixels
+      const px = (this.d.toScreen(0, 1).y - this.d.toScreen(0, 0).y) / 8;
+      v.label.scale.set(px);
       v.label.x = Math.round(s.x);
-      v.label.y = Math.round(s.y - (30 * (this.d.toScreen(0, 1).y - this.d.toScreen(0, 0).y)) / 8);
+      v.label.y = Math.round(s.y - 30 * px);
     }
   }
 

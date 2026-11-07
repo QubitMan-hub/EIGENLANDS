@@ -13,6 +13,14 @@ export interface Light {
 const hex = (r: number, g: number, b: number) =>
   (Math.round(Math.min(1, r) * 255) << 16) | (Math.round(Math.min(1, g) * 255) << 8) | Math.round(Math.min(1, b) * 255);
 const paletteInt = (i: number) => parseInt(PALETTE[i]!.slice(1), 16);
+/** the light-pool texture: its size, and the bands from the outside in (radius as a fraction, opacity) */
+const GLOW = 64;
+const GLOW_BANDS: ReadonlyArray<[number, number]> = [
+  [1, 0.14],
+  [0.78, 0.32],
+  [0.56, 0.55],
+  [0.34, 0.85],
+];
 /** ambient level (every channel) at which the lightmap is visually a no-op */
 export const DAYLIGHT = 0.98;
 
@@ -29,14 +37,23 @@ export class Lighting {
   private ambientHex = -1;
 
   constructor(private renderer: Renderer) {
-    const { canvas, ctx } = makeCanvas(128, 128);
-    const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
-    g.addColorStop(0, 'rgba(255,255,255,1)');
-    g.addColorStop(0.35, 'rgba(255,255,255,0.55)');
-    g.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, 128, 128);
+    // A pool of light is a few flat, hard-edged bands (pixel art does not use smooth gradients); drawn as a
+    // circle here, it is squashed 2:1 onto the ground below, so the bands lie flat in the isometric view.
+    const { canvas, ctx } = makeCanvas(GLOW, GLOW);
+    for (const [r, a] of GLOW_BANDS) {
+      ctx.fillStyle = `rgba(255,255,255,${a})`;
+      for (let y = 0; y < GLOW; y++)
+        for (let x = 0; x < GLOW; x++) {
+          const dx = x + 0.5 - GLOW / 2,
+            dy = y + 0.5 - GLOW / 2;
+          if (dx * dx + dy * dy <= ((r * GLOW) / 2) ** 2) {
+            ctx.clearRect(x, y, 1, 1);
+            ctx.fillRect(x, y, 1, 1);
+          }
+        }
+    }
     this.glow = Texture.from(canvas);
+    this.glow.source.scaleMode = 'nearest';
     this.rt = RenderTexture.create({ width: 16, height: 16, resolution: 0.5 });
     // Pixi must invalidate the submitted sprite quad when this render target resizes.
     this.rt.dynamic = true;
@@ -54,7 +71,7 @@ export class Lighting {
     this.h = hPx;
     this.rt.resize(wPx, hPx, 0.5);
     this.ambientHex = -1;
-    this.rt.source.scaleMode = 'linear';
+    this.rt.source.scaleMode = 'nearest';
   }
 
   render(ambient: [number, number, number], lights: Light[]): void {

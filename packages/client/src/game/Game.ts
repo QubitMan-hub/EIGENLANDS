@@ -1,7 +1,8 @@
 import { contactShadow, castProjection } from './grounding';
 import { actionPose, actionFrame, meleeAction, meleeFrame, type PersonAction } from '../art/person-actions';
 import { LIVESTOCK_AX, LIVESTOCK_AY, LIVESTOCK_H, LIVESTOCK_W, livestockTexture } from '../art/livestock';
-import { isLivestock } from '@eigenlands/shared';
+import { C, isLivestock } from '@eigenlands/shared';
+import { PixelLabel } from '../art/pixel-label';
 import { FrameRateWindow } from './frame-rate';
 import { Soundscape } from './soundscape';
 import { GroundMarks } from './groundmarks';
@@ -15,7 +16,7 @@ import { constructionTexture, BUILD_AX, BUILD_AY } from '../art/construction';
 import { isBuildPiece, buildTile, simulationBudget } from '@eigenlands/shared';
 import { ConstructionViews } from './constructionviews';
 import { planeOf } from '../features/atlas/model';
-import { Application, Container, Graphics, Sprite, Text } from 'pixi.js';
+import { Application, Container, Graphics, Sprite } from 'pixi.js';
 import {
   BOSSES,
   xpForLevel,
@@ -193,7 +194,7 @@ interface ActorView {
   gfx: Graphics;
   shadow: Sprite;
   contact: Sprite | null;
-  label?: Text;
+  label?: PixelLabel;
   lx: number;
   ly: number;
   travel: number;
@@ -632,7 +633,6 @@ export class Game {
       this.terrain.resize(vw, vh);
       this.terrain.sprite.scale.set(this.scale);
     }
-    this.fx.textRes = this.scale * res;
   }
 
   /** Resolves when the first state containing the local player has been received and the area is drawn. */
@@ -1093,51 +1093,21 @@ export class Game {
     this.shadowLayer.addChild(shadow);
     const contact = type === 'proj' ? null : contactShadow(this.shadowLayer, 3);
     let outfit = 0;
-    let label: Text | undefined;
+    let label: PixelLabel | undefined;
     if (type === 'npc') {
-      label = new Text({
-        text: e.name || NPC_BY_ID[id]?.name.split(' ')[0] || '',
-        style: {
-          fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
-          fontSize: 11,
-          fontWeight: 'bold',
-          fill: pc(46),
-          stroke: { color: pc(0), width: 3 },
-        },
-      });
-      label.resolution = this.app.renderer.resolution || 1;
+      label = new PixelLabel(e.name || NPC_BY_ID[id]?.name.split(' ')[0] || '', 46);
       label.anchor.set(0.5, 1);
       this.labelLayer.addChild(label);
     }
     if (type === 'shadow') {
-      label = new Text({
-        text: e.name || '',
-        style: {
-          fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
-          fontSize: 10,
-          fontWeight: 'bold',
-          fill: e.bonded ? 0xe6d5a5 : 0xd49aff,
-          stroke: { color: pc(0), width: 3 },
-        },
-      });
-      label.resolution = this.app.renderer.resolution || 1;
+      label = new PixelLabel(e.name || '', e.bonded ? C.e6 : C.q4);
       label.anchor.set(0.5, 1);
       this.labelLayer.addChild(label);
     }
     if (type === 'player') {
       outfit = id === this.myId ? 0 : [...id].reduce((a, c) => a + c.charCodeAt(0), 0) % COSMETIC_OUTFITS;
       // names live in screen space (crisp, not darkened by the night lightmap)
-      label = new Text({
-        text: e.name || '',
-        style: {
-          fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
-          fontSize: 12,
-          fontWeight: 'bold',
-          fill: pc(id === this.myId ? 47 : 7),
-          stroke: { color: pc(0), width: 3 },
-        },
-      });
-      label.resolution = this.app.renderer.resolution || 1;
+      label = new PixelLabel(e.name || '', id === this.myId ? 47 : 7);
       label.anchor.set(0.5, 1);
       this.labelLayer.addChild(label);
     }
@@ -1999,6 +1969,7 @@ export class Game {
           if (s?.name && v.label.text !== s.name) v.label.text = s.name;
           // riders' names float above the saddle, and a griffin's rider higher still
           const above = PERSON_TOP + (riding ? -8 - v.sprite.y : 0);
+          v.label.scale.set(this.scale);
           v.label.x = Math.round(this.world.x + v.root.x * this.scale);
           v.label.y = Math.round(this.world.y + (v.root.y - above) * this.scale);
         }
@@ -2037,6 +2008,7 @@ export class Game {
         if (v.label) {
           const near = Math.hypot(x - me.x, y - me.y) < 4;
           v.label.visible = !hidden && near;
+          v.label.scale.set(this.scale);
           v.label.x = Math.round(this.world.x + v.root.x * this.scale);
           v.label.y = Math.round(this.world.y + (v.root.y - PERSON_TOP) * this.scale);
         }
@@ -2046,6 +2018,7 @@ export class Game {
           v.label.visible = v.root.visible;
           const txt = s?.kind === 21 || s?.bonded ? s.name : `${s?.name ?? ''} · ${SHADOW_RANKS[s?.rank ?? 0]}`;
           if (v.label.text !== txt) v.label.text = txt;
+          v.label.scale.set(this.scale);
           v.label.x = Math.round(this.world.x + v.root.x * this.scale);
           v.label.y = Math.round(this.world.y + (v.root.y - 34) * this.scale);
         }

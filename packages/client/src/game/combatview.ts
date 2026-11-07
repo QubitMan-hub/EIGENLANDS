@@ -958,9 +958,22 @@ export class CombatView {
       sx = 1;
       sy = 1;
     }
+    // pixel art squashes by whole pixels: the stretch is rounded to a whole number of art pixels on each axis, so
+    // the sprite never shows half-pixels mid-squash
+    const fw = v.sprite.texture.frame.width * big,
+      fh = v.sprite.texture.frame.height * big;
+    sx = fw > 0 ? Math.round(fw * sx) / fw : sx;
+    sy = fh > 0 ? Math.round(fh * sy) / fh : sy;
     v.sprite.scale.set(sx * big * (flip ? -1 : 1), sy * big);
-    v.sprite.rotation = st === 5 && !reduced && !authoredBoss ? Math.sin(t * 22) * 0.12 : 0;
-    v.sprite.x = st === 2 && !reduced && tele > 0.6 ? Math.round(Math.sin(t * 60) * tele) : 0; // shiver before the hit
+    v.sprite.rotation = 0;
+    // staggered: a one-pixel side-to-side shake (rotating would resample the art off its grid and off the iso
+    // angles); winding up: a shiver before the hit
+    v.sprite.x =
+      st === 5 && !reduced && !authoredBoss
+        ? Math.sign(Math.sin(t * 22))
+        : st === 2 && !reduced && tele > 0.6
+          ? Math.round(Math.sin(t * 60) * tele)
+          : 0;
     v.fl.texture = v.sprite.texture;
     v.fl.scale.copyFrom(v.sprite.scale);
     v.fl.rotation = v.sprite.rotation;
