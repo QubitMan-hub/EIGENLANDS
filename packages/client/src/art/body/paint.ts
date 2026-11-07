@@ -1,3 +1,4 @@
+import { garmentPixel } from './catalog';
 /**
  * The base body and everything worn on it, painted from a solved pose.
  *
@@ -31,6 +32,10 @@ import {
 } from './skeleton';
 
 export interface Garments {
+  topPattern?: number[];
+  legPattern?: number[];
+  mouth?: number;
+  lips?: number;
   /** shirt / tunic: sleeve covers this fraction of the arm (0 sleeveless, ~0.45 short, 1 long); hem: height above the
    * hips of its lower edge (negative hangs below the waist) */
   top?: { ramp: Ramp; sleeve: number; hem: number; trim?: number; collar?: boolean; laces?: number };
@@ -207,7 +212,9 @@ export function paintBody(ctx: Ctx, dir: number, pose: Pose, look: BodyLook, opt
         return { ramp: gm.top.ramp, ink: gm.top.laces };
       if (gm.top.collar && dz > shoulderH - 0.9 && v > 0.3 && Math.abs(u) < 0.45) return { ramp: gm.top.ramp, tone: 3 };
       if (gm.top.trim !== undefined && dz < gm.top.hem + 0.5) return { ramp: gm.top.ramp, ink: gm.top.trim };
-      return { ramp: gm.top.ramp };
+      const detail =
+        v > 0.4 ? garmentPixel(gm.topPattern, u, 1 - (dz - gm.top.hem) / (shoulderH - gm.top.hem)) : undefined;
+      return detail === undefined ? { ramp: gm.top.ramp } : { ramp: gm.top.ramp, ink: detail };
     }
     if (gm.legs && dz < 0.9) return { ramp: gm.legs.ramp };
     // underwear: briefs; a chest wrap for the women's body
@@ -277,7 +284,10 @@ export function paintBody(ctx: Ctx, dir: number, pose: Pose, look: BodyLook, opt
     if (look.legs && z >= look.legs.hem) {
       if (look.legs.cuff !== undefined && z < look.legs.hem + 0.6)
         return { ramp: look.legs.ramp, tone: look.legs.cuff };
-      return { ramp: look.legs.ramp };
+      const detail = look.legPattern
+        ? garmentPixel(look.legPattern, 0.2, 1 - (z - look.legs.hem) / (d.hipZ - look.legs.hem))
+        : undefined;
+      return detail === undefined ? { ramp: look.legs.ramp } : { ramp: look.legs.ramp, ink: detail };
     }
     if (z >= d.hipZ - 1.6) return { ramp: look.under ?? UNDER };
     return { ramp: skin };
@@ -288,8 +298,10 @@ export function paintBody(ctx: Ctx, dir: number, pose: Pose, look: BodyLook, opt
       ankle = side === 'L' ? j.ankleL : j.ankleR,
       toe = side === 'L' ? j.toeL : j.toeR;
     const part = g.part();
-    capsule(g, P, hip, knee, d.rThigh[0], d.rThigh[1], part, (p) => legMat(p[2]));
-    capsule(g, P, knee, ankle, d.rShin[0], d.rShin[1], part, (p) => legMat(p[2]));
+    capsule(g, P, hip, knee, d.rThigh[0], d.rThigh[1], part, (_p, t) =>
+      legMat(d.hipZ + (d.ankleZ + d.shin - d.hipZ) * t),
+    );
+    capsule(g, P, knee, ankle, d.rShin[0], d.rShin[1], part, (_p, t) => legMat(d.ankleZ + d.shin * (1 - t)));
     // the foot: heel under the ankle to the toes
     const heel: V3 = [
       ankle[0] - (toe[0] - ankle[0]) * 0.18,
@@ -465,8 +477,13 @@ export function paintBody(ctx: Ctx, dir: number, pose: Pose, look: BodyLook, opt
         g.zset(x0 + Math.floor(x * 0.875), y0 + Math.floor(y * 0.875), depth, headPart, skin, -1, look.eyes);
       else if (ch === 'b')
         g.zset(x0 + Math.floor(x * 0.875), y0 + Math.floor(y * 0.875), depth, headPart, look.hair, 0);
-      else if (ch === 'm') g.zset(x0 + Math.floor(x * 0.875), y0 + Math.floor(y * 0.875), depth, headPart, skin, 1);
-      else g.zset(x0 + Math.floor(x * 0.875), y0 + Math.floor(y * 0.875), depth, headPart, skin, toneOf[ch] ?? 2);
+      else if (ch === 'm') {
+        const mx = x0 + Math.floor(x * 0.875),
+          my = y0 + Math.floor(y * 0.875);
+        g.zset(mx, my, depth, headPart, skin, 1, look.lips ?? -1);
+        if (look.mouth && look.mouth % 5 === 0) g.zset(mx, my + 1, depth, headPart, skin, 0);
+        if (look.mouth && look.mouth % 5 === 1) g.zset(mx + 1, my, depth, headPart, skin, 1, look.lips ?? -1);
+      } else g.zset(x0 + Math.floor(x * 0.875), y0 + Math.floor(y * 0.875), depth, headPart, skin, toneOf[ch] ?? 2);
     }
   });
   const stamp = headStamp(dir, look.gear, 0.875);

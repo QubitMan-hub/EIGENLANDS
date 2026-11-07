@@ -1,3 +1,4 @@
+import { validParts, partsKey, type AppearanceParts } from '@eigenlands/shared';
 import { Rectangle, Texture } from 'pixi.js';
 import { DELVER_MERCHANTS, NPCS as VILLAGE_NPCS, REALMFOLK, realmNpcs } from '@eigenlands/shared';
 
@@ -68,6 +69,7 @@ export type HatStyle = 'cap' | 'brim' | 'beret' | 'helm' | 'hood' | 'circlet' | 
 /** Garment cut: how far the skirts hang and what sits on the shoulders. Plain tunic when absent. */
 export type DressStyle = 'robe' | 'coat' | 'mantle' | 'plated';
 export interface Outfit {
+  parts?: AppearanceParts;
   shirt: Ramp;
   pants: Ramp;
   hair: Ramp;
@@ -859,7 +861,7 @@ export interface Sheets {
   /** frame 0 = idle (breathes on its own), 1..WALK_FRAMES-1 = walk; dir = one of the 8 DIR_* constants */
   person(outfit: number, dir: number, frame: number): Texture;
   /** a player with a chosen appearance (packed, see shared/appearance.ts) wearing outfit/armour look `look` */
-  styled(look: number, app: number, dir: number, frame: number): Texture;
+  styled(look: number, app: number, dir: number, frame: number, parts?: string): Texture;
   /** true when `styled(look, app, ...)` is already built (building one costs a frame or two, so callers can budget it) */
   styledReady(look: number, app: number): boolean;
   /** Original 24×32 resident art, eight facings, shared animation frame IDs. */
@@ -995,8 +997,8 @@ export function buildActorSheets(): Sheets {
   // Villagers only walk, so an atlas starts with the ten walk/idle columns (a third of the work) and is rebuilt with the
   // strike/run/aim/cast columns only when someone actually asks for one of those frames.
   const styledAtlases = new Map<string, { base: Texture; subs: Map<string, Texture>; cols: number }>();
-  const styledFor = (look: number, app: number, needCol = 0) => {
-    const key = `${look}:${app}`;
+  const styledFor = (look: number, app: number, needCol = 0, parts = '') => {
+    const key = `${look}:${app}:${parts}`;
     let e = styledAtlases.get(key);
     if (e && needCol >= e.cols) {
       for (const t of e.subs.values()) t.destroy(false);
@@ -1007,7 +1009,7 @@ export function buildActorSheets(): Sheets {
     if (e) {
       styledAtlases.delete(key);
     } else {
-      const a = appearanceOf(app)!;
+      const a = { ...appearanceOf(app)!, parts: validParts(parts ? JSON.parse(parts) : null) };
       const baseLook = OUTFITS[((look % OUTFITS.length) + OUTFITS.length) % OUTFITS.length]!;
       const outfit = outfitFromAppearance(baseLook, a, look === 0);
       const cols = needCol >= WALK_FRAMES + 1 ? COLS : WALK_FRAMES + 1;
@@ -1100,18 +1102,21 @@ export function buildActorSheets(): Sheets {
       const c = col(f, o * 3 + d);
       return sub(personBaseFor(o), `p${o}.${dd(d)}.${c}`, c * PERSON_W, dd(d) * PERSON_H, PERSON_W, PERSON_H);
     },
-    styledReady: (look, app) => !appearanceOf(app) || styledAtlases.has(`${look}:${app}`),
-    styled: (look, app, d, f) => {
+    styledReady: (look, app) => !appearanceOf(app) || styledAtlases.has(`${look}:${app}:`),
+    styled: (look, app, d, f, rawParts = '') => {
+      const parts = partsKey(rawParts);
+      const chosen = appearanceOf(app);
+      const a = chosen ? { ...chosen, parts: validParts(parts ? JSON.parse(parts) : null) } : null;
       if (!appearanceOf(app)) return sheet.person(look, d, f);
       if (actionPose(d, f))
         return actionTexture(
-          `a:${look}:${app}:${d}:${f}`,
-          outfitFromAppearance(OUTFITS[look]!, appearanceOf(app)!, look === 0),
+          `a:${look}:${app}:${parts}:${d}:${f}`,
+          outfitFromAppearance(OUTFITS[look]!, a!, look === 0),
           d,
           f,
         );
       const c = col(f, (app % 31) * 3 + d);
-      const e = styledFor(look, app, c);
+      const e = styledFor(look, app, c, parts);
       const k = `${dd(d)}.${c}`;
       let t = e.subs.get(k);
       if (!t) {

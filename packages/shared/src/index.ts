@@ -109,3 +109,5 @@ export * from './realmfolk';
 export * from './gates';
 
 export * from './defense';
+
+export * from './appearance-parts';

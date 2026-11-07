@@ -178,6 +178,7 @@ interface Snap extends Pose {
   level: number;
   look: number;
   app: number;
+  parts: string;
   weapon: string;
   held: string;
   cart: boolean;
@@ -713,6 +714,7 @@ export class Game {
         level: e.level ?? 1,
         look: e.look ?? 0,
         app: e.app ?? 0,
+        parts: e.parts ?? '',
         weapon: e.weapon ?? '',
         held: e.held ?? '',
         cart: !!e.cart,
@@ -1946,7 +1948,7 @@ export class Game {
               : screenDir(fx, fy);
         const lookIx = ((look % OUTFITS.length) + OUTFITS.length) % OUTFITS.length;
         v.sprite.texture = s?.app
-          ? this.sheets.styled(lookIx, s.app, dirOf(sd.x, sd.y), frame)
+          ? this.sheets.styled(lookIx, s.app, dirOf(sd.x, sd.y), frame, s.parts)
           : this.sheets.person(lookIx, dirOf(sd.x, sd.y), frame);
         v.personFrame = frame >= 30 ? frame : v.sprite.texture.frame.x / PERSON_W;
         v.sprite.alpha = deadP ? 0.65 : 1;

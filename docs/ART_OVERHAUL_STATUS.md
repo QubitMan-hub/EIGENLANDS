@@ -50,6 +50,18 @@ Three append-only clips are integrated: `fish_reel` (206–213), `fish_land` (21
 
 Nine focused client checks passed for these changes. `e2e/reference-fishing.mjs` passed against the production browser build: retained rod/reel, landing and kneeling planting frames, zero page errors. [Presentation report](validation/reference-fishing/report.json); these are injected authoritative-event fixtures, not a new end-to-end rewarded catch. The existing real attack/charge/release browser check also passed after the body/cell changes. Full directional asset check now covers 1,600 action frames plus 3,120 outfit frames.
 
+## Wardrobe and village-animal integration follow-up
+
+All 355 catalog entries now have cleaned transparent previews, source bounds and palette/material recipes. Seven selectors are saved alongside the unchanged legacy packed appearance, validated by the server and synchronized to other clients. Trousers and shorts are mutually exclusive; equipped armour remains authoritative for visible torso/leg/boot layers. Patterns are applied in body-local coordinates, preserving facing and animation. Leg/boot material coverage now follows the limb rather than posed world height, preventing boots from sliding up kneeling or riding legs. The picker preserves the square sprite aspect ratio.
+
+**Limit:** these are fitted material/pattern adaptations, not 355 newly authored, faithfully traced multidirectional meshes. Hair uses the existing silhouette families with source palette and volume; facial details use the native face renderer. Individual silhouette fitting remains open.
+
+Integrated the available `ccr-3d7267f2-lb0y4u` town/road scene branch while retaining current reference bodies, camera, ground shadows and mounted player fixes. Cats, dogs, hens and pigeons now share the livestock renderer's 2:1 projection, directional lighting and fixed ground pivot instead of flipped flat drawings. Stable horses and road herds use current canvas anchors; town caravan riders use the straddling pose and saddle position. These town pets are ambient, noncolliding scenery, not new tameable or authoritative wildlife. Wolf bounty overlap is consolidated into one telegraphed pack call.
+
+Verification: 64 distinct village-animal directional frames, no edge clipping; [contact sheet](validation/village-animals/directions.png). Focused scene/heading/grounding, bounty, appearance and profile checks passed. Browser wardrobe selection, trousers/shorts switching, synchronized state and reload/rejoin passed ([report](validation/reference-wardrobe/report.json)). Production solo build passed with the existing bundle-size advisory. Built-game town visits captured the cat, dog, stable horse and bench/pigeons with no page errors ([scene report](validation/village-animals/scenes.txt)). This selected town had no hen scene; hens were checked in the directional asset review.
+
+The user-specified ecology commit `3f5076a` was unavailable from all advertised remote branches and GitHub's commit endpoint at this pass. It has **not** been integrated; obtain the pushed commit before marking its biodiversity/settlement work reviewed.
+
 ## Recorded before any art edits
 
 Recoverable code point: `9fdc05d` (includes completed guard/parry work; no art-pack changes). Screenshot and machine-readable measurements: [before.png](validation/art-overhaul-baseline/before.png), [baseline.json](validation/art-overhaul-baseline/baseline.json). Reproduce with `node e2e/scale-baseline.mjs <preview-url> <output-directory>`.
@@ -79,7 +91,7 @@ Recoverable code point: `9fdc05d` (includes completed guard/parry work; no art-p
 
 The foundation/scale, hero-palette and tree stage is integrated. The following requested work remains incomplete:
 
-- Every one of the 50-option customization catalogs (pants 55) individually fitted, selectable and saved across all actions/directions; current customization remains the existing body/outfit system.
+- Faithful individual silhouette fitting for all 355 catalog options across actions/directions. Selection, source previews, palette/pattern adaptation and save/sync are integrated, but native haircut/face families remain shared.
 - House catalog background removal, faithful roof/material/design adaptation and any necessary per-building footprint/interior/furniture enlargement.
 - Farmland tile cleanup, seam normalization and all crop-stage mappings; additional mappings/seasonal treatments for the now-prepared rock catalog. Core surface rocks, ores and local depleted rubble are integrated.
 - Individual farm/wildlife anatomy replacement, species-specific gait libraries, remaining mounted-layer refinements and richer mount/dismount clips. Full straddling rider bodies, hip anchoring, reins and stirrups are now integrated, but the animal art/gait overhaul is not complete.

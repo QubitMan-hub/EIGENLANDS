@@ -32,6 +32,7 @@ export class PlayerState extends Schema {
   @type('uint32') app = 0;
   /** Riding: 0 on foot, 1 horse, 2 Moonlit Stag, 5 Glimmerhart. Appended for schema field compatibility. */
   @type('uint8') mount = 0;
+  @type('string') parts = '';
 }
 
 export class EnemyState extends Schema {

@@ -1,0 +1,6 @@
+undefined {"bench":1,"dressing":28,"laundry":2,"garden":1,"woodchop":1,"cat":1,"chat":2,"dog":1,"sweep":3,"board":1,"kids":2,"busker":1,"porter":1,"stablehand":1,"lamplighter":1,"watchman":1}
+shot cat {"x":1061.5,"y":-794.5}
+shot dog {"x":1041.5,"y":-794.5}
+shot stablehand {"x":1016.5,"y":-779.5}
+shot bench {"x":1011.5,"y":-770.5}
+no errors; animal anchors and unflipped scale verified

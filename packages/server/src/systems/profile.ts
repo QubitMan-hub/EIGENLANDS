@@ -1,3 +1,4 @@
+import { validParts } from '@eigenlands/shared';
 import { RACE_IDS } from '@eigenlands/shared';
 import { guildContract, validGuildJourney, contractKind } from '@eigenlands/shared';
 import {
@@ -235,6 +236,7 @@ export function loadPlayerData(raw: unknown, season: number, nowMs: number): Pla
     deeds,
     events,
     appearance: validAppearance(r.appearance),
+    appearanceParts: validParts(r.appearanceParts),
     prog: validProg(r.prog),
   };
 }
@@ -321,6 +323,7 @@ export function serializePlayerData(d: PlayerData): Record<string, unknown> {
     deeds: d.deeds,
     events: d.events,
     appearance: d.appearance ?? 0,
+    appearanceParts: validParts(d.appearanceParts),
   };
 }
 

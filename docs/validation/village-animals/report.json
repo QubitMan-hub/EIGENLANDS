@@ -1,0 +1,59 @@
+{
+  "kinds": {
+    "bench": 1,
+    "dressing": 28,
+    "laundry": 2,
+    "garden": 1,
+    "woodchop": 1,
+    "cat": 1,
+    "chat": 2,
+    "dog": 1,
+    "sweep": 3,
+    "board": 1,
+    "kids": 2,
+    "busker": 1,
+    "porter": 1,
+    "stablehand": 1,
+    "lamplighter": 1,
+    "watchman": 1
+  },
+  "anchors": [
+    {
+      "kind": "pigeon",
+      "x": 0.5,
+      "y": 0.7777777777777778,
+      "scaleX": 1
+    },
+    {
+      "kind": "pigeon",
+      "x": 0.5,
+      "y": 0.7777777777777778,
+      "scaleX": 1
+    },
+    {
+      "kind": "pigeon",
+      "x": 0.5,
+      "y": 0.7777777777777778,
+      "scaleX": 1
+    },
+    {
+      "kind": "cat",
+      "x": 0.5,
+      "y": 0.7777777777777778,
+      "scaleX": 1
+    },
+    {
+      "kind": "dog",
+      "x": 0.5,
+      "y": 0.7777777777777778,
+      "scaleX": 1
+    },
+    {
+      "kind": "horse",
+      "x": 0.5,
+      "y": 0.7777777777777778,
+      "scaleX": 1
+    }
+  ],
+  "errors": []
+}

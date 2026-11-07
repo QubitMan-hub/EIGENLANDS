@@ -1,3 +1,5 @@
+import { actionFrame } from '../art/person-actions';
+import { RIDER_SEAT_OFFSET } from '../art/body/poses';
 import { Container, Graphics, Sprite, Text } from 'pixi.js';
 import {
   T,
@@ -34,7 +36,22 @@ import type { HeldId, HeldWeapons } from '../art/weapons';
 import { planScenes, type Scene } from './scenes';
 import { SceneLife, sceneLook, type SceneActor } from './scene-life';
 import { rodSprite, umbrellaSprite } from '../art/scene-props';
-import { livestockTexture } from '../art/livestock';
+import {
+  livestockTexture,
+  saddledTexture,
+  LIVESTOCK_AX,
+  LIVESTOCK_AY,
+  LIVESTOCK_W,
+  LIVESTOCK_H,
+} from '../art/livestock';
+import {
+  faceVillageTexture,
+  villageHeading,
+  VILLAGE_AX,
+  VILLAGE_AY,
+  VILLAGE_W,
+  VILLAGE_H,
+} from '../art/village-animals';
 import { setExtraLights } from './worldobjviews';
 import { NoticeCard, boardNotices } from './noticeboard';
 import { depth, isoX, isoY, screenDir } from './iso';
@@ -130,6 +147,8 @@ interface Actor extends SceneActor {
   app: number;
   /** a scene actor's own scale (children are smaller) */
   small?: boolean;
+  /** Voxel heading retained at rest; separate from the legacy foe direction ordering. */
+  animalHeading?: number;
 }
 
 const FARM_COW = 74,
@@ -552,7 +571,7 @@ export class WorldLife {
           a.carry = new Graphics();
           a.root.addChild(a.carry);
         } else if (kind === 'horse') {
-          a.body.anchor.set(0.5, 49 / 56); // livestock canvases are 48×56, standing at (24, 49)
+          a.body.anchor.set(LIVESTOCK_AX / LIVESTOCK_W, LIVESTOCK_AY / LIVESTOCK_H);
           a.body.texture = livestockTexture('horse', 0, 2);
         } else if (art)
           a.body.texture = (
@@ -654,7 +673,7 @@ export class WorldLife {
       Math.floor(hash2(Math.floor(x * 16), Math.floor(y * 16), look, 8113 + this.cast.length) * 2 ** 31),
     );
     a.app = packAppearance(randomAppearance(rng));
-    a.body.anchor.set(0.5, 31 / 32);
+    a.body.anchor.set(0.5, 1);
     a.body.visible = false;
     a.umbrella = hash2(Math.floor(x * 7), Math.floor(y * 7), look, 4412) < 0.65;
     return a;
@@ -765,7 +784,7 @@ export class WorldLife {
       if (mounted) {
         a.model = model;
         a.rider = new Sprite();
-        a.rider.anchor.set(0.5, 31 / 32);
+        a.rider.anchor.set(0.5, 1);
         a.rider.y = -14;
         a.root.addChild(a.rider);
         a.body.anchor.set(0.5, this.d.foes().anchor(model));
@@ -1209,9 +1228,7 @@ export class WorldLife {
     if (a.st === 'walk') {
       const done = this.moveTo(a, f.dt, a.speed);
       if (a.model >= 0 && a.rider) {
-        a.body.texture = this.d.foes().frame(a.model, false, a.face, 'move', Math.floor(a.t * 6));
-        a.rider.texture = this.tex(a, a.dir, 0);
-        a.rider.scale.x = 1;
+        this.mounted(a, f, true);
       } else if (a.body.anchor.y < 0.95 && a.model >= 0)
         a.body.texture = this.d
           .foes()
@@ -1224,8 +1241,7 @@ export class WorldLife {
       }
     } else {
       if (a.model >= 0 && a.rider) {
-        a.body.texture = this.d.foes().frame(a.model, false, a.face, 'idle', 0);
-        a.rider.texture = this.tex(a, a.dir, 0);
+        this.mounted(a, f, false);
       } else if (a.model >= 0) a.body.texture = this.d.foes().frame(a.model, false, a.face, 'idle', 0);
       else this.sit(a, f);
       // visitors linger, then head back out the gate they came from
@@ -1250,6 +1266,14 @@ export class WorldLife {
         }
       }
     }
+  }
+
+  private mounted(a: Actor, f: LifeFrame, moving: boolean): void {
+    const heading = [0, 1, 3, 2][a.face] ?? 0;
+    a.body.texture = saddledTexture('horse', moving && !f.reduced ? 2 + (Math.floor(a.t * 6) % 2) : 0, heading).body;
+    a.body.anchor.set(LIVESTOCK_AX / LIVESTOCK_W, LIVESTOCK_AY / LIVESTOCK_H);
+    a.rider!.texture = this.tex(a, a.dir, actionFrame('ride', moving ? (a.t % 0.8) / 0.8 : 0, f.reduced));
+    a.rider!.visible = a.body.visible;
   }
 
   private knight(a: Actor, f: LifeFrame): void {
@@ -1555,26 +1579,40 @@ export class WorldLife {
   }
 
   private place(a: Actor): void {
+    const dx = a.tx - a.x,
+      dy = a.ty - a.y;
+    const animal = faceVillageTexture(a.body.texture, a.animalHeading ?? 0);
+    if (animal) {
+      if (Math.hypot(dx, dy) > 0.05) a.animalHeading = villageHeading(dx, dy);
+      a.body.texture = faceVillageTexture(a.body.texture, a.animalHeading ?? 0)!;
+      a.body.anchor.set(VILLAGE_AX / VILLAGE_W, VILLAGE_AY / VILLAGE_H);
+      a.body.scale.set(1);
+    }
     a.root.x = Math.round(isoX(a.x, a.y));
     a.root.y = Math.round(isoY(a.x, a.y));
     a.root.zIndex = depth(a.x, a.y) + (a.role === 'roofbird' ? 300 : 0);
     a.body.y = -Math.round(a.z);
-    if (a.rider) a.rider.y = -14 - Math.round(a.z);
+    if (a.rider) {
+      const seat = saddledTexture('horse', 0, [0, 1, 3, 2][a.face] ?? 0).seat;
+      a.rider.position.set(Math.round(seat.x), Math.round(seat.y) + RIDER_SEAT_OFFSET - Math.round(a.z));
+    }
     const r =
       a.role === 'beast' || a.role === 'knight' || a.model >= 0
         ? 9
-        : a.role === 'chicken' || a.animal === 'cat' || a.animal === 'dog'
+        : a.role === 'chicken' || a.animal === 'chicken' || a.animal === 'cat' || a.animal === 'dog'
           ? 3.5
-          : a.animal === 'prop' || a.animal === 'pigeon'
+          : a.animal === 'prop'
             ? 0
-            : a.small
-              ? 3.6
-              : a.role === 'roofbird'
-                ? 0
-                : 5;
+            : a.animal === 'pigeon'
+              ? 2
+              : a.small
+                ? 3.6
+                : a.role === 'roofbird'
+                  ? 0
+                  : 5;
     a.shadow.clear();
     if (r > 0)
-      a.shadow.ellipse(0, 0, r * (1 - Math.min(0.5, a.z * 0.02)), r * 0.5).fill({ color: 0x2a1060, alpha: 0.26 });
+      a.shadow.ellipse(0, 0, r * (1 - Math.min(0.5, a.z * 0.02)), r * 0.5).fill({ color: 0x1c2630, alpha: 0.26 });
   }
 }
 

@@ -1,3 +1,4 @@
+import { validParts, partsKey } from '@eigenlands/shared';
 import { defend } from '@eigenlands/shared';
 import { cottageDialogue } from '../systems/cottages';
 import { generationMeta, tileAt, isSolid, validAppearance, catalogMobDrops } from '@eigenlands/shared';
@@ -342,8 +343,10 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     on<InvMoveMsg>(MSG.INV_MOVE, 'invBucket', (p, m) => handleInvMove(p, m));
     on<InvTrashMsg>(MSG.INV_TRASH, 'invBucket', (p, m) => handleInvTrash(p, m));
     on<EquipMsg>(MSG.EQUIP, 'invBucket', (p, m) => handleEquip(p, m));
-    on<{ app?: unknown }>(MSG.APPEARANCE, 'invBucket', (p, m) => {
+    on<{ app?: unknown; parts?: unknown }>(MSG.APPEARANCE, 'invBucket', (p, m) => {
       p.data.appearance = p.state.app = validAppearance(m?.app);
+      if (m?.parts !== undefined) p.data.appearanceParts = validParts(m.parts);
+      p.state.parts = partsKey(p.data.appearanceParts);
       p.dirty('equip');
     });
     on<CraftMsg>(MSG.CRAFT, 'craftBucket', (p, m) => handleCraft(this, p, m));
@@ -480,6 +483,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     st.y = ch.y;
     st.look = data.equip.outfit;
     st.app = data.appearance ?? 0;
+    st.parts = partsKey(data.appearanceParts);
     const p = new ServerPlayer(
       client,
       accountId,
@@ -1010,6 +1014,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     s.ack = p.lastSeq;
     s.look = lookOf(p);
     s.app = p.data.appearance ?? 0;
+    s.parts = partsKey(p.data.appearanceParts);
     s.cart = p.sim.cart > 0;
     s.mount = p.sim.mount;
     s.weapon = this.weaponOf(p)?.id ?? '';

@@ -377,7 +377,7 @@ export class RoadLife {
         case 'cow':
         case 'goat':
         case 'pig':
-          m.sp.anchor.set(0.5, 49 / 56);
+          m.sp.anchor.set(LIVESTOCK_AX / LIVESTOCK_W, LIVESTOCK_AY / LIVESTOCK_H);
           m.sp.texture = livestockTexture(
             m.kind,
             reduced ? 0 : 2 + (Math.floor((v.travel + i * 0.4) / 0.28) % 2),

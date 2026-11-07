@@ -1,3 +1,11 @@
+import {
+  faceVillageTexture,
+  villageHeading,
+  VILLAGE_AX,
+  VILLAGE_AY,
+  VILLAGE_W,
+  VILLAGE_H,
+} from '../art/village-animals';
 import { Container, Graphics, Sprite, Text } from 'pixi.js';
 import {
   T,
@@ -33,6 +41,7 @@ interface Crit {
   vx: number;
   vy: number;
   face: 1 | -1;
+  animalHeading?: number;
   t: number;
   ttl: number;
   phase: number;
@@ -332,7 +341,7 @@ export class Ambient {
     if (kind === 'butterfly') sp.tint = [0xffd36a, 0xff9ac8, 0x9ad0ff, 0xc8a0ff][c.variant % 4]!;
     if (kind === 'chicken') sp.tint = [0xffffff, 0xffe0b0, 0xe8c090, 0xffffff, 0xd0d0e0][c.variant % 5]!;
     if (kind === 'cat') sp.tint = c.variant ? 0xd0d0d8 : 0xffffff;
-    if (kind === 'walker') sp.anchor.set(0.5, 31 / 32);
+    if (kind === 'walker') sp.anchor.set(0.5, 1);
     this.crits.push(c);
     this.place(c);
     return c;
@@ -363,17 +372,26 @@ export class Ambient {
   }
 
   private place(c: Crit): void {
+    const animal = faceVillageTexture(c.sp.texture, c.animalHeading ?? 0);
+    if (animal) {
+      const dx = c.tx - c.x,
+        dy = c.ty - c.y;
+      if (Math.hypot(dx, dy) > 0.05) c.animalHeading = villageHeading(dx, dy);
+      c.sp.texture = faceVillageTexture(c.sp.texture, c.animalHeading ?? 0)!;
+      c.sp.anchor.set(VILLAGE_AX / VILLAGE_W, VILLAGE_AY / VILLAGE_H);
+      c.sp.scale.set(1);
+    }
     c.root.x = Math.round(isoX(c.x, c.y));
     c.root.y = Math.round(isoY(c.x, c.y));
     c.root.zIndex = depth(c.x, c.y) + (c.z > 20 ? 400 : 0);
-    c.sp.y = -Math.round(c.z) + (c.kind === 'butterfly' || c.kind === 'bird' || c.kind === 'firefly' ? 0 : 1);
+    c.sp.y = -Math.round(c.z) + (c.kind === 'butterfly' || c.kind === 'bird' || c.kind === 'firefly' || animal ? 0 : 1);
     if (c.shadow) {
       c.shadow.clear();
       const big = c.kind === 'dog' ? 7 : c.kind === 'walker' ? 5 : c.kind === 'bird' ? 3 : 4;
       const a = Math.max(0.05, 0.26 - c.z * 0.004);
       c.shadow
         .ellipse(c.kind === 'bird' ? 0 : 0, c.kind === 'bird' ? 2 : 0, big * (1 - Math.min(0.5, c.z * 0.01)), big * 0.5)
-        .fill({ color: 0x2a1060, alpha: a });
+        .fill({ color: 0x1c2630, alpha: a });
     }
   }
 

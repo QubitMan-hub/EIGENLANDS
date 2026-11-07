@@ -1,3 +1,4 @@
+import type { AppearanceParts } from './appearance-parts';
 /**
  * Character appearance: the cosmetic choices a player makes when creating (or later changing) their wanderer.
  * Packed into one uint32 that is persisted, validated on the server and synced to every client. 0 means "never chosen":
@@ -20,6 +21,7 @@ export const APPEARANCE_COUNTS = {
 
 export type AppearanceField = keyof typeof APPEARANCE_COUNTS;
 export interface Appearance {
+  parts?: AppearanceParts;
   skin: number;
   hairStyle: number;
   hairColor: number;

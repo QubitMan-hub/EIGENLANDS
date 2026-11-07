@@ -1,3 +1,4 @@
+import { PART_COUNTS, validParts, type PartKind } from '@eigenlands/shared';
 /** Character creation / wardrobe: live isometric-pixel preview plus swatches for every appearance choice. */
 import {
   APPEARANCE_COUNTS,
@@ -32,9 +33,13 @@ export interface StoredLook {
 
 export function loadLook(): StoredLook {
   try {
-    const raw = JSON.parse(localStorage.getItem(KEY) ?? 'null') as { app?: number; touched?: boolean } | null;
+    const raw = JSON.parse(localStorage.getItem(KEY) ?? 'null') as {
+      app?: number;
+      parts?: unknown;
+      touched?: boolean;
+    } | null;
     const app = unpackAppearance(raw?.app);
-    if (app) return { app, touched: !!raw?.touched };
+    if (app) return { app: { ...app, parts: validParts(raw?.parts) }, touched: !!raw?.touched };
   } catch {
     /* private mode or corrupt value: pick fresh */
   }
@@ -45,7 +50,7 @@ export function loadLook(): StoredLook {
 
 export function saveLook(l: StoredLook): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ app: packAppearance(l.app), touched: l.touched }));
+    localStorage.setItem(KEY, JSON.stringify({ app: packAppearance(l.app), parts: l.app.parts, touched: l.touched }));
   } catch {
     /* storage unavailable: the look still applies for this session */
   }
@@ -86,6 +91,7 @@ export function buildAppearancePicker(initial: Appearance, onChange: (a: Appeara
   const canvasBox = h('div', { class: 'look-canvas', title: 'Turn around' });
   const rows = h('div', { class: 'look-rows' });
   const buttons = new Map<string, HTMLButtonElement[]>();
+  const catalogControls = new Map<PartKind, { select: HTMLSelectElement; image: HTMLImageElement }>();
 
   const draw = () => {
     const c = renderPersonCanvas(outfitFromAppearance(OUTFITS[0]!, look, true), TURNS[turn]!, 0);
@@ -93,6 +99,12 @@ export function buildAppearancePicker(initial: Appearance, onChange: (a: Appeara
     canvasBox.replaceChildren(c);
   };
   const sync = () => {
+    for (const [field, control] of catalogControls) {
+      const id = look.parts?.[field] ?? 0;
+      control.select.value = String(id);
+      control.image.hidden = !id;
+      if (id) control.image.src = `${import.meta.env.BASE_URL}art/wardrobe/${field}-${String(id).padStart(2, '0')}.png`;
+    }
     for (const row of ROWS)
       buttons.get(row.field)!.forEach((b, i) => b.setAttribute('aria-pressed', String(look[row.field] === i)));
     draw();
@@ -116,6 +128,14 @@ export function buildAppearancePicker(initial: Appearance, onChange: (a: Appeara
         on: {
           click: () => {
             look[row.field] = i;
+            const part: PartKind | undefined = ['cut', 'hairStyle', 'hairColor'].includes(row.field)
+              ? 'hair'
+              : row.field === 'eyes'
+                ? 'eyes'
+                : ['dress', 'dressColor'].includes(row.field)
+                  ? 'tops'
+                  : undefined;
+            if (part && look.parts) look.parts = { ...look.parts, [part]: 0 };
             change();
           },
         },
@@ -148,12 +168,46 @@ export function buildAppearancePicker(initial: Appearance, onChange: (a: Appeara
       text: 'Surprise me',
       on: {
         click: () => {
-          Object.assign(look, randomAppearance(Math.random));
+          Object.assign(look, randomAppearance(Math.random), { parts: validParts(null) });
           change();
         },
       },
     }),
   );
+  const catalog = h('div', { class: 'look-catalog' });
+  const labels: Record<PartKind, string> = {
+    hair: 'Hair design',
+    eyes: 'Eye detail',
+    mouths: 'Expression',
+    tops: 'Top',
+    pants: 'Trousers',
+    shorts: 'Shorts',
+    boots: 'Boots',
+  };
+  for (const field of Object.keys(PART_COUNTS) as PartKind[]) {
+    const label = h('label', { text: labels[field] });
+    const select = document.createElement('select');
+    select.setAttribute('aria-label', labels[field]);
+    for (let i = 0; i <= PART_COUNTS[field]; i++) {
+      const option = document.createElement('option');
+      option.value = String(i);
+      option.textContent = i ? `${labels[field]} ${String(i).padStart(2, '0')}` : 'Original';
+      select.append(option);
+    }
+    select.value = String(look.parts?.[field] ?? 0);
+    select.addEventListener('change', () => {
+      look.parts = { ...validParts(look.parts), [field]: Number(select.value) };
+      if (field === 'pants') look.parts.shorts = 0;
+      if (field === 'shorts') look.parts.pants = 0;
+      change();
+    });
+    const image = document.createElement('img');
+    image.alt = `${labels[field]} preview`;
+    catalogControls.set(field, { select, image });
+    label.append(select, image);
+    catalog.append(label);
+  }
+  rows.append(catalog);
   sync();
   return h('div', { class: 'look-picker' }, preview, rows);
 }

@@ -2,7 +2,10 @@
 // (well, washing, firewood, gossip, children, pets, porter, busker, lamplighter).
 // Usage: node e2e/everyday-scenes.mjs <solo-url> <output-dir>   (HOUR, SITE=<site id> and KINDS optional)
 import { chromium } from 'playwright-core';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+import { tsImport } from 'tsx/esm/api';
+const { REALM_SITES } = await tsImport('../packages/shared/src/realms.ts', import.meta.url);
 const base = process.argv[2] ?? 'http://127.0.0.1:5301/';
 const out = process.argv[3] ?? '/tmp/eigen-scenes';
 mkdirSync(out, { recursive: true });
@@ -28,15 +31,9 @@ const tp = async (x, y, wait = 5000) => {
   await page.evaluate(([x, y]) => window.__eigen.game.net.dev({ cmd: 'tp', x, y }), [x, y]);
   await page.waitForTimeout(wait);
 };
-const SH = `/@fs${process.cwd()}/packages/shared/src/index.ts`;
-const site = await page.evaluate(
-  async ([SH, want]) => {
-    const sh = await import(SH);
-    const s = sh.REALM_SITES.find((s) => (want ? s.id === want : s.kind === 'town'));
-    return { id: s.id, name: s.name, x: s.cx, y: s.cy };
-  },
-  [SH, process.env.SITE ?? ''],
-);
+const selected = REALM_SITES.find((s) => (process.env.SITE ? s.id === process.env.SITE : s.kind === 'town'));
+if (!selected) throw new Error('No matching realm site');
+const site = { id: selected.id, name: selected.name, x: selected.cx, y: selected.cy };
 await tp(site.x, site.y + 6, 9000);
 const kinds = await page.evaluate(() => window.__eigen.game.life.sceneKinds());
 console.log(site.name, JSON.stringify(kinds));
@@ -55,5 +52,17 @@ for (const k of want) {
   await page.screenshot({ path: `${out}/${k}.png`, clip });
   console.log('shot', k, JSON.stringify(p));
 }
-console.log(errors.length ? errors.join('\n') : 'no errors');
+const anchors = await page.evaluate(() =>
+  window.__eigen.game.life.cast
+    .filter((a) => ['cat', 'dog', 'chicken', 'pigeon', 'horse'].includes(a.animal))
+    .map((a) => ({ kind: a.animal, x: a.body.anchor.x, y: a.body.anchor.y, scaleX: a.body.scale.x })),
+);
+for (const a of anchors) {
+  assert.equal(a.x, 0.5);
+  assert.ok(Math.abs(a.y - (a.kind === 'horse' ? 56 / 72 : 28 / 36)) < 0.0001);
+  assert.equal(a.scaleX, 1);
+}
+assert.deepEqual(errors, []);
+writeFileSync(`${out}/report.json`, JSON.stringify({ kinds, anchors, errors }, null, 2));
+console.log('no errors; animal anchors and unflipped scale verified');
 await b.close();

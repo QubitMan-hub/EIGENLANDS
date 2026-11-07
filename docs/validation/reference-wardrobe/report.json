@@ -1,0 +1,21 @@
+{
+  "before": {
+    "hair": 50,
+    "eyes": 19,
+    "mouths": 8,
+    "tops": 27,
+    "pants": 55,
+    "shorts": 0,
+    "boots": 42
+  },
+  "after": {
+    "hair": 50,
+    "eyes": 19,
+    "mouths": 8,
+    "tops": 27,
+    "pants": 55,
+    "shorts": 0,
+    "boots": 42
+  },
+  "errors": []
+}

@@ -466,6 +466,7 @@ const moustache = (p: V) =>
   p[0] > 2.6 && Math.abs(p[1]) < 2.0 && p[2] <= -1.6 && p[2] >= -2.5 && inSkull(p, 0.7) && !inSkull(p, -0.2);
 
 export interface HeadGear {
+  volume?: number;
   cut?: CutId;
   hat?: HatId;
   beard?: BeardId;
@@ -477,7 +478,7 @@ const stamps = new Map<string, StampPx[]>();
  * `sculpt` also returns the skull itself, with a nose and eye sockets, for a carved head that has no drawn face.
  */
 export function headStamp(dir: number, g: HeadGear, k = 1, sculpt = false): StampPx[] {
-  const key = `${dir}|${g.cut ?? ''}|${g.hat ?? ''}|${g.beard ?? ''}|${k}|${sculpt}`;
+  const key = `${dir}|${g.cut ?? ''}|${g.hat ?? ''}|${g.beard ?? ''}|${k}|${sculpt}|${g.volume ?? 1}`;
   let s = stamps.get(key);
   if (!s) {
     s = buildStamp(dir, g, k, sculpt);
@@ -494,7 +495,12 @@ function buildStamp(dir: number, g: HeadGear, k: number, sculpt: boolean): Stamp
   const hat = g.hat ? hatShapes(g.hat) : null;
   const shapes: Shape[] = [];
   if (hat) shapes.push(...hat.shapes);
-  for (const s of cutShapes(g.cut ?? 'bald')) {
+  for (const source of cutShapes(g.cut ?? 'bald')) {
+    const volume = g.volume ?? 1;
+    const s =
+      volume === 1
+        ? source
+        : { ...source, inside: (p: V) => source.inside([p[0] / volume, p[1] / volume, p[2] / volume]) };
     if (!hat) shapes.push(s);
     else shapes.push({ ...s, inside: (p) => p[2] < hat.hides && s.inside(p) });
   }

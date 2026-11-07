@@ -1,3 +1,7 @@
+# Latest integration: wardrobe and directional village animals
+
+Read [ART_OVERHAUL_STATUS.md](ART_OVERHAUL_STATUS.md) for completed work and exact limits. Available road/town scene changes are integrated with current art. Catalog selection/save/sync and isometric village pets are added; faithful individual catalog silhouettes and the broader environment/animal overhaul remain open. Commit `3f5076a` was not exposed by origin or GitHub at review time and still needs to be fetched and audited once pushed.
+
 # Resource art and shadow grounding follow-up
 
 Core surface rock/ore art and local depleted rubble now use the supplied reference catalog. Shared contact shadows, consistent cast projection and live terrain-height refresh fix detached-footing cases across objects, props and actors. See [ART_OVERHAUL_STATUS.md](ART_OVERHAUL_STATUS.md) for exact scope, proof, limits and remaining catalogs; do not mark the entire art request complete. Sources and reproducible preparation tools remain in the repo.

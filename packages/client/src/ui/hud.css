@@ -561,7 +561,7 @@ body:has(#settings:not([hidden])) #voice-chip {
 }
 .look-canvas canvas {
   width: 96px;
-  height: 128px;
+  height: 96px;
   image-rendering: pixelated;
 }
 .look-turn {
@@ -924,4 +924,31 @@ body:has(#settings:not([hidden])) #voice-chip {
     transform: translateY(-160px);
     opacity: 0;
   }
+}
+
+.look-catalog {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.look-catalog label {
+  display: grid;
+  grid-template-columns: minmax(70px, 1fr) minmax(0, 2fr) 48px;
+  align-items: center;
+  gap: 8px;
+  color: #d5e1cf;
+  font-size: 12px;
+}
+.look-catalog select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  background: #1c2624;
+  color: #ebce90;
+  border: 2px solid #786646;
+}
+.look-catalog img {
+  max-width: 48px;
+  max-height: 44px;
+  image-rendering: pixelated;
 }

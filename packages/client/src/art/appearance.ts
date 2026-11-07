@@ -90,6 +90,7 @@ export function appearanceOf(packed: number): Appearance | null {
 export function outfitFromAppearance(base: Outfit, a: Appearance, wearOwnDress: boolean): Outfit {
   const o: Outfit = {
     ...base,
+    parts: a.parts,
     skin: SKIN_RAMPS[a.skin]!,
     hair: HAIR_RAMPS[a.hairColor]!,
     hairStyle: HAIR_STYLES[a.hairStyle]!,
@@ -99,7 +100,8 @@ export function outfitFromAppearance(base: Outfit, a: Appearance, wearOwnDress: 
     body: a.body ? 'female' : 'male',
     cut: a.cut ? CUTS[a.cut - 1] : undefined,
   };
-  if (!wearOwnDress) return o;
+  if (!wearOwnDress)
+    return { ...o, parts: a.parts ? { ...a.parts, tops: 0, pants: 0, shorts: 0, boots: 0 } : undefined };
   const dress = DRESS_STYLES[a.dress];
   const ramp = DRESS_RAMPS[a.dressColor]!;
   const jerkin = a.dress === 3;

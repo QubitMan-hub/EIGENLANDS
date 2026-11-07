@@ -177,7 +177,7 @@ async function boot(): Promise<void> {
     look.app = a;
     look.touched = true;
     saveLook(look);
-    if (auth && game.net) game.net.send(MSG.APPEARANCE, { app: packAppearance(a) });
+    if (auth && game.net) game.net.send(MSG.APPEARANCE, { app: packAppearance(a), parts: a.parts });
   };
   const scene = mountTitleScene($('login'), look.app);
   $('look-title').append(
@@ -202,7 +202,7 @@ async function boot(): Promise<void> {
       msg(`Could not join: ${(e as Error).message || 'server unreachable'}`);
       return;
     }
-    if (sendLook || look.touched) net.send(MSG.APPEARANCE, { app: packAppearance(look.app) });
+    if (sendLook || look.touched) net.send(MSG.APPEARANCE, { app: packAppearance(look.app), parts: look.app.parts });
     $('login').hidden = true;
     $('hud').hidden = false;
     window.__eigen = { state: () => game.debugState(), game };

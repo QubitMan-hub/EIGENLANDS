@@ -1,3 +1,4 @@
+import { applyCatalog } from './catalog';
 /**
  * The game's existing outfit descriptions (art/actors.ts `Outfit`: player presets, armour sets, every NPC's look) as
  * layers of the modular body, so nobody's colours, garments or accessories change — only the body they are worn on.
@@ -110,7 +111,7 @@ function buildLook(o: Outfit): BodyLook {
   if (o.scarf) look.scarf = o.scarf;
   if (o.apron) look.apron = o.apron;
   if (o.cape) look.cape = { ramp: o.cape, length: 13, trim: o.trim };
-  return look;
+  return applyCatalog(look, o);
 }
 
 /** body type from an NPC's own bio (the pronouns its writers used); otherwise a stable pick */
