@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, expect, it } from 'vitest';
-import { REALM_SITE_BY_ID, armyKey, type RaidPlan } from '@eigenlands/shared';
+import { REALM_SITE_BY_ID, TICK_DT, armyKey, type RaidPlan } from '@eigenlands/shared';
 import type { App } from '../src/app';
 import { boot3, spawn3, tp, until, sleep, setLevel } from './p3helpers';
 
@@ -17,7 +17,11 @@ it('garrisons a settlement with its realm soldiers when a player is near', async
   const site = REALM_SITE_BY_ID['aurelion_capital']!;
   await tp(p, site.cx, site.cy + 8);
   await p.room.ensureChunk(Math.floor(site.cx / 32), Math.floor(site.cy / 32));
-  await until(() => p.room.state.army.size >= 6, 6000);
+  // Arrival activates the garrison through the real room tick. Reinforcements use a simulation-time cooldown;
+  // advance that clock explicitly so cold capital generation cannot exhaust a wall-clock deadline.
+  await until(() => p.room.state.army.size > 0, 6000);
+  for (let i = 0; i < 100 && p.room.state.army.size < 6; i++) p.room.army.tick(p.room.wclock.now(), TICK_DT);
+  expect(p.room.state.army.size).toBeGreaterThanOrEqual(6);
   const kinds = new Set<number>();
   p.room.state.army.forEach((u) => kinds.add(u.kind));
   expect(kinds.size).toBeGreaterThanOrEqual(2);

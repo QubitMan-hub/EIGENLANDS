@@ -118,7 +118,14 @@ describe('town bounties', () => {
     const initialDay = p.room.wclock.day();
     setClock(p, (t) => {
       const b = bountyOf(p.room.seed, town, dayNumber(t));
-      return dayNumber(t) > initialDay && gameHour(t) >= 11 && gameHour(t) < 12 && !!b && p.room.owns(b.x, b.y);
+      return (
+        dayNumber(t) > initialDay &&
+        gameHour(t) >= 11 &&
+        gameHour(t) < 12 &&
+        !!b &&
+        Math.hypot(b.x - town.cx, b.y - town.cy) > 65 &&
+        p.room.owns(b.x, b.y)
+      );
     });
     const day = p.room.wclock.day();
     const b = bountyOf(p.room.seed, town, day)!;
@@ -127,8 +134,8 @@ describe('town bounties', () => {
     p.room.wonders.tick(p.room.wclock.now(), 2.1);
     await until(() => p.toasts.some((t) => t.text.includes(`Bounty posted in ${town.name}`)), 5000);
     expect(p.toasts.find((t) => t.text.includes('Bounty posted'))!.text).toContain(b.name);
-    // out to where it was seen
-    await tp(p, b.x + 0.5, b.y + 6.5);
+    // The beast spawns before the hunter enters warning range. Approaching it later must still warn them.
+    await tp(p, b.x + 0.5, b.y + 45.5);
     await p.room.ensureChunk(chunkOf(b.x), chunkOf(b.y));
     p.room.wonders.tick(p.room.wclock.now(), 2.1);
     await until(() => p.room.wonders.bountyState(b.id) === 'out', 8000);
@@ -136,7 +143,13 @@ describe('town bounties', () => {
     const beast = [...p.room.enemies.values()].find((e) => e.elite & ELITE.BOUNTY)!;
     expect(beast).toBeTruthy();
     expect(beast.elite & ELITE.HARDENED).toBeTruthy();
+    expect(p.toasts.filter((t) => t.text.includes(`${b.name} is near!`))).toHaveLength(0);
+    await tp(p, beast.x + 0.5, beast.y + 6.5);
+    p.room.wonders.tick(p.room.wclock.now(), 2.1);
     await until(() => p.toasts.some((t) => t.text.includes(`${b.name} is near!`)), 3000);
+    p.room.wonders.tick(p.room.wclock.now(), 2.1);
+    await sleep(100);
+    expect(p.toasts.filter((t) => t.text.includes(`${b.name} is near!`))).toHaveLength(1);
     // in a fight, wounded, it uses its signature move: a warning first, then the move
     beast.hp = beast.maxHp * 0.5;
     beast.x = p.sp.sim.x + 1.5;

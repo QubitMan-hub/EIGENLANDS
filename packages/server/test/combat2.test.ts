@@ -3,6 +3,7 @@ import { matchMaker } from 'colyseus';
 import type { Room } from 'colyseus.js';
 import {
   ATK,
+  DAY_MS,
   dangerAt,
   sanctuaryAt,
   CRIT_MULT,
@@ -353,11 +354,11 @@ describe('new enemies', () => {
     await p.r.leave();
   });
 
-  it('ambient encounters respect the land: gentle and small in the Hearthlands, stronger far out at any level', async () => {
+  it('ambient encounters stay gentle on level-one daylight land and stronger far out at any player level', async () => {
     const p = await probe('Spawner');
     clear(p.w);
     p.sp.level = 1;
-    // stand somewhere open in the Hearthlands (inside its ring, outside the towns' wards)
+    // The Hearthlands span levels 1–3. Only its level-one daylight land has the starter-only spawn pool.
     const at = async (ax: number, ay: number) => {
       for (let y = ay - 40; y <= ay + 40; y += 32)
         for (let x = ax - 40; x <= ax + 40; x += 32) await p.w.ensureChunk(Math.floor(x / 32), Math.floor(y / 32));
@@ -367,20 +368,25 @@ describe('new enemies', () => {
       p.sp.sim.y = ay + 0.5;
     };
     const home = [
-      [-170, -140],
-      [-160, 150],
-      [150, 170],
-      [170, -150],
-    ].find(([x, y]) => !sanctuaryAt(p.w.seed, x!, y!) && dangerAt(x!, y!).tier === 1)!;
+      [-55, -20],
+      [-60, 0],
+      [0, -60],
+      [-50, -30],
+    ].find(([x, y]) => !sanctuaryAt(p.w.seed, x!, y!) && dangerAt(x! + 0.5, y! + 0.5).level === 1)!;
+    expect(home).toBeDefined();
     await at(home[0]!, home[1]!);
-    for (let i = 0; i < 20; i++) (p.w as any).ambientSpawn(i * 60000);
+    // Stay in daylight rather than adding a night level halfway through this sample.
+    for (let i = 0; i < 20; i++) (p.w as any).ambientSpawn(DAY_MS / 4 + i * 10000);
     const kinds = new Set([...p.w.enemies.values()].filter((e) => !e.def.passive).map((e) => e.def.name));
     expect(kinds.size).toBeGreaterThan(0);
-    expect([...kinds].every((k) => k === 'Wisp Slime' || k === 'Glint Hopper')).toBe(true);
+    expect(
+      [...kinds].every((k) => k === 'Wisp Slime' || k === 'Glint Hopper'),
+      `Starting encounters at ${home}: ${[...kinds].join(', ')}; ${JSON.stringify(dangerAt(p.sp.sim.x, p.sp.sim.y))}`,
+    ).toBe(true);
     let budget = 0;
     for (const e of p.w.enemies.values())
       if (Math.hypot(e.x - p.sp.sim.x, e.y - p.sp.sim.y) < 40) budget += e.def.budget ?? 1;
-    expect(budget).toBeLessThanOrEqual(4); // the Hearthlands' night reserve; newcomer species only
+    expect(budget).toBeLessThanOrEqual(3); // level-one daylight reserve; newcomer species only
     // the same newcomer out in the Frontier meets the Frontier's creatures, not their own level's
     clear(p.w);
     await at(3200, 40);

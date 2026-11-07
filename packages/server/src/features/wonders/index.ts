@@ -76,6 +76,8 @@ export class WondersModule implements Module {
       pending?: { x: number; y: number; t: number; from?: { x: number; y: number } };
       /** wolves call the pack at most twice; badgers burrow at most twice */
       uses: number;
+      /** Hunters already warned on approaching this beast, including arrivals after it spawned. */
+      warned: Set<string>;
     }
   >();
   /** Town boards already checked this session. */
@@ -332,14 +334,29 @@ export class WondersModule implements Module {
           sight: Math.max(e.def.sight, 9),
         };
         e.provoked = false;
-        this.hunting.set(b.id, { enemy: e.id, bounty: b, realm: t.site?.realm, sigCd: 4, uses: 0 });
-        for (const q of this.room.players.values())
-          if (Math.hypot(q.sim.x - at.x, q.sim.y - at.y) < 30)
-            q.toast(`${b.name} is near! ${BOUNTY_SIGNATURE[b.kind].lore}`, 'bad');
+        this.hunting.set(b.id, {
+          enemy: e.id,
+          bounty: b,
+          realm: t.site?.realm,
+          sigCd: 4,
+          uses: 0,
+          warned: new Set(),
+        });
       }
     }
-    // a beast that wandered out of the world (despawned unkilled) may be met again
-    for (const [id, h] of this.hunting) if (!this.room.enemies.has(h.enemy)) this.hunting.delete(id);
+    // Warn each approaching hunter once; a beast despawned unkilled may be met again.
+    for (const [id, h] of this.hunting) {
+      const e = this.room.enemies.get(h.enemy);
+      if (!e) {
+        this.hunting.delete(id);
+        continue;
+      }
+      for (const p of this.room.players.values()) {
+        if (p.deadT > 0 || h.warned.has(p.accountId) || Math.hypot(p.sim.x - e.x, p.sim.y - e.y) >= 30) continue;
+        h.warned.add(p.accountId);
+        p.toast(`${h.bounty.name} is near! ${BOUNTY_SIGNATURE[h.bounty.kind].lore}`, 'bad');
+      }
+    }
     // yesterday's bounties are taken down
     for (const id of this.slain) if (!id.endsWith(`:${day}`)) this.slain.delete(id);
   }
