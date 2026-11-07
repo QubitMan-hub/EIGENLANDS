@@ -1,3 +1,4 @@
+import { ArrivalGarden } from './arrival';
 import { contactShadow, castProjection } from './grounding';
 import { actionPose, actionFrame, meleeAction, meleeFrame, type PersonAction } from '../art/person-actions';
 import { LIVESTOCK_AX, LIVESTOCK_AY, LIVESTOCK_H, LIVESTOCK_W, livestockTexture } from '../art/livestock';
@@ -314,6 +315,7 @@ export class Game {
   readonly wind = new WindField();
   private ambient!: Ambient;
   private life!: WorldLife;
+  private arrival!: ArrivalGarden;
   private targetId: string | null = null;
   private targetFrame = new TargetFrame();
   private bobber = new Graphics();
@@ -456,7 +458,7 @@ export class Game {
       fx: () => this.fx,
       toScreen: (x, y) => ({ x: this.world.x + isoX(x, y) * this.scale, y: this.world.y + isoY(x, y) * this.scale }),
     });
-    this.life = new WorldLife({
+    const lifeDeps: import('./life').LifeDeps = {
       layer: () => this.entityLayer,
       labels: () => this.labelLayer,
       store: () => this.store,
@@ -471,7 +473,9 @@ export class Game {
         [...this.views.values()].filter((v) => v.type === 'enemy' && v.root.visible).map((v) => ({ x: v.lx, y: v.ly })),
       held: () => this.heldWeapons,
       trackBounty: (b, day) => this.ext.atlas.trackBounty(b, day),
-    });
+    };
+    this.life = new WorldLife(lifeDeps);
+    this.arrival = new ArrivalGarden(lifeDeps);
     this.combat = new CombatView(
       {
         fx: () => this.fx,
@@ -1365,7 +1369,7 @@ export class Game {
       wind: this.wind.w,
       reduced,
     });
-    this.life.frame({
+    const lifeFrame = {
       now,
       dt,
       me,
@@ -1375,7 +1379,9 @@ export class Game {
       reduced,
       underground,
       server: this.clock.serverNow(now),
-    });
+    };
+    this.life.frame(lifeFrame);
+    this.arrival.frame(lifeFrame, this.seasonIdx);
     this.listen(now, dt, me, hour, weather, underground);
     this.updateTarget34(renderT, me);
     this.syncFocus(now);

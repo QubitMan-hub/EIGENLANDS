@@ -53,7 +53,7 @@ export function standardSprite(field: string, charge: string, face: Facing, f: n
           },
         });
       },
-      { margin: 6 },
+      { margin: 6, ao: false },
     ),
   );
 }
@@ -93,7 +93,7 @@ export function bucketSprite(): ObjSprite {
         p.line(5, 8, 6, 8, 8, 10, C.e1);
         p.line(8, 8, 10, 11, 8, 6, C.e1);
       },
-      { margin: 5 },
+      { margin: 5, ao: false },
     ),
   );
 }
@@ -111,38 +111,38 @@ export function sackSprite(): ObjSprite {
         p.cyl(8, 8, 6, 2.2, 1.6, HESSIAN, HESSIAN);
         p.cyl(8, 8, 7.6, 0.9, 1.4, [C.e0, C.e1, C.e2, C.e2, C.e3, C.e3]);
       },
-      { margin: 5 },
+      { margin: 5, ao: false },
     ),
   );
 }
 
 /** A broom standing at the sweeper's side, bristles on the ground; `k` (0..2) tilts it through the stroke. */
-export function broomSprite(k: number): ObjSprite {
+export function broomSprite(k: number, face: Facing = 'sw'): ObjSprite {
   const t = ((k % 3) + 3) % 3;
-  return once(`broom:${t}`, () =>
+  return once(`broom:${t}:${face}`, () =>
     iso(
       30,
       40,
-      'sw',
+      face,
       (p) => {
         const lean = (t - 1) * 3;
         p.line(8 + lean, 8, 3, 8, 8, 26, C.e2);
         p.box(5.5 + lean, 7, 0, 5, 2, 3, { ramp: [C.e3, C.e4, C.e5, C.e6, C.e6, C.e7] });
         p.box(6.5 + lean, 7.5, 3, 3, 1, 1, { ramp: [C.e1, C.e2, C.e2, C.e3, C.e3, C.e4] });
       },
-      { margin: 5 },
+      { margin: 5, ao: false },
     ),
   );
 }
 
 /** The lamplighter's pole: its foot on the ground, a taper burning at the top; `lift` 0/1 raises it to a lamp. */
-export function lampPoleSprite(lift: number): ObjSprite {
+export function lampPoleSprite(lift: number, face: Facing = 'sw'): ObjSprite {
   const l = lift ? 1 : 0;
-  return once(`lpole:${l}`, () =>
+  return once(`lpole:${l}:${face}`, () =>
     iso(
       30,
       90,
-      'sw',
+      face,
       (p) => {
         const top = 58 + l * 10;
         p.line(8, 8, 0, 11, 6, top, C.e1);
@@ -151,18 +151,18 @@ export function lampPoleSprite(lift: number): ObjSprite {
         p.dot(11, 6, top + 3.5, C.e7, 1, 2);
         p.dot(11, 6, top + 5, C.white);
       },
-      { margin: 5 },
+      { margin: 5, ao: false },
     ),
   );
 }
 
 /** A lute held across the body: a round-backed bowl and a fretted neck (`strum` nudges the hand frame). */
-export function luteSprite(): ObjSprite {
-  return once('lute', () =>
+export function luteSprite(face: Facing = 'sw'): ObjSprite {
+  return once(`lute:${face}`, () =>
     iso(
       30,
       26,
-      'sw',
+      face,
       (p) => {
         const BOWL: Ramp = [C.r0, C.e1, C.e2, C.e3, C.e4, C.e5];
         p.box(5, 7, 2, 6, 2, 5, { ramp: BOWL });
@@ -170,7 +170,7 @@ export function luteSprite(): ObjSprite {
         p.line(11, 8, 5, 18, 8, 9, C.e1);
         p.box(17, 7.5, 8.5, 2, 1, 1.5, { ramp: DARKWOOD });
       },
-      { margin: 4 },
+      { margin: 4, ao: false },
     ),
   );
 }
@@ -188,7 +188,7 @@ export function umbrellaSprite(colour: string): ObjSprite {
         for (let k = 0; k < 4; k++) p.cyl(8, 8, 20 + k * 1.6, 9 - k * 2.4, 1.6, r, r);
         p.dot(8, 8, 27.5, C.e1);
       },
-      { margin: 4 },
+      { margin: 4, ao: false },
     ),
   );
 }
@@ -208,7 +208,7 @@ export function lanternSprite(): ObjSprite {
         p.cyl(8, 8, 10, 1.6, 1.5, IRONM, IRONM);
         p.line(8, 8, 11.5, 8, 8, 15, C.slate);
       },
-      { margin: 4 },
+      { margin: 4, ao: false },
     ),
   );
 }

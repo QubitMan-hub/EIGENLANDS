@@ -62,6 +62,10 @@ Verification: 64 distinct village-animal directional frames, no edge clipping; [
 
 The matching connected-world work is now available as `afff999` on `codex/connected-world-biodiversity` and integrated. Its 42 plants and 31 wildlife species were corrected to the shared isometric projection and palette, with directional anatomy, ground pivots and bounded raster work. Generation-7 tiers, local discoveries and ecology retain their gameplay integration; saved revisions remain pinned. See [integration verification](validation/connected-world/README.md) and [art review](validation/biodiversity/README.md).
 
+## Arrival and work-contact follow-up
+
+A compact isometric arrival garden now decorates unmodified ground around the shrine, with seeded village guidance, seasonal borders and scheduled travellers/animals. It preserves saved terrain, collision, player ownership and progression. Carrying, sweeping and lute-playing use append-only directional clips; six carried props follow model grips and posed hands, with correct body/child scaling and no baked floor shadows. Blocked scene routes wait/replan rather than snapping. Exact proof and remaining limits: [arrival/work validation](validation/arrival-garden/README.md). This does not complete the larger art/catalog request.
+
 ## Recorded before any art edits
 
 Recoverable code point: `9fdc05d` (includes completed guard/parry work; no art-pack changes). Screenshot and machine-readable measurements: [before.png](validation/art-overhaul-baseline/before.png), [baseline.json](validation/art-overhaul-baseline/baseline.json). Reproduce with `node e2e/scale-baseline.mjs <preview-url> <output-directory>`.
@@ -95,7 +99,7 @@ The foundation/scale, hero-palette and tree stage is integrated. The following r
 - House catalog background removal, faithful roof/material/design adaptation and any necessary per-building footprint/interior/furniture enlargement.
 - Farmland tile cleanup, seam normalization and all crop-stage mappings; additional mappings/seasonal treatments for the now-prepared rock catalog. Core surface rocks, ores and local depleted rubble are integrated.
 - Individual farm/wildlife anatomy replacement, species-specific gait libraries, remaining mounted-layer refinements and richer mount/dismount clips. Full straddling rider bodies, hip anchoring, reins and stirrups are now integrated, but the animal art/gait overhaul is not complete.
-- Carrying, richer facial expressions and remaining bespoke contact/event refinements. Fishing reel/landing and planting now have distinct clips; broader natural-timing and object-contact polish remains.
+- Broader carrying/contact coverage, richer facial expressions and remaining bespoke contact/event refinements. Fishing reel/landing and planting now have distinct clips; broader natural-timing and object-contact polish remains.
 - Comprehensive same-camera comparisons beside animals/on mounts, every crop/resource/save route, every settlement and performance under multiplayer load.
 
 Do not treat the first integrated stage as completion of the entire request.

@@ -48,6 +48,18 @@ const H = 11,
 const REST = S - 4.5 - 4.1 + 0.5;
 
 const KEYS: Partial<Record<PersonAction, [Key, Key, Key, Key]>> = {
+  sweep: [
+    { lean: 0.06, hR: [2.4, 1.1, 12.1], hL: [2.4, -0.6, 15.4], stance: 1.4 },
+    { lean: 0.12, twist: 0.12, hR: [4.0, 1.2, 12.1], hL: [3.4, -0.6, 15.4], stance: 1.4 },
+    { lean: 0.14, twist: 0.18, hR: [4.4, 1.0, 12.1], hL: [3.7, -0.5, 15.4], stance: 1.4 },
+    { lean: 0.06, hR: [2.4, 1.1, 12.1], hL: [2.4, -0.6, 15.4], stance: 1.4 },
+  ],
+  lute: [
+    { hR: [3.4, 1.4, 13.4], hL: [3.2, -3.2, 16.3], stance: 0.8 },
+    { hR: [3.9, 1.3, 12.8], hL: [3.2, -3.2, 16.3], stance: 0.8 },
+    { hR: [3.1, 1.3, 13.8], hL: [3.2, -3.2, 16.3], stance: 0.8 },
+    { hR: [3.4, 1.4, 13.4], hL: [3.2, -3.2, 16.3], stance: 0.8 },
+  ],
   fish_reel: [
     { drop: 0.8, lean: -0.06, hR: [3.8, 1.1, H + 3], grip: 2.2, pitch: 0.35, stance: 1.4 },
     { drop: 1.1, lean: -0.15, hR: [2.8, 1.0, H + 4], grip: 2.0, pitch: 0.6, stance: 1.4 },
@@ -374,6 +386,18 @@ function ridePose(d: Dims, k: number): Pose {
   return p;
 }
 
+/** A load constrains the arms while the normal walking legs and hip weight transfer continue. */
+function carryPose(d: Dims, phase: number, twoHands = true): Pose {
+  const p = gaitPose(d, phase, false),
+    s = d.shoulderZ / S;
+  const settle = Math.sin(phase * Math.PI * 4) * 0.12;
+  p.lean = 0.1;
+  p.twist *= 0.3;
+  p.handR = [(twoHands ? 3.8 : 1.8) * s, (twoHands ? 2.4 : 3.2) * s, (H + (twoHands ? 1 : 0) + settle) * s];
+  if (twoHands) p.handL = [3.8 * s, -2.4 * s, (H + 1 + settle) * s];
+  return p;
+}
+
 /** Treading water: a slow breast stroke, legs kicking below the surface. */
 function swimPose(d: Dims, k: number): Pose {
   const s = d.shoulderZ / S;
@@ -427,6 +451,8 @@ export function poseOf(d: Dims, frame: number, dir = 0): Pose {
   if (action === 'dodge') return dodgePose(d, k);
   if (action === 'death') return deathPose(d, k, dir);
   if (action === 'ride') return ridePose(d, k);
+  if (action === 'carry') return carryPose(d, (frame - ACTION_START.carry) / 8);
+  if (action === 'carry_one') return carryPose(d, (frame - ACTION_START.carry_one) / 8, false);
   if (action === 'sit') return sitPose(d, k);
   if (action === 'swim') return swimPose(d, k);
   const keys = KEYS[action];

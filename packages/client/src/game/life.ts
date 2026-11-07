@@ -18,6 +18,7 @@ import {
   randomAppearance,
   townsNear,
   findPath,
+  chunkOf,
   type Bounty,
   settlementProfile,
   type ChunkStore,
@@ -233,7 +234,18 @@ export class WorldLife {
       held: () => this.d.held?.() ?? null,
       art: () => this.d.art(),
       all: () => this.cast.filter((a) => a.role === 'scene'),
-      findPath: (sx, sy, tx, ty) => findPath(sx, sy, tx, ty, this.d.store().solidAt, 900),
+      findPath: (sx, sy, tx, ty) =>
+        findPath(
+          sx,
+          sy,
+          tx,
+          ty,
+          Object.assign(
+            (x: number, y: number) => !this.d.store().has(chunkOf(x), chunkOf(y)) || this.d.store().solidAt(x, y),
+            { level: this.d.store().solidAt.level },
+          ),
+          900,
+        ),
     });
     // the night watch's lantern really lights the street around it
     setExtraLights('life-lanterns', (x0, y0, x1, y1) =>
@@ -1089,9 +1101,11 @@ export class WorldLife {
   }
   /** a villager's frame: their own sheet once built (at most one build per frame), a plain stand-in until then */
   private tex(a: Actor, dir: number, frame: number) {
-    const sh = this.d.sheets();
-    if (sh.styledReady(a.look, a.app) || this.budget > 0) {
-      if (!sh.styledReady(a.look, a.app)) this.budget--;
+    a.personFrame = frame;
+    const sh = this.d.sheets(),
+      ready = sh.styledReady(a.look, a.app, dir, frame);
+    if (ready || this.budget > 0) {
+      if (!ready) this.budget--;
       a.body.visible = true;
       return sh.styled(a.look, a.app, dir, frame);
     }
@@ -1627,6 +1641,7 @@ export class WorldLife {
     a.root.y = Math.round(isoY(a.x, a.y));
     a.root.zIndex = depth(a.x, a.y) + (a.role === 'roofbird' ? 300 : 0);
     a.body.y = -Math.round(a.z);
+    this.scenes.refreshCarry(a);
     if (a.rider) {
       const seat = saddledTexture('horse', 0, [0, 1, 3, 2][a.face] ?? 0).seat;
       a.rider.position.set(Math.round(seat.x), Math.round(seat.y) + RIDER_SEAT_OFFSET - Math.round(a.z));

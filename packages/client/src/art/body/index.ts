@@ -26,11 +26,12 @@ export function personGripOf(
   dir: number,
   frame: number,
   handSide: 'R' | 'L' = 'R',
+  body: 'male' | 'female' = 'male',
 ): { x: number; y: number; angle: number } {
-  const key = ((dir & 7) << 10) | (frame & 1023) | (handSide === 'L' ? 1 << 14 : 0);
+  const key = ((dir & 7) << 10) | (frame & 1023) | (handSide === 'L' ? 1 << 14 : 0) | (body === 'female' ? 1 << 15 : 0);
   let g = gripCache.get(key);
   if (!g) {
-    const d = DIMS.male;
+    const d = DIMS[body];
     const pose = poseOf(d, frame, dir);
     const j = solve(d, pose);
     const fr = frameOf(dir);

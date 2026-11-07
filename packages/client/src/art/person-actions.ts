@@ -27,9 +27,13 @@ export const ACTION_START = {
   plant: 222,
   ride: 230,
   parry: 238,
+  carry: 246,
+  sweep: 254,
+  lute: 262,
+  carry_one: 270,
 } as const;
 export type PersonAction = keyof typeof ACTION_START;
-export const PERSON_ACTION_END = 246;
+export const PERSON_ACTION_END = 278;
 const ACTIONS = Object.keys(ACTION_START) as PersonAction[];
 /** Preserve legacy four keys; append in-between poses instead of renumbering saved presentation IDs. */
 const KEYS = Object.fromEntries(
@@ -104,6 +108,30 @@ export function actionPose(dir: number, frame: number) {
     crouch = 0,
     angle = aim;
   switch (action) {
+    case 'carry_one':
+      reach = 2.6;
+      height = sample([18, 17.6, 18, 17.6]);
+      crouch = 0.2;
+      angle = aim + 0.05;
+      break;
+    case 'carry':
+      reach = 3.8;
+      height = sample([17, 16.7, 17, 16.7]);
+      crouch = 0.3;
+      angle = aim - 0.1;
+      break;
+    case 'sweep':
+      reach = sample([2.5, 4.5, 5, 2.5]);
+      height = sample([18, 18.2, 18, 18]);
+      crouch = 0.5;
+      angle = aim + sample([-0.2, 0.4, 0.5, -0.2]);
+      break;
+    case 'lute':
+      reach = sample([3.4, 3.8, 3.1, 3.4]);
+      height = sample([14, 14.7, 14.3, 14]);
+      crouch = 0;
+      angle = aim + 0.2;
+      break;
     case 'ride':
       reach = 4;
       height = 19;

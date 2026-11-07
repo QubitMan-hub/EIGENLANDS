@@ -137,7 +137,14 @@ try {
     const p = preview.getContext('2d');
     p.imageSmoothingEnabled = false;
     for (let i = 0; i < OUTFITS.length; i++)
-      for (let d = 0; d < 8; d++) p.drawImage(renderPersonCanvas(OUTFITS[i], d, 0), d * 128, i * 192, 128, 192);
+      for (let d = 0; d < 8; d++)
+        p.drawImage(
+          renderPersonCanvas(OUTFITS[i], d, 0),
+          d * PERSON_W * 4,
+          i * PERSON_H * 4,
+          PERSON_W * 4,
+          PERSON_H * 4,
+        );
     document.body.append(preview);
     return { frames, appearanceFrames, failures, outfits: OUTFITS.length };
   });

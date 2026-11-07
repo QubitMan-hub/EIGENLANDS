@@ -37,7 +37,7 @@ export function iso(
   H: number,
   face: Facing,
   draw: (p: Prop, ctx: Ctx) => void,
-  o: { flat?: boolean; margin?: number; post?: (p: Prop, ctx: Ctx) => void } = {},
+  o: { flat?: boolean; ao?: boolean; margin?: number; post?: (p: Prop, ctx: Ctx) => void } = {},
 ): ObjSprite {
   const { canvas, ctx } = makeCanvas(W, H);
   const ax = Math.floor(W / 2),
@@ -46,7 +46,7 @@ export function iso(
     const p = new Prop(ctx, ax, ay, face);
     draw(p, ctx);
     if (!o.flat) outline(ctx, W, H, C.night);
-    polish(ctx, W, H, { rim: !o.flat, ao: o.flat ? null : { ax, ay, rx: Math.min(14, W * 0.36) } });
+    polish(ctx, W, H, { rim: !o.flat, ao: o.flat || o.ao === false ? null : { ax, ay, rx: Math.min(14, W * 0.36) } });
     o.post?.(p, ctx);
   });
   const tex = Texture.from(canvas);

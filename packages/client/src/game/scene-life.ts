@@ -1,7 +1,8 @@
-import { Graphics, Sprite } from 'pixi.js';
-import { hash2, type Weather } from '@eigenlands/shared';
+import { carryPlacement, type CarryKind } from '../art/scene-contact';
+import { Graphics, Sprite, type Container } from 'pixi.js';
+import { hash2, unpackAppearance, type Weather } from '@eigenlands/shared';
 import { dirOf } from '../art/actors';
-import { actionFrame, type PersonAction } from '../art/person-actions';
+import { actionFrame, actionKeys, type PersonAction } from '../art/person-actions';
 import type { HeldId, HeldWeapons } from '../art/weapons';
 import { SCENE_TALK, sceneSheltered, type Scene } from './scenes';
 import { PROPS } from '../art/props';
@@ -61,6 +62,12 @@ export interface SceneActor {
   /** isometric prop sprites (scene props; a carried bucket or sack) */
   sprites?: Sprite[];
   face: number;
+  app?: number;
+  personFrame?: number;
+  carryKind?: CarryKind | 'none';
+  carryPhase?: number;
+  nextPathAt?: number;
+  stuckFor?: number;
 }
 
 export interface SceneDeps {
@@ -178,10 +185,14 @@ export class SceneLife {
   // ───────────── helpers ─────────────
 
   private pose(a: SceneActor, action: PersonAction, progress: number, f: SceneFrame, dir = a.dir): void {
-    a.body.texture = this.d.tex(a, dir, actionFrame(action, progress, f.reduced));
+    a.dir = dir;
+    a.personFrame = actionFrame(action, progress, f.reduced);
+    a.body.texture = this.d.tex(a, dir, a.personFrame);
     this.hold(a, dir, actionFrame(action, progress, f.reduced));
   }
   private stand(a: SceneActor, dir = a.dir): void {
+    a.dir = dir;
+    a.personFrame = 0;
     a.body.texture = this.d.tex(a, dir, 0);
     this.hold(a, dir, 0);
   }
@@ -190,15 +201,15 @@ export class SceneLife {
     const gx = a.tx,
       gy = a.ty,
       goal = `${gx.toFixed(2)},${gy.toFixed(2)}`;
-    if (a.goal !== goal) {
+    if (a.goal !== goal || (!a.path && f.now >= (a.nextPathAt ?? 0))) {
       a.goal = goal;
       a.path = this.d.findPath(Math.floor(a.x), Math.floor(a.y), Math.floor(gx), Math.floor(gy)) ?? undefined;
       a.path?.shift();
-      if (!a.path) {
-        // nowhere to walk (a blocked yard): step straight there out of sight of nobody's business
-        a.x = gx;
-        a.y = gy;
-      }
+      a.nextPathAt = f.now + 1000 + (a.phase % 1) * 250;
+    }
+    if (!a.path) {
+      this.stand(a);
+      return false;
     }
     if (a.path && a.path.length > 1) {
       const [px, py] = a.path[0]!;
@@ -206,11 +217,23 @@ export class SceneLife {
       a.ty = py + 0.5;
       if (Math.hypot(a.tx - a.x, a.ty - a.y) < 0.35) a.path.shift();
     }
+    const ox = a.x,
+      oy = a.y;
     const done = this.d.moveTo(a, f.dt, speed);
+    a.stuckFor = Math.hypot(a.x - ox, a.y - oy) < 0.005 ? (a.stuckFor ?? 0) + f.dt : 0;
+    if (a.stuckFor > 0.8) {
+      a.path = undefined;
+      a.nextPathAt = f.now + 250;
+      a.stuckFor = 0;
+    }
     a.tx = gx;
     a.ty = gy;
     const arrived = Math.hypot(gx - a.x, gy - a.y) < 0.15 || (done && (!a.path || a.path.length <= 1));
-    const fr = this.d.walkFrame(a, speed);
+    const loaded = a.carryKind && a.carryKind !== 'none';
+    const fr = loaded
+      ? actionKeys(a.carryKind === 'sack' ? 'carry' : 'carry_one')[f.reduced ? 0 : Math.floor(a.t * 7 * speed) % 8]!
+      : this.d.walkFrame(a, speed);
+    a.personFrame = fr;
     a.body.texture = this.d.tex(a, a.dir, fr);
     this.hold(a, a.dir, fr);
     if (arrived) a.goal = undefined;
@@ -234,6 +257,7 @@ export class SceneLife {
     if (!a.heldSprite || !id || !held) return;
     a.heldSprite.texture = held.texture(id, dir, frame);
     a.heldSprite.y = a.body.y;
+    a.heldSprite.scale.set(a.body.scale.y);
     a.root.setChildIndex(a.heldSprite, dir === 1 || dir >= 6 ? 1 : 2);
   }
   private chatter(a: SceneActor, f: SceneFrame, pool: string, odds = 0.004): void {
@@ -243,14 +267,23 @@ export class SceneLife {
   /**
    * What the actor holds, as an isometric sprite riding along with the body: a bucket at the hand, a sack on the
    * shoulder, a broom or the lamplighter's pole standing at the side, a lute across the chest, a lantern at night.
-   * Villagers are 32×48 (hands near y -20, shoulders near -34); children scale down.
+   * Grip coordinates come from the current 48×48 skeletal frame, including body type and child scale.
    */
-  private carryDraw(
-    a: SceneActor,
-    what: 'bucket' | 'sack' | 'none' | 'broom' | 'pole' | 'lute' | 'lantern',
-    k = 0,
-  ): void {
+  private carryDraw(a: SceneActor, what: CarryKind | 'none', k = 0): void {
+    a.carryKind = what;
+    a.carryPhase = k;
     const m = a.body.scale.y;
+    const placement =
+      what === 'none'
+        ? null
+        : carryPlacement(
+            what,
+            a.dir,
+            a.personFrame ?? 0,
+            k,
+            m,
+            unpackAppearance(a.app)?.body === 1 ? 'female' : 'male',
+          );
     let sp = a.sprites?.[0];
     const art: ObjSprite | null =
       what === 'bucket'
@@ -258,11 +291,11 @@ export class SceneLife {
         : what === 'sack'
           ? sackSprite()
           : what === 'broom'
-            ? broomSprite(Math.round(Math.sin(k) + 1))
+            ? broomSprite(k, placement!.face)
             : what === 'pole'
-              ? lampPoleSprite(k > 0.5 ? 1 : 0)
+              ? lampPoleSprite(k, placement!.face)
               : what === 'lute'
-                ? luteSprite()
+                ? luteSprite(placement!.face)
                 : what === 'lantern'
                   ? lanternSprite()
                   : null;
@@ -275,22 +308,18 @@ export class SceneLife {
       a.root.addChild(sp);
       a.sprites = [sp];
     }
-    const [x, y] =
-      what === 'sack'
-        ? [-4, -32]
-        : what === 'bucket'
-          ? [9, -10]
-          : what === 'broom'
-            ? [7, 1]
-            : what === 'pole'
-              ? [5, 1]
-              : what === 'lute'
-                ? [-6, -17 - k]
-                : [8, -6];
     sp.texture = art.tex;
     sp.anchor.set(art.ax / art.tex.width, art.ay / art.tex.height);
-    sp.position.set(x * m, y * m);
-    sp.visible = true;
+    sp.scale.set(m);
+    sp.position.set(placement!.x, placement!.y + a.body.y);
+    a.root.setChildIndex(sp, placement!.behind ? 0 : (a.root as Container).children.length - 1);
+    sp.visible = a.body.visible;
+  }
+
+  /** Called after the body has its current pose/bob, so carried props cannot lag a frame behind. */
+  refreshCarry(a: SceneActor): void {
+    if (a.carryKind) this.carryDraw(a, a.carryKind, a.carryPhase ?? 0);
+    if (a.heldSprite) a.heldSprite.y = a.body.y;
   }
 
   // ───────────── scenes ─────────────
@@ -400,8 +429,8 @@ export class SceneLife {
     a.ty = sc.y + 0.3 + Math.cos(k * Math.PI * 4) * 0.3;
     this.d.moveTo(a, f.dt, 0.5);
     const stroke = f.reduced ? 0 : f.now / 180 + a.phase;
-    this.stand(a, dirOf(Math.cos(k * Math.PI * 2), 0.7));
-    this.carryDraw(a, 'broom', stroke);
+    this.pose(a, 'sweep', loop(f.now, 1.3, sc.seed), f, dirOf(Math.cos(k * Math.PI * 2), 0.7));
+    this.carryDraw(a, 'broom', f.reduced ? 1 : Math.round(Math.sin(stroke) + 1));
     if (!f.reduced && Math.sin(stroke) > 0.97) {
       this.d.burst(a.x + 0.4, a.y + 0.3, [5, 6], 2);
       if (Math.random() < 0.15 && Math.hypot(a.x - f.me.x, a.y - f.me.y) < 8) this.d.sound('sweep', a.x, a.y);
@@ -536,7 +565,7 @@ export class SceneLife {
     const sc = a.sc!;
     a.x = a.tx = sc.x;
     a.y = a.ty = sc.y;
-    this.stand(a, dirOf(0.4, 1));
+    this.pose(a, 'lute', loop(f.now, 1.1, sc.seed), f, dirOf(0.4, 1));
     const strum = f.reduced ? 0 : Math.sin(f.now / 120) > 0 ? 1 : 0;
     this.carryDraw(a, 'lute', strum);
     a.z = f.reduced ? 0 : Math.max(0, Math.sin(f.now / 400 + a.phase)) * 0.8;

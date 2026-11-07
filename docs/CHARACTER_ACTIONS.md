@@ -1,3 +1,7 @@
+# Current addition: loaded movement and occupation contacts
+
+The current action table has 31 directional families. Preserve append-only frame IDs: parry 238–245 (incoming main), two-handed carrying 246–253, sweeping 254–261, lute playing 262–269 and one-handed carrying 270–277. Sack loads constrain both arms; buckets, poles and lanterns leave the other arm free to balance. Carry clips preserve walking hips and legs; stationary work keeps planted feet. Model grips follow the current skeletal hand, body type, direction and child scale. [Verification and exact limits](validation/arrival-garden/README.md).
+
 # Character art and action poses
 
 ## Current implementation — 27 October 2026
@@ -31,7 +35,6 @@ The art check covers 1,152 supplemental frames and 3,120 base frames across thir
 ## Remaining limits
 
 This does not claim a full campaign balance certification or a bespoke physical animation for every item/prop combination. Variable-height station/resource contact IK, complete occupation/sleep sequences, mount-specific climbing/landing, richer charge/combo-specific combat keys and aquatic body rotation remain open. Physical-device profiling and larger cross-network multiplayer visual sessions remain necessary. Browser mobile screenshots are emulation, not phone performance measurements.
-
 
 ## Weapon-motion batch
 

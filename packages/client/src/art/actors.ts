@@ -702,7 +702,7 @@ Object.assign(NPC_LOOKS, {
 } satisfies Record<string, Outfit>);
 
 // ───────────────────────── people ─────────────────────────
-/** Where the holding hand is and which way a held item points, in the 32×48 cell: from the same skeleton the body is
+/** Where the holding hand is and which way a held item points, in the 48×48 cell: from the same skeleton the body is
  * painted from, so a tool never drifts off the grip. */
 export function personGrip(dir: number, frame: number): { x: number; y: number; angle: number } {
   return personGripOf(dir, frame);
@@ -862,7 +862,7 @@ export interface Sheets {
   /** a player with a chosen appearance (packed, see shared/appearance.ts) wearing outfit/armour look `look` */
   styled(look: number, app: number, dir: number, frame: number, parts?: string): Texture;
   /** true when `styled(look, app, ...)` is already built (building one costs a frame or two, so callers can budget it) */
-  styledReady(look: number, app: number): boolean;
+  styledReady(look: number, app: number, dir?: number, frame?: number): boolean;
   /** Original 24×32 resident art, eight facings, shared animation frame IDs. */
   npc(npcId: string, dir: number, frame: number): Texture;
   /** passive fauna: 4 frames, always drawn facing right (flip the sprite to face left) */
@@ -1100,7 +1100,9 @@ export function buildActorSheets(): Sheets {
       const c = col(f, o * 3 + d);
       return sub(personBaseFor(o), `p${o}.${dd(d)}.${c}`, c * PERSON_W, dd(d) * PERSON_H, PERSON_W, PERSON_H);
     },
-    styledReady: (look, app) => !appearanceOf(app) || styledAtlases.has(`${look}:${app}:`),
+    // Action poses are lazy single frames, so they never need the expensive walk-atlas warm-up slot.
+    styledReady: (look, app, dir = 0, frame = 0) =>
+      !!actionPose(dir, frame) || !appearanceOf(app) || styledAtlases.has(`${look}:${app}:`),
     styled: (look, app, d, f, rawParts = '') => {
       const parts = partsKey(rawParts);
       const chosen = appearanceOf(app);

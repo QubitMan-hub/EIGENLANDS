@@ -83,11 +83,12 @@ export function boardNotices(seed: number, town: Town, host: FestHost, day: numb
 export class NoticeCard {
   private el: HTMLElement | null = null;
   private key = '';
+  constructor(private id = 'noticeboard') {}
 
   show(title: string, notices: Notice[], onTrack?: (b: Bounty) => void): void {
     if (!this.el) {
       this.el = document.createElement('section');
-      this.el.id = 'noticeboard';
+      this.el.id = this.id;
       this.el.className = 'notice-card';
       this.el.setAttribute('aria-live', 'polite');
       document.body.appendChild(this.el);

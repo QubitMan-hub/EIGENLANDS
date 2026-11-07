@@ -1,3 +1,7 @@
+# Latest: arrival garden and NPC work
+
+Main updates through `0acac7a` are integrated, including the new shield/parry/held-item rules and settlement/pixel-grid changes. See [arrival garden and work validation](validation/arrival-garden/README.md) for this batch. The starting shrine now has a compact isometric social garden and route guidance, preserving terrain, saves and player builds. Carry/sweep/lute clips and model-grip attachments improve town scenes. Unreachable decorative NPC routes wait/replan rather than teleport. Preserve all existing action IDs; new families follow parry. The broader [art overhaul status](ART_OVERHAUL_STATUS.md) remains open.
+
 # Latest: connected-world integration
 
 `codex/connected-world-biodiversity` (`afff999`, matching the previously unavailable ecology work) is integrated with current main. Read [connected-world verification](validation/connected-world/README.md), [biodiversity art](validation/biodiversity/README.md) and [art overhaul status](ART_OVERHAUL_STATUS.md). New worlds use generation 7; saved revisions remain pinned. Preserve reference bodies, wardrobe persistence, closer camera, shorter walls, saddle poses and grounded shadows. Flora/wildlife now use native isometric geometry; ambient discovery/routes do not generate unloaded chunks. Town budgets remove whole optional scenes and keep the notice board. The broader art overhaul's remaining work is still documented; do not mark it all complete.
