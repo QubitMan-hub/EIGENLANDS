@@ -66,6 +66,13 @@ export const FAMILIES: FamilyForm[] = [
     from: ALL.filter((m) => m !== 'bronze'),
   },
   {
+    base: 'longbow',
+    noun: 'Longbow',
+    mult: 1,
+    blurb: 'Arrows that pierce, at the longest reach.',
+    from: ['bronze', 'steel', 'skysteel', 'stormiron', 'mithril', 'adamant', 'voidsteel'],
+  },
+  {
     base: 'crossbow',
     noun: 'Crossbow',
     mult: 1,
@@ -125,6 +132,16 @@ export const LEGENDARY_WEAPONS: LegendaryWeapon[] = [
     tint: [C.q3, C.q6],
     blurb: 'A crossbow drawn from a collapsed wavefunction. Its bolts may arrive before they leave.',
     quantum: 'Each bolt is already everywhere on its path.',
+  },
+  {
+    id: 'starfall_bow',
+    name: 'Starfall',
+    fam: 'longbow',
+    level: 18,
+    bonus: { atk: 9, luck: 1.5, haste: 1 },
+    tint: [C.w6, C.e7],
+    blurb: 'A longbow with starsteel limbs and a string of star-glass thread. Its arrows leave a faint trail of light.',
+    quantum: 'Fallen stars remember the sky: every arrow wants to go up and come down on something.',
   },
 ];
 

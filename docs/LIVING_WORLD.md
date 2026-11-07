@@ -166,9 +166,20 @@ The kingdom state shows on the ground, in each settlement's open squares and law
 
 ### Life on the roads and in the wilds
 
-- **Wayfarers:** seven travellers per kingdom road at a time: pilgrims, couriers, patrols, shepherds with their flock,
-  carters with a handcart, minstrels, hunters and families. They keep to the right-hand verge, step aside in towns
-  and mostly go home at night; couriers and patrols ride on after dark with lanterns. They greet you as you pass.
+- **Wayfarers:** thirteen travellers per kingdom road at a time. Every road always has:
+  - a patrol and a mounted courier;
+  - a **marching column** of the realm's own soldiers: a mounted officer, the standard-bearer with the realm's
+    banner, two ranks of infantry two abreast and archers at the rear, all keeping step ("Left! Left! Left, right,
+    left!");
+  - three **knights** riding together;
+  - **market folk** pushing a barrow of produce, with a child alongside;
+  - a carter.
+
+  The rest are drawn from pilgrims, shepherds with their flock, minstrels, hunters, families, **drovers with cattle**,
+  **goatherds**, **swineherds**, **monks** walking in file in one habit, and a **noble** on horseback with two guards
+  on foot. They keep to the right-hand verge, step aside in towns and mostly go home at night; couriers and patrols
+  ride on after dark with lanterns. They greet you as you pass.
+
 - **Wild folk:** woodcutters, foragers, herbalists, hunters, fishers, prospectors and the odd hermit work out in the
   wilds by day, in nearly four of every ten 40×40-tile cells, wandering round their spot and talking to passers-by.
   A storm sends everyone but the hermit home.
@@ -276,6 +287,61 @@ Behind every opened reliquary a stair leads down to the Sunken Vault, on a plane
    Saint, the Smith, the Bard, the Hunter). Touch the right one and the vault opens with the crypt's richest hoard;
    touch another and the dead answer.
 
+## Everyday scenes
+
+Kingdom and frontier towns now have ordinary daily life, planned from each town's layout and the seed. Every player
+sees the same washerwoman at the same line.
+
+- **At the well:** someone winds up a bucket, carries it home to a nearby door and comes back for more (6:00–19:30).
+- **Washing day:** a washer scrubs at the basket and pegs the washing along the line, which stirs in the wind. When
+  it rains or snows the washing is taken in and the line comes down.
+- **Firewood:** a woodcutter with an axe splits logs on a block (chips fly, the axe thuds) and stacks them on the pile.
+- **The doorstep:** brooms sweep the step in the morning and window boxes are watered with a can before 10:30. Every
+  door is dressed in order: a matching pair stands against the wall either side of it, chosen by what the building
+  is. Homes get planters or potted plants, the inn barrels of ale, a shop a crate and a basket, the smithy a woodpile
+  and a quenching barrel, a farmhouse hay and firewood.
+- **Each building's own business:** innkeepers and shopkeepers sweep their steps, the smithy and farms split
+  firewood, farms keep a dog and feed their hens in the morning, and the inn has a horse tied at the rail, groomed
+  by a stable hand. Homes wash, garden, chat and keep cats and dogs.
+- **The night watch:** from 20:00 until first light a watchman walks the round of the lamps the other way from the
+  lamplighter, calling the hour ("Midnight, and all is well!"). His lantern lights the street around him.
+- **Neighbours:** two people chat at a door and take turns telling and reacting ("My youngest has the sniffles
+  again." "Poor thing. Honey and lemon.").
+- **The square:** children play tag (whoever is "it" chases the nearest friend) until they are called in for supper.
+  A busker plays the lute, with notes in the air and now and then a coin. A porter hauls flour sacks from the cart to
+  the shop and walks back for the next.
+- **The bench:** one or two elders sit and toss crumbs to the pigeons, which flutter off if you walk through.
+- **Pets:** cats sit on doorsteps, doze in the midday sun and bolt from strangers. Dogs trot about the yard, sit by the
+  door and chase any cat they see.
+- **Dusk:** the lamplighter walks the round of the street lamps with a long pole, lighting each in turn.
+- **Weather:** rain sends the washing, children, bench-sitters, busker and gardeners indoors, while the well, the
+  porter and neighbourly chat carry on under umbrellas. Storms empty the streets except for the cats and the
+  lamplighter.
+
+### Notice boards and star crafting (2026-10-27)
+
+- **Bounty beasts** are marked (`ELITE.BOUNTY`): drawn about half again as large as their kind and tinted in their
+  own colours, with an ember wanted-ring on the ground. Targeting one shows the poster name and its signature move.
+  Each kind has a **signature move** (`BOUNTY_SIGNATURE` in `shared/src/wonders.ts`, run by
+  `server/src/features/wonders`), always warned first by a ring on the ground:
+  - the wolf's **Call of the Pack** brings two wolves when it is wounded;
+  - the boar **Rampages** onto you;
+  - the brute's **Earthshaker** hits everyone around it;
+  - the badger **Burrows** away and comes up behind you a little healed;
+  - the thornling's **Bramble Ring** leaves you bleeding.
+- **Fixed:** a beast's sighting could fall inside a town's ward, which dispersed it the moment it appeared, so it
+  was never met. Sightings now move further out along the same bearing until they are clear of every ward.
+- **Track this bounty:** the wanted poster has a button that points the travel strip and the atlas at where the beast
+  was last seen, until the day ends.
+- **Notice boards:** every kingdom and frontier town square has a standing notice board. Stand at it to read the
+  day's **wanted** poster (the beast, where it was last seen, the reward), where the nearest caravan is, the next
+  festival (or today's), and tomorrow's weather. It is built from the same shared functions as the bounty, caravans,
+  festivals and weather themselves (`client/src/game/noticeboard.ts`, `noticeboard.test.ts`).
+- **Star shards** are now a crafting material (`shared/src/catalog/starfall.ts`):
+  - star glass at the stonecutter, and starsteel ingots at the furnace;
+  - the **Starlit Lantern** (light 9, brighter than any oil lamp) and the **Wishing Star Charm** (luck);
+  - **Starfall**, a legendary longbow learned by levelling rather than from a scroll.
+
 ## Efficient simulation
 
 - **Kingdom state:** one small JSON blob per world (`civ:<seed>`). The server steps it once per world day and catches
@@ -305,6 +371,8 @@ Behind every opened reliquary a stair leads down to the Sunken Vault, on a plane
 | Story and crypt art                                             | `packages/client/src/art/stories.ts`                     |
 | Fox companion (Keen nose)                                       | `shared/src/companions.ts`, `server/features/shadows`    |
 | Journal: kingdoms, news, intrigue, festivals and tournaments    | `packages/client/src/ui/journal.ts`                      |
+| Everyday scenes: planning (pure, tested)                        | `packages/client/src/game/scenes.ts`                     |
+| Everyday scenes: people, props and behaviour                    | `client/src/game/scene-life.ts`, `game/life.ts`          |
 
 ## Validation
 
@@ -352,6 +420,18 @@ Behind every opened reliquary a stair leads down to the Sunken Vault, on a plane
   server with a fallen star beside the traveller and shooting stars in flight; aurora and the rainbow drawn with forced
   sky inputs; no page errors.
 
+- **Everyday scenes:** client `scenes.test.ts`: every lived-in kingdom town gets scenes on open ground out of doors,
+  never two on one tile and the same for every player. Between them the towns cover the well, gossip, children,
+  sweeping, porters, cats, dogs, washing, firewood and the lamplighter. A capital is busier than a village, and hours
+  and weather make sense (no washing in the rain, lamps at dusk). Browser proof `e2e/everyday-scenes.mjs` (solo dev
+  build, 2026-10-27): close crops of each scene in Harrowgate; the dusk lamplighter was checked separately at 18:10.
+  No page errors.
+- **Road traffic:** shared `lively.test.ts` checks that every road has a marching column of at least eight, knights
+  and market folk, that drovers, goatherds, swineherds, monks and nobles all appear across the kingdoms, and that
+  knights ride faster than a column, which outpaces a swineherd. Browser proof `e2e/road-traffic.mjs` (solo dev build,
+  2026-10-27): a column with its officer, standard and archers, knights, a drover's cattle, a noble and guards,
+  market folk, goats and pigs; no page errors.
+
 ## Limits and what is not built
 
 - Crypts have three floor plans and two floors. The puzzles are the braziers, the levers' seals and the statues'
@@ -376,4 +456,15 @@ Behind every opened reliquary a stair leads down to the Sunken Vault, on a plane
 - The subsequent bestiary batch adds seven wildlife bonds and matching original portraits; see ADVENTURER_PATHS_AND_BESTIARY.md.
 - Bounty beasts reuse their kind's sprite, drawn larger and recoloured, and borrow existing behaviours (leaps,
   slams, charges, ambush, ranged volleys, regrowth, blinking) rather than new animations. The sky effects are drawn in
+- Everyday scenes, like the street crowds, are drawn on each client and do not collide: you can walk through a
+  doorstep crate or a washing line. They exist only in the kingdom and frontier towns animated by `life.ts`
+  (Hadamere keeps its own ambient villagers). The people are anonymous and cannot be talked to. Scene props are the
+  towns' own isometric prop sprites, plus a chopping block, bucket, sack and realm standard built with the same
+  isokit (`client/src/art/scene-props.ts`). Everything held is an isokit sprite too: broom, lamplighter's pole, lute, lantern,
+  umbrella, fishing rod, bucket and sack. Only the fishing line is a drawn string, and festival pennants hang in the
+  vertical plane of their string. Until a villager's own appearance sheet has been built (one per frame),
+  they stay hidden rather than appear in a stock outfit.
+- The notice board is drawn on each client from the same shared functions the server uses, so every player reads
+  the same board; tracking a poster is kept in your own atlas (browser storage), not on the server.
+- Bounty beasts are their kind's own sprite, enlarged and tinted, not separately painted creatures. The sky effects are drawn in
   screen space over the world.

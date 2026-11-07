@@ -15,6 +15,8 @@ import {
   packAppearance,
   randomAppearance,
   townsNear,
+  findPath,
+  type Bounty,
   type ChunkStore,
   type RealmId,
   type RealmSite,
@@ -28,6 +30,13 @@ import { ATTACK_FRAME, COSMETIC_OUTFITS, WALK_FRAMES, dirOf } from '../art/actor
 import type { FoeSheets } from '../art/foes';
 import { D4_SE, dir4 } from '../art/sprite';
 import type { Sfx } from '../audio';
+import type { HeldId, HeldWeapons } from '../art/weapons';
+import { planScenes, type Scene } from './scenes';
+import { SceneLife, sceneLook, type SceneActor } from './scene-life';
+import { rodSprite, umbrellaSprite } from '../art/scene-props';
+import { livestockTexture } from '../art/livestock';
+import { setExtraLights } from './worldobjviews';
+import { NoticeCard, boardNotices } from './noticeboard';
 import { depth, isoX, isoY, screenDir } from './iso';
 import type { Fx } from './fx';
 
@@ -53,6 +62,10 @@ export interface LifeDeps {
   toScreen: (x: number, y: number) => { x: number; y: number };
   /** hostile creatures currently on screen, in tile coordinates */
   hostiles: () => Array<{ x: number; y: number }>;
+  /** held tool art (axes, watering cans) for people at work in the everyday scenes */
+  held?: () => HeldWeapons;
+  /** follow a wanted poster from a notice board (the atlas and travel strip) */
+  trackBounty?: (b: Bounty, day: number) => void;
 }
 export interface LifeFrame {
   now: number;
@@ -63,6 +76,8 @@ export interface LifeFrame {
   weather: Weather;
   reduced: boolean;
   underground: boolean;
+  /** world (server) clock, for the notice board's caravans */
+  server?: number;
 }
 
 type Role =
@@ -78,9 +93,10 @@ type Role =
   | 'royal'
   | 'beast'
   | 'chicken'
-  | 'roofbird';
+  | 'roofbird'
+  | 'scene';
 
-interface Actor {
+interface Actor extends SceneActor {
   role: Role;
   root: Container;
   body: Sprite;
@@ -112,6 +128,8 @@ interface Actor {
   slot2?: number;
   /** packed appearance (shared/appearance.ts): every villager is a distinct person */
   app: number;
+  /** a scene actor's own scale (children are smaller) */
+  small?: boolean;
 }
 
 const FARM_COW = 74,
@@ -179,7 +197,44 @@ export class WorldLife {
   /** where customers stand to browse: in front of each stall */
   private fronts: Array<{ x: number; y: number }> = [];
 
-  constructor(private d: LifeDeps) {}
+  private scenes: SceneLife;
+  private card = new NoticeCard();
+  /** the everyday scenes planned for the settlement being animated (tests, screenshots) */
+  private plan: Scene[] = [];
+
+  constructor(private d: LifeDeps) {
+    this.scenes = new SceneLife({
+      tex: (a, dir, frame) => this.tex(a as Actor, dir, frame),
+      moveTo: (a, dt, speed) => this.moveTo(a as Actor, dt, speed),
+      say: (a, text, now) => this.say(a as Actor, text, now),
+      walkFrame: (a, speed) => this.walkFrame(a as Actor, speed),
+      burst: (x, y, c, n) => this.d.fx().burst(x, y, c, n),
+      ring: (x, y, c, r, life) => this.d.fx().ring(x, y, c, r, life),
+      sound: (s, x, y) => this.d.sound(s, x, y),
+      held: () => this.d.held?.() ?? null,
+      art: () => this.d.art(),
+      all: () => this.cast.filter((a) => a.role === 'scene'),
+      findPath: (sx, sy, tx, ty) => findPath(sx, sy, tx, ty, this.d.store().solidAt, 900),
+    });
+    // the night watch's lantern really lights the street around it
+    setExtraLights('life-lanterns', (x0, y0, x1, y1) =>
+      this.cast
+        .filter((a) => a.sc?.kind === 'watchman' && a.root.visible && a.x >= x0 && a.x <= x1 && a.y >= y0 && a.y <= y1)
+        .map((a) => ({ x: a.x + 0.3, y: a.y + 0.3, radius: 4.2, color: 0xffc870, intensity: 0.95 })),
+    );
+  }
+
+  /** the everyday scenes of the current settlement, by kind (tests, screenshots) */
+  sceneKinds(): Record<string, number> {
+    const o: Record<string, number> = {};
+    for (const s of this.plan) o[s.kind] = (o[s.kind] ?? 0) + 1;
+    return o;
+  }
+  /** where the first scene of a kind happens (tests, screenshots) */
+  sceneAt(kind: string): { x: number; y: number } | null {
+    const s = this.plan.find((p) => p.kind === kind);
+    return s ? { x: s.x, y: s.y } : null;
+  }
 
   count(): number {
     return this.cast.length;
@@ -243,6 +298,28 @@ export class WorldLife {
     this.sky(f);
     this.bubblesFrame(f);
     this.bellCheck(f);
+    this.boardFrame(f);
+  }
+
+  /** standing at the town's notice board shows what is pinned to it */
+  private boardFrame(f: LifeFrame): void {
+    const t = this.town,
+      b = this.plan.find((s) => s.kind === 'board');
+    if (!t || !b || Math.hypot(f.me.x - b.x, f.me.y - b.y) > 2.4) {
+      this.card.hide();
+      return;
+    }
+    const host = homeTowns.has(t) ? 'home' : (this.realm ?? 'home');
+    const track = this.d.trackBounty;
+    this.card.show(
+      t.name,
+      boardNotices(this.d.seed(), t, host, f.day, f.server ?? Date.now()),
+      track ? (b) => track(b, f.day) : undefined,
+    );
+  }
+  /** where this settlement's notice board stands (tests, screenshots) */
+  boardAt(): { x: number; y: number } | null {
+    return this.sceneAt('board');
   }
 
   private townNear(x: number, y: number): Town | null {
@@ -268,6 +345,8 @@ export class WorldLife {
     this.sparks = [];
     this.fishing = null;
     this.fronts = [];
+    this.plan = [];
+    this.card.hide();
     this.town = town;
     this.site = town ? siteOf(town) : null;
     this.realm = this.site?.realm ?? null;
@@ -342,6 +421,8 @@ export class WorldLife {
 
     // a fisherman wherever a bank touches the settlement
     this.findFishing(t, look(n));
+    // the ordinary business of the street: water, washing, firewood, gossip, children, pets
+    this.populateScenes(t, big);
 
     // stall-keepers behind every market stall, calling their wares
     for (const [k, sp] of Object.entries(t.spots)) {
@@ -422,6 +503,100 @@ export class WorldLife {
         a.slot = i;
         a.st = 'idle';
         a.t = rnd(0, 3);
+      }
+    }
+  }
+
+  // ───────────────────────── everyday scenes ─────────────────────────
+
+  private populateScenes(t: Town, big: number): void {
+    const store = this.d.store();
+    this.plan = planScenes(t, this.d.seed(), {
+      free: (x, y) => !store.solidAt(x, y) && store.getTile(x, y) !== T.WATER,
+      size: big,
+    });
+    for (const sc of this.plan) {
+      const people = (n: number, part0: number, small = false) => {
+        for (let i = 0; i < n; i++) {
+          const x = sc.kind === 'chat' && i === 1 ? sc.x2 : sc.x + (small ? (i - 1) * 1.2 : 0),
+            y = sc.kind === 'chat' && i === 1 ? sc.y2 : sc.y + (small ? (i % 2) * 0.8 : 0);
+          const a = this.person('scene', sceneLook(sc, i, COSMETIC_OUTFITS), x, y, {
+            hours: [0, 24],
+            home: { x: sc.x, y: sc.y, r: 5 },
+          });
+          a.sc = sc;
+          a.part = part0 + i;
+          a.small = small;
+          if (small) a.body.scale.set(0.72);
+          a.carry = new Graphics();
+          a.root.addChild(a.carry);
+          const tool: HeldId | null = sc.kind === 'woodchop' ? 'axe' : sc.kind === 'garden' ? 'can' : null;
+          if (tool && this.d.held) {
+            const h = new Sprite();
+            h.anchor.set(0.5, 0.75);
+            (h as unknown as { id: HeldId }).id = tool;
+            a.heldSprite = h;
+            a.root.addChild(h);
+          }
+        }
+      };
+      const animal = (kind: 'cat' | 'dog' | 'pigeon' | 'prop' | 'horse' | 'chicken', x: number, y: number) => {
+        const a = this.mk('scene', x, y, { x: sc.x, y: sc.y, r: 5 }, [0, 24]);
+        a.sc = sc;
+        a.animal = kind;
+        a.umbrella = false;
+        a.body.anchor.set(0.5, 0.92);
+        const art = this.d.art();
+        if (kind === 'prop') {
+          a.body.visible = false;
+          a.carry = new Graphics();
+          a.root.addChild(a.carry);
+        } else if (kind === 'horse') {
+          a.body.anchor.set(0.5, 49 / 56); // livestock canvases are 48×56, standing at (24, 49)
+          a.body.texture = livestockTexture('horse', 0, 2);
+        } else if (art)
+          a.body.texture = (
+            kind === 'cat' ? art.cat : kind === 'dog' ? art.dog : kind === 'chicken' ? art.chicken : art.pigeon
+          )[0]!;
+        return a;
+      };
+      switch (sc.kind) {
+        case 'chat':
+          people(2, 0);
+          break;
+        case 'kids':
+          people(3, 2, true);
+          break;
+        case 'bench':
+          people(hash2(sc.seed, 1, 1, 1) < 0.5 ? 2 : 1, 0);
+          for (let i = 0; i < 3; i++) animal('pigeon', sc.x - 0.6 + i * 0.7, sc.y + 1.5 + (i % 2) * 0.5);
+          break;
+        case 'cat':
+        case 'dog':
+          animal(sc.kind, sc.x, sc.y);
+          break;
+        case 'laundry':
+          animal('prop', sc.x, sc.y);
+          people(1, 0);
+          break;
+        case 'dressing':
+        case 'board':
+          animal('prop', sc.x, sc.y);
+          break;
+        case 'stablehand':
+          animal('horse', sc.x, sc.y);
+          people(1, 0);
+          break;
+        case 'hens':
+          for (let i = 0; i < 4; i++) animal('chicken', sc.x - 0.9 + i * 0.6, sc.y + 0.8 + (i % 2) * 0.5);
+          people(1, 0);
+          break;
+        case 'woodchop':
+          animal('prop', sc.x, sc.y);
+          people(1, 0);
+          break;
+        default:
+          people(1, 0);
       }
     }
   }
@@ -777,7 +952,8 @@ export class WorldLife {
     }
 
     // frightened villagers run from monsters
-    const person = a.body.anchor.y > 0.9 && a.role !== 'beast' && a.role !== 'chicken' && a.role !== 'roofbird';
+    const person =
+      a.body.anchor.y > 0.9 && !a.animal && a.role !== 'beast' && a.role !== 'chicken' && a.role !== 'roofbird';
     if (person && a.role !== 'royal' && a.role !== 'knight') {
       let nd = 99,
         nh: { x: number; y: number } | null = null;
@@ -839,6 +1015,10 @@ export class WorldLife {
         break;
       case 'roofbird':
         this.roofStep(a, f, pd);
+        break;
+      case 'scene':
+        if (a.st === 'flee' && !a.animal) this.flee(a, f);
+        else if (!this.scenes.step(a, f)) a.root.visible = false;
         break;
     }
     // umbrellas in the rain
@@ -939,12 +1119,19 @@ export class WorldLife {
     const p0 = { x: 0, y: -18 };
     const end = { x: isoX(a.tx, a.ty) - isoX(a.x, a.y), y: isoY(a.tx, a.ty) - isoY(a.x, a.y) };
     const dip = Math.max(0, Math.sin(a.t * 0.9 + a.phase) - 0.92) * 40;
+    // the rod is an isometric sprite angled out over the water; only the line itself is a drawn string
+    if (!g.children.length) {
+      const art = rodSprite(a.tx - a.x > a.ty - a.y ? 'sw' : 'se');
+      const sp = new Sprite(art.tex);
+      sp.anchor.set(art.ax / art.tex.width, art.ay / art.tex.height);
+      sp.position.set(p0.x + 3, p0.y);
+      g.addChild(sp);
+    }
+    // the rod tip in screen pixels: 14 units out along the rod's axis, 18 up (see rodSprite)
+    const tip = a.tx - a.x > a.ty - a.y ? { x: 14, y: -11 } : { x: -14, y: -11 };
     g.clear()
-      .moveTo(p0.x + 3, p0.y)
-      .lineTo(p0.x + 11, p0.y - 12)
-      .stroke({ color: 0x6b4a2a, width: 1 })
-      .moveTo(p0.x + 11, p0.y - 12)
-      .quadraticCurveTo((p0.x + end.x) / 2 + 8, p0.y - 4, end.x, end.y + dip * 0.2)
+      .moveTo(p0.x + 3 + tip.x, p0.y + tip.y)
+      .quadraticCurveTo((p0.x + tip.x + end.x) / 2, p0.y - 4, end.x, end.y + dip * 0.2)
       .stroke({ color: 0xe8e0d0, width: 0.6, alpha: 0.8 })
       .circle(end.x, end.y + dip * 0.2, 1.3)
       .fill(0xd23a2a);
@@ -1192,16 +1379,13 @@ export class WorldLife {
     }
     if (a.role === 'fisher') return;
     if (!a.extra) {
+      // an isometric umbrella held up at the hand (its stick foot sits at the grip)
+      const art = umbrellaSprite(['r3', 'w3', 'e5', 'g3'][a.look % 4]!);
+      const sp = new Sprite(art.tex);
+      sp.anchor.set(art.ax / art.tex.width, art.ay / art.tex.height);
+      sp.position.set(3 * a.body.scale.y, -18 * a.body.scale.y);
       a.extra = new Graphics();
-      const col = [0xc23b3b, 0x3b6bc2, 0xc2a33b, 0x4a9a5c][a.look % 4]!;
-      a.extra
-        .moveTo(-9, -32)
-        .quadraticCurveTo(0, -46, 9, -32)
-        .lineTo(-9, -32)
-        .fill(col)
-        .moveTo(0, -32)
-        .lineTo(0, -20)
-        .stroke({ color: 0x3a2a1a, width: 1 });
+      a.extra.addChild(sp);
       a.root.addChild(a.extra);
     }
   }
@@ -1359,7 +1543,12 @@ export class WorldLife {
       const x = isoX(x0 + (x1 - x0) * k, y0 + (y1 - y0) * k);
       const y = isoY(x0 + (x1 - x0) * k, y0 + (y1 - y0) * k) - 40 + Math.sin(k * Math.PI) * 7;
       g.moveTo(px, py).lineTo(x, y).stroke({ color: 0x3a2a1a, width: 1 });
-      g.poly([x - 2, y, x + 2, y, x, y + 5]).fill(cols[i % cols.length]!);
+      // each pennant hangs in the vertical plane of the string: its top edge follows the string's iso slope
+      const mx = (px + x) / 2,
+        my = (py + y) / 2,
+        ux = (x - px) * 0.32,
+        uy = (y - py) * 0.32;
+      g.poly([mx - ux, my - uy, mx + ux, my + uy, mx, my + 6]).fill(cols[i % cols.length]!);
       px = x;
       py = y;
     }
@@ -1374,11 +1563,15 @@ export class WorldLife {
     const r =
       a.role === 'beast' || a.role === 'knight' || a.model >= 0
         ? 9
-        : a.role === 'chicken'
+        : a.role === 'chicken' || a.animal === 'cat' || a.animal === 'dog'
           ? 3.5
-          : a.role === 'roofbird'
+          : a.animal === 'prop' || a.animal === 'pigeon'
             ? 0
-            : 5;
+            : a.small
+              ? 3.6
+              : a.role === 'roofbird'
+                ? 0
+                : 5;
     a.shadow.clear();
     if (r > 0)
       a.shadow.ellipse(0, 0, r * (1 - Math.min(0.5, a.z * 0.02)), r * 0.5).fill({ color: 0x2a1060, alpha: 0.26 });

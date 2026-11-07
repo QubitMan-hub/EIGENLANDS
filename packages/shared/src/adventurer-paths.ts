@@ -149,7 +149,7 @@ const PATHS: Array<
     'Archer',
     'ranged',
     'Long shots gain 12% damage. At close range damage falls 10%; use a ward or ally to create distance.',
-    ['crossbow'],
+    ['crossbow', 'longbow'],
     { distant: 1.12, close: 0.9 },
     'Fan of arrows',
     8,

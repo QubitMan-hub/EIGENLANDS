@@ -8,6 +8,57 @@ Core surface rock/ore art and local depleted rubble now use the supplied referen
 
 Read [ART_OVERHAUL_STATUS.md](ART_OVERHAUL_STATUS.md) and the [complete user request](design/art-overhaul-request.md) first. Both split packs are preserved under `art-source/reference-pack`; the former transfer block is resolved. Character size must not be reduced. Scale/hero/tree integration is shipped, with expanded body cells, taller long-legged foundations, 44 px doors (latest user correction), a closer default camera, full saddle-aligned rider poses and prepared seasonal tree assets and documented gameplay proof. Distinct fishing reel/landing and planting clips are the subsequent integrated stage. The status document explicitly lists the remaining catalogs, environment, animals, mounted layers, customization and animation work. Preserve saves, gameplay, camera zoom and pivots; keep integrating main and working without subagents.
 
+# Current continuation: bounty beasts with signature moves; tracked wanted posters (2026-10-27)
+
+- **Bounty beasts** are now marked (`ELITE.BOUNTY`): larger, tinted, with an ember wanted-ring and their poster
+  name and move in the target frame. Each kind has a telegraphed signature move: Call of the Pack, Rampage,
+  Earthshaker, Burrow or Bramble Ring.
+- **Fixed:** sightings no longer fall inside a ward; before, warded beasts were dispersed on arrival and never met.
+- **Track this bounty** on the notice board points the travel strip and atlas at the sighting.
+- **Star gear** was checked in the browser: the Starlit Lantern gives light 9 and the Wishing Star Charm luck 2.5.
+- Tests: server `wonders.test.ts` (marked beast, warning toast, signature move), shared `wonders.test.ts`
+  (sightings are never warded). Proof: `e2e/notice-board.mjs`.
+
+# Current continuation: longbows, star crafting and notice boards (2026-10-27)
+
+- **Longbow:** a new weapon family (`shared/src/equipment.ts`, held art in `client/src/art/weapons.ts`, icon). It
+  draws slower than the crossbow, reaches furthest, and its arrows pierce one foe; the charged Long Shot pierces three.
+  It comes in every crossbow metal and the smith sells it.
+- **Star shards** make star glass, starsteel, the Starlit Lantern, the Wishing Star Charm and the levelled legendary
+  longbow Starfall (`shared/src/catalog/starfall.ts`).
+- **Notice boards** stand on every kingdom and frontier town square: today's wanted poster, the nearest caravan,
+  festivals and tomorrow's weather (`client/src/game/noticeboard.ts`).
+- Tests: shared `lively.test.ts`; client `noticeboard.test.ts`, `scenes.test.ts`. Browser proof:
+  `e2e/notice-board.mjs`.
+
+# Current continuation: orderly, isometric, livelier towns (2026-10-27)
+
+Everything the street-life layer adds to a town is now an isometric sprite. That covers the umbrellas, fishing rods,
+brooms, lamplighter poles, lutes, the watchman's lantern, buckets and sacks (`client/src/art/scene-props.ts`), plus
+the town prop library. Doorsteps are dressed in matching pairs either side of each door, chosen by building
+(planters at homes, barrels at the inn, a crate and basket at shops, woodpile and barrel at the smithy, hay and
+firewood at farms). Chores follow the building too. New: the night watch with a real lantern light, a stable hand
+and tied horse at the inn, hens fed at farmhouses. Tests: `client/test/scenes.test.ts`. See
+[LIVING_WORLD.md](LIVING_WORLD.md#everyday-scenes).
+
+# Current continuation: busier roads and isometric scene props (2026-10-27)
+
+Kingdom roads now carry thirteen travellers each. Every road has a marching column of the realm's soldiers (a mounted
+officer, the realm standard, infantry two abreast and archers, in step), three knights, market folk and a carter.
+Drovers with cattle, goatherds, swineherds, monks and a noble with guards also turn up (`shared/src/wayfarers.ts`,
+`client/src/features/travel/roadlife.ts`). Town scene props now use the isometric prop library plus new isokit
+sprites in `client/src/art/scene-props.ts`; the flat drawn barrels, pots, logs and sacks are gone. Proofs:
+`e2e/road-traffic.mjs` and `e2e/everyday-scenes.mjs`.
+
+# Everyday scenes in the towns (2026-10-27)
+
+Kingdom and frontier towns gain ordinary daily life: drawing water, washing lines, firewood, sweeping, watering
+window boxes, neighbours gossiping, children at tag, elders feeding pigeons, porters, a busker, cats and dogs, and the
+dusk lamplighter. Every door is dressed with pots, barrels, sacks, crates or firewood. The scenes follow the hours and
+the weather. Planning is in `client/src/game/scenes.ts` (pure, `scenes.test.ts`) and animation in `scene-life.ts`
+inside `life.ts`. Browser proof: `e2e/everyday-scenes.mjs`. See
+[LIVING_WORLD.md](LIVING_WORLD.md#everyday-scenes) for details and limits. The §19 statuses are in the master plan.
+
 ---
 
 # Current continuation: realm generation, shadow powers and dungeon gates (2026-10-27)

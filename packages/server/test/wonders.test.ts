@@ -1,10 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  BOUNTY_SIGNATURE,
   DAY_MS,
+  ELITE,
   MSG,
   RESTED_XP_MULT,
   BOUNTY_STYLE,
-  ELITE,
   bountyOf,
   chunkOf,
   dayNumber,
@@ -131,9 +132,21 @@ describe('town bounties', () => {
     await p.room.ensureChunk(chunkOf(b.x), chunkOf(b.y));
     p.room.wonders.tick(p.room.wclock.now(), 2.1);
     await until(() => p.room.wonders.bountyState(b.id) === 'out', 8000);
-    // it is no ordinary beast: marked, renamed and fighting in its own way
-    const beast = [...p.room.enemies.values()].find((e: any) => e.state.elite & ELITE.BOUNTY)!;
+    // it is a marked beast, larger than its kind, and the hunters hear what it does
+    const beast = [...p.room.enemies.values()].find((e) => e.elite & ELITE.BOUNTY)!;
     expect(beast).toBeTruthy();
+    expect(beast.elite & ELITE.HARDENED).toBeTruthy();
+    await until(() => p.toasts.some((t) => t.text.includes(`${b.name} is near!`)), 3000);
+    // in a fight, wounded, it uses its signature move: a warning first, then the move
+    beast.hp = beast.maxHp * 0.5;
+    beast.x = p.sp.sim.x + 1.5;
+    beast.y = p.sp.sim.y;
+    const sig = BOUNTY_SIGNATURE[b.kind];
+    for (let i = 0; i < 40 && !p.toasts.some((t) => t.text.includes(`${b.name}: ${sig.name}!`)); i++) {
+      p.room.wonders.tick(p.room.wclock.now(), 0.5);
+      await sleep(20);
+    }
+    await until(() => p.toasts.some((t) => t.text.includes(`${b.name}: ${sig.name}!`)), 3000);
     expect(beast.def.name).toBe(b.name);
     expect(beast.def.ai).toBe(BOUNTY_STYLE[b.kind].ai);
     expect(p.room.wonders.bountyAt(town.cx, town.cy)?.state).toBe('out');

@@ -2,6 +2,7 @@ import './atlas.css';
 import {
   OTHERWORLDS,
   caravanAt,
+  dayNumber,
   caravanRoutes,
   ENEMY_BY_KIND,
   NPC_BY_ID,
@@ -256,6 +257,20 @@ export class AtlasClient implements ClientModule {
           point: exit,
         };
     }
+    if (this.tracked?.startsWith('@bounty|')) {
+      // a wanted poster from a town notice board: id|day|x|y|name
+      const [, id, day, x, y, name] = this.tracked.split('|');
+      const today = dayNumber(this.d.clock.serverNow(performance.now()));
+      if (Number(day) === today && Number.isFinite(Number(x)))
+        return {
+          id: this.tracked,
+          title: `Wanted: ${name}`,
+          detail: 'Last seen here. Bring it down with whoever is near to share the bounty.',
+          point: { x: Number(x), y: Number(y) },
+        };
+      void id;
+      return null;
+    }
     if (this.tracked === '@arrival') {
       const town = townFor(this.d.store().seed);
       return {
@@ -290,8 +305,20 @@ export class AtlasClient implements ClientModule {
       ).find((p) => p.questId === this.tracked) ?? null
     );
   }
+  /** Follow a wanted poster: the travel strip and the atlas point to where the beast was last seen, until the day ends. */
+  trackBounty(b: { id: string; name: string; x: number; y: number }, day: number): void {
+    this.tracked = `@bounty|${b.id}|${day}|${b.x}|${b.y}|${b.name}`.slice(0, 127);
+    this.changed = true;
+    this.save();
+    this.d.toasts.add(`Tracking the bounty on ${b.name}. Follow the travel strip.`, 'info');
+  }
   trackQuest(id: string | null, showMap = false): void {
-    if (id && !['@arrival', '@cave-entry', '@cave-exit'].includes(id) && this.d.profile.quests[id]?.state !== 'active')
+    if (
+      id &&
+      !['@arrival', '@cave-entry', '@cave-exit'].includes(id) &&
+      !id.startsWith('@bounty|') &&
+      this.d.profile.quests[id]?.state !== 'active'
+    )
       return;
     this.tracked = id;
     this.changed = true;

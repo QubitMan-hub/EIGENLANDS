@@ -69,8 +69,9 @@ fail if any of the rules here break.
 
 ## Not built (kept honest)
 
-- **Saddles, mount equipment and mounts** (nothing to ride); class-specific equipment; dagger, bow and greatsword families (each
-  needs its own moves and held art; the sword, spear, axe, hammer and crossbow families have variants).
+- Saddles and mount equipment as separate catalog gear: horses, the Stag and the Griffin are ridden through their whistles
+  (TRAVEL.md), and saddles exist only as part of those recipes. Class-specific equipment and a bow family are not built;
+  daggers and the greatsword now exist (REMAINING_WORK.md).
 - Armour sets other than the original five do not redraw your character (`look: -1`); they change numbers, not the sprite.
 - Individual bee simulation remains open; poultry and mammals now have breeding, growth and happiness (§10).
 - Decorative rain barrels/trellises remain; planted perennial grape trellises, fruit trees, irrigation channels and individual husbandry are now functional: see [HOMESTEADS_AND_GUILD.md](HOMESTEADS_AND_GUILD.md).

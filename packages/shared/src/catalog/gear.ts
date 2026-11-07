@@ -154,6 +154,11 @@ const HEAD: Record<string, (m: string) => Array<[string, number]>> = {
     [`${m}_plate`, 2],
     ['handle', 1],
   ],
+  longbow: (m) => [
+    ['bowstave', 2],
+    ['sinew', 2],
+    [`${m}_rod`, 1],
+  ],
   crossbow: (m) => [
     [`${m}_rod`, 2],
     [`${m}_plate`, 1],

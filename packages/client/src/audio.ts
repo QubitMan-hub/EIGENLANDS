@@ -41,7 +41,9 @@ export type Sfx =
   | 'anvil'
   | 'horn'
   | 'cheer'
-  | 'fanfare';
+  | 'fanfare'
+  | 'lute'
+  | 'sweep';
 
 /** Tiny WebAudio chiptune-style SFX synth; no asset files. Starts after the first user gesture. */
 export class Audio {
@@ -289,6 +291,16 @@ export class Audio {
       case 'fanfare':
         [392, 392, 523, 659, 784].forEach((f, i) => this.tone(f, i === 4 ? 0.5 : 0.14, 'square', 0.1, 0, i * 0.13));
         break;
+      case 'lute': {
+        // a busker's phrase: four plucked notes from a pentatonic scale, a little different each time
+        const scale = [262, 294, 330, 392, 440, 523];
+        for (let i = 0; i < 4; i++)
+          this.tone(scale[Math.floor(Math.random() * scale.length)]!, 0.32, 'triangle', 0.06, -6, i * 0.2);
+        break;
+      }
+      case 'sweep':
+        this.noise(0.18, 0.04, 'highpass', 3200, 2600, 0.7, 0, 0.06);
+        break;
       case 'levelup':
         [523, 659, 784, 1046].forEach((f, i) => this.tone(f, 0.16, 'square', 0.14, 0, i * 0.08));
         break;
@@ -338,4 +350,6 @@ export const SFX_CAPTIONS: Record<Sfx, string> = {
   horn: 'war horn',
   cheer: 'crowd cheers',
   fanfare: 'trumpets',
+  lute: 'a lute being played',
+  sweep: 'sweeping',
 };

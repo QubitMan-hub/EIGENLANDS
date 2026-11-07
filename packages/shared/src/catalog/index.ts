@@ -15,6 +15,7 @@ import './dishes';
 import './drinks';
 import './home';
 import './homesteads';
+import './starfall';
 import './legendary';
 import './realm-items';
 import './gate-items';

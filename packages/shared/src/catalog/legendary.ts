@@ -418,7 +418,7 @@ for (const g of GEARS) {
 }
 
 // ── legendary weapons: recipes (the items come from weapons-data, like every other weapon)
-const LEG: Record<string, { station: 'forge'; inputs: Array<[string, number]>; lvl: number }> = {
+const LEG: Record<string, { station: 'forge'; inputs: Array<[string, number]>; lvl: number; levelled?: true }> = {
   stormpiercer: {
     station: 'forge',
     inputs: [
@@ -459,6 +459,18 @@ const LEG: Record<string, { station: 'forge'; inputs: Array<[string, number]>; l
     ],
     lvl: 32,
   },
+  // the one legend that is not taught by a scroll: forged by anyone who has broken open enough fallen stars
+  starfall_bow: {
+    station: 'forge',
+    inputs: [
+      ['starsteel_ingot', 3],
+      ['bowstave', 2],
+      ['star_glass', 1],
+      ['sinew', 2],
+    ],
+    lvl: 18,
+    levelled: true,
+  },
 };
 for (const w of LEGENDARY_WEAPONS) {
   const m = LEG[w.id]!;
@@ -466,7 +478,7 @@ for (const w of LEGENDARY_WEAPONS) {
     lvl: m.lvl,
     disc: 'smithing',
     xp: 60 + m.lvl * 3,
-    learn: 'scroll',
+    learn: m.levelled ? 'level' : 'scroll',
     hint: w.blurb,
     cat: 'weapon',
     quality: true,
