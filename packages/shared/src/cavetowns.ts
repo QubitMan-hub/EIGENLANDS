@@ -52,7 +52,15 @@ export function caveTowns(seed: number): Town[] {
       rect(x, y, 12, 9, T.WALL);
       rect(x + 1, y + 1, 10, 7, i === 2 ? T.FLOOR : T.VAULT_FLOOR);
       set(b.doorX, b.doorY, T.FLOOR);
-      for (let yy = Math.min(b.doorY + 1, p.cy); yy <= Math.max(b.doorY + 1, p.cy); yy++) set(b.doorX, yy, T.PATH);
+      // a lane from the doorstep to the main street; a hall south of the street opens away from it, so its lane
+      // runs along the front and up the east side rather than through the hall
+      const step = b.doorY + 1;
+      if (step <= p.cy) for (let yy = step; yy <= p.cy; yy++) set(b.doorX, yy, T.PATH);
+      else {
+        const side = x + 12;
+        for (let xx = b.doorX; xx <= side; xx++) set(xx, step, T.PATH);
+        for (let yy = p.cy; yy <= step; yy++) set(side, yy, T.PATH);
+      }
       furnish(
         b,
         (ox, oy, kind, sub) => t.objects.push({ x: ox, y: oy, kind, sub }),

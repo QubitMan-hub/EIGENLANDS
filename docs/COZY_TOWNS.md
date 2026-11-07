@@ -31,3 +31,25 @@ Small fixed porch lanterns use the existing wall-plane/night-glass and building-
 - `e2e/ui-contrast.mjs --assert`: title/HUD, windows, journal pages, statue, NPC dialogue and shops. Desktop Performance mode is smoke-tested separately; reports and representative screenshots live in `docs/validation/cozy-towns/`.
 
 Software Chromium still shows capital-entry frame spikes (the recorded Performance-mode sample had six long tasks during entry). This is not a low-end phone or real network benchmark, and the batch does not claim lag-free play. Full replacement guild-building prefabs, authored world-changing campaigns, deeper resident government and other broad master-plan items remain documented in `HOMESTEADS_AND_GUILD.md` and the master plan. Render setup remains the user's separate work.
+
+## Layout rules (every settlement)
+
+`shared/src/settlement-audit.ts` sets the rules every generated town, village, city, cave town and frontier province keeps. The final dressing pass enforces them: `clearLayout` runs in `cozyTown`, and runs again after a tiered settlement's connecting roads are laid.
+
+- **Streets stay open.** Every road tile stays connected to the main street, and no prop stands across a one-tile lane. A statue on a square is fine; a crate across a lane is not.
+- **Doors stay usable.** Every outside door has a clear step, reachable on foot from the main street. A prop's artwork never covers the path to a door.
+- **Props sit and face sensibly.** Nothing is jammed into a one-tile gap between two houses. Laundry lines strung across a gap and hedges closing one are the exceptions. A directional prop backed onto a wall faces away from it.
+- **Street furniture belongs by the street.** Lamps, signposts and notice boards stand near a road, and mailboxes stand near a door.
+
+**How violations are fixed.** A prop that breaks a rule moves to the nearest tile within three steps where it keeps every rule. The move stays on the same side of indoors and outdoors, keeps off roads and door approaches, and cuts no street. A prop with nowhere to go is left out.
+
+**What is never moved or dropped.** Pieces the game relies on (stations, signs and boards, wells, waystones, stairs) can be moved but are never left out. Architecture drawn as props (ramparts, towers, gates, bridges) is never treated as furniture.
+
+**Results.** Across 342 settlements over three seeds there were 62 genuine problems. They included:
+
+- a cave-town lane that ran through a hall's back wall and under its counter;
+- market stalls whose art covered a shop's door path;
+- a tavern table in a one-tile alley;
+- a street lamp and a signpost standing diagonally across a crossroads.
+
+All 62 are fixed. Overall 12 lamps with no road nearby were left out, and one cart moved. `shared/test/settlement-audit.test.ts` keeps it that way.

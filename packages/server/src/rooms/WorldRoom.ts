@@ -61,6 +61,8 @@ import {
   setMeleeWeapon,
   isPerfectDodge,
   pickSpawn,
+  dangerAt,
+  dangerPressure,
   REALM_BEAST,
   inRealmLand,
   type EnemyKindName,
@@ -1810,8 +1812,12 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
           used += e.def.budget ?? 1;
           near++;
         }
-      const headroom = Math.min(6, 4 + Math.floor(p.level / 4)) - near;
-      const budget = spawnBudget(p.level, night, biome);
+      // the land sets the danger, not the traveller: the Hearthlands are gentle, the far wilds and the deeps are not
+      const danger = dangerAt(p.sim.x, p.sim.y, { night, corrupt: biome === 'corrupted' }),
+        press = dangerPressure(danger.tier),
+        lvl = danger.level;
+      const headroom = Math.min(8, 4 + Math.floor(lvl / 4) + press.headroom) - near;
+      const budget = spawnBudget(lvl, night, biome) + press.budget;
       if (used >= budget || headroom <= 0) continue;
       for (let tries = 0; tries < 10; tries++) {
         const a = this.rand() * Math.PI * 2,
@@ -1820,7 +1826,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
           y = Math.floor(p.sim.y + Math.sin(a) * d) + 0.5;
         const habitat = biomeAt(this.seed, x, y);
         let kind: EnemyKindName = pickSpawn(
-            p.level,
+            lvl,
             night,
             this.rand(),
             habitat,
@@ -1830,7 +1836,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
           ),
           def = ENEMY_DEFS[kind];
         // the wilds of a kingdom also hold its mythical beast (revision 5)
-        if (this.store.generation >= 5 && p.level >= 3 && !isCaveY(y) && this.rand() < 0.2) {
+        if (this.store.generation >= 5 && lvl >= 3 && !isCaveY(y) && this.rand() < 0.2) {
           const realm = inRealmLand(this.seed, x, y);
           if (realm) {
             kind = REALM_BEAST[realm];
@@ -1874,13 +1880,13 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
           )
             continue;
           const elite =
-            p.level >= 3 && n === 1 && this.rand() < eliteChance(p.level, night)
+            lvl >= 3 && n === 1 && this.rand() < eliteChance(lvl, night) * press.pace
               ? [ELITE.HARDENED, ELITE.SWIFT, ELITE.VOLATILE][Math.floor(this.rand() * 3)]!
               : 0;
-          this.spawnEnemy(kind, px, py, night, { level: p.level, elite });
+          this.spawnEnemy(kind, px, py, night, { level: lvl, elite });
           total++;
         }
-        this.encounterAt.set(p.id, now + (night ? 12000 : 16000) + this.rand() * 6000);
+        this.encounterAt.set(p.id, now + ((night ? 12000 : 16000) + this.rand() * 6000) / press.pace);
         break;
       }
     }

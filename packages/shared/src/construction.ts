@@ -340,3 +340,50 @@ export const buildTile = (o: WorldObj | undefined): number | undefined => {
 export const buildKey = (x: number, y: number) => `${x},${y}`;
 /** A bounded upper-floor band leaves caves and ocean instances untouched. */
 export const BUILD_WORLD_LIMIT = 10000;
+/** how far (tiles) a builder reaches for one piece, and for a dragged run of them */
+export const BUILD_REACH = 2.2;
+export const BUILD_DRAG_REACH = 6;
+/** the most pieces one dragged run lays */
+export const BUILD_BATCH_MAX = 64;
+
+/** A wall's turn on the edge of a w×h rectangle: along x on the top and bottom rows (and corners), along y on the
+ * sides. Generated cottages and dragged rooms share it, so their walls join the same way. */
+export function perimeterTurn(dx: number, dy: number, w: number, h: number): BuildTurn {
+  return (dx === 0 || dx === w - 1) && dy !== 0 && dy !== h - 1 ? 1 : 0;
+}
+
+/**
+ * The pieces a drag from (x0, y0) to (x1, y1) lays: floors and roofs fill the rectangle (roofs keep the chosen ridge
+ * `turn`); walls run along a straight drag or around the rectangle's edge, each turned to run along it; doors and
+ * stairs are single pieces at the release point. Ordered from the start outward, capped at BUILD_BATCH_MAX.
+ */
+export function buildPlan(
+  id: BuildPiece,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  turn: BuildTurn = 0,
+): Array<[number, number, BuildTurn]> {
+  const piece = BUILD_PIECES[id];
+  const out: Array<[number, number, BuildTurn]> = [];
+  const lx = Math.min(x0, x1),
+    hx = Math.max(x0, x1),
+    ly = Math.min(y0, y1),
+    hy = Math.max(y0, y1);
+  const w = hx - lx + 1,
+    h = hy - ly + 1;
+  if (piece.layer === 'stairs' || isDoor(id) || (w === 1 && h === 1)) return [[x1, y1, turn]];
+  if (piece.layer === 'wall') {
+    if (w === 1 || h === 1) {
+      const along: BuildTurn = h === 1 ? 0 : 1;
+      for (let y = ly; y <= hy; y++) for (let x = lx; x <= hx; x++) out.push([x, y, along]);
+    } else
+      for (let y = ly; y <= hy; y++)
+        for (let x = lx; x <= hx; x++)
+          if (x === lx || x === hx || y === ly || y === hy) out.push([x, y, perimeterTurn(x - lx, y - ly, w, h)]);
+  } else
+    for (let y = ly; y <= hy; y++) for (let x = lx; x <= hx; x++) out.push([x, y, piece.layer === 'roof' ? turn : 0]);
+  out.sort((a, b) => Math.hypot(a[0] - x0, a[1] - y0) - Math.hypot(b[0] - x0, b[1] - y0));
+  return out.slice(0, BUILD_BATCH_MAX);
+}

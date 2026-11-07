@@ -719,6 +719,11 @@ export function townAt(seed: number, x: number, y: number, generation: number = 
   return townsFor(seed, generation).find((t) => x >= t.x0 && x <= t.x1 && y >= t.y0 && y <= t.y1) ?? null;
 }
 /** Town tile override at (x,y), or null outside a settlement's authored footprint. */
+/** The tile a town's own grid sets at (x, y) (its bounds are inclusive), or null where it sets none. */
+export function townTile(t: Town, x: number, y: number): number | null {
+  if (x < t.x0 || y < t.y0 || x > t.x1 || y > t.y1) return null;
+  return t.tiles.get(x - t.x0 + (y - t.y0) * (t.x1 - t.x0 + 1)) ?? null;
+}
 export function townTileAt(
   seed: number,
   x: number,
@@ -726,7 +731,7 @@ export function townTileAt(
   generation: number = activeGeneration(seed),
 ): number | null {
   const t = townAt(seed, x, y, generation);
-  return t?.tiles.get(x - t.x0 + (y - t.y0) * (t.x1 - t.x0 + 1)) ?? null;
+  return t ? townTile(t, x, y) : null;
 }
 export function buildingAt(seed: number, x: number, y: number): Building | null {
   return townAt(seed, x, y)?.buildings.find((b) => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h) ?? null;

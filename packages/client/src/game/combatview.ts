@@ -8,6 +8,7 @@ import { isHeldId, type HeldWeapons } from '../art/weapons';
 import { type Critters, type CritterId } from '../art/critters';
 import { Sprite, type Container, Graphics } from 'pixi.js';
 import { SHIP_AX, SHIP_AY, headingOf, type Ships } from '../art/ships';
+import { headingOf as shotHeading, projectileTexture, styleForWeapon, type ProjStyle } from '../art/projectiles';
 import {
   HUE_PALETTE,
   mountKindOf,
@@ -86,6 +87,9 @@ export interface CombatActor {
   mountFront?: Sprite;
   riderReins?: Graphics;
   personFrame?: number;
+  /** projectiles: who fired it, its smoothed flight direction (world) and the last few iso points it passed */
+  owner?: string;
+  flight?: { dx: number; dy: number; px: number; py: number; path: Array<[number, number]> };
 }
 
 /** Synced fields combat reads from interpolated snapshots. */
@@ -124,7 +128,12 @@ export interface CombatDeps {
   myId: () => string;
   me: () => { x: number; y: number } | null;
   views: () => Iterable<CombatActor>;
+  /** the weapon (and its base family) a player has in hand, by their session id */
+  weaponOf: (id: string) => [string | undefined, string | undefined];
 }
+
+/** how high (art pixels) a shot flies above the ground */
+const LIFT = 8;
 
 const TIP_KEY = 'eigen.combatTips';
 const TIPS: Record<string, string> = {
@@ -1068,15 +1077,56 @@ export class CombatView {
     if (s && s.atk && !isShadow && (st === 2 || st === 3)) this.telegraph(x, y, s, now);
   }
 
+  /**
+   * A shot in flight: drawn along its own heading (taken from how it moves), lifted off the ground with a small
+   * shadow under it, and trailing a few pixels of its path. Its look follows the weapon that fired it.
+   */
   drawProjectile(v: CombatActor, s: CombatSnap | null, now: number): void {
     const k = s?.kind ?? 0;
-    const f = Math.floor(now / 90) % 2;
-    v.sprite.texture = k === 0 ? this.d.sheets().orb(f) : this.d.foes().orb(k === 2, f);
-    v.sprite.anchor.set(0.5, 0.75);
-    if (k === 1) {
-      const g = v.gfx;
-      g.ellipse(0, 0, 4, 2).fill({ color: pc(1), alpha: 0.35 });
+    const f = this.d.reduced() ? 0 : Math.floor(now / 90) % 2;
+    const fl = (v.flight ??= { dx: 1, dy: 0, px: v.lx, py: v.ly, path: [] });
+    const mx = v.lx - fl.px,
+      my = v.ly - fl.py;
+    if (Math.hypot(mx, my) > 0.01) {
+      // ease the heading toward the motion so a shot never snaps between headings frame to frame
+      const l = Math.hypot(mx, my);
+      fl.dx = fl.dx * 0.5 + (mx / l) * 0.5;
+      fl.dy = fl.dy * 0.5 + (my / l) * 0.5;
+      fl.path.unshift([v.root.x, v.root.y]);
+      if (fl.path.length > 5) fl.path.length = 5;
     }
+    fl.px = v.lx;
+    fl.py = v.ly;
+    const style: ProjStyle =
+      k === 1 ? 'orb' : k === 2 ? 'reflected' : styleForWeapon(...this.d.weaponOf(v.owner ?? ''));
+    v.sprite.texture = projectileTexture(style, shotHeading(fl.dx, fl.dy), f);
+    v.sprite.anchor.set(0.5, 0.5);
+    v.sprite.y = -LIFT;
+    const g = v.gfx;
+    // the shadow on the ground beneath it
+    g.rect(-2, -0.5, 4, 1).fill({ color: pc(0), alpha: 0.35 });
+    // the trail: fading pixels back along the path, on the art grid
+    const col =
+      style === 'ember'
+        ? 37
+        : style === 'rime'
+          ? 30
+          : style === 'verdant'
+            ? 12
+            : style === 'radiant'
+              ? 38
+              : style === 'orb'
+                ? 45
+                : style === 'reflected'
+                  ? 47
+                  : 6;
+    fl.path.forEach(([x, y], i) => {
+      if (i === 0) return;
+      g.rect(Math.round(x - v.root.x) - 0.5, Math.round(y - v.root.y - LIFT) - 0.5, 1, 1).fill({
+        color: pc(col),
+        alpha: 0.55 * (1 - i / fl.path.length),
+      });
+    });
   }
 
   /** Charge ring, dash pips, phase-slip aura and afterimages around a player. */

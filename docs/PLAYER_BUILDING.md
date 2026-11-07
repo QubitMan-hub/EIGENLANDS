@@ -15,7 +15,16 @@ Open **Field crafting** (default **C**) and craft building pieces from wood, sto
 
 Foundations need level ground in worlds with elevation (revision 3): the tile and all eight neighbours must sit at the same level, so find or clear a flat terrace; hills, banks and mountain slopes refuse the piece with a message and keep your stack.
 
-Lay floors first. Arrange an arbitrary floor plan, then add walls, doors and roofs. Walls and roofs can share a foundation; furniture, chests and crafting stations use a separate layer. The **Rotate** button appears only while a wall, door, roof or stair piece is selected. It has a 44px minimum touch target. A translucent preview shows the aimed piece; the server checks placement and ownership before consuming it.
+Lay floors first. Arrange an arbitrary floor plan, then add walls, doors and roofs.
+
+**Drag to build a run.** With a floor, wall or roof piece selected, hold Use on a buildable tile and aim:
+
+- Floors and roofs fill the rectangle you drag out. Roofs keep the ridge chosen with Rotate.
+- Walls run along a straight drag, or all the way around a rectangle, each turned to run along its side the same way generated cottages are built.
+
+A ghost shows every piece of the run, green where it can go and red where it can't or is out of reach, and the hint gives the total. Release to build. Each tile is checked exactly like a single placement and takes one piece. You hear one summary of what was built and why any tiles were skipped, instead of a message per tile.
+
+A run is at most 64 pieces within 6 tiles of you. A quick 5×4 cottage is two drags, floors then walls, plus a door and a roof drag. Doors and stairs stay single pieces. Walls and roofs can share a foundation; furniture, chests and crafting stations use a separate layer. The **Rotate** button appears only while a wall, door, roof or stair piece is selected. It has a 44px minimum touch target. A translucent preview shows the aimed piece; the server checks placement and ownership before consuming it.
 
 Adjacent roof panels with the same material and ridge axis form a shared gable. Enter a roofed room to lift its roof and cut away the nearby front walls. Other rooms remain covered.
 

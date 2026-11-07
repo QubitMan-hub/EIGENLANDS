@@ -76,7 +76,7 @@ export function describeUse(
         ? 'Reclaim the existing piece first'
         : piece.layer !== 'floor' && !cell?.data.floor
           ? 'Lay your own floor first'
-          : `Build ${piece.name}`,
+          : `Build ${piece.name}${piece.layer === 'stairs' || 'door' in piece ? '' : ' · hold and drag to build a run'}`,
       ok: !used && (piece.layer === 'floor' ? !isSolid(tile) || tile === T.UPPER_VOID : !!cell?.data.floor),
     };
   }

@@ -1,4 +1,5 @@
 import {
+  isBuildPiece,
   otherworldOf,
   MOUNT_FEED,
   caveBiomeAt,
@@ -24,7 +25,7 @@ import {
   GUT_ROT_CHANCE,
   perishable,
 } from '@eigenlands/shared';
-import { useConstruction } from './construction';
+import { useConstruction, useConstructionArea } from './construction';
 import { tuning } from '../rooms/runtime';
 import { useCatalogItem } from './gear';
 import type { ServerPlayer } from '../rooms/player';
@@ -51,6 +52,13 @@ export async function handleUse(room: RoomApi, p: ServerPlayer, msg: UseMsg): Pr
   if (!def) return;
   const { tx, ty } = msg;
   const kind = def.kind;
+  // a dragged run of building pieces (each tile checked as a single placement would be)
+  if (msg.area !== undefined) {
+    if (!isBuildPiece(first.id)) return;
+    p.toolReadyAt = t0 + tuning.toolCooldownMs;
+    await useConstructionArea(room, p, msg, first.id);
+    return;
+  }
 
   // special items: Heart Crystals and boss summons
   if (def.special === 'heart') {

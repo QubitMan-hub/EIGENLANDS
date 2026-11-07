@@ -115,3 +115,4 @@ export * from './gates';
 export * from './defense';
 
 export * from './appearance-parts';
+export * from './danger';

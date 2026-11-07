@@ -2,8 +2,11 @@ import { buildSettlement } from '../ui/settlement';
 import { buildGuild } from '../ui/guild';
 import type { EquipMsg } from '@eigenlands/shared';
 import {
+  BUILD_DRAG_REACH,
   BUILD_PIECES,
+  buildPlan,
   isBuildPiece,
+  type BuildTurn,
   CROPS,
   ITEMS,
   MSG,
@@ -648,6 +651,11 @@ export class Gameplay {
         }
       }
     }
+    // a building piece starts a drag: hold Use and aim to stretch a run of floors, roofs or walls, release to build it
+    if (sel && isBuildPiece(sel.id) && info?.kind === 'place') {
+      this.drag = { slot: this.hotbar.selected, id: sel.id, x0: t.tx, y0: t.ty, x1: t.tx, y1: t.ty };
+      return true;
+    }
     this.lastUse = performance.now();
     net.use({ slot: this.hotbar.selected, tx: t.tx, ty: t.ty, turn: this.buildRotation });
     if (info?.kind === 'till') this.acts.tilled = true;
@@ -656,8 +664,58 @@ export class Gameplay {
     return true;
   }
 
-  /** While the interaction key is held: repeat tool swings at ~3/s. */
+  /** a building run being dragged out (press Use on a buildable tile, aim, release) */
+  private drag: { slot: number; id: string; x0: number; y0: number; x1: number; y1: number } | null = null;
+
+  /** The pieces the current drag would lay, each marked whether it is within the builder's reach. */
+  dragPlan(): Array<{ tx: number; ty: number; turn: BuildTurn; near: boolean }> | null {
+    const d = this.drag;
+    if (!d || !isBuildPiece(d.id)) return null;
+    const p = this.d.player();
+    return buildPlan(d.id, d.x0, d.y0, d.x1, d.y1, this.buildRotation as BuildTurn).map(([tx, ty, turn]) => ({
+      tx,
+      ty,
+      turn: d.x0 === d.x1 && d.y0 === d.y1 ? (this.buildRotation as BuildTurn) : turn,
+      near: Math.hypot(tx + 0.5 - p.x, ty + 0.5 - p.y) <= BUILD_DRAG_REACH,
+    }));
+  }
+
+  /** Follow the aim while Use is held; on release, build the run (or the single piece). */
+  private stepDrag(): void {
+    const d = this.drag!;
+    const sel = this.selected();
+    if (this.blocking || !sel || sel.id !== d.id || this.hotbar.selected !== d.slot) {
+      this.drag = null;
+      return;
+    }
+    const p = this.d.player();
+    const mouse = this.d.input.mouseActive ? this.d.input.mouseTile : null;
+    if (this.d.input.interactHeld) {
+      const t = targetTile(p.x, p.y, p.fx, p.fy, mouse);
+      d.x1 = t.tx;
+      d.y1 = t.ty;
+      return;
+    }
+    const plan = this.dragPlan() ?? [];
+    this.drag = null;
+    this.lastUse = performance.now();
+    if (plan.length <= 1)
+      this.d.net().use({ slot: d.slot, tx: d.x1, ty: d.y1, turn: plan[0]?.turn ?? this.buildRotation });
+    else
+      this.d.net().use({
+        slot: d.slot,
+        tx: plan[0]!.tx,
+        ty: plan[0]!.ty,
+        area: plan.filter((q) => q.near).map((q) => [q.tx, q.ty, q.turn]),
+      });
+  }
+
+  /** While the interaction key is held: repeat tool swings at ~3/s (or stretch a building drag). */
   holdUse(now: number): void {
+    if (this.drag) {
+      this.stepDrag();
+      return;
+    }
     if (this.blocking || !this.d.input.interactHeld || now - this.lastUse < 320) return;
     const p = this.d.player();
     const store = this.d.store();

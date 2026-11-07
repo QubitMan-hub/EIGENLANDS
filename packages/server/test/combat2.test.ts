@@ -3,6 +3,8 @@ import { matchMaker } from 'colyseus';
 import type { Room } from 'colyseus.js';
 import {
   ATK,
+  dangerAt,
+  sanctuaryAt,
   CRIT_MULT,
   ELITE,
   ENEMY_DEFS,
@@ -349,12 +351,26 @@ describe('new enemies', () => {
     await p.r.leave();
   });
 
-  it('ambient encounters respect newcomer budgets, habitats and recovery time', async () => {
+  it('ambient encounters respect the land: gentle and small in the Hearthlands, stronger far out at any level', async () => {
     const p = await probe('Spawner');
     clear(p.w);
     p.sp.level = 1;
-    for (let y = Math.floor(p.sp.sim.y) - 40; y <= p.sp.sim.y + 40; y++)
-      for (let x = Math.floor(p.sp.sim.x) - 40; x <= p.sp.sim.x + 40; x++) p.w.store.setTile(x, y, T.GRASS);
+    // stand somewhere open in the Hearthlands (inside its ring, outside the towns' wards)
+    const at = async (ax: number, ay: number) => {
+      for (let y = ay - 40; y <= ay + 40; y += 32)
+        for (let x = ax - 40; x <= ax + 40; x += 32) await p.w.ensureChunk(Math.floor(x / 32), Math.floor(y / 32));
+      for (let y = ay - 40; y <= ay + 40; y++)
+        for (let x = ax - 40; x <= ax + 40; x++) p.w.store.setTile(x, y, T.GRASS);
+      p.sp.sim.x = ax + 0.5;
+      p.sp.sim.y = ay + 0.5;
+    };
+    const home = [
+      [-170, -140],
+      [-160, 150],
+      [150, 170],
+      [170, -150],
+    ].find(([x, y]) => !sanctuaryAt(p.w.seed, x!, y!) && dangerAt(x!, y!).tier === 1)!;
+    await at(home[0]!, home[1]!);
     for (let i = 0; i < 20; i++) (p.w as any).ambientSpawn(i * 60000);
     const kinds = new Set([...p.w.enemies.values()].filter((e) => !e.def.passive).map((e) => e.def.name));
     expect(kinds.size).toBeGreaterThan(0);
@@ -362,7 +378,18 @@ describe('new enemies', () => {
     let budget = 0;
     for (const e of p.w.enemies.values())
       if (Math.hypot(e.x - p.sp.sim.x, e.y - p.sp.sim.y) < 40) budget += e.def.budget ?? 1;
-    expect(budget).toBeLessThanOrEqual(4); // level-one night reserve; newcomer species remain restricted
+    expect(budget).toBeLessThanOrEqual(4); // the Hearthlands' night reserve; newcomer species only
+    // the same newcomer out in the Frontier meets the Frontier's creatures, not their own level's
+    clear(p.w);
+    await at(3200, 40);
+    const levels: number[] = [];
+    for (let i = 0; i < 20 && !levels.length; i++) {
+      (p.w as any).ambientSpawn(1000000 + i * 60000);
+      for (const e of p.w.enemies.values())
+        if (!e.def.passive && Math.hypot(e.x - p.sp.sim.x, e.y - p.sp.sim.y) < 60) levels.push(e.level);
+    }
+    expect(levels.length).toBeGreaterThan(0);
+    expect(Math.min(...levels)).toBeGreaterThanOrEqual(9);
     clear(p.w);
     p.sp.level = 8;
     const seen = new Set<string>();

@@ -71,7 +71,7 @@ export const GUIDE: Array<[string, string]> = [
   ],
   [
     'Sanctuaries and wilderness',
-    'Settlement wards disperse hostile creatures and protect streets, homes and shops. You can rest in town; attacks from inside the wards do not harm monsters outside. Look for Sanctuary in the travel strip. Beyond the wards, encounters are spaced out: woods shelter thornlings and wolves, glades draw wisps and glasscrawlers, and the wastes and caves are more dangerous. Night brings greater pressure.',
+    'Settlement wards disperse hostile creatures and protect streets, homes and shops. You can rest in town; attacks from inside the wards do not harm monsters outside. Look for Sanctuary in the travel strip. Beyond the wards the land sets the danger, not your level: the Hearthlands round the crossroads are gentle (creatures level 1–3), then come the Borderwilds (3–6), the Kingdom Wilds (6–9), the Frontier (9–12) and the Far Reaches (12–15). Caves run a step harder than the land above them; the realms beyond the gates are as deadly as the Far Reaches. Nothing stops you going anywhere: the travel strip names the region and its creature levels, and crossing into a new one is announced. Woods shelter thornlings and wolves, glades draw wisps and glasscrawlers; night and corrupted land bring greater pressure.',
   ],
   [
     'Building a home',

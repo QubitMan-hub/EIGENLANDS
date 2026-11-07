@@ -1,7 +1,8 @@
 import { furnishGuildHall } from './guild-halls';
-import type { Town, TownObject, Building } from './town';
+import { townTile, type Town, type TownObject, type Building } from './town';
 import { T, isSolid } from './tiles';
 import { propFootprint, objSolid } from './objects';
+import { clearLayout } from './settlement-audit';
 const DIRS = [
   [0, 1],
   [-1, 0],
@@ -28,8 +29,10 @@ const contains = (b: Building, x: number, y: number) => x > b.x && y > b.y && x 
 /** Final, deterministic dressing pass over generated furnishing only. No terrain sampling, player edits or random fill. */
 export function cozyTown(t: Town): Town {
   furnishGuildHall(t);
-  const w = t.x1 - t.x0 + 1,
-    tile = (x: number, y: number) => t.tiles.get(x - t.x0 + (y - t.y0) * w) ?? T.GRASS;
+  // first, every prop keeps the settlement layout rules (clear streets and doors, sensible facing); the seating
+  // and lighting passes below then settle chairs, benches and lamps around that
+  clearLayout(t);
+  const tile = (x: number, y: number) => townTile(t, x, y) ?? T.GRASS;
   const at = new Map(t.objects.map((o) => [key(o.x, o.y), o])),
     removed = new Set<TownObject>(),
     lamps: TownObject[] = [];

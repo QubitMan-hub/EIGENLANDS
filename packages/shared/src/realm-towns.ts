@@ -1,5 +1,6 @@
 import { settlementProfile, settlementSite, SETTLEMENT_TIER_NAMES } from './settlement-tiers';
 import { cozyTown } from './cozy-town';
+import { clearLayout } from './settlement-audit';
 import { KINGDOMS } from './kingdoms';
 import { residentsOfSite, type Place, type ResidentPlan } from './realm-npcs';
 import { REALM_IDS, REALM_SITES, type RealmId, type RealmSite } from './realms';
@@ -1433,7 +1434,8 @@ export function buildRealmTown(site: RealmSite, seed: number, generation = 5): T
       }
   }
   void buildingsAt;
-  return tier ? connectTierTown(cozyTown(t)) : cozyTown(t);
+  // connecting roads are laid after the dressing, so the layout rules are kept again once they are down
+  return tier ? clearLayout(connectTierTown(cozyTown(t))) : cozyTown(t);
 }
 
 /** Connect entrances with short outdoor lanes, then place routines on the reachable component.

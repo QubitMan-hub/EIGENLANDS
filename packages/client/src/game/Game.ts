@@ -13,7 +13,8 @@ import { applyChunkSnapshot } from './chunk-updates';
 import { AdaptiveQuality, initialTier, tierResolution, type Tier } from './visual-budget';
 import { TERRAIN_PAD, TERRAIN_PAD_WIDE } from './terrain-window';
 import { constructionTexture, BUILD_AX, BUILD_AY } from '../art/construction';
-import { isBuildPiece, buildTile, simulationBudget } from '@eigenlands/shared';
+import { BUILD_PIECES, dangerAt, isBuildPiece, buildTile, simulationBudget } from '@eigenlands/shared';
+import { describeUse } from './targeting';
 import { ConstructionViews } from './constructionviews';
 import { planeOf } from '../features/atlas/model';
 import { Application, Container, Graphics, Sprite } from 'pixi.js';
@@ -214,6 +215,8 @@ interface ActorView {
 /** a dodge roll's on-screen length: the dash itself (shared DASH_TIME, 180 ms) plus the rise back to the feet */
 const DODGE_MS = 300;
 
+const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
 export class Game {
   net!: Net;
   readonly audio = new Audio();
@@ -291,7 +294,13 @@ export class Game {
   private constructionFloor = new Container();
   private roofLayer = new Container();
   private weatherLayer = new Container();
+  /** each player's wielded weapon, by session id (the look of their shots) */
+  private wielded = new Map<string, string>();
+  /** the danger region the player last stood in (announced on crossing) */
+  private dangerName: string | null = null;
   private buildGhost = new Sprite();
+  /** ghosts for a dragged building run (one per tile) */
+  private runGhosts = new Container();
   private cursor = new Graphics();
   private aimGfx = new Graphics();
   readonly wind = new WindField();
@@ -358,6 +367,7 @@ export class Game {
       this.entityLayer,
       this.roofLayer,
       this.buildGhost,
+      this.runGhosts,
       this.cursor,
       this.aimGfx,
       this.bobber,
@@ -469,6 +479,10 @@ export class Game {
         myId: () => this.myId,
         me: () => (this.predictor ? { x: this.predictor.sim.x, y: this.predictor.sim.y } : null),
         views: () => this.views.values(),
+        weaponOf: (id) => {
+          const w = this.wielded.get(id) || undefined;
+          return [w, w && w in WEAPONS ? (WEAPONS[w as keyof typeof WEAPONS].fam ?? undefined) : undefined];
+        },
       },
       this.decalLayer,
     );
@@ -713,7 +727,10 @@ export class Game {
       });
       if (!this.views.has(id)) this.makeView(id, type, e);
     };
-    s.players.forEach((p: any, id: string) => push(id, p, 'player'));
+    s.players.forEach((p: any, id: string) => {
+      this.wielded.set(id, p.weapon || '');
+      push(id, p, 'player');
+    });
     s.enemies.forEach((e: any, id: string) => push(id, e, 'enemy'));
     s.projectiles.forEach((p: any, id: string) => push(id, p, 'proj'));
     s.shadows?.forEach((p: any, id: string) => push(id, p, 'shadow'));
@@ -1139,6 +1156,7 @@ export class Game {
       flash: 0,
       punch: 0,
       ghostT: 0,
+      ...(type === 'proj' ? { owner: String(e.owner ?? '') } : {}),
     });
   }
 
@@ -1606,10 +1624,28 @@ export class Game {
     }
     const armed = this.input.armed,
       look = this.input.lookHeld;
-    if ((!armed && !look) || this.dead || !this.input.mouseActive) return;
+    const weapon = this.weaponInfo();
+    const aiming = weapon.ranged && !armed && !this.dead && this.input.mouseActive && !this.gameplay.blocking;
+    if ((!armed && !look && !aiming) || this.dead || !this.input.mouseActive) return;
     const a = this.input.aimNow({ x: this.predictor.sim.faceX, y: this.predictor.sim.faceY });
     const px = isoX(me.x, me.y),
       py = isoY(me.x, me.y) - 6;
+    if (aiming) {
+      // a ranged weapon's line of fire: dotted pixels along the ground toward the aim, brighter while drawing a shot
+      const w = WEAPONS[weapon.id as keyof typeof WEAPONS];
+      const range = w?.basic?.range ?? 8;
+      const drawing = this.predictor.sim.hold > 0;
+      const steps = Math.round(range * 3);
+      for (let i = 2; i <= steps; i += 2) {
+        const t = i / steps;
+        const x = Math.round(isoX(me.x + a.x * range * t, me.y + a.y * range * t)),
+          y = Math.round(isoY(me.x + a.x * range * t, me.y + a.y * range * t) - 6);
+        g.rect(x, y, 1, 1).fill({
+          color: drawing ? 0xfff2b0 : 0xcfe8ff,
+          alpha: (drawing ? 0.85 : 0.4) * (1 - t * 0.6),
+        });
+      }
+    }
     if (look) {
       // 70° cone, 9 tiles deep, projected onto the iso ground
       const pts: number[] = [px, py];
@@ -2036,6 +2072,7 @@ export class Game {
     g.clear();
     this.bobber.clear();
     this.buildGhost.visible = false;
+    for (const c of this.runGhosts.children) c.visible = false;
     const f = this.gameplay.fishing;
     if (f) {
       const bx = isoX(f.tx + 0.5, f.ty + 0.5),
@@ -2068,6 +2105,41 @@ export class Game {
     const pr = this.gameplay.prompt();
     const info = pr.info;
     const selected = this.gameplay.selected();
+    const run = this.gameplay.dragPlan();
+    if (run && selected && isBuildPiece(selected.id)) {
+      const pid = selected.id;
+      // the whole run, front to back: green where it can go up, red beyond reach or on unsuitable ground
+      run.sort((a, b) => a.tx + a.ty - (b.tx + b.ty));
+      let ok = 0;
+      run.forEach((q, i) => {
+        let ghost = this.runGhosts.children[i] as Sprite | undefined;
+        if (!ghost) this.runGhosts.addChild((ghost = new Sprite()));
+        const tex = constructionTexture(pid, q.turn);
+        const fits = describeUse(
+          selected,
+          this.store.getTile(q.tx, q.ty),
+          this.store.objectAt(q.tx, q.ty),
+          this.seasonIdx,
+          this.store.structureAt(q.tx, q.ty),
+        );
+        const good = q.near && !!fits?.ok;
+        if (good) ok++;
+        ghost.texture = tex;
+        ghost.anchor.set(BUILD_AX / tex.width, BUILD_AY / tex.height);
+        ghost.position.set(Math.round(isoX(q.tx + 0.5, q.ty + 0.5)), Math.round(isoY(q.tx + 0.5, q.ty + 0.5)));
+        ghost.alpha = 0.55;
+        ghost.tint = good ? 0xbce0c6 : 0xea9273;
+        ghost.visible = true;
+      });
+      const have = this.gameplay.selected()?.n ?? 0;
+      this.gameplay.setHint(
+        `Release to build ${Math.min(ok, have)} × ${BUILD_PIECES[pid].name}` +
+          (ok > have ? ` (you have ${have})` : '') +
+          (ok < run.length ? ` · ${run.length - ok} can't go there` : ''),
+        ok > 0,
+      );
+      return;
+    }
     if (selected && isBuildPiece(selected.id) && info?.kind === 'place') {
       const ghost = this.buildGhost,
         tex = constructionTexture(selected.id, this.gameplay.buildRotation);
@@ -2336,6 +2408,21 @@ export class Game {
         Math.round(((Math.atan2(isoY(dx, dy), isoX(dx, dy)) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8
       ];
     const ward = sanctuaryAt(this.seed, me.x, me.y);
+    // the land's danger: shown in the strip, announced on crossing into a new region
+    const danger = dangerAt(me.x, me.y);
+    const dangerNote = ward ? '' : ` · ${capital(danger.name)} lv ${danger.band[0]}–${danger.band[1]}`;
+    if (!ward && danger.name !== this.dangerName) {
+      const was = this.dangerName;
+      this.dangerName = danger.name;
+      if (was !== null) {
+        const mine = this.self?.level ?? 1;
+        this.gameplay.toasts.add(
+          `You cross into ${danger.name}. Creatures here run level ${danger.band[0]}–${danger.band[1]}` +
+            (danger.band[0] > mine + 1 ? ` (you are level ${mine}: tread carefully).` : '.'),
+          danger.band[0] > mine + 1 ? 'bad' : 'info',
+        );
+      }
+    }
     const route = this.ext.atlas.navigation();
     if (route) {
       const dest = route.point;
@@ -2344,7 +2431,7 @@ export class Game {
           ? `${route.title} · ${planeOf(dest.y)}`
           : `${route.title} ${arrow(dest.x - me.x, dest.y - me.y)} ${Math.round(Math.hypot(dest.x - me.x, dest.y - me.y))} tiles`
         : `${route.title} · See Journal`;
-      $('townhint').textContent = label + (ward ? ' · Sanctuary' : '');
+      $('townhint').textContent = label + (ward ? ' · Sanctuary' : dangerNote);
       $('townhint').title =
         `${route.detail}. Tracked quest; manage it in Journal → Quests. Sanctuary wards protect towns from monsters.`;
     } else {
@@ -2355,12 +2442,10 @@ export class Game {
           : place +
             (ward
               ? `${ward.name} · Sanctuary`
-              : td > 30
-                ? `${town.name} ${arrow(tdx, tdy)} ${Math.round(td)} tiles`
-                : town.name);
+              : (td > 30 ? `${town.name} ${arrow(tdx, tdy)} ${Math.round(td)} tiles` : town.name) + dangerNote);
       $('townhint').title = ward
         ? 'Sanctuary: monsters cannot harm you here. Combat resumes beyond the settlement wards.'
-        : ($('townhint').textContent ?? '');
+        : `${$('townhint').textContent ?? ''}. The further from the crossroads (and the deeper down), the stronger the creatures; night and corrupted land add more.`;
     }
 
     const dbg = $('debug');

@@ -207,6 +207,8 @@ export interface UseMsg {
   tx: number;
   ty: number;
   turn?: number;
+  /** a dragged run of building pieces: [tx, ty, turn] per tile (see buildPlan), at most BUILD_BATCH_MAX */
+  area?: Array<[number, number, number]>;
 }
 export interface OpenMsg {
   tx: number;

@@ -7,7 +7,7 @@
  * anything is raised. Nothing is ever pulled down.
  */
 import type { KingdomCiv } from './civ';
-import type { BuildData } from './construction';
+import { perimeterTurn, type BuildData } from './construction';
 import type { RealmId, RealmSite } from './realms';
 import { hash2 } from './rng';
 import { REALM_SITES } from './realms';
@@ -107,7 +107,7 @@ export function cottageCells(realm: RealmId, x: number, y: number): Array<{ x: n
         const window =
           !door && ((dy === 0 && (dx === 1 || dx === 3)) || (dx === 0 && dy === 1) || (dx === 4 && dy === 1));
         data.wall = door ? 'oak_door' : window ? 'window_wall' : s.wall;
-        data.wallTurn = dx === 0 || dx === COTTAGE_W - 1 ? (dy === 0 || dy === COTTAGE_H - 1 ? 0 : 1) : 0;
+        data.wallTurn = perimeterTurn(dx, dy, COTTAGE_W, COTTAGE_H);
         data.open = false;
       }
       cells.push({ x: x + dx, y: y + dy, data });

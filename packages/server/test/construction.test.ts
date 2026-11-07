@@ -1,5 +1,14 @@
 import { beforeAll, afterAll, expect, it } from 'vitest';
-import { MSG, T, UPPER_OY, ChunkStore, type ObjMsg } from '@eigenlands/shared';
+import {
+  MSG,
+  T,
+  UPPER_OY,
+  ChunkStore,
+  buildPlan,
+  type BuildPiece,
+  type BuildTurn,
+  type ObjMsg,
+} from '@eigenlands/shared';
 import type { App } from '../src/app';
 import { handleUse } from '../src/systems/tools';
 import { handleOpen } from '../src/systems/containers';
@@ -146,4 +155,32 @@ it('sends separate-layer updates and refuses unsupported or town construction', 
   await tp(a, 0.5, 4.5);
   await use(a, 'timber_floor', 0, 4);
   expect(a.room.store.structureAt(0, 4)).toBeUndefined();
+});
+it('lays a dragged run of floors and a walled room in one go, keeping every placement rule', async () => {
+  await tp(a, 744.5, 744.5);
+  const run = async (id: string, x0: number, y0: number, x1: number, y1: number, n = 64, turn = 0) => {
+    a.sp.data.inv[0] = { id, n };
+    a.sp.toolReadyAt = 0;
+    const area = buildPlan(id as BuildPiece, x0, y0, x1, y1, turn as BuildTurn);
+    await handleUse(a.room, a.sp, { slot: 0, tx: area[0]![0], ty: area[0]![1], area });
+    return area;
+  };
+  // a 5×4 foundation: every tile, one piece each
+  const floors = await run('timber_floor', 742, 742, 746, 745);
+  expect(floors).toHaveLength(20);
+  for (const [x, y] of floors) expect(a.room.store.structureAt(x, y)?.data.floor).toBe('timber_floor');
+  expect(a.sp.data.inv[0]?.n).toBe(44);
+  // walls around its edge: 14 pieces, turned to run along each side
+  const walls = await run('timber_wall', 742, 742, 746, 745);
+  expect(walls).toHaveLength(14);
+  expect(a.room.store.structureAt(744, 742)?.data.wallTurn).toBe(0);
+  expect(a.room.store.structureAt(742, 743)?.data.wallTurn).toBe(1);
+  expect(a.room.store.structureAt(744, 743)?.data.wall).toBeUndefined();
+  await until(() => a.toasts.some((t) => t.text.includes('Built 14 × Timber Wall')), 3000);
+  // a roof run with too few pieces: as many as the stack allows, then one summary of the rest
+  await run('thatch_roof', 742, 742, 746, 745, 5, 1);
+  const roofed = floors.filter(([x, y]) => a.room.store.structureAt(x, y)?.data.roof === 'thatch_roof');
+  expect(roofed).toHaveLength(5);
+  expect(a.room.store.structureAt(roofed[0]![0], roofed[0]![1])?.data.roofTurn).toBe(1);
+  await until(() => a.toasts.some((t) => t.text.includes('Built 5 of 20') && t.text.includes('ran out')), 3000);
 });
