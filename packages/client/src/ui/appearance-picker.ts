@@ -19,7 +19,15 @@ import {
   type AppearanceField,
 } from '@eigenlands/shared';
 import { OUTFITS, renderPersonCanvas } from '../art/actors';
-import { DRESS_RAMPS, EYE_COLORS, HAIR_RAMPS, SKIN_RAMPS, TRIM_COLORS, outfitFromAppearance } from '../art/appearance';
+import {
+  DRESS_RAMPS,
+  EYE_COLORS,
+  HAIR_RAMPS,
+  SKIN_RAMPS,
+  TRIM_COLORS,
+  outfitFromAppearance,
+  referenceAppearance,
+} from '../art/appearance';
 import { h } from './dom';
 
 const KEY = 'eigenlands.appearance';
@@ -43,7 +51,7 @@ export function loadLook(): StoredLook {
   } catch {
     /* private mode or corrupt value: pick fresh */
   }
-  const fresh = { app: randomAppearance(Math.random), touched: false };
+  const fresh = { app: referenceAppearance(Math.random() < 0.5 ? 0 : 1), touched: false };
   saveLook(fresh);
   return fresh;
 }
@@ -113,6 +121,25 @@ export function buildAppearancePicker(initial: Appearance, onChange: (a: Appeara
     sync();
     onChange({ ...look });
   };
+
+  const presets = h('div', { class: 'look-presets' });
+  for (const [body, label] of [
+    [0, 'Steel adventurer'],
+    [1, 'Teal adventurer'],
+  ] as const)
+    presets.append(
+      h('button', {
+        type: 'button',
+        text: label,
+        on: {
+          click: () => {
+            Object.assign(look, referenceAppearance(body));
+            change();
+          },
+        },
+      }),
+    );
+  rows.append(presets);
 
   for (const row of ROWS) {
     const group = h('div', { class: `look-group ${row.swatch ? 'swatches' : 'names'}` });

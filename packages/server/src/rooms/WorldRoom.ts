@@ -1498,7 +1498,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
   /** A circular enemy strike (bite, slam, shockwave). */
   enemyStrike(e: Enemy, x: number, y: number, radius: number, mult = 1): void {
     const heavy = e.def.kind === ENEMY_DEFS.brute.kind;
-    if (radius >= 1.5) this.fx({ kind: 'blast', x, y, v: radius, id: e.id });
+    if (radius >= 1.5 || e.def.boss) this.fx({ kind: 'blast', x, y, v: radius, id: e.id });
     this.queueStrike(e, { kind: 'circle', x, y, r: radius }, enemyDamage(e, mult), heavy ? 2 : 1, null);
   }
 

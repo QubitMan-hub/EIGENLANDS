@@ -1,0 +1,115 @@
+{
+  "icons": 1395,
+  "physicalGlyphs": [
+    {
+      "id": "wood",
+      "glyph": "log",
+      "area": 105
+    },
+    {
+      "id": "stone",
+      "glyph": "stone",
+      "area": 110
+    },
+    {
+      "id": "coal",
+      "glyph": "coal",
+      "area": 110
+    },
+    {
+      "id": "copper_ore",
+      "glyph": "ore",
+      "area": 110
+    },
+    {
+      "id": "plank",
+      "glyph": "plank",
+      "area": 74
+    },
+    {
+      "id": "copper_ingot",
+      "glyph": "ingot",
+      "area": 87
+    },
+    {
+      "id": "axe",
+      "glyph": "axe",
+      "area": 44
+    },
+    {
+      "id": "pickaxe",
+      "glyph": "pickaxe",
+      "area": 56
+    },
+    {
+      "id": "hoe",
+      "glyph": "hoe",
+      "area": 51
+    },
+    {
+      "id": "can",
+      "glyph": "can",
+      "area": 84
+    },
+    {
+      "id": "rod",
+      "glyph": "rod",
+      "area": 44
+    },
+    {
+      "id": "net",
+      "glyph": "net",
+      "area": 52
+    },
+    {
+      "id": "sword",
+      "glyph": "sword",
+      "area": 50
+    },
+    {
+      "id": "spear",
+      "glyph": "spear",
+      "area": 44
+    },
+    {
+      "id": "battle_axe",
+      "glyph": "battle_axe",
+      "area": 59
+    },
+    {
+      "id": "warhammer",
+      "glyph": "warhammer",
+      "area": 67
+    },
+    {
+      "id": "dagger",
+      "glyph": "dagger",
+      "area": 33
+    },
+    {
+      "id": "greatsword",
+      "glyph": "greatsword",
+      "area": 63
+    },
+    {
+      "id": "granite_block",
+      "glyph": "block",
+      "area": 110
+    },
+    {
+      "id": "stone_brick",
+      "glyph": "brick",
+      "area": 74
+    },
+    {
+      "id": "tortoise_shield",
+      "glyph": "shield",
+      "area": 67
+    }
+  ],
+  "failures": [],
+  "statueAnchor": [
+    78,
+    202
+  ]
+}

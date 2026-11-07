@@ -1,0 +1,120 @@
+{
+  "site": {
+    "id": "20260101:12:2",
+    "x": 1178,
+    "y": 212,
+    "kind": "ladle"
+  },
+  "discovery": "The chosen ladle\nA small discovery\n\nOnly the hungriest may draw it from the stone. Someone has left a recipe for soup.",
+  "checks": [
+    {
+      "width": 64,
+      "height": 64,
+      "rotation": 0,
+      "row": 3,
+      "face": [
+        0.7071067811865475,
+        -0.7071067811865475
+      ],
+      "keys": [
+        "KeyD"
+      ]
+    },
+    {
+      "width": 64,
+      "height": 64,
+      "rotation": 0,
+      "row": 5,
+      "face": [
+        1,
+        0
+      ],
+      "keys": [
+        "KeyD",
+        "KeyS"
+      ]
+    },
+    {
+      "width": 64,
+      "height": 64,
+      "rotation": 0,
+      "row": 0,
+      "face": [
+        0.7071067811865475,
+        0.7071067811865475
+      ],
+      "keys": [
+        "KeyS"
+      ]
+    },
+    {
+      "width": 64,
+      "height": 64,
+      "rotation": 0,
+      "row": 4,
+      "face": [
+        0,
+        1
+      ],
+      "keys": [
+        "KeyA",
+        "KeyS"
+      ]
+    },
+    {
+      "width": 64,
+      "height": 64,
+      "rotation": 0,
+      "row": 2,
+      "face": [
+        -0.7071067811865475,
+        0.7071067811865475
+      ],
+      "keys": [
+        "KeyA"
+      ]
+    },
+    {
+      "width": 64,
+      "height": 64,
+      "rotation": 0,
+      "row": 6,
+      "face": [
+        -1,
+        0
+      ],
+      "keys": [
+        "KeyA",
+        "KeyW"
+      ]
+    },
+    {
+      "width": 64,
+      "height": 64,
+      "rotation": 0,
+      "row": 1,
+      "face": [
+        -0.7071067811865475,
+        -0.7071067811865475
+      ],
+      "keys": [
+        "KeyW"
+      ]
+    },
+    {
+      "width": 64,
+      "height": 64,
+      "rotation": 0,
+      "row": 7,
+      "face": [
+        0,
+        -1
+      ],
+      "keys": [
+        "KeyD",
+        "KeyW"
+      ]
+    }
+  ],
+  "errors": []
+}

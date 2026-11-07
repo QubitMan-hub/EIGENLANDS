@@ -7,6 +7,7 @@ import {
   type AncientRun,
 } from './ancient';
 import {
+  ATK,
   ARENA_BOSS,
   ancientRite,
   BOSSES,
@@ -34,7 +35,8 @@ import {
   type BossEvent,
   type BossId,
 } from '@eigenlands/shared';
-import type { Enemy, EnemyKind } from '../../game/enemies';
+import { lineOfSight, type Enemy, type EnemyKind } from '../../game/enemies';
+import { bossTactic } from './tactics';
 import type { GameRoom } from '../../rooms/GameRoom';
 import type { ServerPlayer } from '../../rooms/player';
 import type { Module, Registrar } from '../types';
@@ -49,6 +51,10 @@ interface Run extends AncientRun {
   /** scheduled effects (telegraphed rings etc.): fire when `t` reaches `at` */
   later: Array<{ at: number; fn: () => void }>;
   born: number;
+  casts: number;
+  adds: Set<string>;
+  busyUntil: number;
+  lastEngaged: number;
 }
 
 const KEY: Record<BossId, EnemyKind> = {
@@ -167,6 +173,10 @@ export class BossModule implements Module {
       summoner: p.id,
       later: [],
       born: this.t,
+      casts: 0,
+      adds: new Set(),
+      busyUntil: 0,
+      lastEngaged: this.t,
     });
     openAncientArena(this.room, this.runs.get(e.id)!);
     this.say(x, y, { kind: 'start', boss: def.id, name: def.name, intro: def.intro });
@@ -181,19 +191,28 @@ export class BossModule implements Module {
     for (const [id, r] of [...this.runs]) {
       const e = r.e;
       if (!this.room.enemies.has(id) || e.hp <= 0) {
-        closeAncientArena(this.room, r);
+        this.cleanup(r);
         this.runs.delete(id);
         continue;
       }
-      if (r.arena && !this.hasTarget(e) && this.t - r.born > 90) {
+      if (
+        [...this.room.players.values()].some(
+          (p) => p.deadT <= 0 && Math.hypot(p.sim.x - e.x, p.sim.y - e.y) < Math.max(32, e.def.sight * 1.5),
+        )
+      )
+        r.lastEngaged = this.t;
+      if (this.t - r.lastEngaged > 60) {
         this.room.enemies.delete(id);
         this.room.state.enemies.delete(id);
-        closeAncientArena(this.room, r);
+        this.cleanup(r);
         this.runs.delete(id);
         continue;
       }
-      // Breaking Veyr's poise interrupts the storm; lingering warning marks expire harmlessly.
-      if ((r.def.id === 'veyr' || !!r.arena) && e.mode === 'stagger') r.later = [];
+      // A real poise break cancels every boss's queued attacks; hit flashes do not.
+      if (e.mode === 'stagger') {
+        r.later = [];
+        e.scriptedWindup = undefined;
+      }
       // run scheduled effects
       for (const l of [...r.later])
         if (l.at <= this.t) {
@@ -205,9 +224,22 @@ export class BossModule implements Module {
         r.phase++;
         this.phaseUp(r);
       }
-      if (this.t >= r.nextSpecial && e.mode !== 'stagger' && this.hasTarget(e)) {
+      if (
+        this.t >= r.nextSpecial &&
+        this.t >= r.busyUntil &&
+        !r.later.length &&
+        ['idle', 'wander', 'chase'].includes(e.mode) &&
+        this.hasTarget(e)
+      ) {
         r.nextSpecial = this.t + SPECIAL_EVERY[r.def.id] * (r.rage ? 0.7 : 1);
         this.special(r);
+        if (e.mode === 'windup') {
+          e.scriptedWindup = e.t;
+          e.atk = ATK.NONE;
+          e.attackSeq++;
+          e.state.tele = 1;
+        }
+        r.busyUntil = Math.max(r.busyUntil, ...r.later.map((q) => q.at + 1));
       }
     }
   }
@@ -224,9 +256,26 @@ export class BossModule implements Module {
     this.runs.get(e.id)?.contributors?.add(p.id);
   }
 
+  private cleanup(r: Run): void {
+    r.later = [];
+    for (const id of r.adds) {
+      this.room.enemies.delete(id);
+      this.room.state.enemies.delete(id);
+    }
+    closeAncientArena(this.room, r);
+  }
+  private clearSight(e: Enemy, x: number, y: number): boolean {
+    const solid = e.def.sea ? (this.room.store.solidAt.sea ?? this.room.store.solidAt) : this.room.store.solidAt;
+    return lineOfSight(solid, e.x, e.y, x, y);
+  }
   private hasTarget(e: Enemy): boolean {
     for (const p of this.room.players.values())
-      if (p.deadT <= 0 && Math.hypot(p.sim.x - e.x, p.sim.y - e.y) < e.def.sight) return true;
+      if (
+        p.deadT <= 0 &&
+        Math.hypot(p.sim.x - e.x, p.sim.y - e.y) < e.def.sight &&
+        this.clearSight(e, p.sim.x, p.sim.y)
+      )
+        return true;
     return false;
   }
 
@@ -322,12 +371,15 @@ export class BossModule implements Module {
 
   private spawnAdds(r: Run, kind: EnemyKind, n: number): void {
     const e = r.e;
-    for (let i = 0; i < n; i++) {
+    for (const id of r.adds) if (!this.room.enemies.has(id)) r.adds.delete(id);
+    for (let i = 0; i < n && r.adds.size < 6; i++) {
       const a = (i / n) * Math.PI * 2 + this.t,
         x = e.x + Math.cos(a) * 2.6,
         y = e.y + Math.sin(a) * 2.6;
       if (this.room.store.solidAt(Math.floor(x), Math.floor(y))) continue;
-      this.room.spawnEnemy(kind, x, y, false, { level: Math.max(1, e.level - 3) });
+      const add = this.room.spawnEnemy(kind, x, y, false, { level: Math.max(1, e.level - 3) });
+      add.noRewards = true;
+      r.adds.add(add.id);
     }
   }
 
@@ -335,9 +387,24 @@ export class BossModule implements Module {
     const e = r.e,
       id = r.def.id;
     const target = [...this.room.players.values()]
-      .filter((p) => p.deadT <= 0)
+      .filter(
+        (p) =>
+          p.deadT <= 0 &&
+          Math.hypot(p.sim.x - e.x, p.sim.y - e.y) < e.def.sight &&
+          this.clearSight(e, p.sim.x, p.sim.y),
+      )
       .sort((a, b) => Math.hypot(a.sim.x - e.x, a.sim.y - e.y) - Math.hypot(b.sim.x - e.x, b.sim.y - e.y))[0];
     if (!target) return;
+    if (r.sentries && [...r.sentries].some((id) => this.room.enemies.has(id))) return;
+    const aim = Math.hypot(target.sim.x - e.x, target.sim.y - e.y) || 1;
+    e.aimX = (target.sim.x - e.x) / aim;
+    e.aimY = (target.sim.y - e.y) / aim;
+    e.lockX = target.sim.x;
+    e.lockY = target.sim.y;
+    if (r.casts++ % 2 === 1) {
+      this.tacticalCast(r, target);
+      return;
+    }
     if (ancientSpecial(this.room, r, target, this.t)) return;
     if (id === 'slime_king') {
       // Gel Rain: a ring of slow orbs, then (when enraged) a second one rotated half a step
@@ -347,12 +414,16 @@ export class BossModule implements Module {
           this.room.fireOrbs(e, Math.cos(a), Math.sin(a));
         }
       };
-      ring(0);
-      if (r.rage) r.later.push({ at: this.t + 0.6, fn: () => ring(Math.PI / 8) });
+      this.castLock(r, 0.95, r.rage ? 1.55 : 0.95, 1.5);
+      this.say(e.x, e.y, { kind: 'tell', boss: id, text: 'Gel rain: step between the slow droplets.' });
+      r.later.push({ at: this.t + 0.95, fn: () => ring(0) });
+      if (r.rage) r.later.push({ at: this.t + 1.55, fn: () => ring(Math.PI / 8) });
     } else if (id === 'warden') {
       // Howl: wolves answer, and the Warden surges at its target
       this.room.fx({ kind: 'stagger', x: e.x, y: e.y, id: e.id });
-      this.spawnAdds(r, 'wolf', r.rage ? 3 : 2);
+      this.castLock(r, 1.25, 1.25, 1.5);
+      this.say(e.x, e.y, { kind: 'tell', boss: id, text: 'The pack answers. Interrupt the howl or make room.' });
+      r.later.push({ at: this.t + 1.25, fn: () => this.spawnAdds(r, 'wolf', r.rage ? 3 : 2) });
     } else if (id === 'veyr') {
       // Fixed impact sites, generous windup, and a stationary recovery. No homing damage or add spam.
       const origin = { x: e.x, y: e.y };
@@ -391,7 +462,8 @@ export class BossModule implements Module {
         r.later.push({
           at: this.t + delay,
           fn: () => {
-            if (this.room.enemies.has(e.id)) this.room.enemyStrike(e, point.x, point.y, 1.5, 0.85);
+            if (this.room.enemies.has(e.id) && e.hp > 0 && e.mode !== 'stagger')
+              this.room.enemyStrike(e, point.x, point.y, 1.5, 0.85);
           },
         });
       });
@@ -402,7 +474,8 @@ export class BossModule implements Module {
         r.later.push({
           at: this.t + echo,
           fn: () => {
-            if (this.room.enemies.has(e.id)) this.room.enemyStrike(e, point.x, point.y, 1.5, 0.85);
+            if (this.room.enemies.has(e.id) && e.hp > 0 && e.mode !== 'stagger')
+              this.room.enemyStrike(e, point.x, point.y, 1.5, 0.85);
           },
         });
       }
@@ -477,11 +550,13 @@ export class BossModule implements Module {
         r.later.push({
           at: this.t + q.delay,
           fn: () => {
-            if (this.room.enemies.has(e.id)) this.room.enemyStrike(e, q.x, q.y, q.w, 0.85);
+            if (this.room.enemies.has(e.id) && e.hp > 0 && e.mode !== 'stagger')
+              this.room.enemyStrike(e, q.x, q.y, q.w, 0.85);
           },
         });
       });
     } else if (id === 'bellkeeper') {
+      this.castLock(r, 1.4, 2.1, 1.6);
       // Echo toll: three fixed, clearly marked impact sites. Move out, then punish its recovery.
       const points = [{ x: target.sim.x, y: target.sim.y }, ...[-1, 1].map((side) => ({ x: e.x + side * 4, y: e.y }))];
       points.forEach((p, i) => {
@@ -490,33 +565,74 @@ export class BossModule implements Module {
         r.later.push({
           at: this.t + delay,
           fn: () => {
-            if (this.room.enemies.has(e.id)) this.room.enemyStrike(e, p.x, p.y, 2, 0.9);
+            if (this.room.enemies.has(e.id) && e.hp > 0 && e.mode !== 'stagger')
+              this.room.enemyStrike(e, p.x, p.y, 2, 0.9);
           },
         });
       });
       if (r.phase > 0) this.spawnAdds(r, 'echo_bat', 1);
     } else {
       // Fault Line: three expanding rings with a clear telegraph each, plus an orb storm once past the first phase
+      const origin = { x: e.x, y: e.y };
+      this.castLock(r, 1.25, 2.35, 1.6);
       for (let i = 0; i < 3; i++) {
         const radius = 3 + i * 2,
-          delay = 1.0 + i * 0.55;
-        r.later.push({
-          at: this.t,
-          fn: () => this.room.fx({ kind: 'bomb', x: e.x, y: e.y, v: delay, w: radius, id: `${e.id}r${i}` }),
-        });
+          delay = 1.25 + i * 0.55;
+        this.room.fx({ kind: 'bomb', x: origin.x, y: origin.y, v: delay, w: radius, id: `${e.id}r${i}` });
         r.later.push({
           at: this.t + delay,
           fn: () => {
-            if (this.room.enemies.has(e.id)) this.room.enemyStrike(e, e.x, e.y, radius, 0.9);
+            if (this.room.enemies.has(e.id) && e.hp > 0 && e.mode !== 'stagger')
+              this.room.enemyStrike(e, origin.x, origin.y, radius, 0.9);
           },
         });
       }
       if (r.phase >= 1)
         for (let i = 0; i < 12; i++) {
           const a = (i / 12) * Math.PI * 2;
-          this.room.fireOrbs(e, Math.cos(a), Math.sin(a));
+          r.later.push({ at: this.t + 1.25, fn: () => this.room.fireOrbs(e, Math.cos(a), Math.sin(a)) });
         }
     }
+  }
+
+  private castLock(r: Run, windup: number, last: number, recovery: number): void {
+    const e = r.e;
+    e.mode = 'windup';
+    e.t = windup;
+    e.scriptedWindup = windup;
+    r.busyUntil = this.t + last + recovery;
+    r.later.push({
+      at: this.t + Math.max(0, windup - 0.1),
+      fn: () => {
+        if (e.mode === 'windup') {
+          e.mode = 'recover';
+          e.scriptedWindup = undefined;
+          e.t = last - windup + recovery + 0.1;
+          e.cd = e.t;
+        }
+      },
+    });
+  }
+  private tacticalCast(r: Run, target: ServerPlayer): void {
+    const e = r.e,
+      plan = bossTactic(r.def.id, r.phase, r.casts, { x: e.x, y: e.y }, { x: target.sim.x, y: target.sim.y });
+    const solid = e.def.sea ? (this.room.store.solidAt.sea ?? this.room.store.solidAt) : this.room.store.solidAt;
+    const sites = plan.impacts.filter((p) => !solid(Math.floor(p.x), Math.floor(p.y)));
+    if (!sites.length) return;
+    const first = Math.min(...sites.map((p) => p.delay)),
+      last = Math.max(...sites.map((p) => p.delay));
+    this.castLock(r, first, last, plan.recovery);
+    this.say(e.x, e.y, { kind: 'tell', boss: r.def.id, text: plan.name + ': ' + plan.hint });
+    sites.forEach((p, i) => {
+      this.room.fx({ kind: 'bomb', x: p.x, y: p.y, v: p.delay, w: p.radius, id: `${e.id}:tactic:${r.casts}:${i}` });
+      r.later.push({
+        at: this.t + p.delay,
+        fn: () => {
+          if (!this.room.enemies.has(e.id) || e.hp <= 0 || e.mode === 'stagger') return;
+          this.room.enemyStrike(e, p.x, p.y, p.radius, 0.9);
+        },
+      });
+    });
   }
 
   private say(x: number, y: number, ev: BossEvent): void {
@@ -529,7 +645,7 @@ export class BossModule implements Module {
     const def = BOSS_BY_KIND[e.def.kind];
     if (!def) return;
     const run = this.runs.get(e.id);
-    closeAncientArena(this.room, run);
+    if (run) this.cleanup(run);
     this.runs.delete(e.id);
     for (const q of this.room.nearby(e.x, e.y, 60)) {
       if (

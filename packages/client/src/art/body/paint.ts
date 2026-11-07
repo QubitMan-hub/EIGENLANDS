@@ -65,6 +65,8 @@ export interface Garments {
 }
 
 export interface BodyLook extends Garments {
+  /** Keep the supplied two hero identities intact; custom looks use fitted town/armour templates. */
+  referenceIdentity?: boolean;
   body: BodyType;
   skin: Ramp;
   hair: Ramp;

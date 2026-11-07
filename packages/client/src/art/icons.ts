@@ -3,6 +3,7 @@
  * Every glyph is shaded from the item's two palette colours and gets a 1px dark outline so icons stay readable
  * on any panel colour. Unknown ids get a "?" box.
  */
+import { ISO_ICONS } from './isometric-icons';
 import { constructionIcon } from './construction';
 import { CATALOG_DRAW } from './icons-catalog';
 import { ITEMS, isBuildPiece, type Glyph } from '@eigenlands/shared';
@@ -1869,7 +1870,15 @@ function paint(id: string, size: number): HTMLCanvasElement {
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(picture.canvas, 0, 0, 16, 16, 4, 5, 8, 8);
       put(ctx, 11, 3, C.e6, 1, 9);
-    } else undithered(() => (SEA_ICONS[id] ?? ITEM_ART[id] ?? G[d.icon.g])(ctx, d.icon.a, d.icon.b));
+    } else
+      undithered(() =>
+        (
+          SEA_ICONS[id] ??
+          ITEM_ART[id] ??
+          (d.icon.g === 'rod' && d.kind !== 'tool' ? undefined : ISO_ICONS[d.icon.g]) ??
+          G[d.icon.g]
+        )(ctx, d.icon.a, d.icon.b),
+      );
     outline(ctx, 16, 16);
   }
   if (size === 16) return canvas;

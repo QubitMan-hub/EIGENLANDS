@@ -83,7 +83,10 @@ export function boardNotices(seed: number, town: Town, host: FestHost, day: numb
 export class NoticeCard {
   private el: HTMLElement | null = null;
   private key = '';
-  constructor(private id = 'noticeboard') {}
+  constructor(
+    private id = 'noticeboard',
+    private titleSuffix = ' notice board',
+  ) {}
 
   show(title: string, notices: Notice[], onTrack?: (b: Bounty) => void): void {
     if (!this.el) {
@@ -98,7 +101,7 @@ export class NoticeCard {
       this.key = key;
       this.el.replaceChildren();
       const h = document.createElement('h2');
-      h.textContent = `${title} notice board`;
+      h.textContent = title + this.titleSuffix;
       this.el.appendChild(h);
       for (const n of notices) {
         const p = document.createElement('article');

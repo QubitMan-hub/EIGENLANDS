@@ -1,6 +1,7 @@
 import {
   ENEMY_DEFS,
   BOSS_BY_KIND,
+  BOSSES,
   CREATURE_BLUEPRINTS,
   BIOME_NAMES,
   ITEMS,
@@ -84,6 +85,7 @@ export function buildBestiary(profile: Profile, state: BestiaryPageState): HTMLE
     ['hostile', 'Hostiles'],
     ['mythical', 'Mythical'],
     ['ancient', 'Ancients & bosses'],
+    ['bosses', `Boss gallery · ${Object.keys(BOSSES).length} encounters`],
     ['forces', 'Kingdom forces'],
   ])
     filter.append(h('option', { value: id, text: name }));
@@ -95,12 +97,13 @@ export function buildBestiary(profile: Profile, state: BestiaryPageState): HTMLE
   const render = () => {
     list.replaceChildren();
     const query = state.query.trim().toLowerCase();
-    const entries = [...profile.bestiary]
+    const roster = state.category === 'bosses' ? Object.keys(BOSSES) : [...profile.bestiary];
+    const entries = roster
       .filter((id) => Object.hasOwn(ENEMY_DEFS, id))
       .map((id) => ({ id, d: ENEMY_DEFS[id as keyof typeof ENEMY_DEFS] }))
       .filter(
         ({ id, d }) =>
-          (state.category === 'all' || category(id, d) === state.category) &&
+          (state.category === 'all' || (state.category === 'bosses' ? !!d.boss : category(id, d) === state.category)) &&
           `${d.name} ${id} ${habitat(id)}`.toLowerCase().includes(query),
       )
       .sort((a, b) => a.d.name.localeCompare(b.d.name));
@@ -108,6 +111,7 @@ export function buildBestiary(profile: Profile, state: BestiaryPageState): HTMLE
       list.append(h('p', { text: 'No recorded species match. Explore quietly and watch the local wildlife.' }));
     for (const { id, d } of entries.slice(0, state.limit)) {
       const card = h('details', { class: 'bestiary-entry' });
+      if (state.category === 'bosses') card.classList.add('boss-gallery-entry');
       card.open = state.open.has(id);
       card.ontoggle = () => {
         if (card.open) state.open.add(id);
@@ -152,6 +156,11 @@ export function buildBestiary(profile: Profile, state: BestiaryPageState): HTMLE
       const boss = BOSS_BY_KIND[d.kind];
       if (boss)
         notes.append(
+          h('p', {
+            text: profile.bestiary.has(id)
+              ? 'Recorded encounter'
+              : 'Legend preview · find this encounter to record a sighting.',
+          }),
           h('p', { text: `Level ${boss.level} rite · ${ITEMS[boss.item]?.name ?? boss.item}. ${boss.loot}` }),
         );
       const loot = (d.drops ?? []).map((drop) => ITEMS[drop.item]?.name ?? drop.item);

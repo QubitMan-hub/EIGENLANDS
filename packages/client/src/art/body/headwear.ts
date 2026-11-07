@@ -513,9 +513,8 @@ function buildStamp(dir: number, g: HeadGear, k: number, sculpt: boolean): Stamp
   const out: StampPx[] = [];
   if (!shapes.length) return out;
   // the view ray through a screen pixel runs toward the camera along ground +y: in head space a = f_y, b = r_y
-  // Faces are drawn near-frontal (body/heads.ts), as pixel artists draw them, so head gear is cast with a shallow
-  // look-down too; the world's full 2:1 slope would drop a forehead hairline onto the eyes.
-  const ray: V = [fr.f[1], fr.r[1], 0.18];
+  // The authored people now use the actual elevated 2:1 camera; hair and hats must use its same ray.
+  const ray: V = [fr.f[1], fr.r[1], 0.5];
   const rl = Math.hypot(ray[0], ray[1], ray[2]);
   const rd: V = [ray[0] / rl, ray[1] / rl, ray[2] / rl];
   // a point on the screen pixel's ray, on the vertical plane through the head centre (ground y = 0):

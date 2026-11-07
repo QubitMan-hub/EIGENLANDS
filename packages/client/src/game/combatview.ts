@@ -171,6 +171,7 @@ export class CombatView {
   private dirs = new WeakMap<CombatActor, number>();
   private nights = new WeakMap<CombatActor, boolean>();
   private swings = new WeakMap<CombatActor, { at: number; duration: number }>();
+  private impactSounds = new WeakMap<CombatActor, number>();
   private states = new WeakMap<CombatActor, { st: number; at: number }>();
 
   /** Local prediction and remote authoritative events use the same pose timeline. */
@@ -434,8 +435,13 @@ export class CombatView {
         const actor = f.id ? view(f.id) : undefined;
         if (actor && BOSS_BY_KIND[actor.kind]) this.strike(actor, 450);
         fx.shockwave(f.x, f.y, f.v ?? 1.8, 36);
-        this.d.sound('blast', f.x, f.y);
-        if (near(8)) fx.kick(shakeFor(2, false, this.d.reduced()));
+        const boss = actor && BOSS_BY_KIND[actor.kind],
+          now = performance.now();
+        if (!boss || now - (this.impactSounds.get(actor!) ?? -Infinity) >= 180) {
+          this.d.sound('blast', f.x, f.y);
+          if (near(8)) fx.kick(shakeFor(2, false, this.d.reduced()));
+          if (boss) this.impactSounds.set(actor!, now);
+        }
         return true;
       }
       case 'bomb':
@@ -915,7 +921,7 @@ export class CombatView {
         f: number;
       const n = (a: Anim) => foes.frames(model, a);
       const impact = authoredBoss ? this.attackFrame(v, now, this.d.reduced()) : -1;
-      if (st === 5 || v.flash > 0.55) {
+      if (st === 5 || (!authoredBoss && v.flash > 0.55)) {
         anim = 'hurt';
         f = Math.min(n('hurt') - 1, Math.floor(elapsed * 12));
       } else if (st === 2) {
@@ -931,7 +937,7 @@ export class CombatView {
             : Math.min(n('attack') - 1, Math.floor(elapsed * (authoredBoss ? 4.5 : 12)));
       } else if (moved) {
         anim = 'move';
-        const stride = authoredBoss ? 0.48 : model >= 15 ? 0.18 : MOVE_STRIDE[model];
+        const stride = authoredBoss ? 0.36 : model >= 15 ? 0.18 : MOVE_STRIDE[model];
         f = stride ? Math.floor(v.travel / stride) : Math.floor(t * (model === 6 ? 14 : 8) + v.outfit);
       } else f = Math.floor(t * (model === 6 ? 6 : 5) + v.outfit * 1.7);
       if (this.d.reduced()) f = anim === 'move' || anim === 'idle' ? 0 : Math.min(f, 1);
@@ -983,7 +989,7 @@ export class CombatView {
     v.sprite.x =
       st === 5 && !reduced && !authoredBoss
         ? Math.sign(Math.sin(t * 22))
-        : st === 2 && !reduced && tele > 0.6
+        : st === 2 && !reduced && !authoredBoss && tele > 0.6
           ? Math.round(Math.sin(t * 60) * tele)
           : 0;
     v.fl.texture = v.sprite.texture;
@@ -1005,7 +1011,7 @@ export class CombatView {
       v.sprite.tint = style?.tint ?? 0xffffff;
       v.sprite.alpha = 1;
       v.fl.tint = 0xffffff;
-      v.fl.alpha = Math.min(1, v.flash * 1.4);
+      v.fl.alpha = Math.min(authoredBoss ? 0.35 : 1, v.flash * 1.4);
       if ((hired || bonded) && st === 6) v.sprite.alpha = 0.3;
     }
     if (kind === 4)

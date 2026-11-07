@@ -1,4 +1,5 @@
 import { ArrivalGarden } from './arrival';
+import { WorldSecrets } from './world-secrets';
 import { appearanceOf } from '../art/appearance';
 import { lookOf } from '../art/body/outfit';
 import { contactShadow, castProjection } from './grounding';
@@ -319,6 +320,7 @@ export class Game {
   private ambient!: Ambient;
   private life!: WorldLife;
   private arrival!: ArrivalGarden;
+  private secrets!: WorldSecrets;
   private targetId: string | null = null;
   private targetFrame = new TargetFrame();
   private bobber = new Graphics();
@@ -479,6 +481,7 @@ export class Game {
     };
     this.life = new WorldLife(lifeDeps);
     this.arrival = new ArrivalGarden(lifeDeps);
+    this.secrets = new WorldSecrets(lifeDeps);
     this.combat = new CombatView(
       {
         fx: () => this.fx,
@@ -1385,6 +1388,7 @@ export class Game {
     };
     this.life.frame(lifeFrame);
     this.arrival.frame(lifeFrame, this.seasonIdx);
+    this.secrets.frame(lifeFrame);
     this.listen(now, dt, me, hour, weather, underground);
     this.updateTarget34(renderT, me);
     this.syncFocus(now);
@@ -2038,7 +2042,7 @@ export class Game {
             v.offhand.anchor.set(0.5, 0.75);
             v.root.addChild(v.offhand);
           }
-          const sf = shieldFrame(shieldId!, dirOf(sd.x, sd.y), v.personFrame);
+          const sf = shieldFrame(shieldId!, dirOf(sd.x, sd.y), v.personFrame, v.personBody);
           v.offhand.texture = sf.texture;
           v.offhand.visible = true;
           v.offhand.y = v.sprite.y;

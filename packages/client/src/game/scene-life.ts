@@ -267,7 +267,7 @@ export class SceneLife {
   /**
    * What the actor holds, as an isometric sprite riding along with the body: a bucket at the hand, a sack on the
    * shoulder, a broom or the lamplighter's pole standing at the side, a lute across the chest, a lantern at night.
-   * Grip coordinates come from the current 48×56 skeletal frame, including body type and child scale.
+   * Grip coordinates come from the current 64×64 skeletal frame, including body type and child scale.
    */
   private carryDraw(a: SceneActor, what: CarryKind | 'none', k = 0): void {
     a.carryKind = what;

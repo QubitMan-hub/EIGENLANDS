@@ -1,5 +1,6 @@
 import {
   ATK,
+  BOSS_BY_KIND,
   BRUTE_SLAM_RADIUS,
   BRUTE_SLAM_WINDUP,
   CHARGE_DIST,
@@ -36,6 +37,10 @@ import { EnemyState } from '@eigenlands/shared';
 export type EnemyMode = 'idle' | 'wander' | 'chase' | 'windup' | 'leap' | 'recover' | 'stagger' | 'charge';
 
 export interface Enemy {
+  /** A scripted cast owns its timer and must never fall through to a generic melee hit. */
+  scriptedWindup?: number;
+  steerX?: number;
+  steerY?: number;
   route?: Array<[number, number]>;
   routeX?: number;
   routeY?: number;
@@ -303,6 +308,30 @@ function rayEnd(
   return { x: px, y: py };
 }
 
+/** Heavy bosses turn with bounded acceleration; casts/charges keep their exact combat timing. */
+function locomotion(e: Enemy, vx: number, vy: number, dt: number, solid: SolidQuery): number {
+  if (dt <= 0) return 0;
+  if (BOSS_BY_KIND[e.def.kind]) {
+    const oldX = e.steerX ?? 0,
+      oldY = e.steerY ?? 0;
+    const dx = vx - oldX,
+      dy = vy - oldY,
+      d = Math.hypot(dx, dy),
+      limit = Math.max(1, e.def.speed * e.speedMult) * 6 * dt;
+    const k = d > limit ? limit / d : 1;
+    vx = e.steerX = oldX + dx * k;
+    vy = e.steerY = oldY + dy * k;
+  }
+  const x = e.x,
+    y = e.y;
+  moveBody(e, vx * dt, vy * dt, e.def.radius, solid);
+  if (BOSS_BY_KIND[e.def.kind]) {
+    if (Math.abs(e.x - x) < Math.abs(vx * dt) * 0.1) e.steerX = 0;
+    if (Math.abs(e.y - y) < Math.abs(vy * dt) * 0.1) e.steerY = 0;
+  }
+  return Math.hypot(vx, vy) * dt;
+}
+
 /** Follow short cached routes only after direct movement is blocked. Reuse the shared no-corner-cutting A*. */
 function navigate(
   e: Enemy,
@@ -337,14 +366,14 @@ function navigate(
       }
       const d = Math.hypot(dx, dy) || 1,
         step = Math.min(Math.hypot(vx, vy) * dt, d);
-      moveBody(e, (dx / d) * step, (dy / d) * step, e.def.radius, solid);
+      locomotion(e, ((dx / d) * step) / dt, ((dy / d) * step) / dt, dt, solid);
       return;
     }
   }
   const x = e.x,
     y = e.y;
-  moveBody(e, vx * dt, vy * dt, e.def.radius, solid);
-  if (Math.hypot(e.x - x, e.y - y) >= Math.hypot(vx, vy) * dt * 0.55 || tick < (e.routeUntil ?? 0)) return;
+  const attempt = locomotion(e, vx, vy, dt, solid);
+  if (Math.hypot(e.x - x, e.y - y) >= attempt * 0.55 || tick < (e.routeUntil ?? 0)) return;
   if (ctx && (ctx.routes ?? 4) <= 0) return;
   if (ctx) ctx.routes = (ctx.routes ?? 4) - 1;
   const blocked = Object.assign((x: number, y: number) => overlapsSolid(x + 0.5, y + 0.5, e.def.radius, solid), {
@@ -379,6 +408,7 @@ function knockback(e: Enemy, dt: number, solid: SolidQuery, hooks: EnemyHooks): 
 }
 
 function startWindup(e: Enemy, atk: number, time: number, target: Target, hooks: EnemyHooks): void {
+  e.scriptedWindup = undefined;
   e.mode = 'windup';
   e.atk = atk;
   e.t = time * e.windMult;
@@ -395,7 +425,8 @@ function startWindup(e: Enemy, atk: number, time: number, target: Target, hooks:
   hooks.telegraph(e);
 }
 
-const WINDUP_TIME = (e: Enemy): number => (e.atk === ATK.SLAM ? BRUTE_SLAM_WINDUP : e.def.windup) * e.windMult;
+const WINDUP_TIME = (e: Enemy): number =>
+  e.scriptedWindup ?? (e.atk === ATK.SLAM ? BRUTE_SLAM_WINDUP : e.def.windup) * e.windMult;
 
 /** One AI tick. Pure with respect to the world apart from the hooks. */
 export function stepEnemy(
@@ -417,6 +448,10 @@ export function stepEnemy(
   if (e.def.passive || (e.def.neutral && !e.provoked)) {
     stepPassive(e, dt, tick, targets, solid, rand);
     return;
+  }
+  if (e.mode !== 'chase') {
+    e.steerX = 0;
+    e.steerY = 0;
   }
   knockback(e, dt, solid, hooks);
   e.flinchT = Math.max(0, e.flinchT - dt);
@@ -685,6 +720,13 @@ export function stepEnemy(
       if (e.t <= 0) {
         e.state.tele = 0;
         e.cd = e.def.cooldown ?? 0.6;
+        if (e.scriptedWindup !== undefined) {
+          e.scriptedWindup = undefined;
+          e.mode = 'recover';
+          e.t = 0.3;
+          e.atk = ATK.NONE;
+          break;
+        }
         switch (e.atk) {
           case ATK.LEAP:
             e.mode = 'leap';

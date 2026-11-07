@@ -33,8 +33,8 @@ export interface ShieldFrame {
   front: boolean;
 }
 
-function render(id: string, dir: number, frame: number): { buf: PixBuf; front: boolean } {
-  const d = DIMS.male;
+function render(id: string, dir: number, frame: number, body: 'male' | 'female'): { buf: PixBuf; front: boolean } {
+  const d = DIMS[body];
   const pose = poseOf(d, frame, dir);
   const j = solve(d, pose);
   const fr = frameOf(dir);
@@ -114,11 +114,11 @@ function render(id: string, dir: number, frame: number): { buf: PixBuf; front: b
 
 const cache = new Map<string, ShieldFrame>();
 /** the shield `id` held on the left arm for a person facing `dir` in frame `frame` (same cell as held weapons) */
-export function shieldFrame(id: string, dir: number, frame: number): ShieldFrame {
-  const key = `${id}|${dir}|${frame}`;
+export function shieldFrame(id: string, dir: number, frame: number, body: 'male' | 'female' = 'male'): ShieldFrame {
+  const key = `${id}|${body}|${dir}|${frame}`;
   let s = cache.get(key);
   if (!s) {
-    const { buf, front } = render(id, dir, Math.max(0, frame));
+    const { buf, front } = render(id, dir, Math.max(0, frame), body);
     const { canvas, ctx } = makeCanvas(HELD_W, HELD_H);
     buf.blit(ctx, 0, 0);
     const texture = Texture.from(canvas);

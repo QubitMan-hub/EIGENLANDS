@@ -157,6 +157,7 @@ export const ARENA_BOSS: Record<'limestone' | 'glowmoss' | 'crystal' | 'basalt' 
 };
 
 export type BossEvent =
+  | { kind: 'tell'; boss: BossId; text: string }
   | { kind: 'start'; boss: BossId; name: string; intro: string }
   | { kind: 'phase'; boss: BossId; phase: number; text: string }
   | { kind: 'defeated'; boss: BossId; name: string; first: boolean };

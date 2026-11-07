@@ -13,12 +13,20 @@ The supplied reference-pack overhaul supersedes the older door-first calibration
 
 - Camera remains the established 2:1 view, `sx=(x−y)·16`, `sy=(x+y)·8`. Character rendering scale is unchanged. The latest user request brings Normal/Close camera framing one integer scale step nearer; Far remains available.
 - The recorded pre-overhaul player silhouette was 34 visible world/screen pixels at 1× zoom. The latest hero capture measures 44, up from 42 before the fidelity correction; characters were not reduced to fit buildings.
-- Nominal male/female skeleton heights are now 38/37 px, with purposeful 12-row directional faces and fuller clothed silhouettes. Hips remain at 18/17.5; reference limb, hand and boot volumes replace the earlier narrow five-head approximation.
+- Nominal male/female skeleton heights are now 40/39 px, with purposeful 12-row directional faces and fuller clothed silhouettes. Hips are at 20/19.5; reference limb, hand and boot volumes replace the earlier narrow five-head approximation.
 - Latest user correction: doorway clearance is 44 px, walls 50 px. This lowers the initial 50/60 px geometry while retaining adult world height. Footprints, door coordinates and collision remain unchanged in this stage.
-- Cells are **48×56**, padded sideways for dodge/death and above for hair/hats, with ground origin (24,53) and the sprite bottom-centred. Padding does not enlarge or stretch the art. Name labels use `PERSON_TOP=50`.
+- Cells are **64×64**, padded sideways for dodge/death and above for hair/hats, with ground origin (32,61) and the sprite bottom-centred. Padding does not enlarge or stretch the art. Name labels use `PERSON_TOP=50`.
 - Children retain their intentional shorter stature. Statues share the new proportions at their established magnification; QubitMan's internal canvas was enlarged with a compensating offset to retain pedestal contact.
 
-## How a frame is made
+## Current authored rendering
+
+The approved eight-view source people replace the procedural body surface painter. `body/directional.ts` partitions the authored pixels onto the existing solved joints, preserves nearest-sampled material detail and depth-sorts the moving parts. Clothing families, recoloring and directional headwear remain available; canonical hero presets retain their source identity. Read [current proof and limits](validation/directional-people/README.md). QubitMan uses its own isometric sword-and-shield sculpture; crypt and garden statues use the new human forms.
+
+## Historical procedural painter and shared rig
+
+The old surface painter remains as reference code; the shared poses, joints and attachment calculations still drive the new cutout renderer.
+
+### How the procedural frame was made
 
 1. **Pose** (`poses.ts`): each frame id maps to a skeleton pose. These are idle and breathing (0/9), walk (1–8), run
    (14–21), the legacy strike, aim and cast clips (10–13, 22–29), and every action family in `person-actions.ts`. A pose

@@ -10,6 +10,7 @@ import {
   CAVE_OY,
   CRYPT_OY,
   bestiaryKind,
+  type BossId,
 } from '@eigenlands/shared';
 import { BossModule } from '../src/features/bosses';
 import { createEnemy } from '../src/game/enemies';
@@ -28,9 +29,9 @@ function habitat(seed: number, where: string) {
     }
   throw Error(`Missing ${where}`);
 }
-function field(id: (typeof ANCIENT_RITES)[number]['id']) {
+function field(id: BossId) {
   const def = BOSSES[id],
-    pos = habitat(1337, ANCIENT_RITES.find((r) => r.id === id)!.where);
+    pos = habitat(1337, ANCIENT_RITES.find((r) => r.id === id)?.where ?? 'sea');
   const p = {
     id: 'hero',
     accountId: 'hero-account',
@@ -96,7 +97,7 @@ it('warns fixed ground sites before damage, exposes recovery, changes all phases
     expect(marks.length).toBeGreaterThanOrEqual(5);
     expect(marks.every((v) => v.v >= 1.7)).toBe(true);
     expect(f.room.enemyStrike).not.toHaveBeenCalled();
-    expect(e.mode).toBe('recover');
+    expect(e.mode).toBe('windup');
     f.p.sim.x += 1;
     f.bosses.tick(0, 3);
     expect(f.room.enemyStrike.mock.calls.map(([, x, y]) => ({ x, y }))).toEqual(marks.map(({ x, y }) => ({ x, y })));
@@ -111,6 +112,8 @@ it('warns fixed ground sites before damage, exposes recovery, changes all phases
     f.bosses.tick(0, 100);
     f.p.deadT = 1;
     f.bosses.tick(0, 0.1);
+    expect(f.room.state.spells.size).toBe(1);
+    f.bosses.tick(0, 61);
     expect(f.room.state.spells.size).toBe(0);
   }
 });
@@ -184,3 +187,63 @@ it('uses real inventory authority, preserves a refused rite, consumes one on suc
   expect(q.sp.data.inv.filter((s) => s?.id === 'first_flame_ember').reduce((n, s) => n + s!.n, 0)).toBe(1);
   await q.r.leave();
 }, 20000);
+
+it('keeps Colossus impact sites fixed and cancels pending damage on a real poise break', () => {
+  const f = field('colossus');
+  expect(f.summon()).toBe(true);
+  const e = [...f.room.enemies.values()][0];
+  f.bosses.tick(0, 6.01);
+  const marks = f.room.fx.mock.calls.map(([v]) => v).filter((v) => v.kind === 'bomb');
+  expect(marks).toHaveLength(3);
+  expect(e.mode).toBe('windup');
+  const origin = { x: e.x, y: e.y };
+  e.x += 2;
+  f.bosses.tick(0, 1.3);
+  expect(f.room.enemyStrike.mock.calls[0].slice(1, 3)).toEqual([origin.x, origin.y]);
+  e.mode = 'stagger';
+  f.bosses.tick(0, 3);
+  expect(f.room.enemyStrike).toHaveBeenCalledTimes(1);
+});
+it('caps summoned packs, prevents loot farming and cleans every add on boss death', () => {
+  const f = field('warden');
+  expect(f.summon()).toBe(true);
+  const e = [...f.room.enemies.values()][0];
+  for (let i = 0; i < 7; i++) {
+    e.mode = 'chase';
+    f.bosses.tick(0, 10);
+    f.bosses.tick(0, 3);
+  }
+  const adds = [...f.room.enemies.values()].filter((a) => a !== e);
+  expect(adds.length).toBeGreaterThan(0);
+  expect(adds.length).toBeLessThanOrEqual(6);
+  expect(adds.every((a) => a.noRewards)).toBe(true);
+  f.bosses.killed(e, undefined);
+  expect(f.room.enemies.size).toBe(1);
+});
+
+it('waits for committed attacks, alternates its pattern and respects line of sight', () => {
+  const f = field('colossus');
+  expect(f.summon()).toBe(true);
+  const e = [...f.room.enemies.values()][0];
+  e.mode = 'windup';
+  e.t = 1;
+  f.bosses.tick(0, 6.01);
+  expect(f.room.fx.mock.calls.map(([v]) => v).filter((v) => v.kind === 'bomb')).toHaveLength(0);
+  e.mode = 'chase';
+  f.bosses.tick(0, 0.01);
+  f.bosses.tick(0, 4);
+  e.mode = 'chase';
+  f.room.fx.mockClear();
+  f.bosses.tick(0, 4);
+  expect(f.room.fx.mock.calls.map(([v]) => v).filter((v) => v.kind === 'bomb')).toHaveLength(5);
+  expect(f.p.client.send.mock.calls.some(([, v]) => v.kind === 'tell' && v.text.includes('Fractured crossing'))).toBe(
+    true,
+  );
+  f.bosses.tick(0, 4);
+  e.mode = 'chase';
+  f.room.fx.mockClear();
+  f.solid.mockReturnValue(true);
+  f.p.sim.x += 4;
+  f.bosses.tick(0, 10);
+  expect(f.room.fx.mock.calls.map(([v]) => v).filter((v) => v.kind === 'bomb')).toHaveLength(0);
+});

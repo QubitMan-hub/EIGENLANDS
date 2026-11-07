@@ -1,6 +1,7 @@
 import { Rectangle, Texture } from 'pixi.js';
 import { HUE_PALETTE, WEAPONS, isWeaponId, type WeaponId, type ToolSpec } from '@eigenlands/shared';
-import { ATTACK_FRAME, RUN_FRAME, SHOT_FRAME, CAST_FRAME, personGrip, PERSON_W, PERSON_H } from './actors';
+import { ATTACK_FRAME, SHOT_FRAME, CAST_FRAME, personGrip, PERSON_W, PERSON_H } from './actors';
+import { personToolAxes } from './body';
 import { actionPose } from './person-actions';
 import { C, line, makeCanvas, outline, poly, put, undithered } from './shade';
 
@@ -45,37 +46,10 @@ export class HeldWeapons {
           const work = actionPose(d, n);
           const aimedTool = !work && (id === 'can' || id === 'rod') && n >= CAST_FRAME;
           const thrust = fam === 'spear' && n >= ATTACK_FRAME && n < ATTACK_FRAME + 4;
-          // Broad heads rest outside the face; grip/arm anchors remain unchanged.
-          const resting =
-            (fam === 'spear' ||
-              fam === 'battle_axe' ||
-              fam === 'warhammer' ||
-              fam === 'greatsword' ||
-              (tool && id !== 'can')) &&
-            (n < ATTACK_FRAME || (n >= RUN_FRAME && n < SHOT_FRAME));
-          // a work or combat clip: along the tool the skeleton holds (art/body/poses.ts), same source as the hand
-          const angle = work
-            ? g.angle
-            : id === 'can' && !aimedTool
-              ? 0
-              : thrust || aimedTool
-                ? personGrip(d, SHOT_FRAME, body).angle
-                : resting
-                  ? personGrip(d, 0, body).x < PERSON_W / 2
-                    ? -2.05
-                    : -1.1
-                  : bow && n < 22
-                    ? d === 2 || d === 4 || d === 6
-                      ? -2.6
-                      : -0.55
-                    : g.angle;
-          const ux = Math.cos(angle),
-            uy = Math.sin(angle),
-            vx = -uy,
-            vy = ux;
+          const axes = personToolAxes(d, n, body, thrust || aimedTool || bow);
           const pt = (along: number, across = 0): [number, number] => [
-            x + ux * along + vx * across,
-            y + uy * along + vy * across,
+            x + axes.along.x * along + axes.across.x * across,
+            y + axes.along.y * along + axes.across.y * across,
           ];
           const stroke = (a: number, z: number, c: number, offset = 0) => {
             const p = pt(a, offset),

@@ -1,0 +1,14 @@
+[
+  {
+    "file": "art-source/directional-people/heroes.png",
+    "sha256": "27c55bf2da7b35c0ecdde38fa82356b69f06b8fe017ebd7bac801f871e15fc9a"
+  },
+  {
+    "file": "art-source/directional-people/commoners.png",
+    "sha256": "a636fcb7cd94c03b49cfd6d4e74a0d332c1e42ada0cd0f4597b860445ae27a1d"
+  },
+  {
+    "file": "art-source/directional-people/robes.png",
+    "sha256": "6534945a97a3d16c07e89d383c61a957337e44a4aca769c24dc41a3a915248d0"
+  }
+]

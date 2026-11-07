@@ -1,15 +1,18 @@
 /** The modular character system: one entry point to paint a person frame (see docs/CHARACTERS.md). */
 import { C, outline, PixBuf, polish, type Ctx } from '../shade';
-import { paintBody, dimsOf, type BodyLook } from './paint';
+import { dimsOf, type BodyLook } from './paint';
+import { paintDirectional } from './directional';
 import { poseOf } from './poses';
 import { DIMS, frameOf, project, solve, type Joints, type V3 } from './skeleton';
 
 export type { BodyLook } from './paint';
 
-/** paint one frame of a person (game DIR_*, frame id) into a 48×56 cell; returns the solved joints */
+/** paint one frame of a person (game DIR_*, frame id) into a 64×64 cell; returns the solved joints */
 export function paintPersonFrame(ctx: Ctx, dir: number, frame: number, look: BodyLook): Joints {
   const d = dimsOf(look.body, look.scale ?? 1);
-  return paintBody(ctx, dir, poseOf(d, frame, dir), look);
+  const joints = solve(d, poseOf(d, frame, dir));
+  paintDirectional(ctx, dir, joints, look);
+  return joints;
 }
 
 export function polishPerson(buf: PixBuf): void {
@@ -19,7 +22,7 @@ export function polishPerson(buf: PixBuf): void {
 
 const gripCache = new Map<number, { x: number; y: number; angle: number }>();
 /**
- * The holding (right) hand in the 48×56 cell and the screen angle a held tool or weapon points along, for a frame —
+ * The holding (right) hand in the 64×64 cell and the screen angle a held tool or weapon points along, for a frame —
  * solved from the selected body's skeleton, including its own shoulder and arm dimensions.
  */
 export function personGripOf(
@@ -63,3 +66,23 @@ export function personGripOf(
   return g;
 }
 const sub = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+
+/** Physical tool plane: project both axes, preserving foreshortening in every facing. */
+export function personToolAxes(
+  dir: number,
+  frame: number,
+  body: 'male' | 'female' = 'male',
+  thrust = false,
+): { along: { x: number; y: number }; across: { x: number; y: number } } {
+  const pose = poseOf(DIMS[body], frame, dir),
+    fr = frameOf(dir);
+  const d = pose.tool?.dir ?? (thrust ? ([1, 0, 0] as V3) : ([2.5, 0, 3] as V3));
+  const n = Math.hypot(...d) || 1,
+    u = d.map((x) => x / n) as V3;
+  const h = Math.hypot(u[0], u[1]);
+  const v: V3 = h > 0.01 ? [-u[1] / h, u[0] / h, 0] : [0, 1, 0];
+  const origin = project([0, 0, 0], fr),
+    a = project(u, fr),
+    b = project(v, fr);
+  return { along: { x: a.x - origin.x, y: a.y - origin.y }, across: { x: b.x - origin.x, y: b.y - origin.y } };
+}

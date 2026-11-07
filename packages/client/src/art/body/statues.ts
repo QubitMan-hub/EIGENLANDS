@@ -3,58 +3,14 @@
  * material, carved at its own scale (the plaza monument stands about three times life size), with a modelled head in
  * place of a drawn face. Pedestals, braziers, inscriptions and glows stay with the props that own them.
  */
-import { C, type Ctx, type Ramp } from '../shade';
-import { paintBody, type BodyLook, type PaintOpts } from './paint';
-import { DIMS, restPose, type Pose, type V3 } from './skeleton';
+import { C, PixBuf, type Ctx, type Ramp } from '../shade';
+import type { BodyLook } from './paint';
+import { paintDirectional } from './directional';
+import { AX, AY, DIMS, restPose, solve, type Pose } from './skeleton';
 
 const STONE: Ramp = [C.slate, C.steel, C.mist, C.fog, C.pale];
-const DARK: Ramp = [C.ink, C.g0, C.slate, C.steel];
-/** the coat: a darker stone than the face and hands, as the original monument was painted */
 const COAT: Ramp = [C.night, C.slate, C.steel, C.mist];
 const UNDER: Ramp = STONE;
-
-const toolDir = (pitch: number, yaw: number): V3 => [
-  Math.cos(pitch) * Math.cos(yaw),
-  Math.cos(pitch) * Math.sin(yaw),
-  Math.sin(pitch),
-];
-
-/** QubitMan, Hadamere's founder: tricorn, red scarf, long coat with tails and gold buttons, a wand held low. */
-const QUBITMAN: BodyLook = {
-  body: 'male',
-  skin: STONE,
-  hair: DARK,
-  eyes: C.slate,
-  under: UNDER,
-  gear: { cut: 'short', hat: 'tricorn' },
-  hat: DARK,
-  hatTrim: C.e3,
-  // a pale shirt front with gold buttons, framed by the open coat
-  top: { ramp: STONE, sleeve: 1, hem: -2, laces: C.e5, collar: true },
-  vest: { ramp: COAT, hem: -2, trim: C.e3 },
-  skirt: { ramp: COAT, hem: 3.2, flare: 1.8, open: true, trim: C.e3 },
-  legs: { ramp: STONE, hem: 1 },
-  boots: { ramp: DARK, top: 5.5 },
-  belt: { ramp: [C.e0, C.e1, C.e3], buckle: C.e5 },
-  scarf: [C.r0, C.r1, C.r2, C.r3],
-  cape: { ramp: COAT, length: 17 },
-};
-function qubitmanPose(): Pose {
-  const d = DIMS.male;
-  const p = restPose(d);
-  // weight on the back leg, the front foot turned out; wand in the right hand, left fist on the hip
-  p.footL = [1.6, -d.hipHalf - 0.4, 0];
-  p.footR = [-0.8, d.hipHalf + 0.3, 0];
-  p.toeL = [1, -0.5, 0];
-  p.pelvis = [0, 0.3, d.hipZ - 0.5];
-  p.roll = -0.03;
-  p.twist = 0.12;
-  p.handR = [2.2, d.shoulderHalf + 1.2, d.hipZ + 0.6];
-  p.handL = [-0.6, -d.shoulderHalf - 0.6, d.hipZ + 2.6];
-  p.elbowL = [-0.4, -1, 0.1];
-  p.tool = { hand: 'R', dir: toolDir(-1.15, 0.4) };
-  return p;
-}
 
 /** A hooded stone figure in a robe, hands folded, eyes lit. */
 const CRYPT: BodyLook = {
@@ -105,7 +61,7 @@ function offeringPose(): Pose {
   return p;
 }
 
-export type StatueId = 'qubitman' | 'crypt' | 'garden';
+export type StatueId = 'crypt' | 'garden';
 
 /** Paint a statue's figure with its feet at (ax, ay) of a w×h canvas, facing game direction `dir`. */
 export function paintStatue(
@@ -115,12 +71,19 @@ export function paintStatue(
   at: { w: number; h: number; ax: number; ay: number; k: number },
   material?: Ramp,
 ): void {
-  const opts: PaintOpts = { ...at, sculpt: true };
-  if (id === 'qubitman')
-    paintBody(ctx, dir, qubitmanPose(), QUBITMAN, {
-      ...opts,
-      prop: { len: 10, ramp: [C.e0, C.e1, C.e3, C.e5], r: 0.4 },
-    });
-  else if (id === 'crypt') paintBody(ctx, dir, foldedPose(), CRYPT, opts);
-  else paintBody(ctx, dir, offeringPose(), gardenLook(material ?? STONE), opts);
+  const look = id === 'crypt' ? CRYPT : gardenLook(material ?? STONE);
+  const pose = id === 'crypt' ? foldedPose() : offeringPose();
+  const source = new PixBuf(64, 64);
+  paintDirectional(source.ctx, dir, solve(DIMS[look.body], pose), look);
+  const pixels = new Uint8ClampedArray(source.px.buffer),
+    image = ctx.getImageData(0, 0, at.w, at.h);
+  for (let y = 0; y < at.h; y++)
+    for (let x = 0; x < at.w; x++) {
+      const sx = Math.floor((x - at.ax) / at.k + AX),
+        sy = Math.floor((y - at.ay) / at.k + AY);
+      if (sx < 0 || sx >= 64 || sy < 0 || sy >= 64) continue;
+      const i = (sy * 64 + sx) * 4;
+      if (pixels[i + 3]) image.data.set(pixels.subarray(i, i + 4), (y * at.w + x) * 4);
+    }
+  ctx.putImageData(image, 0, 0);
 }

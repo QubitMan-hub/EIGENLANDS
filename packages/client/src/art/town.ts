@@ -12,7 +12,6 @@ import {
   line,
   makeCanvas,
   outline,
-  PixBuf,
   pixelText,
   poly,
   polish,
@@ -23,8 +22,8 @@ import {
 } from './shade';
 import { Iso, mat } from './isokit';
 import { PLINTH, statueInscription, statuePlinth } from './props';
-import { paintStatue } from './body/statues';
-import { DIR_DOWN_RIGHT } from './actors';
+import qubitStatue from './qubitman-statue.json';
+import { preparedSprite } from './prepared-sprite';
 
 const BRONZE: Ramp = [C.e1, C.r0, C.r1, C.r4, C.r5, C.r6];
 const ORB: Ramp = [C.q2, C.q3, C.q7, C.w7, C.white];
@@ -57,18 +56,10 @@ function make(
  * References inform tailoring and stance, not traced pixels. Both boots meet
  * the existing plinth; stone planes are lit from the same upper-left source. */
 let stoneGuardian: HTMLCanvasElement | null = null;
-/** The statue itself: QubitMan carved on the shared body (art/body/statues.ts) at monument scale, feet at (52, 112). */
+/** Authored isometric founder, sword and shield, rooted at the unchanged plinth contact. */
 function drawStoneGuardian(ctx: Ctx): void {
   if (!stoneGuardian) {
-    const W = 108,
-      H = 160;
-    const { canvas, ctx: c } = makeCanvas(W, H);
-    const buf = new PixBuf(W, H);
-    undithered(() => paintStatue(buf.ctx, 'qubitman', DIR_DOWN_RIGHT, { w: W, h: H, ax: 52, ay: 144, k: 3.2 }));
-    outline(buf.ctx, W, H, C.night);
-    polish(buf.ctx, W, H, { rim: true });
-    buf.blit(c, 0, 0);
-    stoneGuardian = canvas;
+    stoneGuardian = preparedSprite(qubitStatue).tex.source.resource as HTMLCanvasElement;
   }
   ctx.drawImage(stoneGuardian, 0, 0);
 }
@@ -101,12 +92,13 @@ function statueFrame(f: number): ObjSprite {
     (ctx) => {
       statuePlinth(ctx, AX, AY, f);
       for (const [u, v] of corners) brazier(ctx, u, v);
+    },
+    (ctx) => {
+      // Preserve the authored stone/material clusters after the plinth polish pass.
       ctx.save();
       ctx.translate(FX, FY);
       drawStoneGuardian(ctx);
       ctx.restore();
-    },
-    (ctx) => {
       statueInscription(ctx, AX, AY, ['ALL HAIL', 'QUBITMAN'], pixelText);
       // brazier flames and their sparks
       const I = new Iso(ctx, AX, AY - 8);
@@ -135,7 +127,7 @@ function statueFrame(f: number): ObjSprite {
       // emissive bits after the outline: chest emblem (a tiny Bloch circle) and the glowing orb
       const pulse = [0, 1, 2, 1][f]!;
       const ox = 73,
-        oy = 8;
+        oy = -4;
       blob(ctx, ox, oy, 6 + pulse * 0.35, 6 + pulse * 0.35, ORB, {
         seed: 30 + f,
         noise: 0.05,

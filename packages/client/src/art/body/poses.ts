@@ -371,7 +371,7 @@ function sitPose(d: Dims, k: number): Pose {
 
 /** A bent-knee straddle, with both hands at the reins, rather than a cropped standing figure. */
 export const RIDER_HIP_Z = 10;
-export const RIDER_SEAT_OFFSET = 13; // 56 px cell - 53 px ground origin + 10 px hip height
+export const RIDER_SEAT_OFFSET = 13; // 64 px cell - 61 px ground origin + 10 px hip height
 function ridePose(d: Dims, k: number): Pose {
   const p = restPose(d);
   const sway = Math.sin((k / 3) * Math.PI * 2);

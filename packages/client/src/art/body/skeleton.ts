@@ -38,16 +38,16 @@ export interface Dims {
 
 export const DIMS: Record<BodyType, Dims> = {
   male: {
-    height: 38,
-    hipZ: 18,
+    height: 40,
+    hipZ: 20,
     hipHalf: 2.35,
-    thigh: 8.6,
-    shin: 8.3,
+    thigh: 9.8,
+    shin: 9.1,
     ankleZ: 1.2,
     foot: 2.7,
-    shoulderZ: 26,
+    shoulderZ: 28,
     shoulderHalf: 6.8,
-    neckZ: 28,
+    neckZ: 30,
     upperArm: 5.2,
     forearm: 4.8,
     hand: 1.35,
@@ -68,16 +68,16 @@ export const DIMS: Record<BodyType, Dims> = {
     ],
   },
   female: {
-    height: 37,
-    hipZ: 17.5,
+    height: 39,
+    hipZ: 19.5,
     hipHalf: 2.45,
-    thigh: 8.4,
-    shin: 8.0,
+    thigh: 9.6,
+    shin: 8.8,
     ankleZ: 1.1,
     foot: 2.5,
-    shoulderZ: 25,
+    shoulderZ: 27,
     shoulderHalf: 5.8,
-    neckZ: 27,
+    neckZ: 29,
     upperArm: 5.0,
     forearm: 4.6,
     hand: 1.25,
@@ -127,8 +127,8 @@ export function frameOf(dir: number, twist = 0): Frame {
   const f: [number, number] = [Math.cos(h), Math.sin(h)];
   return { f, r: [-f[1], f[0]] };
 }
-export const AX = 24,
-  AY = 53;
+export const AX = 32,
+  AY = 61;
 /** body space to screen (cell pixels), and nearness to the camera */
 export function project(p: V3, fr: Frame): { x: number; y: number; depth: number } {
   const gx = p[0] * fr.f[0] + p[1] * fr.r[0],

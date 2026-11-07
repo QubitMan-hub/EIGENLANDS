@@ -179,6 +179,17 @@ try {
               Math.round(bh * scale),
             );
           }
+        // Match the world's deliberate pixel clusters. A shared two-pixel art grid
+        // keeps silhouettes/anchors and removes subpixel scale/armor noise at import,
+        // without per-frame filters, runtime blur, or changing collision size.
+        const cluster = document.createElement('canvas');
+        cluster.width = canvas.width / 2;
+        cluster.height = canvas.height / 2;
+        const cc = cluster.getContext('2d');
+        cc.imageSmoothingEnabled = false;
+        cc.drawImage(canvas, 0, 0, cluster.width, cluster.height);
+        c.clearRect(0, 0, canvas.width, canvas.height);
+        c.drawImage(cluster, 0, 0, canvas.width, canvas.height);
         const urls = {};
         for (const night of [false, true]) {
           const data = c.getImageData(0, 0, canvas.width, canvas.height),

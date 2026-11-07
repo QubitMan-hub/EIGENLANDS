@@ -187,17 +187,30 @@ export function ancientSpecial(room: GameRoom, r: AncientRun, target: ServerPlay
     }
     if (r.phase >= 2) points.push({ x: target.sim.x, y: target.sim.y, delay: 2.6, radius: 2 });
   }
-  e.mode = 'recover';
-  e.t = 2.5;
-  e.cd = 2.5;
+  const last = Math.max(...points.map((p) => p.delay));
+  e.mode = 'windup';
+  e.t = Math.min(...points.map((p) => p.delay));
+  e.scriptedWindup = e.t;
+  r.later.push({
+    at: t + e.t - 0.1,
+    fn: () => {
+      if (e.mode === 'windup') {
+        e.mode = 'recover';
+        e.scriptedWindup = undefined;
+        e.t = last + 1.7 - (Math.min(...points.map((p) => p.delay)) - 0.1);
+        e.cd = e.t;
+      }
+    },
+  });
   for (const [i, p] of points.entries()) {
+    const solid = e.def.sea ? (room.store.solidAt.sea ?? room.store.solidAt) : room.store.solidAt;
+    if (solid(Math.floor(p.x), Math.floor(p.y))) continue;
     room.fx({ kind: 'bomb', x: p.x, y: p.y, v: p.delay, w: p.radius, id: `${e.id}:ancient:${i}` });
     r.later.push({
       at: t + p.delay,
       fn: () => {
-        if (!room.enemies.has(e.id) || e.mode === 'stagger') return;
+        if (!room.enemies.has(e.id) || e.hp <= 0 || e.mode === 'stagger') return;
         room.enemyStrike(e, p.x, p.y, p.radius, 1.15);
-        room.fx({ kind: 'blast', x: p.x, y: p.y, v: p.radius });
       },
     });
   }

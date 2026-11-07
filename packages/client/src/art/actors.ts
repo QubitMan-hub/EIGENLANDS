@@ -4,7 +4,7 @@ import { DELVER_MERCHANTS, NPCS as VILLAGE_NPCS, REALMFOLK, realmNpcs } from '@e
 
 const NPCS = [...VILLAGE_NPCS, ...DELVER_MERCHANTS, ...realmNpcs(), ...REALMFOLK];
 import { actionPose } from './person-actions';
-import { paintPersonFrame, polishPerson, personGripOf } from './body';
+import { paintPersonFrame, personGripOf } from './body';
 import { bodyFromBio, lookOf } from './body/outfit';
 import type { CutId } from './body/headwear';
 import type { BodyType } from './body/skeleton';
@@ -25,7 +25,7 @@ import {
 } from './shade';
 
 /**
- * Characters, enemies and fauna. Players and residents use native 48×56 cells in eight iso directions with an idle pair (breathing) and an
+ * Characters, enemies and fauna. Players and residents use native 64×64 cells in eight iso directions with an idle pair (breathing) and an
  * 8-frame walk, four strike/recovery poses and eight run poses. Every direction is drawn (never mirrored) so the key light always comes from the top-left.
  */
 export const DIR_DOWN = 0,
@@ -38,8 +38,8 @@ export const DIR_DOWN_LEFT = 4,
   DIR_UP_RIGHT = 7;
 /** frame 0 = idle, 1..8 = walk cycle */
 export const WALK_FRAMES = 9;
-export const PERSON_W = 48;
-export const PERSON_H = 56;
+export const PERSON_W = 64;
+export const PERSON_H = 64;
 /** Clear the full hair/hat silhouette; the extra cell padding never changes world scale. */
 export const PERSON_TOP = 50;
 /** residents share the players' bodies and cell (the modular character system, art/body) */
@@ -704,7 +704,7 @@ Object.assign(NPC_LOOKS, {
 } satisfies Record<string, Outfit>);
 
 // ───────────────────────── people ─────────────────────────
-/** Where the holding hand is and which way a held item points, in the 48×56 cell: from the same skeleton the body is
+/** Where the holding hand is and which way a held item points, in the 64×64 cell: from the same skeleton the body is
  * painted from, so a tool never drifts off the grip. */
 export function personGrip(
   dir: number,
@@ -879,11 +879,6 @@ export interface Sheets {
   orb(frame: number): Texture;
 }
 
-function polished(buf: PixBuf): void {
-  // Ground shadows belong to the world renderer, so they do not rise with a rider or a work pose.
-  polishPerson(buf);
-}
-
 function personSheet(looks: Outfit[], seedBase: number, cols = COLS, npc = false): HTMLCanvasElement {
   const w = npc ? NPC_W : PERSON_W,
     h = npc ? NPC_H : PERSON_H;
@@ -894,7 +889,6 @@ function personSheet(looks: Outfit[], seedBase: number, cols = COLS, npc = false
       for (let f = 0; f < cols; f++) {
         const buf = new PixBuf(w, h);
         undithered(() => painter(buf.ctx, d, f, o, seedBase + i * 37 + d * 13));
-        polished(buf);
         buf.blit(ctx, f * w, (i * 8 + d) * h);
       }
   });
@@ -1158,7 +1152,6 @@ export function renderPersonCanvas(o: Outfit, dir: number, frame: number): HTMLC
   const { canvas, ctx } = makeCanvas(PERSON_W, PERSON_H);
   const buf = new PixBuf(PERSON_W, PERSON_H);
   undithered(() => drawPerson(buf.ctx, dir, frame, o, 1 + dir * 13));
-  polished(buf);
   buf.blit(ctx, 0, 0);
   return canvas;
 }
@@ -1168,7 +1161,6 @@ export function renderNpcCanvas(o: Outfit, dir: number, frame: number): HTMLCanv
   const { canvas, ctx } = makeCanvas(NPC_W, NPC_H);
   const buf = new PixBuf(NPC_W, NPC_H);
   undithered(() => drawPerson(buf.ctx, dir, frame, o, 1 + dir * 13));
-  polished(buf);
   buf.blit(ctx, 0, 0);
   return canvas;
 }

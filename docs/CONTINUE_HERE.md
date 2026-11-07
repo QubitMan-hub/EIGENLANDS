@@ -1,6 +1,6 @@
-<!-- Current reference fidelity correction -->
+# Latest: approved isometric people, founder and cozy bosses
 
-The latest character/house correction is documented in [reference fidelity](validation/reference-fidelity/README.md). Preserve fuller body proportions, 48×56 padded cells with ground origin (24,53), body-specific equipment contacts and the four reference house material families. Do not restore the old narrow seven-pixel faces or shrink people. Custom saved outfits override hero armour cuts. Full catalog silhouettes and all 12 functional house designs remain unfinished.
+Read [directional people and item validation](validation/directional-people/README.md) and [cozy boss combat](validation/cozy-bosses/README.md) first. Preserve the user-approved source people, their eight real facings, 64×64 padded cells / origin (32,61), shared rig/action IDs, saves and controls. QubitMan now carries a sword and shield on the unchanged plinth. The boss gallery shows all 14 encounters; their export uses a two-pixel art grid and combat now has bounded pursuit acceleration, readable alternating patterns, cast ownership/recovery and capped, unrewarded adds. Rare isometric discovery vignettes yield to streamed terrain and player edits. Broad catalog/face-expression/icon completion and richer bespoke frames remain explicitly unfinished in these documents and [ART_OVERHAUL_STATUS](ART_OVERHAUL_STATUS.md). Older notes below record previous stages; the old 48×56 cell values are superseded.
 
 # Latest: arrival garden and NPC work
 

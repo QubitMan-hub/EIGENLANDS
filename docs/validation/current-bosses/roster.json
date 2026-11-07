@@ -1,0 +1,89 @@
+{
+  "bosses": [
+    {
+      "id": "primordial_dragon",
+      "name": "Azhur, First Flame",
+      "level": 24,
+      "item": "first_flame_seal"
+    },
+    {
+      "id": "world_serpent",
+      "name": "Orrun, the Remembering Tide",
+      "level": 26,
+      "item": "remembering_conch"
+    },
+    {
+      "id": "sealed_entity",
+      "name": "The Unwritten King",
+      "level": 28,
+      "item": "unwritten_seal"
+    },
+    {
+      "id": "forgotten_titan",
+      "name": "Morrowforge, Last of the First",
+      "level": 30,
+      "item": "morrowforge_bell"
+    },
+    {
+      "id": "realm_guardian",
+      "name": "Asterion, Keeper of Six Gates",
+      "level": 32,
+      "item": "sixfold_rite"
+    },
+    {
+      "id": "geode_tyrant",
+      "name": "The Geode Tyrant",
+      "level": 14,
+      "item": "deep_sigil"
+    },
+    {
+      "id": "cinder_wyrm",
+      "name": "The Cinder Wyrm",
+      "level": 16,
+      "item": "deep_sigil"
+    },
+    {
+      "id": "rime_sovereign",
+      "name": "The Rime Sovereign",
+      "level": 18,
+      "item": "deep_sigil"
+    },
+    {
+      "id": "tide_leviathan",
+      "name": "The Stillwater Leviathan",
+      "level": 20,
+      "item": "deep_sigil"
+    },
+    {
+      "id": "veyr",
+      "name": "Veyr, the Stormbound Colossus",
+      "level": 22,
+      "item": "storm_beacon"
+    },
+    {
+      "id": "bellkeeper",
+      "name": "The Hollow Bellkeeper",
+      "level": 12,
+      "item": "deep_sigil"
+    },
+    {
+      "id": "slime_king",
+      "name": "Gelatinous Sovereign",
+      "level": 10,
+      "item": "slime_crown"
+    },
+    {
+      "id": "warden",
+      "name": "Warden of the Grove",
+      "level": 18,
+      "item": "warden_horn"
+    },
+    {
+      "id": "colossus",
+      "name": "Decoherent Colossus",
+      "level": 28,
+      "item": "colossus_core"
+    }
+  ],
+  "galleryCards": 14
+}

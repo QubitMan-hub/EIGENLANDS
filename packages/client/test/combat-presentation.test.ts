@@ -163,6 +163,14 @@ it('plays authored boss strike and recovery poses when a caster fires directly i
   expect(frame.mock.calls.at(-1)?.[3]).toBe('idle');
   view.onFx({ kind: 'blast', id: actor.id, x: 0, y: 0 }, () => actor);
   expect(view.attackFrame(actor, 1100, false)).toBeGreaterThanOrEqual(0);
+  // Ordinary hits must not replace a committed boss tell or make it vibrate.
+  actor.flash = 1;
+  view.drawEnemy(actor, { ...snap, st: 2, tele: 95 }, 0, 0, 1, 1600, 0.016, false);
+  expect(frame.mock.calls.at(-1)?.[3]).toBe('windup');
+  expect(actor.sprite.x).toBe(0);
+  expect(actor.fl.alpha).toBeLessThanOrEqual(0.35);
+  view.drawEnemy(actor, { ...snap, st: 5 }, 0, 0, 1, 1650, 0.016, false);
+  expect(frame.mock.calls.at(-1)?.[3]).toBe('hurt');
   actor.root.destroy();
   actor.sprite.destroy();
   actor.fl.destroy();

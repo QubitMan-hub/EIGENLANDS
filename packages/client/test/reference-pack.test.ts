@@ -39,7 +39,7 @@ it('plants a rider’s hips on the saddle while retaining bent legs and distinct
         j = solve(d, pose),
         hip = project(j.pelvis, frameOf(dir));
       expect(hip.y - AY).toBeCloseTo(-10);
-      expect(hip.y - 56 + RIDER_SEAT_OFFSET).toBeCloseTo(0);
+      expect(hip.y - 64 + RIDER_SEAT_OFFSET).toBeCloseTo(0);
       expect(j.ankleL[1]).toBeLessThan(j.hipL[1]);
       expect(j.ankleR[1]).toBeGreaterThan(j.hipR[1]);
       expect(Math.hypot(...j.wristL.map((v, i) => v - j.wristR[i]!))).toBeGreaterThan(2);

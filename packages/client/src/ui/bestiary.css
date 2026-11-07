@@ -59,3 +59,10 @@
     gap: 8px;
   }
 }
+
+.boss-gallery-entry summary img {
+  width: 128px;
+  height: 128px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}

@@ -2,7 +2,7 @@ import { chromium } from 'playwright-core';
 import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync } from 'node:fs';
 
-const out = 'docs/validation/reference-fidelity';
+const out = process.argv[4] ?? 'docs/validation/reference-fidelity';
 const phase = process.argv[3] ?? 'after';
 mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({

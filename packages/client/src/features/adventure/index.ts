@@ -87,8 +87,8 @@ export class AdventureClient implements ClientModule {
   }
 
   private onBoss(m: BossEvent): void {
-    this.d.sfx('die');
-    if (m.kind === 'start' || m.kind === 'phase') {
+    if (m.kind !== 'tell') this.d.sfx('die');
+    if (m.kind === 'start' || m.kind === 'phase' || m.kind === 'tell') {
       this.announcement = {
         kind: BOSSES[m.boss].kind,
         text: m.kind === 'start' ? m.intro : m.text,

@@ -2,7 +2,7 @@
  * Maps the shared appearance indices (hair, skin, eyes, dress…) onto palette ramps and builds the Outfit the person
  * painter draws. Every colour comes from the fixed 48-colour palette.
  */
-import { C, unpackAppearance, type Appearance } from '@eigenlands/shared';
+import { C, DEFAULT_APPEARANCE, unpackAppearance, validParts, type Appearance } from '@eigenlands/shared';
 import type { Ramp } from './shade';
 import type { DressStyle, HairStyle, Outfit } from './actors';
 import { CUTS } from './body/headwear';
@@ -83,6 +83,30 @@ export function appearanceOf(packed: number): Appearance | null {
   return a;
 }
 
+/** Authored costumes expressed through existing saved appearance fields; no new save/protocol format. */
+export function referenceAppearance(body: 0 | 1): Appearance {
+  return {
+    ...DEFAULT_APPEARANCE,
+    body,
+    skin: 1,
+    eyes: 0,
+    dress: 5,
+    dressColor: 5,
+    trim: 0,
+    hairStyle: body ? 6 : 0,
+    hairColor: body ? 3 : 0,
+    cut: body ? 17 : 8,
+    parts: validParts(null),
+  };
+}
+function referenceIdentity(a: Appearance): 'steel' | 'teal' | undefined {
+  const p = validParts(a.parts);
+  if (Object.values(p).some(Boolean)) return;
+  const ref = referenceAppearance(a.body ? 1 : 0);
+  if ((['skin', 'eyes', 'dress', 'dressColor', 'trim', 'hairColor', 'cut'] as const).every((k) => a[k] === ref[k]))
+    return a.body ? 'teal' : 'steel';
+}
+
 /**
  * Compose a person from the base look (an outfit or armour set) and the chosen appearance. Skin, hair and eyes always
  * follow the player; the garment follows them too unless an outfit or armour set (look > 0) is being worn.
@@ -90,6 +114,7 @@ export function appearanceOf(packed: number): Appearance | null {
 export function outfitFromAppearance(base: Outfit, a: Appearance, wearOwnDress: boolean): Outfit {
   const o: Outfit = {
     ...base,
+    referenceHero: undefined,
     parts: a.parts,
     skin: SKIN_RAMPS[a.skin]!,
     hair: HAIR_RAMPS[a.hairColor]!,
@@ -107,7 +132,7 @@ export function outfitFromAppearance(base: Outfit, a: Appearance, wearOwnDress: 
   const jerkin = a.dress === 3;
   return {
     ...o,
-    referenceHero: undefined,
+    referenceHero: referenceIdentity(a),
     shirt: jerkin ? LINEN : ramp,
     pants: PANTS[PANTS_FOR[a.dressColor]!]!,
     boots: BOOTS,

@@ -2,7 +2,7 @@ import { chromium } from 'playwright-core';
 import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync } from 'node:fs';
 
-const out = 'docs/validation/reference-fidelity';
+const out = process.argv[3] ?? 'docs/validation/reference-fidelity';
 mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', args: ['--no-sandbox'] });
 try {
@@ -82,6 +82,13 @@ try {
           for (let oy = -2; oy <= 2; oy++)
             for (let ox = -2; ox <= 2; ox++) grip += px[((y + oy) * r.width + x + ox) * 4 + 3] ?? 0;
           if (!grip) failures.push({ body, dir, id, grip: false });
+          const person = renderPersonCanvas(OUTFITS[body === 'female' ? 1 : 0], dir, f);
+          const bodyPixels = person.getContext('2d').getImageData(0, 0, PERSON_W, PERSON_H).data;
+          let hand = 0;
+          for (let oy = -2; oy <= 2; oy++)
+            for (let ox = -2; ox <= 2; ox++)
+              hand += bodyPixels[((Math.round(g.y) + oy) * PERSON_W + Math.round(g.x) + ox) * 4 + 3] ?? 0;
+          if (!hand) failures.push({ body, dir, id, bodyGrip: false });
           heldFrames++;
         }
       }

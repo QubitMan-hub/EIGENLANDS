@@ -112,6 +112,7 @@ function buildLook(o: Outfit): BodyLook {
   if (o.apron) look.apron = o.apron;
   if (o.cape) look.cape = { ramp: o.cape, length: 13, trim: o.trim };
   if (o.referenceHero) {
+    look.referenceIdentity = (o.referenceHero === 'steel') === (body === 'male');
     const steel = o.referenceHero === 'steel';
     look.top!.sleeve = steel ? 0 : 0.25;
     look.boots = { ramp: o.boots, top: steel ? 7 : 7.5, cuff: o.boots };

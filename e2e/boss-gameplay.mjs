@@ -1,7 +1,8 @@
 import { chromium } from 'playwright-core';
 import assert from 'node:assert/strict';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
-import { BOSSES } from '../packages/shared/src/bosses.ts';
+import { tsImport } from 'tsx/esm/api';
+const { BOSSES } = await tsImport('../packages/shared/src/bosses.ts', import.meta.url);
 const base = process.argv[2] ?? 'http://127.0.0.1:5244/',
   out = process.argv[3] ?? '/tmp/boss-gameplay';
 mkdirSync(out, { recursive: true });

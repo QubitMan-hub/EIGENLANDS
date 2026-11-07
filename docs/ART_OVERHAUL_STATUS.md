@@ -1,3 +1,7 @@
+# Latest integrated stage: directional people and cozy bosses
+
+The user-approved human designs now have eight elevated-camera views and use the shared action rig. QubitMan's source sculpture has a sword and shield. See [people, physical items and discoveries](validation/directional-people/README.md) and [boss presentation/combat](validation/cozy-bosses/README.md) for exact scope, evidence and remaining work. People use 64×64 cells with ground origin (32,61); older measurements below are historical. This stage does not complete the full wardrobe, faces, remaining icon families, building/environment/animal catalogs or every bespoke painted action.
+
 # Reference-pack overhaul status — 2026-11-07
 
 User specification: [complete request](design/art-overhaul-request.md). This supersedes earlier scale guidance that reduced characters to fit doors. Preserve identities and gameplay, use the supplied art designs, keep the elevated 2:1 camera, and fit world architecture to people.

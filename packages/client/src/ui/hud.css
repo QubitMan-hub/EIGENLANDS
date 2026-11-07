@@ -550,7 +550,7 @@ body:has(#settings:not([hidden])) #voice-chip {
   justify-items: center;
 }
 .look-canvas {
-  width: 120px;
+  width: 144px;
   height: 160px;
   display: grid;
   place-items: center;
@@ -560,7 +560,7 @@ body:has(#settings:not([hidden])) #voice-chip {
   box-shadow: inset 0 -12px 0 #0f1718;
 }
 .look-canvas canvas {
-  width: 96px;
+  width: 128px;
   height: auto;
   image-rendering: pixelated;
 }
@@ -886,10 +886,10 @@ body:has(#settings:not([hidden])) #voice-chip {
   /* the wanderer stands on the lawn in front of the shrine: tile (-3, 6) in the island's art */
   .ts-hero {
     position: absolute;
-    left: 216px;
-    top: 207px;
-    width: 96px;
-    height: 144px;
+    left: 200px;
+    top: 223px;
+    width: 128px;
+    height: 128px;
     image-rendering: pixelated;
   }
   .ts-mote {
@@ -951,4 +951,10 @@ body:has(#settings:not([hidden])) #voice-chip {
   max-width: 48px;
   max-height: 44px;
   image-rendering: pixelated;
+}
+
+.look-presets {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
 }
