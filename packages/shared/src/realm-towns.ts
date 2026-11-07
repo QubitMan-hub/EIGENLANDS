@@ -1,3 +1,4 @@
+import { settlementProfile, settlementSite, SETTLEMENT_TIER_NAMES } from './settlement-tiers';
 import { cozyTown } from './cozy-town';
 import { KINGDOMS } from './kingdoms';
 import { residentsOfSite, type Place, type ResidentPlan } from './realm-npcs';
@@ -20,7 +21,7 @@ import { furnish, type Building, type BuildingKind, type Town } from './town';
 const cache = new Map<string, Town[]>();
 
 export function realmTowns(seed: number, generation = 5): Town[] {
-  const key = `${seed}:${generation >= 6 ? 6 : 5}`;
+  const key = `${seed}:${generation >= 7 ? 7 : generation >= 6 ? 6 : 5}`;
   const hit = cache.get(key);
   if (hit) return hit;
   const towns = REALM_SITES.map((site) => buildRealmTown(site, seed, generation));
@@ -168,6 +169,9 @@ function strHash(s: string): number {
 }
 
 export function buildRealmTown(site: RealmSite, seed: number, generation = 5): Town {
+  // Copy metadata only: the fixed kingdom plots and every pre-7 random stream remain unchanged.
+  site = settlementSite(site, generation);
+  const tier = generation >= 7 && site.tier ? settlementProfile(site) : null;
   const def = KINGDOMS[site.realm];
   const prof = PROFILE[site.realm];
   const ri = REALM_IDS.indexOf(site.realm);
@@ -196,6 +200,7 @@ export function buildRealmTown(site: RealmSite, seed: number, generation = 5): T
           : def.names.seaward[site.ring as 'n']);
   const t: Town = {
     name,
+    ...(tier ? { site } : {}),
     cx,
     cy,
     x0,
@@ -309,15 +314,16 @@ export function buildRealmTown(site: RealmSite, seed: number, generation = 5): T
   road(x0, cy - 1, W, 3);
 
   // ───── walls: reserve the ring now so nothing is built across it
-  const wallKind = prof.wall;
+  const wallKind = tier?.defense === 'palisade' ? 'palisade' : prof.wall;
   let wi = site.kind === 'capital' ? 2 : site.kind === 'town' ? 3 : 2;
-  const walled =
-    site.kind === 'capital' ||
-    site.kind === 'outpost' ||
-    (site.kind === 'town' && wallKind !== 'canal' && chance(0.7)) ||
-    (site.kind === 'town' && wallKind === 'canal');
+  const walled = tier
+    ? tier.defense !== 'open'
+    : site.kind === 'capital' ||
+      site.kind === 'outpost' ||
+      (site.kind === 'town' && wallKind !== 'canal' && chance(0.7)) ||
+      (site.kind === 'town' && wallKind === 'canal');
   const sides = { n: true, s: true, e: true, w: true };
-  if (site.kind === 'town' && walled && wallKind !== 'canal' && chance(0.45)) {
+  if (!tier && site.kind === 'town' && walled && wallKind !== 'canal' && chance(0.45)) {
     // a town with an open flank
     const open = pickOf(['n', 's', 'e', 'w'] as const);
     sides[open] = false;
@@ -326,7 +332,10 @@ export function buildRealmTown(site: RealmSite, seed: number, generation = 5): T
     wy0 = y0 + wi,
     wx1 = x1 - wi,
     wy1 = y1 - wi;
-  const wallThick = wallKind === 'stone' && (site.kind === 'capital' || site.realm === 'khardum') ? 2 : 1;
+  const wallThick =
+    tier?.defense === 'fortified' || (wallKind === 'stone' && (site.kind === 'capital' || site.realm === 'khardum'))
+      ? 2
+      : 1;
   const wallTile = wallKind === 'hedge' ? T.TREE : wallKind === 'palisade' ? T.FENCE : T.WALL;
   const gates: Array<{ x: number; y: number }> = [];
   const keepOut = walled ? wi + wallThick + 3 : 3; // buildings stay this far in from the plot edge
@@ -451,8 +460,11 @@ export function buildRealmTown(site: RealmSite, seed: number, generation = 5): T
         () => {},
       );
   };
-  if (walled && (site.kind === 'capital' || wallKind === 'stone' || wallKind === 'obsidian')) {
-    const s = site.kind === 'capital' ? 6 : 5;
+  if (
+    walled &&
+    (site.kind === 'capital' || wallKind === 'stone' || wallKind === 'obsidian' || (tier && tier.guards >= 4))
+  ) {
+    const s = site.kind === 'capital' || tier?.defense === 'fortified' ? 6 : 5;
     for (const [tx, ty] of [
       [wx0 - 1, wy0 - 1],
       [wx1 - s + 2, wy0 - 1],
@@ -460,7 +472,7 @@ export function buildRealmTown(site: RealmSite, seed: number, generation = 5): T
       [wx1 - s + 2, wy1 - s + 2],
     ] as const)
       placeTower(tx, ty, s);
-    if (site.kind !== 'outpost' || chance(0.6))
+    if ((!tier || tier.guards >= 7) && (site.kind !== 'outpost' || chance(0.6)))
       for (const [tx, ty] of [
         [cx - 8, wy0 - 1],
         [cx + 4, wy0 - 1],
@@ -781,8 +793,8 @@ export function buildRealmTown(site: RealmSite, seed: number, generation = 5): T
   // ───── plaza
   const plaza = { x: cx - 9, y: plazaY - 3, w: 19, h: 9 };
   if (big) {
-    const pw = site.kind === 'capital' ? rnd(26, 34) : rnd(20, 28),
-      ph = site.kind === 'capital' ? rnd(14, 18) : rnd(12, 15);
+    const pw = site.kind === 'capital' ? rnd(26, 34) : site.tier === 'town' ? rnd(14, 18) : rnd(20, 28),
+      ph = site.kind === 'capital' ? rnd(14, 18) : site.tier === 'town' ? rnd(8, 10) : rnd(12, 15);
     plaza.w = pw;
     plaza.h = ph;
     plaza.x = cx - Math.floor(pw / 2);
@@ -877,8 +889,9 @@ export function buildRealmTown(site: RealmSite, seed: number, generation = 5): T
       h: site.kind === 'capital' ? 12 : site.kind === 'town' ? 11 : 9,
       v: 4,
     });
-  const homes =
-    site.kind === 'capital'
+  const homes = tier
+    ? rnd(tier.homes[0], tier.homes[1])
+    : site.kind === 'capital'
       ? rnd(40, 50)
       : site.kind === 'town'
         ? rnd(22, 30)
@@ -888,7 +901,18 @@ export function buildRealmTown(site: RealmSite, seed: number, generation = 5): T
             ? rnd(2, 4)
             : rnd(1, 3);
   for (let i = 0; i < homes; i++) {
-    const manor = chance(prof.manor);
+    const manor = chance(
+      tier
+        ? prof.manor *
+            (site.tier === 'village'
+              ? 0.15
+              : site.tier === 'town'
+                ? 0.5
+                : site.tier === 'big_town' || site.tier === 'capital'
+                  ? 1.7
+                  : 1)
+        : prof.manor,
+    );
     const [bw, bh] = pickOf(prof.houses);
     queue.push({
       place: 'home',
@@ -902,9 +926,44 @@ export function buildRealmTown(site: RealmSite, seed: number, generation = 5): T
     for (let i = 0; i < (site.kind === 'town' ? 2 : 1); i++)
       queue.push({ place: 'home', kind: 'farmhouse', w: rnd(11, 13), h: 8, v: 2 });
 
+  // Tiered settlements reserve working fields before decorative parks or housing can claim the outskirts.
+  if (tier) {
+    const fy = y1 - keepOut - tier.fieldRows;
+    const west = x0 + keepOut + 1,
+      east = x1 - keepOut - 1;
+    for (let y = fy; y < y1 - keepOut; y++)
+      for (let x = west; x <= east; x++) {
+        if (Math.abs(x - cx) <= 2 || oAt(x, y) !== FREE) continue;
+        set(x, y, (y - fy) % 2 ? T.TILLED : T.GRASS);
+        oSet(x, y, RES);
+      }
+    spot(`${site.id}.field`, cx + 3, fy + 1);
+    obj(west + 2, fy + 2, 'deco', 'scarecrow');
+    obj(east - 2, fy + 2, 'deco', 'hay');
+    // Larger towns have an outer boulevard and distinct residential, craft and agricultural destinations.
+    if (tier.layout === 'districts' || tier.layout === 'citadel') {
+      road(west, fy - 2, east - west + 1, 2);
+      for (const [label, x, y] of [
+        ['residential', west + 3, cy + 4],
+        ['craft', east - 3, cy + 4],
+        ['agricultural', cx + 3, fy + 1],
+      ] as const) {
+        spot(`${site.id}.district_${label}`, x, y);
+        obj(x, y, 'sign', 'sign', { text: `${name}: ${label} district` });
+      }
+    }
+  }
+
   // ───── parks and ponds
-  const parks =
-    site.kind === 'capital' ? rnd(2, 4) : site.kind === 'town' ? rnd(1, 2) : site.kind === 'village' ? 1 : 0;
+  const parks = tier
+    ? 0
+    : site.kind === 'capital'
+      ? rnd(2, 4)
+      : site.kind === 'town'
+        ? rnd(1, 2)
+        : site.kind === 'village'
+          ? 1
+          : 0;
   for (let i = 0; i < parks; i++)
     for (let tries = 0; tries < 30; tries++) {
       const pw = rnd(10, 18),
@@ -927,7 +986,7 @@ export function buildRealmTown(site: RealmSite, seed: number, generation = 5): T
     }
 
   // ───── the churchyard: rows of graves inside a hedge, a crypt and a couple of dead trees
-  if (site.kind === 'capital' || site.kind === 'town' || site.kind === 'village')
+  if (!tier && (site.kind === 'capital' || site.kind === 'town' || site.kind === 'village'))
     for (let tries = 0; tries < 40; tries++) {
       const gw = site.kind === 'capital' ? rnd(16, 20) : site.kind === 'town' ? rnd(13, 16) : rnd(10, 12),
         gh = site.kind === 'capital' ? rnd(11, 13) : rnd(9, 11);
@@ -960,7 +1019,7 @@ export function buildRealmTown(site: RealmSite, seed: number, generation = 5): T
     }
 
   // ───── the fairground: a Ferris wheel, a carousel, swing boats, a big top and game booths on beaten earth
-  if (site.kind === 'capital' || site.kind === 'town')
+  if (!tier && (site.kind === 'capital' || site.kind === 'town'))
     for (let tries = 0; tries < 40; tries++) {
       const fw = site.kind === 'capital' ? rnd(22, 26) : rnd(18, 21),
         fh = site.kind === 'capital' ? rnd(15, 17) : rnd(13, 15);
@@ -1011,97 +1070,137 @@ export function buildRealmTown(site: RealmSite, seed: number, generation = 5): T
   const reachX = Math.floor(W / 2) - keepOut;
   // candidate street rows: the main street (north side only) then rows spreading north and south
   const rows: number[] = [cy - 1];
-  const pitch0 = rnd(13, 15);
+  const pitch0 = tier ? tier.streetPitch + rnd(0, 2) : rnd(13, 15);
   if (site.kind !== 'outpost' && site.kind !== 'farm') {
     let y = cy + 2 + pitch0 - 2 + rnd(0, 2);
     while (y < y1 - keepOut - 2) {
       rows.push(y);
-      y += rnd(13, 15);
+      y += tier ? tier.streetPitch + rnd(0, 2) : rnd(13, 15);
     }
     y = cy - 1 - rnd(13, 15);
     while (y > y0 + keepOut + 8) {
       rows.push(y);
-      y -= rnd(13, 15);
+      y -= tier ? tier.streetPitch + rnd(0, 2) : rnd(13, 15);
     }
   } else if (site.kind === 'farm') rows.push(cy + 14);
   // services belong near the middle: order rows by distance from the main street
   rows.sort((a, b) => Math.abs(a - cy) - Math.abs(b - cy));
   const lanes: Array<{ x: number; y: number; to: number }> = [];
 
-  for (const ry of rows) {
-    if (qi >= queue.length) break;
-    if (canalYs.some((c) => Math.abs(ry - c) < 7 || Math.abs(ry + 1 - c) < 7)) continue;
-    if (ry + 1 > y1 - keepOut) continue;
-    // lay the street outward from the avenue until something blocks it
-    let L = cx,
-      Rr = cx;
-    const reach = Math.max(Math.min(reachX, 24), rnd(Math.floor(reachX * 0.6), reachX));
-    if (ry !== cy - 1) {
-      let skip = false;
-      for (const x of [cx - 1, cx, cx + 1]) if (oAt(x, ry) !== ROAD) skip = true;
-      if (skip) continue;
-      for (let x = cx; x >= cx - reach; x--) {
-        if ([0, 1].some((d) => oAt(x, ry + d) !== FREE && oAt(x, ry + d) !== ROAD && oAt(x, ry + d) !== WATER)) break;
-        L = x;
-      }
-      for (let x = cx; x <= cx + reach; x++) {
-        if ([0, 1].some((d) => oAt(x, ry + d) !== FREE && oAt(x, ry + d) !== ROAD && oAt(x, ry + d) !== WATER)) break;
-        Rr = x;
-      }
-      if (Rr - L < 12) continue;
-      road(L, ry, Rr - L + 1, 2);
-    } else {
-      L = Math.max(x0 + keepOut, cx - reach);
-      Rr = Math.min(x1 - keepOut, cx + reach);
-    }
-    for (const side of [-1, 1]) {
-      let cursor = side < 0 ? cx - 3 : cx + 3;
-      const limit = side < 0 ? L : Rr;
-      let guard = 0;
-      while (qi < queue.length && guard++ < 40) {
-        const s = queue[qi]!;
-        const bx = side < 0 ? cursor - s.w : cursor;
-        if (side < 0 ? bx < limit : bx + s.w - 1 > limit) break;
-        const by = ry - s.h + (ry === cy - 1 ? 0 : 0);
-        const streetOk = (() => {
-          for (let x = bx; x < bx + s.w; x++) if (oAt(x, ry) !== ROAD || get(x, ry) === T.FLOOR) return false;
-          return true;
-        })();
-        if (!streetOk || !isFree(bx - 1, by - 1, s.w + 2, s.h + 1) || by < y0 + keepOut - 2) {
-          cursor += side < 0 ? -2 : 2;
-          if (Math.abs(cursor - cx) > reachX) break;
-          continue;
+  if (tier) {
+    // An explicit lot search keeps a large early service from starving every later house.
+    // Tier pitches and staggered lots create loose village lanes, market rows and dense city blocks.
+    const tierRows: number[] = [];
+    for (let y = cy - 1; y >= y0 + keepOut + 8; y -= tier.streetPitch) tierRows.push(y);
+    for (let y = cy - 1 + tier.streetPitch; y < y1 - keepOut - tier.fieldRows - 1; y += tier.streetPitch)
+      tierRows.push(y);
+    tierRows.sort((a, b) => Math.abs(a - cy) - Math.abs(b - cy));
+    for (const ry of tierRows) road(x0 + keepOut, ry, W - keepOut * 2, 2);
+    for (const s of queue) {
+      let found = false;
+      for (const ry of tierRows) {
+        const gap = site.tier === 'village' ? 2 : site.tier === 'town' ? 1 : 0;
+        const offset = rnd(0, site.tier === 'village' ? 3 : 1);
+        for (let bx = x0 + keepOut + 1 + offset; bx + s.w < x1 - keepOut; bx++) {
+          const by = ry - s.h;
+          if (by < y0 + keepOut || !isFree(bx - 1, by - 1, s.w + 2 + gap, s.h + 1)) continue;
+          let streetOk = true;
+          for (let x = bx; x < bx + s.w; x++) if (oAt(x, ry) !== ROAD) streetOk = false;
+          if (!streetOk) continue;
+          const id = `${site.id}.b${placed.length}`;
+          const b = addBuilding(id, s.kind, bx, by, s.w, s.h, s.v);
+          set(b.doorX, b.doorY + 1, T.PATH);
+          placed.push({ b, slot: s, shim: s.trade ?? id });
+          furnish(
+            { ...b, id: s.trade ?? id },
+            (x, y, kind, sub) => obj(x, y, kind, sub),
+            (n, sx, sy) => {
+              spot(`${site.id}.${n}`, sx, sy);
+              if (n.endsWith('.work')) work.set(b.id, { x: sx, y: sy });
+            },
+            true,
+          );
+          found = true;
+          break;
         }
-        const id = `${site.id}.b${placed.length}`;
-        const b = addBuilding(id, s.kind, bx, by, s.w, s.h, s.v);
-        // the street cell below the door
-        set(b.doorX, b.doorY + 1, T.PATH);
-        placed.push({ b, slot: s, shim: s.trade ?? id });
-        furnish(
-          { ...b, id: s.trade ?? id },
-          (x, y, kind, sub) => obj(x, y, kind, sub),
-          (n, sx, sy) => {
-            spot(`${site.id}.${n}`, sx, sy);
-            if (n.endsWith('.work')) work.set(b.id, { x: sx, y: sy });
-          },
-        );
-        // yard dressing
-        if (chance(prof.green * 0.6)) {
-          const gx = bx + rnd(0, s.w - 1);
-          if (get(gx, by - 1) === T.GRASS && oAt(gx, by - 2) === FREE)
-            set(gx, by - 1, chance(0.5) ? T.TREE : T.FLOWERS);
-        }
-        qi++;
-        const gap = rnd(0, 3);
-        cursor += side < 0 ? -(s.w + gap) : s.w + gap;
-        if (chance(0.16)) {
-          // a lane between buildings, linking this street to the next one north
-          lanes.push({ x: side < 0 ? cursor + 2 : cursor - 2, y: ry, to: ry - rnd(11, 14) });
-          cursor += side < 0 ? -3 : 3;
-        }
+        if (found) break;
       }
     }
-  }
+  } else
+    for (const ry of rows) {
+      if (qi >= queue.length) break;
+      if (canalYs.some((c) => Math.abs(ry - c) < 7 || Math.abs(ry + 1 - c) < 7)) continue;
+      if (ry + 1 > y1 - keepOut) continue;
+      // lay the street outward from the avenue until something blocks it
+      let L = cx,
+        Rr = cx;
+      const reach = Math.max(Math.min(reachX, 24), rnd(Math.floor(reachX * 0.6), reachX));
+      if (ry !== cy - 1) {
+        let skip = false;
+        for (const x of [cx - 1, cx, cx + 1]) if (oAt(x, ry) !== ROAD) skip = true;
+        if (skip) continue;
+        for (let x = cx; x >= cx - reach; x--) {
+          if ([0, 1].some((d) => oAt(x, ry + d) !== FREE && oAt(x, ry + d) !== ROAD && oAt(x, ry + d) !== WATER)) break;
+          L = x;
+        }
+        for (let x = cx; x <= cx + reach; x++) {
+          if ([0, 1].some((d) => oAt(x, ry + d) !== FREE && oAt(x, ry + d) !== ROAD && oAt(x, ry + d) !== WATER)) break;
+          Rr = x;
+        }
+        if (Rr - L < 12) continue;
+        road(L, ry, Rr - L + 1, 2);
+      } else {
+        L = Math.max(x0 + keepOut, cx - reach);
+        Rr = Math.min(x1 - keepOut, cx + reach);
+      }
+      for (const side of [-1, 1]) {
+        let cursor = side < 0 ? cx - 3 : cx + 3;
+        const limit = side < 0 ? L : Rr;
+        let guard = 0;
+        while (qi < queue.length && guard++ < 40) {
+          const s = queue[qi]!;
+          const bx = side < 0 ? cursor - s.w : cursor;
+          if (side < 0 ? bx < limit : bx + s.w - 1 > limit) break;
+          const by = ry - s.h + (ry === cy - 1 ? 0 : 0);
+          const streetOk = (() => {
+            for (let x = bx; x < bx + s.w; x++) if (oAt(x, ry) !== ROAD || get(x, ry) === T.FLOOR) return false;
+            return true;
+          })();
+          if (!streetOk || !isFree(bx - 1, by - 1, s.w + 2, s.h + 1) || by < y0 + keepOut - 2) {
+            cursor += side < 0 ? -2 : 2;
+            if (Math.abs(cursor - cx) > reachX) break;
+            continue;
+          }
+          const id = `${site.id}.b${placed.length}`;
+          const b = addBuilding(id, s.kind, bx, by, s.w, s.h, s.v);
+          // the street cell below the door
+          set(b.doorX, b.doorY + 1, T.PATH);
+          placed.push({ b, slot: s, shim: s.trade ?? id });
+          furnish(
+            { ...b, id: s.trade ?? id },
+            (x, y, kind, sub) => obj(x, y, kind, sub),
+            (n, sx, sy) => {
+              spot(`${site.id}.${n}`, sx, sy);
+              if (n.endsWith('.work')) work.set(b.id, { x: sx, y: sy });
+            },
+          );
+          // yard dressing
+          if (chance(prof.green * 0.6)) {
+            const gx = bx + rnd(0, s.w - 1);
+            if (get(gx, by - 1) === T.GRASS && oAt(gx, by - 2) === FREE)
+              set(gx, by - 1, chance(0.5) ? T.TREE : T.FLOWERS);
+          }
+          qi++;
+          const gap = rnd(0, 3);
+          cursor += side < 0 ? -(s.w + gap) : s.w + gap;
+          if (chance(0.16)) {
+            // a lane between buildings, linking this street to the next one north
+            lanes.push({ x: side < 0 ? cursor + 2 : cursor - 2, y: ry, to: ry - rnd(11, 14) });
+            cursor += side < 0 ? -3 : 3;
+          }
+        }
+      }
+    }
   for (const l of lanes) {
     for (let y = l.to + 1; y < l.y; y++) {
       if (oAt(l.x, y) === FREE || oAt(l.x, y) === ROAD) {
@@ -1168,7 +1267,7 @@ export function buildRealmTown(site: RealmSite, seed: number, generation = 5): T
   }
 
   // ───── farms and village fields
-  if (site.kind === 'farm' || site.kind === 'village') {
+  if (!tier && (site.kind === 'farm' || site.kind === 'village')) {
     const fy = site.kind === 'farm' ? cy + 5 : cy + rnd(10, 13);
     const fh = site.kind === 'farm' ? y1 - fy - 2 : Math.max(0, y1 - fy - 2);
     const fx0 = x0 + 4,
@@ -1241,7 +1340,11 @@ export function buildRealmTown(site: RealmSite, seed: number, generation = 5): T
   for (let y = y0 + keepOut; y <= y1 - keepOut; y += lampEvery + 2)
     if (Math.abs(y - cy) > 3 && oAt(cx + 2, y) === ROAD) obj(cx + 2, y, 'deco', 'street_lamp');
   for (const g of gates) obj(g.x + (g.x === cx ? 2 : 0), g.y + (g.y === cy ? 2 : 0), 'deco', 'street_lamp');
-  obj(cx + 3, Math.min(y1 - 2, cy + rnd(14, 22)), 'sign', 'sign', { text: `${name}. ${def.epithet}. ${def.motto}` });
+  obj(cx + 3, Math.min(y1 - 2, cy + rnd(14, 22)), 'sign', 'sign', {
+    text: tier
+      ? `${name}. ${SETTLEMENT_TIER_NAMES[site.tier!]}. ${def.epithet}. Market on the main street; fields to the south. ${def.motto}`
+      : `${name}. ${def.epithet}. ${def.motto}`,
+  });
   obj(cx - 3, y0 + 6, 'deco', 'banner', { realm: site.realm });
   obj(cx + 3, y0 + 6, 'deco', 'banner', { realm: site.realm });
   if (!gates.length)
@@ -1331,5 +1434,147 @@ export function buildRealmTown(site: RealmSite, seed: number, generation = 5): T
       }
   }
   void buildingsAt;
-  return cozyTown(t);
+  return tier ? connectTierTown(cozyTown(t)) : cozyTown(t);
+}
+
+/** Connect entrances with short outdoor lanes, then place routines on the reachable component.
+ * Only revision 7 uses this pass. Building walls are protected; a blocked landscape crossing becomes a bridge.
+ */
+function connectTierTown(t: Town): Town {
+  const W = t.x1 - t.x0 + 1,
+    H = t.y1 - t.y0 + 1,
+    N = W * H;
+  const key = (x: number, y: number) => x - t.x0 + (y - t.y0) * W;
+  const tile = (x: number, y: number) => t.tiles.get(key(x, y)) ?? T.GRASS;
+  const inside = (x: number, y: number) => x >= t.x0 && x <= t.x1 && y >= t.y0 && y <= t.y1;
+  const objects = new Map<number, Set<number>>();
+  t.objects.forEach((o, i) => {
+    if (!objSolid(o.kind, o.sub)) return;
+    for (const [x, y] of [[o.x, o.y], ...propFootprint(o.sub, o.x, o.y, tile)]) {
+      if (!inside(x!, y!)) continue;
+      const k = key(x!, y!);
+      if (!objects.has(k)) objects.set(k, new Set());
+      objects.get(k)!.add(i);
+    }
+  });
+  const removed = new Set<number>();
+  const clearObject = (k: number) => {
+    for (const i of objects.get(k) ?? []) removed.add(i);
+  };
+  const objectAt = (k: number) => [...(objects.get(k) ?? [])].some((i) => !removed.has(i));
+  const bodies = new Uint8Array(N);
+  for (const b of t.buildings) {
+    for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) bodies[key(x, y)] = 1;
+  }
+  for (const b of t.buildings) {
+    bodies[key(b.doorX, b.doorY)] = 0;
+    for (let y = b.doorY - 2; y <= b.doorY + 1; y++) {
+      if (!inside(b.doorX, y)) continue;
+      const k = key(b.doorX, y);
+      clearObject(k);
+      t.tiles.set(k, y <= b.doorY ? T.FLOOR : T.PATH);
+    }
+  }
+  const passable = (k: number) => {
+    const v = t.tiles.get(k) ?? T.GRASS;
+    return !isSolid(v) && v !== T.WATER && v !== T.DEEP_WATER && v !== T.LAVA && !objectAt(k);
+  };
+  const neighbours = (k: number) => {
+    const x = k % W,
+      y = Math.floor(k / W);
+    const out: number[] = [];
+    if (x > 0) out.push(k - 1);
+    if (x + 1 < W) out.push(k + 1);
+    if (y > 0) out.push(k - W);
+    if (y + 1 < H) out.push(k + W);
+    return out;
+  };
+  const seen = new Uint8Array(N);
+  const flood = (start: number) => {
+    const queue = [start];
+    seen[start] = 1;
+    while (queue.length)
+      for (const k of neighbours(queue.pop()!))
+        if (!seen[k] && passable(k)) {
+          seen[k] = 1;
+          queue.push(k);
+        }
+  };
+  const centre = key(t.cx, t.cy);
+  clearObject(centre);
+  t.tiles.set(centre, T.PATH);
+  flood(centre);
+  for (const b of t.buildings) {
+    const start = key(b.doorX, Math.min(t.y1, b.doorY + 1));
+    if (!seen[start]) {
+      const distances = new Int32Array(N).fill(0x3fffffff),
+        parent = new Int32Array(N).fill(-1);
+      const buckets = new Map<number, number[]>([[0, [start]]]);
+      distances[start] = 0;
+      let cost = 0,
+        pending = 1,
+        end = -1;
+      while (pending && end < 0) {
+        const bucket = buckets.get(cost);
+        if (!bucket?.length) {
+          cost++;
+          continue;
+        }
+        const k = bucket.pop()!;
+        pending--;
+        if (cost !== distances[k]) continue;
+        if (seen[k]) {
+          end = k;
+          break;
+        }
+        for (const next of neighbours(k)) {
+          if (bodies[next] && !seen[next]) continue;
+          const v = t.tiles.get(next) ?? T.GRASS;
+          const step =
+            v === T.WATER || v === T.DEEP_WATER || v === T.LAVA ? 18 : isSolid(v) ? 10 : objectAt(next) ? 4 : 1;
+          const d = cost + step;
+          if (d >= distances[next]!) continue;
+          distances[next] = d;
+          parent[next] = k;
+          if (!buckets.has(d)) buckets.set(d, []);
+          buckets.get(d)!.push(next);
+          pending++;
+        }
+      }
+      if (end >= 0) {
+        for (let k = end; k !== -1; k = parent[k]!) {
+          clearObject(k);
+          const v = t.tiles.get(k);
+          t.tiles.set(k, v === T.WATER || v === T.DEEP_WATER || v === T.LAVA ? T.FLOOR : T.PATH);
+        }
+        // Newly opened lanes join the previous component without rescanning the world.
+        seen[start] = 0;
+        flood(start);
+      }
+    }
+    // A doorway joins its approach even if furniture previously isolated the room.
+    if (seen[start]) {
+      seen[key(b.doorX, b.doorY)] = 0;
+      flood(key(b.doorX, b.doorY));
+    }
+  }
+  const reachable: number[] = [];
+  for (let k = 0; k < N; k++) if (seen[k]) reachable.push(k);
+  for (const [name, p] of Object.entries(t.spots)) {
+    if (inside(p.x, p.y) && seen[key(p.x, p.y)]) continue;
+    let best = centre,
+      distance = Infinity;
+    for (const k of reachable) {
+      const x = t.x0 + (k % W),
+        y = t.y0 + Math.floor(k / W);
+      const d = Math.abs(x - p.x) + Math.abs(y - p.y);
+      if (d < distance) {
+        best = k;
+        distance = d;
+      }
+    }
+    t.spots[name] = { x: t.x0 + (best % W), y: t.y0 + Math.floor(best / W) };
+  }
+  t.objects = t.objects.filter((_, i) => !removed.has(i));
+  return t;
 }

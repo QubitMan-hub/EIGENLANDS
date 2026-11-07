@@ -200,7 +200,7 @@ export class ChunkStore {
           : []
         : isOtherworldY(cy * CHUNK_SIZE)
           ? this.generation >= 6
-            ? otherworldObjectsIn(this.seed, cx, cy)
+            ? otherworldObjectsIn(this.seed, cx, cy, this.generation)
             : []
           : isDiveY(cy * CHUNK_SIZE)
             ? sanctuaryObjectsIn(this.seed, cx, cy)

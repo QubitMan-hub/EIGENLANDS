@@ -18,6 +18,9 @@ import { hash2 } from './rng';
 import { T } from './tiles';
 import { isGateY } from './gate-plane';
 import type { WorldObj } from './objects';
+import { activeGeneration } from './generation-registry';
+import type { WorldGeneration } from './world-version';
+import { realmGatheringChance } from './world-locality';
 
 export type OtherworldId = 'aetheria' | 'umbra' | 'chronoria';
 export const OTHERWORLD_IDS: OtherworldId[] = ['aetheria', 'umbra', 'chronoria'];
@@ -337,11 +340,142 @@ export const ROOM_THEMES = {
 } as const satisfies Record<OtherworldId, readonly string[]>;
 export type RoomTheme = (typeof ROOM_THEMES)[OtherworldId][number];
 
-export function roomTheme(seed: number, w: OtherworldId, r: Room): RoomTheme | null {
+export function roomTheme(
+  seed: number,
+  w: OtherworldId,
+  r: Room,
+  generation: WorldGeneration = activeGeneration(seed),
+): RoomTheme | null {
   if ((r.gx === 0 && r.gy === 0) || (r.gx === ARENA_CELL[w][0] && r.gy === ARENA_CELL[w][1])) return null;
   if (w === 'umbra' && r.gx === HOLLOW_CELL[0] && r.gy === HOLLOW_CELL[1]) return null;
+  if (generation >= 7) return connectedThemes(seed, w).get(gi(r.gx, r.gy)) ?? null;
   const list = ROOM_THEMES[w];
   return list[Math.floor(hash2(seed, r.gx, r.gy, SALT[w] + 50) * list.length)]!;
+}
+
+/** Habitat watersheds follow connected rooms, so a tunnel or sky-road explains the next landscape. */
+const THEME_PATCHES = new Map<string, Map<number, RoomTheme>>();
+function connectedThemes(seed: number, w: OtherworldId): Map<number, RoomTheme> {
+  const key = `${seed}:${w}`,
+    hit = THEME_PATCHES.get(key);
+  if (hit) return hit;
+  const span = OTHERWORLDS[w].span,
+    cells: Room[] = [];
+  for (let gy = -span; gy <= span; gy++)
+    for (let gx = -span; gx <= span; gx++) {
+      const r = roomOf(seed, w, gx, gy);
+      if (
+        r &&
+        !(gx === 0 && gy === 0) &&
+        !(gx === ARENA_CELL[w][0] && gy === ARENA_CELL[w][1]) &&
+        !(w === 'umbra' && gx === HOLLOW_CELL[0] && gy === HOLLOW_CELL[1])
+      )
+        cells.push(r);
+    }
+  cells.sort((a, b) => hash2(seed, a.gx, a.gy, SALT[w] + 81) - hash2(seed, b.gx, b.gy, SALT[w] + 81));
+  const themes = new Map<number, RoomTheme>(),
+    queue: Room[] = [];
+  // One distinct source per habitat; a simultaneous flood assigns every connected room to its nearest source.
+  ROOM_THEMES[w].forEach((theme, i) => {
+    const r = cells[i];
+    if (r) {
+      themes.set(gi(r.gx, r.gy), theme);
+      queue.push(r);
+    }
+  });
+  for (let head = 0; head < queue.length; head++) {
+    const r = queue[head]!;
+    for (const [dx, dy] of NEIGHBOURS4) {
+      const next = roomOf(seed, w, r.gx + dx, r.gy + dy);
+      if (!next || !linkBetween(seed, w, [r.gx, r.gy], [next.gx, next.gy]) || themes.has(gi(next.gx, next.gy)))
+        continue;
+      themes.set(gi(next.gx, next.gy), themes.get(gi(r.gx, r.gy))!);
+      queue.push(next);
+    }
+  }
+  if (THEME_PATCHES.size >= 24) THEME_PATCHES.delete(THEME_PATCHES.keys().next().value!);
+  THEME_PATCHES.set(key, themes);
+  return themes;
+}
+
+export interface RealmRoomContext {
+  room: Room;
+  theme: RoomTheme | null;
+  safe: boolean;
+  exits: Array<{ gx: number; gy: number; direction: string; kind: 'road' | 'updraft' }>;
+}
+/** Null in the void or on roads: only actual room floor can host habitat encounters. */
+export function roomContextAt(
+  seed: number,
+  w: OtherworldId,
+  x: number,
+  y: number,
+  generation: WorldGeneration = activeGeneration(seed),
+): RealmRoomContext | null {
+  const r = placeAt(seed, w, x, localY(w, y)).room;
+  if (!r) return null;
+  return {
+    room: r,
+    theme: roomTheme(seed, w, r, generation),
+    safe: (r.gx === 0 && r.gy === 0) || (w === 'umbra' && r.gx === HOLLOW_CELL[0] && r.gy === HOLLOW_CELL[1]),
+    exits: roomExits(seed, w, r),
+  };
+}
+function roomExits(seed: number, w: OtherworldId, r: Room): RealmRoomContext['exits'] {
+  const exits: RealmRoomContext['exits'] = [];
+  for (const [dx, dy, direction] of [
+    [0, -1, 'North'],
+    [1, 0, 'East'],
+    [0, 1, 'South'],
+    [-1, 0, 'West'],
+  ] as const) {
+    const kind = linkBetween(seed, w, [r.gx, r.gy], [r.gx + dx, r.gy + dy]);
+    if (kind) exits.push({ gx: r.gx + dx, gy: r.gy + dy, direction, kind: kind === 2 ? 'updraft' : 'road' });
+  }
+  return exits;
+}
+
+const ROUTE_CLUES = new Map<string, string>();
+/** A shortest connected route to useful destinations, including transport type and gate requirements. */
+export function roomRouteClue(
+  seed: number,
+  w: OtherworldId,
+  r: Room,
+  generation: WorldGeneration = activeGeneration(seed),
+): string {
+  const cacheKey = `${seed}:${w}:${r.gx},${r.gy}:${generation}`,
+    cached = ROUTE_CLUES.get(cacheKey);
+  if (cached) return cached;
+  const queue = [{ r, first: '', steps: 0 }],
+    seen = new Set<number>([gi(r.gx, r.gy)]),
+    clues: string[] = [];
+  for (let head = 0; head < queue.length && clues.length < 3; head++) {
+    const cur = queue[head]!;
+    let name =
+      cur.r.gx === 0 && cur.r.gy === 0
+        ? 'Return portal and provisions'
+        : w === 'umbra' && cur.r.gx === HOLLOW_CELL[0] && cur.r.gy === HOLLOW_CELL[1]
+          ? 'Hollow lamps and shops'
+          : '';
+    if (!name && ((cur.r.gx === -1 && cur.r.gy === 2) || (cur.r.gx === 2 && cur.r.gy === 1))) name = 'Archive lore';
+    if (!name && w === 'aetheria' && chimeCells(seed).some(([gx, gy]) => gx === cur.r.gx && gy === cur.r.gy))
+      name = 'Wind chime';
+    if (!name && cur.r.gx === ARENA_CELL[w][0] && cur.r.gy === ARENA_CELL[w][1])
+      name = 'Guardian altar (chimes required for eyrie)';
+    if (name) clues.push(`${name}: ${cur.steps === 0 ? 'here' : `${cur.first}, ${cur.steps} links`}.`);
+    for (const exit of roomExits(seed, w, cur.r)) {
+      const key = gi(exit.gx, exit.gy);
+      if (seen.has(key)) continue;
+      const next = roomOf(seed, w, exit.gx, exit.gy);
+      if (!next) continue;
+      seen.add(key);
+      queue.push({ r: next, first: cur.first || `${exit.direction} ${exit.kind}`, steps: cur.steps + 1 });
+    }
+  }
+  const clue = `${clues.join(' ')} Gathering follows the ${roomTheme(seed, w, r, generation) ?? 'sheltered'} habitat.`;
+  if (ROUTE_CLUES.size >= 1024) ROUTE_CLUES.delete(ROUTE_CLUES.keys().next().value!);
+  ROUTE_CLUES.set(cacheKey, clue);
+  return clue;
 }
 
 /** distance to the nearest of a room's two pools (lake, flooded, ember), or Infinity when it has none */
@@ -360,7 +494,12 @@ function poolDist(seed: number, w: OtherworldId, r: Room, x: number, y: number):
 // ───────────────────────── tiles ─────────────────────────
 
 /** Tiles of a realm plane (null off the realm planes). */
-export function otherworldTileAt(seed: number, x: number, y: number): number | null {
+export function otherworldTileAt(
+  seed: number,
+  x: number,
+  y: number,
+  generation: WorldGeneration = activeGeneration(seed),
+): number | null {
   const w = otherworldOf(y);
   if (!w) return null;
   const ly = localY(w, y);
@@ -373,7 +512,7 @@ export function otherworldTileAt(seed: number, x: number, y: number): number | n
   if (w === 'aetheria') {
     if (!room) return road ? T.PATH : T.UPPER_VOID;
     if (edge < 1.4) return T.SAND; // the crumbling rim
-    const theme = roomTheme(seed, w, room);
+    const theme = roomTheme(seed, w, room, generation);
     if (home || arena || !theme || nearUpdraft(seed, room, x, ly))
       return h < 0.06 ? T.FLOWERS : h < 0.1 ? T.GRASS_TALL : T.GRASS;
     if (theme === 'lake' && !clear) {
@@ -406,7 +545,7 @@ export function otherworldTileAt(seed: number, x: number, y: number): number | n
     }
     if (room && room.gx === HOLLOW_CELL[0] && room.gy === HOLLOW_CELL[1]) return T.VAULT_FLOOR;
     if (!room || home || arena) return T.CAVE_FLOOR;
-    const theme = roomTheme(seed, w, room);
+    const theme = roomTheme(seed, w, room, generation);
     if (!clear && (theme === 'flooded' || theme === 'ember')) {
       // pools: black water, or a lava seep that lights the chamber (and burns whoever wades in)
       const p = poolDist(seed, w, room, x, ly);
@@ -435,7 +574,7 @@ export function otherworldTileAt(seed: number, x: number, y: number): number | n
     // a paved court at the heart of each ruin; outside it the slabs give way to grass and rubble
     const r = Math.hypot(x - room.x, ly - room.y);
     if (home ? r < 7 : r < 5) return T.VAULT_FLOOR;
-    const theme = roomTheme(seed, w, room);
+    const theme = roomTheme(seed, w, room, generation);
     const slab = vnoise(seed, x / 3, ly / 3, 7340);
     if (theme === 'clockyard') {
       if (!clear && h < 0.012) return T.ORE_GOLD; // the old works' gold, half-buried
@@ -472,13 +611,18 @@ export function otherworldTileAt(seed: number, x: number, y: number): number | n
 }
 
 /** Heights: Aetheria's islands stand two levels above the cloud, Chronoria's plateau one above its fractures. */
-export function otherworldLevels(seed: number, cx: number, cy: number): Uint8Array {
+export function otherworldLevels(
+  seed: number,
+  cx: number,
+  cy: number,
+  generation: WorldGeneration = activeGeneration(seed),
+): Uint8Array {
   const out = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
   const w = otherworldOf(cy * CHUNK_SIZE);
   if (!w || w === 'umbra') return out;
   for (let j = 0; j < CHUNK_SIZE; j++)
     for (let i = 0; i < CHUNK_SIZE; i++) {
-      const t = otherworldTileAt(seed, cx * CHUNK_SIZE + i, cy * CHUNK_SIZE + j);
+      const t = otherworldTileAt(seed, cx * CHUNK_SIZE + i, cy * CHUNK_SIZE + j, generation);
       out[j * CHUNK_SIZE + i] = t === T.UPPER_VOID ? 0 : w === 'aetheria' ? 2 : 1;
     }
   return out;
@@ -714,7 +858,12 @@ const REALM_PROP_KINDS = new Set([
 ]);
 
 /** Static props of chunk (cx, cy) on a realm plane. */
-export function otherworldObjectsIn(seed: number, cx: number, cy: number): WorldObj[] {
+export function otherworldObjectsIn(
+  seed: number,
+  cx: number,
+  cy: number,
+  generation: WorldGeneration = activeGeneration(seed),
+): WorldObj[] {
   const w = otherworldOf(cy * CHUNK_SIZE);
   if (!w) return [];
   const out: WorldObj[] = [];
@@ -736,6 +885,19 @@ export function otherworldObjectsIn(seed: number, cx: number, cy: number): World
       const home = gx === 0 && gy === 0,
         arena = gx === ARENA_CELL[w][0] && gy === ARENA_CELL[w][1];
       const ry = r.y + oy;
+      if (generation >= 7 && !arena) {
+        const x = r.x + 4,
+          y = ry + 3;
+        if (Math.floor(x / CHUNK_SIZE) === cx && Math.floor(y / CHUNK_SIZE) === cy)
+          out.push({
+            x,
+            y,
+            kind: 'sign',
+            sub: 'sign',
+            static: true,
+            data: { text: roomRouteClue(seed, w, r, generation), realm: w },
+          });
+      }
       if (arena) {
         add(r.x, ry - Math.floor(r.r / 2), `realm_altar_${w}`, { boss: OTHERWORLD_CREATURES[w].boss });
         continue;
@@ -747,8 +909,9 @@ export function otherworldObjectsIn(seed: number, cx: number, cy: number): World
       const h = hash2(seed, gx, gy, SALT[w] + 40);
       // a gathering node or two in most rooms
       const node = w === 'aetheria' ? 'sky_bloom' : w === 'umbra' ? 'umbral_cap' : 'time_sand';
-      if (h < 0.8) add(r.x + 2, ry - 2, node);
-      if (h < 0.35) add(r.x - 3, ry + 2, node);
+      const chance = generation >= 7 ? realmGatheringChance(w, roomTheme(seed, w, r, generation)) : 0.8;
+      if (h < chance) add(r.x + 2, ry - 2, node);
+      if (h < (generation >= 7 ? chance * 0.44 : 0.35)) add(r.x - 3, ry + 2, node);
       // lore tablets in two rooms each
       if ((gx === -1 && gy === 2) || (gx === 2 && gy === 1))
         add(r.x, ry + 1, `realm_lore_${w}`, { lore: gx < 0 ? 1 : 2 });

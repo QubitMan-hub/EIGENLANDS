@@ -852,7 +852,7 @@ export function buildObjectArt(season: SeasonIdx): ObjectArt {
     fence: buildFence(),
     qtree: buildQTree(season),
     biome: buildBiomeArt(season),
-    scenery: buildSceneryArt(),
+    scenery: buildSceneryArt(season),
     cave: {
       rock: buildOreBlocks('rock'),
       ...Object.fromEntries(Object.keys(MINERALS).map((k) => [k, buildOreBlocks(k)])),

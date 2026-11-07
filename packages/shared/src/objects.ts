@@ -24,6 +24,7 @@ export interface WorldObj {
 export function objSolid(kind: WorldObjKind, sub: string): boolean {
   if (
     [
+      'fallen_star',
       'guild_clue',
       'mine_rail',
       'minecart',

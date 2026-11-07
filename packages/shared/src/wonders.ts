@@ -2,13 +2,149 @@
  * Wonders and hunts (master plan §19 "small discoverable stories"): rare nights when stars fall, the morning rainbow
  * after a rainy day, aurora over the northern pines, the rest you only get in a bed under your own roof, and the
  * beast each town posts a bounty on today. All pure functions of the seed, the day and the clock, so the server, every
- * client and the tests agree without storing anything.
+ * client and the tests agree. Daily local-find claims are persisted with character progress.
  */
 import { hash2 } from './rng';
 import type { CreatureTrait } from './bestiary';
 import type { EnemyAi } from './combat';
 import type { Town } from './town';
-import { weatherForDay } from './weather';
+import { biomeWeather, seasonOfDay, weatherForDay } from './weather';
+import { biomeAt } from './worldgen';
+import { CAVE_OY, caveBiomeAt, caveRegionAt, caveWaystation, caveTownAt } from './undercroft';
+import { isCaveY } from './caves';
+import { mouthsNear } from './cavemouths';
+import { isUpperY } from './floors';
+import { isDiveY } from './sanctuaries';
+import { isCryptY } from './cryptplane';
+import { OTHERWORLDS, otherworldOf, isOtherworldY, otherworldArena, roomContextAt } from './otherworlds';
+import { FORAGE_BY_SEASON } from './nodes';
+import type { Stack } from './items';
+import type { WorldGeneration } from './world-version';
+
+/** A small daily opportunity, collected through the existing glimmer interaction. */
+export interface LocalFind {
+  id: string;
+  title: string;
+  reason: string;
+  items: Stack[];
+}
+
+/** Pure eligibility. Surface weather never leaks into underground or realm rooms. */
+export function localFindAt(
+  seed: number,
+  day: number,
+  x: number,
+  y: number,
+  generation: WorldGeneration,
+): LocalFind | null {
+  if (generation < 7 || !Number.isSafeInteger(day) || !Number.isFinite(x) || !Number.isFinite(y)) return null;
+  const make = (kind: string, title: string, reason: string, item: string, n = 2): LocalFind => ({
+    id: `find:${day}:${kind}`,
+    title,
+    reason,
+    items: [{ id: item, n }],
+  });
+  const world = otherworldOf(y);
+  if (world) {
+    const def = OTHERWORLDS[world],
+      ly = y - def.oy;
+    const arena = otherworldArena(seed, world);
+    if (Math.hypot(x, ly) < 22 || Math.hypot(x - arena.x, y - arena.y) < arena.r + 5) return null;
+    // Only inside a real chamber; corridors, updrafts and puzzle routes stay clear.
+    const context = roomContextAt(seed, world, x, y, generation);
+    if (
+      !context ||
+      context.safe ||
+      !context.theme ||
+      Math.hypot(x - context.room.x, ly - context.room.y) > context.room.r - 3
+    )
+      return null;
+    const theme = context.theme;
+    if (world === 'aetheria')
+      return make(
+        world,
+        'Wind-polished amber',
+        `${def.name}'s ${theme} island roots shed resin into sheltered hollows.`,
+        'sky_amber',
+        1,
+      );
+    if (world === 'umbra')
+      return make(
+        world,
+        'A pearl in the dark',
+        `${def.name}'s ${theme} chamber seams have released a small void pearl.`,
+        'void_pearl',
+        1,
+      );
+    return make(
+      world,
+      'A settled moment',
+      `${def.name}'s ${theme} chamber has steadied long enough for a temporal crystal to settle.`,
+      'temporal_crystal',
+      1,
+    );
+  }
+  if (isOtherworldY(y) || isUpperY(y) || isDiveY(y) || isCryptY(y)) return null;
+  if (isCaveY(y)) {
+    if (Math.hypot(x, y - CAVE_OY) < 70) return null;
+    const region = caveRegionAt(seed, x, y, generation);
+    if (
+      caveTownAt(x, y) ||
+      (['arena', 'puzzle', 'secret'].includes(region.feature) && Math.hypot(x - region.x, y - region.y) < 16)
+    )
+      return null;
+    const lift = caveWaystation(seed, region.gx, region.gy);
+    if (lift && Math.hypot(x - lift.x, y - lift.y) < 9) return null;
+    if (mouthsNear(seed, x, y - CAVE_OY, 9).some((m) => Math.hypot(x - m.x, y - CAVE_OY - m.y) < 9)) return null;
+    const biome = caveBiomeAt(seed, x, y, generation);
+    if (biome === 'glowmoss')
+      return make(
+        biome,
+        'A glowmoss flush',
+        'The damp glowmoss has nourished a fresh cluster of mushrooms on a sheltered ledge.',
+        'mushroom',
+      );
+    const materials = {
+      limestone: 'copper_ore',
+      glowmoss: 'mushroom',
+      crystal: 'qubit_crystal',
+      basalt: 'iron_ore',
+      frost: 'silver_ore',
+      drowned: 'copper_ore',
+    };
+    return make(
+      biome,
+      'A loosened seam',
+      `The ${biome} galleries have shed a few useful fragments onto a clear ledge.`,
+      materials[biome],
+      biome === 'crystal' ? 1 : 2,
+    );
+  }
+  const biome = biomeAt(seed, x, y, generation),
+    weather = biomeWeather(weatherForDay(seed, day), biome);
+  if (weather === 'snow')
+    return make(
+      'snow',
+      'Snow-bright roots',
+      'Fresh snow outlines hardy roots that would otherwise be easy to miss.',
+      'snow_yam',
+    );
+  if (
+    !['rain', 'fog'].includes(weather) ||
+    !['meadow', 'forest', 'autumn', 'swamp', 'taiga', 'enchanted'].includes(biome)
+  )
+    return null;
+  const season = seasonOfDay(day),
+    pool = FORAGE_BY_SEASON[season]!;
+  const item = pool[Math.floor(hash2(seed, Math.floor(x / 72), Math.floor(y / 72), 6810 + day) * pool.length)]!;
+  return make(
+    `forage:${season}:${biome}`,
+    'A rain-fed gathering',
+    `The ${weather} has freshened this season's wild growth in the ${biome}.`,
+    item,
+    3,
+  );
+}
 
 // ───────────────────────── starfall ─────────────────────────
 

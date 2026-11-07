@@ -2,7 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { packAppearance } from '@eigenlands/shared';
 import { loadPlayerData, newPlayerData, serializePlayerData } from '../src/systems/profile';
 
-const look = packAppearance({ skin: 3, hairStyle: 7, hairColor: 2, eyes: 1, dress: 2, dressColor: 9, trim: 4 });
+const look = packAppearance({
+  skin: 3,
+  hairStyle: 7,
+  hairColor: 2,
+  eyes: 1,
+  dress: 2,
+  dressColor: 9,
+  trim: 4,
+  body: 0,
+  cut: 0,
+});
 
 describe('stored appearance', () => {
   it('new characters have not chosen one yet', () => {

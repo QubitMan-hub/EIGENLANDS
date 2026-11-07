@@ -15,6 +15,7 @@ import {
   packAppearance,
   randomAppearance,
   townsNear,
+  settlementProfile,
   type ChunkStore,
   type RealmId,
   type RealmSite,
@@ -231,6 +232,7 @@ export class WorldLife {
       weddingsOn(this.site.id, f.day).length > 0 ||
       (!homeTowns.has(this.town) && !!royalCelebration(civState()?.kingdoms[this.realm], f.day));
     this.director(f);
+    this.limitPopulation();
     const hostiles = this.d.hostiles();
     for (const a of this.cast) this.step(a, f, h, wet, hostiles);
     this.cast = this.cast.filter((a) => {
@@ -276,6 +278,7 @@ export class WorldLife {
     this.procession = { day: -1, started: false };
     if (!town || !this.site) return;
     this.populate(town, this.site);
+    this.limitPopulation();
   }
 
   // ───────────────────────── population ─────────────────────────
@@ -284,7 +287,13 @@ export class WorldLife {
     const seed = this.d.seed();
     const hs = (i: number, k = 0) => hash2(seed, i, k, 9137 + t.cx);
     const look = (i: number) => Math.floor(hs(i, 1) * COSMETIC_OUTFITS);
-    const big = site.kind === 'capital' ? 1.8 : site.kind === 'town' ? 1.2 : 1;
+    const big = site.tier
+      ? Math.max(0.5, Math.min(2, settlementProfile(site).ambientLimit / 40))
+      : site.kind === 'capital'
+        ? 1.8
+        : site.kind === 'town'
+          ? 1.2
+          : 1;
     const door = (b: { doorX: number; doorY: number }) => ({ x: b.doorX + 0.5, y: b.doorY + 1.2 });
     let n = 0;
 
@@ -423,6 +432,22 @@ export class WorldLife {
         a.st = 'idle';
         a.t = rnd(0, 3);
       }
+    }
+  }
+
+  private limitPopulation(): void {
+    if (!this.site?.tier) return;
+    const limit = settlementProfile(this.site).ambientLimit;
+    while (this.cast.length > limit) {
+      // Keep working residents and scripted processions; thin the decorative crowd first.
+      let spare = -1;
+      for (let i = this.cast.length - 1; i >= 0; i--)
+        if (['crowd', 'roofbird', 'patron'].includes(this.cast[i]!.role)) {
+          spare = i;
+          break;
+        }
+      const [actor] = this.cast.splice(spare >= 0 ? spare : this.cast.length - 1, 1);
+      actor!.root.destroy({ children: true });
     }
   }
 

@@ -10,7 +10,7 @@ import { CHUNK_SIZE } from './constants';
 import { hash2 } from './rng';
 import { Simplex2D } from './simplex';
 import { T } from './tiles';
-import { frontierLevel, frontierCoast } from './frontier';
+import { frontierLevel, frontierCoast, frontierRoadAt } from './frontier';
 import { townTileAt } from './town';
 import { sanctuaryAt } from './sanctuary';
 import { LEGACY_GENERATION, isWorldGeneration, type WorldGeneration } from './world-version';
@@ -87,8 +87,8 @@ export interface ClimateSample {
 export { setActiveGeneration, activeGeneration } from './generation-registry';
 import { activeGeneration } from './generation-registry';
 /** Climate and biome fields are shared by revisions 1 and 2; revision 3 has its own. */
-const family = (generation: WorldGeneration): 2 | 3 | 5 | 6 =>
-  generation >= 6 ? 6 : generation >= 5 ? 5 : generation >= 3 ? 3 : 2;
+const family = (generation: WorldGeneration): 2 | 3 | 5 | 6 | 7 =>
+  generation >= 7 ? 7 : generation >= 6 ? 6 : generation >= 5 ? 5 : generation >= 3 ? 3 : 2;
 
 // Bounded Float64 blocks preserve every generated value while sharing cold work between
 // terrain, scenery and (in solo) authority. No per-tile object/string cache or periodic global clear.
@@ -96,7 +96,7 @@ interface ClimateBlock {
   seed: number;
   cx: number;
   cy: number;
-  fam: 2 | 3 | 5 | 6;
+  fam: 2 | 3 | 5 | 6 | 7;
   data: Float64Array;
   biomes?: Uint8Array;
 }
@@ -130,10 +130,10 @@ export function sampleClimate(
   return c;
 }
 
-function computeClimate(seed: number, x: number, y: number, fam: 2 | 3 | 5 | 6): ClimateSample {
-  if (fam === 6) {
+function computeClimate(seed: number, x: number, y: number, fam: 2 | 3 | 5 | 6 | 7): ClimateSample {
+  if (fam >= 6) {
     const c = realmClimate(seed, x, y) ?? climate3(seed, x, y),
-      coast = frontierCoast(seed, x, y);
+      coast = frontierCoast(seed, x, y, fam);
     return coast === null ? c : { ...c, height: Math.max(c.height, coast) };
   }
   if (fam === 5) return realmClimate(seed, x, y) ?? climate3(seed, x, y);
@@ -253,7 +253,7 @@ function surfaceTileAt(seed: number, x: number, y: number, legacy: boolean, gene
   if (sanctuary !== null) return sanctuary;
   // the three realms (revision 6)
   if (isOtherworldY(y))
-    return gen >= 6 ? (otherworldTileAt(seed, x, y) ?? gateTileAt(seed, x, y) ?? T.UPPER_VOID) : T.UPPER_VOID;
+    return gen >= 6 ? (otherworldTileAt(seed, x, y, gen) ?? gateTileAt(seed, x, y) ?? T.UPPER_VOID) : T.UPPER_VOID;
   // crypt interiors exist only in worlds that have crypts (revision 6)
   if (isCryptY(y)) return gen >= 6 ? (cryptTileAt(seed, x, y) ?? T.CAVE_WALL) : T.CAVE_WALL;
   if (isCaveY(y))
@@ -263,6 +263,11 @@ function surfaceTileAt(seed: number, x: number, y: number, legacy: boolean, gene
   const tt = townTileAt(seed, x, y, gen);
   if (tt !== null) return tt;
   if (isUpperY(y)) return T.UPPER_VOID;
+  // Provincial roads connect the capital and its farming/trading satellites across the island apron.
+  if (!legacy && gen >= 7) {
+    const road = frontierRoadAt(seed, x, y, gen);
+    if (road !== null) return road;
+  }
   // Spawn shrine: path disc, four torches.
   const r0 = Math.hypot(x, y);
   if (Math.abs(x) === 3 && Math.abs(y) === 3) return T.TORCH;
@@ -282,7 +287,7 @@ function surfaceTileAt(seed: number, x: number, y: number, legacy: boolean, gene
     const realm = realmTileAt(seed, x, y);
     if (realm !== null) return realm;
   }
-  if (!legacy && generation >= 3) return surfaceTile3(seed, x, y, r0, generation >= 6 ? 6 : 3);
+  if (!legacy && generation >= 3) return surfaceTile3(seed, x, y, r0, generation >= 7 ? 7 : generation >= 6 ? 6 : 3);
   const c = sampleClimate(seed, x, y, gen);
   if (c.height < -0.42) return T.DEEP_WATER;
   if (c.height < -0.28) return T.WATER;
@@ -501,7 +506,8 @@ export function generateLevels(
   if (generation < 3) return new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
   if (generation >= 4 && isCaveY(cy * CHUNK_SIZE)) return caveLevels(seed, cx, cy);
   if (isCryptY(cy * CHUNK_SIZE)) return cryptLevels();
-  if (isOtherworldY(cy * CHUNK_SIZE)) return generation >= 6 ? otherworldLevels(seed, cx, cy) : cryptLevels();
+  if (isOtherworldY(cy * CHUNK_SIZE))
+    return generation >= 6 ? otherworldLevels(seed, cx, cy, generation) : cryptLevels();
   if (generation >= 5) return realmAwareLevels(seed, cx, cy, generation);
   const key = `${generation}:${seed}:${cx},${cy}`,
     cached = generatedLevels.get(key);

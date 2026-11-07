@@ -59,6 +59,8 @@ export interface PlayerData {
   events: string[];
   /** adventure progress: Heart Crystals used, bosses defeated, shrines solved */
   prog: {
+    /** Latest world day a local wonder was collected (one daily, restart-safe). */
+    localFindDay?: number;
     bestiary?: string[];
     hearts: number;
     bosses: string[];

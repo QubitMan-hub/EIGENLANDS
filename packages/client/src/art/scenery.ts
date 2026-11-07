@@ -1,11 +1,12 @@
-import { mulberry32 } from '@eigenlands/shared';
+import { FLORA, mulberry32 } from '@eigenlands/shared';
+import { paintFlora } from './nature';
 import type { SceneryKind } from '../game/scenery';
 import { Iso, Prop, WOODM, STONEM, mat } from './isokit';
 import { toSprite, type ObjSprite } from './objects';
 import { C, line, makeCanvas, poly, put, undithered } from './shade';
 
 /** Low silhouettes leave the walkable surface readable; all bases use the same tile-centre anchor. */
-export function buildSceneryArt(): Record<SceneryKind, ObjSprite[]> {
+export function buildSceneryArt(season = 1): Record<SceneryKind, ObjSprite[]> {
   const kinds: SceneryKind[] = [
     'wild_ferns',
     'wild_reeds',
@@ -17,7 +18,7 @@ export function buildSceneryArt(): Record<SceneryKind, ObjSprite[]> {
     'wild_stalagmite',
     'wild_glowcap',
   ];
-  return Object.fromEntries(
+  const result = Object.fromEntries(
     kinds.map((kind) => [
       kind,
       Array.from({ length: 3 }, (_, v) => {
@@ -132,4 +133,11 @@ export function buildSceneryArt(): Record<SceneryKind, ObjSprite[]> {
       }),
     ]),
   ) as Record<SceneryKind, ObjSprite[]>;
+  for (const species of FLORA)
+    result[`wild_${species.id}`] = Array.from({ length: 3 }, (_, variant) => {
+      const { canvas, ctx } = makeCanvas(40, 40);
+      paintFlora(ctx, species.id, variant, season);
+      return toSprite(canvas, 20, 34, { ao: false, rim: false });
+    });
+  return result;
 }

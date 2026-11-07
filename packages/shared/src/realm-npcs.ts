@@ -1,3 +1,4 @@
+import { settlementProfile, settlementSite } from './settlement-tiers';
 import { hash2 } from './rng';
 import { KINGDOMS, type KingdomDef, type Person } from './kingdoms';
 import { ITEMS } from './items';
@@ -179,36 +180,76 @@ const pick = <T>(a: T[], seed: number, x: number, y: number, salt: number): T =>
 export function residentsOfSite(site: RealmSite): ResidentPlan[] {
   const def = KINGDOMS[site.realm];
   const out: ResidentPlan[] = [];
-  const idx = REALM_SITES.indexOf(site);
+  const namedIndex = REALM_SITES.findIndex((s) => s.id === site.id);
+  const idx =
+    site.tier && namedIndex < 0
+      ? [...site.id].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619), 2166136261) >>> 0
+      : namedIndex;
   let n = 0;
   const nameFor = (k: number) =>
     `${pick(def.names.first, idx + 1, k, 1, 7100)} ${pick(def.names.last, idx + 1, k, 2, 7101)}`;
   if (site.kind === 'capital') {
+    const provincial = site.tier && site.id.startsWith('frontier_');
+    const governor: Person = provincial
+      ? {
+          ...def.ruler,
+          name: nameFor(0),
+          title: 'Provincial Governor',
+          trait: `Keeps the roads and markets of ${site.name ?? site.id} open.`,
+          agenda: 'The province needs a safe harvest and fair trade.',
+        }
+      : def.ruler;
     out.push({
-      id: `${site.realm}_${def.ruler.id}`,
+      id: `${site.tier && site.id.startsWith('frontier_') ? site.id : site.realm}_${def.ruler.id}`,
       realm: site.realm,
       site,
       role: 'ruler',
       place: 'palace',
-      name: def.ruler.name,
-      title: def.ruler.title,
-      person: def.ruler,
+      name: governor.name,
+      title: governor.title,
+      person: governor,
       n: n++,
     });
     for (const p of def.court)
       out.push({
-        id: `${site.realm}_${p.id}`,
+        id: `${site.tier && site.id.startsWith('frontier_') ? site.id : site.realm}_${p.id}`,
         realm: site.realm,
         site,
         role: 'court',
         place: 'palace',
-        name: p.name,
-        title: p.title,
-        person: p,
+        name: provincial ? nameFor(n) : p.name,
+        title: provincial ? 'Provincial Councillor' : p.title,
+        person: provincial
+          ? {
+              ...p,
+              name: nameFor(n),
+              title: 'Provincial Councillor',
+              trait: 'Knows the local farms, crafts and roads.',
+              agenda: 'Keep this provincial town thriving.',
+            }
+          : p,
         n: n++,
       });
   }
-  for (const [role, place, count] of ROSTER[site.kind])
+  const tierRoster: Array<[Role, Place, number]> = [];
+  if (site.tier) {
+    const profile = settlementProfile(site);
+    const roleOf: Partial<Record<Place, Role>> = {
+      hall: 'elder',
+      barracks: 'commander',
+      inn: 'innkeeper',
+      store: 'merchant',
+      smithy: 'smith',
+      herbalist: 'herbalist',
+      library: 'scholar',
+      farmhouse: 'farmer',
+    };
+    for (const place of profile.services) tierRoster.push([roleOf[place] ?? 'hand', place, 1]);
+    if (profile.guards) tierRoster.push(['guard', 'gate', profile.guards]);
+    const occupied = out.length + tierRoster.reduce((sum, r) => sum + r[2], 0);
+    if (occupied < profile.population) tierRoster.push(['hand', 'house', profile.population - occupied]);
+  }
+  for (const [role, place, count] of site.tier ? tierRoster : ROSTER[site.kind])
     for (let i = 0; i < count; i++) {
       out.push({
         id: `${site.id}_${role}${count > 1 ? i : ''}`,
@@ -412,10 +453,36 @@ function build(p: ResidentPlan): NpcDef {
   };
 }
 
-let cached: NpcDef[] | null = null;
-/** Every kingdom resident (about 360), built once. */
-export function realmNpcs(): NpcDef[] {
-  if (!cached) cached = REALM_SITES.flatMap((s) => residentsOfSite(s)).map(build);
-  return cached;
+/** Build authoritative schedules and shops from the same plans used by a procedural town. */
+export function npcsOfSite(site: RealmSite): NpcDef[] {
+  return residentsOfSite(site).map(build);
+}
+const cached = new Map<number, NpcDef[]>();
+/** Fixed named residents are cached separately from the expanded generation-7 rosters. */
+export function realmNpcs(generation = 5): NpcDef[] {
+  const family = generation >= 7 ? 7 : 5;
+  let npcs = cached.get(family);
+  if (!npcs) {
+    npcs = REALM_SITES.flatMap((site) => npcsOfSite(settlementSite(site, generation)));
+    cached.set(family, npcs);
+  }
+  return npcs;
 }
 export const REALM_NPC_COUNT = REALM_IDS.length;
+
+let generatedNamedIds: Set<string> | undefined;
+const courtIds = new Set(
+  REALM_IDS.flatMap((realm) => [KINGDOMS[realm].ruler.id, ...KINGDOMS[realm].court.map((p) => p.id)]),
+);
+/** Accept generated identity formats without allowing arbitrary saved relationship keys. */
+export function isProceduralResidentId(id: string): boolean {
+  generatedNamedIds ??= new Set(realmNpcs(7).map((n) => n.id));
+  if (generatedNamedIds.has(id)) return true;
+  const frontier = /^frontier_(-?\d{1,6})_(-?\d{1,6})_(?:(?:village|town)_)?(.+)$/.exec(id);
+  if (!frontier) return false;
+  if (courtIds.has(frontier[3]!)) return true;
+  const role = /^(elder|commander|innkeeper|merchant|smith|herbalist|scholar|farmer|hand|guard)(\d{0,2})$/.exec(
+    frontier[3]!,
+  );
+  return !!role && (!role[2] || Number(role[2]) < 54);
+}

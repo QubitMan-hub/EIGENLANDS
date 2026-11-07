@@ -680,7 +680,7 @@ const allCache = new Map<string, Town[]>();
 /** Every settlement of a world. Revision 5 adds the 78 plots of the six kingdoms. */
 export function townsFor(seed: number, generation: number = activeGeneration(seed)): Town[] {
   const modern = generation >= 5,
-    key = `${seed}:${generation >= 6 ? 6 : modern ? 5 : 0}`;
+    key = `${seed}:${generation >= 7 ? 7 : generation >= 6 ? 6 : modern ? 5 : 0}`;
   let towns = allCache.get(key);
   if (!towns) {
     const base = [townFor(seed), ...extraTowns(seed)];

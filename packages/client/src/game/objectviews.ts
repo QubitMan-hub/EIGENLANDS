@@ -4,6 +4,7 @@ import {
   isSolid,
   C,
   NODES,
+  FLORA,
   CHUNK_SIZE,
   PALETTE,
   T,
@@ -47,6 +48,16 @@ const ECHO_KINDS = new Set([
 
 /** how far each kind bends in the wind (skew at full gale); trunks and rocks stay put */
 const SWAY: Record<string, number> = {
+  ...Object.fromEntries(
+    FLORA.map((s) => [
+      `wild_${s.id}`,
+      ['reed', 'spike', 'flower', 'cotton'].includes(s.shape)
+        ? 0.1
+        : ['fern', 'herb', 'vine'].includes(s.shape)
+          ? 0.06
+          : 0,
+    ]),
+  ),
   wild_reeds: 0.15,
   wild_ferns: 0.07,
   tallgrass: 0.2,

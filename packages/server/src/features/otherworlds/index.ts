@@ -36,6 +36,8 @@ import {
   otherworldArrival,
   otherworldOf,
   realmPropKind,
+  roomContextAt,
+  realmRoomInhabitants,
   realmPortals,
   tileAt,
   type EnemyKindName,
@@ -343,7 +345,13 @@ export class OtherworldModule implements Module {
     const roll = this.room.rand();
     if (roll < 0.45) {
       const kinds = OTHERWORLD_CREATURES[w].roam;
-      this.spawnNear(p, w, kinds[Math.floor(this.room.rand() * kinds.length)]!, 13, 22);
+      this.spawnNear(
+        p,
+        w,
+        this.room.store.generation >= 7 ? null : kinds[Math.floor(this.room.rand() * kinds.length)]!,
+        13,
+        22,
+      );
       return;
     }
     const champion = race.foes[2]!;
@@ -360,7 +368,8 @@ export class OtherworldModule implements Module {
   }
 
   /** a creature on open ground 13–22 tiles away (never in the arrival room or the Hollow) */
-  private spawnNear(p: ServerPlayer, w: OtherworldId, kind: string, r0: number, r1: number): Enemy | null {
+  private spawnNear(p: ServerPlayer, w: OtherworldId, kind: string | null, r0: number, r1: number): Enemy | null {
+    if (this.nearCount(p, 30) >= ROAM_MAX) return null;
     const def = OTHERWORLDS[w];
     for (let k = 0; k < 8; k++) {
       const a = this.room.rand() * Math.PI * 2,
@@ -372,7 +381,17 @@ export class OtherworldModule implements Module {
       if (isSolid(this.room.store.getTile(x, y)) || this.room.store.objectAt(x, y)) continue;
       if (Math.hypot(x, y - def.oy) < 18) continue; // the arrival room is a safe landing
       if (w === 'umbra' && this.room.store.getTile(x, y) === T.VAULT_FLOOR) continue; // the Hollow's floor
-      return this.room.spawnEnemy(kind as EnemyKindName, x + 0.5, y + 0.5, false, {
+      let selected = kind;
+      if (this.room.store.generation >= 7) {
+        const context = roomContextAt(this.room.seed, w, x, y, this.room.store.generation);
+        if (!context || context.safe || context.theme === null) continue;
+        if (!selected) {
+          const kinds = realmRoomInhabitants(w, context.theme);
+          selected = kinds[Math.floor(this.room.rand() * kinds.length)]!;
+        }
+      }
+      if (!selected) continue;
+      return this.room.spawnEnemy(selected as EnemyKindName, x + 0.5, y + 0.5, false, {
         level: Math.max(def.creatureLevel, p.level - 1),
       });
     }

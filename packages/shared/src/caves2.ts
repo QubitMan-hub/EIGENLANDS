@@ -19,6 +19,9 @@ import { mineLineDistance, mineLineOfRegion } from './mines';
 import { hash2 } from './rng';
 import { Simplex2D } from './simplex';
 import { T, isSolid } from './tiles';
+import { caveDistrictHabitat, caveRouteClue } from './world-locality';
+import { activeGeneration } from './generation-registry';
+import type { WorldGeneration } from './world-version';
 
 /**
  * Undercroft 2 terrain (world revision 4). The district skeleton of revision 2 (a centre chamber and four gates shared
@@ -511,7 +514,12 @@ const DECO_HINT: Record<CaveBiome, string> = {
 };
 
 /** Static objects of the district-level content in chunk (cx, cy); revision 4. */
-export function caveFeatureObjects2(seed: number, cx: number, cy: number): WorldObj[] {
+export function caveFeatureObjects2(
+  seed: number,
+  cx: number,
+  cy: number,
+  generation: WorldGeneration = activeGeneration(seed),
+): WorldObj[] {
   const out: WorldObj[] = [];
   const x0 = cx * CHUNK_SIZE,
     y0 = cy * CHUNK_SIZE;
@@ -535,7 +543,7 @@ export function caveFeatureObjects2(seed: number, cx: number, cy: number): World
       if (lift) {
         add(lift.x, lift.y, 'cave_lift', { cave: lift.id });
         add(lift.x + 2, lift.y, 'cave_waymark', {
-          text: `${CAVE_BIOME_NAMES[r.biome].toUpperCase()} · survey district ${gx}, ${gy}. Depth band ${r.depth}. ${DECO_HINT[r.biome]} Supply lifts stand at every other junction; the Atlas can track the nearest exit.`,
+          text: `${CAVE_BIOME_NAMES[r.biome].toUpperCase()} · survey district ${gx}, ${gy}. Depth band ${r.depth}. ${DECO_HINT[r.biome]} Supply lifts stand at every other junction; the Atlas can track the nearest exit. ${caveRouteClue(seed, gx, gy, generation)}`,
         });
       }
       // haulage line
@@ -587,10 +595,16 @@ export function caveFeatureObjects2(seed: number, cx: number, cy: number): World
           });
           break;
         }
-        case 'vents':
+        case 'vents': {
+          const habitat = caveDistrictHabitat(seed, gx, gy, generation);
+          if (generation >= 7)
+            add(r.x - 2, r.y + 2, 'cave_waymark', {
+              text: `${CAVE_BIOME_NAMES[r.biome]}. ${habitat.resource}. ${habitat.hazard === 'steam' ? 'Steam pressure builds at the marked vents; leave the warning ring before it erupts.' : habitat.hazard === 'spores' ? 'Spore pockets swell at the marked vents; leave the warning ring before they burst.' : habitat.hazard === 'rime' ? 'Rime gathers at the marked vents; leave the warning ring before the cold pulse.' : 'These crystal vents have cooled; a geode guardian watches the seams.'}`,
+            });
           add(r.x + 7, r.y - 6, 'cave_vent', { region: r.id });
           add(r.x - 6, r.y + 6, 'cave_vent', { region: r.id });
           break;
+        }
         case 'grove':
           for (const [dx, dy] of [
             [-6, 3],

@@ -1,10 +1,55 @@
 import { describe, expect, it } from 'vitest';
 import { NPCS, buildingAt, isSolid, scheduleAt, tileAt, townFor, townsFor } from '@eigenlands/shared';
-import { SEED, makeVillage, run } from './village.helpers';
+import { FakeClock, FakePlayer, SEED, makeVillage, nextTo, run } from './village.helpers';
 
 const town = { ...townFor(SEED), spots: Object.assign({}, ...townsFor(SEED).map((t) => t.spots)) };
 
 describe('village movement', () => {
+  it('brings residents to the seasonal feast, and takes the gathering inside in rain', async () => {
+    const clock = new FakeClock();
+    clock.set(-37, 19); // world day 3: Blossom Fair
+    clock.forced = 'clear';
+    const { village } = await makeVillage({ npcIds: ['orla'] }, clock);
+    const p = new FakePlayer();
+    nextTo(p, village, 'orla');
+    expect(village.talk(p, 'orla')!.doing).toContain('Blossom Fair');
+    expect(village.npc('orla')!.flags & 2).toBe(0);
+    clock.forced = 'rain';
+    run(village, clock, 1500);
+    expect(village.npc('orla')!.flags & 2).toBe(2);
+  });
+
+  it('describes a commute as travel rather than claiming the villager is already at work', async () => {
+    const { village, clock } = await makeVillage({ npcIds: ['orla'] });
+    clock.forced = 'clear';
+    clock.set(0, 8.01);
+    run(village, clock, 20);
+    const p = new FakePlayer();
+    nextTo(p, village, 'orla');
+    expect(village.talk(p, 'orla')!.doing).toContain('on the way');
+  });
+
+  it('waits and retries a blocked route without teleporting in front of the player', async () => {
+    const { village, clock, host, players } = await makeVillage({ npcIds: ['orla'] });
+    clock.forced = 'clear';
+    const n = village.npc('orla')!;
+    const p = new FakePlayer();
+    p.x = n.x;
+    p.y = n.y;
+    players.push(p);
+    const x = n.x,
+      y = n.y;
+    const original = host.store.solidAt;
+    host.store.solidAt = Object.assign(() => true, original);
+    clock.set(0, 12.01);
+    run(village, clock, 120);
+    expect(n.x).toBeCloseTo(x);
+    expect(n.y).toBeCloseTo(y);
+    host.store.solidAt = original;
+    run(village, clock, 1200, 120);
+    expect(Math.hypot(n.x - x, n.y - y)).toBeGreaterThan(1);
+  });
+
   it('creates all scheduled NPCs at their scheduled spots', async () => {
     const { village, state, clock } = await makeVillage();
     expect(state.npcs.size).toBe(NPCS.length);

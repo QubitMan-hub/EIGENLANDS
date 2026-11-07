@@ -7,6 +7,8 @@ export function findPath(
   ty: number,
   solid: ((x: number, y: number) => boolean) & { level?: (x: number, y: number) => number },
   maxNodes = 3000,
+  /** Travel effort per tile, at least 1; callers can prefer roads without changing collision rules. */
+  cost?: (x: number, y: number) => number,
 ): Array<[number, number]> | null {
   const level = solid.level;
   /** can a walker step from (ax, ay) to the adjacent tile (bx, by)? Cliffs of CLIFF levels or more cannot be crossed. */
@@ -78,10 +80,13 @@ export function findPath(
           (solid(cur.x + dx, cur.y) ||
             solid(cur.x, cur.y + dy) ||
             !step(cur.x, cur.y, cur.x + dx, cur.y) ||
-            !step(cur.x, cur.y, cur.x, cur.y + dy))
+            !step(cur.x, cur.y, cur.x, cur.y + dy) ||
+            !step(cur.x + dx, cur.y, nx, ny) ||
+            !step(cur.x, cur.y + dy, nx, ny))
         )
           continue; // no corner cutting, not even across a cliff corner
-        const g = cur.g + (dx && dy ? 1.41 : 1);
+        const effort = cost?.(nx, ny) ?? 1;
+        const g = cur.g + (dx && dy ? 1.41 : 1) * (Number.isFinite(effort) ? Math.max(1, effort) : 1);
         const k = key(nx, ny);
         if (g >= (best.get(k) ?? Infinity)) continue;
         best.set(k, g);
