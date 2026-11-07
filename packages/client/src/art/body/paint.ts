@@ -23,6 +23,7 @@ import {
   frameOf,
   project,
   solve,
+  legPointAt,
   torsoAt,
   type BodyType,
   type Dims,
@@ -49,7 +50,9 @@ export interface Garments {
   gloves?: { ramp: Ramp; cuff: number };
   belt?: { ramp: Ramp; buckle?: number };
   /** breastplate (and pauldrons) */
-  plate?: { ramp: Ramp; pauldrons?: boolean; trim?: number };
+  plate?: { ramp: Ramp; pauldrons?: boolean | 'L' | 'R'; chest?: boolean; trim?: number };
+  kneeGuards?: Ramp;
+  bracers?: Ramp;
   mantle?: Ramp;
   sash?: Ramp;
   scarf?: Ramp;
@@ -185,7 +188,7 @@ export function paintBody(ctx: Ctx, dir: number, pose: Pose, look: BodyLook, opt
       return { ramp: gm.belt.ramp };
     }
     if (gm.apron && v > 0.15 && dz < shoulderH - 2.5 && dz > -1.6) return { ramp: gm.apron };
-    if (gm.plate && dz >= 0.9) {
+    if (gm.plate && gm.plate.chest !== false && dz >= 0.9) {
       if (gm.plate.trim !== undefined && (dz < 1.5 || (v > 0.8 && Math.abs(u) < 0.12)))
         return { ramp: gm.plate.ramp, ink: gm.plate.trim };
       return { ramp: gm.plate.ramp };
@@ -232,7 +235,8 @@ export function paintBody(ctx: Ctx, dir: number, pose: Pose, look: BodyLook, opt
     const fwd = norm(cross(right, spineUp));
     const c = add(j.pelvis, mul(spineUp, dz));
     const [w, dd] = torsoAt(d, dz);
-    ellipse(g, P, c, right, fwd, w, dd, torsoPart, (u, v) => torsoMat(dz, u, v), dz > t1 - 0.4 / K);
+    const ease = look.plate && look.plate.chest !== false ? 0.65 : look.vest ? 0.5 : look.top ? 0.3 : 0;
+    ellipse(g, P, c, right, fwd, w + ease, dd + ease, torsoPart, (u, v) => torsoMat(dz, u, v), dz > t1 - 0.4 / K);
   }
   // the neck
   const neckPart = g.part();
@@ -302,6 +306,10 @@ export function paintBody(ctx: Ctx, dir: number, pose: Pose, look: BodyLook, opt
       legMat(d.hipZ + (d.ankleZ + d.shin - d.hipZ) * t),
     );
     capsule(g, P, knee, ankle, d.rShin[0], d.rShin[1], part, (_p, t) => legMat(d.ankleZ + d.shin * (1 - t)));
+    if (look.kneeGuards) {
+      const guard = add(knee, [1.1, 0, 0.3]);
+      sphere(g, P, guard, 1.9, g.part(), () => ({ ramp: look.kneeGuards! }));
+    }
     // the foot: heel under the ankle to the toes
     const heel: V3 = [
       ankle[0] - (toe[0] - ankle[0]) * 0.18,
@@ -309,24 +317,21 @@ export function paintBody(ctx: Ctx, dir: number, pose: Pose, look: BodyLook, opt
       Math.max(0.5, ankle[2] - d.ankleZ + 0.5),
     ];
     const fp = g.part();
-    capsule(g, P, heel, toe, look.boots ? 1.0 : 0.85, look.boots ? 0.95 : 0.75, fp, (p) => legMat(Math.min(p[2], 0.5)));
+    capsule(g, P, heel, toe, look.boots ? 1.5 : 1.15, look.boots ? 1.3 : 1.0, fp, (p) => legMat(Math.min(p[2], 0.5)));
   }
 
   // ── hanging garments: skirts, robes, coat tails (they enclose the legs, so they follow the stride) ───────────────
   if (look.skirt) {
     const sk = look.skirt;
     const part = g.part();
-    const top = d.hipZ + 0.6;
+    const top = j.pelvis[2] + 0.6;
+    const hem = Math.max(0.4, sk.hem + j.pelvis[2] - d.hipZ);
     const fwd0 = norm(cross(hipAxis, [0, 0, 1]));
-    for (let z = top; z >= sk.hem - 0.01; z -= 0.4 / K) {
-      const k = (top - z) / Math.max(1, top - sk.hem);
+    for (let z = top; z >= hem - 0.01; z -= 0.4 / K) {
+      const k = (top - z) / Math.max(1, top - hem);
       // where the legs are at this height: the cloth must contain them
-      const legAt = (hip: V3, knee: V3, ankle: V3): V3 => {
-        if (z >= knee[2]) return lerp(hip, knee, (hip[2] - z) / Math.max(0.01, hip[2] - knee[2]));
-        return lerp(knee, ankle, Math.min(1, (knee[2] - z) / Math.max(0.01, knee[2] - ankle[2])));
-      };
-      const a = legAt(j.hipL, j.kneeL, j.ankleL),
-        b = legAt(j.hipR, j.kneeR, j.ankleR);
+      const a = legPointAt(j.hipL, j.kneeL, j.ankleL, z),
+        b = legPointAt(j.hipR, j.kneeR, j.ankleR, z);
       const mid = lerp(a, b, 0.5);
       const c: V3 = [j.pelvis[0] * (1 - k) + mid[0] * k, j.pelvis[1] * (1 - k) + mid[1] * k, z];
       const spreadF = Math.abs((a[0] - b[0]) * fwd0[0] + (a[1] - b[1]) * fwd0[1]) / 2;
@@ -336,7 +341,7 @@ export function paintBody(ctx: Ctx, dir: number, pose: Pose, look: BodyLook, opt
         dd = Math.max(d0 + sk.flare * 0.8 * k, spreadF + d.rShin[0] + 0.6);
       ellipse(g, P, c, hipAxis, fwd0, w, dd, part, (u, v) => {
         if (sk.open && v > 0.7 && Math.abs(u) < 0.25 && z < top - 1.5) return null;
-        if (sk.trim !== undefined && z < sk.hem + 0.5) return { ramp: sk.ramp, ink: sk.trim };
+        if (sk.trim !== undefined && z < hem + 0.5) return { ramp: sk.ramp, ink: sk.trim };
         return { ramp: sk.ramp };
       });
     }
@@ -350,6 +355,7 @@ export function paintBody(ctx: Ctx, dir: number, pose: Pose, look: BodyLook, opt
       wr = side === 'L' ? j.wristL : j.wristR;
     const part = g.part();
     const armMat = (s: number): Mat => {
+      if (look.bracers && s >= 0.55 && s <= 0.88) return { ramp: look.bracers };
       if (look.gloves && s >= 1 - look.gloves.cuff) return { ramp: look.gloves.ramp };
       if (look.top && s <= look.top.sleeve) {
         if (look.top.trim !== undefined && s > look.top.sleeve - 0.08 && look.top.sleeve < 1)
@@ -365,10 +371,10 @@ export function paintBody(ctx: Ctx, dir: number, pose: Pose, look: BodyLook, opt
     capsule(g, P, wr, hand, d.hand, d.hand, g.part(), () =>
       look.gloves ? { ramp: look.gloves.ramp } : { ramp: skin },
     );
-    if (look.plate?.pauldrons) {
+    if (look.plate?.pauldrons === true || look.plate?.pauldrons === side) {
       const pp = g.part();
       const c = add(sh, [0, 0, 0.3]);
-      sphere(g, P, c, 1.9, pp, (n) =>
+      sphere(g, P, c, 2.5, pp, (n) =>
         look.plate!.trim !== undefined && n[2] < -0.3
           ? { ramp: look.plate!.ramp, ink: look.plate!.trim }
           : { ramp: look.plate!.ramp },
@@ -414,18 +420,18 @@ export function paintBody(ctx: Ctx, dir: number, pose: Pose, look: BodyLook, opt
   // ── head: the reference's pixel map with the chin on the neck, then hair, hat and beard ───────────────────────────
   const hm = HEADS[look.body][REF_DIR[dir]!]!;
   const chin = add(j.neck, mul(spineUp, 0.6));
-  const centre = add(chin, mul(spineUp, 3.5));
+  const centre = add(chin, mul(spineUp, 4.8));
   const hc = P(centre);
   const headPart = g.part();
-  const x0 = Math.round(hc.x - hm.cx * 0.875 - 0.5),
-    y0 = Math.round(hc.y) - 3;
+  const x0 = Math.round(hc.x - hm.cx - 0.5),
+    y0 = Math.round(hc.y) - 5;
   const toneOf: Record<string, number> = { '1': 0, '2': 1, '3': 2, '4': 3 };
   if (opts.sculpt || K !== 1) {
     // a carved head: skull, nose and eye sockets modelled at the figure's scale, with its hair or hat
     const ox = Math.round(hc.x - 0.5),
       oy = Math.round(hc.y);
     const parts: Record<number, number> = {};
-    for (const px of headStamp(dir, look.gear, K * 0.875, true)) {
+    for (const px of headStamp(dir, look.gear, K * 1.35, true)) {
       const ramp =
         px.mat === M_SKIN || px.mat === M_EYE
           ? skin
@@ -449,7 +455,7 @@ export function paintBody(ctx: Ctx, dir: number, pose: Pose, look: BodyLook, opt
     const ux = b.x - a.x,
       uy = b.y - a.y;
     const haired = !!look.gear.cut && look.gear.cut !== 'bald';
-    sphere(g, P, centre, 3.15, headPart, (n) =>
+    sphere(g, P, centre, 4.7, headPart, (n) =>
       haired && n[0] * ux - n[2] * uy > -0.1 ? { ramp: look.hair } : { ramp: skin },
     );
     g.render(ctx);
@@ -461,32 +467,22 @@ export function paintBody(ctx: Ctx, dir: number, pose: Pose, look: BodyLook, opt
     for (let x = 0; x < row.length; x++) {
       const ch = row[x]!;
       if (ch === '.') continue;
-      const depth = hc.depth + 3.2;
+      const depth = hc.depth + 4.5;
       // spectacles: glinting lenses joined by a dark bridge
       if (look.glasses && e0 >= 0 && x >= e0 && x <= e1)
-        g.zset(
-          x0 + Math.floor(x * 0.875),
-          y0 + Math.floor(y * 0.875),
-          depth,
-          headPart,
-          skin,
-          -1,
-          ch === 'e' ? C.fog : C.night,
-        );
-      else if (ch === 'e')
-        g.zset(x0 + Math.floor(x * 0.875), y0 + Math.floor(y * 0.875), depth, headPart, skin, -1, look.eyes);
-      else if (ch === 'b')
-        g.zset(x0 + Math.floor(x * 0.875), y0 + Math.floor(y * 0.875), depth, headPart, look.hair, 0);
+        g.zset(x0 + x, y0 + y, depth, headPart, skin, -1, ch === 'e' ? C.fog : C.night);
+      else if (ch === 'e') g.zset(x0 + x, y0 + y, depth, headPart, skin, -1, look.eyes);
+      else if (ch === 'b') g.zset(x0 + x, y0 + y, depth, headPart, look.hair, 0);
       else if (ch === 'm') {
-        const mx = x0 + Math.floor(x * 0.875),
-          my = y0 + Math.floor(y * 0.875);
+        const mx = x0 + x,
+          my = y0 + y;
         g.zset(mx, my, depth, headPart, skin, 1, look.lips ?? -1);
         if (look.mouth && look.mouth % 5 === 0) g.zset(mx, my + 1, depth, headPart, skin, 0);
         if (look.mouth && look.mouth % 5 === 1) g.zset(mx + 1, my, depth, headPart, skin, 1, look.lips ?? -1);
-      } else g.zset(x0 + Math.floor(x * 0.875), y0 + Math.floor(y * 0.875), depth, headPart, skin, toneOf[ch] ?? 2);
+      } else g.zset(x0 + x, y0 + y, depth, headPart, skin, toneOf[ch] ?? 2);
     }
   });
-  const stamp = headStamp(dir, look.gear, 0.875);
+  const stamp = headStamp(dir, look.gear, 1.35);
   if (stamp.length) {
     const hairPart = g.part(),
       hatPart = g.part(),

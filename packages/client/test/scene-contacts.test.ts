@@ -60,7 +60,7 @@ it('anchors each carried model to the correct posed hand through every direction
               g = propGrip(kind, 1, p.face),
               h = personGripOf(d, f, kind === 'lute' ? 'L' : 'R', body);
             expect(p.x + g.x * scale).toBeCloseTo((h.x - 24) * scale);
-            expect(p.y + g.y * scale).toBeCloseTo((h.y - 48) * scale);
+            expect(p.y + g.y * scale).toBeCloseTo((h.y - 56) * scale);
             expect(p.behind).toBe(d === 1 || d >= 6);
           }
 });

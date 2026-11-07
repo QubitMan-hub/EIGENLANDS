@@ -33,6 +33,8 @@ export function applyCatalog(look: BodyLook, outfit: Outfit): BodyLook {
     look.apron = undefined;
     look.cape = undefined;
     look.plate = undefined;
+    look.kneeGuards = undefined;
+    look.bracers = undefined;
     look.mantle = undefined;
     if (i >= 30 && i < 40) look.plate = { ramp: t.ramp as Ramp, pauldrons: true };
     if (i >= 43) look.skirt = { ramp: t.ramp as Ramp, hem: 2, flare: 1.6, trim: t.ramp[3] };

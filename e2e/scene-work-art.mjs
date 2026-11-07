@@ -1,7 +1,7 @@
 import { chromium } from 'playwright-core';
 import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync } from 'node:fs';
-const out = 'docs/validation/arrival-work-actions';
+const out = process.argv[3] ?? 'docs/validation/arrival-work-actions';
 mkdirSync(out, { recursive: true });
 const b = await chromium.launch({
   executablePath: process.env.CHROME ?? '/usr/bin/chromium',
@@ -11,7 +11,7 @@ try {
   const p = await b.newPage();
   await p.goto(process.argv[2] ?? 'http://localhost:5174');
   const r = await p.evaluate(async () => {
-    const { renderPersonCanvas, OUTFITS } = await import('/src/art/actors.ts');
+    const { PERSON_H, PERSON_W, renderPersonCanvas, OUTFITS } = await import('/src/art/actors.ts');
     const { actionKeys } = await import('/src/art/person-actions.ts');
     const { carryPlacement, propGrip } = await import('/src/art/scene-contact.ts');
     const props = await import('/src/art/scene-props.ts');
@@ -71,7 +71,7 @@ try {
               fr.height * 2,
             );
           if (pl.behind) draw();
-          ctx.drawImage(person, bx - 48, by - 96, 96, 96);
+          ctx.drawImage(person, bx - PERSON_W, by - PERSON_H * 2, PERSON_W * 2, PERSON_H * 2);
           if (!pl.behind) draw();
           ctx.fillStyle = '#1c2630';
           ctx.font = '12px monospace';

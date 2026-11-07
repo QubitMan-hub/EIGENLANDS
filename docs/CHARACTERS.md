@@ -3,7 +3,7 @@
 Every person in Eigenlands is drawn on one of two base bodies: the player, every resident, traveller, guard and
 royal, and the humanoid statues too. Clothes, armour, hair and held items are layers on that body, and each
 animation is a pose of one shared skeleton. Code: `packages/client/src/art/body/`. References:
-`assets/reference/characters/` (the male and female walk sheets, hair, eyes and mouths).
+`art-source/reference-pack/` (hero identities, male/female walk sheets, clothing catalogs and house materials).
 
 ![review board](validation/characters/review-board.png)
 
@@ -12,10 +12,10 @@ animation is a pose of one shared skeleton. Code: `packages/client/src/art/body/
 The supplied reference-pack overhaul supersedes the older door-first calibration. See [current status and proof](ART_OVERHAUL_STATUS.md).
 
 - Camera remains the established 2:1 view, `sx=(x−y)·16`, `sy=(x+y)·8`. Character rendering scale is unchanged. The latest user request brings Normal/Close camera framing one integer scale step nearer; Far remains available.
-- The recorded pre-overhaul player silhouette was 34 visible world/screen pixels at 1× zoom. The current capture measures 42; characters were not reduced to fit buildings.
-- Nominal male/female skeleton heights are now 36/35 px, with seven-pixel heads and long legs (hips at 18/17.5). This is about five heads per adult rather than the previous compressed proportions.
+- The recorded pre-overhaul player silhouette was 34 visible world/screen pixels at 1× zoom. The latest hero capture measures 44, up from 42 before the fidelity correction; characters were not reduced to fit buildings.
+- Nominal male/female skeleton heights are now 38/37 px, with purposeful 12-row directional faces and fuller clothed silhouettes. Hips remain at 18/17.5; reference limb, hand and boot volumes replace the earlier narrow five-head approximation.
 - Latest user correction: doorway clearance is 44 px, walls 50 px. This lowers the initial 50/60 px geometry while retaining adult world height. Footprints, door coordinates and collision remain unchanged in this stage.
-- Cells are **48×48**, expanded sideways for dodge/death poses, with the skeleton ground origin at (24,45) and the sprite bottom-centred. Name labels use `PERSON_TOP=44`.
+- Cells are **48×56**, padded sideways for dodge/death and above for hair/hats, with ground origin (24,53) and the sprite bottom-centred. Padding does not enlarge or stretch the art. Name labels use `PERSON_TOP=50`.
 - Children retain their intentional shorter stature. Statues share the new proportions at their established magnification; QubitMan's internal canvas was enlarged with a compensating offset to retain pedestal contact.
 
 ## How a frame is made

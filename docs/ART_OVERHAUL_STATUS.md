@@ -2,6 +2,12 @@
 
 User specification: [complete request](design/art-overhaul-request.md). This supersedes earlier scale guidance that reduced characters to fit doors. Preserve identities and gameplay, use the supplied art designs, keep the elevated 2:1 camera, and fit world architecture to people.
 
+## Latest fidelity correction — supersedes the narrow-body foundation below
+
+Both split archives were reanalysed from all 20 original sheets and verified against their manifest. Players and NPCs now use fuller anatomy/clothing, 12-row directional faces and larger hair/headwear volumes; the two hero presets follow the supplied armour and garment cuts. Cells are 48×56 with eight pixels of transparent top padding and ground origin (24,53); camera scale and ground contact do not change. Equipment and reins use the actual body type. Surface houses now use catalog-inspired clapboard/terracotta, timber/plaster/slate, log/shingle and fieldstone/thatch construction, with clearer roof joints, shutters, stone chimneys and doorway-height canopies.
+
+[Analysis, comparisons, proof and remaining limits](validation/reference-fidelity/README.md). Earlier seven-pixel head/48×48 descriptions below are historical stage evidence, not the current target. The full catalog and architecture conversion remains incomplete.
+
 ## Asset availability — received
 
 Both split archives are extracted under `art-source/reference-pack`. All 20 PNGs and the category notes are preserved; checksums and dimensions are recorded in [inventory](validation/reference-pack-inventory.json). The earlier transfer block is resolved. Catalogs remain reference drafts, not validated atlases.

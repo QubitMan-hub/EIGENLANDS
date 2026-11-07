@@ -107,6 +107,7 @@ export function outfitFromAppearance(base: Outfit, a: Appearance, wearOwnDress: 
   const jerkin = a.dress === 3;
   return {
     ...o,
+    referenceHero: undefined,
     shirt: jerkin ? LINEN : ramp,
     pants: PANTS[PANTS_FOR[a.dressColor]!]!,
     boots: BOOTS,

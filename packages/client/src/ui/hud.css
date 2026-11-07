@@ -561,7 +561,7 @@ body:has(#settings:not([hidden])) #voice-chip {
 }
 .look-canvas canvas {
   width: 96px;
-  height: 96px;
+  height: auto;
   image-rendering: pixelated;
 }
 .look-turn {

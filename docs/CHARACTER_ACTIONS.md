@@ -7,7 +7,7 @@ The current action table has 31 directional families. Preserve append-only frame
 ## Current implementation — 27 October 2026
 
 Superseded by the modular character system — see [CHARACTERS.md](CHARACTERS.md). Players and residents now share two
-base bodies (29 px man, 28 px woman, calibrated to the 34 px door) in one 32×48 cell, with clothes, hair and held items
+reference-based male/female bodies in one 48×56 padded cell, with clothes, hair and held items
 as layers on a shared skeleton; every frame id below is a pose of that skeleton. The frame ids, timing and contact
 keys described here are unchanged.
 

@@ -1,0 +1,162 @@
+[
+  {
+    "file": "animals/farm-animals.png",
+    "matchesManifest": true,
+    "width": 1448,
+    "height": 1086,
+    "transparentFraction": 0.5428,
+    "partialAlphaFraction": 0.4555
+  },
+  {
+    "file": "animals/mounted-riders.png",
+    "matchesManifest": true,
+    "width": 1236,
+    "height": 1272,
+    "transparentFraction": 0.5063,
+    "partialAlphaFraction": 0.4932
+  },
+  {
+    "file": "animals/woodland-animals.png",
+    "matchesManifest": true,
+    "width": 1448,
+    "height": 1086,
+    "transparentFraction": 0.5475,
+    "partialAlphaFraction": 0.4511
+  },
+  {
+    "file": "characters/female-base-walk-draft.png",
+    "matchesManifest": true,
+    "width": 1263,
+    "height": 1246,
+    "transparentFraction": 0.5915,
+    "partialAlphaFraction": 0.4078
+  },
+  {
+    "file": "characters/female-isometric-draft.png",
+    "matchesManifest": true,
+    "width": 1536,
+    "height": 1024,
+    "transparentFraction": 0.3897,
+    "partialAlphaFraction": 0.6103
+  },
+  {
+    "file": "characters/female-single-view-actions.png",
+    "matchesManifest": true,
+    "width": 1254,
+    "height": 1254,
+    "transparentFraction": 0.5284,
+    "partialAlphaFraction": 0.4702
+  },
+  {
+    "file": "characters/male-base-walk-draft.png",
+    "matchesManifest": true,
+    "width": 1263,
+    "height": 1245,
+    "transparentFraction": 0.5795,
+    "partialAlphaFraction": 0.4201
+  },
+  {
+    "file": "characters/male-isometric-draft.png",
+    "matchesManifest": true,
+    "width": 1536,
+    "height": 1024,
+    "transparentFraction": 0.3874,
+    "partialAlphaFraction": 0.6126
+  },
+  {
+    "file": "characters/male-single-view-actions.png",
+    "matchesManifest": true,
+    "width": 1254,
+    "height": 1254,
+    "transparentFraction": 0.4911,
+    "partialAlphaFraction": 0.5086
+  },
+  {
+    "file": "customization/boots.png",
+    "matchesManifest": true,
+    "width": 1774,
+    "height": 887,
+    "transparentFraction": 0.469,
+    "partialAlphaFraction": 0.5294
+  },
+  {
+    "file": "customization/eyes.png",
+    "matchesManifest": true,
+    "width": 1774,
+    "height": 887,
+    "transparentFraction": 0.771,
+    "partialAlphaFraction": 0.2275
+  },
+  {
+    "file": "customization/hair.png",
+    "matchesManifest": true,
+    "width": 1774,
+    "height": 887,
+    "transparentFraction": 0.4501,
+    "partialAlphaFraction": 0.5484
+  },
+  {
+    "file": "customization/mouths.png",
+    "matchesManifest": true,
+    "width": 1774,
+    "height": 887,
+    "transparentFraction": 0.8585,
+    "partialAlphaFraction": 0.14
+  },
+  {
+    "file": "customization/pants.png",
+    "matchesManifest": true,
+    "width": 1774,
+    "height": 887,
+    "transparentFraction": 0.3391,
+    "partialAlphaFraction": 0.6588
+  },
+  {
+    "file": "customization/shorts.png",
+    "matchesManifest": true,
+    "width": 1774,
+    "height": 887,
+    "transparentFraction": 0.4077,
+    "partialAlphaFraction": 0.5913
+  },
+  {
+    "file": "customization/tops.png",
+    "matchesManifest": true,
+    "width": 1774,
+    "height": 887,
+    "transparentFraction": 0.3476,
+    "partialAlphaFraction": 0.6515
+  },
+  {
+    "file": "environment/farmland.png",
+    "matchesManifest": true,
+    "width": 1536,
+    "height": 1024,
+    "transparentFraction": 0.5902,
+    "partialAlphaFraction": 0.4098
+  },
+  {
+    "file": "environment/houses.png",
+    "matchesManifest": true,
+    "width": 1536,
+    "height": 1024,
+    "transparentFraction": 0.4101,
+    "partialAlphaFraction": 0.5899
+  },
+  {
+    "file": "environment/rocks.png",
+    "matchesManifest": true,
+    "width": 1536,
+    "height": 1024,
+    "transparentFraction": 0.5173,
+    "partialAlphaFraction": 0.4827
+  },
+  {
+    "file": "environment/trees.png",
+    "matchesManifest": true,
+    "width": 1233,
+    "height": 1275,
+    "transparentFraction": 0.4777,
+    "partialAlphaFraction": 0.5223
+  }
+]

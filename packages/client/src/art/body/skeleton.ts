@@ -2,8 +2,8 @@
  * The skeleton every person shares: two body types measured from the reference sheets, posed in the body's own 3D
  * space and projected with the game's camera.
  *
- * Scale: preserve the user's recorded 34 px visible height floor. The reference pack calls for long legs and
- * about five heads per adult; bodies now stand 36/35 px with seven-pixel skulls. Houses now provide 44 px clearance, per the user’s shorter-door correction.
+ * Scale: the reference heroes have substantial limbs, boots and readable faces. Keep their standing height;
+ * volume comes from anatomy, never a stretched sprite. Houses provide 44 px clearance.
  *
  * Body space: a = forward, b = toward the body's right hand, z = up, in art pixels, origin on the ground between the
  * feet. The camera is the game's 2:1 projection: a body facing ground direction f (8 headings, 45° apart on the
@@ -38,63 +38,63 @@ export interface Dims {
 
 export const DIMS: Record<BodyType, Dims> = {
   male: {
-    height: 36,
+    height: 38,
     hipZ: 18,
-    hipHalf: 1.6,
+    hipHalf: 2.35,
     thigh: 8.6,
     shin: 8.3,
     ankleZ: 1.2,
-    foot: 2.2,
-    shoulderZ: 27,
-    shoulderHalf: 4.8,
-    neckZ: 29,
+    foot: 2.7,
+    shoulderZ: 26,
+    shoulderHalf: 6.8,
+    neckZ: 28,
     upperArm: 5.2,
     forearm: 4.8,
-    hand: 1.05,
-    rThigh: [2.0, 1.4],
-    rShin: [1.35, 1.0],
-    rUpper: [1.35, 1.15],
-    rFore: [1.05, 0.9],
+    hand: 1.35,
+    rThigh: [2.8, 2.0],
+    rShin: [2.0, 1.5],
+    rUpper: [2.1, 1.75],
+    rFore: [1.75, 1.4],
     torso: [
-      [-1.4, 3.0, 1.9],
-      [0, 3.3, 2.2],
-      [1.6, 3.15, 2.0],
-      [2.6, 3.1, 2.0],
-      [4.6, 3.45, 2.3],
-      [6.4, 4.5, 2.4],
-      [7.4, 4.3, 2.2],
-      [8.2, 2.8, 1.8],
-      [9.0, 1.4, 1.2],
+      [-1.4, 3.9, 2.8],
+      [0, 4.1, 3.1],
+      [1.6, 3.8, 2.9],
+      [2.6, 3.8, 3.0],
+      [4.6, 4.6, 3.4],
+      [6.1, 5.0, 3.5],
+      [7.0, 4.7, 3.2],
+      [7.7, 3.0, 2.2],
+      [8.0, 1.5, 1.4],
     ],
   },
   female: {
-    height: 35,
+    height: 37,
     hipZ: 17.5,
-    hipHalf: 1.75,
+    hipHalf: 2.45,
     thigh: 8.4,
     shin: 8.0,
     ankleZ: 1.1,
-    foot: 1.9,
-    shoulderZ: 26,
-    shoulderHalf: 4.3,
-    neckZ: 28,
+    foot: 2.5,
+    shoulderZ: 25,
+    shoulderHalf: 5.8,
+    neckZ: 27,
     upperArm: 5.0,
     forearm: 4.6,
-    hand: 0.95,
-    rThigh: [1.75, 1.25],
-    rShin: [1.25, 0.9],
-    rUpper: [1.05, 0.95],
-    rFore: [0.95, 0.82],
+    hand: 1.25,
+    rThigh: [2.35, 1.75],
+    rShin: [1.75, 1.25],
+    rUpper: [1.8, 1.5],
+    rFore: [1.5, 1.25],
     torso: [
-      [-1.4, 3.2, 2.0],
-      [0, 3.6, 2.4],
-      [1.2, 3.4, 2.1],
-      [2.6, 2.75, 1.8],
-      [4.4, 3.0, 2.6],
-      [5.6, 3.2, 2.6],
-      [6.8, 3.35, 2.1],
-      [7.6, 2.5, 1.7],
-      [8.4, 1.2, 1.1],
+      [-1.4, 4.1, 2.8],
+      [0, 4.4, 3.2],
+      [1.2, 4.0, 2.9],
+      [2.6, 3.45, 2.65],
+      [4.4, 3.9, 3.3],
+      [5.6, 4.25, 3.3],
+      [6.5, 4.25, 3.0],
+      [7.1, 2.8, 2.1],
+      [7.5, 1.4, 1.3],
     ],
   },
 };
@@ -128,7 +128,7 @@ export function frameOf(dir: number, twist = 0): Frame {
   return { f, r: [-f[1], f[0]] };
 }
 export const AX = 24,
-  AY = 45;
+  AY = 53;
 /** body space to screen (cell pixels), and nearness to the camera */
 export function project(p: V3, fr: Frame): { x: number; y: number; depth: number } {
   const gx = p[0] * fr.f[0] + p[1] * fr.r[0],
@@ -164,6 +164,16 @@ export function reach(r: V3, t: V3, l: number): V3 {
   const d = sub(t, r),
     dl = len(d);
   return dl <= l ? t : add(r, scale(d, l / dl));
+}
+
+/** A cloth support on a bent leg. Seated knees can be above hips: never extrapolate a bone. */
+export function legPointAt(hip: V3, knee: V3, ankle: V3, z: number): V3 {
+  const thigh = z >= Math.min(hip[2], knee[2]) && z <= Math.max(hip[2], knee[2]);
+  const a = thigh ? hip : knee,
+    b = thigh ? knee : ankle,
+    dz = b[2] - a[2];
+  const t = Math.abs(dz) < 0.01 ? 0 : Math.max(0, Math.min(1, (z - a[2]) / dz));
+  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + dz * t];
 }
 
 /**

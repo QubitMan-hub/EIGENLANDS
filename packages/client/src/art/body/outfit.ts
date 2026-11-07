@@ -95,7 +95,7 @@ function buildLook(o: Outfit): BodyLook {
     beard: o.beard ?? (o.moustache ? o.hair : undefined),
     top: { ramp: o.shirt, sleeve: longSleeve ? 1 : 0.5, hem: robe ? 0 : -1.8, trim: o.trim, collar: true },
     legs: { ramp: o.pants, hem: 1 },
-    boots: { ramp: o.boots, top: robe ? 2 : 3.4 },
+    boots: { ramp: o.boots, top: robe ? 2 : 5.5 },
     belt: robe && !o.sash ? undefined : { ramp: BELT, buckle: o.trim ?? C.e6 },
     glow: o.glow,
     trim: o.trim,
@@ -111,6 +111,24 @@ function buildLook(o: Outfit): BodyLook {
   if (o.scarf) look.scarf = o.scarf;
   if (o.apron) look.apron = o.apron;
   if (o.cape) look.cape = { ramp: o.cape, length: 13, trim: o.trim };
+  if (o.referenceHero) {
+    const steel = o.referenceHero === 'steel';
+    look.top!.sleeve = steel ? 0 : 0.25;
+    look.boots = { ramp: o.boots, top: steel ? 7 : 7.5, cuff: o.boots };
+    look.gloves = { ramp: o.boots, cuff: 0.35 };
+    look.plate = { ramp: o.plate ?? PLATE, pauldrons: steel ? 'L' : true, chest: !steel, trim: o.trim };
+    look.kneeGuards = steel ? PLATE : undefined;
+    look.bracers = steel ? (o.plate ?? PLATE) : undefined;
+    if (steel) look.belt!.ramp = [C.e0, C.c0, C.c1, C.r1];
+    look.skirt = {
+      ramp: steel ? [C.e1, C.e2, C.e3, C.e4, C.e5] : [C.slate, C.t0, C.t1, C.t2, C.w5],
+      hem: steel ? 13.5 : 13,
+      flare: 0.4,
+      open: steel,
+      trim: o.trim,
+    };
+    if (!steel) look.legs!.hem = 14;
+  }
   return applyCatalog(look, o);
 }
 

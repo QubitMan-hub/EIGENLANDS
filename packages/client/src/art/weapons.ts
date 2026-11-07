@@ -18,14 +18,14 @@ export class HeldWeapons {
   private sheets = new Map<string, Texture>();
   private frames = new Map<string, Texture>();
 
-  texture(id: HeldId, dir: number, frame: number): Texture {
+  texture(id: HeldId, dir: number, frame: number, body: 'male' | 'female' = 'male'): Texture {
     const f = Math.max(0, frame),
-      key = `${id}:${dir}:${f}`;
+      key = `${id}:${body}:${dir}:${f}`;
     const old = this.frames.get(key);
     if (old) return old;
     const extra = f >= 30,
       cols = extra ? 1 : 30,
-      sheetKey = extra ? `${id}:${f}` : id;
+      sheetKey = extra ? `${id}:${body}:${f}` : `${id}:${body}`;
     let sheet = this.sheets.get(sheetKey);
     if (!sheet) {
       const { canvas, ctx } = makeCanvas(HELD_W * cols, HELD_H * 8);
@@ -33,7 +33,7 @@ export class HeldWeapons {
         for (let column = 0; column < cols; column++) {
           const n = extra ? f : column;
           const b = makeCanvas(HELD_W, HELD_H),
-            g = personGrip(d, n),
+            g = personGrip(d, n, body),
             x = g.x + HELD_AX - PERSON_W / 2,
             y = g.y + HELD_AY - PERSON_H;
           const w = isWeaponId(id) ? WEAPONS[id] : null,
@@ -59,9 +59,9 @@ export class HeldWeapons {
             : id === 'can' && !aimedTool
               ? 0
               : thrust || aimedTool
-                ? personGrip(d, SHOT_FRAME).angle
+                ? personGrip(d, SHOT_FRAME, body).angle
                 : resting
-                  ? personGrip(d, 0).x < PERSON_W / 2
+                  ? personGrip(d, 0, body).x < PERSON_W / 2
                     ? -2.05
                     : -1.1
                   : bow && n < 22

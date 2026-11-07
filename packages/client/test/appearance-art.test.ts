@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { APPEARANCE_COUNTS, packAppearance } from '@eigenlands/shared';
 import { OUTFITS } from '../src/art/actors';
+import { lookOf } from '../src/art/body/outfit';
 import {
   DRESS_RAMPS,
   DRESS_STYLES,
@@ -33,6 +34,9 @@ describe('appearance art mapping', () => {
     expect(o.skin).toBe(SKIN_RAMPS[2]);
     expect(o.body).toBe('female');
     expect(o.cut).toBeUndefined();
+    // Selecting a cloth mantle must not inherit the reference hero's knee plates and short armour skirt.
+    expect(lookOf(o).kneeGuards).toBeUndefined();
+    expect(lookOf(o).skirt).toBeUndefined();
   });
 
   it('wears the chosen haircut of the modular system over the older style', () => {

@@ -1,4 +1,6 @@
 import { ArrivalGarden } from './arrival';
+import { appearanceOf } from '../art/appearance';
+import { lookOf } from '../art/body/outfit';
 import { contactShadow, castProjection } from './grounding';
 import { actionPose, actionFrame, meleeAction, meleeFrame, type PersonAction } from '../art/person-actions';
 import { LIVESTOCK_AX, LIVESTOCK_AY, LIVESTOCK_H, LIVESTOCK_W, livestockTexture } from '../art/livestock';
@@ -190,6 +192,7 @@ const PARRY_MS = 260;
 
 interface ActorView {
   personFrame?: number;
+  personBody?: 'male' | 'female';
   deathAt?: number;
   dashAt?: number;
   parryAt?: number;
@@ -1962,6 +1965,8 @@ export class Game {
               ? screenDir(use!.x - x, use!.y - y)
               : screenDir(fx, fy);
         const lookIx = ((look % OUTFITS.length) + OUTFITS.length) % OUTFITS.length;
+        const appearance = appearanceOf(s?.app ?? 0);
+        v.personBody = appearance ? (appearance.body ? 'female' : 'male') : lookOf(OUTFITS[lookIx]!).body;
         v.sprite.texture = s?.app
           ? this.sheets.styled(lookIx, s.app, dirOf(sd.x, sd.y), frame, s.parts)
           : this.sheets.person(lookIx, dirOf(sd.x, sd.y), frame);
@@ -2010,7 +2015,7 @@ export class Game {
           const direction = dirOf(sd.x, sd.y);
           // Stable idle uses the body's resolved breath column, so the hand never drifts off the grip.
           const pose = v.personFrame;
-          v.held.texture = this.heldWeapons.texture(heldItem, direction, pose);
+          v.held.texture = this.heldWeapons.texture(heldItem, direction, pose, v.personBody);
           v.held.visible = true;
           v.held.y = v.sprite.y;
           v.held.alpha = v.sprite.alpha;
@@ -2142,6 +2147,7 @@ export class Game {
         const grip = personGrip(
           dirOf(sd.x, sd.y),
           fisher.personFrame ?? actionFrame('fish', f.bite ? 0.5 : 0.85, this.settings().reducedMotion),
+          fisher.personBody,
         );
         const tipX = fisher.root.x + grip.x - PERSON_W / 2 + Math.cos(grip.angle) * 13;
         const tipY = fisher.root.y + fisher.held.y + grip.y - PERSON_H + Math.sin(grip.angle) * 13;

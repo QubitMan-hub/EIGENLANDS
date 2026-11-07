@@ -133,7 +133,7 @@ try {
     document.body.append(heading);
     const preview = document.createElement('canvas');
     preview.width = 8 * PERSON_W * 4;
-    preview.height = OUTFITS.length * 48 * 4;
+    preview.height = OUTFITS.length * PERSON_H * 4;
     const p = preview.getContext('2d');
     p.imageSmoothingEnabled = false;
     for (let i = 0; i < OUTFITS.length; i++)

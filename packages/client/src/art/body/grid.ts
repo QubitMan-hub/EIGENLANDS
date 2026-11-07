@@ -7,7 +7,7 @@
 import { put, type Ctx, type Ramp } from '../shade';
 
 export const GW = 48,
-  GH = 48;
+  GH = 56;
 
 /** the key light in screen terms (x right, y down, toward the camera): from the upper left, in front */
 const LX = -0.55,

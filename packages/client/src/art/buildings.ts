@@ -68,7 +68,7 @@ const tex = (canvas: HTMLCanvasElement): Texture => {
 interface Style {
   wall: Ramp;
   timber: Ramp | null;
-  kind: 'plaster' | 'stone' | 'siding';
+  kind: 'plaster' | 'stone' | 'siding' | 'log';
   shutter: Ramp | null;
   roof: Ramp;
   roofKind: 'thatch' | 'slate' | 'tile' | 'shingle';
@@ -112,39 +112,43 @@ const x1Of = (b: Building) => b.x + b.w;
 const HOUSE_KINDS = ['house', 'farmhouse', 'inn', 'store', 'hall', 'smithy'];
 const STYLES: Style[] = [
   {
-    wall: [C.e4, C.e5, C.e6, C.e7, C.white],
-    timber: [C.e0, C.e1, C.e2, C.e3],
-    kind: 'plaster',
-    shutter: [C.g1, C.g2, C.g3, C.g4],
-    roof: [C.e1, C.e2, C.e3, C.e4, C.e5, C.e6],
-    roofKind: 'thatch',
-    trim: C.e1,
-  },
-  {
-    wall: [C.slate, C.steel, C.mist, C.fog, C.pale],
-    timber: null,
-    kind: 'stone',
-    shutter: null,
-    roof: [C.night, C.slate, C.steel, C.mist, C.fog],
-    roofKind: 'slate',
-    trim: C.slate,
-  },
-  {
-    wall: [C.w0, C.slate, C.w1, C.steel, C.mist],
+    // Catalog: blue clapboard cottage, terracotta tiles and cream corner boards.
+    wall: [C.w0, C.w1, C.w2, C.w3, C.steel],
     timber: null,
     kind: 'siding',
-    shutter: [C.fog, C.pale, C.white, C.white],
+    shutter: [C.e0, C.e1, C.e2, C.e3],
     roof: [C.e0, C.r0, C.r1, C.r2, C.r3, C.r4],
     roofKind: 'tile',
     trim: C.pale,
   },
   {
-    wall: [C.mist, C.fog, C.pale, C.white, C.white],
+    // Catalog: warm plaster infill, substantial oak framing and blue slate.
+    wall: [C.e4, C.e5, C.e6, C.e7, C.white],
     timber: [C.e0, C.e1, C.e2, C.e3],
     kind: 'plaster',
-    shutter: [C.g1, C.g2, C.g3, C.g4],
-    roof: [C.e0, C.e1, C.e2, C.e3, C.e4],
+    shutter: [C.e0, C.e1, C.e2, C.e3],
+    roof: [C.night, C.w1, C.steel, C.mist, C.fog],
+    roofKind: 'slate',
+    trim: C.e2,
+  },
+  {
+    // Catalog: rounded log courses and warm overlapping wood shingles.
+    wall: [C.e0, C.e1, C.e2, C.e3, C.e4],
+    timber: null,
+    kind: 'log',
+    shutter: [C.e0, C.e1, C.e2, C.e3],
+    roof: [C.e0, C.e1, C.e2, C.e3, C.e4, C.e5],
     roofKind: 'shingle',
+    trim: C.e2,
+  },
+  {
+    // Catalog: fieldstone under bound honey-coloured thatch.
+    wall: [C.slate, C.steel, C.mist, C.fog, C.pale],
+    timber: null,
+    kind: 'stone',
+    shutter: [C.e0, C.e1, C.e2, C.e3],
+    roof: [C.e2, C.e3, C.e4, C.e5, C.e6, C.e7],
+    roofKind: 'thatch',
     trim: C.e1,
   },
 ];
@@ -455,9 +459,8 @@ const REALM_STYLES: Style[] = [
   ),
 ];
 const GRANITE: Ramp = [C.slate, C.steel, C.mist, C.fog, C.pale];
-const GLASS_DAY: Ramp = [C.w1, C.w2, C.w3, C.w5, C.w6];
+const GLASS_DAY: Ramp = [C.e1, C.e2, C.e3, C.e5, C.w6];
 const GLASS_NIGHT: Ramp = [C.r4, C.r5, C.r6, C.r7, C.r7];
-const BRICK: Ramp = [C.r0, C.r1, C.r2, C.r3];
 
 type Face = 'top' | 'south' | 'east';
 /** material callback: palette index, -1 transparent, or GLASS + ramp index (night-swappable) */
@@ -651,20 +654,21 @@ function wallMat(b: Building, st: Style, seed: number, interior: boolean, capC: 
     // windows
     if (winTile(face, x, y) && z >= 15 && z < 33) {
       const realm = buildingRealm(b);
-      const inU = fu >= 0.28 && fu <= 0.72 && (realm === 'surface' || Math.hypot((fu - 0.5) * 28, (z - 24) * 0.65) < 5),
+      const inU = fu >= 0.2 && fu <= 0.8 && (realm === 'surface' || Math.hypot((fu - 0.5) * 28, (z - 24) * 0.65) < 5),
         inZ = z >= 17 && z < 31;
       if (inU && inZ) {
         const frame =
-          fu < 0.34 || fu > 0.66 || z < 18 || z >= 30 || Math.abs(fu - 0.5) < 0.03 || Math.abs(z - 24) < 0.6;
+          fu < 0.27 || fu > 0.73 || z < 18 || z >= 30 || Math.abs(fu - 0.5) < 0.035 || Math.abs(z - 24) < 0.6;
         if (frame) return st.kind === 'siding' ? C.pale : st.timber ? st.timber[1]! : C.slate;
         const refl = ix % 8 < 2 && iz > 22;
         const gi = refl ? 4 : z > 25 ? 3 : z > 21 ? 2 : 1;
         return GLASS + Math.max(0, Math.min(4, gi + (face === 'east' ? -1 : 0)));
       }
-      if (z < 17 && z >= 15 && fu > 0.24 && fu < 0.76)
+      if (z < 17 && z >= 15 && fu > 0.13 && fu < 0.87)
         return z < 16 ? C.steel : st.kind === 'siding' ? C.white : C.pale; // sill
-      if (st.shutter && inZ && ((fu > 0.14 && fu < 0.28) || (fu > 0.72 && fu < 0.86))) {
-        return iz % 3 === 0 ? st.shutter[0]! : rampAt(st.shutter, 0.6 + lightOff, ix, iz);
+      if (st.shutter && inZ && ((fu > 0.03 && fu < 0.2) || (fu > 0.8 && fu < 0.97))) {
+        const rail = iz === 20 || iz === 28;
+        return rail ? st.shutter[0]! : rampAt(st.shutter, 0.6 + lightOff, ix, iz);
       }
     }
     // corner quoins / posts at the building corners
@@ -697,6 +701,14 @@ function wallMat(b: Building, st: Style, seed: number, interior: boolean, capC: 
         iz,
       );
     }
+    if (st.kind === 'log') {
+      const course = Math.floor((z - 6) / 5),
+        v = z - 6 - course * 5;
+      // Rounded, stacked timbers: continuous highlight and a shaded contact seam.
+      if (v < 0.7) return st.wall[0]!;
+      const end = atCorner && course % 2 === (face === 'south' ? 0 : 1);
+      return rampAt(st.wall, 0.48 + lightOff + (v > 3.1 ? 0.18 : v < 1.5 ? -0.1 : 0) + (end ? 0.15 : 0), ix, iz);
+    }
     // a stone ground floor under a plastered, timbered upper storey (a third of the plastered houses)
     if (st.kind === 'plaster' && hash2(seed, 3, 7, 88) < 0.34 && z < 19) {
       const row = Math.floor((z - 6) / 6);
@@ -707,17 +719,18 @@ function wallMat(b: Building, st: Style, seed: number, interior: boolean, capC: 
     }
     // plaster + timber framing
     const tim = st.timber!;
-    const post = fu < 0.07 || fu > 0.93 || atCorner;
+    const panel = (u - (face === 'south' ? b.x : b.y)) % 2;
+    const post = panel < 0.1 || panel > 1.9 || atCorner;
     const beam = (z >= 6 && z < 8) || z >= WALL_H - 3 || (z >= 34 && z < 36);
     const brace =
       !winTile(face, x, y) &&
       z >= 8 &&
       z < 34 &&
-      Math.abs((fu - 0.08) * 16 * 1.6 - (z - 8)) < 1.4 &&
+      Math.abs((panel - 0.1) * 14 - (z - 8)) < 1.4 &&
       !(face === 'south' && Math.floor(x) === b.doorX);
-    if (post || beam || brace) return rampAt(tim, 0.55 + lightOff + (post && fu < 0.07 ? 0.15 : 0), ix, iz);
-    const n = hash2(seed, ix >> 1, iz >> 1, 6);
-    return rampAt(st.wall, 0.6 + lightOff + (n - 0.5) * 0.12 - (z > 30 ? 0.05 : 0), ix, iz);
+    if (post || beam || brace) return rampAt(tim, 0.5 + lightOff + (post && panel < 0.1 ? 0.18 : 0), ix, iz);
+    // Broad clean infill; wear belongs along framing, not random spots across the wall.
+    return rampAt(st.wall, 0.6 + lightOff - (z > WALL_H - 6 ? 0.07 : 0), ix, iz);
   };
 }
 
@@ -749,7 +762,13 @@ function buildRoof(
   const hv = (k: number) => hash2(seed, k, 77, 91);
   const realmIdx = b.style >= 4 ? Math.floor((b.style - 4) / 5) % FORMS_BY_REALM.length : 0;
   const house = realm === 'surface' && shape === 'gable' && HOUSE_KINDS.includes(b.kind);
-  const form: Form = house ? FORMS_BY_REALM[realmIdx]![Math.floor(hv(1) * 6)]! : 'plain';
+  const form: Form = house
+    ? b.style < 4
+      ? hv(1) < 0.75
+        ? 'plain'
+        : 'cross'
+      : FORMS_BY_REALM[realmIdx]![Math.floor(hv(1) * 6)]!
+    : 'plain';
   const church = b.kind === 'church' && realm === 'surface';
   const pitch = house ? 0.92 + hv(2) * 0.34 : church ? 1.9 : 1;
   // a third of the houses wear another colour of roof than their kingdom's default
@@ -761,7 +780,7 @@ function buildRoof(
     [3, 0, 5],
     [1, 3, 6],
   ][realmIdx]!;
-  const alt = house && hv(3) < 0.32 ? ALT_ROOFS[family[Math.floor(hv(4) * family.length)]!]! : null;
+  const alt = house && b.style >= 4 && hv(3) < 0.32 ? ALT_ROOFS[family[Math.floor(hv(4) * family.length)]!]! : null;
   const rk = alt ? alt.kind : st.roofKind;
   const baseRise = Math.min(span * 11 * pitch * (form === 'gambrel' ? 1.2 : 1), church ? 76 : 54);
   const rise =
@@ -850,7 +869,7 @@ function buildRoof(
   // a round corner tower under a cone of roof tiles, on some of the larger houses (the kingdoms of keeps favour them)
   const R0 = alt ? alt.ramp : st.roof;
   const turretOdds = realmIdx === 2 || realmIdx === 0 || realmIdx === 5 ? 0.3 : 0.16;
-  const towered = house && b.w >= 7 && b.h >= 6 && form !== 'barrel' && hv(7) < turretOdds;
+  const towered = house && b.style >= 4 && b.w >= 7 && b.h >= 6 && form !== 'barrel' && hv(7) < turretOdds;
   const vols: Vol[] = [];
   const palace = b.id.endsWith('.palace') && realm === 'surface';
   const watch = b.kind === 'tower' && realm === 'surface';
@@ -1025,7 +1044,12 @@ function buildRoof(
     vBot = Math.min(vBot, v.zmin);
   }
   const hasCanopy =
-    realm === 'surface' && (b.kind === 'hall' || b.kind === 'inn' || b.kind === 'store' || b.id === 'bakery');
+    realm === 'surface' &&
+    (b.kind === 'hall' ||
+      b.kind === 'inn' ||
+      b.kind === 'store' ||
+      b.id === 'bakery' ||
+      (ordinary && b.style < 4 && (b.style === 0 || design > 0.65)));
   const top = Math.floor(Math.min((X0 + Y0) * 8 - chTop, ...vols.map((v) => (v.x0 + v.y0) * 8 - v.ztop))) - 3,
     bot =
       Math.ceil(
@@ -1132,9 +1156,9 @@ function buildRoof(
                 row = Math.floor((chTop - z) / 3);
               c =
                 Math.floor(chTop - z) % 3 === 2 || Math.floor(u + (row % 2) * 3) % 6 === 0
-                  ? C.r0
+                  ? C.slate
                   : rampAt(
-                      BRICK,
+                      GRANITE,
                       (face === 'south' ? 0.75 : 0.35) +
                         (hash2(seed, Math.floor((u + (row % 2) * 3) / 6), row, 8) - 0.5) * 0.3,
                       px,
@@ -1283,12 +1307,14 @@ function buildRoof(
               const fr = apx + off - k * len,
                 fz = dpx - row * rowH;
 
+              // Quantised ramps need a deliberate value step for both joints;
+              // weak vertical seams disappeared and made slate look like stripes.
               if (fz > rowH - 0.85)
-                t -= 0.12; // under the overlapping lip
-              else if (fr < 0.65)
-                t -= 0.07; // staggered vertical joint
+                t -= 0.2; // under the overlapping lip
+              else if (fr < 0.9)
+                t -= 0.18; // staggered vertical joint
               else if (fz > rowH - 1.7)
-                t += 0.08; // lit tile bevel
+                t += 0.1; // lit tile bevel
               else if (rk === 'tile' && fr < 1.8) t += 0.06;
             }
             // eave darkening: the lowest course reads as an overhang
@@ -1395,15 +1421,16 @@ function buildRoof(
     if (hasCanopy) {
       const iso = new Iso(ctx, -L, -top);
       const u = b.doorX * 16 - 4,
-        v = (b.y + b.h) * 16 - 1;
+        v = (b.y + b.h) * 16 - 1,
+        canopyZ = DOOR_H + 8;
       // Cantilevered entry cover: a sloping plane with actual fascia and brackets.
-      for (const x of [u + 1, u + 23]) iso.line3(x, v, 24, x, v + 11, 31, C.e1);
-      iso.para(iso.X(u, v), iso.Y(u, v, 36), 24, 12, -12, 10, (s, t) => {
+      for (const x of [u + 1, u + 23]) iso.line3(x, v, canopyZ - 12, x, v + 11, canopyZ - 5, C.e1);
+      iso.para(iso.X(u, v), iso.Y(u, v, canopyZ), 24, 12, -12, 10, (s, t) => {
         if (b.kind === 'inn' || b.id === 'bakery')
           return Math.floor(s * 6) % 2 ? (t > 0.8 ? C.e5 : C.e7) : (st.shutter ?? R0)[t > 0.8 ? 1 : 2]!;
         return Math.floor(t * 12) % 4 === 0 ? R0[1]! : R0[3]!;
       });
-      iso.left(u, v + 12, 30, 24, 2, st.trim);
+      iso.left(u, v + 12, canopyZ - 6, 24, 2, st.trim);
     }
     for (const d of dormers) windows.push({ x: alongX ? d.a : d.n1, y: alongX ? d.n1 : d.a });
   });

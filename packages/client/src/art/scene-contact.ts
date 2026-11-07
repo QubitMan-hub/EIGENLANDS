@@ -1,5 +1,6 @@
 import { personGripOf } from './body';
 import type { Facing } from './isokit';
+import { GW, GH } from './body/grid';
 export type CarryKind = 'bucket' | 'sack' | 'broom' | 'pole' | 'lute' | 'lantern';
 /** The actual grip on each model, measured from its tile-centre ground anchor. */
 export function propGrip(kind: CarryKind, phase = 0, face: Facing = 'sw'): { x: number; y: number } {
@@ -38,5 +39,10 @@ export function carryPlacement(
   const face: Facing = [1, 2, 4, 6].includes(dir) ? 'se' : 'sw';
   const hand = personGripOf(dir, frame, kind === 'lute' ? 'L' : 'R', body),
     grip = propGrip(kind, phase, face);
-  return { x: (hand.x - 24 - grip.x) * scale, y: (hand.y - 48 - grip.y) * scale, face, behind: dir === 1 || dir >= 6 };
+  return {
+    x: (hand.x - GW / 2 - grip.x) * scale,
+    y: (hand.y - GH - grip.y) * scale,
+    face,
+    behind: dir === 1 || dir >= 6,
+  };
 }

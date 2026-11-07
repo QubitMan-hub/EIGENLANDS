@@ -25,7 +25,7 @@ import {
 } from './shade';
 
 /**
- * Characters, enemies and fauna. Players are native 32×48 frames; residents retain original 24×32 frames in 8 iso directions with an idle pair (breathing) and an
+ * Characters, enemies and fauna. Players and residents use native 48×56 cells in eight iso directions with an idle pair (breathing) and an
  * 8-frame walk, four strike/recovery poses and eight run poses. Every direction is drawn (never mirrored) so the key light always comes from the top-left.
  */
 export const DIR_DOWN = 0,
@@ -39,10 +39,9 @@ export const DIR_DOWN_LEFT = 4,
 /** frame 0 = idle, 1..8 = walk cycle */
 export const WALK_FRAMES = 9;
 export const PERSON_W = 48;
-export const PERSON_H = 48;
-/** a name label's height above the sprite's base: just over an adult's head (the 1.78 m man is 29 px from the feet at
- * cell row 45, see art/body/skeleton.ts) */
-export const PERSON_TOP = 44;
+export const PERSON_H = 56;
+/** Clear the full hair/hat silhouette; the extra cell padding never changes world scale. */
+export const PERSON_TOP = 50;
 /** residents share the players' bodies and cell (the modular character system, art/body) */
 export const NPC_W = PERSON_W,
   NPC_H = PERSON_H;
@@ -68,6 +67,8 @@ export type HatStyle = 'cap' | 'brim' | 'beret' | 'helm' | 'hood' | 'circlet' | 
 /** Garment cut: how far the skirts hang and what sits on the shoulders. Plain tunic when absent. */
 export type DressStyle = 'robe' | 'coat' | 'mantle' | 'plated';
 export interface Outfit {
+  /** Supplied hero's layered armour cut; appearance choices can still replace its garments. */
+  referenceHero?: 'steel' | 'teal';
   parts?: AppearanceParts;
   shirt: Ramp;
   pants: Ramp;
@@ -136,21 +137,22 @@ const BOOTS = cloth([C.ink, C.e0, C.e1, C.e2]);
 /** Player appearance presets (chosen from the session id) and NPC outfits. */
 export const OUTFITS: Outfit[] = [
   {
-    // Supplied male hero: steel over navy, leather harness and a burgundy sash.
+    // Supplied male hero: navy under steel shoulders, leather harness and ochre tassets.
+    referenceHero: 'steel',
     body: 'male',
     cut: 'messy',
-    shirt: cloth([C.night, C.slate, C.steel, C.mist]),
+    shirt: cloth([C.night, C.w0, C.w1, C.w2]),
     pants: PANTS.navy,
     hair: HAIR.brown,
     skin: SKIN_LIGHT,
-    boots: BOOTS,
-    plate: cloth([C.slate, C.steel, C.mist, C.fog, C.pale]),
-    sash: cloth([C.r0, C.r1, C.r2, C.r3]),
-    vest: cloth([C.e0, C.e1, C.e2, C.e3]),
+    boots: cloth([C.e0, C.e1, C.e2, C.e3, C.e4]),
+    plate: cloth([C.night, C.w1, C.b0, C.b1, C.w5]),
+    sash: cloth([C.e0, C.e1, C.e2, C.e3]),
     trim: C.e6,
   },
   {
     // Supplied female hero: red high ponytail, pale bodice and teal/gold waist panel.
+    referenceHero: 'teal',
     body: 'female',
     cut: 'high_pony',
     shirt: cloth([C.steel, C.mist, C.fog, C.pale, C.white]),
@@ -702,10 +704,14 @@ Object.assign(NPC_LOOKS, {
 } satisfies Record<string, Outfit>);
 
 // ───────────────────────── people ─────────────────────────
-/** Where the holding hand is and which way a held item points, in the 48×48 cell: from the same skeleton the body is
+/** Where the holding hand is and which way a held item points, in the 48×56 cell: from the same skeleton the body is
  * painted from, so a tool never drifts off the grip. */
-export function personGrip(dir: number, frame: number): { x: number; y: number; angle: number } {
-  return personGripOf(dir, frame);
+export function personGrip(
+  dir: number,
+  frame: number,
+  body: BodyType = 'male',
+): { x: number; y: number; angle: number } {
+  return personGripOf(dir, frame, 'R', body);
 }
 function drawPerson(ctx: Ctx, dir: number, frame: number, o: Outfit, _seed: number): void {
   paintPersonFrame(ctx, dir, frame, lookOf(o));

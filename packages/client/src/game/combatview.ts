@@ -87,6 +87,7 @@ export interface CombatActor {
   mountFront?: Sprite;
   riderReins?: Graphics;
   personFrame?: number;
+  personBody?: 'male' | 'female';
   /** projectiles: who fired it, its smoothed flight direction (world) and the last few iso points it passed */
   owner?: string;
   flight?: { dx: number; dy: number; px: number; py: number; path: Array<[number, number]> };
@@ -801,7 +802,7 @@ export class CombatView {
       const sd = screenDir(fx, fy),
         dir = dirOf(sd.x, sd.y);
       for (let i = 0; i < 2; i++) {
-        const hand = personGripOf(dir, v.personFrame ?? 234, i ? 'R' : 'L');
+        const hand = personGripOf(dir, v.personFrame ?? 234, i ? 'R' : 'L', v.personBody);
         const end = saddled.reins[i]!;
         v.riderReins
           .moveTo(hand.x - PERSON_W / 2 + v.sprite.x, hand.y - PERSON_H + v.sprite.y)

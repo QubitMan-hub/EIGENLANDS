@@ -1,3 +1,7 @@
+<!-- Current reference fidelity correction -->
+
+The latest character/house correction is documented in [reference fidelity](validation/reference-fidelity/README.md). Preserve fuller body proportions, 48×56 padded cells with ground origin (24,53), body-specific equipment contacts and the four reference house material families. Do not restore the old narrow seven-pixel faces or shrink people. Custom saved outfits override hero armour cuts. Full catalog silhouettes and all 12 functional house designs remain unfinished.
+
 # Latest: arrival garden and NPC work
 
 Main updates through `0acac7a` are integrated, including the new shield/parry/held-item rules and settlement/pixel-grid changes. See [arrival garden and work validation](validation/arrival-garden/README.md) for this batch. The starting shrine now has a compact isometric social garden and route guidance, preserving terrain, saves and player builds. Carry/sweep/lute clips and model-grip attachments improve town scenes. Unreachable decorative NPC routes wait/replan rather than teleport. Preserve all existing action IDs; new families follow parry. The broader [art overhaul status](ART_OVERHAUL_STATUS.md) remains open.

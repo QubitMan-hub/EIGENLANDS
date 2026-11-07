@@ -255,7 +255,7 @@ export class SceneLife {
     const id = a.heldSprite ? ((a.heldSprite as unknown as { id?: HeldId }).id ?? null) : null;
     const held = this.d.held();
     if (!a.heldSprite || !id || !held) return;
-    a.heldSprite.texture = held.texture(id, dir, frame);
+    a.heldSprite.texture = held.texture(id, dir, frame, unpackAppearance(a.app)?.body === 1 ? 'female' : 'male');
     a.heldSprite.y = a.body.y;
     a.heldSprite.scale.set(a.body.scale.y);
     a.root.setChildIndex(a.heldSprite, dir === 1 || dir >= 6 ? 1 : 2);
@@ -267,7 +267,7 @@ export class SceneLife {
   /**
    * What the actor holds, as an isometric sprite riding along with the body: a bucket at the hand, a sack on the
    * shoulder, a broom or the lamplighter's pole standing at the side, a lute across the chest, a lantern at night.
-   * Grip coordinates come from the current 48×48 skeletal frame, including body type and child scale.
+   * Grip coordinates come from the current 48×56 skeletal frame, including body type and child scale.
    */
   private carryDraw(a: SceneActor, what: CarryKind | 'none', k = 0): void {
     a.carryKind = what;

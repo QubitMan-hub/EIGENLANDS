@@ -6,7 +6,7 @@ import { DIMS, frameOf, project, solve, type Joints, type V3 } from './skeleton'
 
 export type { BodyLook } from './paint';
 
-/** paint one frame of a person (game DIR_*, frame id) into a 48×48 cell; returns the solved joints */
+/** paint one frame of a person (game DIR_*, frame id) into a 48×56 cell; returns the solved joints */
 export function paintPersonFrame(ctx: Ctx, dir: number, frame: number, look: BodyLook): Joints {
   const d = dimsOf(look.body, look.scale ?? 1);
   return paintBody(ctx, dir, poseOf(d, frame, dir), look);
@@ -19,8 +19,8 @@ export function polishPerson(buf: PixBuf): void {
 
 const gripCache = new Map<number, { x: number; y: number; angle: number }>();
 /**
- * The holding (right) hand in the 48×48 cell and the screen angle a held tool or weapon points along, for a frame —
- * solved from the reference man's skeleton (the women's differs by under a pixel at the hand).
+ * The holding (right) hand in the 48×56 cell and the screen angle a held tool or weapon points along, for a frame —
+ * solved from the selected body's skeleton, including its own shoulder and arm dimensions.
  */
 export function personGripOf(
   dir: number,

@@ -41,10 +41,10 @@ try {
       g.input.setMovementMode('mouse');
       const x = b.doorX + 0.5,
         y = b.doorY - 0.3;
-      return { x: g.world.x + (x - y) * 16 * g.scale, y: g.world.y + (x + y) * 8 * g.scale };
+      return g.life.d.toScreen(x, y);
     }, b);
     await page.mouse.move(target.x, target.y);
-    await page.mouse.down({ button: 'right' });
+    await page.mouse.down({ button: 'middle' });
     await page.waitForFunction(
       (b) => {
         const g = window.__eigen.game,
@@ -54,7 +54,7 @@ try {
       b,
       { timeout: 10000 },
     );
-    await page.mouse.up({ button: 'right' });
+    await page.mouse.up({ button: 'middle' });
     await page.waitForTimeout(400);
     await page.screenshot({ path: `${out}/interior-${i + 1}.png` });
     results.push({ id: b.id, entered: true });
