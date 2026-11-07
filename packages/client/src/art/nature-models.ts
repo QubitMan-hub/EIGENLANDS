@@ -108,7 +108,7 @@ export function wildlifeModel(id: string, frame: number, season: number): Prim[]
     p.push(ellipsoid([0, 0, 2], [length, 2.2, turtle ? 2.5 : 1.5], coat));
     if (turtle)
       p.push(
-        ellipsoid([-0.4, 0, 3], [3.5, 2.7, 2.2], (a, b, z) =>
+        ellipsoid([-0.4, 0, 3], [3.5, 2.7, 2.2], (a, b) =>
           Math.abs(a % 2.8) < 0.2 || Math.abs(b) < 0.2 ? accent : coat,
         ),
       );

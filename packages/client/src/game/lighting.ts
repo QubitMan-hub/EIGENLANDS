@@ -1,5 +1,5 @@
 import { Container, Graphics, RenderTexture, Sprite, Texture, type Renderer } from 'pixi.js';
-import { PALETTE, TILE_SIZE } from '@eigenlands/shared';
+import { PALETTE } from '@eigenlands/shared';
 import { makeCanvas } from '../art/draw';
 
 export interface Light {

@@ -74,7 +74,6 @@ import {
   type StepEvents,
   type StrikeShape,
   TICK_MS,
-  TILE_DEFS,
   PlayerState,
   ProjectileState,
   WorldState,
@@ -96,7 +95,6 @@ import {
   type FxMsg,
   type InputBatch,
   type InputCmd,
-  type PlayerSim,
   type PosSample,
   type Stack,
   type WelcomeMsg,
@@ -151,7 +149,6 @@ import {
   type EnemyKind,
   type SpawnOpts,
 } from '../game/enemies';
-import { TokenBucket } from '../rate';
 import type { RoomApi } from '../systems/api';
 import type { ServerClock } from '../systems/clock';
 import { handleChest, handleOpen, handleShelter } from '../systems/containers';
@@ -2133,12 +2130,6 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       for (const id of p.inView) if (!alive.has(id)) p.inView.delete(id);
     }
   }
-}
-
-/** Test/admin helper used by integration tests. */
-export function giveTo(room: WorldRoom, sessionId: string, stack: Stack): boolean {
-  const p = room.players.get(sessionId);
-  return !!p && giveStacks(p, [stack], false);
 }
 
 export function sanitizeName(n: unknown): string {

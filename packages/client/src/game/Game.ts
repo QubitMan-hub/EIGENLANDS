@@ -45,7 +45,6 @@ import {
   INTEREST_RADIUS,
   NPC_BY_ID,
   TILE_DEFS,
-  TILE_SIZE,
   ambientColor,
   SEASONS,
   chunkOf,
@@ -55,7 +54,6 @@ import {
   gameHour,
   season,
   PALETTE,
-  townFor,
   KINGDOMS,
   inRealmLand,
   townsFor,
@@ -80,7 +78,6 @@ import {
   type ToastMsg,
   type WelcomeMsg,
   type ForgePreviewReply,
-  CLIFF,
   LEVEL_PX,
   MAX_LEVEL,
   cottagerOf,
@@ -101,7 +98,6 @@ import {
   PERSON_H,
   PERSON_TOP,
   DIR_DOWN,
-  DIR_LEFT,
   type Sheets,
 } from '../art/actors';
 import { buildObjectArt, destroyObjectArt, type ObjectArt, type SeasonIdx } from '../art/objects';
@@ -114,20 +110,7 @@ import type { KeyMap } from '../input/keymap';
 import type { Net, NetHandlers } from '../net/session';
 import { Predictor } from '../net/prediction';
 import { ZOOM_TILES, cameraPixelScale, type Settings } from '../ui/ui';
-import {
-  depth,
-  isoX,
-  isoY,
-  lift,
-  occluded,
-  screenDir,
-  setLift,
-  softLevel,
-  tileDiamond,
-  unproject,
-  ISO_HH,
-  ISO_HW,
-} from './iso';
+import { depth, isoX, isoY, lift, occluded, screenDir, setLift, softLevel, tileDiamond, unproject } from './iso';
 import { Gameplay } from './gameplay';
 
 /** The Undercroft's ambient light: near-black, a little warm (torches and crystals do the rest). */
@@ -318,7 +301,6 @@ export class Game {
   private bobber = new Graphics();
   features = { aiDialogue: false };
   private portraitCache = new Map<string, string>();
-  private lastLocalSwing = 0;
   private hurtTimer = 0;
   accountInfo = '';
   /** test/screenshot aid: ?hour=12 pins the in-game clock */
@@ -604,7 +586,6 @@ export class Game {
     const old = this.art;
     this.art = buildObjectArt(s);
     this.objects.setArt(this.art);
-    this.worldObjs.setSeason(s);
     if (old) destroyObjectArt(old);
   }
 

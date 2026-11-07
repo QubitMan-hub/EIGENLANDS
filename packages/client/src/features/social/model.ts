@@ -175,9 +175,6 @@ export function parseCommand(raw: string, ctx: ParseCtx): Cmd {
       return { k: 'error', text: `Unknown command /${word}. Type /help for the list.` };
   }
 }
-
-/** Which tab a channel belongs to (system lines show everywhere). */
-export const tabOf = (ch: ChatMsg['ch']): Tab | null => (ch === 'system' ? null : ch);
 export const inTab = (m: ChatMsg, tab: Tab): boolean => tab === 'all' || m.ch === 'system' || m.ch === tab;
 
 type Store = Pick<Storage, 'getItem' | 'setItem'>;

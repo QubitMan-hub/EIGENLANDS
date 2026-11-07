@@ -48,8 +48,6 @@ const SEAMS: Record<string, Seam> = {
   cave_geode: { ramp: [C.q3, C.q5, C.q6, C.white, C.night], count: [1, 1], radius: [4.4, 5.2], glint: 1, thread: 0 },
 };
 
-const ROCK: Ramp = [C.ink, C.night, C.slate, C.steel, C.mist];
-
 /** 2D coordinates on one cube face: x across, y down the face (top: depth). */
 const faceXY = (face: number, s: number, t: number): [number, number] =>
   face === 0 ? [s * 16, t * 16] : [s * 16, (1 - t) * 13];

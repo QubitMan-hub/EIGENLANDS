@@ -3,7 +3,7 @@ import { createEnemy, stepEnemy, type EnemyHooks } from '../src/game/enemies';
 const hooks = (): EnemyHooks => ({ telegraph: () => {}, strike: () => {} });
 it('does not acquire or start a melee attack against a never-seen player through a wall', () => {
   const e = createEnemy('goblin', 0.5, 0.5, false);
-  const solid = (x: number, y: number) => x === 1;
+  const solid = (x: number) => x === 1;
   for (let t = 0; t < 80; t++)
     stepEnemy(e, 0.05, t, [{ id: 'p', x: 2.2, y: 0.5, alive: true }], solid, () => 0.5, hooks());
   expect(e.targetId).toBeNull();

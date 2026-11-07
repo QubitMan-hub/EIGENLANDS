@@ -1,4 +1,4 @@
-import { NPCS, RUMOR_TEMPLATES } from '@eigenlands/shared';
+import { RUMOR_TEMPLATES } from '@eigenlands/shared';
 
 export interface Rumor {
   id: number;
@@ -79,5 +79,3 @@ export class RumorBook {
     return this.list.length !== n;
   }
 }
-
-export const NPC_IDS = NPCS.map((n) => n.id);

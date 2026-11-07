@@ -213,7 +213,6 @@ export class WorldLife {
   private festival = false;
   private clock = 0;
   private budget = 1;
-  private fishing: Actor | null = null;
   /** where customers stand to browse: in front of each stall */
   private fronts: Array<{ x: number; y: number }> = [];
 
@@ -364,7 +363,6 @@ export class WorldLife {
     this.bunting = this.shows = null;
     this.rockets = [];
     this.sparks = [];
-    this.fishing = null;
     this.fronts = [];
     this.plan = [];
     this.card.hide();
@@ -768,7 +766,6 @@ export class WorldLife {
         a.root.addChild(a.extra);
         a.tx = east ? x + 2.8 : x + 0.5;
         a.ty = east ? y + 0.5 : y + 2.8;
-        this.fishing = a;
         return;
       }
     }

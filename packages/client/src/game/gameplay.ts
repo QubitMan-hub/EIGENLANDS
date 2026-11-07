@@ -107,7 +107,6 @@ export class Gameplay {
   } | null = null;
   private done = new Set<string>();
   private lastUse = 0;
-  private dialogueMsg: DialogueMsg | null = null;
   private chestUi: { el: HTMLElement; setChest(c: import('@eigenlands/shared').Slot[]): void } | null = null;
   private chestAt: { tx: number; ty: number } | null = null;
   private bang: HTMLElement | null = null;
@@ -465,7 +464,6 @@ export class Gameplay {
 
   onDialogue(m: DialogueMsg): void {
     this.acts.talked = true;
-    this.dialogueMsg = m;
     const net = this.d.net();
     const el = buildDialogue(
       { ...m, canChat: m.canChat && this.d.features().aiDialogue },

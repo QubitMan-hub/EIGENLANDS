@@ -1,7 +1,7 @@
-import { CHUNK_SIZE, CLIFF, MAX_LEVEL } from './constants';
+import { CHUNK_SIZE, MAX_LEVEL } from './constants';
 import { hash2 } from './rng';
 import { Simplex2D } from './simplex';
-import { T, TILE_DEFS } from './tiles';
+import { T } from './tiles';
 import { townFor } from './town';
 import { ruinOfCell } from './ruins';
 import { caveOfCell, caveShaftOfCell } from './caves';
@@ -603,6 +603,3 @@ function biomeIndex3(seed: number, x: number, y: number): number {
   if (data[i] === 255) data[i] = BIOMES.indexOf(biome3(seed, x, y));
   return data[i]!;
 }
-
-/** Tiles of this revision that are always passable (used by pathing/validation tools). */
-export const walkable3 = (tile: number): boolean => !(TILE_DEFS[tile]?.solid ?? true);

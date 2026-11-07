@@ -7,7 +7,6 @@ import {
   CHARGE_WIDTH,
   ELITE,
   ELITE_HP_MULT,
-  ENEMY_BY_KIND,
   ENEMY_DEFS,
   LEAP_RADIUS,
   LEAP_TIME,
@@ -180,7 +179,6 @@ export function createEnemy(kind: EnemyKind, x: number, y: number, night: boolea
 
 export const enemyDamage = (e: Enemy, mult = 1) =>
   Math.max(1, Math.round(e.def.damage * (e.night ? NIGHT_DMG_MULT : 1) * e.dmgMult * mult));
-export const defOf = (kind: number) => ENEMY_BY_KIND[kind]!;
 
 export interface Target {
   id: string;

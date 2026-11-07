@@ -47,8 +47,8 @@ function findSea(seed: number): { x: number; y: number } {
 }
 
 describe('sea collision', () => {
-  const water = (x: number, y: number) => x >= 0; // x >= 0 is sea, x < 0 is land
-  const land = Object.assign((x: number, y: number) => x >= 0, { sea: (x: number, _y: number) => x < 0 });
+  const water = (x: number) => x >= 0; // x >= 0 is sea, x < 0 is land
+  const land = Object.assign((x: number) => x >= 0, { sea: (x: number, _y: number) => x < 0 });
   void water;
   it('a walker is stopped by water; a sailor by land, and cannot dash', () => {
     const walker = newPlayerSim(-3.5, 0.5);

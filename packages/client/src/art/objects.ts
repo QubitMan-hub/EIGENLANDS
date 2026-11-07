@@ -46,8 +46,6 @@ const LEAF_AUT_R: Ramp = [C.c0, C.c1, C.c2, C.r3, C.c3, C.c4];
 const LEAF_AUT_Y: Ramp = [C.n1, C.n3, C.c3, C.c4, C.r6, C.r7];
 const PINE: Ramp = [C.n0, C.n0, C.n1, C.n2, C.t0, C.n3];
 const SNOW: Ramp = [C.mist, C.fog, C.pale, C.white, C.white];
-const BARK: Ramp = [C.e0, C.e1, C.e2, C.e3, C.e4];
-const WOOD: Ramp = [C.e1, C.e2, C.e3, C.e4, C.e5];
 const STONE: Ramp = [C.steel, C.mist, C.fog, C.fog, C.pale];
 const MOSS: Ramp = [C.g1, C.g2, C.g3, C.g4, C.g5];
 
@@ -147,7 +145,7 @@ export function drawBroadleaf(ctx: Ctx, seed: number, season: SeasonIdx): void {
     lump(ctx, 24, 58.5, 8, 2.2, SNOW, { seed, edge: 0 });
     return;
   }
-  const rampOf = (i: number): Ramp => {
+  const rampOf = (): Ramp => {
     if (season === 0) return LEAF_SPRING;
     if (season === 2) {
       const h = hash2(seed, 0, 0, 5);
@@ -167,12 +165,12 @@ export function drawBroadleaf(ctx: Ctx, seed: number, season: SeasonIdx): void {
     [cx - 1, 16, 10, 10],
     [cx - 3, 32, 12, 10],
   ];
-  const masses = lobes.map(([x, y, rx, ry], i) => ({
+  const masses = lobes.map(([x, y, rx, ry]) => ({
     x: x + (rng() - 0.5) * 4,
     y: y + (rng() - 0.5) * 4,
     rx: rx - rng() * 2,
     ry,
-    ramp: rampOf(i),
+    ramp: rampOf(),
   }));
   // Shade the crown as one canopy. Independent sphere lighting makes each branch look like a shiny ball.
   for (let y = 3; y < 45; y++)

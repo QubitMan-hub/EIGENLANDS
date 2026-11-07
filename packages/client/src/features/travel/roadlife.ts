@@ -1,6 +1,6 @@
 import { RIDER_SEAT_OFFSET } from '../../art/body/poses';
 import { actionFrame } from '../../art/person-actions';
-import { Container, Sprite, Text, Texture } from 'pixi.js';
+import { Container, Sprite, Text } from 'pixi.js';
 import {
   KINGDOMS,
   WAYFARER_BARKS,

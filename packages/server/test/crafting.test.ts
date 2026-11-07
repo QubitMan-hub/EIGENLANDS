@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { MSG, T, beatTimes, type RhythmStartMsg } from '@eigenlands/shared';
+import { MSG, beatTimes, type RhythmStartMsg } from '@eigenlands/shared';
 import type { App } from '../src/app';
 import { boot, count, flatten, give, hasToast, setDay, sleep, slotOf, spawn, tp, until, use, type Probe } from './p2';
 

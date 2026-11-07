@@ -41,7 +41,6 @@ export class Input {
   onPanel: ((a: 'inventory' | 'journal' | 'craft') => void) | null = null;
   /** Phase 3/4 actions: abilities, ultimate, board, chat, party (keys, gamepad and touch) */
   onAction: ((a: (typeof EXT_ACTIONS)[number], direct?: boolean) => void) | null = null;
-  private interactDown = false;
   /** ability armed with its key: the next left click fires it at the cursor (Esc or the same key disarms) */
   armed: (typeof EXT_ACTIONS)[number] | null = null;
   onArmChange: ((a: (typeof EXT_ACTIONS)[number] | null) => void) | null = null;
@@ -79,14 +78,10 @@ export class Input {
     this.touchHeld.clear();
     this.setStick(0, 0);
     this.mouse.left = this.mouse.right = false;
-    this.interactDown = false;
     this.setArmed(null);
   }
 
-  constructor(
-    private el: HTMLElement,
-    keys: KeyMap,
-  ) {
+  constructor(el: HTMLElement, keys: KeyMap) {
     this.keys = keys;
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);

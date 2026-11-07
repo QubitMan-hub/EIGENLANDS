@@ -82,13 +82,6 @@ const frames = (n: number, mk: (f: number) => ObjSprite): ObjSprite[] => Array.f
 const still = (s: ObjSprite, o: Partial<ObjSpriteDef> = {}): ObjSpriteDef => ({ frames: [s], fps: 0, ...o });
 const anim = (fs: ObjSprite[], fps: number, o: Partial<ObjSpriteDef> = {}): ObjSpriteDef => ({ frames: fs, fps, ...o });
 
-/** wooden board with a lit top edge and dark bottom edge */
-function plank(ctx: Ctx, x: number, y: number, w: number, h: number, seed = 1): void {
-  slab(ctx, x, y, w, h, WOOD, seed, 0.3);
-  put(ctx, x, y, C.e5, w, 1);
-  put(ctx, x, y + h - 1, C.e0, w, 1);
-}
-
 // ───────────────────────── crops ─────────────────────────
 const GROUND_FRUIT = new Set(['melon', 'pumpkin']);
 const HANGING_FRUIT = new Set(['eggplant']);
@@ -364,19 +357,6 @@ function chest(): ObjSpriteDef {
       }
       put(ctx, 8, 9, C.e6, 3, 4);
       put(ctx, 9, 10, C.e2);
-    }),
-  );
-}
-function sign(): ObjSpriteDef {
-  return still(
-    sprite(18, 22, 9, 20, (ctx) => {
-      slab(ctx, 8, 7, 2, 13, WOOD, 3, 0.3);
-      plank(ctx, 2, 2, 14, 8, 5);
-      put(ctx, 4, 4, C.e1, 10, 1);
-      put(ctx, 4, 6, C.e1, 8, 1);
-      put(ctx, 4, 8, C.e1, 6, 1);
-      put(ctx, 3, 3, C.fog);
-      put(ctx, 14, 8, C.fog);
     }),
   );
 }

@@ -1,7 +1,6 @@
 import { readHerd, advanceHerd } from '@eigenlands/shared';
 import {
   CROPS,
-  FARM_ANIMALS,
   ITEMS,
   LANTERN_RADIUS,
   T,
@@ -346,9 +345,4 @@ export function harvestCrop(room: RoomApi, p: ServerPlayer, o: WorldObj): void {
   questEvent(p, { type: 'harvest', target: crop, n: 1 });
   recordDeed(p, 'harvest', cropName(crop).toLowerCase(), room.wclock.day());
   if (n >= 3) room.village.rumor('harvest', p.name, cropName(crop));
-}
-
-export function describeShelter(sub: string): { max: number; animal: string; product: string } {
-  const f = FARM_ANIMALS[sub]!;
-  return { max: f.max, animal: f.animal, product: f.product };
 }

@@ -1134,8 +1134,7 @@ function realmBeast(form: number): Def {
         dead = a === 'death',
         bite = a === 'attack',
         hurt = a === 'hurt';
-      const sw = Math.sin(t * TAU),
-        sw2 = Math.sin(t * TAU * 2);
+      const sw = Math.sin(t * TAU);
       const R = (c: number, n = 4, hue = 9) => M(ramp(c, n, 2, { hue }));
       const eye = (c: number) => M(ramp(c, 2, 1), { glow: true });
       const glow = (c: number, n = 3) => M(ramp(c, n, 2), { glow: true });

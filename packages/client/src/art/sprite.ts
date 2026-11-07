@@ -48,11 +48,6 @@ function hueToward(h: number, target: number, deg: number): number {
   if (Math.abs(d) < deg) return target;
   return h + Math.sign(d) * deg;
 }
-export function mixHex(a: Hex, b: Hex, t: number): Hex {
-  const m = (s: number) => Math.round(((a >> s) & 255) * (1 - t) + ((b >> s) & 255) * t);
-  return (m(16) << 16) | (m(8) << 8) | m(0);
-}
-export const hexStr = (c: Hex): string => `#${(c & 0xffffff).toString(16).padStart(6, '0')}`;
 
 /**
  * A ramp around `base`, dark -> light: `below` darker steps whose hue slides toward plum/navy and `above` lighter steps
@@ -562,7 +557,6 @@ export function softShadow(rx: number, ry: number, strength = 1): Texture {
   shadowCache.set(key, t);
   return t;
 }
-export const SHADOW_TINT = SHADOW;
 
 // ───────────────────────── iso facing ─────────────────────────
 

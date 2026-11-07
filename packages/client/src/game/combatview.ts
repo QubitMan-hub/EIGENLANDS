@@ -48,7 +48,7 @@ import { STORM_FOOT, STORM_SIZE } from '../art/stormbound';
 /** tiles of travel per walk frame for each drawn model (0 = animate by time) */
 const MOVE_STRIDE: number[] = [0, 0.25, 0.18, 0, 0, 0.42, 0];
 import type { Sheets } from '../art/actors';
-import { DIR_LEFT, dirOf, ATTACK_FRAME, WALK_FRAMES, PERSON_W, PERSON_H } from '../art/actors';
+import { dirOf, ATTACK_FRAME, WALK_FRAMES, PERSON_W, PERSON_H } from '../art/actors';
 import type { Fx } from './fx';
 import { drawWorldBar } from './worldbar';
 import { eliteMods, factionOf } from '../ui/enemy-model';

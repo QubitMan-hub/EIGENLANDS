@@ -1,4 +1,3 @@
-import { CAVE_OY } from './undercroft';
 import { hash2 } from './rng';
 import { isSolid } from './tiles';
 import { townAt, townFor } from './town';

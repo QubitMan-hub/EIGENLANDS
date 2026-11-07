@@ -19,7 +19,6 @@ import {
   polish,
   poly,
   put,
-  rampAt,
   undithered,
   type Ctx,
   type Ramp,
@@ -926,7 +925,6 @@ export function buildActorSheets(): Sheets {
         [C.e3, C.e4, C.e5, C.e6],
         [C.g1, C.g2, C.g3, C.g4],
       ];
-      const skin = [SKIN_LIGHT, SKIN_MID, SKIN_DARK][i % 3]!;
       const hairStyles: HairStyle[] = [
         'short',
         'long',

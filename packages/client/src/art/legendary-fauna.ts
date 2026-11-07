@@ -1,7 +1,7 @@
 /** Original articulated creatures, authored in model space and baked to four isometric facings. */
 import { BESTIARY_KEYS, CREATURE_BLUEPRINTS, type BestiaryKey } from '@eigenlands/shared';
 import { ART_RGB as P } from './creature-pixels';
-import { ramp, rotX, type Mat, type Scene, type V3 } from './sprite';
+import { ramp, rotX, type Mat, type V3 } from './sprite';
 import type { Anim, Def } from './foes';
 export const NEW_CREATURE_KEYS = BESTIARY_KEYS.filter((k) => !['cow', 'sheep', 'pig', 'horse'].includes(k));
 export type NewCreatureKey = Exclude<BestiaryKey, 'cow' | 'sheep' | 'pig' | 'horse'>;

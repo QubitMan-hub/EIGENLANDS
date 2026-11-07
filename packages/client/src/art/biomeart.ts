@@ -9,10 +9,7 @@ import {
   buildStump,
   buildTallGrass,
   crown,
-  drawBroadleaf,
-  drawPine,
   toSprite,
-  trunk,
   type ObjSprite,
   type SeasonIdx,
 } from './objects';
@@ -27,39 +24,12 @@ export type BiomeArt = Partial<
   Record<Biome, Partial<Record<'tree' | 'rock' | 'tallgrass' | 'flowers' | 'stump', ObjSprite[]>>>
 >;
 
-const BARK_DARK: Ramp = [C.night, C.e0, C.e1, C.e2];
-const WILLOW: Ramp = [C.g0, C.g1, C.g2, C.g3, C.g4, C.g5];
 const GLADE: Ramp = [C.q0, C.w0, C.w1, C.w2, C.w3, C.w5];
 const GLADE_HI: Ramp = [C.w2, C.w3, C.w5, C.q7, C.w7];
 const VOID_BARK: Ramp = [C.ink, C.q0, C.q1, C.slate, C.steel];
 const CRY: Ramp = [C.q0, C.q1, C.q2, C.q3, C.q4, C.q6];
-const SANDSTONE: Ramp = [C.e2, C.e3, C.e4, C.e5, C.e6, C.e7];
 const CACTUS: Ramp = [C.g0, C.g1, C.g2, C.g3, C.g4, C.g5];
 const OBSIDIAN: Ramp = [C.ink, C.night, C.q0, C.q1, C.slate, C.steel];
-
-/** Fen willow: a short gnarled trunk under a drooping curtain of strands. */
-function drawWillow(ctx: Ctx, seed: number): void {
-  const rng = mulberry32(seed);
-  trunk(ctx, 24, 36, 60, 7, seed);
-  line(ctx, 22, 40, 14, 31, C.e1);
-  line(ctx, 26, 39, 33, 31, C.e2);
-  crown(ctx, rng, 24, 24, 19, 12, 12, () => WILLOW, seed);
-  // hanging strands, lit on the left, fading into shade low down
-  for (let i = 0; i < 30; i++) {
-    const x = 7 + Math.floor(rng() * 34),
-      y0 = 22 + Math.floor(rng() * 10),
-      len = 10 + Math.floor(rng() * 16);
-    for (let j = 0; j < len; j++) {
-      const k = j / len;
-      put(
-        ctx,
-        x + (j > len * 0.7 ? (x < 24 ? -1 : 1) : 0),
-        y0 + j,
-        k < 0.3 ? (x < 24 ? C.g4 : C.g3) : k < 0.7 ? C.g2 : C.g1,
-      );
-    }
-  }
-}
 
 /** Fen snag: a dead, leaning trunk with a few bare limbs and shelf fungus. */
 function drawSnag(ctx: Ctx, seed: number, ramp: Ramp, fungus: number): void {

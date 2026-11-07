@@ -590,7 +590,7 @@ if (mode === 'construction') {
   const objects = new ObjectViews(store, shadows, ents);
   objects.setArt(buildObjectArt(season));
   const wobjs = new WorldObjViews(store, shadows, ents);
-  wobjs.setSeason(season);
+
   const buildings = new BuildingViews(seed, shadows, ents, roofs);
   const wfx = new WeatherFx(weatherLayer);
   const W = window.innerWidth,

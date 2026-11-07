@@ -490,10 +490,4 @@ export function renderBossFrame(ctx: Ctx, theme: BossTheme, s: BossFrameState): 
   });
 }
 
-/** Split "Veyr, the Stormbound Colossus" style names; fall back to the theme's title. */
-export function bossHeading(def: BossDef): { name: string; title: string } {
-  const t = BOSS_THEMES[def.id];
-  return { name: t.name, title: t.title };
-}
-
 export const BOSS_IDS = Object.keys(BOSSES) as BossId[];

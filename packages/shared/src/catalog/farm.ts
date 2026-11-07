@@ -1,7 +1,6 @@
 import { COL as C, item, rec, src } from './kit';
 import { CROP_ROWS } from './crop-data';
 import { PROP_SPECS } from './home';
-import type { Rarity } from '../crafting';
 
 /**
  * The farm: seeds and harvests for every crop, fertiliser, tools of the field, irrigation and animal supplies. Each

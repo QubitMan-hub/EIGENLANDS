@@ -1,13 +1,4 @@
-import {
-  ITEMS,
-  MATERIALS,
-  TEMPLATES,
-  TIER_NAMES,
-  preview,
-  type Stack,
-  type Stat,
-  type Template,
-} from '@eigenlands/shared';
+import { MATERIALS, TEMPLATES, TIER_NAMES, preview, type Stat, type Template } from '@eigenlands/shared';
 import type { Profile } from '../game/profile';
 import { PHASE_COLOR, PHASE_NAME, clear, h, iconCell, phaseDot, tooltipFor, type Tooltip } from './dom';
 
@@ -258,9 +249,4 @@ export function buildForge(
     render();
   });
   return root;
-}
-
-export function describeForged(item: Stack): string {
-  const d = ITEMS[item.id]?.name ?? item.id;
-  return `${item.p?.qname ?? ''} ${d}`.trim();
 }

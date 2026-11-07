@@ -29,8 +29,3 @@ export function recordCiv(seed: number, realm: RealmId | undefined | null, key: 
   e.w.ledger[realm][key] += n;
   e.dirty = true;
 }
-
-/** Tests: forget the world (each test boot starts afresh). */
-export function resetCiv(): void {
-  worlds.clear();
-}

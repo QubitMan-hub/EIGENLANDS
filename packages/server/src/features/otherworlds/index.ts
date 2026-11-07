@@ -29,7 +29,6 @@ import {
   T,
   TILE_DEFS,
   chronoCode,
-  chronoGate,
   isSolid,
   objLight,
   otherworldArena,

@@ -7,7 +7,6 @@ import type { DiscXp } from './crafting';
 import type { StationId } from './crafting';
 import type { Template, ForgePreview } from './forge';
 import type { WorldObj } from './objects';
-import type { Weather } from './weather';
 import type { QuestLog, Objective } from './quests';
 
 export const MSG = {

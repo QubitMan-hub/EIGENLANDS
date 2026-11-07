@@ -12,8 +12,6 @@ export const elHex = (hue: number): string => hex(ELEMENTS[((hue % 8) + 8) % 8]!
 /** hue 8 is "physical" (crossbow bolts): steel-bronze */
 export const elCol = (hue: number): number => (hue === 8 ? pcol(21) : pcol(ELEMENTS[((hue % 8) + 8) % 8]!.color));
 export const elName = (hue: number): string => ELEMENTS[((hue % 8) + 8) % 8]!.name;
-/** Text fallbacks for the element glyphs (Pixi labels, screen readers). */
-export const EL_CHAR = ['▲', '✦', '☀', '❦', '❄', '≈', '◆', '✺'];
 
 function rgb(h: string): [number, number, number] {
   const n = parseInt(h.slice(1), 16);

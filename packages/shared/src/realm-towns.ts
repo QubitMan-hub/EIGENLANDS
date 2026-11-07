@@ -278,7 +278,6 @@ export function buildRealmTown(site: RealmSite, seed: number, generation = 5): T
   // ───── a river (or canals) across the plot, bridged wherever a road crosses it
   let riverX: number | null = null;
   const canalYs: number[] = [];
-  const waterAt = (x: number, y: number) => oAt(x, y) === WATER;
   if (big && chance(prof.river * (site.kind === 'capital' ? 0.9 : 0.8))) {
     const sgn = chance(0.5) ? 1 : -1;
     const off = site.kind === 'capital' ? rnd(52, Math.floor(W / 2) - 22) : rnd(24, Math.floor(W / 2) - 12);

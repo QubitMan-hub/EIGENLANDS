@@ -9,7 +9,6 @@ import { ITEMS, isBuildPiece, type Glyph } from '@eigenlands/shared';
 import { blob, C, dk, line, lt, makeCanvas, outline, poly, put, ramp4, slab, undithered, type Ctx } from './shade';
 
 type Draw = (ctx: Ctx, a: number, b: number) => void;
-const WOOD = [C.e1, C.e2, C.e3, C.e4, C.e5] as const;
 const STEEL = [C.slate, C.steel, C.mist, C.fog, C.pale] as const;
 
 /** shaded disc helper */
@@ -862,7 +861,7 @@ const G: Record<Glyph, Draw> = {
         [8, 14],
         [6, 11],
       ],
-      (x, y) => (x < 7 ? lt(a) : x < 10 ? a : dk(a)),
+      (x) => (x < 7 ? lt(a) : x < 10 ? a : dk(a)),
     );
     put(c, 5, 6, lt(lt(a)), 5, 1);
     for (let i = 0; i < 4; i++) {
@@ -1018,7 +1017,7 @@ const G: Record<Glyph, Draw> = {
         [3, 10],
         [5, 6],
       ],
-      (x, y) => (x < 7 ? lt(a) : x < 10 ? a : dk(a)),
+      (x) => (x < 7 ? lt(a) : x < 10 ? a : dk(a)),
     );
     slab(c, 6, 1, 4, 3, [C.e2, C.e3, C.e5], 2, 0.1);
     line(c, 5, 7, 5, 12, C.e5);
@@ -1047,7 +1046,7 @@ const G: Record<Glyph, Draw> = {
         [12, 13],
         [4, 13],
       ],
-      (x, y) => (x < 7 ? C.mist : x < 11 ? C.steel : C.slate),
+      (x) => (x < 7 ? C.mist : x < 11 ? C.steel : C.slate),
     );
     put(c, 2, 8, C.pale, 12, 1);
     put(c, 7, 4, C.pale);
@@ -1061,7 +1060,7 @@ const G: Record<Glyph, Draw> = {
     for (let i = -1; i <= 1; i++) line(c, 12 + i * 2, 6, 4 + i * 2, 10, lt(a));
     put(c, 2, 11, dk(a), 12, 1);
   },
-  bread: (c, a, b) => {
+  bread: (c) => {
     blob(c, 8, 9, 6.6, 4.4, [C.e2, C.e3, C.e4, C.e5, C.e6], { seed: 22, noise: 0.25, shape: 2.4, edgeDark: 0.25 });
     for (const x of [5, 8, 11]) line(c, x - 1, 6, x + 1, 9, C.e7);
   },
@@ -1148,7 +1147,7 @@ const G: Record<Glyph, Draw> = {
         [12, 14],
         [2, 14],
       ],
-      (x, y) => (x < 6 ? lt(a) : x < 10 ? a : dk(a)),
+      (x) => (x < 6 ? lt(a) : x < 10 ? a : dk(a)),
     );
     put(c, 3, 6, b, 8, 1);
     put(c, 2, 14, dk(dk(a)), 10, 1);
@@ -1388,7 +1387,7 @@ const G: Record<Glyph, Draw> = {
         [3, 8],
         [1, 5],
       ],
-      (x, y) => (x < 6 ? lt(a) : x < 10 ? a : dk(a)),
+      (x) => (x < 6 ? lt(a) : x < 10 ? a : dk(a)),
     );
     put(c, 4, 6, dk(dk(a)), 8, 1);
     put(c, 4, 10, dk(dk(a)), 8, 1);
@@ -1407,7 +1406,7 @@ const G: Record<Glyph, Draw> = {
         [7, 14],
         [4, 14],
       ],
-      (x, y) => (x < 6 ? lt(a) : x < 9 ? a : dk(a)),
+      (x) => (x < 6 ? lt(a) : x < 9 ? a : dk(a)),
     );
     put(c, 4, 2, b, 8, 1);
     put(c, 4, 8, dk(dk(a)), 3, 1);
@@ -1460,7 +1459,7 @@ const G: Record<Glyph, Draw> = {
         [3, 8],
         [1, 5],
       ],
-      (x, y) => (x < 6 ? lt(a) : x < 10 ? a : dk(a)),
+      (x) => (x < 6 ? lt(a) : x < 10 ? a : dk(a)),
     );
     poly(
       c,
@@ -1648,7 +1647,7 @@ const G: Record<Glyph, Draw> = {
     put(c, 6, 10, C.ink, 4, 5);
     put(c, 4, 14, C.e6, 8, 1);
   },
-  barn: (c, a, b) => {
+  barn: (c, a) => {
     slab(c, 2, 6, 12, 9, [dk(a), a, lt(a)], 3, 0.3);
     poly(
       c,

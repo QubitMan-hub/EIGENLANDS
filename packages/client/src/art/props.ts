@@ -197,7 +197,7 @@ function desk(face: Facing): ObjSprite {
     p.box(12.5, 6.5, 0, 1.5, 1.5, 8.5, { ramp: WOODM });
     p.box(1, 0.5, 8.5, 14, 8, 1.4, {
       ramp: WOODM,
-      top: (s, t, c) => (s > 0.55 && s < 0.85 && t > 0.25 && t < 0.75 ? (t > 0.7 || s > 0.82 ? C.mist : C.pale) : null),
+      top: (s, t) => (s > 0.55 && s < 0.85 && t > 0.25 && t < 0.75 ? (t > 0.7 || s > 0.82 ? C.mist : C.pale) : null),
     }); // parchment
     p.cyl(4, 3.5, 9.9, 1.2, 2, [C.ink, C.night, C.slate], [C.ink]); // inkpot
     p.line(4.6, 3.5, 12, 6.5, 2.5, 16, C.white); // quill
@@ -377,7 +377,7 @@ export function treasureChest(face: Facing, pose: number, theme: 'wood' | 'vault
           ? [C.w0, C.w1, C.w2, C.w3, C.mist]
           : WOODM;
     const metal = theme === 'sea' ? IRONM : BRASS;
-    const bands: Detail = (s, t) => (Math.abs(s - 0.18) < 0.055 || Math.abs(s - 0.82) < 0.055 ? metal[3]! : null);
+    const bands: Detail = (s) => (Math.abs(s - 0.18) < 0.055 || Math.abs(s - 0.82) < 0.055 ? metal[3]! : null);
     p.box(1.5, 2.5, 0, 13, 10, 1.3, { ramp: metal });
     p.box(2, 3, 1.3, 12, 9, 7, {
       ramp: r,

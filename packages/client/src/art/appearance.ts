@@ -2,7 +2,7 @@
  * Maps the shared appearance indices (hair, skin, eyes, dress…) onto palette ramps and builds the Outfit the person
  * painter draws. Every colour comes from the fixed 48-colour palette.
  */
-import { C, DEFAULT_APPEARANCE, unpackAppearance, type Appearance } from '@eigenlands/shared';
+import { C, unpackAppearance, type Appearance } from '@eigenlands/shared';
 import type { Ramp } from './shade';
 import type { DressStyle, HairStyle, Outfit } from './actors';
 import { CUTS } from './body/headwear';
@@ -124,5 +124,3 @@ export function outfitFromAppearance(base: Outfit, a: Appearance, wearOwnDress: 
     ...(dress === 'plated' ? { vest: undefined } : {}),
   };
 }
-
-export const defaultAppearance = (): Appearance => ({ ...DEFAULT_APPEARANCE });

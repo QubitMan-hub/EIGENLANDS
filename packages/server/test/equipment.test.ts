@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { MSG, MSG34, WEAPONS, armorId } from '@eigenlands/shared';
+import { MSG, WEAPONS, armorId } from '@eigenlands/shared';
 import type { App } from '../src/app';
 import { boot3, clearEnemies, dev, dummy, flatten, setLevel, spawn3, sleep, tp, until, type P3 } from './p3helpers';
 

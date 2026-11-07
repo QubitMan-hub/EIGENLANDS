@@ -44,5 +44,3 @@ const female: HeadMap[] = [
 ];
 
 export const HEADS: Record<'male' | 'female', HeadMap[]> = { male, female };
-/** head height in rows (crown to chin) */
-export const HEAD_H = 8;

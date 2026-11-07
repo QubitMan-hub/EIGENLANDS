@@ -7,7 +7,7 @@ afterEach(() => setLift(null));
 
 describe('elevated projection', () => {
   it('lifts everything that projects with isoY, while depth and the terrain plane stay flat', () => {
-    const levels = (x: number, y: number) => (Math.floor(x) >= 10 ? 3 : 0);
+    const levels = (x: number) => (Math.floor(x) >= 10 ? 3 : 0);
     setLift((x, y) => softLevel(levels, x, y) * LEVEL_PX);
     expect(isoY(12.5, 4.5)).toBe(isoYFlat(12.5, 4.5) - 3 * LEVEL_PX);
     expect(isoY(2.5, 4.5)).toBe(isoYFlat(2.5, 4.5));

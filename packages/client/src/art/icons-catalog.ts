@@ -10,11 +10,6 @@ type Pt = [number, number];
 const P = (c: Ctx, pts: Pt[], col: number): void => poly(c, pts, col);
 const ball = (c: Ctx, x: number, y: number, rx: number, ry: number, col: number, seed = 1): void =>
   blob(c, x, y, rx, ry, ramp4(col), { seed, noise: 0.08, edgeDark: 0.25 });
-/** a body with a lit top-left and shaded bottom-right half */
-const lit = (c: Ctx, pts: Pt[], a: number, hi: Pt[]): void => {
-  P(c, pts, dk(a));
-  P(c, hi, a);
-};
 const stick = (c: Ctx, x0: number, y0: number, x1: number, y1: number, col: number, w = 1): void => {
   line(c, x0, y0, x1, y1, col);
   if (w > 1) line(c, x0 + 1, y0, x1 + 1, y1, dk(col));

@@ -1,5 +1,5 @@
 import { Texture } from 'pixi.js';
-import { blob, C, line, makeCanvas, outline, poly, put, ramp4, type Ctx, type Ramp } from './shade';
+import { blob, C, line, makeCanvas, outline, poly, put, type Ramp } from './shade';
 
 /**
  * Procedural ships and sea monsters. A ship is modelled in the ground plane (along = heading, across = beam) and
@@ -139,7 +139,6 @@ function drawSerpent(frame: number, part: 'head' | 'hump'): Texture {
   const W = 40,
     H = 40;
   const { canvas, ctx } = makeCanvas(W, H);
-  const body = ramp4(C.g3);
   if (part === 'hump') {
     blob(ctx, 20, 30, 11, 11 - frame * 0.5, [C.g1, C.g2, C.g3, C.g4, C.g5], {
       seed: 3 + frame,

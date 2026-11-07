@@ -4,7 +4,10 @@ import { ITEMS, RECIPES } from '../src';
 describe('star shard recipes', () => {
   it('every recipe that takes star shards makes a real item from real items', () => {
     const uses = RECIPES.filter((r) => r.inputs.some((i) => i.id === 'star_shard'));
-    expect(uses.map((r) => r.out.id).sort()).toEqual(['stardust_cake', 'starlight_draught', 'starstone']);
+    // the first three star-shard recipes stay; the starfall catalog may add more, each held to the same checks
+    expect(uses.map((r) => r.out.id)).toEqual(
+      expect.arrayContaining(['stardust_cake', 'starlight_draught', 'starstone']),
+    );
     for (const r of uses) {
       expect(ITEMS[r.out.id], r.out.id).toBeTruthy();
       for (const i of r.inputs) expect(ITEMS[i.id], i.id).toBeTruthy();

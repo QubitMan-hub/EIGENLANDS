@@ -17,11 +17,9 @@ import { mineralDeposit } from './distribution';
 import { CHUNK_SIZE } from './constants';
 import type { WorldObj } from './objects';
 import { hash2 } from './rng';
-import { ruinOfCell } from './ruins';
 import { Simplex2D } from './simplex';
 import { T, isSolid } from './tiles';
-import { townFor, townAt } from './town';
-import { HOME_VALE, biomeAt, landmarkTileAt, type Biome } from './worldgen';
+import { townFor } from './town';
 
 /**
  * The Undercroft: a cave layer under the whole world. It lives on its own plane far south (y + CAVE_OY), so every
@@ -34,7 +32,7 @@ import { HOME_VALE, biomeAt, landmarkTileAt, type Biome } from './worldgen';
 export const isCaveY = (y: number): boolean => y >= CAVE_OY - 512;
 
 export { caveOfCell, caveShaftOfCell, mouthsNear, type CaveMouth } from './cavemouths';
-import { mouthsNear, caveOfCell, caveShaftOfCell, type CaveMouth } from './cavemouths';
+import { mouthsNear, caveOfCell, caveShaftOfCell } from './cavemouths';
 
 const noise = new Map<number, Simplex2D>();
 /** Wide connected routes and authored discoveries; deposits replace rock, never the dry route core. */

@@ -185,22 +185,6 @@ export function setRunes(b: Board, q: number, n: number, owned: number, qubits: 
   return ok(nb);
 }
 
-/** Strip everything the rules no longer allow (orbs above `qubits`, abilities not allowed). Used after class changes. */
-export function fitBoard(b: Board, qubits: number, allowed: AbilityId[]): Board {
-  const nb = cloneBoard(b);
-  for (let q = 0; q < MAX_QUBITS; q++) {
-    if (q >= qubits) {
-      nb.lines[q] = nb.lines[q]!.map(() => null);
-      nb.abilities[q] = null;
-      nb.runes[q] = 0;
-      continue;
-    }
-    if (nb.abilities[q] && !allowed.includes(nb.abilities[q]!)) nb.abilities[q] = null;
-    nb.lines[q] = nb.lines[q]!.map((c) => (c?.g === 'cx' && (c.t === undefined || c.t >= qubits) ? null : c));
-  }
-  return nb;
-}
-
 /** Gates on a line, left to right (for the tutorial's "Split → Tune → Split" checks and the summary). */
 export function lineGates(b: Board, q: number): GateId[] {
   return (b.lines[q] ?? []).filter((c): c is Cell => !!c).map((c) => c.g);

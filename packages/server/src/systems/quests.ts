@@ -46,7 +46,6 @@ let SEED = 0;
 export const setQuestSeed = (s: number): void => {
   SEED = s;
 };
-export const questSeed = (): number => SEED;
 
 const d0 = (): number => dayNumber(Date.now());
 const giverName = (id: string) =>
@@ -302,5 +301,3 @@ export function registerQuests(
   setQuestSeed(room.seed);
   on<QuestMsg>(MSG.QUEST, 'socialBucket', (p, m) => handleQuestMsg(room, p, m));
 }
-
-export const todayOf = (nowMs: number): number => dayNumber(nowMs);

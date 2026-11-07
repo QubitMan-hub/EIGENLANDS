@@ -51,5 +51,3 @@ export function addSkillXp(p: ServerPlayer, skill: SkillId, amount: number): voi
 /** Distance from the player to the centre of a tile. */
 export const distToTile = (p: ServerPlayer, tx: number, ty: number): number =>
   Math.hypot(tx + 0.5 - p.sim.x, ty + 0.5 - p.sim.y);
-
-export const itemLabel = (id: string): string => id.replace(/_/g, ' ');

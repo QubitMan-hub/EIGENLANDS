@@ -17,7 +17,6 @@ import {
 import { WindField, CALM } from './windfield';
 import { depth, isoX, isoY } from './iso';
 import { GROUND_Z } from '../gl/terrain.frag';
-import type { SeasonIdx } from '../art/objects';
 
 const hexOf = (i: number) => parseInt(PALETTE[i]!.slice(1), 16);
 /** cast shadows are deep navy, quantum echoes pink (qubit things) or cyan (flux ground) */
@@ -81,7 +80,6 @@ export class WorldObjViews {
   private views = new Map<string, View>();
   private byChunk = new Map<string, Set<string>>();
   private visibleBounds = '';
-  private season: SeasonIdx = 1;
   private solvedShrines = new Set<string>();
 
   setSolvedShrines(ids: string[]): void {
@@ -105,10 +103,6 @@ export class WorldObjViews {
   get count(): number {
     return this.views.size;
   }
-  setSeason(season: SeasonIdx): void {
-    this.season = season;
-  }
-
   /** Props stand with their back to a wall: a wall behind (north-east) faces them south-west, one to the north-west faces them south-east. */
   private facing(o: WorldObj): Facing {
     if (o.data?.facing === 'sw' || o.data?.facing === 'se') return o.data.facing;

@@ -1,6 +1,5 @@
 import { COL as C, item, rec, src } from './kit';
 import { LEGENDARY_WEAPONS } from './weapons-data';
-import { PROP_SPECS } from './home';
 import type { GearBonus, GearSlot } from './types';
 import type { Rarity } from '../crafting';
 

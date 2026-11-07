@@ -15,7 +15,7 @@ import { keyLabel } from '../../input/keymap';
 import { isoX, isoY } from '../../game/iso';
 import { h } from '../../ui/dom';
 import { BossBar } from '../../ui/bossbar';
-import { selectBoss, bossPhase, type Encounter } from '../../ui/encounter-model';
+import { selectBoss, type Encounter } from '../../ui/encounter-model';
 import type { ClientModule, P34Deps } from '../types';
 
 const PILLAR_COLORS = [0x5af0d0, 0xff7ad0, 0xffd36a, 0x7ab4ff];

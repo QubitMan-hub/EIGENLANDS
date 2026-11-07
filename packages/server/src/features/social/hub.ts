@@ -72,7 +72,6 @@ export interface HubRoom {
 }
 
 export const GLOBAL_LOG = 30;
-export const LIVE_STALE_MS = 15_000;
 const DIR_KEY = 'eig:online';
 const DIR_STALE_MS = 90_000;
 const DEL_IF_SID = `local v = redis.call('hget', KEYS[1], ARGV[1])
@@ -322,11 +321,6 @@ export function hub(): SocialHub {
     void current?.close();
     current = new SocialHub(bus);
   }
-  return current;
-}
-
-/** for tests */
-export function peekHub(): SocialHub | null {
   return current;
 }
 

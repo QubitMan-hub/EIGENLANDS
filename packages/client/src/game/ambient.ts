@@ -510,7 +510,6 @@ export class Ambient {
     c.t += dt;
     const art = this.art!;
     const pd = Math.hypot(c.x - f.me.x, c.y - f.me.y);
-    const ws = windScreenX(f.wind);
     switch (c.kind) {
       case 'butterfly': {
         // wander, drift downwind, and bolt when approached

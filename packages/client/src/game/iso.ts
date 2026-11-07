@@ -10,8 +10,6 @@
  */
 export const ISO_HW = 16;
 export const ISO_HH = 8;
-export const TILE_PX_W = ISO_HW * 2;
-export const TILE_PX_H = ISO_HH * 2;
 
 export const isoX = (x: number, y: number): number => (x - y) * ISO_HW;
 
@@ -61,10 +59,6 @@ export function occluded(levelAt: (tx: number, ty: number) => number, x: number,
   for (let t = 1; t <= 6; t++) if (levelAt(Math.floor(x + t), Math.floor(y + t)) >= level + 2 * t) return true;
   return false;
 }
-
-/** Where an entity standing at world (x,y) plants its feet, in iso art pixels. */
-export const footX = isoX;
-export const footY = isoY;
 
 /** zIndex for y-sorting billboards: nearer (larger x+y) draws on top. Tie-break with x. */
 export const depth = (x: number, y: number): number => isoYFlat(x, y) * 4 + x * 0.001;

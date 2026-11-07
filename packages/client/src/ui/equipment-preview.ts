@@ -17,7 +17,6 @@ import {
   weaponRecovery,
   weaponShotPower,
   type EquipSlotKey,
-  type EquipState,
   type WeaponDef,
   type WeaponShot,
 } from '@eigenlands/shared';

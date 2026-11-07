@@ -55,7 +55,6 @@ export class SocialClient implements ClientModule {
   private players: any = null;
   private started = false;
   private lastFrames = 0;
-  private lastWhisperTo = '';
 
   constructor(readonly d: P34Deps) {
     this.chat = new ChatPanel(this.model, {
@@ -199,7 +198,6 @@ export class SocialClient implements ClientModule {
   private onChat(m: ChatMsg): void {
     if (!m || typeof m.text !== 'string') return;
     if (this.model.add(m, this.myName())) {
-      if (m.ch === 'whisper' && m.from === this.myName() && m.to) this.lastWhisperTo = m.to;
       this.chat.arrived(m);
       if (m.ch === 'whisper' && m.from !== this.myName() && !this.chat.open)
         this.d.toasts.add(`${m.from} whispers: ${m.text}`, 'info');
@@ -231,10 +229,7 @@ export class SocialClient implements ClientModule {
         }
         const m: ChatSendMsg = { ch: c.ch, text: c.text, ...(c.to ? { to: c.to } : {}) };
         this.send(MSG34.CHAT, m);
-        if (c.ch === 'whisper' && c.to) {
-          this.lastWhisperTo = c.to;
-          this.chat.setChannel('whisper', c.to);
-        }
+        if (c.ch === 'whisper' && c.to) this.chat.setChannel('whisper', c.to);
         return;
       }
       case 'channel':

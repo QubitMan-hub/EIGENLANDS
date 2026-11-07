@@ -1,11 +1,10 @@
 /** The modular character system: one entry point to paint a person frame (see docs/CHARACTERS.md). */
-import { C, makeCanvas, outline, PixBuf, polish, undithered, type Ctx } from '../shade';
+import { C, outline, PixBuf, polish, type Ctx } from '../shade';
 import { paintBody, dimsOf, type BodyLook } from './paint';
 import { poseOf } from './poses';
 import { DIMS, frameOf, project, solve, type Joints, type V3 } from './skeleton';
 
 export type { BodyLook } from './paint';
-export { CUTS, type CutId, type HatId, type BeardId } from './headwear';
 
 /** paint one frame of a person (game DIR_*, frame id) into a 48×48 cell; returns the solved joints */
 export function paintPersonFrame(ctx: Ctx, dir: number, frame: number, look: BodyLook): Joints {
@@ -16,15 +15,6 @@ export function paintPersonFrame(ctx: Ctx, dir: number, frame: number, look: Bod
 export function polishPerson(buf: PixBuf): void {
   outline(buf.ctx, buf.width, buf.height, C.night);
   polish(buf.ctx, buf.width, buf.height, { rim: true });
-}
-
-export function bodyCanvas(look: BodyLook, dir: number, frame: number): HTMLCanvasElement {
-  const { canvas, ctx } = makeCanvas(48, 48);
-  const buf = new PixBuf(48, 48);
-  undithered(() => paintPersonFrame(buf.ctx, dir, frame, look));
-  polishPerson(buf);
-  buf.blit(ctx, 0, 0);
-  return canvas;
 }
 
 const gripCache = new Map<number, { x: number; y: number; angle: number }>();

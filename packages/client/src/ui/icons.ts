@@ -483,11 +483,3 @@ export function iconSvg(name: string, px = 18, cls = ''): string {
   });
   return `<svg class="pix ${cls}" viewBox="0 0 ${w} ${h}" width="${px}" height="${Math.round((px * h) / w)}" shape-rendering="crispEdges" aria-hidden="true" focusable="false">${r}</svg>`;
 }
-
-export function iconEl(name: string, px = 18, cls = ''): HTMLElement {
-  const s = document.createElement('span');
-  s.className = 'ic';
-  s.innerHTML = iconSvg(name, px, cls);
-  return s;
-}
-export const ICON_NAMES = Object.keys(I);

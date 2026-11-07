@@ -64,8 +64,7 @@ function planOf(seed: number, gx: number, gy: number): RegionPlan {
   const key = `${seed}:${gx},${gy}`,
     hit = plans.get(key);
   if (hit) return hit;
-  const r = caveRegion(seed, gx, gy, 4),
-    routes = caveRoutes(seed, gx, gy),
+  const routes = caveRoutes(seed, gx, gy),
     x0 = gx * 72,
     y0 = CAVE_OY + gy * 72;
   const blobs: Blob[] = [];
