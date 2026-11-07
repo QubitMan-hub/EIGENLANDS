@@ -84,8 +84,15 @@ export async function spawn3(
   r.onMessage('*', () => {});
   await until(() => !!room.circuit.stateOf(r.sessionId) && p.progs.length > 0, 5000);
   p.sp = room.players.get(r.sessionId)!;
+  wieldSword(p.sp);
   if (opts.relax !== false) relax3(p);
   return p;
+}
+
+/** Fighting tests swing the starting sword: select it, as a player would before a fight (slot 0 holds the axe). */
+export function wieldSword(sp: ServerPlayer): void {
+  const slot = sp.data.inv.findIndex((s) => s?.id === 'sword');
+  if (slot >= 0) sp.heldSlot = slot;
 }
 
 /** Functional tests send faster than people do; the rate-limit test uses the real buckets. */

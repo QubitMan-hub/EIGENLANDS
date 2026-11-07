@@ -1,7 +1,7 @@
 import { contactShadow, castProjection } from './grounding';
 import { actionPose, actionFrame, meleeAction, meleeFrame, type PersonAction } from '../art/person-actions';
 import { LIVESTOCK_AX, LIVESTOCK_AY, LIVESTOCK_H, LIVESTOCK_W, livestockTexture } from '../art/livestock';
-import { C, isLivestock } from '@eigenlands/shared';
+import { C, armHand, handOf, isLivestock, type Hand } from '@eigenlands/shared';
 import { PixelLabel } from '../art/pixel-label';
 import { FrameRateWindow } from './frame-rate';
 import { Soundscape } from './soundscape';
@@ -104,6 +104,7 @@ import {
 } from '../art/actors';
 import { buildObjectArt, destroyObjectArt, type ObjectArt, type SeasonIdx } from '../art/objects';
 import { HeldWeapons, isHeldId } from '../art/weapons';
+import { shieldFrame } from '../art/shields';
 import { Audio, SFX_CAPTIONS, type Sfx } from '../audio';
 import type { Input } from '../input/input';
 import { Interpolator, ServerClock, type Pose } from '../net/interp';
@@ -166,6 +167,7 @@ interface Snap extends Pose {
   parts: string;
   weapon: string;
   held: string;
+  shield: string;
   cart: boolean;
   mount: number;
   farm: string;
@@ -182,10 +184,14 @@ interface Snap extends Pose {
   bonded: boolean;
 }
 
+/** how long the parry snap plays (ms) */
+const PARRY_MS = 260;
+
 interface ActorView {
   personFrame?: number;
   deathAt?: number;
   dashAt?: number;
+  parryAt?: number;
   hurtAt?: number;
   id: string;
   type: 'player' | 'enemy' | 'proj' | 'npc' | 'shadow';
@@ -203,6 +209,8 @@ interface ActorView {
   outfit: number;
   trail: number;
   held?: Sprite;
+  /** the off-hand shield */
+  offhand?: Sprite;
   mountSprite?: Sprite;
   /** combat presentation (see combatview.ts) */
   fl: Sprite;
@@ -712,6 +720,7 @@ export class Game {
         parts: e.parts ?? '',
         weapon: e.weapon ?? '',
         held: e.held ?? '',
+        shield: e.shield ?? '',
         cart: !!e.cart,
         mount: e.mount ?? 0,
         farm: e.farm ?? '',
@@ -1421,11 +1430,12 @@ export class Game {
   }
 
   /** wielded weapon summary for prediction and effects */
-  private weaponInfo(): { ranged: boolean; hue: number; id: string } {
-    const id = this.gameplay.profile.equip.weapon ? ITEMS[this.gameplay.profile.equip.weapon.id]?.weapon : undefined;
-    const w = id ? WEAPONS[id] : null;
-    return { ranged: isRangedWeapon(w), hue: w ? w.hue : -1, id: w?.id ?? 'sword' };
+  private weaponInfo(): { ranged: boolean; hue: number; id: string; hand: Hand } {
+    const hand = handOf(this.gameplay.selected(), this.gameplay.profile.equip.weapon);
+    const w = hand.weapon;
+    return { ranged: isRangedWeapon(w), hue: w ? w.hue : -1, id: w?.id ?? hand.family, hand };
   }
+  private unarmedHintAt = 0;
 
   currentTarget(): { id: string; kind: 'enemy' | 'player' } | null {
     const v = this.targetId ? this.views.get(this.targetId) : undefined;
@@ -1521,7 +1531,7 @@ export class Game {
     if (this.targetId) this.sound('pickup');
   }
 
-  /** Left click on an enemy selects it (the click still swings). Players are picked by the social layer. */
+  /** Left click on an enemy selects it (and raises guard). Players are picked by the social layer. */
   private clickWorld(cx: number, cy: number): boolean {
     this.mining.cancel();
     const S = this.scale;
@@ -1608,7 +1618,7 @@ export class Game {
     return b ? `${b.name} · ${BOUNTY_SIGNATURE[b.kind].name}` : base;
   }
 
-  /** aim line + landing ring while an ability is armed; a soft view cone while the right mouse button looks */
+  /** aim line + landing ring while an ability is armed; a soft view cone while the right mouse button attacks */
   private drawAim(me: { x: number; y: number }, now: number): void {
     const g = this.aimGfx;
     g.clear();
@@ -1722,8 +1732,11 @@ export class Game {
       Math.floor(this.clock.tickAt(this.clock.serverNow(now) - this.clock.interpDelay - this.combat.warp)),
     );
     const weapon = this.weaponInfo();
-    this.predictor.sim.ranged = weapon.ranged;
-    setMeleeWeapon(this.predictor.sim, weapon.id);
+    armHand(this.predictor.sim, weapon.hand, this.gameplay.profile.equip.shield);
+    if (r.attack && weapon.hand.kind === 'none' && !this.predictor.sim.boat && now - this.unarmedHintAt > 2500) {
+      this.unarmedHintAt = now;
+      this.notice(`You can't fight with ${weapon.hand.name}. Pick a weapon, a tool or an empty slot.`);
+    }
     const { cmd, ev } = this.predictor.step(r, viewTick);
     this.net.sendInput(cmd);
     const acts = this.gameplay.acts;
@@ -1828,14 +1841,13 @@ export class Game {
           combatStrike < 0;
         const strike = harvesting ? (reduced ? 2 : Math.min(3, Math.floor((now - use!.at) / 75))) : combatStrike;
         const running = dash || moved / Math.max(0.001, dtMs / 1000) > 5.6;
-        const weaponId = isMe
-          ? this.gameplay.profile.equip.weapon
-            ? ITEMS[this.gameplay.profile.equip.weapon.id]?.weapon
-            : undefined
-          : s?.weapon;
+        // what is in hand: the selected weapon or tool, else the equipped weapon (fists and food draw nothing)
+        const myHand = isMe ? this.weaponInfo().hand : null;
+        const weaponId = myHand ? myHand.weapon?.id : s?.weapon;
         const weapon = isWeaponId(weaponId) ? weaponId : null;
-        const tool = isMe ? ITEMS[this.gameplay.selected()?.id ?? '']?.tool?.type : s?.held;
-        let heldItem = harvesting ? use!.tool : strike < 0 && !guarding && !charging && isHeldId(tool) ? tool : weapon;
+        const tool = myHand ? (myHand.kind === 'tool' ? myHand.art : null) : s?.held;
+        let heldItem = harvesting ? use!.tool : isHeldId(tool) ? tool : weapon;
+        const shieldId = isMe ? (this.predictor.sim.shield ? this.gameplay.profile.equip.shield?.id : '') : s?.shield;
         const family = harvesting
           ? use!.tool === 'can' || use!.tool === 'rod'
             ? CAST_FRAME
@@ -1857,7 +1869,11 @@ export class Game {
                 : reduced
                   ? -1
                   : 0;
-        const meleeFamily = weapon ? (WEAPONS[weapon].fam ?? weapon) : 'sword';
+        const meleeFamily = weapon
+          ? (WEAPONS[weapon].fam ?? weapon)
+          : isHeldId(tool)
+            ? handOf({ id: tool, n: 1 }, null).family
+            : 'dagger';
         if (combatStrike >= 0 && family === ATTACK_FRAME)
           frame = meleeFrame(meleeFamily, this.combat.playerAttackProgress(v, now), reduced);
         const transportKind = boat ? -2 : cart ? -1 : mount;
@@ -1913,6 +1929,12 @@ export class Game {
         if (charging && !walking && !deadP && !dash && combatStrike < 0)
           frame = family === ATTACK_FRAME ? actionFrame(meleeAction(meleeFamily), 0.34, reduced) : family;
         if (guarding && !deadP && !dash) frame = actionFrame('guard', 0.5, reduced);
+        // the parry: letting go of guard snaps the shield (or blade) outward through the window
+        const parryOpen = isMe ? this.predictor.sim.parryT > 0 : ((s?.flags ?? 0) & 512) !== 0;
+        if (parryOpen && v.parryAt === undefined) v.parryAt = now;
+        if (v.parryAt !== undefined && !parryOpen && now - v.parryAt > PARRY_MS) v.parryAt = undefined;
+        if (!guarding && v.parryAt !== undefined && now - v.parryAt <= PARRY_MS && !deadP && !dash && combatStrike < 0)
+          frame = actionFrame('parry', (now - v.parryAt) / PARRY_MS, reduced);
         if (deadP) frame = actionFrame('death', Math.min(1, (now - (v.deathAt ??= now)) / 650), reduced);
         else {
           v.deathAt = undefined;
@@ -1988,6 +2010,31 @@ export class Game {
           v.held.alpha = v.sprite.alpha;
           v.root.setChildIndex(v.held, direction === 1 || direction >= 6 ? 1 : v.root.children.length - 1);
         } else if (v.held) v.held.visible = false;
+        // the off hand: a shield on the left arm, over or behind the body as the arm turns
+        const offhandOk =
+          !!shieldId &&
+          !boat &&
+          !cart &&
+          !riding &&
+          !deadP &&
+          !unarmedWork &&
+          !['swim', 'dodge', 'death', 'craft', 'forge', 'cook', 'alchemy', 'saw', 'gather'].includes(
+            actionPose(0, frame)?.action ?? '',
+          );
+        if (offhandOk) {
+          if (!v.offhand) {
+            v.offhand = new Sprite();
+            v.offhand.anchor.set(0.5, 0.75);
+            v.root.addChild(v.offhand);
+          }
+          const sf = shieldFrame(shieldId!, dirOf(sd.x, sd.y), v.personFrame);
+          v.offhand.texture = sf.texture;
+          v.offhand.visible = true;
+          v.offhand.y = v.sprite.y;
+          v.offhand.alpha = v.sprite.alpha;
+          const bodyAt = v.root.getChildIndex(v.sprite);
+          v.root.setChildIndex(v.offhand, sf.front ? v.root.children.length - 1 : Math.max(0, bodyAt));
+        } else if (v.offhand) v.offhand.visible = false;
 
         if (!boat) v.gfx.ellipse(0, 0, 7, 3).fill({ color: 0x2a1060, alpha: 0.28 });
         if (!deadP)

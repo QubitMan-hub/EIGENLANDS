@@ -1,5 +1,5 @@
 import { validParts, partsKey } from '@eigenlands/shared';
-import { defend } from '@eigenlands/shared';
+import { armHand, blockedShare, defend, handOf, type Hand } from '@eigenlands/shared';
 import { cottageDialogue } from '../systems/cottages';
 import { generationMeta, tileAt, isSolid, validAppearance, catalogMobDrops } from '@eigenlands/shared';
 import {
@@ -978,9 +978,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       // jittery clients drift a tick or two past the window: clamp; absurd values get no compensation at all
       p.viewLag = cmd.viewTick > 0 && lag > 0 && lag <= MAX_REWIND_TICKS * 3 ? Math.min(lag, MAX_REWIND_TICKS) : 0;
       p.lastViewTick = p.viewLag > 0 ? cmd.viewTick : tick;
-      const weapon = this.weaponOf(p);
-      p.sim.ranged = isRangedWeapon(weapon);
-      setMeleeWeapon(p.sim, weapon?.id);
+      armHand(p.sim, this.handOf(p), p.data.equip.shield);
       // a broken bone: no running and no dodging (the client drops the same inputs, so prediction agrees)
       if (p.data.buffs.fracture) {
         cmd.sprint = false;
@@ -1016,8 +1014,10 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     s.parts = partsKey(p.data.appearanceParts);
     s.cart = p.sim.cart > 0;
     s.mount = p.sim.mount;
-    s.weapon = this.weaponOf(p)?.id ?? '';
-    s.held = ITEMS[p.data.inv[p.heldSlot]?.id ?? '']?.tool?.type ?? '';
+    const hand = this.handOf(p);
+    s.weapon = hand.weapon?.id ?? '';
+    s.held = hand.kind === 'tool' ? (hand.art ?? '') : '';
+    s.shield = p.sim.shield ? (p.data.equip.shield?.id ?? '') : '';
     p.client.send(MSG.ACK, encodeAck({ seq: p.lastSeq, tick, sim: p.sim }));
     const sim = p.sim;
     s.flags =
@@ -1029,12 +1029,16 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
       (sim.slipT > 0 ? 32 : 0) |
       (sim.ifrT > 0 ? 64 : 0) |
       (sim.boat > 0 ? 128 : 0) |
-      (sim.guard > 0 ? 256 : 0);
+      (sim.guard > 0 ? 256 : 0) |
+      (sim.parryT > 0 ? 512 : 0);
   }
 
+  /** what the player fights with: the selected quick-bar item, or the equipped weapon (or fists) with an empty hand */
+  private handOf(p: ServerPlayer): Hand {
+    return handOf(p.data.inv[p.heldSlot], p.data.equip.weapon);
+  }
   private weaponOf(p: ServerPlayer): WeaponDef | null {
-    const id = p.data.equip.weapon ? ITEMS[p.data.equip.weapon.id]?.weapon : undefined;
-    return id ? WEAPONS[id] : null;
+    return this.handOf(p).weapon;
   }
 
   /** The wielded weapon decides what an attack does: blades swing, crossbows and staves shoot, the Shapeshifter flips a coin. */
@@ -1100,11 +1104,15 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
     tick: number,
     form?: { name: string; dmg: number; knockback: number },
   ): void {
-    const weapon = this.weaponOf(p)?.id;
-    const base = ev.heavy ? meleeHeavy(weapon, ev.level) : meleeTap(weapon, ev.combo);
+    const hand = this.handOf(p);
+    const weapon = hand.weapon?.id ?? hand.art ?? undefined;
+    const moves = hand.weapon?.id ?? hand.family;
+    const base = ev.heavy ? meleeHeavy(moves, ev.level) : meleeTap(moves, ev.combo);
+    // tools and bare fists swing the same moves, softer
+    const struck = hand.mult === 1 ? base : { ...base, damage: Math.max(1, Math.round(base.damage * hand.mult)) };
     const hit = form
-      ? { ...base, damage: Math.round(base.damage * form.dmg), knockback: base.knockback * form.knockback }
-      : base;
+      ? { ...struck, damage: Math.round(struck.damage * form.dmg), knockback: struck.knockback * form.knockback }
+      : struck;
     if (form) this.fx({ kind: 'form', x: p.sim.x, y: p.sim.y, v: form.name === 'Bear' ? 1 : 0, id: p.id });
     const rewindTick = Math.min(tick, Math.max(cmd.viewTick, tick - MAX_REWIND_TICKS));
     const fx = p.sim.faceX,
@@ -1610,7 +1618,7 @@ export class WorldRoom extends Room<WorldState> implements RoomApi {
         return true;
       }
       if (defence === 'block') {
-        raw *= 0.25;
+        raw *= blockedShare(p.sim);
         weight = 0;
       }
     }

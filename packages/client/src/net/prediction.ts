@@ -63,8 +63,9 @@ export class Predictor {
     if (newSession) this.pending = [];
     const bx = this.sim.x,
       by = this.sim.y;
-    const { ranged, melee } = this.sim;
-    this.sim = { ...clonePlayerSim(ack.sim), ranged, melee };
+    // derived from the hand and gear, not carried in the ACK: keep them across the rewind
+    const { ranged, melee, unarmed, shield } = this.sim;
+    this.sim = { ...clonePlayerSim(ack.sim), ranged, melee, unarmed, shield };
     this.pending = this.pending.filter((c) => c.seq > ack.seq);
     for (const c of this.pending) stepPlayer(this.sim, c, this.solid);
     const ex = bx - this.sim.x,

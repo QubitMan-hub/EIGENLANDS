@@ -72,7 +72,7 @@ export const ACTION_LABELS: Record<Action, string> = {
   down: 'Move down',
   left: 'Move left',
   right: 'Move right',
-  guard: 'Guard / timed parry (hold)',
+  guard: 'Guard (hold) / parry (release)',
   attack: 'Attack',
   skill: 'Skill shot',
   dash: 'Dash (dodge)',

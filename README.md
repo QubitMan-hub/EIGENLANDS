@@ -12,7 +12,7 @@ in the browser or share a world with other players.
 - **Village life** – the town of Hadamere with ten NPCs on schedules, dialogue, gifts, shops with dynamic prices, a quest chain, and the QubitMan statue.
 - **Crafting** – tools, stations, discovery recipes, farming with superposition crops, fishing, and Interference Forging (a rhythm minigame).
 - **Circuit Board** – place gates on orb lines to bias which form of each ability fires; classes Wanderer, Superposer, Entangler.
-- **Combat** – personalized keyboard or held-RMB movement, cursor aim, directional skills (Q/E/R/F then left click), direct touch/gamepad casting, dash, combos and telegraphed enemies.
+- **Combat** – right click to attack with what is in hand (weapon, tool or fists), hold left click to block and let go to parry, off-hand shields, cursor aim, directional skills (Q/E/R/F then left click), direct touch/gamepad casting, dash, combos and telegraphed enemies.
 - **Multiplayer** – authoritative 20 Hz Colyseus server with prediction, interpolation and lag compensation; parties, chat, trading, shard handoff.
 - **Accounts** – guest play upgradable to Google sign-in; Postgres persistence; Redis presence.
 - **Accessibility** – remappable keys, colour-blind modes, text size, reduced motion, high-contrast HUD, sound captions.
@@ -21,11 +21,12 @@ in the browser or share a world with other players.
 
 |                          |                                                                                                                                                                                             |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Move                     | `W A S D` / arrows (screen-relative), or Settings → Controls → Movement controls → Mouse: hold right button toward the cursor, release to stop. Movement keys remain available.             |
-| Attack                   | left click (aims at the cursor)                                                                                                                                                             |
-| Select target            | left click an enemy or party mate · `Esc` clears                                                                                                                                            |
+| Move                     | `W A S D` / arrows (screen-relative), or Settings → Controls → Movement controls → Mouse: hold the middle button toward the cursor, release to stop. Movement keys remain available.        |
+| Attack                   | right click (aims at the cursor; hold to charge). Fights with the selected weapon or tool, or the equipped weapon / fists with an empty slot; food and materials cannot attack              |
+| Block / parry            | hold left click (or `Ctrl`) to block; let go just before a blow lands to parry. A shield with a one-handed weapon guards wider and parries more easily                                      |
+| Select target            | left click an enemy (also raises guard) or party mate · `Esc` clears                                                                                                                        |
 | Abilities                | `Q E R F`: directional abilities show an aim line, then left click confirms at the cursor; same key or `Esc` cancels. Self abilities are instant. Touch/gamepad cast directly. `V` ultimate |
-| Aim / mouse steering     | Hold right mouse for the aim cone; Mouse movement mode also steers. Camera stays centered.                                                                                                  |
+| Aim / mouse steering     | Holding right mouse shows the aim; Mouse movement mode steers with the middle button. Camera stays centered.                                                                                |
 | Gather                   | Select an axe/pickaxe, then left-click trees/rocks to approach and gather. Click ripe crops/forage to harvest, or use a hoe/can on ground. Movement or Dodge cancels.                       |
 | Fish                     | Select a rod, stand near water and press your interaction key (default Space); press again when a bite appears.                                                                             |
 | Dash                     | `Shift` (either side): two charges, each recharges in four seconds. Save them for combat warnings.                                                                                          |

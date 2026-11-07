@@ -26,9 +26,10 @@ export const ACTION_START = {
   fish_land: 214,
   plant: 222,
   ride: 230,
+  parry: 238,
 } as const;
 export type PersonAction = keyof typeof ACTION_START;
-export const PERSON_ACTION_END = 238;
+export const PERSON_ACTION_END = 246;
 const ACTIONS = Object.keys(ACTION_START) as PersonAction[];
 /** Preserve legacy four keys; append in-between poses instead of renumbering saved presentation IDs. */
 const KEYS = Object.fromEntries(
@@ -132,6 +133,12 @@ export function actionPose(dir: number, frame: number) {
       height = 16;
       crouch = 1;
       angle = aim - 0.7;
+      break;
+    case 'parry':
+      reach = sample([3, 5, 4, 3]);
+      height = sample([16, 18, 17, 16]);
+      crouch = sample([1, 1, 0, 1]);
+      angle = aim + sample([-0.7, 0.6, 0.3, -0.5]);
       break;
     case 'slash':
       reach = sample([1, 3, 6, 2]);

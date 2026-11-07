@@ -138,7 +138,7 @@ const LIFT = 8;
 const TIP_KEY = 'eigen.combatTips';
 const TIPS: Record<string, string> = {
   combo:
-    'Combat: tap Attack (J / left click) for a 3-hit combo — the 3rd hit is a lunging finisher. HOLD Attack to charge a heavy strike, release to unleash it.',
+    'Combat: tap Attack (J / right click) for a 3-hit combo — the 3rd hit is a lunging finisher. HOLD Attack to charge a heavy strike, release to unleash it. Hold left click to block; let go to parry.',
   dodge:
     'Red ground = an incoming attack. Dodge THROUGH it just before it fills to Phase Slip: slow-mo, a refunded dash and a guaranteed critical counter.',
   orb: 'Phase Wisps fire slow orbs: dash through them — or swing at one to bat it back at them!',
@@ -334,6 +334,8 @@ export class CombatView {
           parry ? 'PARRY · RIPOSTE!' : broken ? 'GUARD BROKEN' : 'BLOCK',
           parry ? 47 : broken ? 36 : 22,
         );
+        // steel on steel: a spray of sparks off the shield or blade (more for a clean parry)
+        if (!broken) fx.burst(f.x, f.y - 0.6, parry ? [47, 7, 46] : [22, 6], parry ? 9 : 3);
         this.d.sound(parry ? 'counter' : 'hit');
         return true;
       }

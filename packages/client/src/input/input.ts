@@ -17,7 +17,7 @@ export class Input {
   private down = new Set<string>();
   // A foreground tap survives until the next simulation sample, even on a slow frame.
   private buffered = new Set<Action>();
-  private mouse = { x: 0, y: 0, lastMove: -1, left: false, right: false };
+  private mouse = { x: 0, y: 0, lastMove: -1, left: false, right: false, middle: false };
   private stick = { x: 0, y: 0 };
   private touchHeld = new Set<Action>();
   private padPrev: boolean[] = [];
@@ -59,7 +59,7 @@ export class Input {
       this.onArmChange?.(a);
     }
   }
-  /** right mouse held: aim cone / optional mouse steering; never camera look-ahead */
+  /** right mouse held (attacking or charging): shows the aim; never camera look-ahead */
   get lookHeld(): boolean {
     return this.enabled && !this.blocked() && this.mouse.right;
   }
@@ -77,7 +77,7 @@ export class Input {
     this.buffered.clear();
     this.touchHeld.clear();
     this.setStick(0, 0);
-    this.mouse.left = this.mouse.right = false;
+    this.mouse.left = this.mouse.right = this.mouse.middle = false;
     this.setArmed(null);
   }
 
@@ -112,24 +112,31 @@ export class Input {
           this.onFire?.(a);
         } else if (this.onWorldClick?.(e.clientX, e.clientY)) {
           this.mouse.left = false;
-          this.buffered.delete('attack');
         } else {
+          // left: hold to block, let go to parry
           this.mouse.left = true;
-          this.buffer('attack');
         }
       }
       if (e.button === 2) {
+        // right: tap to attack (the 3-hit combo), hold to charge a heavy strike
         this.onCancelIntent?.();
         this.mouse.right = true;
+        this.buffer('attack');
+      }
+      if (e.button === 1) {
+        // middle: steer by mouse, when that movement mode is chosen
+        this.mouse.middle = true;
+        e.preventDefault();
       }
     });
     window.addEventListener('pointerup', (e) => {
       if (e.button === 0) this.mouse.left = false;
+      if (e.button === 1) this.mouse.middle = false;
       if (e.button === 2) this.mouse.right = false;
     });
     el.addEventListener('pointercancel', () => this.reset());
     el.addEventListener('pointerleave', () => {
-      this.mouse.left = this.mouse.right = false;
+      this.mouse.left = this.mouse.right = this.mouse.middle = false;
       this.buffered.delete('attack');
     });
     el.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -347,7 +354,7 @@ export class Input {
       dx = (wx / wl) * m;
       dy = (wy / wl) * m;
     }
-    if (!ln && this.movementMode === 'mouse' && this.mouse.right) {
+    if (!ln && this.movementMode === 'mouse' && this.mouse.middle) {
       // Cursor is a ground point, independent of actor height, zoom or camera look-ahead.
       const sx = (this.mouse.x - this.feetScreen.x) / this.worldScale,
         sy = (this.mouse.y - this.feetScreen.y) / this.worldScale + this.aimLift;
@@ -363,11 +370,11 @@ export class Input {
     r.dx = dx;
     r.dy = dy;
 
-    const attackHeld = this.isDown('attack') || this.mouse.left || this.touchHeld.has('attack') || padAttack;
+    const attackHeld = this.isDown('attack') || this.mouse.right || this.touchHeld.has('attack') || padAttack;
     const skillHeld = this.isDown('skill') || this.touchHeld.has('skill') || padSkill;
     // attack = a press (tap: 3-hit combo, buffered by the sim); hold = still held (charges a heavy, released to strike)
     r.attack = this.consume('attack') || padAttackEdge;
-    r.guard = this.isDown('guard') || this.touchHeld.has('guard') || padGuard;
+    r.guard = this.isDown('guard') || this.mouse.left || this.touchHeld.has('guard') || padGuard;
     r.hold = attackHeld;
     r.skill = skillHeld || this.consume('skill');
     r.dash = this.consume('dash') || padDash;

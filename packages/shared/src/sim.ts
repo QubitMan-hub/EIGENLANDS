@@ -57,9 +57,13 @@ export interface PlayerSim {
   ranged?: boolean;
   /** Derived from equipped gear, not client input or packed ACK fields. */
   melee?: MeleeFamily;
+  /** the hand holds something that is not a weapon or tool (food, materials): attacks do nothing (derived, see hands.ts) */
+  unarmed?: boolean;
+  /** guard strength of a shield in a free off hand, 0..1 (derived): wider guard, longer parry, softer blocks */
+  shield?: number;
   /** 1 guarding, 0 lowered, -1 guard-broken until guardCd expires. */
   guard: number;
-  /** Remaining timed-parry window; raising guard again cannot refresh it during guardCd. */
+  /** Remaining timed-parry window, opened by releasing guard; another release cannot reopen it during guardCd. */
   parryT: number;
   guardCd: number;
   atkCd: number;
@@ -214,6 +218,9 @@ const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
  * so thresholds like `atkCd <= 0` flip on the same tick on both sides.
  */
 const q = (v: number) => Math.round(v * 1e6) / 1e6;
+/** the timed-parry window opened by releasing guard, and how much a full-strength shield lengthens it (seconds) */
+export const PARRY_WINDOW = 0.18;
+export const SHIELD_PARRY_BONUS = 0.1;
 const down = (v: number) => (v > 0 ? Math.max(0, q(v - TICK_DT)) : 0);
 
 /** Never trust client commands: clamp ranges, limit vector length, coerce types. */
@@ -317,6 +324,11 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepE
   const flying = !sailing && isFlying(p.mount) && !!land.fly;
   // nobody fights or dashes from a griffin's back: those inputs simply do nothing in the air;
   // on the ground, attacking, casting or dodging steps a rider down first
+  // only a weapon or a tool strikes: with food or materials in hand the attack button does nothing (a ship's guns still fire)
+  if (p.unarmed && !sailing) {
+    cmd = { ...cmd, attack: false, hold: false };
+    p.atkBuf = p.charge = p.hold = 0;
+  }
   if (flying) cmd = { ...cmd, attack: false, hold: false, skill: false, dash: false };
   else if (p.mount && (cmd.attack || cmd.skill || cmd.dash || cmd.hold)) p.mount = 0;
   if (sailing || flying || p.mount > 0 || p.cart > 0) p.guard = p.parryT = 0;
@@ -411,19 +423,22 @@ export function stepPlayer(p: PlayerSim, cmd: InputCmd, land: SolidQuery): StepE
     p.atkCd <= 0 &&
     p.stamina > 0;
   if (guarding) {
-    if (!p.guard && p.guardCd <= 0) {
-      p.parryT = 0.18;
-      p.guardCd = 0.7;
-    }
     p.guard = 1;
+    p.parryT = 0;
     p.charge = 0;
     p.hold = 0;
     p.atkBuf = 0;
     aim();
     cmd = { ...cmd, attack: false, hold: false, skill: false, sprint: false };
   } else {
+    // letting the guard go is the parry: a short window (longer behind a shield) in which a frontal blow is turned
+    // aside; guardCd keeps rapid taps from chaining windows
+    const released = p.guard > 0;
     if (!(p.guard < 0 && p.guardCd > 0)) p.guard = 0;
-    p.parryT = 0;
+    if (released && p.guardCd <= 0) {
+      p.parryT = q(PARRY_WINDOW + SHIELD_PARRY_BONUS * (p.shield ?? 0));
+      p.guardCd = 0.7;
+    }
   }
 
   // dash (always available while a charge remains: cancels swing recovery and a held charge)

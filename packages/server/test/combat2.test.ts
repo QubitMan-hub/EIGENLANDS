@@ -20,6 +20,7 @@ import type { WorldRoom } from '../src/rooms/WorldRoom';
 import type { ServerPlayer } from '../src/rooms/player';
 import type { Enemy } from '../src/game/enemies';
 import { guest, join, lastRoomId, me, resetDb, sleep, startApp, until } from './helpers';
+import { wieldSword } from './p3helpers';
 
 let app: App;
 const room = (): WorldRoom => matchMaker.getLocalRoomById(lastRoomId()) as unknown as WorldRoom;
@@ -54,6 +55,7 @@ async function probe(name: string): Promise<Probe> {
   r.onMessage('*', () => {});
   const w = room();
   const sp = w.players.get(r.sessionId)!;
+  wieldSword(sp);
   // a private open arena far from everyone else
   const ax = 200 + Math.floor(Math.random() * 400),
     ay = 200 + Math.floor(Math.random() * 400);

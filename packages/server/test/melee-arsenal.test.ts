@@ -122,3 +122,31 @@ it('warhammer finisher bypasses light-hit armour and full heavy really crushes p
   expect(1000 - e.hp).toBe(attackDamage(22, p.sp.stats.atkBonus) + attackDamage(48, p.sp.stats.atkBonus));
   await p.r.leave();
 });
+it('fights with what is in hand: a tool hits softer than the sword, food or materials not at all', async () => {
+  const p = await setup(780);
+  const x = p.sp.sim.x,
+    y = p.sp.sim.y;
+  const swing = async (slot: number) => {
+    p.sp.heldSlot = slot;
+    clearEnemies(p.room);
+    const e = foe(p, x + 1, y);
+    p.sp.sim.atkCd = 0;
+    p.sp.sim.combo = 0;
+    p.sp.sim.comboT = 0;
+    await input(p, true);
+    await input(p);
+    return 1000 - e.hp;
+  };
+  const inv = p.sp.data.inv;
+  const sword = await swing(inv.findIndex((s) => s?.id === 'sword'));
+  const axe = await swing(inv.findIndex((s) => s?.id === 'axe'));
+  const food = inv.findIndex((s) => !s);
+  inv[food] = { id: 'fiber', n: 3 };
+  const fiber = await swing(food);
+  expect(sword).toBeGreaterThan(0);
+  expect(axe).toBeGreaterThan(0);
+  expect(axe).toBeLessThan(sword);
+  expect(fiber).toBe(0);
+  await until(() => p.r.state.players.get(p.sid)?.held === '', 2000);
+  await p.r.leave();
+});

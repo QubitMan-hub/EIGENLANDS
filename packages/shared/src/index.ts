@@ -113,6 +113,7 @@ export * from './realmfolk';
 export * from './gates';
 
 export * from './defense';
+export * from './hands';
 
 export * from './appearance-parts';
 export * from './danger';

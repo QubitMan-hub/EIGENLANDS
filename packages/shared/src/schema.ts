@@ -14,7 +14,7 @@ export class PlayerState extends Schema {
   @type('uint32') xp = 0;
   /** outfit index (wardrobe) */
   @type('uint8') look = 0;
-  /** bit0 dashing, bit1 swinging, bit2 dead, bit3 charging, bit4 heavy ready, bit5 phase slip, bit6 i-frames, bit7 boat, bit8 guarding */
+  /** bit0 dashing, bit1 swinging, bit2 dead, bit3 charging, bit4 heavy ready, bit5 phase slip, bit6 i-frames, bit7 boat, bit8 guarding, bit9 parry window open */
   @type('uint16') flags = 0;
   /** last processed input sequence, for reconciliation */
   @type('uint32') ack = 0;
@@ -33,6 +33,8 @@ export class PlayerState extends Schema {
   /** Riding: 0 on foot, 1 horse, 2 Moonlit Stag, 5 Glimmerhart. Appended for schema field compatibility. */
   @type('uint8') mount = 0;
   @type('string') parts = '';
+  /** Off-hand shield item id ('' when none, or when a two-handed grip leaves no hand for it). Appended. */
+  @type('string') shield = '';
 }
 
 export class EnemyState extends Schema {

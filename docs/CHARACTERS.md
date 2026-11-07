@@ -53,7 +53,13 @@ The supplied reference-pack overhaul supersedes the older door-first calibration
    and rim polish as before.
 
 Held tools and weapons take the hand position and the shaft angle from the same solved skeleton
-(`personGripOf`), so they cannot drift off the grip.
+(`personGripOf`), so they cannot drift off the grip. The drawn item is what the player actually fights with
+(`shared/src/hands.ts`): fists and food draw nothing in hand.
+
+An equipped shield, with a one-handed grip, is drawn on the left arm by `art/shields.ts`. It is a flat board in body
+space at the left wrist, projected by the body's iso frame for every facing and frame. It is carried facing forward and
+out, and turns to face the blow in the guard and parry clips. It is drawn over the body on the near side and behind it
+on the far side. See [COMBAT_TECHNIQUES.md](COMBAT_TECHNIQUES.md).
 
 ## Animation
 
@@ -69,7 +75,7 @@ Held tools and weapons take the hand position and the shaft angle from the same 
   | Gathering and farming | mine, chop, dig/hoe, water, fish (cast / bite / wait), gather and plant |
   | Crafting              | craft, forge, cook, alchemy, saw                                        |
   | Movement and social   | channel, sit, swim, talk                                                |
-  | Combat                | hit, slash, thrust, cleave, shot, cast                                  |
+  | Combat                | hit, slash, thrust, cleave, shot, cast, guard, parry                    |
   | Dodge and death       | a forward roll, and a fall                                              |
 
 - **Dodge:** the roll plays through the dash (180 ms, with its existing invulnerability), then a short rise. The

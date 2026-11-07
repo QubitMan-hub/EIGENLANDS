@@ -72,6 +72,33 @@ const KEYS: Partial<Record<PersonAction, [Key, Key, Key, Key]>> = {
     { drop: 1.5, lean: -0.08, hR: [2.8, 0.6, H + 4.5], hL: [2.6, -1.4, H + 4], pitch: 1.3, stance: 2.2, wide: 0.3 },
     { drop: 1.0, hR: [3.0, 0.8, H + 4], hL: [2.8, -1.5, H + 3.8], pitch: 1.15, stance: 2 },
   ],
+  // the parry: guard up, a sharp outward beat (shield punched forward, blade swept across), the hold, back to guard
+  parry: [
+    { drop: 1.0, hR: [3.0, 0.8, H + 4], hL: [2.8, -1.5, H + 3.8], pitch: 1.15, stance: 2 },
+    {
+      drop: 1.4,
+      lean: 0.18,
+      twist: -0.35,
+      hR: [3.8, -0.6, H + 5.2],
+      hL: [4.2, -2.2, H + 4.6],
+      pitch: 0.4,
+      yaw: -1.1,
+      stance: 2.4,
+      wide: 0.3,
+    },
+    {
+      drop: 1.2,
+      lean: 0.05,
+      twist: 0.25,
+      hR: [2.4, 2.4, H + 3.4],
+      hL: [3.6, -1.8, H + 4.2],
+      pitch: 0.9,
+      yaw: 0.8,
+      stance: 2.2,
+      wide: 0.3,
+    },
+    { drop: 1.0, hR: [3.0, 0.8, H + 4], hL: [2.8, -1.5, H + 3.8], pitch: 1.15, stance: 2 },
+  ],
   mine: [
     { drop: 0.4, hR: [2.4, 1.4, H + 1.5], grip: 2.6, pitch: 0.7, stance: 1.6 },
     { drop: 0, lean: -0.18, twist: -0.25, hR: [-0.4, 1.2, S + 3.6], grip: 2.6, pitch: 2.4, stance: 1.6 },

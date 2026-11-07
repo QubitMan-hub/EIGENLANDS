@@ -4,7 +4,8 @@
 //   lineup              one idle frame of everything on a grass strip (&scale=)
 //   icons               item icons
 //   review              the character system's review board: scale by a door and furniture, outfits in 8 facings,
-//                       work and combat clips with their tools, statues beside a person
+//                       work and combat clips with their tools, statues beside a person, sword and shield in
+//                       8 facings with the guard and parry clips
 import { Application, Container, Graphics, Sprite, Text, type Texture } from 'pixi.js';
 import { ANIMS, critter, critterFrames, critterShadow, type CritterKind } from '../art/foes';
 import { softShadow } from '../art/sprite';
@@ -17,6 +18,8 @@ import '../art/catalog-props';
 import { TOWN_DECO } from '../art/town';
 import { STORY_ART } from '../art/stories';
 import { HeldWeapons, HELD_W, HELD_H } from '../art/weapons';
+import { shieldFrame } from '../art/shields';
+import { ITEMS } from '@eigenlands/shared';
 import { actionKeys, type PersonAction } from '../art/person-actions';
 import { isoX, isoY } from '../game/iso';
 
@@ -315,4 +318,29 @@ if (mode === 'review') {
     root.addChild(gs);
     person(man, 4, 0, 356, 704);
   }
+  // 5) sword and shield: three shields in 8 facings at rest, then the guard and the parry clip (shield turns to the blow)
+  const metal = Object.keys(ITEMS).find((id) => id.startsWith('shield_')) ?? 'wood_shield';
+  const armed = (look: number, shield: string, d: number, f: number, x: number, y: number) => {
+    const sf = shieldFrame(shield, d, f);
+    const sh = new Sprite(sf.texture);
+    sh.anchor.set(0.5, 0.75);
+    sh.x = x;
+    sh.y = y + 1;
+    const sw = new Sprite(held.texture('sword', d, f));
+    sw.anchor.set(0.5, 0.75);
+    sw.x = x;
+    sw.y = y + 1;
+    if (!sf.front) root.addChild(sh);
+    if (d === 1 || d >= 6) root.addChild(sw);
+    place(sheets.styled(0, look, d, f), x, y, [6, 2]);
+    if (!(d === 1 || d >= 6)) root.addChild(sw);
+    if (sf.front) root.addChild(sh);
+  };
+  label('sword + shield x 8 facings (rest), guard, parry', 480, 640);
+  ['wood_shield', 'oak_buckler', metal].forEach((id, r) =>
+    dirs.forEach((d, c) => armed(r % 2 ? woman : man, id, d, 0, 520 + c * 28, 680 + r * 34)),
+  );
+  dirs.forEach((d, c) => armed(man, metal, d, actionKeys('guard')[3]!, 520 + c * 28, 790));
+  actionKeys('parry').forEach((f, c) => armed(man, metal, 5, f, 520 + c * 28, 824));
+  actionKeys('parry').forEach((f, c) => armed(woman, 'wood_shield', 3, f, 520 + c * 28, 858));
 }

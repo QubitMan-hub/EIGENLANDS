@@ -429,7 +429,7 @@ export function buildJournal(
       const rows: Array<[string, string]> = [
         [
           'Mouse movement',
-          'Settings → Controls → Movement controls: Mouse. Hold right button to move toward the ground cursor; release to stop. Your movement keys still work. Keyboard mode keeps right button as aim only.',
+          'Settings → Controls → Movement controls: Mouse. Hold the middle button (wheel) to move toward the ground cursor; release to stop. Your movement keys still work. The right button attacks and the left button guards in either mode.',
         ],
         [
           'Aim directional orbs',
@@ -438,7 +438,7 @@ export function buildJournal(
         ['Combo', 'tap Attack: slash, slash, lunging finisher (presses are buffered; dash cancels recovery)'],
         [
           'Guard and parry',
-          'hold Guard to block frontal hits (stamina cost); time a fresh press to parry. Release and attack within 0.9 s to riposte. Rear hits and crushing attacks bypass guard.',
+          'hold left click (or Guard) to block frontal hits (stamina cost); let go just before a blow lands to parry, then attack within 0.9 s to riposte. A shield in the off hand (with a one-handed weapon, a tool or bare fists) guards a wider arc, parries more easily, softens blocks and can even hold a crushing blow. Rear hits bypass guard.',
         ],
         ['Heavy strike', 'hold Attack to charge (ring fills), release to cleave — breaks armour'],
         ['Phase Slip', 'dash through a red warning just before it fills: slow-mo + guaranteed critical counter'],
@@ -456,9 +456,10 @@ export function buildJournal(
         down: 'left stick / touch stick',
         left: 'left stick / touch stick',
         right: 'left stick / touch stick',
-        attack: 'left click · gamepad A / RT',
+        attack: 'right click (hold to charge) · gamepad A / RT',
         skill: 'gamepad X / LT',
-        guard: 'Guard button · gamepad R3 · time the press to parry; release and attack to riposte',
+        guard:
+          'hold left click or Guard · gamepad R3 · let go just before a blow lands to parry, then attack to riposte',
         dash: 'Dodge button · gamepad B',
         interact: 'Use button · gamepad Y',
         prev: 'mouse wheel',
