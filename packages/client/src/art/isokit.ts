@@ -20,6 +20,49 @@ export type Facing = 'sw' | 'se';
 /** colour for a face pixel: s runs along the face's width, t up its height (or along v on a top), both 0..1 */
 export type Paint = number | ((s: number, t: number, x: number, y: number) => number);
 
+/** Read the original modelling commands for a true 3D consumer, before any rasterization. */
+export interface SolidCommand {
+  u: number;
+  v: number;
+  z: number;
+  du: number;
+  dv: number;
+  dz: number;
+  color: number;
+}
+let solidCapture: { groups: Map<Ctx, SolidCommand[]> } | null = null;
+export function captureSolidCommands<T>(draw: () => T): { value: T; groups: SolidCommand[][] } {
+  const previous = solidCapture,
+    capture = { groups: new Map<Ctx, SolidCommand[]>() };
+  solidCapture = capture;
+  try {
+    const value = draw();
+    return { value, groups: [...capture.groups.values()] };
+  } finally {
+    solidCapture = previous;
+  }
+}
+function captureBox(
+  ctx: Ctx,
+  u: number,
+  v: number,
+  z: number,
+  du: number,
+  dv: number,
+  dz: number,
+  color: Paint,
+): boolean {
+  if (!solidCapture) return false;
+  let boxes = solidCapture.groups.get(ctx);
+  if (!boxes) {
+    boxes = [];
+    solidCapture.groups.set(ctx, boxes);
+  }
+  const c = typeof color === 'number' ? color : color(0.5, 0.5, 0, 0);
+  if (c >= 0) boxes.push({ u, v, z, du, dv, dz, color: c });
+  return true;
+}
+
 export class Iso {
   constructor(
     public ctx: Ctx,
@@ -57,18 +100,22 @@ export class Iso {
   }
   /** top face at height z over [u0,u0+du] x [v0,v0+dv]; s along u, t along v */
   top(u0: number, v0: number, z: number, du: number, dv: number, paint: Paint): void {
+    if (captureBox(this.ctx, u0, v0, z, du, dv, 0.5, paint)) return;
     this.para(this.X(u0, v0), this.Y(u0, v0, z), du, du / 2, -dv, dv / 2, paint);
   }
   /** the +v face (screen-left, lit): s along u, t up */
   left(u0: number, v: number, z0: number, du: number, dz: number, paint: Paint): void {
+    if (captureBox(this.ctx, u0, v, z0, du, 0.5, dz, paint)) return;
     this.para(this.X(u0, v), this.Y(u0, v, z0), du, du / 2, 0, -dz, paint);
   }
   /** the +u face (screen-right, shaded): s along v, t up */
   right(u: number, v0: number, z0: number, dv: number, dz: number, paint: Paint): void {
+    if (captureBox(this.ctx, u, v0, z0, 0.5, dv, dz, paint)) return;
     this.para(this.X(u, v0), this.Y(u, v0, z0), -dv, dv / 2, 0, -dz, paint);
   }
   /** a solid box: lit left face, shaded right face, top */
   box(u0: number, v0: number, z0: number, du: number, dv: number, dz: number, m: BoxMat): void {
+    if (captureBox(this.ctx, u0, v0, z0, du, dv, dz, m.top)) return;
     if (dz > 0) {
       this.left(u0, v0 + dv, z0, du, dz, m.left);
       this.right(u0 + du, v0, z0, dv, dz, m.right);
@@ -86,6 +133,13 @@ export class Iso {
     topRamp: Ramp = ramp,
     band?: (t: number) => number | null,
   ): void {
+    if (solidCapture) {
+      for (let y = -r; y <= r; y += 1) {
+        const half = Math.floor(Math.sqrt(Math.max(0, r * r - y * y)));
+        captureBox(this.ctx, u - half, v + y, z0, half * 2 + 1, 1, h, ramp[Math.floor(ramp.length * 0.65)]!);
+      }
+      return;
+    }
     const cx = this.X(u, v),
       cy = this.Y(u, v, z0);
     const rx = r * 1.41,
@@ -121,6 +175,21 @@ export class Iso {
   }
   /** a line between two 3D points */
   line3(u0: number, v0: number, z0: number, u1: number, v1: number, z1: number, c: number): void {
+    if (solidCapture) {
+      const n = Math.max(1, Math.ceil(Math.hypot(u1 - u0, v1 - v0, z1 - z0)));
+      for (let i = 0; i <= n; i++)
+        captureBox(
+          this.ctx,
+          u0 + ((u1 - u0) * i) / n,
+          v0 + ((v1 - v0) * i) / n,
+          z0 + ((z1 - z0) * i) / n,
+          0.7,
+          0.7,
+          0.7,
+          c,
+        );
+      return;
+    }
     const x0 = this.X(u0, v0),
       y0 = this.Y(u0, v0, z0),
       x1 = this.X(u1, v1),
@@ -131,6 +200,7 @@ export class Iso {
   }
   /** a single pixel at a 3D point */
   dot(u: number, v: number, z: number, c: number, w = 1, h = 1): void {
+    if (captureBox(this.ctx, u, v, z, w, 0.6, h, c)) return;
     put(this.ctx, Math.floor(this.X(u, v)), Math.floor(this.Y(u, v, z)), c, w, h);
   }
 }
@@ -235,6 +305,20 @@ export class Prop {
 
   /** box from (a0,b0,z0) of size (da,db,dz) */
   box(a0: number, b0: number, z0: number, da: number, db: number, dz: number, m: PMat): void {
+    const [u, v] = this.uv(a0, b0);
+    if (
+      captureBox(
+        this.iso.ctx,
+        u,
+        v,
+        z0,
+        this.facing === 'sw' ? da : db,
+        this.facing === 'sw' ? db : da,
+        dz,
+        m.ramp[Math.floor(m.ramp.length * 0.65)]!,
+      )
+    )
+      return;
     const I = this.iso;
     if (this.facing === 'sw') {
       if (dz > 0) {

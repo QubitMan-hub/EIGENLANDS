@@ -20,6 +20,7 @@ export class Fx {
   constructor(
     readonly layer: Container,
     private reduced: () => boolean,
+    private volume?: (x: number, y: number, color: number, count: number, kind: string, radius: number) => void,
   ) {}
 
   update(dt: number): void {
@@ -67,6 +68,10 @@ export class Fx {
     life: number,
     thick = false,
   ): void {
+    if (this.volume) {
+      this.volume(x + dx * hit.range * 0.5, y + dy * hit.range * 0.5, pc(color), 16, 'arc', hit.range);
+      return;
+    }
     const g = new Graphics();
     this.layer.addChild(g);
     const ang = Math.atan2(dy, dx);
@@ -119,6 +124,10 @@ export class Fx {
 
   /** Directional impact sparks + a white flash disc, scaled by hit weight. */
   impact(x: number, y: number, weight: number, crit: boolean, dx = 0, dy = 0): void {
+    if (this.volume) {
+      this.volume(x, y, crit ? 0xffdf8b : 0xcfd9cd, 8 + weight * 3, 'burst', 1);
+      return;
+    }
     const n = (this.reduced() ? 3 : 6) + weight * 3 + (crit ? 4 : 0);
     const base = Math.atan2(isoY(dx, dy), isoX(dx, dy));
     const dirOk = dx !== 0 || dy !== 0;
@@ -154,6 +163,10 @@ export class Fx {
   }
 
   private spark(x: number, y: number, color: number, angle?: number, speed = 1): void {
+    if (this.volume) {
+      this.volume(x, y, pc(color), 1, 'burst', 1);
+      return;
+    }
     const g = new Graphics().rect(-1, -1, 2, 2).fill(pc(color));
     g.x = isoX(x, y);
     g.y = isoY(x, y) - 8;
@@ -228,6 +241,10 @@ export class Fx {
   }
 
   dash(x: number, y: number, dx: number, dy: number): void {
+    if (this.volume) {
+      this.volume(x, y, 0x96d6cf, 9, 'burst', 1);
+      return;
+    }
     if (this.reduced()) return;
     for (let i = 0; i < 4; i++) {
       const px = x - dx * i * 0.3,
@@ -254,6 +271,10 @@ export class Fx {
 
   /** Fading afterimage of a sprite (dash, phase slip). */
   remains(tex: Texture, x: number, y: number, foot: number): void {
+    if (this.volume) {
+      this.volume(x, y, 0x7c8b79, 8, 'burst', 1);
+      return;
+    }
     const sprite = new Sprite(tex);
     sprite.anchor.set(0.5, foot);
     sprite.position.set(Math.round(isoX(x, y)), Math.round(isoY(x, y)));
@@ -275,6 +296,10 @@ export class Fx {
 
   /** Fading afterimage of a sprite (dash, phase slip). */
   ghost(tex: Texture, x: number, y: number, tint: number, alpha = 0.55, flip = false, life = 0.28): void {
+    if (this.volume) {
+      this.volume(x, y, tint, 4, 'burst', 1);
+      return;
+    }
     if (this.reduced()) return;
     const s = new Sprite(tex);
     s.anchor.set(0.5, 1);
@@ -305,6 +330,10 @@ export class Fx {
 
   /** Expanding ring lying on the ground (an ellipse in iso). */
   ring(x: number, y: number, color: number, maxR = 2.2, life = 0.6, width = 2): void {
+    if (this.volume) {
+      this.volume(x, y, pc(color), 32, 'ring', maxR);
+      return;
+    }
     const g = new Graphics();
     g.x = isoX(x, y);
     g.y = isoY(x, y);
@@ -329,6 +358,10 @@ export class Fx {
 
   /** Ground shockwave: filled flash disc + two rings + dust. */
   shockwave(x: number, y: number, r: number, color = 36): void {
+    if (this.volume) {
+      this.volume(x, y, pc(color), 48, 'ring', r);
+      return;
+    }
     const g = new Graphics();
     g.x = isoX(x, y);
     g.y = isoY(x, y);
@@ -356,6 +389,10 @@ export class Fx {
 
   /** Screen-space-ish full flash around the player for the phase slip. */
   slip(x: number, y: number): void {
+    if (this.volume) {
+      this.volume(x, y, 0xaeaddc, 32, 'ring', 1.4);
+      return;
+    }
     this.ring(x, y, 47, 3.2, 0.45, 3);
     this.ring(x, y, 44, 2.0, 0.35, 2);
     this.burst(x, y, [47, 44, 7], 14);

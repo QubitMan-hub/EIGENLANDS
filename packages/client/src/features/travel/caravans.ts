@@ -33,6 +33,40 @@ function seated(t: Texture): Texture {
  * pulls it, the driver on the bench and two escorts walking alongside. Also answers "is a caravan in reach?".
  */
 export class CaravanViews {
+  voxelActors(): import('../../game/voxel/world').VoxelActor[] {
+    return this.near.flatMap((c) => [
+      {
+        id: `caravan:${c.route.id}`,
+        x: c.x,
+        y: c.y,
+        faceX: c.fx,
+        faceY: c.fy,
+        type: 'npc',
+        cart: true,
+        walking: c.moving,
+      },
+      {
+        id: `caravan:${c.route.id}:horse`,
+        x: c.x + c.fx * 1.9,
+        y: c.y + c.fy * 1.9,
+        faceX: c.fx,
+        faceY: c.fy,
+        type: 'animal',
+        species: 'horse',
+        walking: c.moving,
+      },
+      ...[-1, 1].map((side) => ({
+        id: `caravan:${c.route.id}:escort:${side}`,
+        x: c.x - c.fy * side * 1.2,
+        y: c.y + c.fx * side * 1.2,
+        faceX: c.fx,
+        faceY: c.fy,
+        type: 'npc',
+        weapon: 'iron_sword',
+        walking: c.moving,
+      })),
+    ]);
+  }
   private views = new Map<string, View>();
   private near: CaravanPos[] = [];
 

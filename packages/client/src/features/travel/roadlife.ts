@@ -65,6 +65,7 @@ interface Member {
   oy: number;
 }
 interface View {
+  heading?: { x: number; y: number };
   root: Container;
   members: Member[];
   last: { x: number; y: number };
@@ -94,6 +95,37 @@ const facing4 = (fx: number, fy: number) => (Math.abs(fx) >= Math.abs(fy) ? (fx 
  * player is built.
  */
 export class RoadLife {
+  voxelActors(): import('../../game/voxel/world').VoxelActor[] {
+    const animals = ['horse', 'sheep', 'cow', 'goat', 'pig'];
+    return [...this.views].flatMap(([id, v]) =>
+      !v.root.visible
+        ? []
+        : v.members.flatMap((m, i) => {
+            if (['glow', 'standard', 'prop'].includes(m.kind)) return [];
+            const f = v.heading ?? { x: 1, y: 0 };
+            return [
+              {
+                id: `road:${id}:${i}`,
+                x: v.last.x + f.x * m.ox - f.y * m.oy,
+                y: v.last.y + f.y * m.ox + f.x * m.oy,
+                faceX: f.x,
+                faceY: f.y,
+                type: 'npc',
+                species: animals.includes(m.kind) ? m.kind : undefined,
+                look: m.look ?? i,
+                walking: true,
+                cart: m.kind === 'cart',
+                mount: ['rider', 'cavalry', 'officer'].includes(m.kind) ? 1 : 0,
+                weapon: ['soldier', 'officer', 'cavalry'].includes(m.kind)
+                  ? 'iron_sword'
+                  : m.kind === 'archer'
+                    ? 'shortbow'
+                    : undefined,
+              },
+            ];
+          }),
+    );
+  }
   private views = new Map<string, View>();
   private wander = new Map<string, Wander>();
   private at = 0;
@@ -302,6 +334,7 @@ export class RoadLife {
   }
 
   private drawWayfarer(v: View, p: WayfarerPos, hour: number, now: number, reduced: boolean): void {
+    v.heading = { x: p.fx, y: p.fy };
     const sheets = this.d.sheets();
     const moved = Number.isFinite(v.last.x) ? Math.hypot(p.x - v.last.x, p.y - v.last.y) : 0;
     v.last = { x: p.x, y: p.y };
@@ -440,6 +473,7 @@ export class RoadLife {
 
   private drawFolk(v: View, f: WildFolk, dt: number, now: number, reduced: boolean): void {
     const w = this.wander.get(f.id)!;
+    v.heading = { x: w.fx, y: w.fy };
     const store = this.d.store();
     // a wild worker strolls between spots in their patch, then stops to work there a while
     const dx = w.tx - w.x,

@@ -67,6 +67,7 @@ interface Crit {
 }
 
 export interface AmbientDeps {
+  volumetric?: () => boolean;
   layer: () => Container;
   labels: () => Container;
   store: () => ChunkStore;
@@ -109,6 +110,30 @@ const BARKS: Record<string, string[]> = {
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 
 export class Ambient {
+  voxelActors(): import('./voxel/world').VoxelActor[] {
+    const aliases: Record<string, string> = { bird: 'robin', butterfly: 'moth', firefly: 'glowmoth', fish: 'tide_eel' };
+    return [
+      ...this.wildlife.voxelActors(),
+      ...this.crits.flatMap((a, i) =>
+        !a.root.visible
+          ? []
+          : [
+              {
+                id: `ambient:${i}`,
+                type: 'npc',
+                species: a.kind === 'walker' ? undefined : (aliases[a.kind] ?? a.kind),
+                x: a.x,
+                y: a.y,
+                z: a.z,
+                faceX: a.tx - a.x,
+                faceY: a.ty - a.y,
+                look: a.variant,
+                walking: a.st === 'walk' || a.st === 'fly',
+              },
+            ],
+      ),
+    ];
+  }
   private wildlife: Wildlife;
   private art: AmbientArt | null = null;
   private crits: Crit[] = [];

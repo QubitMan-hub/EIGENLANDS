@@ -9,6 +9,14 @@ import { depth, isoX, isoY } from './iso';
 import type { LifeDeps, LifeFrame } from './life';
 /** Tiny, quiet isometric vignettes. No loot, collision, saves, or remote-world generation. */
 export class WorldSecrets {
+  voxelProps(): import('./voxel/world').VoxelProp[] {
+    return [...this.views].map(([id, v]) => ({
+      id: `secret:${id}`,
+      x: v.x + 0.5,
+      y: v.y + 0.5,
+      kind: `secret_${v.kind}`,
+    }));
+  }
   private views = new Map<string, { root: Container; x: number; y: number; kind: SecretKind }>();
   private textures = new Map<SecretKind, Texture>();
   private card = new NoticeCard('world-secret', '');

@@ -31,6 +31,7 @@ const SIZES: ReadonlyArray<[number, number]> = [
 ];
 
 interface SiteView {
+  voxel: import('../../game/voxel/world').VoxelProp[];
   site: RealmSite;
   root: Container;
   bunting: Sprite | null;
@@ -59,6 +60,9 @@ function smokeTexture(): Texture {
  * when the state changes or a settlement comes into range, so it costs nothing per frame beyond the smoke puffs.
  */
 export class SettlementViews {
+  voxelProps(): import('../../game/voxel/world').VoxelProp[] {
+    return [...this.views.values()].flatMap((v) => v.voxel);
+  }
   private views = new Map<string, SiteView>();
   private stones = new Map<string, Waystone | null>();
   private plots = new Map<string, Array<Plot | null>>();
@@ -195,7 +199,7 @@ export class SettlementViews {
     const k = civState()!.kingdoms[site.realm];
     const root = new Container();
     this.d.entityLayer().addChild(root);
-    const v: SiteView = { site, root, bunting: null, smoke: [] };
+    const v: SiteView = { site, root, bunting: null, smoke: [], voxel: [] };
     const place = (art: { tex: Texture; ax: number; ay: number }, ox: number, oy: number, w = 2, h = 2): Sprite => {
       const s = new Sprite(art.tex);
       s.anchor.set(art.ax / art.tex.width, art.ay / art.tex.height);
@@ -213,16 +217,19 @@ export class SettlementViews {
       const stage = Math.min(3, Math.floor(k.project.progress * 4));
       const [x, y] = slots[slot++]!;
       place(scaffoldSprite(stage), x, y);
+      v.voxel.push({ id: `civic:${site.id}:scaffold`, x, y, kind: `scaffold:${stage}` });
     }
     for (const b of [...k.built].reverse()) {
       if (slot >= slots.length) break;
       if (b.site !== site.id) continue;
       const [x, y] = slots[slot++]!;
       place(monumentSprite(b.kind, site.realm), x, y);
+      v.voxel.push({ id: `civic:${site.id}:${slot}`, x, y, kind: `monument:${b.kind}:${site.realm}` });
     }
     const flags = plots[3];
     if (flags && (k.prosperity >= 65 || k.decree.id === 'feast'))
       v.bunting = place(buntingSprite(site.realm, 0), flags[0], flags[1], 3, 1);
+    if (flags && v.bunting) v.voxel.push({ id: `civic:${site.id}:flags`, x: flags[0], y: flags[1], kind: 'bunting' });
     if (raided || (k.wars.length && site.kind === 'outpost')) {
       const tex = smokeTexture();
       for (let i = 0; i < 4; i++) {

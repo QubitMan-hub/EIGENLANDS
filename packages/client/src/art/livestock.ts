@@ -81,7 +81,7 @@ function legs(
   return out;
 }
 
-function model(species: FarmLook, frame: number, tack: boolean): Prim[] {
+export function model(species: FarmLook, frame: number, tack: boolean): Prim[] {
   const graze = frame === 1;
   switch (species) {
     case 'cow': {

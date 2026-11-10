@@ -42,6 +42,12 @@ try {
             const t = g.store.getTile(x + dx, y + dy);
             if (![2, 3, 4, 5, 9, 10].includes(t) || g.store.objectAt(x + dx, y + dy)) ok = false;
           }
+        // Foundations require equal elevation across the full site and every neighbouring tile.
+        if (ok) {
+          const level = g.store.levelAt(x, y);
+          for (let dy = -1; dy <= 5; dy++)
+            for (let dx = -1; dx <= 5; dx++) if (g.store.levelAt(x + dx, y + dy) !== level) ok = false;
+        }
         if (ok) return { x, y };
       }
     return null;
@@ -153,7 +159,7 @@ try {
     g.net.use({ slot: g.gameplay.profile.inv.findIndex((s) => s?.id === 'chest'), tx: x + 2, ty: y + 1 });
   }, site);
   await p.waitForFunction(({ x, y }) => window.__eigen.game.store.objectAt(x + 2, y + 1)?.kind === 'chest', site);
-  await p.waitForFunction(() => window.__eigen.game.construction.count > 0);
+  await p.waitForFunction(() => window.__eigen.state().voxel.construction.cells > 0);
   assert(
     await p.evaluate(({ x, y }) => {
       const g = window.__eigen.game;
@@ -164,7 +170,7 @@ try {
       );
     }, site),
   );
-  await p.waitForFunction(() => window.__eigen.game.construction.room.size > 0);
+  await p.waitForFunction(() => window.__eigen.state().voxel.construction.room > 0);
   await p.screenshot({ path: `${out}/interior.png` });
   await tp(site.x + 2.5, site.y + 1.5);
   await p.keyboard.down('KeyW');
@@ -215,7 +221,7 @@ try {
   await p.evaluate(({ x, y }) => window.__eigen.game.net.open(x + 2, y + 4), site);
   await p.waitForFunction(({ x, y }) => !window.__eigen.game.store.solidAt(x + 2, y + 4), site);
   await tp(site.x + 2.5, site.y + 6.5);
-  await p.waitForFunction(() => window.__eigen.game.construction.room.size === 0);
+  await p.waitForFunction(() => window.__eigen.state().voxel.construction.room === 0);
   await p.screenshot({ path: `${out}/exterior.png` });
   // Selected piece exposes a small native Rotate control, including touch landscape.
   const slot = await p.evaluate(() =>

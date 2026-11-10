@@ -44,6 +44,10 @@ body {
   display: block;
   image-rendering: pixelated;
 }
+.cell .ico,
+img.ico {
+  image-rendering: auto;
+}
 [hidden] {
   display: none !important;
 }

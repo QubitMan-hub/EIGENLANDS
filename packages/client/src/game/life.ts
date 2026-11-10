@@ -196,6 +196,47 @@ const pick = <T>(a: T[], r: number): T => a[Math.floor(r * a.length) % a.length]
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 
 export class WorldLife {
+  voxelProps(): import('./voxel/world').VoxelProp[] {
+    const dressing = ['planter', 'barrel', 'basket', 'woodpile', 'crate', 'plant', 'hay'];
+    return this.cast.flatMap((a, i) => {
+      if (!a.root.visible || a.animal !== 'prop' || !a.sc) return [];
+      const kind =
+        a.sc.kind === 'dressing'
+          ? dressing[(a.sc.set ?? 0) % dressing.length]
+          : a.sc.kind === 'board'
+            ? 'guild_noticeboard'
+            : a.sc.kind === 'woodchop'
+              ? 'woodpile'
+              : a.sc.kind;
+      return [{ id: `scene:${i}`, x: a.x, y: a.y, kind }];
+    });
+  }
+  voxelActors(): import('./voxel/world').VoxelActor[] {
+    return this.cast.flatMap((a, i) =>
+      !a.root.visible || a.animal === 'prop'
+        ? []
+        : [
+            {
+              id: `life:${i}`,
+              x: a.x,
+              y: a.y,
+              z: a.z,
+              type: a.model >= 0 ? 'enemy' : 'npc',
+              kind: a.model >= 0 ? a.model : undefined,
+              species:
+                a.animal ?? ({ 74: 'cow', 75: 'sheep', 76: 'pig', 77: 'horse' } as Record<number, string>)[a.model],
+              faceX: a.tx - a.x,
+              faceY: a.ty - a.y,
+              look: a.look,
+              app: a.app,
+              walking: a.st === 'walk' || a.st === 'flee' || a.st === 'fly',
+              small: a.small,
+              action: a.carryKind,
+              phase: a.carryPhase,
+            },
+          ],
+    );
+  }
   private town: Town | null = null;
   private site: RealmSite | null = null;
   private realm: RealmId | null = null;

@@ -21,6 +21,7 @@ export const WILDLIFE_LIMIT = 28;
 const CELL = 16;
 const GROUND = new Set<number>([T.GRASS, T.GRASS_TALL, T.FLOWERS, T.SAND, T.CAVE_FLOOR, T.SCORIA]);
 interface WildlifeDeps {
+  volumetric?: () => boolean;
   store(): ChunkStore;
   layer(): Container;
   /** Optional external atlas provider; its textures remain owned by the caller. */
@@ -47,6 +48,30 @@ interface Animal {
 
 /** Small, harmless wildlife lives in streamed habitat cells, without network entities or terrain edits. */
 export class Wildlife {
+  voxelActors(): import('./voxel/world').VoxelActor[] {
+    const directions = [
+      [1, 0],
+      [0, 1],
+      [-1, 0],
+      [0, -1],
+    ];
+    return [...this.actors].flatMap(([id, a]) =>
+      !a.root.visible
+        ? []
+        : [
+            {
+              id: `wildlife:${id}`,
+              type: 'animal',
+              species: a.species.id,
+              x: a.x,
+              y: a.y,
+              faceX: directions[a.facing][0],
+              faceY: directions[a.facing][1],
+              walking: a.moving,
+            },
+          ],
+    );
+  }
   private actors = new Map<string, Animal>();
   private textures = new Map<string, Texture>();
   private seed = NaN;
@@ -71,6 +96,7 @@ export class Wildlife {
     this.textures.clear();
   }
   private texture(id: string, frame: number, heading: Heading): Texture | null {
+    if (this.d.volumetric?.()) return Texture.EMPTY;
     if (this.d.texture) return this.d.texture(id, frame, this.season, heading);
     const key = `${id}:${frame}:${heading}`;
     let t = this.textures.get(key);

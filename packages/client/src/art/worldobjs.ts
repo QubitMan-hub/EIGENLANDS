@@ -676,12 +676,12 @@ function propSub(o: WorldObj): string | null {
     : null;
 }
 
-export function worldObjDef(o: WorldObj, facing: Facing = 'sw', seatTurn?: number): ObjSpriteDef {
+export function worldObjDef(o: WorldObj, facing: Facing = 'sw', seatTurn?: number, fresh = false): ObjSpriteDef {
   if (o.sub === 'mine_rail' || o.sub === 'minecart') {
     const mask = Number(o.data?.mask ?? 5),
       end = Number(o.data?.end ?? 0),
       key = `mine:${o.sub}:${mask}:${end}`;
-    let d = objCache.get(key);
+    let d = fresh ? undefined : objCache.get(key);
     if (!d) {
       d = still(
         o.sub === 'mine_rail' ? railSprite(mask, end) : minecartSprite(mask & 10 && !(mask & 5) ? 1 : 0, true, mask),
@@ -689,16 +689,16 @@ export function worldObjDef(o: WorldObj, facing: Facing = 'sw', seatTurn?: numbe
           noShadow: o.sub === 'mine_rail',
         },
       );
-      objCache.set(key, d);
+      if (!fresh) objCache.set(key, d);
     }
     return d;
   }
   if (o.sub === 'chair' && seatTurn !== undefined) {
     const key = `chair:${seatTurn & 3}`;
-    let d = objCache.get(key);
+    let d = fresh ? undefined : objCache.get(key);
     if (!d) {
       d = still(diningChair(seatTurn));
-      objCache.set(key, d);
+      if (!fresh) objCache.set(key, d);
     }
     return d;
   }
@@ -706,29 +706,29 @@ export function worldObjDef(o: WorldObj, facing: Facing = 'sw', seatTurn?: numbe
   if (['ruin_cache', 'sea_cache'].includes(o.sub)) {
     const theme = o.sub === 'sea_cache' ? 'sea' : 'vault',
       key = `treasure:${theme}:${facing}`;
-    let d = objCache.get(key);
+    let d = fresh ? undefined : objCache.get(key);
     if (!d) {
       d = { frames: frames(4, (f) => treasureChest(facing, f, theme)), fps: 0, interactive: true };
-      objCache.set(key, d);
+      if (!fresh) objCache.set(key, d);
     }
     return d;
   }
   if (TRAVEL_PROPS[o.sub]) {
     const k = `travel:${o.sub}:${facing}`;
-    let td = objCache.get(k);
+    let td = fresh ? undefined : objCache.get(k);
     if (!td) {
       td = { ...TRAVEL_PROPS[o.sub]!(facing), interactive: true };
-      objCache.set(k, td);
+      if (!fresh) objCache.set(k, td);
     }
     return td;
   }
   const ps = propSub(o);
   if (ps) {
     const k = `prop:${ps}:${facing}`;
-    let pd = objCache.get(k);
+    let pd = fresh ? undefined : objCache.get(k);
     if (!pd) {
       pd = PROPS[ps]!(facing);
-      objCache.set(k, pd);
+      if (!fresh) objCache.set(k, pd);
     }
     return pd;
   }
@@ -743,7 +743,7 @@ export function worldObjDef(o: WorldObj, facing: Facing = 'sw', seatTurn?: numbe
         : o.sub === 'cave_mouth'
           ? `cave:${String((o.data as { biome?: string } | undefined)?.biome)}`
           : `${o.kind}:${o.sub}`;
-  let d = objCache.get(key);
+  let d = fresh ? undefined : objCache.get(key);
   if (!d) {
     const ra = REALM_ART[o.sub];
     if (ra) d = { frames: frames(ra.n, (f) => ra.draw(facing, f)), fps: ra.fps };
@@ -781,7 +781,7 @@ export function worldObjDef(o: WorldObj, facing: Facing = 'sw', seatTurn?: numbe
     else if (o.kind === 'chest') d = chest();
     else if (o.kind === 'sign') d = PROPS.sign!(facing);
     else d = TOWN_DECO[o.sub]?.() ?? SEATS[o.sub]?.() ?? PROPS.crate!(facing);
-    objCache.set(key, d);
+    if (!fresh) objCache.set(key, d);
   }
   return d;
 }

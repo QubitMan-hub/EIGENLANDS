@@ -28,6 +28,29 @@ interface ArrivalActor extends SceneActor {
 }
 /** The safe landing's small social garden. It decorates existing ground without editing a save or collision. */
 export class ArrivalGarden {
+  voxelActors(): import('./voxel/world').VoxelActor[] {
+    return this.actors.flatMap((a, i) =>
+      !a.root.visible || a.animal === 'prop'
+        ? []
+        : [
+            {
+              id: `arrival:${i}`,
+              x: a.x,
+              y: a.y,
+              z: a.z,
+              type: 'npc',
+              species: a.animal,
+              faceX: a.tx - a.x,
+              faceY: a.ty - a.y,
+              look: a.look,
+              app: a.app,
+              walking: a.st === 'walk' || a.st === 'flee' || a.st === 'fly',
+              action: a.carryKind,
+              phase: a.carryPhase,
+            },
+          ],
+    );
+  }
   private props: Array<{ at: ArrivalProp; sp: Sprite }> = [];
   private actors: ArrivalActor[] = [];
   private owned: Texture[] = [];

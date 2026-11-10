@@ -1,0 +1,253 @@
+{
+  "results": [
+    {
+      "area": "arrival",
+      "renderer": "three-voxel",
+      "orthographic": true,
+      "elevation": 30,
+      "azimuth": 45,
+      "focus": {
+        "x": 0.5,
+        "y": 4.5,
+        "frames": 4
+      },
+      "cutaways": [],
+      "construction": {
+        "cells": 0,
+        "room": 0
+      },
+      "chunks": 12,
+      "actors": 42,
+      "objects": 3,
+      "roofs": 4,
+      "geometries": 124,
+      "drawCalls": 88,
+      "triangles": 72684,
+      "missingModels": [],
+      "assets": {
+        "loaded": ["hen", "sheepdog"],
+        "failed": []
+      },
+      "contextLost": false,
+      "fps": 3
+    },
+    {
+      "area": "town",
+      "renderer": "three-voxel",
+      "orthographic": true,
+      "elevation": 30,
+      "azimuth": 45,
+      "focus": {
+        "x": 74.5,
+        "y": -0.5,
+        "frames": 32
+      },
+      "cutaways": [],
+      "construction": {
+        "cells": 0,
+        "room": 0
+      },
+      "chunks": 10,
+      "actors": 34,
+      "objects": 156,
+      "roofs": 16,
+      "geometries": 218,
+      "drawCalls": 144,
+      "triangles": 131748,
+      "missingModels": [],
+      "assets": {
+        "loaded": ["hen", "sheepdog", "hay-bale", "well"],
+        "failed": []
+      },
+      "contextLost": false,
+      "fps": 1
+    },
+    {
+      "area": "interior",
+      "renderer": "three-voxel",
+      "orthographic": true,
+      "elevation": 30,
+      "azimuth": 45,
+      "focus": {
+        "x": 75,
+        "y": -5,
+        "frames": 40
+      },
+      "cutaways": ["inn"],
+      "construction": {
+        "cells": 0,
+        "room": 0
+      },
+      "chunks": 16,
+      "actors": 37,
+      "objects": 149,
+      "roofs": 16,
+      "geometries": 269,
+      "drawCalls": 163,
+      "triangles": 148808,
+      "missingModels": [],
+      "assets": {
+        "loaded": ["hen", "sheepdog", "hay-bale", "well"],
+        "failed": []
+      },
+      "contextLost": false,
+      "fps": 1
+    },
+    {
+      "area": "wilderness",
+      "renderer": "three-voxel",
+      "orthographic": true,
+      "elevation": 30,
+      "azimuth": 45,
+      "focus": {
+        "x": 100,
+        "y": 100,
+        "frames": 52
+      },
+      "cutaways": [],
+      "construction": {
+        "cells": 0,
+        "room": 0
+      },
+      "chunks": 9,
+      "actors": 13,
+      "objects": 0,
+      "roofs": 0,
+      "geometries": 97,
+      "drawCalls": 29,
+      "triangles": 75664,
+      "missingModels": [],
+      "assets": {
+        "loaded": ["hen", "sheepdog", "hay-bale", "well"],
+        "failed": []
+      },
+      "contextLost": false,
+      "fps": 3
+    },
+    {
+      "area": "undercroft",
+      "renderer": "three-voxel",
+      "orthographic": true,
+      "elevation": 30,
+      "azimuth": 45,
+      "focus": {
+        "x": 36.5,
+        "y": 40036.5,
+        "frames": 61
+      },
+      "cutaways": [],
+      "construction": {
+        "cells": 0,
+        "room": 0
+      },
+      "chunks": 9,
+      "actors": 3,
+      "objects": 41,
+      "roofs": 0,
+      "geometries": 128,
+      "drawCalls": 56,
+      "triangles": 104996,
+      "missingModels": [],
+      "assets": {
+        "loaded": ["hen", "sheepdog", "hay-bale", "well"],
+        "failed": []
+      },
+      "contextLost": false,
+      "fps": 1
+    },
+    {
+      "area": "aetheria",
+      "renderer": "three-voxel",
+      "orthographic": true,
+      "elevation": 30,
+      "azimuth": 45,
+      "focus": {
+        "x": 0.5,
+        "y": -299998.5,
+        "frames": 76
+      },
+      "cutaways": [],
+      "construction": {
+        "cells": 0,
+        "room": 0
+      },
+      "chunks": 16,
+      "actors": 7,
+      "objects": 3,
+      "roofs": 0,
+      "geometries": 139,
+      "drawCalls": 61,
+      "triangles": 18108,
+      "missingModels": [],
+      "assets": {
+        "loaded": ["hen", "sheepdog", "hay-bale", "well"],
+        "failed": []
+      },
+      "contextLost": false,
+      "fps": 2
+    },
+    {
+      "area": "umbra",
+      "renderer": "three-voxel",
+      "orthographic": true,
+      "elevation": 30,
+      "azimuth": 45,
+      "focus": {
+        "x": 0.5,
+        "y": -399998.5,
+        "frames": 90
+      },
+      "cutaways": [],
+      "construction": {
+        "cells": 0,
+        "room": 0
+      },
+      "chunks": 16,
+      "actors": 5,
+      "objects": 3,
+      "roofs": 0,
+      "geometries": 125,
+      "drawCalls": 46,
+      "triangles": 151608,
+      "missingModels": [],
+      "assets": {
+        "loaded": ["hen", "sheepdog", "hay-bale", "well"],
+        "failed": []
+      },
+      "contextLost": false,
+      "fps": 3
+    },
+    {
+      "area": "chronoria",
+      "renderer": "three-voxel",
+      "orthographic": true,
+      "elevation": 30,
+      "azimuth": 45,
+      "focus": {
+        "x": 0.5,
+        "y": -499998.5,
+        "frames": 108
+      },
+      "cutaways": [],
+      "construction": {
+        "cells": 0,
+        "room": 0
+      },
+      "chunks": 16,
+      "actors": 5,
+      "objects": 3,
+      "roofs": 0,
+      "geometries": 158,
+      "drawCalls": 70,
+      "triangles": 92588,
+      "missingModels": [],
+      "assets": {
+        "loaded": ["hen", "sheepdog", "hay-bale", "well"],
+        "failed": []
+      },
+      "contextLost": false,
+      "fps": 2
+    }
+  ],
+  "errors": []
+}

@@ -1,4 +1,6 @@
 import { ArrivalGarden } from './arrival';
+import { VoxelWorld } from './voxel/world';
+import { voxelPortraitUrl } from '../art/voxel-icons';
 import { WorldSecrets } from './world-secrets';
 import { appearanceOf } from '../art/appearance';
 import { lookOf } from '../art/body/outfit';
@@ -21,7 +23,7 @@ import { BUILD_PIECES, dangerAt, isBuildPiece, buildTile, simulationBudget } fro
 import { describeUse } from './targeting';
 import { ConstructionViews } from './constructionviews';
 import { planeOf } from '../features/atlas/model';
-import { Application, Container, Graphics, Sprite } from 'pixi.js';
+import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import {
   BOSSES,
   xpForLevel,
@@ -236,7 +238,19 @@ export class Game {
   readonly clock = new ServerClock();
 
   private app!: Application;
+  private voxel: VoxelWorld | null = null;
   private sheets!: Sheets;
+  private sceneSheets: Sheets = {
+    person: () => Texture.EMPTY,
+    styled: () => Texture.EMPTY,
+    styledReady: () => true,
+    npc: () => Texture.EMPTY,
+    rabbit: () => Texture.EMPTY,
+    deer: () => Texture.EMPTY,
+    slime: () => Texture.EMPTY,
+    hopper: () => Texture.EMPTY,
+    orb: () => Texture.EMPTY,
+  };
   private heldWeapons = new HeldWeapons();
   private hops = new Map<string, { at: number; x: number; y: number; tx: number; ty: number }>();
   private foes!: FoeSheets;
@@ -363,6 +377,7 @@ export class Game {
       canvas,
       resizeTo: window,
       background: 0x0b0c1a,
+      backgroundAlpha: 0,
       antialias: false,
       roundPixels: true,
       resolution: tierResolution(window.devicePixelRatio || 1, this.tier === 'performance' ? 'economy' : this.tier),
@@ -453,13 +468,18 @@ export class Game {
             visible: v.root.visible,
           })),
     });
-    this.fx = new Fx(this.fxLayer, () => this.settings().reducedMotion);
+    this.fx = new Fx(
+      this.fxLayer,
+      () => this.settings().reducedMotion,
+      (x, y, color, count, kind, radius) => this.voxel?.effect(x, y, color, count, kind, radius),
+    );
     this.ambient = new Ambient({
+      volumetric: () => !!this.voxel,
       layer: () => this.entityLayer,
       labels: () => this.labelLayer,
       store: () => this.store,
       seed: () => this.seed,
-      sheets: () => this.sheets,
+      sheets: () => (this.voxel ? this.sceneSheets : this.sheets),
       fx: () => this.fx,
       toScreen: (x, y) => ({ x: this.world.x + isoX(x, y) * this.scale, y: this.world.y + isoY(x, y) * this.scale }),
     });
@@ -468,7 +488,7 @@ export class Game {
       labels: () => this.labelLayer,
       store: () => this.store,
       seed: () => this.seed,
-      sheets: () => this.sheets,
+      sheets: () => (this.voxel ? this.sceneSheets : this.sheets),
       foes: () => this.foes,
       art: () => this.ambient.artOf(),
       fx: () => this.fx,
@@ -512,6 +532,7 @@ export class Game {
       input: this.input,
       keys: this.keys,
       shrineProgress: (ids) => {
+        this.voxel?.setSolved(ids);
         this.worldObjs?.setSolvedShrines(ids);
         this.ext?.atlas.setSolved(ids);
       },
@@ -521,7 +542,7 @@ export class Game {
       },
       settings: this.settings,
       store: () => this.store,
-      sheets: () => this.sheets,
+      sheets: () => (this.voxel ? this.sceneSheets : this.sheets),
       foes: () => this.foes,
       entityLayer: () => this.entityLayer,
       fxLayer: () => this.fxLayer,
@@ -592,6 +613,8 @@ export class Game {
   private startWorld(seed: number, generation: import('@eigenlands/shared').WorldGeneration): void {
     this.seed = seed;
     this.store = new ChunkStore(seed, 400, generation);
+    this.voxel?.dispose();
+    this.voxel = new VoxelWorld(this.store, this.app.canvas);
     // revision-3 worlds have elevation: every projection lifts by the ground level under it
     setLift(generation >= 3 ? (x, y) => softLevel(this.store.levelAt, x, y) * LEVEL_PX : null);
     this.terrain = new Terrain(this.app.renderer, this.store);
@@ -609,11 +632,25 @@ export class Game {
     this.weatherFx = new WeatherFx(this.weatherLayer);
     this.app.stage.addChildAt(this.terrain.sprite, 0);
     this.app.stage.addChildAt(this.world, 1);
+    // The world is rendered as solid 3D meshes. Pixi retains labels and input guides only.
+    this.terrain.sprite.visible = false;
+    this.entityLayer.visible = false;
+    this.shadowLayer.visible = false;
+    this.roofLayer.visible = false;
+    this.constructionFloor.visible = false;
+    this.decalLayer.visible = false;
+    this.ground.layer.visible = false;
+    this.lighting.sprite.visible = false;
+    this.weatherLayer.visible = false;
     this.setSeason(this.seasonOverride ?? 1);
     this.layout();
   }
 
   private setSeason(s: SeasonIdx): void {
+    if (this.voxel) {
+      this.seasonIdx = s;
+      return;
+    }
     if (this.art && s === this.seasonIdx) return;
     this.seasonIdx = s;
     const old = this.art;
@@ -626,8 +663,10 @@ export class Game {
   private showChunk(cx: number, cy: number): void {
     this.shown.add(`${cx},${cy}`);
     this.terrain.build(cx, cy);
-    this.objects.buildChunk(cx, cy);
-    this.worldObjs.buildChunk(cx, cy);
+    if (!this.voxel) {
+      this.objects.buildChunk(cx, cy);
+      this.worldObjs.buildChunk(cx, cy);
+    }
     this.requestDiff(cx, cy);
   }
 
@@ -778,11 +817,14 @@ export class Game {
 
   private chunk(m: ChunkMsg): void {
     const changed = applyChunkSnapshot(this.store, m);
+    if (changed.tiles.length || changed.levels) this.voxel?.invalidateChunk(m.cx, m.cy);
     if ((changed.tiles.length || changed.levels) && this.terrain.has(m.cx, m.cy)) this.terrain.invalidate(m.cx, m.cy);
     if (this.shown.has(`${m.cx},${m.cy}`)) {
-      for (const t of changed.tiles) this.objects.refreshTile(t.x, t.y);
-      for (const o of changed.objects) this.worldObjs.upsert(o);
-      for (const o of changed.removed) this.worldObjs.remove(o.x, o.y);
+      if (!this.voxel) {
+        for (const t of changed.tiles) this.objects.refreshTile(t.x, t.y);
+        for (const o of changed.objects) this.worldObjs.upsert(o);
+        for (const o of changed.removed) this.worldObjs.remove(o.x, o.y);
+      }
     }
   }
 
@@ -791,20 +833,22 @@ export class Game {
     const before = structural ? buildTile(this.store.structureAt(m.x, m.y)) : undefined;
     if (m.obj) {
       this.store.putObject(m.obj);
-      if (!structural) this.worldObjs.upsert(m.obj);
+      if (!structural && !this.voxel) this.worldObjs.upsert(m.obj);
     } else if (structural) this.store.removeStructure(m.x, m.y);
     else {
       this.store.removeObject(m.x, m.y);
       this.worldObjs.remove(m.x, m.y);
     }
     const groundChanged = structural && before !== buildTile(this.store.structureAt(m.x, m.y));
+    if (groundChanged) this.voxel?.invalidate(m.x, m.y);
     if (groundChanged) this.terrain.invalidate(chunkOf(m.x), chunkOf(m.y));
-    if (!structural || groundChanged) this.objects.refreshTile(m.x, m.y);
+    if ((!structural || groundChanged) && !this.voxel) this.objects.refreshTile(m.x, m.y);
   }
   private tile(m: TileMsg): void {
     const { cx, cy } = this.store.setTile(m.tx, m.ty, m.tile);
+    this.voxel?.invalidate(m.tx, m.ty);
     this.terrain.invalidate(cx, cy, ((m.tx % 32) + 32) % 32, ((m.ty % 32) + 32) % 32);
-    this.objects.refreshTile(m.tx, m.ty);
+    if (!this.voxel) this.objects.refreshTile(m.tx, m.ty);
   }
   private notice(text: string): void {
     this.toast(text);
@@ -951,6 +995,7 @@ export class Game {
     if (worker && workAction) this.workActions.set(worker, { action: workAction, at: 0, x: f.x, y: f.y });
     if (f.kind === 'chest') {
       this.worldObjs.animateChest(Math.floor(f.x), Math.floor(f.y));
+      this.voxel?.openChest(Math.floor(f.x), Math.floor(f.y));
       return;
     }
     if (
@@ -1316,18 +1361,19 @@ export class Game {
     {
       const ow = Math.floor(camX - W / 2 / S),
         oh = Math.floor(camY - H / 2 / S);
-      this.terrain.render(
-        ow,
-        oh,
-        chunkOf(Math.floor(me.x)),
-        chunkOf(Math.floor(me.y)),
-        now / 1000,
-        this.seasonIdx,
-        // Performance freezes cosmetic terrain animation (as reduced motion does) so a still camera costs no paints.
-        !reduced && this.tier !== 'performance',
-        this.wind.w,
-        this.economy ? 0 : 1,
-      );
+      if (!this.voxel)
+        this.terrain.render(
+          ow,
+          oh,
+          chunkOf(Math.floor(me.x)),
+          chunkOf(Math.floor(me.y)),
+          now / 1000,
+          this.seasonIdx,
+          // Performance freezes cosmetic terrain animation (as reduced motion does) so a still camera costs no paints.
+          !reduced && this.tier !== 'performance',
+          this.wind.w,
+          this.economy ? 0 : 1,
+        );
       this.terrain.sprite.x = this.world.x + this.terrain.originX * S;
       this.terrain.sprite.y = this.world.y + this.terrain.originY * S;
       // visible tile bounds = bounding box of the four unprojected screen corners (raised ground shows farther tiles)
@@ -1343,10 +1389,12 @@ export class Game {
       const vy0 = Math.floor(Math.min(...c.map((p) => p.y))) - 4,
         vy1 = Math.ceil(Math.max(...c.map((p) => p.y))) + 4;
       this.vis = { x0: vx0, y0: vy0, x1: vx1, y1: vy1 };
-      this.objects.update(now, sun, reduced, vx0, vy0, vx1, vy1, this.wind);
-      this.worldObjs.update(now, sun, reduced, vx0, vy0, vx1, vy1, this.wind);
-      this.construction.update(Math.floor(me.x), Math.floor(me.y), sun, vx0, vy0, vx1, vy1);
-      this.buildings.update(now, Math.floor(me.x), Math.floor(me.y), reduced, sun, vx0, vy0, vx1, vy1, this.wind);
+      if (!this.voxel) {
+        this.objects.update(now, sun, reduced, vx0, vy0, vx1, vy1, this.wind);
+        this.worldObjs.update(now, sun, reduced, vx0, vy0, vx1, vy1, this.wind);
+        this.construction.update(Math.floor(me.x), Math.floor(me.y), sun, vx0, vy0, vx1, vy1);
+        this.buildings.update(now, Math.floor(me.x), Math.floor(me.y), reduced, sun, vx0, vy0, vx1, vy1, this.wind);
+      }
       const m = this.input.mouseXY;
       const u = this.pickGround(m.x, m.y);
       this.input.mouseTile = { tx: Math.floor(u.x), ty: Math.floor(u.y) };
@@ -1363,6 +1411,7 @@ export class Game {
     // hit-stop / phase slip: remote entities and effects run on a slightly delayed, dilated clock (visual only)
     const fxScale = this.combat.frame(dt);
     const renderT = this.clock.serverNow(now) - this.clock.interpDelay - this.combat.warp;
+    this.voxel?.beginActors();
     this.updateViews(me, alpha, renderT, now, Math.min(frameInterval, 250));
     this.ambient.frame({
       now,
@@ -1389,6 +1438,36 @@ export class Game {
     this.life.frame(lifeFrame);
     this.arrival.frame(lifeFrame, this.seasonIdx);
     this.secrets.frame(lifeFrame);
+    this.ext.frame(now, Math.min(frameInterval, 250));
+    if (this.voxel) {
+      this.voxel.setProps([
+        ...this.life.voxelProps(),
+        ...this.secrets.voxelProps(),
+        ...this.ext.travel.settlements.voxelProps(),
+      ]);
+      for (const a of [
+        ...this.life.voxelActors(),
+        ...this.arrival.voxelActors(),
+        ...this.ambient.voxelActors(),
+        ...this.ext.travel.roadLife.voxelActors(),
+        ...this.ext.travel.caravans.voxelActors(),
+      ])
+        this.voxel.actor(a, now, reduced);
+      this.voxel.render({
+        now,
+        x: me.x,
+        y: me.y,
+        scale: S,
+        season: this.seasonIdx,
+        hour,
+        underground,
+        reduced,
+        tier: this.tier,
+        weather,
+        weatherDetail: this.settings().weatherDetail,
+        bounds: this.vis,
+      });
+    }
     this.listen(now, dt, me, hour, weather, underground);
     this.updateTarget34(renderT, me);
     this.syncFocus(now);
@@ -1396,40 +1475,42 @@ export class Game {
     for (const v of this.views.values()) this.castShadow(v, sun);
     this.fx.update(dt * fxScale);
     if (this.self) this.combat.vignette($('vignette'), this.self.hp, this.self.maxHp, this.dead, dt);
-    this.ext.frame(now, Math.min(frameInterval, 250));
 
     // lighting
     const topLeftIso = { x: camX - W / 2 / S, y: camY - H / 2 / S };
-    this.weatherFx.update(
-      dt,
-      weather,
-      W,
-      H,
-      reduced,
-      underground ? 0 : hour,
-      underground ? undefined : this.wind.w,
-      this.seasonIdx,
-      this.economy,
-      this.settings().weatherDetail,
-    );
-    this.skyFx.update({
-      dt,
-      w: W,
-      h: H,
-      seed: this.store.seed,
-      day: dayNumber(this.clock.serverNow(now)),
-      hour,
-      weather,
-      biome: biomeAt(this.store.seed, Math.floor(me.x), Math.floor(me.y)),
-      outdoors: !underground,
-      reduced,
-    });
+    if (!this.voxel)
+      this.weatherFx.update(
+        dt,
+        weather,
+        W,
+        H,
+        reduced,
+        underground ? 0 : hour,
+        underground ? undefined : this.wind.w,
+        this.seasonIdx,
+        this.economy,
+        this.settings().weatherDetail,
+      );
+    if (!this.voxel)
+      this.skyFx.update({
+        dt,
+        w: W,
+        h: H,
+        seed: this.store.seed,
+        day: dayNumber(this.clock.serverNow(now)),
+        hour,
+        weather,
+        biome: biomeAt(this.store.seed, Math.floor(me.x), Math.floor(me.y)),
+        outdoors: !underground,
+        reduced,
+      });
     const wa = this.weatherFx.ambient(weather),
       amb = diving ? [0.27, 0.53, 0.61] : upper ? [0.72, 0.67, 0.59] : underground ? CAVE_AMBIENT : ambientColor(hour);
-    this.lighting.render(
-      [amb[0] * wa[0], amb[1] * wa[1], amb[2] * wa[2]],
-      this.collectLights(topLeftIso.x, topLeftIso.y, underground ? 0 : hour, now, reduced),
-    );
+    if (!this.voxel)
+      this.lighting.render(
+        [amb[0] * wa[0], amb[1] * wa[1], amb[2] * wa[2]],
+        this.collectLights(topLeftIso.x, topLeftIso.y, underground ? 0 : hour, now, reduced),
+      );
     this.updateTarget(now);
     this.gameplay.frame(now);
     if (!this.gameplay.blocking) this.gameplay.holdUse(now);
@@ -1548,9 +1629,15 @@ export class Game {
   private clickWorld(cx: number, cy: number): boolean {
     this.mining.cancel();
     const S = this.scale;
+    const voxelTarget = this.voxel?.pickEnemy(cx, cy);
+    if (voxelTarget) {
+      this.setTarget(voxelTarget);
+      return false;
+    }
     let best: ActorView | null = null,
       bd = Infinity;
     for (const v of this.views.values()) {
+      if (this.voxel) break;
       if (v.type !== 'enemy' || !v.root.visible) continue;
       const sx = this.world.x + v.root.x * S,
         sy = this.world.y + v.root.y * S;
@@ -1570,7 +1657,12 @@ export class Game {
     }
     const ground = this.pickGround(cx, cy);
     const tool = ITEMS[this.gameplay.selected()?.id ?? '']?.tool?.type;
-    const hit = tool === 'axe' || tool === 'pickaxe' ? this.objects.pickMineable(cx, cy, tool) : null;
+    const hit =
+      tool === 'axe' || tool === 'pickaxe'
+        ? this.voxel
+          ? this.voxel.pickMineable(cx, cy, tool)
+          : this.objects.pickMineable(cx, cy, tool)
+        : null;
     const tile = hit ?? { tx: Math.floor(ground.x), ty: Math.floor(ground.y) };
     const me = this.predictor.sim;
     const mining = this.mining.start(me.x, me.y, tile.tx, tile.ty, performance.now());
@@ -1798,6 +1890,40 @@ export class Game {
       v.travel += moved;
       if (moved > 0.003 * (dtMs / 16)) v.movingUntil = now + 90;
       const walking = now < v.movingUntil;
+      const npcHidden =
+        v.type === 'npc' &&
+        !!((s?.flags ?? 0) & 2) &&
+        this.buildings.insideBuilding(Math.floor(x), Math.floor(y)) !==
+          this.buildings.insideBuilding(Math.floor(me.x), Math.floor(me.y));
+      if (!npcHidden)
+        this.voxel?.actor(
+          {
+            id: v.id,
+            x,
+            y,
+            faceX: fx,
+            faceY: fy,
+            type: v.type,
+            kind: v.kind,
+            look: s?.look ?? v.outfit,
+            app: s?.app,
+            parts: s?.parts,
+            weapon: isMe ? this.weaponInfo().id : s?.held || s?.weapon,
+            shield: s?.shield,
+            walking,
+            attack: isMe ? this.predictor.sim.atkCd > 0 : !!((s?.flags ?? 0) & 2),
+            guard: isMe ? this.predictor.sim.guard > 0 : !!((s?.flags ?? 0) & 256),
+            dead: isMe ? this.dead : v.type === 'enemy' || v.type === 'shadow' ? s?.st === 6 : !!((s?.flags ?? 0) & 4),
+            telegraph: (v.type === 'enemy' || v.type === 'shadow') && s?.st === 2,
+            mount: isMe ? this.predictor.sim.mount : s?.mount,
+            boat: isMe ? this.predictor.sim.boat > 0 : !!((s?.flags ?? 0) & 128),
+            cart: isMe ? this.predictor.sim.cart > 0 : s?.cart,
+            species: isLivestock(s?.farm) ? s?.farm : undefined,
+            small: s?.young,
+          },
+          now,
+          reduced,
+        );
       const pixels = this.scale * this.app.renderer.resolution;
       v.lx = x;
       v.ly = y;
@@ -1819,6 +1945,20 @@ export class Game {
       }
       v.root.zIndex = depth(x, y);
       v.gfx.clear();
+      if (this.voxel) {
+        // Simulation and interaction anchors still advance; no hidden sprite poses are rasterized.
+        v.root.visible = !npcHidden;
+        if (v.label) {
+          if (s?.name && v.label.text !== s.name) v.label.text = s.name;
+          v.label.visible = !npcHidden && (v.type !== 'npc' || Math.hypot(x - me.x, y - me.y) < 4);
+          v.label.scale.set(this.scale);
+          v.label.position.set(
+            Math.round(this.world.x + v.root.x * this.scale),
+            Math.round(this.world.y + (v.root.y - 36) * this.scale),
+          );
+        }
+        continue;
+      }
 
       if (v.type === 'player') {
         const boat = isMe ? this.predictor.sim.boat > 0 : ((s?.flags ?? 0) & 128) !== 0;
@@ -2066,7 +2206,7 @@ export class Game {
         if (v.label) {
           if (s?.name && v.label.text !== s.name) v.label.text = s.name;
           // riders' names float above the saddle, and a griffin's rider higher still
-          const above = PERSON_TOP + (riding ? -8 - v.sprite.y : 0);
+          const above = (this.voxel ? 28 : PERSON_TOP) + (riding ? -8 - v.sprite.y : 0);
           v.label.scale.set(this.scale);
           v.label.x = Math.round(this.world.x + v.root.x * this.scale);
           v.label.y = Math.round(this.world.y + (v.root.y - above) * this.scale);
@@ -2108,7 +2248,7 @@ export class Game {
           v.label.visible = !hidden && near;
           v.label.scale.set(this.scale);
           v.label.x = Math.round(this.world.x + v.root.x * this.scale);
-          v.label.y = Math.round(this.world.y + (v.root.y - PERSON_TOP) * this.scale);
+          v.label.y = Math.round(this.world.y + (v.root.y - (this.voxel ? 28 : PERSON_TOP)) * this.scale);
         }
       } else if (v.type === 'enemy' || v.type === 'shadow') {
         this.combat.drawEnemy(v, s, x, y, fx, now, dtMs / 1000, walking);
@@ -2162,6 +2302,7 @@ export class Game {
       }
     }
     if (this.gameplay.blocking || this.dead) {
+      this.voxel?.preview([]);
       this.gameplay.setHint(null);
       return;
     }
@@ -2175,6 +2316,7 @@ export class Game {
       run.sort((a, b) => a.tx + a.ty - (b.tx + b.ty));
       let ok = 0;
       run.forEach((q, i) => {
+        if (this.voxel) return;
         let ghost = this.runGhosts.children[i] as Sprite | undefined;
         if (!ghost) this.runGhosts.addChild((ghost = new Sprite()));
         const tex = constructionTexture(pid, q.turn);
@@ -2195,6 +2337,20 @@ export class Game {
         ghost.visible = true;
       });
       const have = this.gameplay.selected()?.n ?? 0;
+      if (this.voxel) {
+        const previews = run.map((q) => {
+          const fits = describeUse(
+            selected,
+            this.store.getTile(q.tx, q.ty),
+            this.store.objectAt(q.tx, q.ty),
+            this.seasonIdx,
+            this.store.structureAt(q.tx, q.ty),
+          );
+          return { id: pid, x: q.tx, y: q.ty, turn: q.turn, ok: q.near && !!fits?.ok };
+        });
+        ok = previews.filter((p) => p.ok).length;
+        this.voxel.preview(previews);
+      }
       this.gameplay.setHint(
         `Release to build ${Math.min(ok, have)} × ${BUILD_PIECES[pid].name}` +
           (ok > have ? ` (you have ${have})` : '') +
@@ -2204,6 +2360,8 @@ export class Game {
       return;
     }
     if (selected && isBuildPiece(selected.id) && info?.kind === 'place') {
+      if (this.voxel)
+        this.voxel.preview([{ id: selected.id, x: pr.tx, y: pr.ty, turn: this.gameplay.buildRotation, ok: info.ok }]);
       const ghost = this.buildGhost,
         tex = constructionTexture(selected.id, this.gameplay.buildRotation);
       ghost.texture = tex;
@@ -2212,7 +2370,8 @@ export class Game {
       ghost.alpha = 0.55;
       ghost.tint = info.ok ? 0xbce0c6 : 0xea9273;
       ghost.visible = true;
-    }
+      if (this.voxel) ghost.visible = false;
+    } else this.voxel?.preview([]);
     if (info && info.kind !== 'talk') {
       const col = info.ok ? pc(info.kind === 'none' ? 6 : 47) : pc(37);
       const pulse = 0.55 + 0.25 * Math.sin(now / 200);
@@ -2242,34 +2401,21 @@ export class Game {
     return folk ?? best;
   }
 
-  /** Data-URL portrait of an NPC (or `me`) cut from the sprite sheet, for dialogue and journal. */
+  /** Portraits use the same solid rig as the world, including saved appearance and equipment. */
   private portraitUrl(npcId: string): string {
     let u = this.portraitCache.get(npcId);
     if (u) return u;
     try {
-      const tex =
-        npcId === 'me'
-          ? this.sheets.person(this.gameplay.profile.equip.outfit, DIR_DOWN, 0)
-          : /^ct-?\d+_-?\d+$/.test(npcId)
-            ? // a cottage family: the same look the road-life layer draws them in
-              this.sheets.person(cottagerLook(npcId) % COSMETIC_OUTFITS, DIR_DOWN, 0)
-            : this.sheets.npc(npcId, DIR_DOWN, 0);
-      const src = tex.source.resource as CanvasImageSource;
-      const c = document.createElement('canvas');
-      c.width = tex.frame.width;
-      c.height = tex.frame.height;
-      c.getContext('2d')!.drawImage(
-        src,
-        tex.frame.x,
-        tex.frame.y,
-        tex.frame.width,
-        tex.frame.height,
-        0,
-        0,
-        c.width,
-        c.height,
+      const self = npcId === 'me',
+        state = self ? this.self : this.interp.sample(npcId, this.clock.serverNow(performance.now()))?.pose;
+      u = voxelPortraitUrl(
+        state?.app ?? 0,
+        self ? this.gameplay.profile.equip.outfit : (state?.look ?? cottagerLook(npcId) % COSMETIC_OUTFITS),
+        self ? this.weaponInfo().id : state?.weapon,
+        state?.shield,
+        state?.parts,
+        self ? undefined : npcId,
       );
-      u = c.toDataURL();
     } catch {
       u = '';
     }
@@ -2282,7 +2428,7 @@ export class Game {
     box.className = 'portrait-box';
     const img = document.createElement('img');
     img.src = this.portraitUrl('me');
-    img.style.cssText = 'image-rendering:pixelated;height:88px';
+    img.style.cssText = 'image-rendering:auto;height:88px';
     box.append(img);
     return box;
   }
@@ -2526,6 +2672,7 @@ export class Game {
     const p = this.predictor?.sim;
     return {
       ready: !!p,
+      voxel: this.voxel?.diagnostics(),
       x: p?.x,
       y: p?.y,
       fps: this.fps,

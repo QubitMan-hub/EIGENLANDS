@@ -62,6 +62,11 @@ const SQUARE = (r: number): Array<[number, number]> => {
   return out;
 };
 const FOOTPRINTS: Record<string, Array<[number, number]>> = {
+  festival_stage: [
+    [-1, 0],
+    [1, 0],
+  ],
+  archery_booth: SQUARE(1),
   stall: [[1, 0]],
   ferris_wheel: [
     [-1, 0],

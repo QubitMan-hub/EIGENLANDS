@@ -1,0 +1,36 @@
+{
+  "results": [
+    {
+      "area": "arrival",
+      "renderer": "three-voxel",
+      "orthographic": true,
+      "elevation": 30,
+      "azimuth": 45,
+      "focus": {
+        "x": 0.5,
+        "y": 4.5,
+        "frames": 4
+      },
+      "cutaways": [],
+      "construction": {
+        "cells": 0,
+        "room": 0
+      },
+      "chunks": 12,
+      "actors": 42,
+      "objects": 3,
+      "roofs": 4,
+      "geometries": 119,
+      "drawCalls": 86,
+      "triangles": 71396,
+      "missingModels": [],
+      "assets": {
+        "loaded": ["hen", "sheepdog"],
+        "failed": []
+      },
+      "contextLost": false,
+      "fps": 1
+    }
+  ],
+  "errors": []
+}

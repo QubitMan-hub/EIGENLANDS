@@ -1018,7 +1018,7 @@ export function buildRealmTown(site: RealmSite, seed: number, generation = 5): T
       break;
     }
 
-  // ───── the fairground: a Ferris wheel, a carousel, swing boats, a big top and game booths on beaten earth
+  // ───── the fairground: a performance stage, archery booth, swing boats, a big top and game booths
   if (!tier && (site.kind === 'capital' || site.kind === 'town'))
     for (let tries = 0; tries < 40; tries++) {
       const fw = site.kind === 'capital' ? rnd(22, 26) : rnd(18, 21),
@@ -1028,8 +1028,8 @@ export function buildRealmTown(site: RealmSite, seed: number, generation = 5): T
       if (!isFree(fx - 1, fy - 1, fw + 2, fh + 2)) continue;
       mark(fx, fy, fw, fh, RES);
       for (let y = fy; y < fy + fh; y++) for (let x = fx; x < fx + fw; x++) set(x, y, T.PATH);
-      obj(fx + 4, fy + 4, 'deco', 'ferris_wheel');
-      obj(fx + Math.floor(fw / 2) + 1, fy + Math.floor(fh / 2), 'deco', 'carousel');
+      obj(fx + 4, fy + 4, 'deco', 'festival_stage');
+      obj(fx + Math.floor(fw / 2) + 1, fy + Math.floor(fh / 2), 'deco', 'archery_booth');
       obj(fx + fw - 5, fy + 4, 'deco', 'circus_tent');
       obj(fx + fw - 4, fy + fh - 4, 'deco', 'swing_boat');
       const AWN = ['red', 'blue', 'green', 'gold', 'violet'];

@@ -353,7 +353,7 @@ function dress(
   const domestic = ['laundry', 'flower_bed', 'woodpile', 'hedge', 'planter'];
 
   for (const b of t.buildings) {
-    put(b.doorX + 2, b.doorY + 1, 'deco', 'mailbox');
+    put(b.doorX + 2, b.doorY + 1, 'deco', 'signpost');
     const h = hash2(seed, b.x, b.y, 310);
     const yardProps = yards[b.id] ?? yards[b.kind] ?? domestic;
     // yard props on the sides of the house, never in front of the door
