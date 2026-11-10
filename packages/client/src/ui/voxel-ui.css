@@ -1,0 +1,287 @@
+/* Solid-model renders supply the carved frames. Text and hit targets stay flat, readable and accessible. */
+:root {
+  --walnut: #241c16;
+  --leather: #4b3425;
+  --leather-hi: #67462e;
+  --brass: #dfad4e;
+  --brass-hi: #ffe09a;
+  --parch: #efd9a7;
+  --parch-hi: #ffedbe;
+  --parch-lo: #d5ba83;
+  --ink-dark: #302716;
+  --ink-soft: #63502d;
+  --verdigris: #218c79;
+  --verdigris-hi: #78e4c5;
+  --hp: #e45e51;
+  --accent: #78e4c5;
+  --mute: #e3cfa5;
+  --pix: 'IM Fell English', Georgia, serif;
+}
+html,
+body {
+  font-family: var(--pix);
+}
+::selection {
+  color: #fff3d2;
+  background: #216b5d;
+}
+:focus-visible {
+  outline: 2px solid #8aebd1;
+  outline-offset: 3px;
+}
+* {
+  scrollbar-color: #987640 #2e3028;
+  scrollbar-width: thin;
+}
+#hud-left,
+#hud-right,
+#hotbar,
+.panel,
+.window,
+#tooltip,
+#hud-menu,
+.gatebtn,
+button,
+.win-head,
+.look-canvas,
+#minimap {
+  border: 0;
+  border-radius: 0;
+  border-image: var(--voxel-timber) 40 fill / 12px / 3px stretch;
+  background: var(--leather);
+  box-shadow: 0 5px 10px #121a2055;
+}
+.window .win-body,
+.win-body {
+  border-image: var(--voxel-stone) 40 fill / 12px / 0 stretch;
+  background: var(--parch);
+  box-shadow: none;
+  color: var(--ink-dark);
+  --mute: #63502d;
+  --accent: #196953;
+}
+.win-head {
+  padding: 12px 16px;
+}
+.win-title,
+.pname,
+.dialtime,
+.gatebtn {
+  letter-spacing: 0.025em;
+}
+.pname,
+.dialtime {
+  font-size: 15px;
+}
+.win-body .small,
+.win-body .dim,
+.win-body .eqlabel,
+.win-body .stats {
+  color: #63502d;
+}
+.win-body .side-title {
+  color: #624817;
+}
+button {
+  color: #fff0c9;
+  transition:
+    transform 100ms ease-out,
+    filter 100ms ease-out;
+}
+button:hover,
+.gatebtn:hover {
+  background: var(--leather-hi);
+  filter: brightness(1.12);
+}
+button:active {
+  transform: translateY(2px);
+  filter: brightness(0.94);
+}
+button:disabled {
+  filter: saturate(0.25);
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+button.primary {
+  border-image-source: var(--voxel-jade);
+  color: #fff2c9;
+  background: #216b5d;
+  text-shadow: 0 1px 1px #122e28;
+}
+button.danger {
+  border-image-source: var(--voxel-timber);
+  color: #ffc4ad;
+}
+.slot,
+.hslot,
+.portrait-box,
+.portrait,
+.cell.unk {
+  border: 0;
+  border-radius: 0;
+  border-image: var(--voxel-slot) 40 fill / 7px / 0 stretch;
+  background: #273a38;
+  box-shadow: none;
+}
+.slot.on,
+.slot:hover,
+.hslot:hover,
+.hslot.on {
+  outline: 2px solid #78e4c5;
+  outline-offset: -2px;
+  box-shadow: none;
+}
+img.pix,
+img.ico,
+.look-canvas canvas,
+.ts-island,
+.portrait img {
+  image-rendering: auto;
+}
+img.voxel-ui-icon {
+  object-fit: contain;
+  vertical-align: middle;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.look-canvas {
+  border-image-source: var(--voxel-slot);
+}
+.look-canvas canvas {
+  width: 144px;
+  max-width: 100%;
+}
+.ts-stage {
+  width: 576px;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  animation-timing-function: ease-in-out;
+}
+.ts-island {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.bar,
+.v-track,
+.xpbar {
+  background: #263b38;
+  border-color: #96703e;
+}
+.bar.hp i,
+.v-hp .v-fill {
+  background: #e45e51;
+}
+.bar i,
+.xpbar i {
+  box-shadow:
+    inset 0 3px 0 #ffffff30,
+    inset 0 -3px 0 #00000025;
+}
+input,
+select,
+textarea {
+  caret-color: #65d5b1;
+}
+input::placeholder,
+textarea::placeholder {
+  color: #c7b28a;
+  opacity: 1;
+}
+.win-body input::placeholder {
+  color: #75603b;
+}
+@media (max-width: 640px) {
+  #hud-left,
+  #hud-right,
+  #hotbar,
+  button {
+    border-image-width: 8px;
+  }
+  .pname,
+  .dialtime {
+    font-size: 13px;
+  }
+  .win-body {
+    border-image-width: 8px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  button {
+    transition: none;
+  }
+  .ts-stage {
+    animation: none;
+  }
+}
+.hc .panel,
+.hc .window,
+.hc .win-body {
+  border-image: none;
+  background: #000;
+  color: #fff;
+  outline: 2px solid #fff;
+}
+
+.vitals-canvas {
+  image-rendering: auto;
+}
+#tbtns button {
+  border-radius: 0;
+  border-image: var(--voxel-timber) 40 fill / 9px / 0 stretch;
+}
+#stick {
+  border-radius: 0;
+  border-image: var(--voxel-slot) 40 fill / 10px / 0 stretch;
+  background: #223c3866;
+}
+#knob {
+  border-radius: 3px;
+  background: #65c8a8;
+  box-shadow:
+    inset 0 4px 0 #b1eed5,
+    inset 0 -4px 0 #286956;
+}
+
+#target-frame,
+#adv-banner {
+  border: 0;
+  border-image: var(--voxel-timber) 40 fill / 10px / 0 stretch;
+  background: var(--leather);
+  box-shadow: 0 5px 10px #121a2055;
+}
+.bb-canvas,
+.tf-gem {
+  image-rendering: auto;
+}
+.enc-health {
+  border-image: var(--voxel-slot) 40 fill / 4px / 0 stretch;
+}
+.enc-fill,
+.enc-trail {
+  box-shadow:
+    inset 0 3px 0 #ffffff40,
+    inset 0 -3px 0 #00000035;
+}
+
+/* Empty equipment names sit over dark carved recesses, rather than over the reading surface. */
+.window .win-body .slot .eqlabel {
+  color: #f6dc9e;
+  text-shadow: 0 1px 1px #101f19;
+}
+html #atlas-mini {
+  border: 0;
+  border-image: var(--voxel-timber) 40 fill / 8px / 0 stretch;
+  background: var(--leather);
+  color: #fff0c9;
+}
+.qubit img {
+  width: 92px;
+  height: 92px;
+  image-rendering: auto;
+}
+#knob {
+  border-image: var(--voxel-jade) 40 fill / 8px / 0 stretch;
+  box-shadow: none;
+}

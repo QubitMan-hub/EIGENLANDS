@@ -1,15 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { Vector3 } from 'three';
+import { Group, Vector3 } from 'three';
+import { CREATURE_YAW, orientWallProp, objectLayout } from '../src/game/voxel/orientation';
 import { voxelCamera, voxelHeight, foregroundOccludes } from '../src/game/voxel/camera';
 import { modelGeometry, solidBox } from '../src/game/voxel/mesh';
 import { isoX, isoYFlat, LEVEL_PX } from './voxel-test-projection';
 import { creatureBoxes, animalBoxes } from '../src/game/voxel/creatures';
-import { ENEMY_KEY_BY_KIND, ITEMS } from '@eigenlands/shared';
+import { ENEMY_KEY_BY_KIND, ITEMS, T } from '@eigenlands/shared';
 import { voxelItemBoxes } from '../src/game/voxel/items';
 import { Iso, Prop, captureSolidCommands } from '../src/art/isokit';
 import type { Ctx } from '../src/art/shade';
 import { buildingStyle } from '../src/game/voxel/architecture';
 import { roofModel } from '../src/game/voxel/models';
+import { uiIconBoxes, UI_ICONS, uiPlateBoxes, uiGaugeBoxes } from '../src/game/voxel/ui-models';
 import { dressFurniture } from '../src/game/voxel/furnishings';
 
 describe('orthographic world adapter', () => {
@@ -29,6 +31,34 @@ describe('orthographic world adapter', () => {
         );
       }
     }
+  });
+  it('aligns authored creature noses with the actor forward vector in every heading', () => {
+    for (const angle of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+      const nose = new Vector3(1, 0, 0).applyAxisAngle(new Vector3(0, 1, 0), CREATURE_YAW + angle);
+      expect(nose.x).toBeCloseTo(Math.sin(angle));
+      expect(nose.z).toBeCloseTo(Math.cos(angle));
+    }
+  });
+  it('exchanges wall axes without reversing a cupboard front or its anchor', () => {
+    const root = new Group();
+    orientWallProp(root, 'se');
+    root.updateMatrixWorld();
+    const front = new Vector3(0.2, 0.4, -0.3).applyMatrix4(root.matrixWorld);
+    expect(front.x).toBeCloseTo(-0.3);
+    expect(front.y).toBeCloseTo(0.4);
+    expect(front.z).toBeCloseTo(0.2);
+    orientWallProp(root, 'sw');
+    root.updateMatrixWorld();
+    expect(new Vector3(0.2, 0.4, -0.3).applyMatrix4(root.matrixWorld).toArray()).toEqual([0.2, 0.4, -0.3]);
+  });
+  it('backs furniture onto the same wall as collision and points seats toward a table', () => {
+    const o = { x: 10, y: 20, kind: 'furniture' as const, sub: 'chair' };
+    const store = {
+      getTile: (x: number, y: number) => (x === 9 && y === 20 ? T.WALL : T.GRASS),
+      objectAt: (x: number, y: number) => (x === 11 && y === 20 ? { ...o, x, sub: 'table' } : undefined),
+    };
+    expect(objectLayout(store, o)).toEqual({ facing: 'se', seatTurn: 3 });
+    expect(objectLayout(store, { ...o, data: { facing: 'sw', seatTurn: 1 } })).toEqual({ facing: 'sw', seatTurn: 1 });
   });
   it('only cuts foreground volumes intersecting the player camera ray', () => {
     expect(foregroundOccludes(2, 2, 4, 0, 0)).toBe(true);
@@ -70,6 +100,47 @@ describe('volumetric meshing', () => {
     expect(a).toEqual(dressFurniture(table, 'table', 100, 'inn'));
     expect(a.every((q) => q.y - q.h / 2 >= 0.65)).toBe(true);
     expect(a.every((q) => Math.abs(q.x) + q.w / 2 <= 0.5 && Math.abs(q.z) + q.d / 2 <= 0.4)).toBe(true);
+  });
+  it('keeps clutter on narrow shelves and below the board above', () => {
+    const shelf = [solidBox(0, 0.5, 0, 0.5, 0.06, 0.32, 0x886644), solidBox(0, 0.77, 0, 0.5, 0.06, 0.32, 0x886644)];
+    for (let seed = 0; seed < 20; seed++) {
+      const props = dressFurniture(shelf, 'bookcase', seed);
+      expect(props.length).toBeGreaterThan(0);
+      for (const b of props) {
+        expect(Math.abs(b.x) + b.w / 2).toBeLessThanOrEqual(0.25);
+        expect(Math.abs(b.z) + b.d / 2).toBeLessThanOrEqual(0.16);
+        if (b.y < 0.74) expect(b.y + b.h / 2).toBeLessThanOrEqual(0.74);
+      }
+    }
+  });
+  it('supplies actual positive-volume geometry for every HUD icon and panel material', () => {
+    for (const boxes of [
+      ...UI_ICONS.map(uiIconBoxes),
+      ...(['timber', 'stone', 'jade', 'slot'] as const).map(uiPlateBoxes),
+    ]) {
+      expect(boxes.length).toBeGreaterThan(1);
+      expect(boxes.every((b) => b.w > 0 && b.h > 0 && b.d > 0 && Number.isFinite(b.x + b.y + b.z))).toBe(true);
+    }
+  });
+  it('models an empty and full gauge without negative fill volumes', () => {
+    const spec = {
+      id: 'health' as const,
+      shown: 0,
+      trail: 0,
+      flash: 0,
+      gain: 0,
+      low: false,
+      tone: 'ok' as const,
+      aura: null,
+      pips: 0,
+      pipMax: 0,
+      ready: false,
+      t: 0,
+    };
+    const empty = uiGaugeBoxes(spec),
+      full = uiGaugeBoxes({ ...spec, shown: 1, trail: 1 });
+    expect(full.length).toBeGreaterThan(empty.length);
+    expect([...empty, ...full].every((b) => b.w > 0 && b.h > 0 && b.d > 0)).toBe(true);
   });
   it('supplies finite solid volumes for every inventory item without reading a sprite', () => {
     for (const id of Object.keys(ITEMS)) {

@@ -1,0 +1,99 @@
+{
+  "results": [
+    {
+      "device": "desktop",
+      "overflow": {
+        "left": 140,
+        "right": 1140,
+        "top": 24,
+        "bottom": 776,
+        "width": 1280,
+        "height": 800
+      },
+      "contrast": {
+        "equipment": 12.874034273210695,
+        "body": 6.8305204527146595
+      },
+      "voxel": {
+        "renderer": "three-voxel",
+        "orthographic": true,
+        "elevation": 30,
+        "azimuth": 45,
+        "focus": {
+          "x": 75,
+          "y": -5,
+          "frames": 28
+        },
+        "cutaways": ["inn"],
+        "construction": {
+          "cells": 0,
+          "room": 0
+        },
+        "chunks": 16,
+        "actors": 37,
+        "objects": 149,
+        "roofs": 16,
+        "geometries": 219,
+        "drawCalls": 164,
+        "triangles": 147500,
+        "missingModels": [],
+        "assets": {
+          "loaded": ["hen", "sheepdog", "well", "hay-bale"],
+          "failed": []
+        },
+        "contextLost": false
+      },
+      "misplaced": [],
+      "misoriented": [],
+      "icons": 17
+    },
+    {
+      "device": "mobile",
+      "overflow": {
+        "left": 16,
+        "right": 843.109375,
+        "top": 11.703125,
+        "bottom": 378.296875,
+        "width": 844,
+        "height": 390
+      },
+      "contrast": {
+        "equipment": 12.874034273210695,
+        "body": 6.8305204527146595
+      },
+      "voxel": {
+        "renderer": "three-voxel",
+        "orthographic": true,
+        "elevation": 30,
+        "azimuth": 45,
+        "focus": {
+          "x": 0.5,
+          "y": 4.5,
+          "frames": 28
+        },
+        "cutaways": [],
+        "construction": {
+          "cells": 0,
+          "room": 0
+        },
+        "chunks": 6,
+        "actors": 43,
+        "objects": 1,
+        "roofs": 0,
+        "geometries": 121,
+        "drawCalls": 37,
+        "triangles": 38168,
+        "missingModels": [],
+        "assets": {
+          "loaded": ["hen", "sheepdog"],
+          "failed": []
+        },
+        "contextLost": false
+      },
+      "misplaced": [],
+      "misoriented": [],
+      "icons": 17
+    }
+  ],
+  "errors": []
+}

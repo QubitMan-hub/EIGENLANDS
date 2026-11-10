@@ -1,4 +1,4 @@
-/** The legendary-boss header: themed pixel frame (boss-frames.ts) with DOM text, fill, chips and a mechanic line. */
+/** The legendary-boss header: themed voxel frame (boss-frames.ts) with DOM text, fill, chips and a mechanic line. */
 import type { BossDef } from '@eigenlands/shared';
 import { ENEMY_BY_KIND } from '@eigenlands/shared';
 import { h } from './dom';
@@ -6,7 +6,8 @@ import { enemyChips, poiseLabel, type EnemyChip } from './enemy-model';
 import { bossPhase, type Encounter } from './encounter-model';
 import { HealthMeter } from './healthmeter';
 import { iconSvg } from './icons';
-import { BOSS_H, BOSS_W, WINDOW, renderBossFrame, themeFor, themeVars } from './boss-frames';
+import { renderVoxelBossFrame } from './boss-voxel';
+import { BOSS_H, BOSS_W, WINDOW, themeFor, themeVars } from './boss-frames';
 
 export interface BossFrameInput extends Encounter {
   poise?: number;
@@ -37,8 +38,9 @@ export class BossBar {
   private lastPaint = -1;
 
   constructor() {
-    this.canvas.width = BOSS_W;
-    this.canvas.height = BOSS_H;
+    this.canvas.width = BOSS_W * 4;
+    this.canvas.height = BOSS_H * 4;
+    this.canvas.getContext('2d')!.setTransform(4, 0, 0, 4, 0, 0);
     this.canvas.setAttribute('aria-hidden', 'true');
     this.health.root.append(this.ticks);
     this.sub.setAttribute('aria-live', 'polite');
@@ -91,7 +93,7 @@ export class BossBar {
     if (key !== this.paintedKey || (t > 0 && t - this.lastPaint > 0.25)) {
       this.paintedKey = key;
       this.lastPaint = t;
-      renderBossFrame(this.canvas.getContext('2d')!, theme, { frac, phases: def.phases, t });
+      renderVoxelBossFrame(this.canvas.getContext('2d')!, theme, { frac, phases: def.phases, t });
     }
     // armour, stance and the encounter's own hint
     const enemy = ENEMY_BY_KIND[b.kind];

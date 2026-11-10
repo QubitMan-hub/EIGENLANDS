@@ -1,4 +1,5 @@
 import './style.css';
+import { installVoxelUI } from './ui/voxel-ui';
 import { MSG, packAppearance, type Appearance } from '@eigenlands/shared';
 import { IS_SOLO, HAS_SOLO, SERVER_URL, SERVER_ERROR, friendInvite, gameServerUrl } from './net/world-session';
 import { Game } from './game/Game';
@@ -33,6 +34,7 @@ declare global {
 }
 
 async function boot(): Promise<void> {
+  installVoxelUI();
   $('app').innerHTML = HTML;
   $<HTMLButtonElement>('btn-guest').disabled = true;
   $('btn-landscape').addEventListener('click', () => {

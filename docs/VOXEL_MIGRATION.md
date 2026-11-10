@@ -117,3 +117,35 @@ models are surface materials; no billboard or sprite extrusion is used for their
 The second `FreeContent.zip` contains the same 12 T-pose FBX character filenames and atlas. The final
 `FreeSample (1).zip` contains nine SoulGothic OBJ/MTL models and textures, without an included license;
 it is used as an architectural material/silhouette reference only.
+
+## Follow-up: orientation, placement, voxel UI and color (2026-11-10)
+
+- Preserve the mathematically tested fixed 2:1 orthographic projection. Correct the procedural creature and
+  riding-horse conversion from authored +X to live +Z forward; imported animal rigs already use +Z.
+  Projectiles retain their existing +Z axis.
+- Correct the second-wall prop transform to exchange wall axes, matching `Prop.uv` and collision footprints.
+  Furniture now derives its backing wall from the authoritative tiles, and chairs face adjacent tables or
+  retain an explicit saved seat direction. Neighbor layout contributes to the visual cache signature.
+- Seeded clutter is fitted as complete objects into non-overlapping slots on actual support surfaces;
+  narrow shelves and the clearance below the next board constrain size and placement. No world entities,
+  furniture coordinates, procedural seeds or collision layouts are randomized by this pass.
+- All 43 HUD/status/menu/title icons are newly authored solid 3D objects rendered orthographically, replacing
+  bitmap glyphs. Four solid timber/stone/jade/recessed-slot models provide cached nine-slice panel frames.
+  Native text and controls retain screen alignment, keyboard semantics and original interaction boundaries.
+  The UI uses one shared thumbnail renderer, not a WebGL context or animation loop per widget.
+- Vitals, charge studs, status pedestals, faction gems and boss frames now render solid models.
+- The title diorama, eight-way character creator and wardrobe previews now render actual world models.
+  Voxel icons hydrate after DOM mounting so importing settings remains safe in non-browser runtimes.
+- More saturated meadow/forest greens, jade, roofs, terracotta and water; lower midday illumination avoids
+  bleaching materials. UI surfaces use warmer timber, brighter brass, pale limestone and jade selection.
+- Validation complete for this pass: 253 client tests pass. After the final visual fixes, 38 focused voxel,
+  vitals and encounter tests pass; workspace typecheck, lint and both online/solo production builds pass.
+- Desktop (1280×800) and touch landscape (844×390) browser checks pass: title/creator, inventory, interiors,
+  menu interaction, camera and model diagnostics. Audited streamed object roots have no displaced anchors or
+  incorrect wall transforms; the inn cutaway remains active. No runtime exceptions or missing model diagnostics.
+- Screenshot review found and fixed undersized thumbnails and dark empty-equipment labels. Thumbnail framing
+  now fits the actual projected bounds at the fixed view. Text contrast against the rendered material is
+  12.87:1 for equipment labels and 6.83:1 for reading text; inventory fits both tested viewport widths.
+- Latest screenshots and measurements: `docs/validation/voxel/ui-validation.json`, `ui-title.png`,
+  `ui-mobile.png`, `ui-mobile-inventory.png`, `ui-creator.png`; arrival/inventory/inn captures updated.
+  Hardware GPU performance and an exhaustive manual inspection of every generated room remain unverified.

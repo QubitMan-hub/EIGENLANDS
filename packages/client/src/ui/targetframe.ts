@@ -1,34 +1,30 @@
-import { C } from '@eigenlands/shared';
-import { Iso } from '../art/isokit';
-import { makeCanvas, rasterPixels } from '../art/shade';
+import { voxelBoxesCanvas } from '../art/voxel-icons';
+import { solidBox } from '../game/voxel/mesh';
 import { h } from './dom';
 import { FACTION_LABEL, type EnemyChip, type Faction } from './enemy-model';
 import { HealthMeter } from './healthmeter';
 import { iconSvg } from './icons';
 
 /** Classification gem: a small isometric block in the camp's colours, drawn once per camp. */
-const GEM: Record<Faction, [number, number, number]> = {
-  hostile: [C.r1, C.r3, C.r5],
-  neutral: [C.e3, C.e5, C.e7],
-  passive: [C.g2, C.g4, C.g6],
-  ally: [C.w2, C.w4, C.w6],
-  elite: [C.e4, C.r6, C.white],
+const GEM: Record<Faction, number> = {
+  hostile: 0xe16550,
+  neutral: 0xdcb15f,
+  passive: 0x63ba7f,
+  ally: 0x5fbed3,
+  elite: 0xe4b6fa,
 };
 const gems = new Map<Faction, string>();
 export function gemUrl(f: Faction): string {
   let url = gems.get(f);
   if (url) return url;
-  const [dk, md, lt] = GEM[f];
-  const { canvas, ctx } = makeCanvas(16, 14);
-  rasterPixels(ctx, 16, 14, () => {
-    const iso = new Iso(ctx, 8, 4);
-    iso.box(0, 0, 0, 6, 6, 5, {
-      top: (a, b) => (a < 0.25 || b < 0.25 ? lt : md),
-      left: (_a, b) => (b > 0.8 ? lt : md),
-      right: () => dk,
-    });
-  });
-  url = canvas.toDataURL();
+  url = voxelBoxesCanvas(
+    [
+      solidBox(0, 0.12, 0, 0.65, 0.24, 0.65, 0x3b4741),
+      solidBox(0, 0.42, 0, 0.45, 0.36, 0.45, GEM[f]),
+      solidBox(0, 0.65, 0, 0.22, 0.1, 0.22, 0xffe4a3),
+    ],
+    64,
+  ).toDataURL();
   gems.set(f, url);
   return url;
 }

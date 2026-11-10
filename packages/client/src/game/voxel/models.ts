@@ -11,7 +11,14 @@ function originalObjectModel(o: WorldObj): VoxelBox[] {
   const key = `${o.kind}:${o.sub}:${JSON.stringify(o.data ?? {})}`;
   const cached = authoredProps.get(key);
   if (cached) return cached;
-  const captured = captureSolidCommands(() => worldObjDef(o, 'sw', undefined, true));
+  const captured = captureSolidCommands(() =>
+    worldObjDef(
+      o,
+      'sw',
+      o.sub === 'chair' && Number.isInteger(o.data?.seatTurn) ? Number(o.data?.seatTurn) : undefined,
+      true,
+    ),
+  );
   // Each canvas is one animation frame. Read its original volumes, not its pixels.
   const commands = captured.groups.find((group) => group.length > 0) ?? [];
   const boxes = commands.map((c) =>
@@ -36,17 +43,17 @@ export const P = {
   wood: 0x9c7147,
   timber: 0x463329,
   cutwood: 0xc39961,
-  leaf: 0x527d48,
-  lightleaf: 0x7d9b51,
-  darkleaf: 0x345d43,
+  leaf: 0x4b963e,
+  lightleaf: 0x91b94e,
+  darkleaf: 0x28653f,
   stone: 0x85918f,
   mortar: 0x566665,
   pale: 0xd0c4a0,
   iron: 0x48545d,
   gold: 0xddaf59,
-  teal: 0x559c99,
-  roof: 0x735d70,
-  red: 0xb65f4d,
+  teal: 0x35b5a5,
+  roof: 0x82628d,
+  red: 0xd86748,
   glow: 0x92e1d3,
   flame: 0xffc66b,
 };

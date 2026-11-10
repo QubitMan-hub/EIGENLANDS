@@ -1,5 +1,5 @@
 import { PART_COUNTS, validParts, type PartKind } from '@eigenlands/shared';
-/** Character creation / wardrobe: live isometric-pixel preview plus swatches for every appearance choice. */
+/** Character creation / wardrobe: live orthographic voxel preview plus swatches for every appearance choice. */
 import {
   APPEARANCE_COUNTS,
   BODY_NAMES,
@@ -18,20 +18,12 @@ import {
   type Appearance,
   type AppearanceField,
 } from '@eigenlands/shared';
-import { OUTFITS, renderPersonCanvas } from '../art/actors';
-import {
-  DRESS_RAMPS,
-  EYE_COLORS,
-  HAIR_RAMPS,
-  SKIN_RAMPS,
-  TRIM_COLORS,
-  outfitFromAppearance,
-  referenceAppearance,
-} from '../art/appearance';
+import { voxelAppearanceCanvas } from '../art/voxel-icons';
+import { DRESS_RAMPS, EYE_COLORS, HAIR_RAMPS, SKIN_RAMPS, TRIM_COLORS, referenceAppearance } from '../art/appearance';
 import { h } from './dom';
 
 const KEY = 'eigenlands.appearance';
-const TURNS = [0, 5, 3, 7, 1, 6, 2, 4]; // front, then once around the wanderer
+const TURNS = [0, 1, 2, 3, 4, 5, 6, 7]; // front, then once around the wanderer
 
 export interface StoredLook {
   app: Appearance;
@@ -102,7 +94,7 @@ export function buildAppearancePicker(initial: Appearance, onChange: (a: Appeara
   const catalogControls = new Map<PartKind, { select: HTMLSelectElement; image: HTMLImageElement }>();
 
   const draw = () => {
-    const c = renderPersonCanvas(outfitFromAppearance(OUTFITS[0]!, look, true), TURNS[turn]!, 0);
+    const c = voxelAppearanceCanvas(look, (TURNS[turn]! * Math.PI) / 4);
     c.setAttribute('aria-label', 'Your wanderer');
     canvasBox.replaceChildren(c);
   };
@@ -111,7 +103,11 @@ export function buildAppearancePicker(initial: Appearance, onChange: (a: Appeara
       const id = look.parts?.[field] ?? 0;
       control.select.value = String(id);
       control.image.hidden = !id;
-      if (id) control.image.src = `${import.meta.env.BASE_URL}art/wardrobe/${field}-${String(id).padStart(2, '0')}.png`;
+      if (id)
+        control.image.src = voxelAppearanceCanvas({
+          ...look,
+          parts: validParts({ ...look.parts, [field]: id }),
+        }).toDataURL();
     }
     for (const row of ROWS)
       buttons.get(row.field)!.forEach((b, i) => b.setAttribute('aria-pressed', String(look[row.field] === i)));

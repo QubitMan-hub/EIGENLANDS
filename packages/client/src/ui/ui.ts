@@ -2,6 +2,7 @@ import { validGraphics, validWeather, type GraphicsMode, type WeatherDetail } fr
 import './fonts';
 import './hud.css';
 import './identity.css';
+import './voxel-ui.css';
 import { iconSvg } from './icons';
 import { validMovementMode, type MovementMode } from '../input/input';
 import { ACTIONS, ACTION_LABELS, keyLabel, rebind, saveKeys, type Action, type KeyMap } from '../input/keymap';
@@ -160,7 +161,7 @@ export const HTML = `
   <div class="stars" aria-hidden="true"></div><div class="traces" aria-hidden="true"></div>
   <div class="title-card">
     <div class="qubit" aria-hidden="true">
-      <svg viewBox="-50 -50 100 100"><circle r="30" class="q-core"/><ellipse rx="44" ry="14" class="q-orbit"/><ellipse rx="44" ry="14" class="q-orbit" transform="rotate(60)"/><ellipse rx="44" ry="14" class="q-orbit" transform="rotate(120)"/><circle r="4" class="q-e e1"/><circle r="4" class="q-e e2"/><circle r="4" class="q-e e3"/><path class="q-arrow" d="M0 0 L16 -18"/><circle cx="16" cy="-18" r="3" class="q-tip"/></svg>
+      ${iconSvg('qubit', 92)}
     </div>
     <h1 class="wordmark" aria-label="EIGENLANDS"><span>EIGEN</span><span>LANDS</span></h1>
     <div class="trace-rule" aria-hidden="true"></div>

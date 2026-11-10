@@ -62,6 +62,7 @@ import { VoxelAssets, type AssetInstance } from './assets';
 import { buildingStyle } from './architecture';
 import { constructionRoof, constructionPreview } from './construction';
 import { dressFurniture } from './furnishings';
+import { CREATURE_YAW, orientWallProp, objectLayout } from './orientation';
 
 export interface VoxelActor {
   id: string;
@@ -134,16 +135,16 @@ type Particle = {
 };
 const SIDE = 16;
 const GROUND = [
-  0x244956, 0x437783, 0xc3b383, 0x78915a, 0xab9d7a, 0x74543c, 0x503e31, 0x9a815d, 0x7c8179, 0x686e69, 0x606761,
+  0x19647b, 0x309ba7, 0xdec58a, 0x83ac4e, 0xab9d7a, 0x74543c, 0x503e31, 0x9a815d, 0x7c8179, 0x686e69, 0x606761,
   0x263f48, 0xb15e32, 0x7b8480,
 ];
 const BIOME_GRASS: Record<string, number> = {
-  forest: 0x718650,
-  plains: 0x839963,
-  taiga: 0x637c64,
-  swamp: 0x647755,
-  autumn: 0x9c8953,
-  enchanted: 0x6e8a79,
+  forest: 0x72a34b,
+  plains: 0x91b957,
+  taiga: 0x528b6a,
+  swamp: 0x6c8c48,
+  autumn: 0xb49a4c,
+  enchanted: 0x5f9f88,
   corrupted: 0x69717b,
   desert: 0xb5a475,
   tundra: 0x9da997,
@@ -230,8 +231,8 @@ export class VoxelWorld {
     this.renderer.toneMappingExposure = 1.1;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = PCFSoftShadowMap;
-    this.scene.background = new Color(0x829789);
-    this.scene.fog = new FogExp2(0x829789, 0.0015);
+    this.scene.background = new Color(0x89b6ab);
+    this.scene.fog = new FogExp2(0x89b6ab, 0.0015);
     this.scene.add(this.sky, this.sun, this.sun.target, this.arrival);
     this.scene.add(this.previewGroup);
     this.sun.castShadow = true;
@@ -415,6 +416,7 @@ export class VoxelWorld {
           for (const x of [-0.55, 0.55]) for (const z of [-0.4, 0.4]) boxes.push(B(x, 0.22, z, 0.1, 0.5, 0.5, P.iron));
         }
         v.vehicle = this.mesh(boxes);
+        if (a.mount && !a.boat) v.vehicle.rotation.y = CREATURE_YAW;
         root.add(v.vehicle);
         rig.root.position.y = a.mount ? 0.65 : a.boat ? 0.25 : 0;
       }
@@ -527,7 +529,7 @@ export class VoxelWorld {
         v.mesh.receiveShadow = true;
         v.root.add(v.mesh);
       } else v.mesh.geometry = geometry;
-      v.mesh.rotation.y = Math.PI / 2;
+      v.mesh.rotation.y = creature === 'projectile' ? 0 : CREATURE_YAW;
     }
   }
 
@@ -693,7 +695,8 @@ export class VoxelWorld {
         if (this.solved.has(String(o.data?.shrine ?? ''))) continue;
         const id = `${o.x},${o.y}`;
         keep.add(id);
-        const signature = JSON.stringify(o);
+        const layout = objectLayout(this.store, o);
+        const signature = JSON.stringify([o, layout]);
         const old = this.objects.get(id);
         if (old?.signature === signature) {
           if (old.lid) {
@@ -721,7 +724,9 @@ export class VoxelWorld {
           continue;
         }
         if (old) this.remove(old.mesh);
-        const { boxes, authored } = objectModel(o, o.x * 11 + o.y * 23);
+        const modelObject =
+          layout.seatTurn === undefined ? o : { ...o, data: { ...o.data, seatTurn: layout.seatTurn } };
+        const { boxes, authored } = objectModel(modelObject, o.x * 11 + o.y * 23);
         if (!authored) this.missing.add(`object:${o.sub}`);
         const home = this.buildingList.find((b) => o.x >= b.x && o.x < b.x + b.w && o.y >= b.y && o.y < b.y + b.h);
         const dressed = [...boxes, ...dressFurniture(boxes, o.sub, this.store.seed + o.x * 37 + o.y * 113, home?.kind)];
@@ -744,7 +749,7 @@ export class VoxelWorld {
           mesh.add(lid);
         } else mesh.add(this.mesh(dressed, this.foreground));
         mesh.position.set(o.x + 0.5, voxelHeight(this.store.levelAt(o.x, o.y) * LEVEL_PX), o.y + 0.5);
-        if (o.data?.facing === 'se') mesh.rotation.y = Math.PI / 2;
+        orientWallProp(mesh, o.sub === 'chair' && layout.seatTurn !== undefined ? 'sw' : layout.facing);
         this.objects.set(id, { signature, mesh, lid });
         this.scene.add(mesh);
       }
@@ -959,12 +964,12 @@ export class VoxelWorld {
         }
     }
     const daylight = f.underground ? 0.12 : Math.max(0.18, Math.sin(((f.hour - 6) / 12) * Math.PI));
-    this.sky.intensity = f.underground ? 0.8 : 1.1 + daylight * 1.2;
-    this.sun.intensity = f.underground ? 0.35 : daylight * 3;
+    this.sky.intensity = f.underground ? 0.8 : 1.0 + daylight * 1.0;
+    this.sun.intensity = f.underground ? 0.35 : daylight * 2.4;
     const height = voxelHeight(this.groundLift(f.x, f.y));
     this.sun.position.set(f.x - 14, height + 25, f.y - 10);
     this.sun.target.position.set(f.x, height, f.y);
-    const background = f.underground ? 0x293d41 : 0x829789;
+    const background = f.underground ? 0x293d41 : 0x89b6ab;
     (this.scene.background as Color).setHex(background);
     (this.scene.fog as FogExp2).color.setHex(background);
     const lit = [...this.objects.keys()]

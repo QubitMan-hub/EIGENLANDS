@@ -19,6 +19,7 @@ export function dressFurniture(boxes: readonly VoxelBox[], kind: string, seed: n
   supports.forEach((s, row) => {
     const count = shelf ? 3 + Math.floor(hash2(seed, row, 1, 45) * 5) : 2 + Math.floor(hash2(seed, row, 2, 45) * 4);
     for (let i = 0; i < count; i++) {
+      const start = out.length;
       const x = s.x - s.w * 0.36 + ((i + 0.5) / count) * s.w * 0.72;
       const z = s.z + (hash2(seed, i, row, 47) - 0.5) * s.d * 0.55;
       const y = s.y + s.h / 2 + 0.008,
@@ -61,6 +62,52 @@ export function dressFurniture(boxes: readonly VoxelBox[], kind: string, seed: n
           B(x + 0.05, y + 0.1, z + 0.1, 0.03, 0.04, 0.24, P.wood),
         );
       }
+      // Pack whole objects into disjoint slots, then fit to the support and the next shelf's clearance.
+      const group = out.splice(start);
+      const lo = [
+        Math.min(...group.map((b) => b.x - b.w / 2)),
+        Math.min(...group.map((b) => b.y - b.h / 2)),
+        Math.min(...group.map((b) => b.z - b.d / 2)),
+      ];
+      const hi = [
+        Math.max(...group.map((b) => b.x + b.w / 2)),
+        Math.max(...group.map((b) => b.y + b.h / 2)),
+        Math.max(...group.map((b) => b.z + b.d / 2)),
+      ];
+      const slotWidth = (s.w - 0.08) / count;
+      const cx = s.x - s.w / 2 + 0.04 + (i + 0.5) * slotWidth;
+      const ceiling = Math.min(
+        y + 0.5,
+        ...boxes
+          .filter(
+            (b) =>
+              b.y - b.h / 2 > y + 0.025 &&
+              Math.abs(b.x - cx) < b.w / 2 + slotWidth / 2 &&
+              Math.abs(b.z - s.z) < b.d / 2 + s.d / 2,
+          )
+          .map((b) => b.y - b.h / 2 - 0.015),
+      );
+      const scale = Math.min(
+        1,
+        (slotWidth - 0.015) / (hi[0] - lo[0]),
+        (s.d - 0.08) / (hi[2] - lo[2]),
+        (ceiling - y) / (hi[1] - lo[1]),
+      );
+      if (scale <= 0) continue;
+      const cz = Math.max(
+        s.z - s.d / 2 + ((hi[2] - lo[2]) * scale) / 2 + 0.02,
+        Math.min(z, s.z + s.d / 2 - ((hi[2] - lo[2]) * scale) / 2 - 0.02),
+      );
+      for (const b of group)
+        out.push({
+          ...b,
+          x: cx + (b.x - (lo[0] + hi[0]) / 2) * scale,
+          y: y + (b.y - lo[1]) * scale,
+          z: cz + (b.z - (lo[2] + hi[2]) / 2) * scale,
+          w: b.w * scale,
+          h: b.h * scale,
+          d: b.d * scale,
+        });
     }
   });
   return out;

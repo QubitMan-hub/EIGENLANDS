@@ -3,8 +3,9 @@
  * expandable status row. All values come from real game state; see vitals-model.ts for the rules and
  * vitals-art.ts for the painter.
  */
-import { Iso } from '../art/isokit';
-import { makeCanvas, rasterPixels, C } from '../art/shade';
+import { voxelBoxesCanvas } from '../art/voxel-icons';
+import { solidBox } from '../game/voxel/mesh';
+import { renderVoxelVitals } from './vitals-voxel';
 import { h } from './dom';
 import { iconSvg } from './icons';
 import {
@@ -19,7 +20,7 @@ import {
   type StatusInput,
   type StatusTone,
 } from './vitals-model';
-import { renderVitals, vitalsLayout, type VialSpec } from './vitals-art';
+import { vitalsLayout, type VialSpec } from './vitals-art';
 
 export interface VitalsFrame {
   hp: number;
@@ -56,23 +57,11 @@ const pedestals = new Map<StatusTone, string>();
 export function pedestal(tone: StatusTone): string {
   let url = pedestals.get(tone);
   if (url) return url;
-  const ramp: Record<StatusTone, [number, number, number]> = {
-    buff: [C.g2, C.g4, C.g6],
-    debuff: [C.r1, C.r3, C.r5],
-    aura: [C.w2, C.w4, C.w6],
-    need: [C.e3, C.e5, C.e7],
-  };
-  const [dk, md, lt] = ramp[tone];
-  const { canvas, ctx } = makeCanvas(14, 11);
-  rasterPixels(ctx, 14, 11, () => {
-    const iso = new Iso(ctx, 7, 2);
-    iso.box(0, 0, 0, 6, 6, 2, {
-      top: (a, b) => (a < 0.2 || b < 0.2 ? lt : md),
-      left: () => dk,
-      right: () => C.night,
-    });
-  });
-  url = canvas.toDataURL();
+  const color = { buff: 0x4eb881, debuff: 0xd86a54, aura: 0x569bd2, need: 0xe0af55 }[tone];
+  url = voxelBoxesCanvas(
+    [solidBox(0, 0.08, 0, 0.9, 0.16, 0.65, 0x354441), solidBox(0, 0.2, 0, 0.75, 0.08, 0.5, color)],
+    64,
+  ).toDataURL();
   pedestals.set(tone, url);
   return url;
 }
@@ -180,7 +169,7 @@ export class VitalsHud {
     if (key !== this.key || (moving && frameDue) || (pulsing && frameDue)) {
       this.key = key;
       this.lastPaint = this.t;
-      renderVitals(this.canvas.getContext('2d')!, this.layout, this.layout.places, specs);
+      renderVoxelVitals(this.canvas.getContext('2d')!, this.layout, this.layout.places, specs);
     }
     this.text(f, specs);
     this.statuses(f);
@@ -189,9 +178,10 @@ export class VitalsHud {
   private rebuild(ids: GaugeId[]): void {
     this.ids = ids;
     this.layout = vitalsLayout(ids);
-    this.canvas.width = this.layout.width;
-    this.canvas.height = this.layout.height;
-    this.canvas.getContext('2d')!.imageSmoothingEnabled = false;
+    this.canvas.width = this.layout.width * 4;
+    this.canvas.height = this.layout.height * 4;
+    this.canvas.getContext('2d')!.setTransform(4, 0, 0, 4, 0, 0);
+    this.canvas.getContext('2d')!.imageSmoothingEnabled = true;
     this.root.style.setProperty('--vw', String(this.layout.width));
     this.root.style.setProperty('--vh', String(this.layout.height));
     this.labels.replaceChildren();
