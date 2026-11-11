@@ -8,6 +8,7 @@ import {
   SkinnedMesh,
   Group,
   MeshStandardMaterial,
+  MeshBasicMaterial,
   Vector3,
   PCFSoftShadowMap,
   SRGBColorSpace,
@@ -63,6 +64,7 @@ import { VoxelAssets, type AssetInstance } from './assets';
 import { buildingStyle } from './architecture';
 import { constructionRoof, constructionPreview } from './construction';
 import { dressFurniture } from './furnishings';
+import { buildVoxelTerrain, steppingStone, terrainChunkKeys } from './terrain';
 import { CREATURE_YAW, orientWallProp, objectLayout } from './orientation';
 
 export interface VoxelActor {
@@ -114,6 +116,7 @@ interface ActorMesh {
   warning?: Mesh;
 }
 interface StaticChunk {
+  terrainQuads: number;
   root: Group;
   cx: number;
   cy: number;
@@ -194,6 +197,8 @@ export class VoxelWorld {
   private last = 0;
   private rendered = { x: NaN, y: NaN, frames: 0 };
   private season = -1;
+  private terrainDetail: 4 | 8 = 8;
+  private terrainShadow = new MeshBasicMaterial({ colorWrite: false, depthWrite: false });
   private buildRevision = -1;
   private lastWorldKey = '';
   private roofKey = '';
@@ -275,7 +280,7 @@ export class VoxelWorld {
     this.canvas.addEventListener('webglcontextrestored', this.restored);
   }
 
-  private mesh(boxes: readonly VoxelBox[], material = this.material): Mesh {
+  private mesh(boxes: readonly VoxelBox[], material: MeshStandardMaterial | MeshBasicMaterial = this.material): Mesh {
     const m = new Mesh(modelGeometry(boxes), material);
     m.castShadow = true;
     m.receiveShadow = true;
@@ -288,10 +293,11 @@ export class VoxelWorld {
     });
   }
   invalidate(x: number, y: number): void {
-    this.dirty.add(`${Math.floor(x / SIDE)},${Math.floor(y / SIDE)}`);
+    for (const key of terrainChunkKeys(x, y, SIDE)) this.dirty.add(key);
   }
   invalidateChunk(cx: number, cy: number): void {
-    for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) this.dirty.add(`${cx * 2 + x},${cy * 2 + y}`);
+    for (const dx of [0, SIDE * 2 - 1])
+      for (const dy of [0, SIDE * 2 - 1]) this.invalidate(cx * SIDE * 2 + dx, cy * SIDE * 2 + dy);
   }
   beginActors(): void {
     this.seenActors.clear();
@@ -557,10 +563,49 @@ export class VoxelWorld {
       y0 = cy * SIDE;
     const buildings = [
       ...townsFor(this.store.seed),
-      ...frontierTownsNear(this.store.seed, x0, y0, x0 + SIDE, y0 + SIDE, this.store.generation),
+      ...frontierTownsNear(this.store.seed, x0 - 6, y0 - 6, x0 + SIDE + 6, y0 + SIDE + 6, this.store.generation),
     ]
       .flatMap((t) => t.buildings)
-      .filter((b) => b.x <= x0 + SIDE && b.x + b.w >= x0 && b.y <= y0 + SIDE && b.y + b.h >= y0);
+      .filter((b) => b.x <= x0 + SIDE + 6 && b.x + b.w >= x0 - 6 && b.y <= y0 + SIDE + 6 && b.y + b.h >= y0 - 6);
+    const terrain = buildVoxelTerrain(
+      {
+        seed: this.store.seed,
+        at: (x, y) => {
+          const tile = this.store.getTile(x, y),
+            g = TILE_DEFS[tile]?.ground ?? G.VOID;
+          const biome = biomeAt(this.store.seed, x, y, this.store.generation),
+            realm = otherworldOf(y),
+            underground = isCaveY(y);
+          const water = g === G.WATER || g === G.DEEP || g === G.LAVA;
+          const snow = this.season === 3 && !realm && !underground;
+          let color = GROUND[g] ?? P.stone;
+          if (g === G.GRASS) color = snow ? 0xd0dedb : (BIOME_GRASS[biome] ?? GROUND[G.GRASS]);
+          if (realm && !water && g !== G.FLOOR)
+            color = realm === 'aetheria' ? 0xa6bda2 : realm === 'umbra' ? 0x625471 : 0xa99a73;
+          if (underground && !water && g !== G.FLOOR) {
+            const cave = caveBiomeAt(this.store.seed, x, y, this.store.generation);
+            color =
+              (
+                {
+                  limestone: 0x929383,
+                  glowmoss: 0x598676,
+                  crystal: 0x718b9a,
+                  basalt: 0x565b59,
+                  frost: 0xa0bec4,
+                  drowned: 0x557c80,
+                } as Record<string, number>
+              )[cave] ?? color;
+          }
+          const urban = buildings.some((b) => x >= b.x - 3 && x < b.x + b.w + 3 && y >= b.y - 3 && y < b.y + b.h + 3);
+          return { tile, level: this.store.levelAt(x, y), color, urban, snow, occupied: !!this.store.objectAt(x, y) };
+        },
+      },
+      x0,
+      y0,
+      SIDE,
+      this.terrainDetail,
+    );
+    ground.push(...terrain.boxes);
     root.position.set(x0, 0, y0);
     for (let j = 0; j < SIDE; j++)
       for (let i = 0; i < SIDE; i++) {
@@ -572,39 +617,6 @@ export class VoxelWorld {
         const biome = biomeAt(this.store.seed, x, y, this.store.generation);
         const level = this.store.levelAt(x, y),
           h = voxelHeight(level * LEVEL_PX);
-        let color = GROUND[def.ground] ?? P.stone;
-        const realm = otherworldOf(y);
-        if (realm) color = realm === 'aetheria' ? 0xb5bba6 : realm === 'umbra' ? 0x59536b : 0xa69978;
-        if (isCaveY(y)) {
-          const cave = caveBiomeAt(this.store.seed, x, y, this.store.generation);
-          color =
-            (
-              {
-                limestone: 0x8a8d7b,
-                glowmoss: 0x586f64,
-                crystal: 0x697d89,
-                basalt: 0x565354,
-                frost: 0x91a7a8,
-                drowned: 0x557780,
-              } as Record<string, number>
-            )[cave] ?? color;
-        }
-        if (def.ground === G.GRASS) color = this.season === 3 ? 0xaab5a2 : (BIOME_GRASS[biome] ?? GROUND[G.GRASS]);
-        const k = 0.94 + variation(x * 71 + y * 23) * 0.12;
-        this.color.setHex(color).multiplyScalar(k);
-        color = this.color.getHex();
-        const water = def.ground === G.WATER || def.ground === G.DEEP || def.ground === G.LAVA;
-        ground.push(B(i + 0.5, h - 0.09 - (water ? 0.08 : 0), j + 0.5, 1, 0.18, 1, color, 4));
-        // Only exposed cliff faces, never six hidden faces for every tile.
-        for (const [dx, dy, face] of [
-          [1, 0, 1],
-          [-1, 0, 2],
-          [0, 1, 16],
-          [0, -1, 32],
-        ]) {
-          const near = voxelHeight(this.store.levelAt(x + dx, y + dy) * LEVEL_PX);
-          if (near < h) ground.push(B(i + 0.5, (h + near) / 2 - 0.09, j + 0.5, 1, h - near + 0.18, 1, 0x727b67, face));
-        }
         if (this.store.structureAt(x, y)) continue;
         const seed = x * 37 + y * 109 + this.store.seed;
         let boxes: VoxelBox[] = [];
@@ -644,20 +656,6 @@ export class VoxelWorld {
           walls.push(...placeBoxes(rockModel(seed), i + 0.5, h, j + 0.5, 2));
           walls.push(B(i + 0.5, h + 0.6, j + 0.5, 1, 1.2, 1, 0x666d69));
         }
-        if (def.ground === G.FLOOR) {
-          for (let plank = 0; plank < 4; plank++)
-            ground.push(
-              B(
-                i + (plank + 0.5) / 4,
-                h + 0.018,
-                j + 0.5,
-                0.24,
-                0.035,
-                0.99,
-                [0x9f8057, 0x97764e, 0xa8875d, 0x92724e][(x + y + plank + 40000) % 4],
-              ),
-            );
-        }
       }
     const sides = [
       [0, -1],
@@ -680,10 +678,15 @@ export class VoxelWorld {
       m.castShadow = false;
       root.add(m);
     }
+    if (terrain.shadowBoxes.length && this.renderer.shadowMap.enabled) {
+      const shadow = this.mesh(terrain.shadowBoxes, this.terrainShadow);
+      shadow.receiveShadow = false;
+      root.add(shadow);
+    }
     if (scenery.length) root.add(this.mesh(scenery, this.foreground));
     if (walls.length) root.add(this.mesh(walls, this.foreground));
     this.scene.add(root);
-    return { root, cx, cy };
+    return { root, cx, cy, terrainQuads: terrain.visibleQuads };
   }
 
   private syncObjects(x0: number, y0: number, x1: number, y1: number): void {
@@ -845,7 +848,7 @@ export class VoxelWorld {
       if (!arrivalGround(this.store, p.x, p.y)) continue;
       const model =
         p.kind === 'stone'
-          ? [B(0, 0.025, 0, 0.7, 0.05, 0.7, 0xa5aa8d)]
+          ? steppingStone(this.store.seed + p.x * 31 + p.y * 73)
           : p.kind === 'flower'
             ? plantModel('flowers', p.variant, 0xd59a9c)
             : furnitureModel(p.kind === 'board' ? 'board' : 'blanket').boxes;
@@ -916,6 +919,11 @@ export class VoxelWorld {
       this.arrival = new Group();
       this.scene.add(this.arrival);
       this.buildArrival();
+    }
+    const terrainDetail = f.tier === 'performance' ? 4 : 8;
+    if (terrainDetail !== this.terrainDetail) {
+      this.terrainDetail = terrainDetail;
+      for (const key of this.chunks.keys()) this.dirty.add(key);
     }
     const { x0, y0, x1, y1 } = f.bounds;
     const keep = new Set<string>(),
@@ -1027,6 +1035,12 @@ export class VoxelWorld {
   diagnostics() {
     return {
       renderer: 'three-voxel',
+      terrain: {
+        style: 'layered-voxel',
+        cellsPerTile: this.terrainDetail,
+        exposedFacesOnly: true,
+        quads: [...this.chunks.values()].reduce((n, c) => n + c.terrainQuads, 0),
+      },
       orthographic: this.camera.isOrthographicCamera,
       elevation: 30,
       azimuth: 45,
@@ -1062,6 +1076,7 @@ export class VoxelWorld {
     for (const g of this.models.values()) g.dispose();
     for (const p of this.scenic.values()) this.remove(p.root);
     this.material.dispose();
+    this.terrainShadow.dispose();
     this.foreground.dispose();
     this.warningMaterial.dispose();
     this.particleGeometry.dispose();

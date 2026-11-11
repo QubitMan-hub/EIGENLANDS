@@ -1,0 +1,843 @@
+{
+  "locations": {
+    "shore": {
+      "x": 52.5,
+      "y": 14.5
+    },
+    "cliff": {
+      "x": -103.5,
+      "y": 90.5
+    },
+    "inn": {
+      "id": "inn",
+      "kind": "inn",
+      "x": 69,
+      "y": -8,
+      "w": 12,
+      "h": 6,
+      "doorX": 74,
+      "doorY": -3,
+      "style": 2
+    }
+  },
+  "results": [
+    {
+      "area": "arrival",
+      "fps": 1,
+      "renderer": "three-voxel",
+      "terrain": {
+        "style": "layered-voxel",
+        "cellsPerTile": 8,
+        "exposedFacesOnly": true,
+        "quads": 73590
+      },
+      "orthographic": true,
+      "elevation": 30,
+      "azimuth": 45,
+      "focus": {
+        "x": 0.5,
+        "y": 4.5,
+        "frames": 2
+      },
+      "cutaways": [],
+      "construction": {
+        "cells": 0,
+        "room": 0
+      },
+      "chunks": 12,
+      "actors": 41,
+      "humanoids": [
+        {
+          "id": "03wr_vPUR",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 0.7732666030880067,
+          "duration": 1.9666666984558105
+        },
+        {
+          "id": "fenwick",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 0.7732666030880067,
+          "duration": 1.9666666984558105
+        },
+        {
+          "id": "sedge",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 0.7732666030880067,
+          "duration": 1.9666666984558105
+        },
+        {
+          "id": "arrival:0",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 0.7732666030880067,
+          "duration": 1.9666666984558105
+        },
+        {
+          "id": "arrival:1",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 0.7732666030880067,
+          "duration": 1.9666666984558105
+        },
+        {
+          "id": "arrival:2",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:15",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 0.7732666030880067,
+          "duration": 1.9666666984558105
+        },
+        {
+          "id": "ambient:16",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.5066000715252015,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:17",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 0.7732666030880067,
+          "duration": 1.9666666984558105
+        },
+        {
+          "id": "ambient:18",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.5066000715252015,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:19",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 0.7732666030880067,
+          "duration": 1.9666666984558105
+        },
+        {
+          "id": "ambient:20",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 0.7732666030880067,
+          "duration": 1.9666666984558105
+        },
+        {
+          "id": "ambient:21",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.5066000715252015,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:22",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.5066000715252015,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:23",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 0.7732666030880067,
+          "duration": 1.9666666984558105
+        },
+        {
+          "id": "ambient:24",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 0.7732666030880067,
+          "duration": 1.9666666984558105
+        },
+        {
+          "id": "ambient:25",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 0.7732666030880067,
+          "duration": 1.9666666984558105
+        },
+        {
+          "id": "ambient:26",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 0.7732666030880067,
+          "duration": 1.9666666984558105
+        }
+      ],
+      "objects": 3,
+      "roofs": 4,
+      "geometries": 62,
+      "drawCalls": 47,
+      "triangles": 198236,
+      "missingModels": [],
+      "assets": {
+        "loaded": [],
+        "failed": []
+      },
+      "contextLost": false
+    },
+    {
+      "area": "shore",
+      "fps": 1,
+      "renderer": "three-voxel",
+      "terrain": {
+        "style": "layered-voxel",
+        "cellsPerTile": 8,
+        "exposedFacesOnly": true,
+        "quads": 84056
+      },
+      "orthographic": true,
+      "elevation": 30,
+      "azimuth": 45,
+      "focus": {
+        "x": 52.5,
+        "y": 14.5,
+        "frames": 13
+      },
+      "cutaways": [],
+      "construction": {
+        "cells": 0,
+        "room": 0
+      },
+      "chunks": 12,
+      "actors": 36,
+      "humanoids": [
+        {
+          "id": "fenwick",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 0.2090997138973334,
+          "duration": 1.9666666984558105
+        },
+        {
+          "id": "sedge",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 0.2090997138973334,
+          "duration": 1.9666666984558105
+        },
+        {
+          "id": "ambient:15",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 0.2090997138973334,
+          "duration": 1.9666666984558105
+        },
+        {
+          "id": "ambient:16",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.40910029802285175,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:17",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.38670020265551264,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:18",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.40910029802285175,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:19",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.38670020265551264,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:20",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 0.2090997138973334,
+          "duration": 1.9666666984558105
+        },
+        {
+          "id": "ambient:21",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.40910029802285175,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:22",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.40910029802285175,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:23",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:24",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 0.2090997138973334,
+          "duration": 1.9666666984558105
+        },
+        {
+          "id": "ambient:25",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.1007000834462235,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:26",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.10650011920928959,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "03wr_vPUR",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 1.0673666030880997,
+          "duration": 1.9666666984558105
+        }
+      ],
+      "objects": 133,
+      "roofs": 10,
+      "geometries": 261,
+      "drawCalls": 103,
+      "triangles": 258454,
+      "missingModels": [],
+      "assets": {
+        "loaded": ["hen", "sheepdog", "well", "beehive", "hay-bale"],
+        "failed": []
+      },
+      "contextLost": false
+    },
+    {
+      "area": "cliff",
+      "fps": 1,
+      "renderer": "three-voxel",
+      "terrain": {
+        "style": "layered-voxel",
+        "cellsPerTile": 8,
+        "exposedFacesOnly": true,
+        "quads": 88390
+      },
+      "orthographic": true,
+      "elevation": 30,
+      "azimuth": 45,
+      "focus": {
+        "x": -103.5,
+        "y": 90.5,
+        "frames": 23
+      },
+      "cutaways": [],
+      "construction": {
+        "cells": 0,
+        "room": 0
+      },
+      "chunks": 12,
+      "actors": 9,
+      "humanoids": [
+        {
+          "id": "03wr_vPUR",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 1.1457333015440962,
+          "duration": 1.9666666984558105
+        }
+      ],
+      "objects": 1,
+      "roofs": 0,
+      "geometries": 125,
+      "drawCalls": 28,
+      "triangles": 212468,
+      "missingModels": [],
+      "assets": {
+        "loaded": ["hen", "sheepdog", "well", "beehive", "hay-bale"],
+        "failed": []
+      },
+      "contextLost": false
+    },
+    {
+      "area": "town",
+      "fps": 1,
+      "renderer": "three-voxel",
+      "terrain": {
+        "style": "layered-voxel",
+        "cellsPerTile": 8,
+        "exposedFacesOnly": true,
+        "quads": 109440
+      },
+      "orthographic": true,
+      "elevation": 30,
+      "azimuth": 45,
+      "focus": {
+        "x": 74.5,
+        "y": -0.5,
+        "frames": 35
+      },
+      "cutaways": [],
+      "construction": {
+        "cells": 0,
+        "room": 0
+      },
+      "chunks": 16,
+      "actors": 31,
+      "humanoids": [
+        {
+          "id": "03wr_vPUR",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 1.4297665077210402,
+          "duration": 1.9666666984558105
+        },
+        {
+          "id": "fenwick",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 0.33233311080932637,
+          "duration": 1.9666666984558105
+        },
+        {
+          "id": "sedge",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 0.33233311080932637,
+          "duration": 1.9666666984558105
+        },
+        {
+          "id": "ambient:15",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.0990002384185793,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:16",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.10240010728826743,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:17",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.14670007152529418,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:18",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.0990002384185793,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:19",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 0.33233311080932637,
+          "duration": 1.9666666984558105
+        },
+        {
+          "id": "ambient:20",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.0990002384185793,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:21",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.06310019073495621,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:22",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.08450003576278675,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:23",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 0.33233311080932637,
+          "duration": 1.9666666984558105
+        },
+        {
+          "id": "ambient:24",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.14670007152529418,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:25",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.6366001668930981,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:26",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 0.33233311080932637,
+          "duration": 1.9666666984558105
+        },
+        {
+          "id": "road:wf2_0:0",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.0990002384185793,
+          "duration": 0.699999988079071
+        }
+      ],
+      "objects": 156,
+      "roofs": 16,
+      "geometries": 329,
+      "drawCalls": 120,
+      "triangles": 304406,
+      "missingModels": [],
+      "assets": {
+        "loaded": ["hen", "sheepdog", "well", "beehive", "hay-bale"],
+        "failed": []
+      },
+      "contextLost": false
+    },
+    {
+      "area": "interior",
+      "fps": 1,
+      "renderer": "three-voxel",
+      "terrain": {
+        "style": "layered-voxel",
+        "cellsPerTile": 8,
+        "exposedFacesOnly": true,
+        "quads": 109440
+      },
+      "orthographic": true,
+      "elevation": 30,
+      "azimuth": 45,
+      "focus": {
+        "x": 75,
+        "y": -5,
+        "frames": 40
+      },
+      "cutaways": ["inn"],
+      "construction": {
+        "cells": 0,
+        "room": 0
+      },
+      "chunks": 16,
+      "actors": 31,
+      "humanoids": [
+        {
+          "id": "03wr_vPUR",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "fenwick",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 1.099766316986177,
+          "duration": 1.9666666984558105
+        },
+        {
+          "id": "sedge",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 1.099766316986177,
+          "duration": 1.9666666984558105
+        },
+        {
+          "id": "ambient:15",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.3331003814698197,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:16",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.3365002503395078,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:17",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.38080021457653457,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:18",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.3331003814698197,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:19",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.2294001072882672,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:20",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.3331003814698197,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:21",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.2972003337861966,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:22",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.31860017881402714,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:23",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.2294001072882672,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:24",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.38080021457653457,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:25",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Run",
+          "time": 0.1707003218652674,
+          "duration": 0.699999988079071
+        },
+        {
+          "id": "ambient:26",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 1.099766316986177,
+          "duration": 1.9666666984558105
+        },
+        {
+          "id": "maribel",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 0,
+          "duration": 1.9666666984558105
+        }
+      ],
+      "objects": 149,
+      "roofs": 16,
+      "geometries": 324,
+      "drawCalls": 122,
+      "triangles": 267822,
+      "missingModels": [],
+      "assets": {
+        "loaded": ["hen", "sheepdog", "well", "beehive", "hay-bale"],
+        "failed": []
+      },
+      "contextLost": false
+    },
+    {
+      "area": "cave",
+      "fps": 1,
+      "renderer": "three-voxel",
+      "terrain": {
+        "style": "layered-voxel",
+        "cellsPerTile": 8,
+        "exposedFacesOnly": true,
+        "quads": 81354
+      },
+      "orthographic": true,
+      "elevation": 30,
+      "azimuth": 45,
+      "focus": {
+        "x": 36.5,
+        "y": 40036.5,
+        "frames": 49
+      },
+      "cutaways": [],
+      "construction": {
+        "cells": 0,
+        "room": 0
+      },
+      "chunks": 9,
+      "actors": 4,
+      "humanoids": [
+        {
+          "id": "g2C2qyOvx",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 0.7346332061765706,
+          "duration": 1.9666666984558105
+        }
+      ],
+      "objects": 41,
+      "roofs": 0,
+      "geometries": 185,
+      "drawCalls": 45,
+      "triangles": 241452,
+      "missingModels": [],
+      "assets": {
+        "loaded": ["hen", "sheepdog", "well", "beehive", "hay-bale"],
+        "failed": []
+      },
+      "contextLost": false
+    },
+    {
+      "area": "performance",
+      "fps": 3,
+      "renderer": "three-voxel",
+      "terrain": {
+        "style": "layered-voxel",
+        "cellsPerTile": 4,
+        "exposedFacesOnly": true,
+        "quads": 77391
+      },
+      "orthographic": true,
+      "elevation": 30,
+      "azimuth": 45,
+      "focus": {
+        "x": 36.5,
+        "y": 40036.5,
+        "frames": 59
+      },
+      "cutaways": [],
+      "construction": {
+        "cells": 0,
+        "room": 0
+      },
+      "chunks": 9,
+      "actors": 5,
+      "humanoids": [
+        {
+          "id": "g2C2qyOvx",
+          "source": "essential-fbx",
+          "bones": 25,
+          "clip": "Idle",
+          "time": 1.2662663169861763,
+          "duration": 1.9666666984558105
+        }
+      ],
+      "objects": 41,
+      "roofs": 0,
+      "geometries": 183,
+      "drawCalls": 45,
+      "triangles": 235300,
+      "missingModels": [],
+      "assets": {
+        "loaded": ["hen", "sheepdog", "well", "beehive", "hay-bale"],
+        "failed": []
+      },
+      "contextLost": false
+    }
+  ],
+  "errors": []
+}

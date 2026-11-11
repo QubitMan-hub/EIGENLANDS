@@ -178,3 +178,37 @@ it is used as an architectural material/silhouette reference only.
   without runtime exceptions or missing models. Camera remains fixed orthographic; building/prop coordinates unchanged.
 - Evidence is under `docs/validation/voxel/essential-animation/`: source pose comparison, live-input results,
   desktop/mobile audit and Idle/Run/Attack/Hit/Death/creator captures. Hardware GPU performance remains unverified.
+
+## Follow-up: physical ground/block surfaces (2026-11-11)
+
+- New references inspected: VoxelDungeonSet has 50 OBJ/VOX model families, including 16×16×3 floor tiles,
+  16×3×32 walls, chipped raised variants and sparse grass clumps. No separate license file was included;
+  it is used as geometry/silhouette reference only. Mega Isometric Block Pack has 1,082 source sprites
+  (plus macOS resource copies); its Info.txt credits Joseph Dunkerley / Shallow Lagoon and permits use
+  in any project. Its turf caps, soil/stone cut faces and material patches inform original 3D terrain.
+  No supplied PNG is used as ground geometry or as a blocky-screen filter.
+- Replace single flat colored quads with world-coordinate voxel heightfields and greedy merged caps.
+  Step depressions remain below authoritative walking height. Exposed faces show turf/roots, soil and
+  bedrock; same-level water is recessed to expose actual shore banks. Stone rooms/caves/settlement paving,
+  timber planks, cultivated furrows, sand, snow, liquids and realm palettes retain material distinctions.
+- Arrival stepping stones retain their exact plan coordinates but use chipped block geometry. The old
+  raised floor overlay is removed; new timber tread tops meet the actual simulation floor height.
+- Coherent material patches cross logical tile and chunk boundaries. A one-cell sampling apron and
+  neighboring-chunk invalidation handle banks/cliffs after edits, including negative coordinates.
+- Surface detail: 8×8 cells per tile normally, 4×4 in performance mode. Greedy caps and exposed-side-only
+  meshing keep the reference grass chunk to 6,099 quads normally / 2,662 in performance mode. Hidden
+  grid bottom/internal faces are omitted. Separate coarse cliff cores provide shadows without fine turf
+  self-shadowing into dark cracks. Simulation, seeds, collisions and camera are unchanged.
+- Screenshot review found excessive fine creases and corrected their density/shadows. Water retains a
+  continuous surface, while banks remain real exposed geometry. Crops and occupied turf retain support at
+  their tile centers. Stone wear removes upper corner geometry and leaves lower surviving voxel steps.
+- Validation complete: 267 client tests pass, including eight new terrain tests for layers, banks,
+  positive/negative seam equivalence, collision-height limits, crop/prop support, edit invalidation and
+  geometry budgets. Workspace typecheck, lint and both online/solo production builds pass.
+- Browser checks pass in seven conditions: arrival, generated shoreline, generated cliff, town, inn
+  interior, Undercroft cave and performance mode. No terrain was edited to manufacture these locations.
+  All demanded visible chunks settle, camera remains orthographic, no missing models or page errors, and
+  performance mode reduces mesh cost. Latest captures and metrics: `docs/validation/voxel/terrain/`.
+- The town measured 109,440 visible terrain quads in 16 chunks; the cave 81,354 in nine chunks. Counts
+  include physical pavers and cliff strata. SwiftShader software rendering remains slow; this pass does
+  not certify frame rate on hardware GPUs or long-session memory behavior.
