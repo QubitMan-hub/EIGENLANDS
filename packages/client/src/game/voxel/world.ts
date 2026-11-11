@@ -5,6 +5,7 @@ import {
   HemisphereLight,
   DirectionalLight,
   Mesh,
+  SkinnedMesh,
   Group,
   MeshStandardMaterial,
   Vector3,
@@ -80,6 +81,8 @@ export interface VoxelActor {
   parts?: string;
   walking?: boolean;
   attack?: boolean;
+  attackProgress?: number;
+  hp?: number;
   guard?: boolean;
   dead?: boolean;
   mount?: number;
@@ -353,6 +356,10 @@ export class VoxelWorld {
   pickEnemy(x: number, y: number): string | null {
     this.raycaster.setFromCamera(new Vector2((x / this.size.w) * 2 - 1, 1 - (y / this.size.h) * 2), this.camera);
     const roots = [...this.actors.values()].filter((a) => a.root.userData.type === 'enemy').map((a) => a.root);
+    for (const root of roots)
+      root.traverse((o) => {
+        if (o instanceof SkinnedMesh) o.computeBoundingBox();
+      });
     for (const hit of this.raycaster.intersectObjects(roots, true)) {
       let root = hit.object;
       while (root.parent && !root.userData.actorId) root = root.parent;
@@ -381,13 +388,18 @@ export class VoxelWorld {
   actor(a: VoxelActor, now: number, reduced: boolean): void {
     if (!Number.isFinite(a.x + a.y)) return;
     this.seenActors.add(a.id);
+    const humanRole =
+      (a.type === 'enemy' || a.type === 'shadow') && ['pirate', 'guild_guard'].includes(ENEMY_KEY_BY_KIND[a.kind ?? 0])
+        ? ENEMY_KEY_BY_KIND[a.kind ?? 0]
+        : undefined;
     const creature =
       a.type === 'proj'
         ? 'projectile'
-        : a.species || (a.type === 'enemy' || a.type === 'shadow' ? ENEMY_KEY_BY_KIND[a.kind ?? 0] : undefined);
+        : a.species ||
+          ((a.type === 'enemy' || a.type === 'shadow') && !humanRole ? ENEMY_KEY_BY_KIND[a.kind ?? 0] : undefined);
     const sig = creature
       ? `creature:${creature}`
-      : `person:${a.app}:${a.look}:${a.weapon}:${a.shield}:${a.mount}:${a.cart}:${a.boat}:${a.action}:${a.parts}`;
+      : `person:${humanRole}:${a.app}:${a.look}:${a.weapon}:${a.shield}:${a.mount}:${a.cart}:${a.boat}:${a.action}:${a.parts}`;
     let v = this.actors.get(a.id);
     if (v && v.signature !== sig) {
       this.dropActor(v);
@@ -397,7 +409,16 @@ export class VoxelWorld {
     if (!v) {
       const rig = creature
         ? undefined
-        : personRig(a.app ?? 0, a.look ?? 0, a.weapon ?? '', a.shield ?? '', this.material, a.parts, a.id);
+        : personRig(
+            a.app ?? 0,
+            a.look ?? 0,
+            a.weapon || (humanRole ? 'sword' : ''),
+            a.shield ?? '',
+            this.material,
+            a.parts,
+            a.id,
+            humanRole,
+          );
       const root = new Group();
       if (rig) root.add(rig.root);
       root.userData.actorId = a.id;
@@ -428,7 +449,7 @@ export class VoxelWorld {
         prop.userData.actorOwned = true;
         prop.scale.setScalar(0.45);
         prop.position.set(0, -0.4, 0.08);
-        rig.arms[1].add(prop);
+        rig.gear.add(prop);
       }
     }
     const distance = Math.hypot(a.x - v.x, a.y - v.y);
@@ -439,14 +460,14 @@ export class VoxelWorld {
     const time = now / 1000,
       phase = v.phase;
     const height = voxelHeight((a.z ?? 0) + this.groundLift(a.x, a.y));
-    v.root.position.set(a.x, height + (walk && !reduced ? Math.abs(Math.sin(phase)) * 0.025 : 0), a.y);
+    v.root.position.set(a.x, height + (walk && !reduced && !v.rig ? Math.abs(Math.sin(phase)) * 0.025 : 0), a.y);
     const angle = Math.atan2(a.faceX, a.faceY);
     if (Math.abs(a.faceX) + Math.abs(a.faceY) > 0.01) {
       const delta = Math.atan2(Math.sin(angle - v.root.rotation.y), Math.cos(angle - v.root.rotation.y));
       v.root.rotation.y += delta * (reduced ? 1 : 0.4);
     }
     v.root.scale.setScalar(a.small ? 0.68 : 1);
-    v.root.rotation.z = a.dead ? Math.PI / 2 : 0;
+    v.root.rotation.z = a.dead && !v.rig ? Math.PI / 2 : 0;
     if (a.telegraph && !v.warning) {
       const boxes: VoxelBox[] = [],
         r = a.range ?? 1.7;
@@ -460,36 +481,15 @@ export class VoxelWorld {
     }
     if (v.warning) v.warning.visible = !!a.telegraph;
     if (v.rig) {
-      v.rig.arms.forEach((g, i) => {
-        g.rotation.x = reduced
-          ? 0
-          : a.attack
-            ? -1.4 + Math.sin(time * 19) * 0.8
-            : a.guard
-              ? -1.2
-              : walk
-                ? Math.sin(phase + (i ? Math.PI : 0)) * 0.55
-                : Math.sin(time * 2) * 0.025;
+      v.rig.update(now, {
+        walking: walk && !a.mount && !a.boat && !a.cart,
+        attack: a.attack,
+        guard: a.guard,
+        attackProgress: a.attackProgress,
+        dead: a.dead,
+        hp: a.hp,
+        reduced,
       });
-      v.rig.legs.forEach((g, i) => {
-        g.rotation.x = walk && !reduced ? Math.sin(phase + (i ? 0 : Math.PI)) * 0.65 : 0;
-      });
-      v.rig.forearms.forEach((g, i) => {
-        g.rotation.x = reduced
-          ? 0
-          : a.guard
-            ? -1.25
-            : a.attack
-              ? -0.65
-              : a.action && a.action !== 'none'
-                ? -0.9
-                : -0.13 + (walk ? Math.sin(phase + (i ? Math.PI : 0)) * 0.12 : 0);
-      });
-      v.rig.knees.forEach((g, i) => {
-        g.rotation.x = walk && !reduced ? Math.max(0, -Math.sin(phase + (i ? 0 : Math.PI))) * 0.75 : 0;
-      });
-      v.rig.head.rotation.y = reduced ? 0 : Math.sin(time * 0.65 + a.x) * 0.035;
-      v.rig.head.rotation.x = reduced ? 0 : a.action === 'craft' ? 0.15 : Math.sin(time * 1.6) * 0.015;
     } else if (creature) {
       const assetName = this.assets.animalName(creature);
       if (assetName && !v.asset) {
@@ -1035,6 +1035,9 @@ export class VoxelWorld {
       construction: { cells: this.buildGroups.size, room: this.roomSize },
       chunks: this.chunks.size,
       actors: this.actors.size,
+      humanoids: [...this.actors.values()]
+        .filter((a) => a.rig)
+        .map((a) => ({ id: a.root.userData.actorId, ...a.rig!.animator.diagnostics() })),
       objects: this.objects.size,
       roofs: this.roofs.size,
       geometries: this.renderer.info.memory.geometries,

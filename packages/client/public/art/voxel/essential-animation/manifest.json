@@ -1,0 +1,45 @@
+{
+  "archive": "Free Essential Animation CC0 _1_.zip",
+  "archiveSHA256": "cf534d30d1239bf904a006e2fb7a1a769a635115247f8dfe95d7642d82f7d191",
+  "bones": 25,
+  "sourceMeshes": 0,
+  "fps": 30,
+  "clips": {
+    "Idle": {
+      "sourceSHA256": "bcee0a8913e2f7245c37a02d252ffdbeaec77ef1553959fdf39ba6342a34f941",
+      "duration": 1.9666666666666666,
+      "frames": 60,
+      "sourceFrameStart": 2,
+      "sourceFrameEnd": 61
+    },
+    "Run": {
+      "sourceSHA256": "c08fea36d9dcf085d1f85df879236a5bcdbfe78aa148037c26f2e9199bd12c81",
+      "duration": 0.7,
+      "frames": 22,
+      "sourceFrameStart": 62,
+      "sourceFrameEnd": 83
+    },
+    "Attack": {
+      "sourceSHA256": "a62dc4b5adccf63dd85435391dbb1580562e5a26f4b78f4545d75de866340a63",
+      "duration": 0.7333333333333333,
+      "frames": 23,
+      "sourceFrameStart": 176,
+      "sourceFrameEnd": 198
+    },
+    "Hit": {
+      "sourceSHA256": "2dbb051305f5763d9ace8afbd11732b781007649f6721e9d090a210a013cabe5",
+      "duration": 0.7,
+      "frames": 22,
+      "sourceFrameStart": 84,
+      "sourceFrameEnd": 105
+    },
+    "Death": {
+      "sourceSHA256": "24a6e731a5c1327c1537a875e3585d33fa53bede44d02141553c25e99555eb23",
+      "duration": 2.3,
+      "frames": 70,
+      "sourceFrameStart": 106,
+      "sourceFrameEnd": 175
+    }
+  },
+  "glbSHA256": "c6469f552cf65248a1a6ef7df4c7f92f15f4c772c85cf3599a70339a7096282f"
+}

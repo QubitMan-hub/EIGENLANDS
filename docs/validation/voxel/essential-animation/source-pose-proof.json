@@ -1,0 +1,40 @@
+{
+  "toleranceMetres": 0.00002,
+  "clips": {
+    "Idle": {
+      "duration": 1.9666666984558105,
+      "joints": 25,
+      "frames": 60,
+      "samples": 1500,
+      "maximumJointErrorMetres": 0.000001967725916193752
+    },
+    "Run": {
+      "duration": 0.699999988079071,
+      "joints": 25,
+      "frames": 22,
+      "samples": 550,
+      "maximumJointErrorMetres": 0.0000021745698850096712
+    },
+    "Attack": {
+      "duration": 0.7333333492279053,
+      "joints": 25,
+      "frames": 23,
+      "samples": 575,
+      "maximumJointErrorMetres": 0.000004412404522253126
+    },
+    "Hit": {
+      "duration": 0.699999988079071,
+      "joints": 25,
+      "frames": 22,
+      "samples": 550,
+      "maximumJointErrorMetres": 0.000002636463198511222
+    },
+    "Death": {
+      "duration": 2.299999952316284,
+      "joints": 25,
+      "frames": 70,
+      "samples": 1750,
+      "maximumJointErrorMetres": 0.000002965093968953345
+    }
+  }
+}

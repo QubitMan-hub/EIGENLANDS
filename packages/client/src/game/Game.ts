@@ -1908,10 +1908,15 @@ export class Game {
             look: s?.look ?? v.outfit,
             app: s?.app,
             parts: s?.parts,
-            weapon: isMe ? this.weaponInfo().id : s?.held || s?.weapon,
+            weapon: isMe ? (this.weaponInfo().hand.art ?? '') : s?.held || s?.weapon,
             shield: s?.shield,
             walking,
-            attack: isMe ? this.predictor.sim.atkCd > 0 : !!((s?.flags ?? 0) & 2),
+            attack:
+              v.type === 'player'
+                ? this.combat.playerAttackFrame(v, now, reduced) >= 0
+                : this.combat.attackFrame(v, now, reduced) >= 0,
+            attackProgress: v.type === 'player' ? this.combat.playerAttackProgress(v, now) : undefined,
+            hp: s?.hp,
             guard: isMe ? this.predictor.sim.guard > 0 : !!((s?.flags ?? 0) & 256),
             dead: isMe ? this.dead : v.type === 'enemy' || v.type === 'shadow' ? s?.st === 6 : !!((s?.flags ?? 0) & 4),
             telegraph: (v.type === 'enemy' || v.type === 'shadow') && s?.st === 2,
@@ -2411,7 +2416,7 @@ export class Game {
       u = voxelPortraitUrl(
         state?.app ?? 0,
         self ? this.gameplay.profile.equip.outfit : (state?.look ?? cottagerLook(npcId) % COSMETIC_OUTFITS),
-        self ? this.weaponInfo().id : state?.weapon,
+        self ? (this.weaponInfo().hand.art ?? '') : state?.weapon,
         state?.shield,
         state?.parts,
         self ? undefined : npcId,

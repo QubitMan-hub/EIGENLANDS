@@ -106,13 +106,15 @@ EIGENLANDS' fantasy setting rather than importing the modern/cyberpunk subjects.
 | Free Sample.zip                   | 3 skinned animal FBXs, 7 static animal FBXs and textures; no license file found                         | Anatomy reference                                                                                          |
 | BlockImagine-Cozy-Farm.zip        | 30 GLBs, editable Blockbench sources, previews, embedded animations; CC0 1.0 license                    | 15 medieval-compatible GLBs copied to public/art/voxel/cozy-farm, with license and README; mailbox removed |
 | VoxelNature_Free_1.1.unitypackage | Unity prefabs, serialized meshes, seasonal materials, character animations, shaders                     | Seasonal foliage/rig reference; Unity assets are not browser runtime files                                 |
-| Free Essential Animation CC0.zip  | Attack, Death, Hit, Idle and Run FBXs; no separate license file in archive                              | Motion reference; current people use a continuous articulated rig                                          |
+| Free Essential Animation CC0.zip  | Attack, Death, Hit, Idle and Run FBXs; no separate license file in archive                              | Original reference; later re-upload supplies the actual 25-joint skeleton and all five runtime clips       |
 | FreeContent.zip                   | 12 T-pose character FBXs, one texture atlas; no license file found                                      | Character proportions/gear reference                                                                       |
 | Free Sample (1).zip               | 10 OBJ/MTL models and textures: crates, house, trolley, rock, grass, rack, logs; house has 39,392 faces | Construction and silhouette reference; do not duplicate high-cost geometry per tile                        |
 | Isometric Free Sample.zip         | 10 PNGs, including a dungeon example, wall, pillar, chest, torch and armour                             | Visual reference only; images are not 3D assets                                                            |
 
-Only the explicitly licensed Cozy Farm files are redistributed. Embedded pixel textures on these solid GLB
-models are surface materials; no billboard or sprite extrusion is used for their world presentation.
+The Cozy Farm files carry an included CC0 license. The later user-requested Essential Animation CC0
+re-upload is also converted and shipped, with source hashes and provenance noting that its archive has
+no separate license file. Embedded pixel textures on solid GLBs are surface materials; no billboard or
+sprite extrusion is used for world presentation.
 
 The second `FreeContent.zip` contains the same 12 T-pose FBX character filenames and atlas. The final
 `FreeSample (1).zip` contains nine SoulGothic OBJ/MTL models and textures, without an included license;
@@ -149,3 +151,30 @@ it is used as an architectural material/silhouette reference only.
 - Latest screenshots and measurements: `docs/validation/voxel/ui-validation.json`, `ui-title.png`,
   `ui-mobile.png`, `ui-mobile-inventory.png`, `ui-creator.png`; arrival/inventory/inn captures updated.
   Hardware GPU performance and an exhaustive manual inspection of every generated room remain unverified.
+
+## Follow-up: supplied essential body rig and animations (2026-11-11)
+
+- Archive inspected: `Free Essential Animation CC0 _1_.zip` contains animation-only Attack, Death, Hit,
+  Idle and Run FBXs. They share 25 humanoid joints; **there is no source character mesh**. Body widths,
+  clothing and voxel detailing therefore remain EIGENLANDS art, built around the exact supplied joint structure.
+- Added reproducible Blender conversion and source-FBX pose verification tools under `tools/voxel/`.
+  FBX frame offsets are removed without changing 30 Hz take timing. World-space baking correctly handles
+  the different joint basis in Hit. All 25 joints at every authored frame agree within 0.000005 metres.
+- Ship one shared GLB with five clips, source hashes and provenance. Characters use one solid voxel
+  skinned body per actor, the source bone hierarchy and original animation curves, with independent mixers.
+  The old hand-authored arm/knee pivots and sinusoidal human gait/attacks are removed. Equipment is socketed
+  to RightHand/LeftHand. Uniform unit/heading normalization and in-place root anchoring preserve simulation.
+- Gameplay movement drives Run; combat release drives Attack; real HP loss drives Hit; death plays once
+  and clamps; revival returns to Idle. Death no longer adds an unrelated 90-degree whole-body roll.
+  Mounted characters keep Idle while the vehicle moves. Human pirates/guards use the same rig with role gear.
+- Boot preloads the shared asset before creating title/creator, portraits or playable characters.
+  Preview characters and world actors use the same anatomy. Fists and non-weapons leave the weapon socket empty.
+- Verification complete: all 4,925 source-frame joint samples pass, maximum error 0.000004413 metres.
+  Six rig tests cover source hierarchy/timing, finite skinned geometry, one-shot transitions, guard/revive,
+  equipment sockets and independent poses. The full client suite passes 259 tests; workspace typecheck,
+  lint, online build and solo build pass (existing Vite large-bundle warning remains).
+- Browser proof passes real movement → Run and combat release → Attack, then renders all five takes on the
+  actual playable skinned character. Desktop/mobile creator, portraits, inventory, world and inn checks pass
+  without runtime exceptions or missing models. Camera remains fixed orthographic; building/prop coordinates unchanged.
+- Evidence is under `docs/validation/voxel/essential-animation/`: source pose comparison, live-input results,
+  desktop/mobile audit and Idle/Run/Attack/Hit/Death/creator captures. Hardware GPU performance remains unverified.

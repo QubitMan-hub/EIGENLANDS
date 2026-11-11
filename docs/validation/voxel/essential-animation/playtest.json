@@ -1,0 +1,68 @@
+{
+  "initial": {
+    "source": "essential-fbx",
+    "bones": 25,
+    "clip": "Idle",
+    "time": 0.47926660308847246,
+    "duration": 1.9666666984558105
+  },
+  "liveInputs": ["Run", "Attack"],
+  "poses": [
+    {
+      "source": "essential-fbx",
+      "bones": 25,
+      "clip": "Idle",
+      "time": 0.65,
+      "duration": 1.9666666984558105,
+      "skinned": true,
+      "vertices": 888,
+      "weaponParent": "RightHand",
+      "orthographic": true
+    },
+    {
+      "source": "essential-fbx",
+      "bones": 25,
+      "clip": "Run",
+      "time": 0.2,
+      "duration": 0.699999988079071,
+      "skinned": true,
+      "vertices": 888,
+      "weaponParent": "RightHand",
+      "orthographic": true
+    },
+    {
+      "source": "essential-fbx",
+      "bones": 25,
+      "clip": "Attack",
+      "time": 0.36,
+      "duration": 0.7333333492279053,
+      "skinned": true,
+      "vertices": 888,
+      "weaponParent": "RightHand",
+      "orthographic": true
+    },
+    {
+      "source": "essential-fbx",
+      "bones": 25,
+      "clip": "Hit",
+      "time": 0.3,
+      "duration": 0.699999988079071,
+      "skinned": true,
+      "vertices": 888,
+      "weaponParent": "RightHand",
+      "orthographic": true
+    },
+    {
+      "source": "essential-fbx",
+      "bones": 25,
+      "clip": "Death",
+      "time": 2.299,
+      "duration": 2.299999952316284,
+      "skinned": true,
+      "vertices": 888,
+      "weaponParent": "RightHand",
+      "orthographic": true
+    }
+  ],
+  "errors": []
+}

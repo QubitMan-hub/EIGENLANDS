@@ -1,4 +1,5 @@
 import './style.css';
+import { loadEssentialRig } from './game/voxel/essential-rig';
 import { installVoxelUI } from './ui/voxel-ui';
 import { MSG, packAppearance, type Appearance } from '@eigenlands/shared';
 import { IS_SOLO, HAS_SOLO, SERVER_URL, SERVER_ERROR, friendInvite, gameServerUrl } from './net/world-session';
@@ -37,6 +38,7 @@ async function boot(): Promise<void> {
   installVoxelUI();
   $('app').innerHTML = HTML;
   $<HTMLButtonElement>('btn-guest').disabled = true;
+  await loadEssentialRig();
   $('btn-landscape').addEventListener('click', () => {
     void requestLandscape(true);
   });
